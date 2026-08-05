@@ -5,6 +5,7 @@ import { db } from './firebase';
 import GraphLine from './GraphLine';
 import EquationGrader from './EquationGrader';
 import NumberLine from './NumberLine';
+import FractionGrader from './FractionGrader'; // IMPORTING OUR NEW CATEGORY!
 
 function App() {
   const [studentIdInput, setStudentIdInput] = useState('');
@@ -15,7 +16,8 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
   
-  const [tracker, setTracker] = useState({ 1: 'unattempted', 2: 'unattempted', 3: 'unattempted' });
+  // UPDATED TO 4 QUESTIONS
+  const [tracker, setTracker] = useState({ 1: 'unattempted', 2: 'unattempted', 3: 'unattempted', 4: 'unattempted' });
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -44,7 +46,7 @@ function App() {
         if (docSnap.exists()) {
           setTracker(docSnap.data());
         } else {
-          const freshTracker = { 1: 'unattempted', 2: 'unattempted', 3: 'unattempted' };
+          const freshTracker = { 1: 'unattempted', 2: 'unattempted', 3: 'unattempted', 4: 'unattempted' };
           await setDoc(studentDocRef, freshTracker);
           setTracker(freshTracker);
         }
@@ -63,7 +65,7 @@ function App() {
     setStudentId(null);
     setStudentIdInput('');
     setIsTeacher(false);
-    setTracker({ 1: 'unattempted', 2: 'unattempted', 3: 'unattempted' });
+    setTracker({ 1: 'unattempted', 2: 'unattempted', 3: 'unattempted', 4: 'unattempted' });
   };
 
   const handleGradeSubmit = async (isCorrect) => {
@@ -79,7 +81,8 @@ function App() {
     }
   };
 
-  const totalQuestions = 3;
+  // UPDATED TO 4 QUESTIONS
+  const totalQuestions = 4;
   const calculateGrade = (studentTracker) => {
     const correctCount = Object.values(studentTracker).filter(status => status === 'correct').length;
     return Math.round((correctCount / totalQuestions) * 100);
@@ -135,7 +138,7 @@ function App() {
   if (isTeacher) {
     return (
       <div style={{ fontFamily: '"Segoe UI", Roboto, Helvetica, Arial, sans-serif', backgroundColor: '#f8f9fa', minHeight: '100vh', padding: '40px 20px' }}>
-        <div style={{ maxWidth: '900px', margin: '0 auto', background: '#fff', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', padding: '30px' }}>
+        <div style={{ maxWidth: '1000px', margin: '0 auto', background: '#fff', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', padding: '30px' }}>
           <header style={{ borderBottom: '2px solid #f1f3f4', paddingBottom: '20px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <h1 style={{ margin: 0, color: '#202124', fontSize: '28px' }}>Instructor Dashboard</h1>
@@ -153,12 +156,13 @@ function App() {
                 <th style={{ padding: '15px' }}>Graphing</th>
                 <th style={{ padding: '15px' }}>Algebra</th>
                 <th style={{ padding: '15px' }}>Number Line</th>
+                <th style={{ padding: '15px' }}>Fractions</th>
                 <th style={{ padding: '15px', borderRadius: '0 8px 8px 0' }}>Mastery Score</th>
               </tr>
             </thead>
             <tbody>
               {allStudents.length === 0 ? (
-                <tr><td colSpan="5" style={{ padding: '30px', textAlign: 'center', color: '#5f6368' }}>No student records found yet.</td></tr>
+                <tr><td colSpan="6" style={{ padding: '30px', textAlign: 'center', color: '#5f6368' }}>No student records found yet.</td></tr>
               ) : (
                 allStudents.map((student) => {
                   const studentScore = calculateGrade(student.tracker);
@@ -173,6 +177,9 @@ function App() {
                       </td>
                       <td style={{ padding: '15px', color: student.tracker[3] === 'correct' ? '#188038' : (student.tracker[3] === 'incorrect' ? '#d93025' : '#80868b') }}>
                         {student.tracker[3] === 'unattempted' ? '—' : student.tracker[3]}
+                      </td>
+                      <td style={{ padding: '15px', color: student.tracker[4] === 'correct' ? '#188038' : (student.tracker[4] === 'incorrect' ? '#d93025' : '#80868b') }}>
+                        {student.tracker[4] === 'unattempted' ? '—' : student.tracker[4]}
                       </td>
                       <td style={{ padding: '15px', fontWeight: 'bold', color: studentScore >= 70 ? '#188038' : (studentScore === 0 ? '#80868b' : '#d93025') }}>
                         {studentScore}%
@@ -191,9 +198,8 @@ function App() {
   // --- SCREEN 3: STUDENT APP VIEW ---
   return (
     <div style={{ fontFamily: '"Segoe UI", Roboto, Helvetica, Arial, sans-serif', backgroundColor: '#f0f2f5', minHeight: '100vh', padding: '20px' }}>
-      <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+      <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
         
-        {/* Sleek Top Navigation Bar */}
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '15px 25px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', marginBottom: '25px' }}>
           <div>
             <h1 style={{ margin: 0, color: '#1a73e8', fontSize: '22px' }}>MathMaster</h1>
@@ -212,17 +218,17 @@ function App() {
           </div>
         </header>
 
-        {/* Progress Bar */}
         <div style={{ background: '#e8eaed', borderRadius: '10px', height: '12px', marginBottom: '25px', overflow: 'hidden' }}>
           <div style={{ height: '100%', width: `${grade}%`, background: grade >= 70 ? '#34a853' : '#1a73e8', transition: 'width 0.5s ease-in-out' }}></div>
         </div>
 
-        {/* Question Selector Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', marginBottom: '30px' }}>
+        {/* UPDATED TO 4 COLUMNS */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '15px', marginBottom: '30px' }}>
           {[
             { num: 1, title: 'Graphing Lines' },
             { num: 2, title: 'Algebra' },
-            { num: 3, title: 'Number Lines' }
+            { num: 3, title: 'Number Lines' },
+            { num: 4, title: 'Fractions' }
           ].map((q) => (
             <div
               key={q.num}
@@ -247,7 +253,6 @@ function App() {
           ))}
         </div>
 
-        {/* Active Question Container */}
         <main style={{ background: '#fff', borderRadius: '12px', padding: '30px', minHeight: '500px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
           <div style={{ display: currentQuestion === 1 ? 'block' : 'none' }}>
             <GraphLine onGrade={handleGradeSubmit} />
@@ -257,6 +262,10 @@ function App() {
           </div>
           <div style={{ display: currentQuestion === 3 ? 'block' : 'none' }}>
             <NumberLine onGrade={handleGradeSubmit} />
+          </div>
+          {/* NEW FRACTIONS COMPONENT */}
+          <div style={{ display: currentQuestion === 4 ? 'block' : 'none' }}>
+            <FractionGrader onGrade={handleGradeSubmit} />
           </div>
         </main>
 
