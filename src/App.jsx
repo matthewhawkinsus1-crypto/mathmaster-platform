@@ -14,6 +14,8 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { getAssignmentByLaunchId } from './classroomApi';
+import ClassroomSync from './ClassroomSync';
 import QuestionEngine from './QuestionEngine';
 import {
   emptyQuestionRecord,
@@ -102,6 +104,29 @@ const formatTimeStamp = (value) => {
 function App() {
   const [studentIdInput, setStudentIdInput] = useState('');
   const [user, setUser] = useState(null);
+
+  // Google Classroom launch link: ?launch=<assignmentId> drops a student
+  // straight into that assignment once they log in.
+  const [launchAssignment, setLaunchAssignment] = useState(null);
+  const [pendingLaunchAssignmentId, setPendingLaunchAssignmentId] = useState(null);
+
+  useEffect(() => {
+    const assignmentId = new URLSearchParams(window.location.search).get('launch');
+    if (!assignmentId) return;
+    setPendingLaunchAssignmentId(assignmentId);
+    getAssignmentByLaunchId({ assignmentId })
+      .then((assignment) => setLaunchAssignment(assignment))
+      .catch((err) => console.error('Failed to resolve Classroom launch link:', err));
+  }, []);
+
+  useEffect(() => {
+    if (!pendingLaunchAssignmentId) return;
+    if (user?.role !== 'student') return;
+    if (!assignments.some((assignment) => assignment.id === pendingLaunchAssignmentId)) return;
+    startAssignment(pendingLaunchAssignmentId);
+    setPendingLaunchAssignmentId(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingLaunchAssignmentId, user, assignments]);
 
   const [activeView, setActiveView] = useState('dashboard');
   const [teacherTab, setTeacherTab] = useState('assignments');
@@ -1902,6 +1927,14 @@ function App() {
           <p style={{ color: '#5f6368', fontSize: '14px', marginBottom: '25px' }}>
             Student ID or &apos;TEACHER&apos; to login
           </p>
+
+          {launchAssignment && (
+            <div style={{ marginBottom: '20px', padding: '12px', background: '#e8f0fe', color: '#1a73e8', fontSize: '13px', borderRadius: '8px', textAlign: 'left' }}>
+              Assigned from Google Classroom: <strong>{launchAssignment.title}</strong>
+              {launchAssignment.dueAt && <> (due {new Date(launchAssignment.dueAt).toLocaleDateString()})</>}
+            </div>
+          )}
+
           <form onSubmit={handleLogin}>
             <input
               type="text"
@@ -1989,9 +2022,9 @@ function App() {
           </header>
 
           <div style={{ display: 'flex', borderBottom: '1px solid #e8eaed', background: '#f8f9fa', overflowX: 'auto' }}>
-            {['assignments', 'students', 'classes', 'grades'].map((tab) => (
+            {['assignments', 'students', 'classes', 'grades', 'classroom'].map((tab) => (
               <button key={tab} onClick={() => { setTeacherTab(tab); setGradebookFilter({ classPeriod: '', assignmentId: null, student: null }); }} style={{ flex: '1 0 180px', padding: '15px', border: 'none', background: teacherTab === tab ? '#fff' : 'transparent', borderBottom: teacherTab === tab ? '3px solid #1a73e8' : '3px solid transparent', cursor: 'pointer', fontWeight: 'bold', color: teacherTab === tab ? '#1a73e8' : '#5f6368', textTransform: 'capitalize', fontSize: '16px' }}>
-                {tab === 'classes' ? 'Class Schedule' : `Manage ${tab}`}
+                {tab === 'classes' ? 'Class Schedule' : tab === 'classroom' ? 'Google Classroom' : `Manage ${tab}`}
               </button>
             ))}
           </div>
@@ -2146,6 +2179,8 @@ function App() {
                 {gradebookFilter.student && selectedAssignment && (() => { const student = gradebookFilter.student; const studentGrades = student.gradesByAssignment?.[selectedAssignment.id] || {}; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? '#efe4ff' : '#e8f0fe', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{student.id} · {selectedAssignment.title}</h3><div style={{ marginTop: '5px' }}>Score: <strong>{calculateGrade(studentGrades, selectedAssignment)}%</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>Total engagement {formatTime(activity.totalTimeSeconds || 0)} · Late engagement {formatTime(activity.lateSeconds || 0)}</div></div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: '#fff', color: '#6f2da8', fontWeight: 900 }}>Generate IEP Report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px' }}>{selectedAssignment.questions.map((question, index) => { const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? '#e6f4ea' : record.status === 'expired' && credit < 50 ? '#fce8e6' : credit >= 50 ? '#fff4ce' : '#f1f3f4', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? '#137333' : '#b3261e' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid #aeb8c6', borderRadius: '6px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>View Student Work</button></article>; })}</div></div>; })()}
               </div>
             )}
+
+            {teacherTab === 'classroom' && <ClassroomSync assignments={assignments} />}
           </div>
         </div>
       </div>

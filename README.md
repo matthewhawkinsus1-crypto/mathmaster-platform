@@ -28,3 +28,7 @@ graph analysis, partial-credit fields, systems, global Undo, and the scratchpad.
 
 See `SCRATCHPAD_MULTIPART_UNDO_ARCHITECTURE.md` for the complete design and
 `VALIDATION_REPORT_SCRATCHPAD_MULTIPART_UNDO.txt` for test results.
+
+## Google Classroom sync
+
+See [`docs/google-classroom-multi-course-setup.md`](docs/google-classroom-multi-course-setup.md) for the complete connection and testing guide. The integration can publish one MathMaster assignment to several Classroom courses, stores a separate publication and roster mapping per course, prevents duplicate re-publishing, and routes grade passback independently to each destination.
