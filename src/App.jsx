@@ -119,15 +119,6 @@ function App() {
       .catch((err) => console.error('Failed to resolve Classroom launch link:', err));
   }, []);
 
-  useEffect(() => {
-    if (!pendingLaunchAssignmentId) return;
-    if (user?.role !== 'student') return;
-    if (!assignments.some((assignment) => assignment.id === pendingLaunchAssignmentId)) return;
-    startAssignment(pendingLaunchAssignmentId);
-    setPendingLaunchAssignmentId(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingLaunchAssignmentId, user, assignments]);
-
   const [activeView, setActiveView] = useState('dashboard');
   const [teacherTab, setTeacherTab] = useState('assignments');
   const [assignments, setAssignments] = useState([]);
@@ -151,6 +142,15 @@ function App() {
   const [supportUsageByAssignment, setSupportUsageByAssignment] = useState({});
   const [editingAssignmentId, setEditingAssignmentId] = useState(null);
   const [editingAssignmentDates, setEditingAssignmentDates] = useState({ dueAt: '', lateDueAt: '', assignedClassPeriods: [] });
+
+  useEffect(() => {
+    if (!pendingLaunchAssignmentId) return;
+    if (user?.role !== 'student') return;
+    if (!assignments.some((assignment) => assignment.id === pendingLaunchAssignmentId)) return;
+    startAssignment(pendingLaunchAssignmentId);
+    setPendingLaunchAssignmentId(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingLaunchAssignmentId, user, assignments]);
 
   const [newAssignmentTitle, setNewAssignmentTitle] = useState('');
   const [newAssignmentDate, setNewAssignmentDate] = useState('');
