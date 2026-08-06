@@ -33,6 +33,7 @@ import {
   parseAssignmentBlueprintText,
   validateAssignmentQuestions,
 } from './assignmentBlueprint';
+import { isPersonalizedBlueprint } from './problemGenerator';
 import {
   buildPracticeTrackerKey,
   buildQuestionDraftKey,
@@ -174,6 +175,7 @@ function App() {
   const [newAssignmentClasses, setNewAssignmentClasses] = useState([...CLASS_PERIODS]);
   const [newAssignmentType, setNewAssignmentType] = useState('practice');
   const [newAssignmentVariantMode, setNewAssignmentVariantMode] = useState('personalized');
+  const [fixedBlueprintConfirmation, setFixedBlueprintConfirmation] = useState(null);
   const [newAssignmentReleaseAt, setNewAssignmentReleaseAt] = useState('');
   const [newAssignmentPrerequisite, setNewAssignmentPrerequisite] = useState('');
   const [newAssignmentDolEnabled, setNewAssignmentDolEnabled] = useState(true);
@@ -1074,8 +1076,8 @@ function App() {
     }
   };
 
-  const handleCreateAssignment = async (event) => {
-    event.preventDefault();
+  const handleCreateAssignment = async (event, overrideVariantMode) => {
+    if (event?.preventDefault) event.preventDefault();
     if (!newAssignmentTitle || !newAssignmentDate || !newAssignmentLateDate) {
       window.alert('Enter both the regular due date and the final late due date.');
       return;
@@ -1087,10 +1089,19 @@ function App() {
       return;
     }
 
+    const variantMode = overrideVariantMode || newAssignmentVariantMode;
+
     try {
       const { questions, normalizedText, repairs } =
         parseAssignmentBlueprintText(newAssignmentJSON);
-      const parsedQuestions = normalizeAssignmentQuestions(validateAssignmentQuestions(questions, { variantMode: newAssignmentVariantMode }));
+
+      if (variantMode === 'personalized' && questions.some((question) => !isPersonalizedBlueprint(question))) {
+        setNewAssignmentJSON(normalizedText);
+        setFixedBlueprintConfirmation({ repairs });
+        return;
+      }
+
+      const parsedQuestions = normalizeAssignmentQuestions(validateAssignmentQuestions(questions, { variantMode }));
       setNewAssignmentJSON(normalizedText);
       const dolQuestionNumber = Number(newAssignmentDolQuestion);
       const dolQuestionIndex = Number.isInteger(dolQuestionNumber) && dolQuestionNumber > 0
@@ -1104,7 +1115,7 @@ function App() {
         dueDate: dueAt.toISOString(),
         assignedClassPeriods: newAssignmentClasses,
         assignmentType: newAssignmentType,
-        variantMode: newAssignmentVariantMode,
+        variantMode,
         releaseAt: newAssignmentReleaseAt ? new Date(newAssignmentReleaseAt).toISOString() : null,
         prerequisiteAssignmentId: newAssignmentPrerequisite || null,
         completionRule: newAssignmentType === 'notesClasswork'
@@ -1119,6 +1130,7 @@ function App() {
         createdAt: new Date(),
       });
 
+      if (variantMode !== newAssignmentVariantMode) setNewAssignmentVariantMode(variantMode);
       setNewAssignmentTitle('');
       setNewAssignmentDate('');
       setNewAssignmentLateDate('');
@@ -1133,6 +1145,16 @@ function App() {
     } catch (error) {
       window.alert(`Invalid JSON blueprint. Error: ${error.message}`);
     }
+  };
+
+  const confirmSwitchToSharedAndPublish = () => {
+    setFixedBlueprintConfirmation(null);
+    setNewAssignmentVariantMode('shared');
+    handleCreateAssignment(null, 'shared');
+  };
+
+  const cancelFixedBlueprintConfirmation = () => {
+    setFixedBlueprintConfirmation(null);
   };
 
   const openQuestionEditor = (assignment) => {
@@ -1677,6 +1699,129 @@ function App() {
     );
   };
 
+  const renderFixedBlueprintConfirmation = () => {
+    if (!fixedBlueprintConfirmation) return null;
+    return (
+      <div
+        role="presentation"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) cancelFixedBlueprintConfirmation();
+        }}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 10000,
+          background: 'rgba(32,33,36,0.72)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px',
+        }}
+      >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="fixed-blueprint-title"
+          style={{
+            width: '100%',
+            maxWidth: '560px',
+            background: '#fff',
+            borderRadius: '16px',
+            boxShadow: '0 24px 70px rgba(0,0,0,0.3)',
+            overflow: 'hidden',
+            textAlign: 'left',
+          }}
+        >
+          <div style={{ padding: '24px 28px', borderBottom: '1px solid #e8eaed' }}>
+            <div
+              style={{
+                color: '#b06000',
+                fontWeight: 'bold',
+                fontSize: '13px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                marginBottom: '8px',
+              }}
+            >
+              This blueprint has fixed questions
+            </div>
+            <h2 id="fixed-blueprint-title" style={{ margin: 0, color: '#202124' }}>
+              Switch to Shared exact version?
+            </h2>
+          </div>
+
+          <div style={{ padding: '28px' }}>
+            <div
+              style={{
+                background: '#fef7e0',
+                color: '#7a4f01',
+                border: '1px solid #fce8a2',
+                borderRadius: '10px',
+                padding: '16px',
+                marginBottom: '16px',
+                lineHeight: 1.5,
+              }}
+            >
+              One or more questions in this blueprint are fixed (no generator and
+              fewer than two variants), but Problem versions is set to{' '}
+              <strong>Different stable version per student</strong>. Personalized mode
+              needs every question to be able to generate a different version for
+              each student, so this assignment can&apos;t publish as written.
+            </div>
+            <p style={{ color: '#3c4043', lineHeight: 1.55, margin: 0 }}>
+              Switching to <strong>Shared exact version</strong> lets fixed questions
+              publish as-is, and every student sees the same version. Questions that
+              already have a generator or two or more variants will keep generating
+              different versions per student either way.
+            </p>
+          </div>
+
+          <div
+            style={{
+              padding: '18px 28px',
+              borderTop: '1px solid #e8eaed',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '12px',
+              background: '#f8f9fa',
+            }}
+          >
+            <button
+              type="button"
+              onClick={cancelFixedBlueprintConfirmation}
+              style={{
+                padding: '10px 18px',
+                background: '#fff',
+                color: '#3c4043',
+                border: '1px solid #dadce0',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+              }}
+            >
+              Return to Assignment
+            </button>
+            <button
+              type="button"
+              onClick={confirmSwitchToSharedAndPublish}
+              style={{
+                padding: '10px 18px',
+                background: '#1a73e8',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+              }}
+            >
+              Switch and Publish
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderTeacherScratchpadDialog = () => {
     if (!teacherScratchpadDialog) return null;
     return (
@@ -2086,6 +2231,7 @@ function App() {
     return (
       <div style={{ fontFamily: '"Segoe UI", sans-serif', backgroundColor: '#f8f9fa', minHeight: '100vh', padding: '20px' }}>
         {renderDeleteAssignmentDialog()}
+        {renderFixedBlueprintConfirmation()}
         {renderTeacherScratchpadDialog()}
         {questionEditorAssignment && (
           <AssignmentQuestionEditor
