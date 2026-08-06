@@ -1,0 +1,246 @@
+[
+  {
+    "type": "stepAlgebra",
+    "prompt": "Practice: Solve the generated equation for x.",
+    "mode": "rigorous",
+    "objective": {
+      "kind": "isolate",
+      "variable": "x",
+      "simplifyRequired": true,
+      "label": "Isolate x and simplify"
+    },
+    "generator": {
+      "kind": "stepLinearEquation",
+      "solutionRange": [
+        -10,
+        10
+      ],
+      "coefficientRange": [
+        2,
+        9
+      ],
+      "constantRange": [
+        -15,
+        15
+      ]
+    }
+  },
+  {
+    "type": "system",
+    "prompt": "Practice: Solve the system and enter the intersection as an ordered pair.",
+    "showEquations": true,
+    "showGraph": true,
+    "generator": {
+      "kind": "linearSystem",
+      "xRange": [
+        -7,
+        7
+      ],
+      "yRange": [
+        -7,
+        7
+      ],
+      "slopeChoices": [
+        -4,
+        -3,
+        -2,
+        -1,
+        1,
+        2,
+        3,
+        4
+      ]
+    }
+  },
+  {
+    "type": "functionInvestigation",
+    "prompt": "Practice: Choose x-values, construct the square-root graph, place both end behaviors, and analyze the function.",
+    "showEquation": true,
+    "showCoordinates": true,
+    "studentChoosesX": true,
+    "includeUndefinedChecks": true,
+    "undefinedCount": 2,
+    "requireEndpointMarkers": true,
+    "analysisRequests": [
+      {
+        "id": "xIntercept",
+        "kind": "point",
+        "feature": "xIntercepts",
+        "responseMode": "both",
+        "allowNone": true,
+        "label": "X-intercept or Does not exist"
+      },
+      {
+        "id": "yIntercept",
+        "kind": "point",
+        "feature": "yIntercept",
+        "responseMode": "both",
+        "allowNone": true,
+        "label": "Y-intercept or Does not exist"
+      },
+      {
+        "id": "domain",
+        "kind": "domain",
+        "notation": "inequality",
+        "label": "Domain"
+      },
+      {
+        "id": "range",
+        "kind": "range",
+        "notation": "interval",
+        "label": "Range"
+      },
+      {
+        "id": "constant",
+        "kind": "constant",
+        "notation": "interval",
+        "label": "Constant interval or Does not exist"
+      }
+    ],
+    "generator": {
+      "kind": "parentFunctionGraph",
+      "functionTypes": [
+        "squareRoot"
+      ],
+      "coefficientChoices": [
+        1,
+        2
+      ],
+      "hRange": [
+        -3,
+        1
+      ],
+      "kRange": [
+        -2,
+        3
+      ],
+      "domainChoices": [
+        {
+          "minOffset": 0,
+          "maxOffset": 16,
+          "minInclusive": true,
+          "maxInclusive": false
+        },
+        {
+          "minOffset": 0,
+          "maxOffset": 9,
+          "minInclusive": false,
+          "maxInclusive": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "table",
+    "prompt": "Practice: Complete every missing output in the quadratic table.",
+    "showRule": true,
+    "generator": {
+      "kind": "functionTable",
+      "ruleType": "quadratic",
+      "rowCount": 6,
+      "blankCount": 4,
+      "coefficientRange": [
+        -3,
+        3
+      ],
+      "interceptRange": [
+        -8,
+        8
+      ]
+    }
+  },
+  {
+    "type": "multiAnswer",
+    "prompt": "Practice: Identify every requested feature of the line.",
+    "generator": {
+      "kind": "lineFeatures",
+      "slopeRange": [
+        -6,
+        6
+      ],
+      "interceptRange": [
+        -10,
+        10
+      ]
+    }
+  },
+  {
+    "type": "functionInvestigation",
+    "isDOL": true,
+    "role": "dol",
+    "difficulty": "mid",
+    "prompt": "DOL: Construct and analyze the absolute-value function. This question records the daily DOL grade during the final class window.",
+    "showEquation": true,
+    "showCoordinates": false,
+    "studentChoosesX": true,
+    "requireEndpointMarkers": true,
+    "analysisRequests": [
+      {
+        "id": "vertex",
+        "kind": "point",
+        "feature": "vertex",
+        "responseMode": "both",
+        "allowNone": false,
+        "label": "Vertex"
+      },
+      {
+        "id": "xIntercepts",
+        "kind": "point",
+        "feature": "xIntercepts",
+        "responseMode": "both",
+        "allowNone": true,
+        "label": "X-intercept(s) or Does not exist"
+      },
+      {
+        "id": "domain",
+        "kind": "domain",
+        "notation": "interval",
+        "label": "Domain"
+      },
+      {
+        "id": "range",
+        "kind": "range",
+        "notation": "inequality",
+        "label": "Range"
+      },
+      {
+        "id": "increasing",
+        "kind": "increasing",
+        "notation": "interval",
+        "label": "Increasing interval"
+      },
+      {
+        "id": "decreasing",
+        "kind": "decreasing",
+        "notation": "interval",
+        "label": "Decreasing interval"
+      },
+      {
+        "id": "constant",
+        "kind": "constant",
+        "notation": "interval",
+        "label": "Constant interval or Does not exist"
+      }
+    ],
+    "generator": {
+      "kind": "parentFunctionGraph",
+      "functionTypes": [
+        "absolute"
+      ],
+      "coefficientChoices": [
+        -2,
+        -1,
+        1,
+        2
+      ],
+      "hRange": [
+        -4,
+        4
+      ],
+      "kRange": [
+        -4,
+        4
+      ]
+    }
+  }
+]

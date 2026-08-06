@@ -1,0 +1,327 @@
+[
+  {
+    "type": "functionInvestigation",
+    "prompt": "Skip-Count Quadratic Investigation: Choose four useful outer x-values, plot five points, connect the graph, place both end-behavior symbols, and complete the analysis. Refresh after placing two points to confirm restoration. Coordinates are set to hidden, but the skip-count grid must turn them on automatically.",
+    "showEquation": true,
+    "showCoordinates": false,
+    "studentChoosesX": true,
+    "includeUndefinedChecks": false,
+    "requireEndpointMarkers": true,
+    "graph": {
+      "xMin": -8,
+      "xMax": 8,
+      "yMin": -4,
+      "yMax": 12,
+      "xStep": 2,
+      "yStep": 2,
+      "snapStep": 1
+    },
+    "analysisRequests": [
+      {
+        "id": "vertex",
+        "kind": "point",
+        "feature": "vertex",
+        "responseMode": "both",
+        "allowNone": false,
+        "label": "Click and enter the vertex"
+      },
+      {
+        "id": "xIntercepts",
+        "kind": "point",
+        "feature": "xIntercepts",
+        "responseMode": "both",
+        "allowNone": true,
+        "label": "Click and enter all x-intercepts, or choose Does not exist"
+      },
+      {
+        "id": "domain",
+        "kind": "domain",
+        "notation": "interval",
+        "label": "Domain in interval notation"
+      },
+      {
+        "id": "range",
+        "kind": "range",
+        "notation": "inequality",
+        "label": "Range in inequality notation"
+      },
+      {
+        "id": "increasing",
+        "kind": "increasing",
+        "notation": "interval",
+        "label": "Increasing interval(s)"
+      },
+      {
+        "id": "decreasing",
+        "kind": "decreasing",
+        "notation": "interval",
+        "label": "Decreasing interval(s)"
+      },
+      {
+        "id": "constant",
+        "kind": "constant",
+        "notation": "interval",
+        "label": "Constant interval(s), or choose Does not exist"
+      }
+    ],
+    "generator": {
+      "kind": "parentFunctionGraph",
+      "functionTypes": [
+        "quadratic"
+      ],
+      "coefficientChoices": [
+        1,
+        2
+      ],
+      "hRange": [
+        -2,
+        2
+      ],
+      "kRange": [
+        -2,
+        1
+      ],
+      "domainChoices": [
+        {
+          "min": -6,
+          "max": 6,
+          "minInclusive": true,
+          "maxInclusive": false
+        },
+        {
+          "min": -6,
+          "max": 6,
+          "minInclusive": false,
+          "maxInclusive": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "functionInvestigation",
+    "prompt": "Restricted Square-Root Investigation: Classify non-real values as Undefined, choose four valid x-values, construct the graph, and place the behavior at both ends. Submit once with one incorrect end symbol to confirm partial credit, removal after grading, and restoration of the yellow placement guide.",
+    "showEquation": true,
+    "showCoordinates": true,
+    "studentChoosesX": true,
+    "includeUndefinedChecks": true,
+    "undefinedCount": 2,
+    "requireEndpointMarkers": true,
+    "analysisRequests": [
+      {
+        "id": "xIntercepts",
+        "kind": "point",
+        "feature": "xIntercepts",
+        "responseMode": "both",
+        "allowNone": true,
+        "label": "X-intercept(s), or Does not exist"
+      },
+      {
+        "id": "yIntercept",
+        "kind": "point",
+        "feature": "yIntercept",
+        "responseMode": "both",
+        "allowNone": true,
+        "label": "Y-intercept, or Does not exist"
+      },
+      {
+        "id": "domain",
+        "kind": "domain",
+        "notation": "inequality",
+        "label": "Domain in inequality notation"
+      },
+      {
+        "id": "range",
+        "kind": "range",
+        "notation": "interval",
+        "label": "Range in interval notation"
+      },
+      {
+        "id": "constant",
+        "kind": "constant",
+        "notation": "interval",
+        "label": "Constant interval(s), or choose Does not exist"
+      }
+    ],
+    "generator": {
+      "kind": "parentFunctionGraph",
+      "functionTypes": [
+        "squareRoot"
+      ],
+      "coefficientChoices": [
+        1,
+        2
+      ],
+      "hRange": [
+        -3,
+        1
+      ],
+      "kRange": [
+        -2,
+        2
+      ],
+      "domainChoices": [
+        {
+          "minOffset": 0,
+          "maxOffset": 16,
+          "minInclusive": true,
+          "maxInclusive": false
+        },
+        {
+          "minOffset": 0,
+          "maxOffset": 9,
+          "minInclusive": false,
+          "maxInclusive": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "table",
+    "prompt": "Persistent Function Table: Complete every missing output. Enter two values, move to another question, then return to confirm the entries remain in place.",
+    "showRule": true,
+    "generator": {
+      "kind": "functionTable",
+      "ruleType": "quadratic",
+      "rowCount": 6,
+      "blankCount": 4,
+      "aRange": [
+        1,
+        3
+      ],
+      "bRange": [
+        -4,
+        4
+      ],
+      "cRange": [
+        -8,
+        8
+      ],
+      "xStepChoices": [
+        1,
+        2
+      ]
+    }
+  },
+  {
+    "type": "multiAnswer",
+    "prompt": "Persistent Multipart Response: Enter all requested values. Refresh before submitting to confirm every field is restored. Incorrect fields should be identified individually for partial credit.",
+    "variants": [
+      {
+        "mathDisplay": {
+          "value": "y=2x-5",
+          "format": "ascii-math"
+        },
+        "answerFields": [
+          {
+            "id": "slope",
+            "label": "Slope",
+            "acceptedAnswers": [
+              "2"
+            ]
+          },
+          {
+            "id": "intercept",
+            "label": "Y-intercept",
+            "acceptedAnswers": [
+              "-5"
+            ]
+          },
+          {
+            "id": "domain",
+            "label": "Domain",
+            "toolProfile": "interval",
+            "acceptedAnswers": [
+              "(-\\infty,\\infty)",
+              "(-inf,inf)"
+            ]
+          }
+        ]
+      },
+      {
+        "mathDisplay": {
+          "value": "y=-3x+4",
+          "format": "ascii-math"
+        },
+        "answerFields": [
+          {
+            "id": "slope",
+            "label": "Slope",
+            "acceptedAnswers": [
+              "-3"
+            ]
+          },
+          {
+            "id": "intercept",
+            "label": "Y-intercept",
+            "acceptedAnswers": [
+              "4"
+            ]
+          },
+          {
+            "id": "domain",
+            "label": "Domain",
+            "toolProfile": "inequality",
+            "acceptedAnswers": [
+              "-\\infty<x<\\infty",
+              "-inf<x<inf"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "system",
+    "prompt": "System Lockout Review: Solve the system and enter the intersection as an ordered pair. For testing, make three unsuccessful submissions on one version to confirm that it locks and displays the ordered pair, separate x and y values, and a graph with the intersection marked.",
+    "showEquations": true,
+    "showGraph": true,
+    "generator": {
+      "kind": "linearSystem",
+      "xRange": [
+        -6,
+        6
+      ],
+      "yRange": [
+        -6,
+        6
+      ],
+      "slopeChoices": [
+        -4,
+        -3,
+        -2,
+        -1,
+        1,
+        2,
+        3,
+        4
+      ]
+    }
+  },
+  {
+    "type": "stepAlgebra",
+    "prompt": "Persistent Interactive Solving: Solve for x using balanced operations. Complete a cancellation and simplification, leave the question, and return to verify that the current equation and pending work are restored. After three unsuccessful attempts, review the displayed solution before requesting a replacement.",
+    "mode": "rigorous",
+    "expectedStepPoints": 8,
+    "objective": {
+      "kind": "isolate",
+      "variable": "x",
+      "simplifyRequired": true,
+      "label": "Isolate x and simplify"
+    },
+    "generator": {
+      "kind": "stepLinearEquation",
+      "solutionRange": [
+        -9,
+        9
+      ],
+      "coefficientRange": [
+        2,
+        9
+      ],
+      "constantRange": [
+        -15,
+        15
+      ]
+    }
+  }
+]

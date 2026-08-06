@@ -1,0 +1,433 @@
+import { isPersonalizedBlueprint } from './problemGenerator.js';
+
+export const DEFAULT_ASSIGNMENT_BLUEPRINT = `[
+  {
+    "type": "stepAlgebra",
+    "prompt": "Solve the equation by keeping both sides balanced.",
+    "mode": "rigorous",
+    "objective": { "kind": "isolate", "variable": "x", "simplifyRequired": true },
+    "generator": {
+      "kind": "stepLinearEquation",
+      "solutionRange": [-9, 9],
+      "coefficientRange": [2, 9],
+      "constantRange": [-12, 12]
+    }
+  },
+  {
+    "type": "literal",
+    "prompt": "Solve the literal equation for the indicated variable.",
+    "generator": {
+      "kind": "literalLinear",
+      "coefficientRange": [2, 12],
+      "constantRange": [-15, 15]
+    }
+  },
+  {
+    "type": "system",
+    "prompt": "Solve the system. Enter the solution as an ordered pair.",
+    "showEquations": true,
+    "showGraph": true,
+    "generator": {
+      "kind": "linearSystem",
+      "xRange": [-10, 10],
+      "yRange": [-10, 10]
+    }
+  },
+  {
+    "type": "table",
+    "prompt": "Complete the missing values in the function table.",
+    "showRule": true,
+    "generator": {
+      "kind": "functionTable",
+      "ruleType": "linear",
+      "rowCount": 5,
+      "blankCount": 3,
+      "slopeRange": [-6, 6],
+      "interceptRange": [-12, 12]
+    }
+  },
+  {
+    "type": "orderedPair",
+    "prompt": "Write the coordinates of the plotted point as an ordered pair.",
+    "generator": {
+      "kind": "orderedPair",
+      "xRange": [-99, 99],
+      "yRange": [-99, 99],
+      "windowRadius": 6
+    }
+  },
+  {
+    "type": "multiAnswer",
+    "prompt": "For the line shown, enter both requested values.",
+    "generator": {
+      "kind": "lineFeatures",
+      "slopeRange": [-99, 99],
+      "interceptRange": [-99, 99]
+    }
+  },
+  {
+    "type": "functionInvestigation",
+    "prompt": "Choose x-values, construct the graph, show end behavior, and complete the requested analysis.",
+    "showEquation": true,
+    "showCoordinates": true,
+    "studentChoosesX": true,
+    "includeUndefinedChecks": true,
+    "requireEndpointMarkers": true,
+    "analysisRequests": [
+      { "id": "roots", "kind": "point", "feature": "xIntercepts", "responseMode": "both", "allowNone": true, "label": "X-intercepts" },
+      { "id": "domain", "kind": "domain", "notation": "interval", "label": "Domain" },
+      { "id": "range", "kind": "range", "notation": "inequality", "label": "Range" },
+      { "id": "increasing", "kind": "increasing", "notation": "interval", "label": "Increasing interval(s)" }
+    ],
+    "generator": {
+      "kind": "parentFunctionGraph",
+      "functionTypes": ["absolute", "quadratic", "squareRoot", "cubic", "cubeRoot", "logarithmic", "exponential", "rational"],
+      "coefficientChoices": [-2, -1, 1, 2],
+      "hRange": [-3, 3],
+      "kRange": [-3, 3],
+      "baseChoices": [2]
+    }
+  }
+]`;
+
+export const MATH_BLUEPRINT_GUIDE = `PERSONALIZED QUESTIONS WITHOUT DATABASE BLOAT
+
+The database stores only one compact blueprint. The browser uses the assignment ID,
+student ID, and question number as a stable seed. Each student receives a stable
+variant at the same difficulty, and refreshing the page does not change it.
+
+Every new question must use either a generator or at least two variants.
+
+SHARED ATTEMPT POLICY
+
+Attempt rules are not repeated inside each question module. Every question uses the
+same shared policy: three attempts on the current generated problem. After the third
+miss, that problem expires and the student may request a new problem at the same
+difficulty. The assignment allows unlimited replacement problems until the due date.
+After the due date, the same workflow continues in Practice Mode without grade changes.
+
+SUPPORTED PERSONALIZED GENERATORS
+
+Step-by-step balance algebra:
+"type": "stepAlgebra",
+"mode": "rigorous",
+"objective": { "kind": "isolate", "variable": "x", "simplifyRequired": true },
+"generator": {
+  "kind": "stepLinearEquation",
+  "solutionRange": [-9, 9],
+  "coefficientRange": [2, 9],
+  "constantRange": [-12, 12]
+}
+
+Use "mode": "exploratory" to allow balanced but unproductive moves without using
+an attempt. Rigorous mode rejects unproductive moves, shakes the workspace, and uses
+one of the question's three attempts. Operations appear on both sides immediately.
+Students draw a strike-through line over the inverse pair, see a brief cancellation
+animation, and then the other side simplifies. The AST state and compact stepGrades
+array are stored in the shared question record, not inside a separate module schema.
+
+Literal and slope-intercept balance questions use the same engine. Set:
+"objective": { "kind": "isolate", "variable": "h", "simplifyRequired": true }
+or:
+"objective": { "kind": "slopeIntercept", "variable": "y", "simplifyRequired": true }
+
+Literal equation:
+"type": "literal",
+"generator": { "kind": "literalLinear", "coefficientRange": [2, 12], "constantRange": [-15, 15] }
+
+System of equations with a graph and ordered-pair answer:
+"type": "system",
+"showEquations": true,
+"showGraph": true,
+"generator": { "kind": "linearSystem", "xRange": [-10, 10], "yRange": [-10, 10] }
+
+Function table with multiple blanks:
+"type": "table",
+"showRule": true,
+"generator": { "kind": "functionTable", "ruleType": "linear", "rowCount": 5, "blankCount": 3 }
+
+Ordered pair from a graph:
+"type": "orderedPair",
+"generator": { "kind": "orderedPair", "xRange": [-12, 12], "yRange": [-12, 12] }
+
+Line graph:
+"type": "graphing",
+"showEquation": false,
+"showGraph": true,
+"generator": { "kind": "lineGraph", "slopeChoices": [-3, -2, -1, 1, 2, 3], "interceptRange": [-8, 8] }
+
+Multiple-answer line features:
+"type": "multiAnswer",
+"generator": { "kind": "lineFeatures", "slopeRange": [-99, 99], "interceptRange": [-99, 99] }
+
+Unified function investigation tool:
+"type": "functionInvestigation",
+"showEquation": true,
+"generator": {
+  "kind": "parentFunctionGraph",
+  "functionTypes": ["absolute", "quadratic", "squareRoot", "cubic", "cubeRoot", "logarithmic", "exponential", "rational"],
+  "coefficientChoices": [-2, -1, 1, 2],
+  "hRange": [-3, 3],
+  "kRange": [-3, 3],
+  "baseChoices": [2]
+}
+
+The shared interactive graph shell auto-scales around the generated key point and outer
+points. Students drag or select five point cards, and square-root/logarithmic questions
+may include a Not Real / Undefined card. Set "showCoordinates": false to hide the live
+cursor coordinates. After point validation, students freehand the curve; a correct
+trace snaps to the exact mathematical path. Clearly marked graph ends then accept Arrow, Open Circle, or Closed Circle responses. Each marker location and each marker type is graded separately, so students may submit an incomplete-quality end-behavior response for partial credit.
+
+Backward-compatible pre-drawn graph analysis (the same shared tool):
+"type": "graphAnalysis",
+"showEquation": false,
+"showCoordinates": false,
+"generator": {
+  "kind": "graphFeatureAnalysis",
+  "featureChoices": ["vertex", "localMaximum", "localMinimum", "xIntercepts", "yIntercept"]
+}
+
+The recommended new format is "functionInvestigation", which combines point selection, graph construction, end behavior, and analysis in one sequential tool. The older "graphAnalysis" type remains available for existing assignments.
+
+MULTIPLE ANSWERS IN ONE QUESTION
+
+Use type "multiAnswer" and list each required field:
+"answerFields": [
+  { "id": "m", "label": "Slope", "acceptedAnswers": ["2"] },
+  { "id": "b", "label": "Y-intercept", "acceptedAnswers": ["-3"] }
+]
+
+For personalized multi-answer questions, place complete field sets inside "variants".
+
+FORMATTED MATH
+
+Wrap inline prompt math in dollar signs:
+"prompt": "Simplify $sqrt(x^2 + 9)$ and evaluate $log_2(x)$."
+
+ASCII math renders automatically:
+"formula": "A = 1/2 b h"
+
+Exact LaTeX requires doubled JSON backslashes:
+"formulaLatex": "\\\\frac{-b \\\\pm \\\\sqrt{b^2-4ac}}{2a}"
+
+GRAPH OBJECTS
+
+A graph may contain multiple functions, so systems graph naturally:
+"graph": {
+  "functions": [
+    { "type": "line", "m": 2, "b": 1 },
+    { "type": "line", "m": -1, "b": 4 }
+  ]
+}
+
+Supported graph functions: line, quadratic, absolute, squareRoot, cubic, cubeRoot,
+logarithmic, exponential, reciprocal, and rational. Structured numeric graph fields
+are used instead of executable code.
+
+SHARED SCRATCHPAD AND UNDO
+
+Every question automatically includes a full-screen native canvas scratchpad. Student
+work is compressed into a Base64 image string and saved in a separate per-question
+Firestore scratchpad document, keeping the grade tracker compact. The teacher detail
+view can reopen the saved work. A shared Undo control is supplied by each response
+module, while the scratchpad has its own stroke-level Undo and Clear All restoration.
+
+ADVANCED GRAPH CONSTRUCTION
+
+Set "studentChoosesX": true when students must choose the four outer x-values. The
+center/key-point task remains fixed in the middle of the five point cards. Point cards
+remain neutral until validation. Coordinate labels are translucent, the plotted point
+is high contrast, and the coordinate plane highlights the active drop location.
+
+MULTIPART GRAPH ANALYSIS
+
+Use several requests in the same graph question:
+"analysisRequests": [
+  { "id": "roots", "kind": "point", "feature": "xIntercepts", "label": "X-intercepts" },
+  { "id": "domain", "kind": "domain", "notation": "interval", "label": "Domain" },
+  { "id": "range", "kind": "range", "notation": "inequality", "label": "Range" }
+]
+
+Set notation inputs receive only the contextual tools needed for brackets,
+inequalities, union, intersection, and positive/negative infinity. Each request,
+point, endpoint marker, table blank, or answer field receives its own partial-credit
+record and incorrect fields are identified after submission.
+
+UNIFIED FUNCTION INVESTIGATION
+
+Use "type": "functionInvestigation". Students may choose four outer x-values, place
+five locations with colored horizontal/vertical drag guides, sketch and snap the
+function, provide an end-behavior symbol at every visible end, and then complete
+several analysis requests on the same graph.
+
+Supported analysis kinds: point features (xIntercepts, yIntercept, vertex,
+localMaximum, localMinimum, center), domain, range, increasing, decreasing, and
+constant. For point features use "responseMode": "click", "input", or "both" and
+"allowNone": true when "Does not exist" should be available.
+
+Restricted domain example:
+"domainChoices": [
+  { "minOffset": -3, "maxOffset": 3, "minInclusive": false, "maxInclusive": true }
+]
+
+A finite restricted end receives an Open Circle or Closed Circle. An unrestricted
+continuing end receives an Arrow. Every end has separate partial-credit parts for
+placement and symbol type.
+
+ALGEBRAIC MICRO-QUESTIONS
+
+Step algebra questions may include algebraic expression prompts, including
+Distribution:
+"algebraPrompts": [
+  {
+    "id": "distribute",
+    "prompt": "Distribute and simplify 3(x+2).",
+    "acceptedExpressions": ["3x+6"]
+  }
+]
+Equivalent algebraic forms are accepted. During balanced operations, cancellation is
+marked only on the side containing a zero pair or identity pair; the other side must
+be simplified in an algebraic response field.
+`;
+
+
+const stripOuterCodeFence = (value, repairs) => {
+  const match = value.match(
+    /^```(?:json|javascript|js|python)?\s*([\s\S]*?)\s*```$/i,
+  );
+  if (!match) return value;
+  repairs.push('removed a markdown code fence');
+  return match[1].trim();
+};
+
+const extractQuestionArray = (value, repairs) => {
+  if (value.startsWith('[') && value.endsWith(']')) return value;
+
+  const firstBracket = value.indexOf('[');
+  const lastBracket = value.lastIndexOf(']');
+  if (firstBracket < 0 || lastBracket <= firstBracket) return value;
+
+  repairs.push('removed text surrounding the question array');
+  return value.slice(firstBracket, lastBracket + 1).trim();
+};
+
+const replacePythonLiteralsOutsideStrings = (value, repairs) => {
+  const replacements = [
+    ['True', 'true'],
+    ['False', 'false'],
+    ['None', 'null'],
+  ];
+  const repairedTokens = new Set();
+  let output = '';
+  let inString = false;
+  let escaped = false;
+  let index = 0;
+
+  while (index < value.length) {
+    const character = value[index];
+
+    if (inString) {
+      output += character;
+      if (escaped) {
+        escaped = false;
+      } else if (character === '\\') {
+        escaped = true;
+      } else if (character === '"') {
+        inString = false;
+      }
+      index += 1;
+      continue;
+    }
+
+    if (character === '"') {
+      inString = true;
+      output += character;
+      index += 1;
+      continue;
+    }
+
+    let replaced = false;
+    for (const [pythonToken, jsonToken] of replacements) {
+      if (!value.startsWith(pythonToken, index)) continue;
+
+      const before = index > 0 ? value[index - 1] : '';
+      const after = value[index + pythonToken.length] || '';
+      const beforeIsWord = /[A-Za-z0-9_$]/.test(before);
+      const afterIsWord = /[A-Za-z0-9_$]/.test(after);
+      if (beforeIsWord || afterIsWord) continue;
+
+      output += jsonToken;
+      index += pythonToken.length;
+      repairedTokens.add(`${pythonToken} → ${jsonToken}`);
+      replaced = true;
+      break;
+    }
+
+    if (!replaced) {
+      output += character;
+      index += 1;
+    }
+  }
+
+  if (repairedTokens.size > 0) {
+    repairs.push(`converted ${Array.from(repairedTokens).join(', ')}`);
+  }
+  return output;
+};
+
+const describeJsonParseError = (error, source) => {
+  const positionMatch = String(error?.message || '').match(/position\s+(\d+)/i);
+  if (!positionMatch) return error?.message || 'The blueprint could not be parsed.';
+
+  const position = Number(positionMatch[1]);
+  const before = source.slice(0, position);
+  const line = before.split('\n').length;
+  const lastLineBreak = before.lastIndexOf('\n');
+  const column = position - lastLineBreak;
+  return `${error.message} (line ${line}, column ${column}).`;
+};
+
+export const parseAssignmentBlueprintText = (rawValue) => {
+  const repairs = [];
+  let normalizedText = String(rawValue ?? '')
+    .replace(/^\uFEFF/, '')
+    .trim();
+
+  if (!normalizedText) {
+    throw new Error('The blueprint box is empty. Paste a JSON question array.');
+  }
+
+  normalizedText = stripOuterCodeFence(normalizedText, repairs);
+  normalizedText = extractQuestionArray(normalizedText, repairs);
+  normalizedText = replacePythonLiteralsOutsideStrings(normalizedText, repairs);
+
+  try {
+    return {
+      questions: JSON.parse(normalizedText),
+      normalizedText,
+      repairs,
+    };
+  } catch (error) {
+    const detail = describeJsonParseError(error, normalizedText);
+    throw new Error(
+      `${detail} Paste only the array that begins with [ and ends with ]. JSON uses lowercase true, false, and null.`,
+    );
+  }
+};
+
+export const validateAssignmentQuestions = (questions) => {
+  if (!Array.isArray(questions) || questions.length === 0) {
+    throw new Error('JSON must be a non-empty array of questions.');
+  }
+
+  questions.forEach((question, index) => {
+    if (!question?.type) throw new Error(`Question ${index + 1} is missing a type.`);
+    if (!isPersonalizedBlueprint(question)) {
+      throw new Error(
+        `Question ${index + 1} (${question.type}) is fixed. Add a generator or at least two variants so students receive personalized problems.`,
+      );
+    }
+  });
+
+  return questions;
+};

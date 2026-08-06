@@ -182,3 +182,106 @@
     border-right-color: var(--border);
   }
 }
+
+@keyframes algebraShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-9px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(4px); }
+}
+
+.algebra-shake {
+  animation: algebraShake 0.45s ease-in-out;
+}
+
+@keyframes algebraMirrorSlide {
+  from { opacity: 0; transform: translateY(-12px) scale(0.92); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.algebra-mirror-chip {
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: #e8f0fe;
+  color: #174ea6;
+  border: 1px solid #9fb8dd;
+  font-size: 13px;
+  font-weight: 800;
+  animation: algebraMirrorSlide 0.28s ease-out;
+}
+
+@media (max-width: 720px) {
+  .algebra-operation-grid {
+    grid-template-columns: repeat(2, minmax(105px, 1fr));
+  }
+}
+
+@keyframes mathmasterSnapReveal {
+  from { stroke-dashoffset: 1600; opacity: 0.35; }
+  to { stroke-dashoffset: 0; opacity: 1; }
+}
+
+.mathmaster-snap-curve {
+  stroke-dasharray: 1600;
+  animation: mathmasterSnapReveal 700ms ease-out both;
+}
+
+@keyframes mathmasterEndpointPulse {
+  0%, 100% { opacity: 0.55; transform: scale(0.94); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+.mathmaster-endpoint-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mathmasterEndpointPulse 1.15s ease-in-out infinite;
+}
+
+@keyframes scratchpadSlideUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes algebraCancelFade {
+  0% { opacity: 1; transform: rotate(-5deg) scaleX(1); }
+  55% { opacity: 1; transform: rotate(-5deg) scaleX(1.05); }
+  100% { opacity: 0; transform: rotate(-5deg) scaleX(0.15); }
+}
+
+@keyframes algebraMirrorArrive {
+  from { opacity: 0; transform: translateX(24px) scale(0.86); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+.algebra-cancel-fade {
+  animation: algebraCancelFade 520ms ease-in both;
+}
+
+.algebra-mirror-arrive {
+  animation: algebraMirrorArrive 320ms ease-out both;
+}
+
+.mathmaster-support-large-text {
+  font-size: 120%;
+}
+
+.mathmaster-support-large-text input,
+.mathmaster-support-large-text button,
+.mathmaster-support-large-text select,
+.mathmaster-support-large-text textarea {
+  font-size: 1em;
+}
+
+.mathmaster-support-high-contrast {
+  color: #000;
+  background: #fff !important;
+}
+
+.mathmaster-support-high-contrast button,
+.mathmaster-support-high-contrast input,
+.mathmaster-support-high-contrast select,
+.mathmaster-support-high-contrast textarea {
+  border-width: 2px !important;
+  border-color: #000 !important;
+}

@@ -1,16 +1,30 @@
-# React + Vite
+# MathMaster Platform
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+This release centralizes assignment attempts, deterministic personalized questions,
+Practice Mode, interactive parent-function graphing, multipart graph analysis,
+step-by-step balance algebra, partial credit, shared Undo, and a full-screen student
+scratchpad with teacher work review.
 
-Currently, two official plugins are available:
+## Start locally
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+npm run dev
+```
 
-## React Compiler
+Firebase configuration remains in `.env`. Before production use, configure Firebase
+Authentication and Firestore rules for assignments, grades, and the new scratchpad path:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```text
+grades/{studentId}/scratchpads/{assignmentId}__question_{questionIndex}
+```
 
-## Expanding the Oxlint configuration
+## Ready-to-paste QA assignment
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+Use `SAMPLE_SCRATCHPAD_UNDO_MULTIPART_QA_ASSIGNMENT.json` in the teacher assignment
+blueprint field. It tests numeric balance algebra, literal equations, slope-intercept
+form, student-selected graph x-values, undefined inputs, rational branches, multipart
+graph analysis, partial-credit fields, systems, global Undo, and the scratchpad.
+
+See `SCRATCHPAD_MULTIPART_UNDO_ARCHITECTURE.md` for the complete design and
+`VALIDATION_REPORT_SCRATCHPAD_MULTIPART_UNDO.txt` for test results.

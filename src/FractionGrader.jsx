@@ -1,64 +1,44 @@
-import { useState } from 'react';
+import { useEffect } from 'react';
+import useLocalDraftState from './useLocalDraftState';
+import MathInput from './MathInput';
+import MathDisplay from './MathDisplay';
+import QuestionPrompt from './QuestionPrompt';
+import QuestionVisual from './QuestionVisual';
+import { compareMathAnswer } from './answerUtils';
 
-export default function FractionGrader({ onGrade }) {
-  const [numerator, setNumerator] = useState('');
-  const [denominator, setDenominator] = useState('');
-  const [hasGraded, setHasGraded] = useState(false);
-  const [isCorrect, setIsCorrect] = useState(false);
+export default function FractionGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
+  const { n1, d1, n2, d2, ansNum, ansDen, prompt, expressionLatex } = question;
+  const [answer, setAnswer] = useLocalDraftState(draftKey ? `${draftKey}:fraction` : null, '');
+  const expectedLatex = `\\frac{${ansNum}}{${ansDen}}`;
+  const isComplete = answer !== '';
+  const isCorrect = isComplete && compareMathAnswer(answer, expectedLatex);
 
-  const checkAnswer = () => {
-    // The question is 1/2 + 1/3. The correct answer is 5/6.
-    const num = parseInt(numerator);
-    const den = parseInt(denominator);
-    const correct = num === 5 && den === 6;
-    
-    setIsCorrect(correct);
-    setHasGraded(true);
-    onGrade(correct);
-  };
+  useEffect(() => {
+    const questionText = prompt || `Solve: ${n1}/${d1} + ${n2}/${d2}`;
+    onStateChange({
+      isComplete,
+      isCorrect,
+      responseKey: answer,
+      questionDetails: `${questionText} Response: ${answer || 'blank'}.`,
+      parts: [{ id: 'fraction', label: 'Fraction answer', isComplete, isCorrect, response: answer }],
+    });
+  }, [answer, isComplete, isCorrect, n1, d1, n2, d2, prompt, onStateChange]);
+
+  const lastPart = feedback?.partGrades?.find((part) => part.id === 'fraction');
+  const displayedExpression = expressionLatex || `\\frac{${n1}}{${d1}} + \\frac{${n2}}{${d2}} =`;
 
   return (
-    <div style={{ padding: '20px', textAlign: 'center', fontFamily: 'sans-serif' }}>
-      <h2 style={{ color: '#202124' }}>Fraction Addition</h2>
-      <p style={{ fontSize: '18px', color: '#5f6368' }}>Solve the equation below by finding a common denominator.</p>
-      
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', margin: '40px 0', fontSize: '24px', fontWeight: 'bold', color: '#1a73e8' }}>
-        <span>1/2</span>
-        <span>+</span>
-        <span>1/3</span>
-        <span>=</span>
-        
-        <div style={{ display: 'flex', flexDirection: 'column', width: '70px' }}>
-          <input 
-            type="number" 
-            value={numerator} 
-            onChange={(e) => setNumerator(e.target.value)} 
-            placeholder="Num"
-            style={{ textAlign: 'center', fontSize: '18px', padding: '8px', border: '2px solid #dadce0', borderRadius: '4px', outline: 'none' }} 
-          />
-          <div style={{ height: '3px', background: '#202124', margin: '6px 0', borderRadius: '2px' }}></div>
-          <input 
-            type="number" 
-            value={denominator} 
-            onChange={(e) => setDenominator(e.target.value)} 
-            placeholder="Den"
-            style={{ textAlign: 'center', fontSize: '18px', padding: '8px', border: '2px solid #dadce0', borderRadius: '4px', outline: 'none' }} 
-          />
-        </div>
+    <div>
+      <h2 style={{ color: '#202124', marginTop: 0 }}>Fractions</h2>
+      <QuestionPrompt>{prompt || 'Add the fractions.'}</QuestionPrompt>
+      <div style={{ margin: '34px auto', fontSize: '30px', fontWeight: 'bold', color: '#1a73e8', width: 'fit-content', maxWidth: '100%' }}>
+        <MathDisplay value={displayedExpression} format="latex" ariaLabel="Fraction expression" />
       </div>
-      
-      <button 
-        onClick={checkAnswer}
-        style={{ padding: '12px 24px', fontSize: '16px', background: '#1a73e8', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', transition: 'background 0.2s', boxShadow: '0 4px 6px rgba(26, 115, 232, 0.2)' }}
-      >
-        Submit Answer
-      </button>
-      
-      {hasGraded && (
-        <div style={{ marginTop: '25px', padding: '15px', borderRadius: '8px', backgroundColor: isCorrect ? '#e6f4ea' : '#fce8e6', color: isCorrect ? '#137333' : '#c5221f', fontSize: '16px', fontWeight: 'bold' }}>
-          {isCorrect ? 'Correct! 5/6 is the right answer.' : 'Not quite! Hint: The common denominator for 2 and 3 is 6.'}
-        </div>
-      )}
+      <QuestionVisual question={question} />
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <MathInput value={answer} onChange={setAnswer} onUndoStateChange={onUndoStateChange} inputStatus={lastPart ? (lastPart.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
+      </div>
+      <p style={{ fontSize: '13px', color: '#80868b', marginTop: '15px' }}><em>Type / to create a stacked fraction, or open the focused math tools.</em></p>
     </div>
   );
 }

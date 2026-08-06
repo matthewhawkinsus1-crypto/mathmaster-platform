@@ -109,3 +109,34 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+
+/* MathLive display and input elements should remain readable in every system theme. */
+math-span,
+math-div,
+math-field {
+  color: inherit;
+  color-scheme: light;
+}
+
+math-div {
+  width: 100%;
+}
+
+math-field {
+  --caret-color: #1a73e8;
+  --selection-background-color: rgba(26, 115, 232, 0.16);
+  color: #202124;
+  background: #fff;
+}
+
+/* MathMaster uses its own focused math toolbar. Hide MathLive's broad menu and keyboard controls. */
+math-field::part(virtual-keyboard-toggle),
+math-field::part(menu-toggle) {
+  display: none;
+}
+
+math-field:focus-within {
+  outline: 3px solid rgba(26, 115, 232, 0.2);
+  outline-offset: 2px;
+}

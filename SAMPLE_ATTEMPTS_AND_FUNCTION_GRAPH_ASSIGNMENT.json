@@ -1,0 +1,50 @@
+[
+  {
+    "type": "functionGraph",
+    "prompt": "Plot the center or key point and four additional points. Then press Connect Graph and submit.",
+    "showEquation": true,
+    "generator": {
+      "kind": "parentFunctionGraph",
+      "functionTypes": [
+        "absolute",
+        "quadratic",
+        "squareRoot",
+        "cubic",
+        "cubeRoot",
+        "logarithmic",
+        "exponential",
+        "rational"
+      ],
+      "coefficientChoices": [-2, -1, 1, 2],
+      "hRange": [-3, 3],
+      "kRange": [-3, 3],
+      "baseChoices": [2]
+    }
+  },
+  {
+    "type": "system",
+    "prompt": "Solve the system and enter the solution as an ordered pair.",
+    "showEquations": true,
+    "showGraph": true,
+    "generator": {
+      "kind": "linearSystem",
+      "xRange": [-8, 8],
+      "yRange": [-8, 8],
+      "slopeChoices": [-4, -3, -2, -1, 1, 2, 3, 4]
+    }
+  },
+  {
+    "type": "table",
+    "prompt": "Complete every missing value in the function table.",
+    "showRule": true,
+    "generator": {
+      "kind": "functionTable",
+      "ruleType": "quadratic",
+      "rowCount": 5,
+      "blankCount": 3,
+      "aRange": [1, 2],
+      "bRange": [-4, 4],
+      "cRange": [-6, 6]
+    }
+  }
+]

@@ -1,0 +1,355 @@
+[
+  {
+    "type": "stepAlgebra",
+    "prompt": "BALANCE AND CANCELLATION TEST: Solve the equation. Drag an operation to either side, confirm the mirror operation appears instantly, draw a line through the canceling terms, and use the shared Undo button at least once.",
+    "mode": "rigorous",
+    "expectedStepPoints": 6,
+    "objective": {
+      "kind": "isolate",
+      "variable": "x",
+      "simplifyRequired": true,
+      "label": "Isolate x and simplify"
+    },
+    "generator": {
+      "kind": "stepLinearEquation",
+      "solutionRange": [
+        -8,
+        8
+      ],
+      "coefficientRange": [
+        2,
+        8
+      ],
+      "constantRange": [
+        -12,
+        12
+      ]
+    }
+  },
+  {
+    "type": "stepAlgebra",
+    "prompt": "LITERAL-EQUATION BALANCE TEST: Solve the formula for h. Use symbolic operations such as subtracting c or d and dividing by b or a. Confirm multiplication is displayed by juxtaposition or parentheses rather than a multiplication dot.",
+    "mode": "exploratory",
+    "expectedStepPoints": 6,
+    "objective": {
+      "kind": "isolate",
+      "variable": "h",
+      "simplifyRequired": true,
+      "label": "Solve the literal equation for h"
+    },
+    "variants": [
+      {
+        "leftExpression": "A",
+        "rightExpression": "b*h + c",
+        "variable": "h"
+      },
+      {
+        "leftExpression": "P",
+        "rightExpression": "a*h - d",
+        "variable": "h"
+      }
+    ]
+  },
+  {
+    "type": "stepAlgebra",
+    "prompt": "SLOPE-INTERCEPT FORM TEST: Rewrite the equation in the form $y=mx+b$. Mirror each operation, mark the cancellation, and simplify the final expression.",
+    "mode": "rigorous",
+    "expectedStepPoints": 8,
+    "objective": {
+      "kind": "slopeIntercept",
+      "variable": "y",
+      "simplifyRequired": true,
+      "targetForm": "y=mx+b",
+      "label": "Write the equation in slope-intercept form"
+    },
+    "variants": [
+      {
+        "leftExpression": "2*x + 3*y",
+        "rightExpression": "12",
+        "variable": "y"
+      },
+      {
+        "leftExpression": "-4*x + 2*y",
+        "rightExpression": "10",
+        "variable": "y"
+      }
+    ]
+  },
+  {
+    "type": "functionGraph",
+    "prompt": "ADVANCED QUADRATIC GRAPH TEST: Choose four appropriate outer x-values. The vertex remains the fixed middle value. Place all five points, validate them, sketch the curve, confirm it snaps, and identify the continuation arrows.",
+    "showEquation": true,
+    "showCoordinates": false,
+    "studentChoosesX": true,
+    "includeUndefinedChecks": false,
+    "requireEndpointMarkers": true,
+    "generator": {
+      "kind": "parentFunctionGraph",
+      "functionTypes": [
+        "quadratic"
+      ],
+      "coefficientChoices": [
+        -2,
+        -1,
+        1,
+        2
+      ],
+      "hRange": [
+        -3,
+        3
+      ],
+      "kRange": [
+        -4,
+        4
+      ]
+    }
+  },
+  {
+    "type": "functionGraph",
+    "prompt": "ADVANCED SQUARE-ROOT GRAPH TEST: Choose four valid x-values, place the invalid probe in the Undefined zone, graph the five required locations, draw the curve, and place the closed endpoint and continuation arrow.",
+    "showEquation": true,
+    "showCoordinates": true,
+    "studentChoosesX": true,
+    "includeUndefinedChecks": true,
+    "undefinedCount": 1,
+    "requireEndpointMarkers": true,
+    "generator": {
+      "kind": "parentFunctionGraph",
+      "functionTypes": [
+        "squareRoot"
+      ],
+      "coefficientChoices": [
+        -2,
+        -1,
+        1,
+        2
+      ],
+      "hRange": [
+        -3,
+        3
+      ],
+      "kRange": [
+        -3,
+        3
+      ]
+    }
+  },
+  {
+    "type": "functionGraph",
+    "prompt": "ADVANCED RATIONAL GRAPH TEST: The asymptote center is fixed. Choose four x-values that represent both branches, validate the locations, draw two separate curves, and place all four continuation arrows.",
+    "showEquation": true,
+    "showCoordinates": false,
+    "studentChoosesX": true,
+    "includeUndefinedChecks": false,
+    "requireEndpointMarkers": true,
+    "generator": {
+      "kind": "parentFunctionGraph",
+      "functionTypes": [
+        "rational"
+      ],
+      "coefficientChoices": [
+        -2,
+        -1,
+        1,
+        2
+      ],
+      "hRange": [
+        -3,
+        3
+      ],
+      "kRange": [
+        -3,
+        3
+      ]
+    }
+  },
+  {
+    "type": "graphAnalysis",
+    "prompt": "MULTIPART QUADRATIC ANALYSIS TEST: Select both x-intercepts and the vertex, then state the domain in interval notation and the range in inequality notation. Submit one intentionally incorrect part first to confirm the platform identifies only that part.",
+    "showEquation": false,
+    "showCoordinates": false,
+    "analysisRequests": [
+      {
+        "id": "roots",
+        "kind": "point",
+        "feature": "xIntercepts",
+        "label": "Select both x-intercepts"
+      },
+      {
+        "id": "vertex",
+        "kind": "point",
+        "feature": "vertex",
+        "label": "Select the vertex"
+      },
+      {
+        "id": "domain",
+        "kind": "domain",
+        "notation": "interval",
+        "label": "Domain in interval notation"
+      },
+      {
+        "id": "range",
+        "kind": "range",
+        "notation": "inequality",
+        "label": "Range in inequality notation"
+      }
+    ],
+    "generator": {
+      "kind": "graphFeatureAnalysis",
+      "hRange": [
+        -4,
+        4
+      ],
+      "rootOffsetChoices": [
+        1,
+        2,
+        3
+      ],
+      "coefficientChoices": [
+        -1,
+        1
+      ]
+    }
+  },
+  {
+    "type": "graphAnalysis",
+    "prompt": "MULTIPART RATIONAL ANALYSIS TEST: Click the asymptote center, give the domain in interval notation, and give the range in inequality notation. Use the union, inequality, and infinity tools.",
+    "showEquation": false,
+    "showCoordinates": true,
+    "analysisRequests": [
+      {
+        "id": "center",
+        "kind": "point",
+        "feature": "center",
+        "label": "Select the asymptote center"
+      },
+      {
+        "id": "domain",
+        "kind": "domain",
+        "notation": "interval",
+        "label": "Domain in interval notation"
+      },
+      {
+        "id": "range",
+        "kind": "range",
+        "notation": "inequality",
+        "label": "Range in inequality notation"
+      }
+    ],
+    "generator": {
+      "kind": "graphFeatureAnalysis",
+      "functionTypes": [
+        "rational"
+      ],
+      "coefficientChoices": [
+        -2,
+        -1,
+        1,
+        2
+      ],
+      "hRange": [
+        -3,
+        3
+      ],
+      "kRange": [
+        -3,
+        3
+      ]
+    }
+  },
+  {
+    "type": "multiAnswer",
+    "prompt": "MULTIFIELD PARTIAL-CREDIT TEST: Enter every requested feature. Make one field incorrect on the first submission and confirm only that field is outlined and named in the feedback.",
+    "variants": [
+      {
+        "mathDisplay": {
+          "value": "y=2x-5",
+          "format": "ascii-math"
+        },
+        "answerFields": [
+          {
+            "id": "slope",
+            "label": "Slope",
+            "acceptedAnswers": [
+              "2"
+            ]
+          },
+          {
+            "id": "intercept",
+            "label": "Y-intercept",
+            "acceptedAnswers": [
+              "-5"
+            ]
+          },
+          {
+            "id": "domain",
+            "label": "Domain",
+            "toolProfile": "interval",
+            "acceptedAnswers": [
+              "(-\\infty,\\infty)",
+              "(-inf,inf)"
+            ]
+          }
+        ]
+      },
+      {
+        "mathDisplay": {
+          "value": "y=-3x+4",
+          "format": "ascii-math"
+        },
+        "answerFields": [
+          {
+            "id": "slope",
+            "label": "Slope",
+            "acceptedAnswers": [
+              "-3"
+            ]
+          },
+          {
+            "id": "intercept",
+            "label": "Y-intercept",
+            "acceptedAnswers": [
+              "4"
+            ]
+          },
+          {
+            "id": "domain",
+            "label": "Domain",
+            "toolProfile": "inequality",
+            "acceptedAnswers": [
+              "-\\infty<x<\\infty",
+              "-inf<x<inf"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "system",
+    "prompt": "SYSTEM PARTIAL-CREDIT TEST: Solve the system and enter one ordered pair. On the first attempt, intentionally enter only one correct coordinate and confirm the feedback identifies the incorrect coordinate.",
+    "showEquations": true,
+    "showGraph": true,
+    "generator": {
+      "kind": "linearSystem",
+      "xRange": [
+        -7,
+        7
+      ],
+      "yRange": [
+        -7,
+        7
+      ],
+      "slopeChoices": [
+        -4,
+        -3,
+        -2,
+        -1,
+        1,
+        2,
+        3,
+        4
+      ]
+    }
+  }
+]

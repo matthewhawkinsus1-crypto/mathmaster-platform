@@ -13,6 +13,7 @@
     "firebase": "^12.17.1",
     "jsxgraph": "^1.13.1",
     "mathjs": "^15.2.0",
+    "mathlive": "^0.110.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
