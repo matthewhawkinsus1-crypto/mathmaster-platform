@@ -12,6 +12,9 @@ const {
   GOOGLE_AND_LINK_SECRETS,
   LINK_ENCRYPTION_KEY,
   readPublicEnv,
+  readGoogleClientId,
+  readGoogleClientSecret,
+  readLinkEncryptionKey,
 } = require("./lib/config");
 const {
   publicationDocumentId,
@@ -130,6 +133,81 @@ exports.oauthCallback = onRequest({ secrets: GOOGLE_API_SECRETS }, async (req, r
 exports.getClassroomConnectionStatus = onCall(async () => ({
   connected: await classroomLib.isConnected(),
 }));
+
+exports.getGoogleClassroomDiagnostics = onCall(
+  { secrets: GOOGLE_AND_LINK_SECRETS },
+  async () => {
+    const problems = [];
+    const checks = {};
+
+    const checkSecret = (readFn, name, setCommand) => {
+      try {
+        return Boolean(readFn());
+      } catch {
+        problems.push(
+          `${name} is not configured. Set it with: firebase functions:secrets:set ${setCommand}`
+        );
+        return false;
+      }
+    };
+
+    checks.clientIdConfigured = checkSecret(
+      readGoogleClientId,
+      "GOOGLE_OAUTH_CLIENT_ID",
+      "GOOGLE_OAUTH_CLIENT_ID"
+    );
+    checks.clientSecretConfigured = checkSecret(
+      readGoogleClientSecret,
+      "GOOGLE_OAUTH_CLIENT_SECRET",
+      "GOOGLE_OAUTH_CLIENT_SECRET"
+    );
+    // LINK_ENCRYPTION_KEY does not block the OAuth connect flow itself, but
+    // launch links and grade passback will fail without it, so it is still
+    // checked and reported as a problem when missing.
+    checkSecret(readLinkEncryptionKey, "LINK_ENCRYPTION_KEY", "LINK_ENCRYPTION_KEY");
+
+    checks.redirectUri = readPublicEnv("GOOGLE_OAUTH_REDIRECT_URI");
+    if (!checks.redirectUri) {
+      problems.push(
+        "GOOGLE_OAUTH_REDIRECT_URI is not configured. Add it to functions/.env.mathmaster-aleks (see functions/.env.example) and redeploy."
+      );
+    }
+
+    checks.functionsBaseUrl = readPublicEnv("FUNCTIONS_BASE_URL");
+    if (!checks.functionsBaseUrl) {
+      problems.push(
+        "FUNCTIONS_BASE_URL is not configured. Add it to functions/.env.mathmaster-aleks (see functions/.env.example) and redeploy."
+      );
+    }
+
+    checks.appBaseUrl = readPublicEnv("APP_BASE_URL");
+    if (!checks.appBaseUrl) {
+      problems.push(
+        "APP_BASE_URL is not configured. Add it to functions/.env.mathmaster-aleks (see functions/.env.example) and redeploy."
+      );
+    }
+
+    try {
+      await getFirestore().doc("teacherIntegrations/default").get();
+      checks.firestoreAvailable = true;
+    } catch (err) {
+      checks.firestoreAvailable = false;
+      problems.push(`Firestore is unreachable: ${err.message}`);
+    }
+
+    checks.authUrlBuilds = false;
+    if (checks.clientIdConfigured && checks.clientSecretConfigured && checks.redirectUri) {
+      try {
+        classroomLib.buildAuthUrl("diagnostics");
+        checks.authUrlBuilds = true;
+      } catch (err) {
+        problems.push(`OAuth URL generation failed: ${err.message}`);
+      }
+    }
+
+    return { ok: problems.length === 0, problems, checks };
+  }
+);
 
 // --- Courses and course-specific roster links -------------------------------
 
