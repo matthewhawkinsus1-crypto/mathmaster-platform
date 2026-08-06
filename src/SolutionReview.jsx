@@ -100,6 +100,24 @@ const buildRepresentations = (question) => {
       return ['The completed table values are listed below.'];
     case 'multiAnswer':
       return ['Each required field and one accepted response are listed below.'];
+    case 'relationshipModel': {
+      const quantities = Object.fromEntries((question.quantities || []).map((item) => [item.id, item.label]));
+      return unique([
+        `Independent quantity: ${quantities[question.correctIndependentId] || question.correctIndependentId || ''}`,
+        `Dependent quantity: ${quantities[question.correctDependentId] || question.correctDependentId || ''}`,
+        question.relationshipType ? `The relationship is ${question.relationshipType}.` : '',
+      ]).slice(0, 3);
+    }
+    case 'graphScenarioMatch':
+      return ['The correct scenario-to-graph matches are listed below.'];
+    case 'graphComparison':
+      return ['One accepted comparison for each required field is listed below.'];
+    case 'graphStory':
+      return unique([
+        question.sampleScenario ? `Sample scenario: ${question.sampleScenario}` : '',
+        question.sampleExplanation ? `Sample explanation: ${question.sampleExplanation}` : '',
+        'A complete response includes a scenario, quantities, labeled axes, a graph sketch, and an explanation.',
+      ]).slice(0, 3);
     case 'stepAlgebra': {
       if (question.generatedAnswer !== undefined) {
         return unique([
@@ -137,6 +155,21 @@ const buildCompleteAnswerDetails = (question) => {
   }
   if (question.type === 'multiAnswer') {
     return (question.answerFields || []).map((field) => `${field.label}: ${(field.acceptedAnswers || [])[0] ?? ''}`);
+  }
+  if (question.type === 'relationshipModel') {
+    const quantities = Object.fromEntries((question.quantities || []).map((item) => [item.id, item.label]));
+    return [
+      `Independent quantity: ${quantities[question.correctIndependentId] || question.correctIndependentId || ''}`,
+      `Dependent quantity: ${quantities[question.correctDependentId] || question.correctDependentId || ''}`,
+      question.origin?.sampleAnswer ? `Starting point: ${question.origin.sampleAnswer}` : '',
+    ].filter(Boolean);
+  }
+  if (question.type === 'graphScenarioMatch') {
+    const graphLabels = Object.fromEntries((question.graphs || []).map((item) => [item.id, item.label || item.id]));
+    return (question.scenarios || []).map((scenario) => `${scenario.title || scenario.id}: ${graphLabels[(question.correctMatches || {})[scenario.id] || scenario.graphId] || ''}`);
+  }
+  if (question.type === 'graphComparison') {
+    return (question.fields || []).map((field) => `${field.label || field.id}: ${(field.acceptedAnswers || [field.answer]).filter(Boolean)[0] || (field.sampleAnswer || 'Review the graph characteristics.')}`);
   }
   return [];
 };

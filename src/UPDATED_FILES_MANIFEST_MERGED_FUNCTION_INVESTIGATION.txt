@@ -1,0 +1,20 @@
+MathMaster merged function investigation update
+
+Primary changed source files:
+- src/InteractiveGraphWorkspace.jsx
+- src/FunctionGraphBuilder.jsx
+- src/interactiveGraphEngine.js
+- src/functionGraphUtils.js
+- src/problemGenerator.js
+- src/QuestionEngine.jsx
+- src/algebraAstEngine.js
+- src/StepByStepAlgebra.jsx
+- src/assignmentBlueprint.js
+
+Included QA blueprint:
+- SAMPLE_MERGED_FUNCTION_INVESTIGATION_ALGEBRA_QA.json
+
+External handoff files:
+- MathMaster_Merged_Function_Investigation_Render.png
+- MathMaster_Merged_Function_Investigation_Architecture.md
+- MathMaster_Merged_Function_Investigation_Validation_Report.txt

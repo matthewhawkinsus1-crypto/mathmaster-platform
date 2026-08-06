@@ -1,5 +1,20 @@
 export const CLASS_PERIODS = Array.from({ length: 8 }, (_, index) => `Period ${index + 1}`);
 
+
+export const questionIsIncluded = (question) => question?.teacherExcluded !== true;
+
+export const getIncludedQuestionIndices = (assignmentOrQuestions) => {
+  const questions = Array.isArray(assignmentOrQuestions)
+    ? assignmentOrQuestions
+    : Array.isArray(assignmentOrQuestions?.questions)
+      ? assignmentOrQuestions.questions
+      : [];
+  return questions.reduce((indices, question, index) => {
+    if (questionIsIncluded(question)) indices.push(index);
+    return indices;
+  }, []);
+};
+
 export const DEFAULT_CLASS_SCHEDULE = {
   version: 1,
   periods: Object.fromEntries(
@@ -124,13 +139,15 @@ export const getPeriodWindow = (scheduleValue, classPeriod, nowValue = Date.now(
 
 export const resolveDOLQuestionIndex = (assignment) => {
   const questions = Array.isArray(assignment?.questions) ? assignment.questions : [];
+  const included = getIncludedQuestionIndices(questions);
+  if (!included.length) return -1;
   const explicit = Number(assignment?.dol?.questionIndex ?? assignment?.dolQuestionIndex);
-  if (Number.isInteger(explicit) && explicit >= 0 && explicit < questions.length) return explicit;
-  const flagged = questions.findIndex((question) => question?.isDOL === true || question?.role === 'dol');
-  if (flagged >= 0) return flagged;
-  const introductory = questions.findIndex((question) => ['intro', 'mid', 'medium'].includes(String(question?.difficulty || '').toLowerCase()));
-  if (introductory >= 0) return introductory;
-  return questions.length ? Math.max(0, Math.floor((questions.length - 1) / 2)) : -1;
+  if (Number.isInteger(explicit) && included.includes(explicit)) return explicit;
+  const flagged = included.find((index) => questions[index]?.isDOL === true || questions[index]?.role === 'dol');
+  if (Number.isInteger(flagged)) return flagged;
+  const introductory = included.find((index) => ['intro', 'mid', 'medium'].includes(String(questions[index]?.difficulty || '').toLowerCase()));
+  if (Number.isInteger(introductory)) return introductory;
+  return included[Math.max(0, Math.floor((included.length - 1) / 2))];
 };
 
 export const getDOLState = ({ assignment, schedule, classPeriod, nowValue = Date.now() }) => {
@@ -200,14 +217,15 @@ export const recordAssignmentActivity = ({ activity, assignment, seconds = 0, no
 export const evaluateClassworkCompletion = ({ assignment, assignmentTracker, activity }) => {
   if (assignment?.assignmentType !== 'notesClasswork') return { met: false, score: null };
   const questions = Array.isArray(assignment.questions) ? assignment.questions : [];
+  const included = getIncludedQuestionIndices(questions);
   const rule = assignment.completionRule || {};
   const minSeconds = Math.max(0, Number(rule.minEngagementMinutes ?? 10) * 60);
   const requiredPercent = Math.max(0, Math.min(100, Number(rule.minimumQuestionCompletionPercent ?? 80)));
-  const completed = questions.reduce((total, _, index) => {
+  const completed = included.reduce((total, index) => {
     const status = assignmentTracker?.[index]?.status;
     return total + (status && status !== 'unattempted' ? 1 : 0);
   }, 0);
-  const completionPercent = questions.length ? Math.round((completed / questions.length) * 100) : 100;
+  const completionPercent = included.length ? Math.round((completed / included.length) * 100) : 100;
   const engagedSeconds = normalizeAssignmentActivity(activity).totalTimeSeconds;
   const met = engagedSeconds >= minSeconds && completionPercent >= requiredPercent;
   return { met, score: met ? 100 : null, engagedSeconds, completionPercent, minSeconds, requiredPercent };

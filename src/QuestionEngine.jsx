@@ -14,6 +14,10 @@ import StepByStepAlgebra from './StepByStepAlgebra';
 import ScratchpadOverlay from './ScratchpadOverlay';
 import SolutionReview from './SolutionReview';
 import GuidedClassworkCoach from './GuidedClassworkCoach';
+import RelationshipModel from './RelationshipModel';
+import GraphScenarioMatch from './GraphScenarioMatch';
+import GraphComparison from './GraphComparison';
+import GraphStory from './GraphStory';
 import MathDisplay from './MathDisplay';
 import { generateQuestion } from './problemGenerator';
 import { buildSupportUsage, getStudentSupportPresentation } from './studentSupport';
@@ -40,6 +44,10 @@ const MULTIPART_TYPES = new Set([
   'multiAnswer',
   'system',
   'stepAlgebra',
+  'relationshipModel',
+  'graphScenarioMatch',
+  'graphComparison',
+  'graphStory',
 ]);
 
 const speakText = (text) => {
@@ -249,6 +257,14 @@ export default function QuestionEngine({
         return <OrderedPairGrader {...commonModuleProps} />;
       case 'multiAnswer':
         return <MultiAnswerGrader {...commonModuleProps} />;
+      case 'relationshipModel':
+        return <RelationshipModel {...commonModuleProps} />;
+      case 'graphScenarioMatch':
+        return <GraphScenarioMatch {...commonModuleProps} />;
+      case 'graphComparison':
+        return <GraphComparison {...commonModuleProps} />;
+      case 'graphStory':
+        return <GraphStory {...commonModuleProps} />;
       default:
         return <div>Unknown question type: {processedQuestion.type}</div>;
     }

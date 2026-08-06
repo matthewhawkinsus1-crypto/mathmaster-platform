@@ -1,0 +1,84 @@
+[
+  {
+    "type": "literal",
+    "prompt": "Solve the literal equation for the indicated variable.",
+    "generator": {
+      "kind": "literalLinear",
+      "coefficientRange": [
+        2,
+        12
+      ],
+      "constantRange": [
+        -15,
+        15
+      ]
+    }
+  },
+  {
+    "type": "system",
+    "prompt": "Solve the system. Enter the solution as an ordered pair.",
+    "showEquations": true,
+    "showGraph": true,
+    "generator": {
+      "kind": "linearSystem",
+      "xRange": [
+        -10,
+        10
+      ],
+      "yRange": [
+        -10,
+        10
+      ]
+    }
+  },
+  {
+    "type": "table",
+    "prompt": "Complete the missing values in the function table.",
+    "showRule": true,
+    "generator": {
+      "kind": "functionTable",
+      "ruleType": "linear",
+      "rowCount": 5,
+      "blankCount": 3,
+      "slopeRange": [
+        -6,
+        6
+      ],
+      "interceptRange": [
+        -12,
+        12
+      ]
+    }
+  },
+  {
+    "type": "orderedPair",
+    "prompt": "Write the coordinates of the plotted point as an ordered pair.",
+    "generator": {
+      "kind": "orderedPair",
+      "xRange": [
+        -99,
+        99
+      ],
+      "yRange": [
+        -99,
+        99
+      ],
+      "windowRadius": 6
+    }
+  },
+  {
+    "type": "multiAnswer",
+    "prompt": "For the line shown, enter both requested values.",
+    "generator": {
+      "kind": "lineFeatures",
+      "slopeRange": [
+        -99,
+        99
+      ],
+      "interceptRange": [
+        -99,
+        99
+      ]
+    }
+  }
+]

@@ -16,6 +16,7 @@ import {
 import { db } from './firebase';
 import { getAssignmentByLaunchId } from './classroomApi';
 import ClassroomSync from './ClassroomSync';
+import AssignmentQuestionEditor from './AssignmentQuestionEditor';
 import QuestionEngine from './QuestionEngine';
 import {
   emptyQuestionRecord,
@@ -53,6 +54,8 @@ import {
   prerequisiteAccess,
   recordAssignmentActivity,
   resolveDOLQuestionIndex,
+  getIncludedQuestionIndices,
+  questionIsIncluded,
 } from './assignmentLifecycle';
 import {
   buildIEPReportHtml,
@@ -61,6 +64,18 @@ import {
   normalizeStudentProfile,
 } from './studentSupport';
 
+
+
+const createQuestionId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  return `q_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+};
+
+const normalizeAssignmentQuestions = (questions = []) => questions.map((question) => ({
+  ...question,
+  questionId: question.questionId || createQuestionId(),
+  teacherExcluded: question.teacherExcluded === true,
+}));
 
 const createEmptyAssignmentTracker = (questions = []) => {
   const initialTracker = {};
@@ -142,6 +157,7 @@ function App() {
   const [supportUsageByAssignment, setSupportUsageByAssignment] = useState({});
   const [editingAssignmentId, setEditingAssignmentId] = useState(null);
   const [editingAssignmentDates, setEditingAssignmentDates] = useState({ dueAt: '', lateDueAt: '', assignedClassPeriods: [] });
+  const [questionEditorAssignment, setQuestionEditorAssignment] = useState(null);
 
   useEffect(() => {
     if (!pendingLaunchAssignmentId) return;
@@ -357,11 +373,13 @@ function App() {
 
   const calculateGrade = (assignmentTracker, assignmentData) => {
     if (!assignmentTracker || !assignmentData?.questions?.length) return 0;
-    const earnedCredit = assignmentData.questions.reduce(
-      (total, _, index) => total + getQuestionCredit(assignmentTracker?.[index]),
+    const included = getIncludedQuestionIndices(assignmentData);
+    if (!included.length) return 0;
+    const earnedCredit = included.reduce(
+      (total, index) => total + getQuestionCredit(assignmentTracker?.[index]),
       0,
     );
-    return Math.round((earnedCredit / assignmentData.questions.length) * 100);
+    return Math.round((earnedCredit / included.length) * 100);
   };
 
   const calculatePracticeProgress = (assignmentTracker, assignmentData) => {
@@ -369,15 +387,16 @@ function App() {
       return { attempted: 0, correct: 0, total: 0 };
     }
 
+    const included = getIncludedQuestionIndices(assignmentData);
     let attempted = 0;
     let correct = 0;
-    assignmentData.questions.forEach((_, index) => {
+    included.forEach((index) => {
       const status = getModuleStatus(assignmentTracker, index);
       if (status !== 'unattempted') attempted += 1;
       if (status === 'correct') correct += 1;
     });
 
-    return { attempted, correct, total: assignmentData.questions.length };
+    return { attempted, correct, total: included.length };
   };
 
   const flushAssignmentActivity = async (assignmentId = activeAssignmentId) => {
@@ -441,6 +460,13 @@ function App() {
   const activeWorkingTracker = isTeacherPreview
     ? previewTracker
     : tracker[activeAssignmentId] || {};
+
+  useEffect(() => {
+    if (!activeAssignmentData?.questions?.length) return;
+    const included = getIncludedQuestionIndices(activeAssignmentData);
+    if (!included.length) return;
+    if (!included.includes(currentQuestionIndex)) setCurrentQuestionIndex(included[0]);
+  }, [activeAssignmentData, currentQuestionIndex]);
 
   useEffect(() => {
     if (!isStudentAssignment || !activeAssignmentId) return undefined;
@@ -541,6 +567,8 @@ function App() {
 
   const changeQuestion = async (newIndex) => {
     if (!activeAssignmentId || newIndex === currentQuestionIndex) return;
+    const localAssignment = assignments.find((item) => item.id === activeAssignmentId);
+    if (localAssignment?.questions && !questionIsIncluded(localAssignment.questions[newIndex])) return;
 
     if (isTeacherPreview) {
       setPreviewTracker((current) => ({
@@ -628,7 +656,15 @@ function App() {
       return;
     }
 
-    const safeQuestionIndex = Math.max(0, Math.min(assignmentData.questions.length - 1, Number(requestedQuestionIndex) || 0));
+    const includedQuestionIndices = getIncludedQuestionIndices(assignmentData);
+    if (!includedQuestionIndices.length) {
+      window.alert('This assignment does not currently contain any included questions.');
+      return;
+    }
+    const requested = Number(requestedQuestionIndex) || 0;
+    const safeQuestionIndex = includedQuestionIndices.includes(requested)
+      ? requested
+      : includedQuestionIndices[0];
     setActiveAssignmentId(assignmentId);
     setCurrentQuestionIndex(safeQuestionIndex);
     lastActivityRef.current = Date.now();
@@ -652,7 +688,7 @@ function App() {
     if (!assignmentData?.questions) return;
 
     setActiveAssignmentId(assignmentId);
-    setCurrentQuestionIndex(0);
+    setCurrentQuestionIndex(getIncludedQuestionIndices(assignmentData)[0] ?? 0);
     setPreviewTracker(createEmptyAssignmentTracker(assignmentData.questions));
     setPreviewScratchpads({});
     setActiveView('teacherPreview');
@@ -1054,7 +1090,7 @@ function App() {
     try {
       const { questions, normalizedText, repairs } =
         parseAssignmentBlueprintText(newAssignmentJSON);
-      const parsedQuestions = validateAssignmentQuestions(questions);
+      const parsedQuestions = normalizeAssignmentQuestions(validateAssignmentQuestions(questions, { variantMode: newAssignmentVariantMode }));
       setNewAssignmentJSON(normalizedText);
       const dolQuestionNumber = Number(newAssignmentDolQuestion);
       const dolQuestionIndex = Number.isInteger(dolQuestionNumber) && dolQuestionNumber > 0
@@ -1097,6 +1133,33 @@ function App() {
     } catch (error) {
       window.alert(`Invalid JSON blueprint. Error: ${error.message}`);
     }
+  };
+
+  const openQuestionEditor = (assignment) => {
+    setQuestionEditorAssignment(assignment);
+  };
+
+  const saveQuestionEditor = async ({ title, questions }) => {
+    if (!questionEditorAssignment?.id) return;
+    const normalizedQuestions = normalizeAssignmentQuestions(questions);
+    const included = normalizedQuestions.filter(questionIsIncluded);
+    if (!included.length) throw new Error('At least one included question is required.');
+    validateAssignmentQuestions(included, {
+      variantMode: questionEditorAssignment.variantMode,
+      allowFixed: questionEditorAssignment.variantMode === 'shared',
+    });
+    const dolIndex = resolveDOLQuestionIndex({
+      ...questionEditorAssignment,
+      questions: normalizedQuestions,
+    });
+    await updateDoc(doc(db, 'assignments', questionEditorAssignment.id), {
+      title,
+      questions: normalizedQuestions,
+      'dol.questionIndex': dolIndex >= 0 ? dolIndex : null,
+      updatedAt: new Date().toISOString(),
+    });
+    setQuestionEditorAssignment(null);
+    await fetchAssignments();
   };
 
   const handleChangeClassPeriod = async (studentId, newPeriod) => {
@@ -1730,6 +1793,7 @@ function App() {
     }
 
     const questions = assignment.questions || [];
+    const includedQuestionIndices = getIncludedQuestionIndices(questions);
     const lifecycle = getAssignmentLifecycle(assignment, now);
     const recordedTracker = tracker[activeAssignmentId] || {};
     const workingTracker = preview ? previewTracker : recordedTracker;
@@ -1746,6 +1810,16 @@ function App() {
     const replacementWarning = currentIsDOL && dolState.status === 'active'
       ? `Requesting another DOL question will erase this DOL attempt. You will have only ${formatRemainingTime(dolState.millisecondsRemaining)} remaining to submit the replacement.`
       : '';
+
+    if (!includedQuestionIndices.length) {
+      return (
+        <div style={{ padding: '40px', textAlign: 'center', fontFamily: 'sans-serif' }}>
+          <h2>No questions are currently included</h2>
+          <p>The teacher has excluded every question from this assignment.</p>
+          <button onClick={() => { setActiveView('dashboard'); setActiveAssignmentId(null); }}>Return to Dashboard</button>
+        </div>
+      );
+    }
 
     const lifecycleBadge = lifecycle.isClosed
       ? { label: 'Permanently closed', background: '#fce8e6', color: '#a50e0e' }
@@ -1786,7 +1860,7 @@ function App() {
             <section style={{ marginBottom: '16px', padding: '20px 22px', borderRadius: '14px', background: '#f3e8fd', border: '2px solid #9334e6', color: '#4a126b', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px', flexWrap: 'wrap', textAlign: 'left' }}>
               <div>
                 <strong style={{ display: 'block', fontSize: '22px' }}>DOL is available now</strong>
-                <span>Question {dolState.questionIndex + 1} records today&apos;s DOL grade.</span>
+                <span>Question {Math.max(1, includedQuestionIndices.indexOf(dolState.questionIndex) + 1)} records today&apos;s DOL grade.</span>
                 {!supportPresentation.hideCountdowns && <div style={{ marginTop: '7px', fontWeight: 900, fontSize: '18px' }}>{formatRemainingTime(dolState.millisecondsRemaining)} remaining</div>}
               </div>
               <button type="button" onClick={() => changeQuestion(dolState.questionIndex)} style={{ padding: '12px 18px', border: 0, borderRadius: '10px', background: '#681da8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Go to DOL Question</button>
@@ -1832,7 +1906,8 @@ function App() {
           </header>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: '12px', marginBottom: '24px' }}>
-            {questions.map((question, index) => {
+            {includedQuestionIndices.map((index, visiblePosition) => {
+              const question = questions[index];
               const cardState = getQuestionCardState(workingTracker?.[index]);
               const record = normalizeQuestionRecord(workingTracker?.[index]);
               const isDOLQuestion = dolState.enabled && index === dolState.questionIndex;
@@ -1856,7 +1931,7 @@ function App() {
                     opacity: dolUnavailable ? 0.7 : 1,
                   }}
                 >
-                  <div style={{ fontSize: '14px', fontWeight: 'bold' }}>Question {index + 1}</div>
+                  <div style={{ fontSize: '14px', fontWeight: 'bold' }}>Question {visiblePosition + 1}</div>
                   <div style={{ fontSize: '12px', marginTop: '4px', textTransform: 'capitalize' }}>{question.type}</div>
                   {isDOLQuestion && <div style={{ marginTop: '5px', padding: '3px 7px', borderRadius: '999px', background: '#f3e8fd', color: '#681da8', fontSize: '10px', fontWeight: 900 }}>{dolUnavailable ? 'DOL opens later' : 'DOL'}</div>}
                   <div style={{ fontSize: '12px', marginTop: '7px', fontWeight: 'bold' }}>{dolUnavailable ? 'Locked until DOL window' : cardState.label}</div>
@@ -2012,6 +2087,14 @@ function App() {
       <div style={{ fontFamily: '"Segoe UI", sans-serif', backgroundColor: '#f8f9fa', minHeight: '100vh', padding: '20px' }}>
         {renderDeleteAssignmentDialog()}
         {renderTeacherScratchpadDialog()}
+        {questionEditorAssignment && (
+          <AssignmentQuestionEditor
+            assignment={questionEditorAssignment}
+            hasStudentData={allStudents.some((student) => student.gradesByAssignment?.[questionEditorAssignment.id] !== undefined)}
+            onSave={saveQuestionEditor}
+            onClose={() => setQuestionEditorAssignment(null)}
+          />
+        )}
         <div style={{ maxWidth: '1160px', margin: '0 auto', background: '#fff', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
           <header style={{ padding: '28px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e8eaed', gap: '20px' }}>
             <div>
@@ -2108,10 +2191,11 @@ function App() {
                             <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#e8f0fe', color: '#174ea6' }}>{assignment.assignmentType === 'notesClasswork' ? 'NOTES / CLASSWORK' : 'PRACTICE'}</span>
                             {assignment.variantMode === 'shared' && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#e6f4ea', color: '#137333' }}>SHARED VERSION</span>}
                           </div>
-                          <div style={{ marginTop: '7px', color: '#5f6368', fontSize: '13px', lineHeight: 1.55 }}>{assignment.questions?.length || 0} questions · Classes: {(assignment.assignedClassPeriods || CLASS_PERIODS).join(', ')}<br />Due {formatDueDate(assignment)} · Late close {formatLateDueDate(assignment)} · {affectedStudents} student record{affectedStudents === 1 ? '' : 's'}</div>
+                          <div style={{ marginTop: '7px', color: '#5f6368', fontSize: '13px', lineHeight: 1.55 }}>{getIncludedQuestionIndices(assignment).length} included question{getIncludedQuestionIndices(assignment).length === 1 ? '' : 's'}{(assignment.questions?.length || 0) !== getIncludedQuestionIndices(assignment).length ? ` · ${assignment.questions.length - getIncludedQuestionIndices(assignment).length} excluded` : ''} · Classes: {(assignment.assignedClassPeriods || CLASS_PERIODS).join(', ')}<br />Due {formatDueDate(assignment)} · Late close {formatLateDueDate(assignment)} · {affectedStudents} student record{affectedStudents === 1 ? '' : 's'}</div>
                         </div>
                         <div style={{ display: 'flex', gap: '9px', flexWrap: 'wrap' }}>
                           <button onClick={() => startTeacherPreview(assignment.id)} style={{ padding: '9px 13px', color: '#174ea6', background: '#e8f0fe', border: '1px solid #aecbfa', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>View as Student</button>
+                          <button onClick={() => openQuestionEditor(assignment)} style={{ padding: '9px 13px', color: '#174ea6', background: '#fff', border: '1px solid #1a73e8', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Edit Questions</button>
                           <button onClick={() => beginEditAssignmentDates(assignment)} style={{ padding: '9px 13px', color: '#5f4400', background: '#fff4ce', border: '1px solid #f9ab00', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Dates & Classes</button>
                           <button onClick={() => openDeleteDialog(assignment)} style={{ padding: '9px 13px', color: '#d93025', background: '#fff', border: '1px solid #d93025', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Delete</button>
                         </div>
@@ -2176,7 +2260,7 @@ function App() {
                   <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}><thead><tr style={{ background: '#f8f9fa' }}><th style={{ padding: '12px' }}>Student</th><th>Score</th><th>Instructional condition</th><th>Activity</th><th>DOL / Classwork</th><th></th></tr></thead><tbody>{selectedClassStudents.map((student) => { const grades = student.gradesByAssignment?.[selectedAssignment.id]; const score = grades ? calculateGrade(grades, selectedAssignment) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const modified = Boolean(usage.modified || usage.modifications?.length); const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; const dolEntries = Object.entries(student.dolGradesByAssignment?.[selectedAssignment.id] || {}).sort(([a], [b]) => a.localeCompare(b)); const latestDol = dolEntries.at(-1)?.[1]; const classwork = student.classworkGradesByAssignment?.[selectedAssignment.id]; return <tr key={student.id} style={{ borderBottom: '1px solid #e8eaed' }}><td style={{ padding: '12px', fontWeight: 'bold' }}>{student.id}</td><td><strong style={{ color: modified ? '#6f2da8' : score >= 70 ? '#188038' : '#202124' }}>{score === null ? '—' : `${score}%`}</strong>{modified && <span title={`Accommodations: ${(usage.accommodations || []).join(', ') || 'none'}; Modifications: ${(usage.modifications || []).join(', ') || 'none'}`} style={{ marginLeft: '7px', padding: '3px 6px', borderRadius: '999px', background: '#efe4ff', color: '#6f2da8', fontWeight: 900, fontSize: '11px' }}>MOD</span>}</td><td style={{ fontSize: '12px' }}>{modified ? `Modified: ${(usage.modifications || []).join(', ')}` : (usage.accommodations || []).length ? `Accommodated: ${usage.accommodations.join(', ')}` : 'Standard'}</td><td style={{ fontSize: '12px', lineHeight: 1.45 }}>Total {formatTime(activity.totalTimeSeconds || 0)}<br />On time {formatTime(activity.onTimeSeconds || 0)} · Late {formatTime(activity.lateSeconds || 0)}<br />Last on-time: {formatTimeStamp(activity.lastActiveBeforeDue)}<br />Last late: {formatTimeStamp(activity.lastActiveLate)}</td><td style={{ fontSize: '12px' }}>DOL: {latestDol ? `${latestDol.score}%` : '—'}<br />Classwork: {classwork?.score ? `${classwork.score}%` : '—'}</td><td><button onClick={() => setGradebookFilter((current) => ({ ...current, student }))} disabled={!grades} style={{ padding: '8px 12px', border: 0, borderRadius: '6px', background: grades ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 'bold' }}>Details</button></td></tr>; })}</tbody></table></div>
                 )}
 
-                {gradebookFilter.student && selectedAssignment && (() => { const student = gradebookFilter.student; const studentGrades = student.gradesByAssignment?.[selectedAssignment.id] || {}; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? '#efe4ff' : '#e8f0fe', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{student.id} · {selectedAssignment.title}</h3><div style={{ marginTop: '5px' }}>Score: <strong>{calculateGrade(studentGrades, selectedAssignment)}%</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>Total engagement {formatTime(activity.totalTimeSeconds || 0)} · Late engagement {formatTime(activity.lateSeconds || 0)}</div></div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: '#fff', color: '#6f2da8', fontWeight: 900 }}>Generate IEP Report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px' }}>{selectedAssignment.questions.map((question, index) => { const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? '#e6f4ea' : record.status === 'expired' && credit < 50 ? '#fce8e6' : credit >= 50 ? '#fff4ce' : '#f1f3f4', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? '#137333' : '#b3261e' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid #aeb8c6', borderRadius: '6px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>View Student Work</button></article>; })}</div></div>; })()}
+                {gradebookFilter.student && selectedAssignment && (() => { const student = gradebookFilter.student; const studentGrades = student.gradesByAssignment?.[selectedAssignment.id] || {}; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? '#efe4ff' : '#e8f0fe', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{student.id} · {selectedAssignment.title}</h3><div style={{ marginTop: '5px' }}>Score: <strong>{calculateGrade(studentGrades, selectedAssignment)}%</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>Total engagement {formatTime(activity.totalTimeSeconds || 0)} · Late engagement {formatTime(activity.lateSeconds || 0)}</div></div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: '#fff', color: '#6f2da8', fontWeight: 900 }}>Generate IEP Report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px' }}>{selectedAssignment.questions.map((question, index) => { if (!questionIsIncluded(question)) return null; const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? '#e6f4ea' : record.status === 'expired' && credit < 50 ? '#fce8e6' : credit >= 50 ? '#fff4ce' : '#f1f3f4', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? '#137333' : '#b3261e' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid #aeb8c6', borderRadius: '6px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>View Student Work</button></article>; })}</div></div>; })()}
               </div>
             )}
 
@@ -2200,12 +2284,14 @@ function App() {
       if (!canResumeAssignment(assignment)) return false;
       const assignmentTracker = tracker[assignment.id];
       if (!assignmentTracker) return false;
-      return assignment.questions?.some((_, index) => !['correct', 'expired'].includes(normalizeQuestionRecord(assignmentTracker[index]).status));
+      return assignment.questions?.some((question, index) => questionIsIncluded(question) && !['correct', 'expired'].includes(normalizeQuestionRecord(assignmentTracker[index]).status));
     });
     const resumeAssignment = savedResumeAssignment || fallbackResumeAssignment || null;
-    const fallbackQuestionIndex = resumeAssignment?.questions?.findIndex((_, index) => !['correct', 'expired'].includes(normalizeQuestionRecord(tracker[resumeAssignment.id]?.[index]).status)) ?? -1;
+    const fallbackQuestionIndex = resumeAssignment?.questions?.findIndex((question, index) => questionIsIncluded(question) && !['correct', 'expired'].includes(normalizeQuestionRecord(tracker[resumeAssignment.id]?.[index]).status)) ?? -1;
+    const savedResumeIncluded = savedResumeAssignment ? getIncludedQuestionIndices(savedResumeAssignment) : [];
+    const requestedResumeIndex = Number(resumeAction?.questionIndex) || 0;
     const resumeQuestionIndex = savedResumeAssignment
-      ? Math.max(0, Math.min(savedResumeAssignment.questions.length - 1, Number(resumeAction?.questionIndex) || 0))
+      ? (savedResumeIncluded.includes(requestedResumeIndex) ? requestedResumeIndex : (savedResumeIncluded[0] ?? 0))
       : Math.max(0, fallbackQuestionIndex);
     const resumeLifecycle = getAssignmentLifecycle(resumeAssignment, now);
     const activeDols = visibleAssignments.map((assignment) => ({ assignment, lifecycle: getAssignmentLifecycle(assignment, now), state: getDOLState({ assignment, schedule: classSchedule, classPeriod: user.classPeriod, nowValue: now }) })).filter(({ state, lifecycle }) => lifecycle.isOpen && state.status === 'active');

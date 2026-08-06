@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   getGoogleAuthUrl,
+  getGoogleClassroomDiagnostics,
   getClassroomConnectionStatus,
   listGoogleCourses,
   listClassroomStudents,
@@ -52,6 +53,7 @@ export default function ClassroomSync({ assignments = [] }) {
   const [publishResults, setPublishResults] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const [diagnostics, setDiagnostics] = useState(null);
 
   const selectedCourses = useMemo(
     () => courses.filter((course) => selectedCourseIds.includes(String(course.id))),
@@ -75,6 +77,24 @@ export default function ClassroomSync({ assignments = [] }) {
   const refreshPublications = async () => {
     const refreshed = await listPublishedAssignments();
     setLinks(refreshed.links || []);
+  };
+
+  const handleRunConnectionCheck = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await getGoogleClassroomDiagnostics();
+      setDiagnostics(result);
+      if (result.ok) {
+        setStatusMessage('Google Classroom server configuration passed. You can connect the teacher account.');
+      } else {
+        setError(result.problems?.join(' ') || 'Google Classroom configuration is incomplete.');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleConnect = async () => {
@@ -214,9 +234,33 @@ export default function ClassroomSync({ assignments = [] }) {
       )}
 
       {!connected ? (
-        <button style={primaryButton} onClick={handleConnect} disabled={busy}>
-          Connect Google Classroom
-        </button>
+        <>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <button style={secondaryButton} onClick={handleRunConnectionCheck} disabled={busy}>
+              Run Connection Check
+            </button>
+            <button style={primaryButton} onClick={handleConnect} disabled={busy}>
+              Connect Google Classroom
+            </button>
+          </div>
+
+          {diagnostics && (
+            <div style={{ marginTop: '16px', padding: '14px', border: '1px solid #dadce0', borderRadius: '10px', textAlign: 'left' }}>
+              <strong style={{ color: diagnostics.ok ? '#188038' : '#c5221f' }}>
+                {diagnostics.ok ? 'Connection configuration passed' : 'Connection configuration needs attention'}
+              </strong>
+              <div style={{ marginTop: '10px', display: 'grid', gap: '5px', color: '#5f6368', fontSize: '13px' }}>
+                <span>OAuth client ID: {diagnostics.checks?.clientIdConfigured ? 'Configured' : 'Missing'}</span>
+                <span>OAuth client secret: {diagnostics.checks?.clientSecretConfigured ? 'Configured' : 'Missing'}</span>
+                <span>Redirect URI: {diagnostics.checks?.redirectUri || 'Missing'}</span>
+                <span>Functions URL: {diagnostics.checks?.functionsBaseUrl || 'Missing'}</span>
+                <span>App URL: {diagnostics.checks?.appBaseUrl || 'Missing'}</span>
+                <span>Firestore: {diagnostics.checks?.firestoreAvailable ? 'Available' : 'Unavailable'}</span>
+                <span>OAuth URL generation: {diagnostics.checks?.authUrlBuilds ? 'Passed' : 'Failed'}</span>
+              </div>
+            </div>
+          )}
+        </>
       ) : (
         <>
           <div style={{ marginBottom: '25px' }}>

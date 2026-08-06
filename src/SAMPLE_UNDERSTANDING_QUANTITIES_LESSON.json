@@ -1,0 +1,653 @@
+[
+  {
+    "type": "relationshipModel",
+    "prompt": "Music downloads: identify the quantities, decide whether the relationship is discrete or continuous, label the graph, select a reasonable scale, and explain the origin.",
+    "scenario": "A music club charges $1 for each song purchased.",
+    "quantities": [
+      {
+        "id": "songs",
+        "label": "Number of songs purchased",
+        "unit": "songs"
+      },
+      {
+        "id": "cost",
+        "label": "Total cost",
+        "unit": "dollars"
+      }
+    ],
+    "correctIndependentId": "songs",
+    "correctDependentId": "cost",
+    "relationshipType": "discrete",
+    "axisSetup": {
+      "required": true,
+      "requireScale": true,
+      "acceptedXLabels": [
+        "number of songs purchased",
+        "songs purchased",
+        "songs"
+      ],
+      "acceptedYLabels": [
+        "total cost",
+        "cost"
+      ],
+      "acceptedXUnits": [
+        "songs"
+      ],
+      "acceptedYUnits": [
+        "dollars",
+        "dollars spent"
+      ],
+      "acceptedXSteps": [
+        1,
+        2,
+        5
+      ],
+      "acceptedYSteps": [
+        1,
+        2,
+        5
+      ]
+    },
+    "origin": {
+      "required": true,
+      "requiredConcepts": [
+        [
+          "0 songs",
+          "no songs",
+          "zero songs"
+        ],
+        [
+          "$0",
+          "0 dollars",
+          "no cost"
+        ]
+      ],
+      "sampleAnswer": "At 0 songs purchased, the total cost is $0."
+    },
+    "graph": {
+      "xMin": 0,
+      "xMax": 10,
+      "yMin": 0,
+      "yMax": 10,
+      "xStep": 1,
+      "yStep": 1,
+      "functions": [
+        {
+          "type": "line",
+          "m": 1,
+          "b": 0
+        }
+      ],
+      "ariaLabel": "An increasing line through the origin"
+    }
+  },
+  {
+    "type": "relationshipModel",
+    "prompt": "Aquarium draining: identify the quantities and model the starting value and scale.",
+    "scenario": "A 200-gallon aquarium drains at a constant rate of 10 gallons per minute.",
+    "quantities": [
+      {
+        "id": "time",
+        "label": "Time since draining began",
+        "unit": "minutes"
+      },
+      {
+        "id": "water",
+        "label": "Water remaining",
+        "unit": "gallons"
+      }
+    ],
+    "correctIndependentId": "time",
+    "correctDependentId": "water",
+    "relationshipType": "continuous",
+    "axisSetup": {
+      "required": true,
+      "requireScale": true,
+      "acceptedXLabels": [
+        "time",
+        "time since draining began",
+        "minutes"
+      ],
+      "acceptedYLabels": [
+        "water remaining",
+        "amount of water",
+        "gallons remaining"
+      ],
+      "acceptedXUnits": [
+        "minutes",
+        "min"
+      ],
+      "acceptedYUnits": [
+        "gallons",
+        "gal"
+      ],
+      "acceptedXSteps": [
+        1,
+        2,
+        5
+      ],
+      "acceptedYSteps": [
+        10,
+        20,
+        25,
+        50
+      ]
+    },
+    "origin": {
+      "required": true,
+      "requiredConcepts": [
+        [
+          "0 minutes",
+          "before draining",
+          "draining begins"
+        ],
+        [
+          "200 gallons",
+          "200 gallon"
+        ]
+      ],
+      "sampleAnswer": "At 0 minutes, the aquarium contains 200 gallons."
+    },
+    "graph": {
+      "xMin": 0,
+      "xMax": 20,
+      "yMin": 0,
+      "yMax": 200,
+      "xStep": 2,
+      "yStep": 20,
+      "functions": [
+        {
+          "type": "line",
+          "m": -10,
+          "b": 200
+        }
+      ],
+      "ariaLabel": "A line decreasing from 200 gallons toward zero"
+    }
+  },
+  {
+    "type": "graphScenarioMatch",
+    "prompt": "Match each real-world scenario to the graph that best tells its story.",
+    "scenarios": [
+      {
+        "id": "music",
+        "title": "Music club",
+        "description": "The total cost is $1 for each whole song purchased.",
+        "quantities": "Songs purchased → total cost"
+      },
+      {
+        "id": "aquarium",
+        "title": "Draining an aquarium",
+        "description": "A 200-gallon aquarium drains at 10 gallons per minute.",
+        "quantities": "Minutes → gallons remaining"
+      },
+      {
+        "id": "interest",
+        "title": "Doubling interest",
+        "description": "Interest begins at $1 and doubles each week.",
+        "quantities": "Weeks → interest owed"
+      },
+      {
+        "id": "rope",
+        "title": "Repeatedly halving a rope",
+        "description": "A 20-foot piece is cut in half again and again.",
+        "quantities": "Number of cuts → piece length"
+      },
+      {
+        "id": "baton",
+        "title": "Baton toss",
+        "description": "The baton rises, reaches a maximum height, and returns during a two-second interval.",
+        "quantities": "Time → height"
+      },
+      {
+        "id": "halfpipe",
+        "title": "Skateboard on a half-pipe",
+        "description": "The skateboard moves from a high point down to a minimum and back up.",
+        "quantities": "Position/time → height above ground"
+      }
+    ],
+    "graphs": [
+      {
+        "id": "graph-a",
+        "label": "Graph A — decreasing line",
+        "graph": {
+          "xMin": 0,
+          "xMax": 20,
+          "yMin": 0,
+          "yMax": 200,
+          "xStep": 2,
+          "yStep": 20,
+          "functions": [
+            {
+              "type": "line",
+              "m": -10,
+              "b": 200
+            }
+          ],
+          "ariaLabel": "A line decreasing from 200 gallons toward zero"
+        }
+      },
+      {
+        "id": "graph-b",
+        "label": "Graph B — exponential growth",
+        "graph": {
+          "xMin": 0,
+          "xMax": 8,
+          "yMin": 0,
+          "yMax": 140,
+          "xStep": 1,
+          "yStep": 20,
+          "functions": [
+            {
+              "type": "exponential",
+              "a": 1,
+              "base": 2,
+              "h": 0,
+              "k": 0
+            }
+          ],
+          "ariaLabel": "An exponential growth curve that doubles"
+        }
+      },
+      {
+        "id": "graph-c",
+        "label": "Graph C — upward parabola",
+        "graph": {
+          "xMin": 0,
+          "xMax": 8,
+          "yMin": 0,
+          "yMax": 5,
+          "xStep": 1,
+          "yStep": 1,
+          "functions": [
+            {
+              "type": "quadratic",
+              "a": 0.25,
+              "b": -2,
+              "c": 4
+            }
+          ],
+          "ariaLabel": "An upward opening parabola with a minimum"
+        }
+      },
+      {
+        "id": "graph-d",
+        "label": "Graph D — exponential decay",
+        "graph": {
+          "xMin": 0,
+          "xMax": 8,
+          "yMin": 0,
+          "yMax": 20,
+          "xStep": 1,
+          "yStep": 2,
+          "functions": [
+            {
+              "type": "exponential",
+              "a": 20,
+              "base": 0.5,
+              "h": 0,
+              "k": 0
+            }
+          ],
+          "ariaLabel": "An exponential decay curve that halves"
+        }
+      },
+      {
+        "id": "graph-e",
+        "label": "Graph E — increasing line",
+        "graph": {
+          "xMin": 0,
+          "xMax": 10,
+          "yMin": 0,
+          "yMax": 10,
+          "xStep": 1,
+          "yStep": 1,
+          "functions": [
+            {
+              "type": "line",
+              "m": 1,
+              "b": 0
+            }
+          ],
+          "ariaLabel": "An increasing line through the origin"
+        }
+      },
+      {
+        "id": "graph-f",
+        "label": "Graph F — downward parabola",
+        "graph": {
+          "xMin": 0,
+          "xMax": 2,
+          "yMin": 0,
+          "yMax": 24,
+          "xStep": 0.5,
+          "yStep": 4,
+          "functions": [
+            {
+              "type": "quadratic",
+              "a": -22,
+              "b": 44,
+              "c": 0
+            }
+          ],
+          "ariaLabel": "A downward opening parabola with a maximum at one second"
+        }
+      }
+    ],
+    "correctMatches": {
+      "music": "graph-e",
+      "aquarium": "graph-a",
+      "interest": "graph-b",
+      "rope": "graph-d",
+      "baton": "graph-f",
+      "halfpipe": "graph-c"
+    }
+  },
+  {
+    "type": "graphComparison",
+    "prompt": "Compare the music-club graph and the doubling-interest graph.",
+    "graphs": [
+      {
+        "id": "graph-e",
+        "label": "Graph E — increasing line",
+        "graph": {
+          "xMin": 0,
+          "xMax": 10,
+          "yMin": 0,
+          "yMax": 10,
+          "xStep": 1,
+          "yStep": 1,
+          "functions": [
+            {
+              "type": "line",
+              "m": 1,
+              "b": 0
+            }
+          ],
+          "ariaLabel": "An increasing line through the origin"
+        },
+        "scenario": "Music club: $1 for every song."
+      },
+      {
+        "id": "graph-b",
+        "label": "Graph B — exponential growth",
+        "graph": {
+          "xMin": 0,
+          "xMax": 8,
+          "yMin": 0,
+          "yMax": 140,
+          "xStep": 1,
+          "yStep": 20,
+          "functions": [
+            {
+              "type": "exponential",
+              "a": 1,
+              "base": 2,
+              "h": 0,
+              "k": 0
+            }
+          ],
+          "ariaLabel": "An exponential growth curve that doubles"
+        },
+        "scenario": "Interest: starts at $1 and doubles each week."
+      }
+    ],
+    "fields": [
+      {
+        "id": "similarity",
+        "label": "Describe one important similarity.",
+        "type": "text",
+        "requiredConcepts": [
+          [
+            "increase",
+            "increasing",
+            "goes up"
+          ],
+          [
+            "independent",
+            "x",
+            "input"
+          ]
+        ],
+        "sampleAnswer": "Both graphs increase as the independent quantity increases."
+      },
+      {
+        "id": "difference",
+        "label": "Describe one important difference.",
+        "type": "text",
+        "requiredConcepts": [
+          [
+            "linear",
+            "constant rate",
+            "straight line"
+          ],
+          [
+            "exponential",
+            "doubl",
+            "curve"
+          ]
+        ],
+        "sampleAnswer": "The music cost is linear at a constant rate, while the interest grows exponentially by doubling."
+      },
+      {
+        "id": "music-type",
+        "label": "The music-club graph is:",
+        "type": "choice",
+        "options": [
+          "linear",
+          "quadratic",
+          "exponential"
+        ],
+        "answer": "linear",
+        "acceptedAnswers": [
+          "linear"
+        ]
+      },
+      {
+        "id": "interest-type",
+        "label": "The interest graph is:",
+        "type": "choice",
+        "options": [
+          "linear",
+          "quadratic",
+          "exponential"
+        ],
+        "answer": "exponential",
+        "acceptedAnswers": [
+          "exponential"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "graphComparison",
+    "prompt": "Compare the baton-toss graph and the half-pipe graph from left to right.",
+    "graphs": [
+      {
+        "id": "graph-f",
+        "label": "Graph F — downward parabola",
+        "graph": {
+          "xMin": 0,
+          "xMax": 2,
+          "yMin": 0,
+          "yMax": 24,
+          "xStep": 0.5,
+          "yStep": 4,
+          "functions": [
+            {
+              "type": "quadratic",
+              "a": -22,
+              "b": 44,
+              "c": 0
+            }
+          ],
+          "ariaLabel": "A downward opening parabola with a maximum at one second"
+        },
+        "scenario": "Baton height rises to a maximum and then falls."
+      },
+      {
+        "id": "graph-c",
+        "label": "Graph C — upward parabola",
+        "graph": {
+          "xMin": 0,
+          "xMax": 8,
+          "yMin": 0,
+          "yMax": 5,
+          "xStep": 1,
+          "yStep": 1,
+          "functions": [
+            {
+              "type": "quadratic",
+              "a": 0.25,
+              "b": -2,
+              "c": 4
+            }
+          ],
+          "ariaLabel": "An upward opening parabola with a minimum"
+        },
+        "scenario": "Skateboard height falls to a minimum and then rises."
+      }
+    ],
+    "fields": [
+      {
+        "id": "shape",
+        "label": "What shape do both graphs have?",
+        "type": "choice",
+        "options": [
+          "line",
+          "parabola",
+          "exponential curve"
+        ],
+        "answer": "parabola",
+        "acceptedAnswers": [
+          "parabola"
+        ]
+      },
+      {
+        "id": "extrema",
+        "label": "Explain the major difference between their extrema.",
+        "type": "text",
+        "requiredConcepts": [
+          [
+            "baton",
+            "first graph",
+            "graph f"
+          ],
+          [
+            "maximum",
+            "highest"
+          ],
+          [
+            "half-pipe",
+            "second graph",
+            "graph c"
+          ],
+          [
+            "minimum",
+            "lowest"
+          ]
+        ],
+        "sampleAnswer": "The baton graph has a maximum, while the half-pipe graph has a minimum."
+      },
+      {
+        "id": "direction",
+        "label": "Describe how each graph changes from left to right.",
+        "type": "text",
+        "requiredConcepts": [
+          [
+            "increase",
+            "rises"
+          ],
+          [
+            "decrease",
+            "falls"
+          ]
+        ],
+        "sampleAnswer": "One increases then decreases; the other decreases then increases."
+      }
+    ]
+  },
+  {
+    "type": "graphStory",
+    "prompt": "Write a possible story about a trip to school, identify the quantities, label the axes, sketch the graph, and explain what the graph means.",
+    "minimumScenarioCharacters": 30,
+    "minimumExplanationCharacters": 30,
+    "sampleScenario": "A student rides toward school, stops briefly at a crossing, and then continues until the distance from home reaches the school.",
+    "sampleExplanation": "The increasing portions show travel away from home, and the horizontal portion shows a temporary stop."
+  },
+  {
+    "type": "orderedPair",
+    "prompt": "Prepare for the next lesson: write the coordinates of the plotted point.",
+    "variants": [
+      {
+        "answer": [
+          4,
+          2
+        ],
+        "graph": {
+          "xMin": -8,
+          "xMax": 8,
+          "yMin": -8,
+          "yMax": 8,
+          "xStep": 2,
+          "yStep": 2,
+          "points": [
+            {
+              "coordinates": [
+                4,
+                2
+              ],
+              "label": "A"
+            }
+          ]
+        }
+      },
+      {
+        "answer": [
+          -4,
+          2
+        ],
+        "graph": {
+          "xMin": -8,
+          "xMax": 8,
+          "yMin": -8,
+          "yMax": 8,
+          "xStep": 2,
+          "yStep": 2,
+          "points": [
+            {
+              "coordinates": [
+                -4,
+                2
+              ],
+              "label": "D"
+            }
+          ]
+        }
+      },
+      {
+        "answer": [
+          1,
+          -4
+        ],
+        "graph": {
+          "xMin": -8,
+          "xMax": 8,
+          "yMin": -8,
+          "yMax": 8,
+          "xStep": 2,
+          "yStep": 2,
+          "points": [
+            {
+              "coordinates": [
+                1,
+                -4
+              ],
+              "label": "C"
+            }
+          ]
+        }
+      }
+    ]
+  }
+]

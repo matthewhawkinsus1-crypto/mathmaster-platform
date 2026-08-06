@@ -1,0 +1,34 @@
+MathMaster Google Classroom Multi-Course Validation Report
+======================================================
+
+Date: 2026-08-06
+
+Validated changes
+-----------------
+- Deterministic publication IDs differ by Classroom course.
+- Roster-link IDs differ by Classroom course.
+- Grade-sync audit IDs differ by student and publication.
+- Legacy single-course publication records remain readable.
+- New publication flow stores one record per assignment + course.
+- Batch publishing reports partial success per course.
+- Repeated publishing uses published/in-progress checks and a recovery marker.
+- Grade passback queries all published destinations for an assignment.
+- Grade passback requires a course-specific roster link for new publications.
+- Teacher-authorized grade sync no longer calls student-only turnIn.
+- OAuth and launch-link secrets are explicitly bound to Functions.
+- Firebase Hosting configuration serves the Vite dist single-page app.
+
+Source validation
+-----------------
+- 5 Cloud Functions/CommonJS files passed node --check.
+- 40 frontend JavaScript/JSX files passed TypeScript parser transpilation.
+- 0 parser failures.
+- git diff --check passed.
+
+Dependency/build limitation
+---------------------------
+A complete npm install and Vite production build could not run in this
+execution environment because its internal npm proxy returned 404 responses
+for transitive packages including yargs-parser@21.1.1 and yallist@4.0.0.
+This is an environment registry limitation, not a source parser failure.
+Run npm install and npm run build in the target project before deployment.

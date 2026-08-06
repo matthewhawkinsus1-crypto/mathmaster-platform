@@ -1,0 +1,49 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // The broader platform still does not use Firebase Authentication. These
+    // existing client-readable collections remain open until real teacher and
+    // student authentication is added.
+    match /grades/{studentId} {
+      allow read, write: if true;
+    }
+
+    match /assignments/{assignmentId} {
+      allow read, write: if true;
+    }
+
+    match /settings/{docId} {
+      allow read, write: if true;
+    }
+
+    // Google Classroom integration records are server-only. Cloud Functions
+    // use the Admin SDK and bypass these client rules.
+    match /teacherIntegrations/{docId} {
+      allow read, write: if false;
+    }
+
+    match /oauthStates/{stateId} {
+      allow read, write: if false;
+    }
+
+    // One document per MathMaster assignment + Classroom course publication.
+    match /classroomLinks/{publicationId} {
+      allow read, write: if false;
+    }
+
+    // One mapping per Classroom course + MathMaster student ID.
+    match /classroomRosterLinks/{rosterLinkId} {
+      allow read, write: if false;
+    }
+
+    // Server-side grade passback audit trail.
+    match /classroomGradeSyncs/{syncId} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -288,6 +288,33 @@ Distribution:
 Equivalent algebraic forms are accepted. During balanced operations, cancellation is
 marked only on the side containing a zero pair or identity pair; the other side must
 be simplified in an algebraic response field.
+
+LESSON AND SCENARIO QUESTION TYPES
+
+Independent/dependent quantities, discrete/continuous classification, axis labels,
+reasonable scales, and origin meaning:
+"type": "relationshipModel"
+
+Scenario-to-graph card sort with one-to-one matching and partial credit:
+"type": "graphScenarioMatch"
+
+Side-by-side graph comparison with selected and written responses:
+"type": "graphComparison"
+
+Student-created scenario, labeled axes, freehand coordinate sketch, and explanation:
+"type": "graphStory"
+
+Graph Story is an open-ended completion-credit item. The response and saved work remain
+available in the teacher detail view for instructional review.
+
+ASSIGNMENT QUESTION EDITOR
+
+Published assignments include an Edit Questions action. Before student activity begins,
+questions may be removed and reordered. After student records exist, Throw Out Safely
+marks a question as excluded without changing its stored index, preventing existing
+student grades from being attached to the wrong question. Excluded questions are hidden
+from students and omitted from the assignment grade.
+
 `;
 
 
@@ -415,16 +442,27 @@ export const parseAssignmentBlueprintText = (rawValue) => {
   }
 };
 
-export const validateAssignmentQuestions = (questions) => {
+export const validateAssignmentQuestions = (questions, options = {}) => {
   if (!Array.isArray(questions) || questions.length === 0) {
     throw new Error('JSON must be a non-empty array of questions.');
   }
 
+  const allowFixed = options.allowFixed === true || options.variantMode === 'shared';
+  const supportedTypes = new Set([
+    'algebra', 'fraction', 'numberLine', 'graphing', 'functionGraph',
+    'functionInvestigation', 'graphAnalysis', 'stepAlgebra', 'literal',
+    'system', 'table', 'orderedPair', 'multiAnswer', 'relationshipModel',
+    'graphScenarioMatch', 'graphComparison', 'graphStory',
+  ]);
+
   questions.forEach((question, index) => {
     if (!question?.type) throw new Error(`Question ${index + 1} is missing a type.`);
-    if (!isPersonalizedBlueprint(question)) {
+    if (!supportedTypes.has(question.type)) {
+      throw new Error(`Question ${index + 1} uses unsupported type ${question.type}.`);
+    }
+    if (!allowFixed && !isPersonalizedBlueprint(question)) {
       throw new Error(
-        `Question ${index + 1} (${question.type}) is fixed. Add a generator or at least two variants so students receive personalized problems.`,
+        `Question ${index + 1} (${question.type}) is fixed. Add a generator, at least two variants, or publish the assignment in Shared exact version mode.`,
       );
     }
   });

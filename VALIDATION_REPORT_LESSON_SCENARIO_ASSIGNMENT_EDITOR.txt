@@ -1,0 +1,23 @@
+MathMaster Lesson Modeling + Assignment Editor Validation
+========================================================
+
+1. JavaScript/JSX parser validation
+PASS: 46 source files parsed with zero syntax errors.
+
+2. Blueprint and shared-version validation
+PASS: 7 lesson questions accepted in Shared exact version mode.
+PASS: Fixed questions remain blocked in Personalized mode.
+
+3. Safe exclusion and DOL routing
+PASS: excluded questions are omitted without shifting stored indexes.
+PASS: DOL selection skips excluded questions.
+
+4. Concept-response grading utilities
+PASS: flexible wording accepts required mathematical concepts and rejects missing concepts.
+
+5. Dependency-independent behavior
+PASS: matching, relationship, comparison, graph-story, exclusion, and validator code require no new npm package.
+
+6. Full Vite build
+NOT COMPLETED: the internal npm proxy returned 404 for yargs-parser@21.1.1 during npm install.
+Run npm install and npm run build in the actual project environment before deployment.
