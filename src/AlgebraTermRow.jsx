@@ -10,6 +10,8 @@ export default function AlgebraTermRow({
   registerTermRef,
   crossedIndices = [],
   justInsertedIndex = null,
+  selectedIndices = [],
+  onTermClick,
 }) {
   return (
     <span
@@ -22,18 +24,31 @@ export default function AlgebraTermRow({
     >
       {terms.map((term, index) => {
         const crossed = crossedIndices.includes(index);
+        const selected = selectedIndices.includes(index);
         return (
           <span
             key={index}
             ref={(el) => registerTermRef?.(index, el)}
             className={index === justInsertedIndex ? 'algebra-term-pop' : ''}
+            onClick={onTermClick ? () => onTermClick(index) : undefined}
+            role={onTermClick ? 'button' : undefined}
+            tabIndex={onTermClick ? 0 : undefined}
+            onKeyDown={onTermClick ? (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onTermClick(index); } } : undefined}
+            aria-label={onTermClick ? `${term.text}, select to cancel` : undefined}
+            aria-pressed={onTermClick ? selected : undefined}
             style={{
               position: 'relative',
               display: 'inline-flex',
               alignItems: 'center',
               marginLeft: index === 0 ? 0 : '10px',
               opacity: crossed ? 0.4 : 1,
-              transition: 'opacity 0.25s ease 0.2s',
+              transition: 'opacity 0.25s ease 0.2s, outline-color 0.15s ease, background 0.15s ease',
+              cursor: onTermClick ? 'pointer' : undefined,
+              outline: selected ? '2px solid #1a73e8' : 'none',
+              outlineOffset: '2px',
+              background: selected ? 'rgba(26,115,232,0.12)' : 'transparent',
+              borderRadius: selected ? '6px' : 0,
+              padding: selected ? '1px 4px' : 0,
             }}
           >
             <MathDisplay value={term.latex} format="latex" inline style={{ fontSize: 'inherit' }} ariaLabel={term.text} />
