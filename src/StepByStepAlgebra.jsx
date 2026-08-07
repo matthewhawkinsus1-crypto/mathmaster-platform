@@ -30,6 +30,8 @@ const getInitialEquation = (question, record) => {
   return parseEquationInput(question);
 };
 
+const isFactorOperation = (operation) => operation === 'multiply' || operation === 'divide';
+
 // Best-effort, presentation-only: given the "before" terms of a side flagged
 // as cancellable and the known "after" simplified expression, find which two
 // terms combine away. Falls back gracefully (returns null) for anything this
@@ -86,9 +88,11 @@ export default function StepByStepAlgebra({
   const [heldToken, setHeldToken] = useState(null); // { x, y, label }
   const [mirrorToken, setMirrorToken] = useState(null); // { x, y, label } | null
   const [cancellationHintsEnabled, setCancellationHintsEnabled] = useState(true);
+  const [factorZoneHint, setFactorZoneHint] = useState(null); // { side, position } | null
   const prefillAppliedRef = useRef(false);
   const dragRef = useRef(null); // { operation, label, pointerId }
   const dragOverSideRef = useRef(null);
+  const factorZoneRef = useRef(null);
   const rafRef = useRef(null);
   const latestPointerRef = useRef(null);
   const equalsRef = useRef(null);
@@ -96,6 +100,10 @@ export default function StepByStepAlgebra({
   const rightSideRef = useRef(null);
   const leftRailRef = useRef(null);
   const rightRailRef = useRef(null);
+  const leftFactorWrapRef = useRef(null);
+  const rightFactorWrapRef = useRef(null);
+  const leftFactorBarRef = useRef(null);
+  const rightFactorBarRef = useRef(null);
 
   useEffect(() => {
     if (savedDraft) return;
@@ -326,6 +334,61 @@ export default function StepByStepAlgebra({
   // This is purely a visual layer on top of attemptMove — the same function
   // that the keyboard "Apply" button and native drag-and-drop already call.
 
+  // For multiply/divide, only a specific spot solidifies the move: either
+  // edge of the parentheses for multiply, or the fraction bar itself for
+  // divide. Anywhere else on that side is "explorable" — it highlights but
+  // does not commit, so the student learns the correct target visually.
+  const updateFactorZones = (clientX, clientY) => {
+    const operation = dragRef.current?.operation;
+    const threshold = 42;
+    const candidates = [];
+    ['left', 'right'].forEach((side) => {
+      if (operation === 'multiply') {
+        const wrapRect = (side === 'left' ? leftFactorWrapRef : rightFactorWrapRef).current?.getBoundingClientRect();
+        if (wrapRect) {
+          candidates.push({ side, position: 'before', x: wrapRect.left, y: wrapRect.top + wrapRect.height / 2 });
+          candidates.push({ side, position: 'after', x: wrapRect.right, y: wrapRect.top + wrapRect.height / 2 });
+        }
+      } else {
+        const barRect = (side === 'left' ? leftFactorBarRef : rightFactorBarRef).current?.getBoundingClientRect();
+        if (barRect) candidates.push({ side, position: 'bar', x: barRect.left + barRect.width / 2, y: barRect.top + barRect.height / 2, halfWidth: barRect.width / 2 });
+      }
+    });
+
+    let nearest = null;
+    let nearestDist = Infinity;
+    candidates.forEach((candidate) => {
+      const dx = Math.abs(clientX - candidate.x);
+      const dy = Math.abs(clientY - candidate.y);
+      const withinX = dx < (candidate.halfWidth ?? threshold);
+      const withinY = dy < threshold;
+      if (withinX && withinY) {
+        const dist = Math.hypot(dx, dy);
+        if (dist < nearestDist) { nearestDist = dist; nearest = candidate; }
+      }
+    });
+    factorZoneRef.current = nearest;
+    setFactorZoneHint(nearest);
+
+    const leftRect = leftSideRef.current?.getBoundingClientRect();
+    const rightRect = rightSideRef.current?.getBoundingClientRect();
+    const overLeft = leftRect && clientX >= leftRect.left && clientX <= leftRect.right && clientY >= leftRect.top && clientY <= leftRect.bottom;
+    const overRight = rightRect && clientX >= rightRect.left && clientX <= rightRect.right && clientY >= rightRect.top && clientY <= rightRect.bottom;
+    const side = overLeft ? 'left' : overRight ? 'right' : null;
+    dragOverSideRef.current = side;
+    setDragOverSide(side);
+  };
+
+  const updateWholeSideZone = (clientX, clientY) => {
+    const leftRect = leftSideRef.current?.getBoundingClientRect();
+    const rightRect = rightSideRef.current?.getBoundingClientRect();
+    const overLeft = leftRect && clientX >= leftRect.left && clientX <= leftRect.right && clientY >= leftRect.top && clientY <= leftRect.bottom;
+    const overRight = rightRect && clientX >= rightRect.left && clientX <= rightRect.right && clientY >= rightRect.top && clientY <= rightRect.bottom;
+    const side = overLeft ? 'left' : overRight ? 'right' : null;
+    dragOverSideRef.current = side;
+    setDragOverSide(side);
+  };
+
   const updatePointerVisuals = (clientX, clientY) => {
     const equalsRect = equalsRef.current?.getBoundingClientRect();
     const leftRailRect = leftRailRef.current?.getBoundingClientRect();
@@ -344,13 +407,8 @@ export default function StepByStepAlgebra({
       }
     }
 
-    const leftRect = leftSideRef.current?.getBoundingClientRect();
-    const rightRect = rightSideRef.current?.getBoundingClientRect();
-    const overLeft = leftRect && clientX >= leftRect.left && clientX <= leftRect.right && clientY >= leftRect.top && clientY <= leftRect.bottom;
-    const overRight = rightRect && clientX >= rightRect.left && clientX <= rightRect.right && clientY >= rightRect.top && clientY <= rightRect.bottom;
-    const side = overLeft ? 'left' : overRight ? 'right' : null;
-    dragOverSideRef.current = side;
-    setDragOverSide(side);
+    if (isFactorOperation(dragRef.current?.operation)) updateFactorZones(clientX, clientY);
+    else updateWholeSideZone(clientX, clientY);
   };
 
   const beginPointerDrag = (operation, event) => {
@@ -380,11 +438,31 @@ export default function StepByStepAlgebra({
     dragRef.current = null;
     if (rafRef.current) { window.cancelAnimationFrame(rafRef.current); rafRef.current = null; }
     const side = dragOverSideRef.current;
+    const factorZone = factorZoneRef.current;
     setHeldToken(null);
     setMirrorToken(null);
     setDragOverSide(null);
+    setFactorZoneHint(null);
     dragOverSideRef.current = null;
-    if (drag && commit && side) attemptMove(drag.operation, side);
+    factorZoneRef.current = null;
+    if (!drag || !commit) return;
+
+    if (isFactorOperation(drag.operation)) {
+      if (factorZone) {
+        attemptMove(drag.operation, factorZone.side);
+      } else if (side) {
+        triggerShake();
+        setMessage({
+          tone: 'growth',
+          text: drag.operation === 'multiply'
+            ? 'That touches a term, but multiplying needs to wrap the whole expression — drop it right against either side of the parentheses.'
+            : 'That is on a term, but dividing needs to divide the whole expression — drop it on the fraction bar.',
+        });
+      }
+      return;
+    }
+
+    if (side) attemptMove(drag.operation, side);
   };
 
   const onDragPointerUp = (event) => {
@@ -407,10 +485,34 @@ export default function StepByStepAlgebra({
 
   const renderSide = (side) => {
     const terms = splitAdditiveTerms(sideExpression(side));
-    if (!terms) return <MathDisplay value={displayedSideLatex(side)} format="latex" className="algebra-equation-side" style={{ fontSize: '32px', margin: '16px 0' }} />;
+    const inner = terms ? <AlgebraTermRow terms={terms} side={side} /> : <MathDisplay value={displayedSideLatex(side)} format="latex" inline />;
+
+    const showFactorPreview = armedTile && !pendingMove && isFactorOperation(armedTile.operation);
+    if (!showFactorPreview) {
+      return <div className="algebra-equation-side" style={{ fontSize: '32px', margin: '16px 0' }}>{inner}</div>;
+    }
+
+    const factorLabel = operand.trim() || '?';
+    const zoneHere = factorZoneHint?.side === side;
+
+    if (armedTile.operation === 'multiply') {
+      return (
+        <div
+          ref={side === 'left' ? leftFactorWrapRef : rightFactorWrapRef}
+          className={`algebra-equation-side algebra-factor-tentative ${zoneHere ? 'algebra-factor-armed' : ''}`}
+          style={{ fontSize: '32px', margin: '16px 0', display: 'inline-flex', alignItems: 'center' }}
+        >
+          <span className="algebra-factor-value">{factorLabel}</span>
+          <span className="algebra-paren-inner">({inner})</span>
+        </div>
+      );
+    }
+
     return (
-      <div className="algebra-equation-side" style={{ fontSize: '32px', margin: '16px 0' }}>
-        <AlgebraTermRow terms={terms} side={side} />
+      <div className={`algebra-equation-side algebra-factor-tentative ${zoneHere ? 'algebra-factor-armed' : ''}`} style={{ fontSize: '32px', margin: '16px 0', display: 'inline-flex', flexDirection: 'column', alignItems: 'center' }}>
+        <span className="algebra-div-num">{inner}</span>
+        <span ref={side === 'left' ? leftFactorBarRef : rightFactorBarRef} className="algebra-div-bar" style={{ width: '100%', height: '3px', background: 'currentColor', borderRadius: '2px', margin: '4px 0' }} />
+        <span className="algebra-div-den">{factorLabel}</span>
       </div>
     );
   };
@@ -491,6 +593,13 @@ export default function StepByStepAlgebra({
           <button type="button" draggable={!disabled} onDragStart={(event) => event.dataTransfer.setData('text/algebra-operation', armedTile.operation)} onClick={() => attemptMove(armedTile.operation, armedTile.side)} disabled={disabled || savingStep} style={{ padding: '13px 18px', border: 'none', borderRadius: '9px', background: disabled || savingStep ? '#dadce0' : '#1a73e8', color: '#fff', fontWeight: 'bold', cursor: disabled || savingStep ? 'not-allowed' : 'grab' }}>Apply {armedOperationLabel} {operand}</button>
           <button type="button" onPointerDown={(event) => beginPointerDrag(armedTile.operation, event)} onPointerMove={onDragPointerMove} onPointerUp={onDragPointerUp} onPointerCancel={onDragPointerCancel} disabled={disabled || savingStep} style={{ padding: '13px 18px', border: '1px dashed #1a73e8', borderRadius: '9px', background: '#fff', color: '#174ea6', fontWeight: 'bold', cursor: disabled || savingStep ? 'not-allowed' : 'grab', touchAction: 'none' }}>⠿ Pick up &amp; drag onto a side</button>
           <button type="button" onClick={() => setArmedTile(null)} style={{ padding: '13px 14px', border: '1px solid #dadce0', borderRadius: '9px', background: '#fff', color: '#5f6368', fontWeight: 'bold' }}>Cancel</button>
+          {isFactorOperation(armedTile.operation) && (
+            <p style={{ flexBasis: '100%', margin: 0, fontSize: '13px', color: '#8a5a00' }}>
+              {armedTile.operation === 'multiply'
+                ? 'Dragging: touch either side of the parentheses to lock it in. Other spots are explorable but will not solidify.'
+                : 'Dragging: drop it right on the fraction bar to lock it in. Other spots are explorable but will not solidify.'}
+            </p>
+          )}
         </div>
       )}
 

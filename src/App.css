@@ -299,6 +299,51 @@
   animation: algebraTermPop 0.32s cubic-bezier(0.3, 0.9, 0.3, 1.25);
 }
 
+@keyframes algebraTentativePulse {
+  0%, 100% { outline-color: rgba(26, 115, 232, 0.45); }
+  50% { outline-color: rgba(26, 115, 232, 0.95); }
+}
+
+.algebra-factor-tentative {
+  outline: 2px dashed rgba(26, 115, 232, 0.7);
+  outline-offset: 4px;
+  border-radius: 10px;
+  padding: 4px 8px;
+  animation: algebraTentativePulse 1.3s ease-in-out infinite;
+}
+
+.algebra-factor-tentative.algebra-factor-armed {
+  outline-style: solid;
+  outline-color: #1a73e8;
+  background: rgba(26, 115, 232, 0.08);
+  animation: none;
+}
+
+.algebra-factor-value {
+  font-family: ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace;
+  font-weight: 800;
+  font-size: 0.6em;
+  color: #174ea6;
+  padding: 0 6px;
+}
+
+.algebra-paren-inner {
+  padding: 0 3px;
+  white-space: nowrap;
+}
+
+.algebra-div-num {
+  padding: 0 6px;
+}
+
+.algebra-div-den {
+  font-family: ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace;
+  font-size: 0.55em;
+  font-weight: 800;
+  color: #174ea6;
+  text-align: center;
+}
+
 .mathmaster-support-large-text {
   font-size: 120%;
 }
