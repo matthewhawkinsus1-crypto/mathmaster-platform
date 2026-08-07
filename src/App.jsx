@@ -204,6 +204,9 @@ function App() {
     student: null,
   });
 
+  const [exportJsonAssignment, setExportJsonAssignment] = useState(null);
+  const [exportJsonCopied, setExportJsonCopied] = useState(false);
+
   const [deleteDialog, setDeleteDialog] = useState(null);
   const [deleteStep, setDeleteStep] = useState(1);
   const [deleteTitleConfirmation, setDeleteTitleConfirmation] = useState('');
@@ -1796,6 +1799,94 @@ function App() {
     );
   };
 
+  const closeExportJsonDialog = () => {
+    setExportJsonAssignment(null);
+    setExportJsonCopied(false);
+  };
+
+  const copyExportJsonToClipboard = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setExportJsonCopied(true);
+    } catch (error) {
+      console.error(error);
+      setExportJsonCopied(false);
+    }
+  };
+
+  const renderExportJsonDialog = () => {
+    if (!exportJsonAssignment) return null;
+
+    const exportedText = JSON.stringify(exportJsonAssignment, null, 2);
+
+    return (
+      <div
+        role="presentation"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) closeExportJsonDialog();
+        }}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 10000,
+          background: 'rgba(32,33,36,0.72)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px',
+        }}
+      >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="export-json-title"
+          style={{
+            width: '100%',
+            maxWidth: '720px',
+            background: '#fff',
+            borderRadius: '16px',
+            boxShadow: '0 24px 70px rgba(0,0,0,0.3)',
+            overflow: 'hidden',
+            textAlign: 'left',
+          }}
+        >
+          <div style={{ padding: '24px 28px', borderBottom: '1px solid #e8eaed' }}>
+            <h2 id="export-json-title" style={{ margin: 0, color: '#202124' }}>
+              Export JSON &middot; {exportJsonAssignment.title}
+            </h2>
+            <p style={{ margin: '8px 0 0', color: '#5f6368', fontSize: '13px' }}>
+              This is the exact stored assignment document, including question generators, dates, and settings. Copy it and paste it wherever it needs to be reviewed.
+            </p>
+          </div>
+          <div style={{ padding: '20px 28px' }}>
+            <textarea
+              readOnly
+              value={exportedText}
+              onFocus={(event) => event.target.select()}
+              style={{ width: '100%', height: '360px', padding: '12px', borderRadius: '8px', border: '1px solid #ccc', fontFamily: 'monospace', fontSize: '12px', boxSizing: 'border-box', resize: 'vertical' }}
+            />
+          </div>
+          <div style={{ padding: '18px 28px', borderTop: '1px solid #e8eaed', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+            <button
+              type="button"
+              onClick={closeExportJsonDialog}
+              style={{ padding: '10px 18px', background: '#fff', border: '1px solid #c9ced6', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              onClick={() => copyExportJsonToClipboard(exportedText)}
+              style={{ padding: '10px 18px', background: '#1a73e8', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
+            >
+              {exportJsonCopied ? 'Copied!' : 'Copy to Clipboard'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderFixedBlueprintConfirmation = () => {
     if (!fixedBlueprintConfirmation) return null;
     return (
@@ -2328,6 +2419,7 @@ function App() {
     return (
       <div style={{ fontFamily: '"Segoe UI", sans-serif', backgroundColor: '#f8f9fa', minHeight: '100vh', padding: '20px' }}>
         {renderDeleteAssignmentDialog()}
+        {renderExportJsonDialog()}
         {renderFixedBlueprintConfirmation()}
         {renderTeacherScratchpadDialog()}
         {questionEditorAssignment && (
@@ -2463,6 +2555,7 @@ function App() {
                           items={[
                             { key: 'preview', label: 'View as Student', onClick: () => startTeacherPreview(assignment.id) },
                             { key: 'edit-questions', label: 'Edit Questions', onClick: () => openQuestionEditor(assignment) },
+                            { key: 'export-json', label: 'Export JSON', onClick: () => { setExportJsonAssignment(assignment); setExportJsonCopied(false); } },
                             { key: 'dates-classes', label: 'Dates & Classes', onClick: () => beginEditAssignmentDates(assignment) },
                             { key: 'move-folder', label: 'Move to Folder', onClick: () => { setMovingFolderAssignmentId(assignment.id); setMovingFolderValue(assignment.folder || ''); } },
                             { key: 'duplicate', label: 'Duplicate', onClick: () => handleDuplicateAssignment(assignment) },
