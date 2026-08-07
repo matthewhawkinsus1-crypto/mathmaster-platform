@@ -1,24 +1,99 @@
 rules_version = '2';
 
+// MathMaster access control.
+//
+// Every rule below reads the `role` and `studentId` custom claims. Those claims
+// are written only by Cloud Functions (`resolveSignedInRole`, `studentSignIn`,
+// `linkGoogleAccount`), never by a client, so a signed-in user cannot promote
+// themselves by editing a document.
+//
+// The rule of thumb: a student may read and write exactly their own record; a
+// teacher may read and write the class; nobody else may read anything.
 service cloud.firestore {
   match /databases/{database}/documents {
-    // The broader platform still does not use Firebase Authentication. These
-    // existing client-readable collections remain open until real teacher and
-    // student authentication is added.
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isTeacher() {
+      return signedIn() && request.auth.token.role == 'teacher';
+    }
+
+    function isStudent() {
+      return signedIn() && request.auth.token.role == 'student';
+    }
+
+    function ownsStudentRecord(studentId) {
+      return isStudent() && request.auth.token.studentId == studentId;
+    }
+
+    // A student's grades, attempt history, class period and inclusion profile.
     match /grades/{studentId} {
-      allow read, write: if true;
+      allow read: if isTeacher() || ownsStudentRecord(studentId);
+      allow create, update: if isTeacher() || ownsStudentRecord(studentId);
+      allow delete: if isTeacher();
+
+      // Handwritten scratchpad work, and anything else scoped to one student.
+      // Recursive so a future subcollection inherits the same ownership check
+      // instead of silently falling through to the deny-all rule at the bottom.
+      //
+      // Note that `{document=**}` also matches the parent `grades/{studentId}`
+      // document, and rules are a permissive union — so granting blanket
+      // `write` here would hand students back the delete on their own record
+      // that the rule above withholds. Deletes stay teacher-only on purpose:
+      // a student clearing their record would erase their grade history.
+      match /{document=**} {
+        allow read: if isTeacher() || ownsStudentRecord(studentId);
+        allow create, update: if isTeacher() || ownsStudentRecord(studentId);
+        allow delete: if isTeacher();
+      }
     }
 
+    // Assignment definitions are shared classroom content: every signed-in user
+    // reads them, only a teacher authors them.
     match /assignments/{assignmentId} {
-      allow read, write: if true;
+      allow read: if signedIn();
+      allow write: if isTeacher();
     }
 
+    // Class schedule and assignment folders. Students read the schedule to know
+    // when a DOL window opens; only a teacher changes either.
     match /settings/{docId} {
-      allow read, write: if true;
+      allow read: if signedIn();
+      allow write: if isTeacher();
     }
 
-    // Google Classroom integration records are server-only. Cloud Functions
-    // use the Admin SDK and bypass these client rules.
+    // --- Server-only collections ---------------------------------------------
+    // Cloud Functions use the Admin SDK and bypass these rules entirely. Denying
+    // all client access is the point: PIN hashes, join codes and lockout
+    // counters are only ever compared server-side.
+
+    match /studentCredentials/{studentIdKey} {
+      allow read, write: if false;
+    }
+
+    match /studentDirectory/{email} {
+      allow read, write: if false;
+    }
+
+    match /studentAliases/{studentIdKey} {
+      allow read, write: if false;
+    }
+
+    match /classJoinCodes/{code} {
+      allow read, write: if false;
+    }
+
+    match /authThrottle/{throttleKey} {
+      allow read, write: if false;
+    }
+
+    match /teacherDirectory/{email} {
+      allow read, write: if false;
+    }
+
+    // Google Classroom integration records are server-only.
     match /teacherIntegrations/{docId} {
       allow read, write: if false;
     }

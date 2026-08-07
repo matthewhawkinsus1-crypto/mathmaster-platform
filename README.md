@@ -12,11 +12,21 @@ npm install
 npm run dev
 ```
 
-Firebase configuration remains in `.env`. Before production use, configure Firebase
-Authentication and Firestore rules for assignments, grades, and the new scratchpad path:
+## Signing in
 
-```text
-grades/{studentId}/scratchpads/{assignmentId}__question_{questionIndex}
+Teachers sign in with Google (the same account used for Google Classroom) or
+with an email and password. Students sign in with a school Google account, or
+with their student ID and a 4–8 digit PIN they choose once using their class
+join code. Roles come from Firebase custom claims written only by Cloud
+Functions, and Firestore rules are keyed on them, so a student can reach their
+own record and nothing else.
+
+Read [`docs/authentication.md`](docs/authentication.md) before deploying — the
+order of the steps matters, and there is a one-time bootstrap for the first
+teacher account.
+
+```bash
+npm run test:rules   # asserts the Firestore rules against the emulator (needs Java)
 ```
 
 ## Ready-to-paste QA assignment

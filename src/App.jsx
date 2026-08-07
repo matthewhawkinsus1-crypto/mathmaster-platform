@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import './App.css';
 import {
   addDoc,
@@ -66,6 +66,9 @@ import {
   getStudentSupportPresentation,
   normalizeStudentProfile,
 } from './studentSupport';
+import { useAuth } from './auth/AuthProvider';
+import LoginScreen from './LoginScreen';
+import SignInAccess from './SignInAccess';
 import TeacherSidebar from './TeacherSidebar';
 import AssignmentLibrary from './AssignmentLibrary';
 import AssignmentCardMenu from './AssignmentCardMenu';
@@ -127,8 +130,13 @@ const formatTimeStamp = (value) => {
 };
 
 function App() {
-  const [studentIdInput, setStudentIdInput] = useState('');
+  // Identity is owned entirely by <AuthProvider>. `user` below is the
+  // application-level profile that the rest of this component reads: the
+  // roster record, class period and inclusion supports that hang off whoever
+  // the auth layer says is signed in.
+  const { status: authStatus, session, signOut } = useAuth();
   const [user, setUser] = useState(null);
+  const [sessionError, setSessionError] = useState(null);
 
   // Google Classroom launch link: ?launch=<assignmentId> drops a student
   // straight into that assignment once they log in.
@@ -150,8 +158,6 @@ function App() {
   const [assignments, setAssignments] = useState([]);
   const [allStudents, setAllStudents] = useState([]);
   const [activeAssignmentId, setActiveAssignmentId] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState(null);
   const [tracker, setTracker] = useState({});
   const [practiceTracker, setPracticeTracker] = useState({});
   const [previewTracker, setPreviewTracker] = useState({});
@@ -314,66 +320,104 @@ function App() {
     setPreviewTracker({});
   };
 
-  const handleLogin = async (event) => {
-    event.preventDefault();
-    if (!studentIdInput.trim()) return;
+  /**
+   * Loads everything the signed-in person's dashboard needs. Runs once per
+   * session rather than per login form submit, so a student who reopens the app
+   * with a remembered session gets the same state without retyping anything.
+   */
+  const loadSessionData = useCallback(async (activeSession) => {
+    const fetchedAssignments = await fetchAssignments();
 
-    const cleanInput = studentIdInput.trim();
-    setLoading(true);
-    setErrorMessage(null);
-
-    try {
-      const fetchedAssignments = await fetchAssignments();
-      if (cleanInput.toUpperCase() === 'TEACHER') {
-        await Promise.all([fetchStudents(), fetchClassSchedule(), fetchAssignmentFolders()]);
-        setUser({ id: 'TEACHER', role: 'teacher' });
-        setResumeAction(null);
-      } else {
-        const studentDocRef = doc(db, 'grades', cleanInput);
-        const docSnap = await getDoc(studentDocRef);
-        let studentData;
-
-        if (docSnap.exists()) {
-          studentData = docSnap.data();
-        } else {
-          studentData = {
-            classPeriod: 'Unassigned',
-            profile: normalizeStudentProfile({}),
-            gradesByAssignment: {},
-            assignmentActivity: {},
-            dolGradesByAssignment: {},
-            classworkGradesByAssignment: {},
-            supportUsageByAssignment: {},
-          };
-          await setDoc(studentDocRef, studentData);
-        }
-
-        const studentProfile = normalizeStudentProfile(studentData.profile || studentData);
-        setUser({
-          id: cleanInput,
-          role: 'student',
-          classPeriod: studentData.classPeriod || 'Unassigned',
-          profile: studentProfile,
-        });
-        setTracker(studentData.gradesByAssignment || {});
-        setAssignmentActivity(studentData.assignmentActivity || {});
-        setDolGradesByAssignment(studentData.dolGradesByAssignment || {});
-        setClassworkGradesByAssignment(studentData.classworkGradesByAssignment || {});
-        setSupportUsageByAssignment(studentData.supportUsageByAssignment || {});
-        await fetchClassSchedule();
-        const savedResume = readResumeAction(cleanInput);
-        setResumeAction(savedResume && fetchedAssignments.some((assignment) => assignment.id === savedResume.assignmentId) ? savedResume : null);
-      }
-    } catch (error) {
-      setErrorMessage(error.message);
-    } finally {
-      setLoading(false);
+    if (activeSession.role === 'teacher') {
+      await Promise.all([fetchStudents(), fetchClassSchedule(), fetchAssignmentFolders()]);
+      return {
+        id: 'TEACHER',
+        role: 'teacher',
+        email: activeSession.email,
+        displayName: activeSession.displayName,
+      };
     }
-  };
 
-  const handleLogout = () => {
+    const studentId = activeSession.studentId;
+    if (!studentId) {
+      throw new Error('This account is not linked to a student record yet. Ask your teacher to check your roster entry.');
+    }
+
+    const studentDocRef = doc(db, 'grades', studentId);
+    const docSnap = await getDoc(studentDocRef);
+    let studentData;
+
+    if (docSnap.exists()) {
+      studentData = docSnap.data();
+    } else {
+      // The sign-in callable normally seeds this. Recreating it here keeps a
+      // first sign-in working even if that write was rolled back.
+      studentData = {
+        classPeriod: 'Unassigned',
+        profile: normalizeStudentProfile({}),
+        gradesByAssignment: {},
+        assignmentActivity: {},
+        dolGradesByAssignment: {},
+        classworkGradesByAssignment: {},
+        supportUsageByAssignment: {},
+      };
+      await setDoc(studentDocRef, studentData);
+    }
+
+    setTracker(studentData.gradesByAssignment || {});
+    setAssignmentActivity(studentData.assignmentActivity || {});
+    setDolGradesByAssignment(studentData.dolGradesByAssignment || {});
+    setClassworkGradesByAssignment(studentData.classworkGradesByAssignment || {});
+    setSupportUsageByAssignment(studentData.supportUsageByAssignment || {});
+    await fetchClassSchedule();
+
+    const savedResume = readResumeAction(studentId);
+    setResumeAction(
+      savedResume && fetchedAssignments.some((assignment) => assignment.id === savedResume.assignmentId)
+        ? savedResume
+        : null,
+    );
+
+    return {
+      id: studentId,
+      role: 'student',
+      classPeriod: studentData.classPeriod || 'Unassigned',
+      profile: normalizeStudentProfile(studentData.profile || studentData),
+      email: activeSession.email,
+      displayName: activeSession.displayName,
+    };
+  // fetch* helpers close over setState only, so they are stable in practice.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!session) {
+      setUser(null);
+      setSessionError(null);
+      return undefined;
+    }
+
+    let cancelled = false;
+    setSessionError(null);
+
+    loadSessionData(session)
+      .then((profile) => {
+        if (!cancelled) setUser(profile);
+      })
+      .catch((error) => {
+        console.error('Could not load the MathMaster session:', error);
+        if (!cancelled) setSessionError(error.message || 'Could not load your account.');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session, loadSessionData]);
+
+  const handleLogout = async () => {
+    await signOut().catch((error) => console.error('Sign out failed:', error));
     setUser(null);
-    setStudentIdInput('');
+    setSessionError(null);
     setActiveView('dashboard');
     setTeacherTab('assignments');
     setActiveAssignmentId(null);
@@ -2470,87 +2514,37 @@ function App() {
     );
   };
 
+  // Nobody is signed in, or a Google account still needs connecting to a
+  // roster entry — either way the login screen owns the viewport.
+  if (authStatus === 'signedOut' || authStatus === 'linking') {
+    return <LoginScreen launchAssignment={launchAssignment} />;
+  }
+
+  // The account is valid but its roster record could not be loaded. Dead-ending
+  // on a spinner would be worse than saying so and offering the way out.
+  if (sessionError) {
+    return (
+      <div className="mm-auth-splash">
+        <div>
+          <h1 style={{ margin: '0 0 8px', fontSize: '22px' }}>We could not open your account</h1>
+          <p style={{ margin: '0 0 18px', maxWidth: '46ch' }}>{sessionError}</p>
+          <button
+            type="button"
+            onClick={handleLogout}
+            style={{ minHeight: '48px', padding: '0 22px', border: 0, borderRadius: '12px', background: '#1a56d6', color: '#fff', fontWeight: 700, fontSize: '16px', cursor: 'pointer' }}
+          >
+            Sign out and try again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!user) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          fontFamily: '"Segoe UI", sans-serif',
-          backgroundColor: '#f0f2f5',
-        }}
-      >
-        <div
-          style={{
-            padding: '40px',
-            borderRadius: '12px',
-            width: '350px',
-            maxWidth: 'calc(100vw - 40px)',
-            boxSizing: 'border-box',
-            textAlign: 'center',
-            background: '#fff',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.1)',
-          }}
-        >
-          <h2 style={{ color: '#1a73e8', margin: '0 0 10px 0', fontSize: '28px' }}>
-            MathMaster LMS
-          </h2>
-          <p style={{ color: '#5f6368', fontSize: '14px', marginBottom: '25px' }}>
-            Student ID or &apos;TEACHER&apos; to login
-          </p>
-
-          {launchAssignment && (
-            <div style={{ marginBottom: '20px', padding: '12px', background: '#e8f0fe', color: '#1a73e8', fontSize: '13px', borderRadius: '8px', textAlign: 'left' }}>
-              Assigned from Google Classroom: <strong>{launchAssignment.title}</strong>
-              {launchAssignment.dueAt && <> (due {new Date(launchAssignment.dueAt).toLocaleDateString()})</>}
-            </div>
-          )}
-
-          <form onSubmit={handleLogin}>
-            <input
-              type="text"
-              placeholder="Enter ID"
-              value={studentIdInput}
-              onChange={(event) => setStudentIdInput(event.target.value)}
-              style={{
-                width: '100%',
-                padding: '12px',
-                fontSize: '16px',
-                marginBottom: '20px',
-                boxSizing: 'border-box',
-                textAlign: 'center',
-                borderRadius: '8px',
-                border: '2px solid #e8eaed',
-                outline: 'none',
-              }}
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                width: '100%',
-                padding: '12px',
-                fontSize: '16px',
-                cursor: 'pointer',
-                background: '#1a73e8',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: 'bold',
-              }}
-            >
-              {loading ? 'Connecting...' : 'Log In'}
-            </button>
-          </form>
-          {errorMessage && (
-            <div style={{ marginTop: '20px', color: '#c5221f' }}>
-              <strong>Error:</strong> {errorMessage}
-            </div>
-          )}
-        </div>
+      <div className="mm-auth-splash">
+        <div className="mm-auth-splash__spinner" role="status" aria-label="Loading MathMaster" />
+        <p style={{ margin: 0 }}>Opening MathMaster…</p>
       </div>
     );
   }
@@ -2609,7 +2603,13 @@ function App() {
               <h1 style={{ margin: 0, color: '#202124', fontSize: '25px' }}>Instructor Dashboard</h1>
               <p style={{ margin: '5px 0 0', color: '#5f6368' }}>Assignments, eight class periods, DOL schedules, inclusion supports, and evidence reports</p>
             </div>
-            <button onClick={handleLogout} style={{ padding: '8px 16px', background: '#fff', color: '#d93025', border: '1px solid #d93025', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Log Out</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+              <div style={{ textAlign: 'right', color: '#5f6368', fontSize: '13px', lineHeight: 1.35 }}>
+                <div style={{ fontWeight: 800, color: '#202124' }}>{user.displayName || 'Teacher'}</div>
+                {user.email && <div style={{ wordBreak: 'break-all' }}>{user.email}</div>}
+              </div>
+              <button onClick={handleLogout} style={{ minHeight: '44px', padding: '0 16px', background: '#fff', color: '#d93025', border: '1px solid #d93025', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Sign out</button>
+            </div>
           </header>
 
           <div style={{ padding: '30px' }}>
@@ -2888,6 +2888,8 @@ function App() {
               </div>
             )}
 
+            {teacherTab === 'access' && <SignInAccess signedInEmail={user.email} />}
+
             {teacherTab === 'classroom' && <ClassroomSync assignments={assignments} />}
           </div>
           </div>
@@ -2977,7 +2979,7 @@ function App() {
         <div style={{ maxWidth: '920px', margin: '0 auto' }}>
           <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '20px 30px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', marginBottom: '24px', gap: '20px', flexWrap: 'wrap' }}>
             <div style={{ textAlign: 'left' }}><h1 style={{ margin: 0, color: '#1a73e8', fontSize: '25px' }}>Welcome, {user.id}</h1><p style={{ margin: '4px 0 0', color: '#5f6368' }}>{user.classPeriod}{user.profile?.inclusionStatus ? ' · Inclusion supports active' : ''}</p></div>
-            <button onClick={handleLogout} style={{ padding: '8px 16px', background: '#f1f3f4', color: '#5f6368', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Log Out</button>
+            <button onClick={handleLogout} style={{ minHeight: '44px', padding: '0 16px', background: '#f1f3f4', color: '#5f6368', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Sign out</button>
           </header>
 
           {activeDols.map(({ assignment, state }) => (

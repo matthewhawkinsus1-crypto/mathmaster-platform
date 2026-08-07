@@ -1,0 +1,625 @@
+/*
+ * Login screen. Sized for the three devices this actually runs on: a school
+ * Chromebook, an interactive whiteboard, and a student's phone. Everything is
+ * driven by tokens below so the whole screen re-themes in one place, and every
+ * interactive target clears 48px so it works with a thumb.
+ */
+
+.mm-login {
+  --mm-bg: #eef2f9;
+  --mm-surface: #ffffff;
+  --mm-surface-muted: #f4f6fb;
+  --mm-ink: #131a26;
+  --mm-ink-soft: #5a6577;
+  --mm-line: #d9dfea;
+  --mm-brand: #1a56d6;
+  --mm-brand-ink: #ffffff;
+  --mm-brand-soft: #e6eeff;
+  --mm-danger: #b3261e;
+  --mm-danger-soft: #fdecea;
+  --mm-success: #0f7b3f;
+  --mm-focus: #1a56d6;
+  --mm-radius: 14px;
+  --mm-control-height: 52px;
+
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  background: var(--mm-bg);
+  color: var(--mm-ink);
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.mm-login *,
+.mm-login *::before,
+.mm-login *::after {
+  box-sizing: inherit;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mm-login {
+    --mm-bg: #0d1117;
+    --mm-surface: #161b24;
+    --mm-surface-muted: #1d2430;
+    --mm-ink: #eef2f8;
+    --mm-ink-soft: #a4b0c2;
+    --mm-line: #2c3543;
+    --mm-brand: #6f9bff;
+    --mm-brand-ink: #08101f;
+    --mm-brand-soft: #1b2740;
+    --mm-danger: #ff9d94;
+    --mm-danger-soft: #3a1d1a;
+    --mm-success: #6ede9f;
+    --mm-focus: #8fb3ff;
+  }
+}
+
+/* ---------- Brand panel ---------- */
+
+.mm-login__brand {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(32px, 5vw, 72px);
+  padding-left: max(clamp(32px, 5vw, 72px), env(safe-area-inset-left));
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 28px;
+  background:
+    radial-gradient(120% 120% at 12% 8%, #2f6bff 0%, #1a56d6 42%, #123a95 100%);
+  color: #ffffff;
+}
+
+/* Faint coordinate grid: on-theme for a math platform, and cheap to render. */
+.mm-login__brand::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.09) 1px, transparent 1px);
+  background-size: 46px 46px;
+  mask-image: radial-gradient(80% 80% at 30% 30%, #000 20%, transparent 100%);
+  pointer-events: none;
+}
+
+.mm-login__brand > * {
+  position: relative;
+  z-index: 1;
+}
+
+.mm-login__wordmark {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.mm-login__mark {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.mm-login__headline {
+  margin: 0;
+  font-size: clamp(30px, 3.4vw, 46px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.mm-login__subhead {
+  margin: 0;
+  max-width: 46ch;
+  font-size: clamp(15px, 1.3vw, 18px);
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.mm-login__points {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 12px;
+  max-width: 46ch;
+}
+
+.mm-login__points li {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  font-size: 15px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.mm-login__tick {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+/* ---------- Form panel ---------- */
+
+.mm-login__panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(24px, 4vw, 56px);
+  padding-right: max(clamp(24px, 4vw, 56px), env(safe-area-inset-right));
+  padding-bottom: max(clamp(24px, 4vw, 56px), env(safe-area-inset-bottom));
+}
+
+.mm-login__card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--mm-surface);
+  border: 1px solid var(--mm-line);
+  border-radius: 20px;
+  padding: clamp(22px, 3vw, 32px);
+  box-shadow: 0 22px 50px rgba(15, 26, 48, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  .mm-login__card {
+    box-shadow: 0 22px 50px rgba(0, 0, 0, 0.5);
+  }
+}
+
+.mm-login__compact-brand {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--mm-ink);
+}
+
+.mm-login__compact-brand .mm-login__mark {
+  width: 34px;
+  height: 34px;
+  flex-basis: 34px;
+  font-size: 16px;
+  background: var(--mm-brand);
+  color: var(--mm-brand-ink);
+  border-color: transparent;
+}
+
+.mm-login__title {
+  margin: 0 0 6px;
+  font-size: 23px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--mm-ink);
+}
+
+.mm-login__hint {
+  margin: 0 0 20px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--mm-ink-soft);
+}
+
+/* ---------- Role switcher ---------- */
+
+.mm-login__roles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 5px;
+  margin-bottom: 22px;
+  background: var(--mm-surface-muted);
+  border: 1px solid var(--mm-line);
+  border-radius: 12px;
+}
+
+.mm-login__role {
+  min-height: 44px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--mm-ink-soft);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.mm-login__role[aria-pressed='true'] {
+  background: var(--mm-surface);
+  color: var(--mm-brand);
+  box-shadow: 0 1px 3px rgba(15, 26, 48, 0.16);
+}
+
+/* ---------- Fields ---------- */
+
+.mm-login__field {
+  display: block;
+  margin-bottom: 16px;
+}
+
+.mm-login__label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--mm-ink);
+}
+
+.mm-login__optional {
+  font-weight: 500;
+  color: var(--mm-ink-soft);
+}
+
+.mm-login__input {
+  width: 100%;
+  height: var(--mm-control-height);
+  padding: 0 14px;
+  border: 1.5px solid var(--mm-line);
+  border-radius: var(--mm-radius);
+  background: var(--mm-surface);
+  color: var(--mm-ink);
+  /* 16px minimum stops iOS Safari from zooming the page on focus. */
+  font: inherit;
+  font-size: 16px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mm-login__input::placeholder {
+  color: var(--mm-ink-soft);
+  opacity: 0.75;
+}
+
+.mm-login__input:focus,
+.mm-login__input:focus-visible {
+  outline: none;
+  border-color: var(--mm-focus);
+  box-shadow: 0 0 0 3px var(--mm-brand-soft);
+}
+
+.mm-login__input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.mm-login__pin {
+  letter-spacing: 0.35em;
+  padding-right: 74px;
+  font-size: 18px;
+}
+
+.mm-login__reveal {
+  position: absolute;
+  right: 6px;
+  height: 40px;
+  min-width: 60px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--mm-brand);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mm-login__reveal:hover {
+  background: var(--mm-brand-soft);
+}
+
+.mm-login__help {
+  margin: 7px 0 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--mm-ink-soft);
+}
+
+/* ---------- Buttons ---------- */
+
+.mm-login__submit,
+.mm-login__google {
+  width: 100%;
+  min-height: var(--mm-control-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: var(--mm-radius);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s ease, background 0.15s ease;
+}
+
+.mm-login__submit {
+  margin-top: 4px;
+  border: 0;
+  background: var(--mm-brand);
+  color: var(--mm-brand-ink);
+}
+
+.mm-login__submit:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.mm-login__google {
+  border: 1.5px solid var(--mm-line);
+  background: var(--mm-surface);
+  color: var(--mm-ink);
+}
+
+.mm-login__google:hover:not(:disabled) {
+  background: var(--mm-surface-muted);
+}
+
+.mm-login__submit:disabled,
+.mm-login__google:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.mm-login__submit:focus-visible,
+.mm-login__google:focus-visible,
+.mm-login__role:focus-visible,
+.mm-login__reveal:focus-visible,
+.mm-login__link:focus-visible {
+  outline: 3px solid var(--mm-focus);
+  outline-offset: 2px;
+}
+
+.mm-login__link {
+  display: inline-block;
+  padding: 6px 0;
+  border: 0;
+  background: none;
+  color: var(--mm-brand);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.mm-login__footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+/* ---------- Remember toggle ---------- */
+
+.mm-login__remember {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 4px 0 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--mm-line);
+  border-radius: 12px;
+  background: var(--mm-surface-muted);
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--mm-ink-soft);
+  cursor: pointer;
+}
+
+.mm-login__remember input {
+  width: 20px;
+  height: 20px;
+  margin: 1px 0 0;
+  flex: 0 0 20px;
+  accent-color: var(--mm-brand);
+  cursor: pointer;
+}
+
+.mm-login__remember strong {
+  display: block;
+  color: var(--mm-ink);
+  font-size: 14px;
+}
+
+/* ---------- Divider ---------- */
+
+.mm-login__divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+  color: var(--mm-ink-soft);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.mm-login__divider::before,
+.mm-login__divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--mm-line);
+}
+
+/* ---------- Messages ---------- */
+
+.mm-login__alert {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.mm-login__alert--error {
+  background: var(--mm-danger-soft);
+  border: 1px solid var(--mm-danger);
+  color: var(--mm-danger);
+}
+
+.mm-login__alert--info {
+  background: var(--mm-brand-soft);
+  border: 1px solid transparent;
+  color: var(--mm-brand);
+}
+
+.mm-login__alert--notice {
+  background: var(--mm-surface-muted);
+  border: 1px solid var(--mm-line);
+  color: var(--mm-ink-soft);
+}
+
+/* ---------- Full-screen status ---------- */
+
+.mm-auth-splash {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  gap: 16px;
+  padding: 24px;
+  background: #eef2f9;
+  color: #5a6577;
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  text-align: center;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mm-auth-splash {
+    background: #0d1117;
+    color: #a4b0c2;
+  }
+}
+
+.mm-auth-splash__spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 3px solid rgba(26, 86, 214, 0.25);
+  border-top-color: #1a56d6;
+  animation: mm-auth-spin 0.75s linear infinite;
+}
+
+@keyframes mm-auth-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mm-auth-splash__spinner {
+    animation-duration: 2.4s;
+  }
+
+  .mm-login__role,
+  .mm-login__input,
+  .mm-login__submit,
+  .mm-login__google {
+    transition: none;
+  }
+}
+
+/* ---------- Responsive ---------- */
+
+/* Tablet and phone: the brand panel becomes a compact header inside the card. */
+@media (max-width: 900px) {
+  .mm-login {
+    grid-template-columns: 1fr;
+  }
+
+  .mm-login__brand {
+    display: none;
+  }
+
+  .mm-login__panel {
+    align-items: flex-start;
+    padding: max(20px, env(safe-area-inset-top)) 18px
+      max(20px, env(safe-area-inset-bottom));
+  }
+
+  .mm-login__card {
+    max-width: 460px;
+    margin: 0 auto;
+    border-radius: 18px;
+  }
+
+  .mm-login__compact-brand {
+    display: flex;
+  }
+}
+
+/* Small phones: drop the card chrome so the form owns the whole viewport. */
+@media (max-width: 430px) {
+  .mm-login__panel {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .mm-login__card {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+    padding: 18px;
+  }
+
+  /* The card no longer supplies a surface, so the controls that used to sit on
+     one bring their own. The submit button keeps its brand fill. */
+  .mm-login__input,
+  .mm-login__google {
+    background: var(--mm-surface);
+  }
+}
+
+/* Short landscape viewports (a phone turned sideways, a projector). */
+@media (max-height: 620px) and (min-width: 901px) {
+  .mm-login__points {
+    display: none;
+  }
+
+  .mm-login__panel {
+    align-items: flex-start;
+    overflow-y: auto;
+  }
+}
+
+@media (forced-colors: active) {
+  .mm-login__card,
+  .mm-login__input,
+  .mm-login__google {
+    border: 1px solid CanvasText;
+  }
+
+  .mm-login__role[aria-pressed='true'] {
+    border: 2px solid Highlight;
+  }
+}

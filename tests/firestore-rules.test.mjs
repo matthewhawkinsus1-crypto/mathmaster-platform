@@ -1,0 +1,119 @@
+/**
+ * Behavioural tests for firestore.rules.
+ *
+ * Run with: npm run test:rules
+ * (starts the Firestore emulator, so it needs Java and the firebase CLI)
+ *
+ * The rules are the last line of defence for student grade data, so every
+ * guarantee the docs claim is asserted here rather than reasoned about. The
+ * `student CANNOT delete own record` case in particular exists because an
+ * earlier draft granted blanket `write` through the recursive subcollection
+ * wildcard, which also matches the parent document.
+ */
+import { readFileSync } from 'node:fs';
+import {
+  initializeTestEnvironment,
+  assertFails,
+  assertSucceeds,
+} from '@firebase/rules-unit-testing';
+import { doc, getDoc, setDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
+
+const testEnv = await initializeTestEnvironment({
+  projectId: 'demo-mathmaster',
+  firestore: {
+    host: '127.0.0.1',
+    port: 8080,
+    rules: readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8'),
+  },
+});
+
+const results = [];
+const check = async (label, promise) => {
+  try {
+    await promise;
+    results.push(['PASS', label]);
+  } catch (error) {
+    results.push(['FAIL', `${label} :: ${error.message}`]);
+  }
+};
+
+// Seed data with rules bypassed.
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const db = ctx.firestore();
+  await setDoc(doc(db, 'grades/S1042'), { classPeriod: 'Period 1' });
+  await setDoc(doc(db, 'grades/S2000'), { classPeriod: 'Period 2' });
+  await setDoc(doc(db, 'grades/S1042/scratchpads/a__question_0'), { dataUrl: 'x' });
+  await setDoc(doc(db, 'assignments/A1'), { title: 'Unit 1' });
+  await setDoc(doc(db, 'settings/classSchedule'), { periods: {} });
+  await setDoc(doc(db, 'studentCredentials/S1042'), { hash: 'secret' });
+  await setDoc(doc(db, 'classJoinCodes/K7M4QP'), { classPeriod: 'Period 1' });
+  await setDoc(doc(db, 'teacherDirectory/t@school.org'), { active: true });
+  await setDoc(doc(db, 'authThrottle/student_S1042'), { failures: 1 });
+  await setDoc(doc(db, 'studentDirectory/kid@school.org'), { studentId: 'S1042' });
+});
+
+const teacher = testEnv.authenticatedContext('teacher-uid', { role: 'teacher' }).firestore();
+const student = testEnv.authenticatedContext('student:S1042', { role: 'student', studentId: 'S1042' }).firestore();
+// Someone who signed in with Google but has no role claim yet.
+const roleless = testEnv.authenticatedContext('random-uid', {}).firestore();
+const anon = testEnv.unauthenticatedContext().firestore();
+
+// --- Student owns exactly their own record --------------------------------
+await check('student reads own grades', assertSucceeds(getDoc(doc(student, 'grades/S1042'))));
+await check('student writes own grades', assertSucceeds(setDoc(doc(student, 'grades/S1042'), { classPeriod: 'Period 1' }, { merge: true })));
+await check('student reads own scratchpad', assertSucceeds(getDoc(doc(student, 'grades/S1042/scratchpads/a__question_0'))));
+await check('student writes own scratchpad', assertSucceeds(setDoc(doc(student, 'grades/S1042/scratchpads/a__question_1'), { dataUrl: 'y' })));
+await check('student CANNOT read another student', assertFails(getDoc(doc(student, 'grades/S2000'))));
+await check('student CANNOT write another student', assertFails(setDoc(doc(student, 'grades/S2000'), { classPeriod: 'hax' }, { merge: true })));
+await check('student CANNOT read another scratchpad', assertFails(getDoc(doc(student, 'grades/S2000/scratchpads/a__question_0'))));
+await check('student CANNOT list the roster', assertFails(getDocs(collection(student, 'grades'))));
+await check('student CANNOT delete own record', assertFails(deleteDoc(doc(student, 'grades/S1042'))));
+await check('student CANNOT delete own scratchpad', assertFails(deleteDoc(doc(student, 'grades/S1042/scratchpads/a__question_0'))));
+await check('teacher CAN delete a scratchpad', assertSucceeds(deleteDoc(doc(teacher, 'grades/S1042/scratchpads/a__question_0'))));
+
+// --- Shared classroom content ---------------------------------------------
+await check('student reads assignments', assertSucceeds(getDoc(doc(student, 'assignments/A1'))));
+await check('student lists assignments', assertSucceeds(getDocs(collection(student, 'assignments'))));
+await check('student CANNOT write assignments', assertFails(setDoc(doc(student, 'assignments/A1'), { title: 'hax' }, { merge: true })));
+await check('student reads class schedule', assertSucceeds(getDoc(doc(student, 'settings/classSchedule'))));
+await check('student CANNOT write settings', assertFails(setDoc(doc(student, 'settings/classSchedule'), { periods: {} }, { merge: true })));
+
+// --- Teacher ---------------------------------------------------------------
+await check('teacher lists the roster', assertSucceeds(getDocs(collection(teacher, 'grades'))));
+await check('teacher reads any student', assertSucceeds(getDoc(doc(teacher, 'grades/S2000'))));
+await check('teacher writes any student', assertSucceeds(setDoc(doc(teacher, 'grades/S2000'), { classPeriod: 'Period 3' }, { merge: true })));
+await check('teacher reads any scratchpad', assertSucceeds(getDoc(doc(teacher, 'grades/S1042/scratchpads/a__question_0'))));
+await check('teacher writes assignments', assertSucceeds(setDoc(doc(teacher, 'assignments/A2'), { title: 'Unit 2' })));
+await check('teacher writes settings', assertSucceeds(setDoc(doc(teacher, 'settings/assignmentFolders'), { paths: [] })));
+await check('teacher deletes assignments', assertSucceeds(deleteDoc(doc(teacher, 'assignments/A2'))));
+
+// --- Signed in but roleless (the pre-link state) ---------------------------
+await check('roleless CANNOT read a student record', assertFails(getDoc(doc(roleless, 'grades/S1042'))));
+await check('roleless CANNOT write assignments', assertFails(setDoc(doc(roleless, 'assignments/A1'), { title: 'hax' }, { merge: true })));
+await check('roleless CAN read assignments (signed in)', assertSucceeds(getDoc(doc(roleless, 'assignments/A1'))));
+
+// --- Unauthenticated -------------------------------------------------------
+await check('anon CANNOT read grades', assertFails(getDoc(doc(anon, 'grades/S1042'))));
+await check('anon CANNOT read assignments', assertFails(getDoc(doc(anon, 'assignments/A1'))));
+await check('anon CANNOT read settings', assertFails(getDoc(doc(anon, 'settings/classSchedule'))));
+await check('anon CANNOT write grades', assertFails(setDoc(doc(anon, 'grades/S9999'), { classPeriod: 'x' })));
+
+// --- Server-only collections are opaque to every client --------------------
+for (const [name, path] of [
+  ['studentCredentials', 'studentCredentials/S1042'],
+  ['classJoinCodes', 'classJoinCodes/K7M4QP'],
+  ['teacherDirectory', 'teacherDirectory/t@school.org'],
+  ['authThrottle', 'authThrottle/student_S1042'],
+  ['studentDirectory', 'studentDirectory/kid@school.org'],
+]) {
+  await check(`teacher CANNOT read ${name}`, assertFails(getDoc(doc(teacher, path))));
+  await check(`student CANNOT read ${name}`, assertFails(getDoc(doc(student, path))));
+  await check(`student CANNOT write ${name}`, assertFails(setDoc(doc(student, path), { hack: true }, { merge: true })));
+}
+
+await testEnv.cleanup();
+
+const failures = results.filter(([status]) => status === 'FAIL');
+results.forEach(([status, label]) => console.log(`${status}  ${label}`));
+console.log(`\n${results.length - failures.length}/${results.length} passed`);
+process.exit(failures.length ? 1 : 0);

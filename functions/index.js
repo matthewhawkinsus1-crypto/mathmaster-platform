@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const { initializeApp } = require("firebase-admin/app");
+const { getAuth } = require("firebase-admin/auth");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 const { onDocumentWritten } = require("firebase-functions/v2/firestore");
@@ -22,6 +23,7 @@ const {
   gradeSyncDocumentId,
   publicationMarker,
 } = require("./lib/publication");
+const authLib = require("./lib/auth");
 
 initializeApp();
 
@@ -85,6 +87,521 @@ function isAssignmentComplete(assignmentTracker, questionCount) {
   }
   return true;
 }
+
+// --- Authentication ---------------------------------------------------------
+//
+// Two populations sign in to MathMaster and they need different doors.
+//
+//   Teachers  authenticate with Google (the same account the Classroom
+//             integration already uses) or with an email/password account
+//             created in the Firebase console. Either way, authorization comes
+//             from `teacherDirectory`, never from the client.
+//   Students  authenticate with a school Google account when they have one, or
+//             with their student ID plus a PIN exchanged here for a Firebase
+//             custom token. A student with neither claims their account once
+//             using the join code for their class period.
+//
+// Every function below is the only writer of the `role` and `studentId` custom
+// claims that `firestore.rules` reads. Clients can ask for a role; they can
+// never assert one.
+
+function translateAuthError(error) {
+  if (error instanceof authLib.AuthInputError) {
+    return new HttpsError(error.code, error.message, error.details);
+  }
+  return error;
+}
+
+function callerEmail(request) {
+  const token = request.auth?.token || {};
+  // An unverified email is an identity anyone can claim by signing up with it,
+  // so it is never enough to match a teacher or student directory entry.
+  if (!token.email || token.email_verified === false) return null;
+  try {
+    return authLib.normalizeEmail(token.email);
+  } catch {
+    return null;
+  }
+}
+
+async function requireTeacher(request) {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Sign in before making this change.");
+  }
+  if (request.auth.token?.role !== "teacher") {
+    throw new HttpsError("permission-denied", "Only a teacher can make this change.");
+  }
+  return request.auth.uid;
+}
+
+/** True when this email may hold the teacher role right now. */
+async function isAuthorizedTeacher(db, email) {
+  if (!email) return false;
+  if (authLib.bootstrapTeacherEmails().includes(email)) return true;
+  const snapshot = await db.collection(authLib.TEACHER_COLLECTION).doc(email).get();
+  return snapshot.exists && snapshot.data()?.active !== false;
+}
+
+async function assignClaims(uid, claims) {
+  await getAuth().setCustomUserClaims(uid, claims);
+}
+
+/** Creates the `grades` document a student's whole dashboard hangs off of. */
+async function ensureStudentRecord(db, studentId, { classPeriod } = {}) {
+  const ref = db.collection("grades").doc(studentId);
+  const snapshot = await ref.get();
+  if (snapshot.exists) return snapshot.data() || {};
+
+  const seed = {
+    classPeriod: classPeriod || "Unassigned",
+    profile: {},
+    gradesByAssignment: {},
+    assignmentActivity: {},
+    dolGradesByAssignment: {},
+    classworkGradesByAssignment: {},
+    supportUsageByAssignment: {},
+    createdAt: FieldValue.serverTimestamp(),
+  };
+  await ref.set(seed);
+  return seed;
+}
+
+/**
+ * Maps the case-insensitive sign-in key to the `grades` document ID that
+ * actually holds this student's work.
+ *
+ * Roster entries predate case-insensitive sign-in, so the first time a key is
+ * seen we scan the roster for a case-insensitive match and adopt that document
+ * rather than stranding the student's history in a near-duplicate record. The
+ * result is cached as an alias, so the scan happens at most once per student.
+ */
+async function resolveCanonicalStudentId(db, key, typedId) {
+  const aliasRef = db.collection(authLib.ALIAS_COLLECTION).doc(key);
+  const alias = await aliasRef.get();
+  const cached = alias.exists ? alias.data()?.studentId : null;
+  if (cached) return cached;
+
+  const roster = await db.collection("grades").select().get();
+  const match = roster.docs.find((rosterDoc) => rosterDoc.id.trim().toUpperCase() === key);
+  const studentId = match ? match.id : typedId;
+
+  await aliasRef.set({ key, studentId, createdAt: FieldValue.serverTimestamp() }, { merge: true });
+  return studentId;
+}
+
+async function lookupJoinCode(db, code) {
+  const snapshot = await db.collection(authLib.JOIN_CODE_COLLECTION).doc(code).get();
+  if (!snapshot.exists) return null;
+  const data = snapshot.data() || {};
+  if (data.active === false) return null;
+  if (data.expiresAt && Number(data.expiresAt) < Date.now()) return null;
+  return data;
+}
+
+/**
+ * Resolves the role of an already-signed-in Firebase user and writes it into
+ * custom claims. The client calls this after every Google or password sign-in
+ * and then force-refreshes its ID token.
+ */
+exports.resolveSignedInRole = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Sign in first.");
+  }
+
+  const db = getFirestore();
+  const { uid, token } = request.auth;
+
+  // Students who signed in with a custom token already carry their claims.
+  if (token.role === "student" && token.studentId) {
+    const record = await ensureStudentRecord(db, token.studentId);
+    return { role: "student", studentId: token.studentId, classPeriod: record.classPeriod || "Unassigned" };
+  }
+
+  const email = callerEmail(request);
+
+  if (await isAuthorizedTeacher(db, email)) {
+    if (token.role !== "teacher") await assignClaims(uid, { role: "teacher" });
+    await db.collection(authLib.TEACHER_COLLECTION).doc(email).set(
+      { email, active: true, lastSignInAt: FieldValue.serverTimestamp(), uid },
+      { merge: true },
+    );
+    return { role: "teacher", email };
+  }
+
+  if (email) {
+    const directory = await db.collection(authLib.DIRECTORY_COLLECTION).doc(email).get();
+    const studentId = directory.exists ? directory.data()?.studentId : null;
+    if (studentId) {
+      const record = await ensureStudentRecord(db, studentId);
+      if (token.role !== "student" || token.studentId !== studentId) {
+        await assignClaims(uid, { role: "student", studentId });
+      }
+      return { role: "student", studentId, classPeriod: record.classPeriod || "Unassigned" };
+    }
+  }
+
+  // Signed in with Google, but we do not yet know who this is on the roster.
+  return { role: null, needsLink: true, email };
+});
+
+/**
+ * One-time link between a Google account and a roster entry. The class join
+ * code is what proves the person holding the Google account belongs in that
+ * class period.
+ */
+exports.linkGoogleAccount = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Sign in first.");
+  }
+
+  const email = callerEmail(request);
+  if (!email) {
+    throw new HttpsError(
+      "failed-precondition",
+      "This account has no verified email address, so it cannot be linked. Sign in with your student ID and PIN instead.",
+    );
+  }
+
+  const db = getFirestore();
+  let typedId;
+  let key;
+  let code;
+  try {
+    typedId = authLib.normalizeStudentId(request.data?.studentId);
+    key = authLib.studentIdKey(typedId);
+    code = authLib.normalizeJoinCode(request.data?.classCode);
+  } catch (error) {
+    throw translateAuthError(error);
+  }
+
+  const joinCode = await lookupJoinCode(db, code);
+  if (!joinCode) {
+    throw new HttpsError("permission-denied", "That class code is not valid. Ask your teacher for the current one.");
+  }
+
+  const studentId = await resolveCanonicalStudentId(db, key, typedId);
+  const directoryRef = db.collection(authLib.DIRECTORY_COLLECTION).doc(email);
+  const existingForStudent = await db
+    .collection(authLib.DIRECTORY_COLLECTION)
+    .where("studentId", "==", studentId)
+    .limit(1)
+    .get();
+
+  if (!existingForStudent.empty && existingForStudent.docs[0].id !== email) {
+    throw new HttpsError(
+      "already-exists",
+      "That student ID is already linked to a different Google account. Ask your teacher to unlink it.",
+    );
+  }
+
+  const record = await ensureStudentRecord(db, studentId, { classPeriod: joinCode.classPeriod });
+  await directoryRef.set(
+    { email, studentId, linkedAt: FieldValue.serverTimestamp(), uid: request.auth.uid },
+    { merge: true },
+  );
+  await db.collection("grades").doc(studentId).set({ linkedEmail: email }, { merge: true });
+  await assignClaims(request.auth.uid, { role: "student", studentId });
+
+  return { role: "student", studentId, classPeriod: record.classPeriod || joinCode.classPeriod || "Unassigned" };
+});
+
+/**
+ * Student ID + PIN sign-in. Returns a Firebase custom token so the rest of the
+ * app — and `firestore.rules` — sees an ordinary authenticated user.
+ *
+ * A student whose account has no PIN yet supplies their class join code and
+ * chooses one in the same call, which keeps first-time setup to a single form.
+ */
+exports.studentSignIn = onCall(async (request) => {
+  const db = getFirestore();
+
+  let typedId;
+  let key;
+  try {
+    typedId = authLib.normalizeStudentId(request.data?.studentId);
+    key = authLib.studentIdKey(typedId);
+  } catch (error) {
+    throw translateAuthError(error);
+  }
+
+  const passcode = String(request.data?.passcode ?? "").trim();
+  const throttleKey = `student_${key}`;
+  const throttle = await authLib.checkThrottle(db, throttleKey);
+  if (throttle.locked) {
+    throw new HttpsError("resource-exhausted", authLib.describeLockout(throttle.retryAfterMs));
+  }
+
+  const credentialRef = db.collection(authLib.CREDENTIALS_COLLECTION).doc(key);
+  const credentialSnapshot = await credentialRef.get();
+  const credential = credentialSnapshot.exists ? credentialSnapshot.data() : null;
+  const needsSetup = !credential || credential.resetRequired === true;
+
+  let classPeriod = null;
+
+  if (needsSetup) {
+    const rawCode = request.data?.classCode;
+    if (!rawCode) {
+      // Not an error the student caused — the UI reveals the setup fields.
+      throw new HttpsError(
+        "failed-precondition",
+        credential
+          ? "Your teacher reset your PIN. Enter your class code and choose a new one."
+          : "First time here? Enter your class code and choose a PIN.",
+        { reason: "needs-setup" },
+      );
+    }
+
+    let code;
+    let chosenPasscode;
+    try {
+      code = authLib.normalizeJoinCode(rawCode);
+      chosenPasscode = authLib.assertPasscodeShape(passcode);
+    } catch (error) {
+      throw translateAuthError(error);
+    }
+
+    const joinCode = await lookupJoinCode(db, code);
+    if (!joinCode) {
+      await authLib.recordFailedAttempt(db, throttleKey);
+      throw new HttpsError("permission-denied", "That class code is not valid. Ask your teacher for the current one.");
+    }
+
+    classPeriod = joinCode.classPeriod || null;
+    await credentialRef.set({
+      studentIdKey: key,
+      ...authLib.hashPasscode(chosenPasscode),
+      resetRequired: false,
+      updatedAt: FieldValue.serverTimestamp(),
+      createdAt: credential?.createdAt || FieldValue.serverTimestamp(),
+    });
+  } else if (!authLib.verifyPasscode(passcode, credential)) {
+    const result = await authLib.recordFailedAttempt(db, throttleKey);
+    if (result.locked) {
+      throw new HttpsError("resource-exhausted", authLib.describeLockout(result.retryAfterMs));
+    }
+    throw new HttpsError(
+      "permission-denied",
+      `That student ID and PIN do not match. ${result.attemptsRemaining} attempt${result.attemptsRemaining === 1 ? "" : "s"} left before a short lockout.`,
+    );
+  }
+
+  await authLib.clearThrottle(db, throttleKey);
+  const studentId = await resolveCanonicalStudentId(db, key, typedId);
+  const record = await ensureStudentRecord(db, studentId, { classPeriod });
+
+  // One Firebase user per student ID, so grades survive across devices.
+  const uid = `student:${key}`;
+  const claims = { role: "student", studentId };
+  try {
+    await getAuth().getUser(uid);
+    await assignClaims(uid, claims);
+  } catch (error) {
+    if (error?.code !== "auth/user-not-found") throw error;
+    await getAuth().createUser({ uid, displayName: studentId });
+    await assignClaims(uid, claims);
+  }
+
+  const customToken = await getAuth().createCustomToken(uid, claims);
+  return {
+    token: customToken,
+    studentId,
+    classPeriod: record.classPeriod || classPeriod || "Unassigned",
+    firstTimeSetup: needsSetup,
+  };
+});
+
+/** Teacher action: force a student to choose a new PIN at their next sign-in. */
+exports.resetStudentPasscode = onCall(async (request) => {
+  await requireTeacher(request);
+  const db = getFirestore();
+
+  let key;
+  try {
+    key = authLib.studentIdKey(request.data?.studentId);
+  } catch (error) {
+    throw translateAuthError(error);
+  }
+
+  await db.collection(authLib.CREDENTIALS_COLLECTION).doc(key).set(
+    {
+      studentIdKey: key,
+      resetRequired: true,
+      hash: FieldValue.delete(),
+      salt: FieldValue.delete(),
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+  // Clearing the lockout matters: a reset is usually the fix for a student who
+  // just locked themselves out, and they should be able to retry immediately.
+  await authLib.clearThrottle(db, `student_${key}`);
+  return { studentIdKey: key, resetRequired: true };
+});
+
+/** Teacher action: unlink a Google account so a student can re-link a new one. */
+exports.unlinkStudentAccount = onCall(async (request) => {
+  await requireTeacher(request);
+  const db = getFirestore();
+
+  let studentId;
+  try {
+    studentId = authLib.normalizeStudentId(request.data?.studentId);
+  } catch (error) {
+    throw translateAuthError(error);
+  }
+
+  const links = await db
+    .collection(authLib.DIRECTORY_COLLECTION)
+    .where("studentId", "==", studentId)
+    .get();
+
+  await Promise.all(
+    links.docs.map(async (linkDoc) => {
+      const uid = linkDoc.data()?.uid;
+      await linkDoc.ref.delete();
+      // Drop the claim too, otherwise the old ID token keeps working until it expires.
+      if (uid) await assignClaims(uid, {}).catch(() => {});
+    }),
+  );
+  await db.collection("grades").doc(studentId).set({ linkedEmail: FieldValue.delete() }, { merge: true });
+
+  return { studentId, unlinked: links.size };
+});
+
+/** Teacher action: rotate the join code for one class period. */
+exports.issueClassJoinCode = onCall(async (request) => {
+  const uid = await requireTeacher(request);
+  const db = getFirestore();
+
+  const classPeriod = String(request.data?.classPeriod ?? "").trim();
+  if (!classPeriod) {
+    throw new HttpsError("invalid-argument", "Choose a class period for this code.");
+  }
+
+  const existing = await db
+    .collection(authLib.JOIN_CODE_COLLECTION)
+    .where("classPeriod", "==", classPeriod)
+    .get();
+
+  let code = authLib.generateJoinCode();
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    const collision = await db.collection(authLib.JOIN_CODE_COLLECTION).doc(code).get();
+    if (!collision.exists) break;
+    code = authLib.generateJoinCode();
+  }
+
+  const batch = db.batch();
+  existing.docs.forEach((codeDoc) => batch.set(codeDoc.ref, { active: false }, { merge: true }));
+  batch.set(db.collection(authLib.JOIN_CODE_COLLECTION).doc(code), {
+    code,
+    classPeriod,
+    active: true,
+    createdAt: FieldValue.serverTimestamp(),
+    createdBy: uid,
+  });
+  await batch.commit();
+
+  return { code, classPeriod };
+});
+
+/** Teacher view of the active join code per class period. */
+exports.listClassJoinCodes = onCall(async (request) => {
+  await requireTeacher(request);
+  const db = getFirestore();
+  const snapshot = await db.collection(authLib.JOIN_CODE_COLLECTION).where("active", "==", true).get();
+  return {
+    codes: snapshot.docs.map((codeDoc) => {
+      const data = codeDoc.data() || {};
+      return { code: codeDoc.id, classPeriod: data.classPeriod || "Unassigned" };
+    }),
+  };
+});
+
+/**
+ * Teacher view of who can sign in, and how. Roster-centric on purpose: the
+ * teacher's question is "can this student on my list get in?", so every student
+ * appears whether or not they have set a PIN yet.
+ */
+exports.listSignInAccess = onCall(async (request) => {
+  await requireTeacher(request);
+  const db = getFirestore();
+
+  const [roster, credentials, directory, aliases, teachers] = await Promise.all([
+    // Only these two fields — the rest of a grades document is the student's
+    // entire attempt history and has no business in this payload.
+    db.collection("grades").select("classPeriod", "linkedEmail").get(),
+    db.collection(authLib.CREDENTIALS_COLLECTION).get(),
+    db.collection(authLib.DIRECTORY_COLLECTION).get(),
+    db.collection(authLib.ALIAS_COLLECTION).get(),
+    db.collection(authLib.TEACHER_COLLECTION).get(),
+  ]);
+
+  const canonicalByKey = {};
+  aliases.docs.forEach((aliasDoc) => {
+    canonicalByKey[aliasDoc.id] = aliasDoc.data()?.studentId || aliasDoc.id;
+  });
+
+  const emailByStudent = {};
+  directory.docs.forEach((linkDoc) => {
+    const studentId = linkDoc.data()?.studentId;
+    if (studentId) emailByStudent[studentId] = linkDoc.id;
+  });
+
+  const credentialByStudent = {};
+  credentials.docs.forEach((credentialDoc) => {
+    const studentId = canonicalByKey[credentialDoc.id] || credentialDoc.id;
+    credentialByStudent[studentId] = credentialDoc.data() || {};
+  });
+
+  const students = roster.docs
+    .filter((rosterDoc) => rosterDoc.id !== "test_connection")
+    .map((rosterDoc) => {
+      const credential = credentialByStudent[rosterDoc.id];
+      const data = rosterDoc.data() || {};
+      return {
+        studentId: rosterDoc.id,
+        classPeriod: data.classPeriod || "Unassigned",
+        hasPasscode: Boolean(credential?.hash) && credential?.resetRequired !== true,
+        resetRequired: credential?.resetRequired === true,
+        linkedEmail: emailByStudent[rosterDoc.id] || data.linkedEmail || null,
+      };
+    })
+    .sort((a, b) => a.studentId.localeCompare(b.studentId));
+
+  return {
+    students,
+    teachers: teachers.docs.map((teacherDoc) => ({
+      email: teacherDoc.id,
+      active: teacherDoc.data()?.active !== false,
+    })),
+    bootstrapTeachers: authLib.bootstrapTeacherEmails(),
+  };
+});
+
+/** Teacher action: grant or revoke another teacher's access. */
+exports.setTeacherAccess = onCall(async (request) => {
+  await requireTeacher(request);
+  const db = getFirestore();
+
+  let email;
+  try {
+    email = authLib.normalizeEmail(request.data?.email);
+  } catch (error) {
+    throw translateAuthError(error);
+  }
+  const active = request.data?.active !== false;
+
+  const ref = db.collection(authLib.TEACHER_COLLECTION).doc(email);
+  await ref.set({ email, active, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+
+  if (!active) {
+    const uid = (await ref.get()).data()?.uid;
+    if (uid) await assignClaims(uid, {}).catch(() => {});
+  }
+
+  return { email, active };
+});
 
 // --- OAuth connect flow -----------------------------------------------------
 
