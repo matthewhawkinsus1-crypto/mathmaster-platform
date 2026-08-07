@@ -6,11 +6,12 @@ const TAB_LABELS = {
   classesWorkspace: 'Classes',
   classes: 'Class Schedule',
   grades: 'Grades',
+  standards: 'TEKS & Mastery',
   access: 'Sign-in Access',
   classroom: 'Google Classroom',
 };
 
-const TABS = ['home', 'assignments', 'library', 'students', 'classesWorkspace', 'classes', 'grades', 'access', 'classroom'];
+const TABS = ['home', 'assignments', 'library', 'students', 'classesWorkspace', 'classes', 'grades', 'standards', 'access', 'classroom'];
 
 // Purely presentational, controlled navigation rail. Owns no data of its
 // own — `App.jsx` still owns `teacherTab`/`sidebarCollapsed` state and is

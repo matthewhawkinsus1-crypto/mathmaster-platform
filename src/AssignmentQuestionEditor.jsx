@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import QuestionStandardsEditor from './QuestionStandardsEditor';
+import { getQuestionMetadataSummary } from './questionMetadata.js';
 
 const newQuestionId = () => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -19,6 +21,7 @@ export default function AssignmentQuestionEditor({ assignment, hasStudentData, o
   const [title, setTitle] = useState(assignment.title || '');
   const [questions, setQuestions] = useState(() => ensureQuestionIds(assignment.questions || []));
   const [editingIndex, setEditingIndex] = useState(null);
+  const [metadataEditingIndex, setMetadataEditingIndex] = useState(null);
   const [questionJson, setQuestionJson] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -63,6 +66,7 @@ export default function AssignmentQuestionEditor({ assignment, hasStudentData, o
   };
 
   const beginJsonEdit = (index) => {
+    setMetadataEditingIndex(null);
     setEditingIndex(index);
     setQuestionJson(JSON.stringify(questions[index], null, 2));
     setError('');
@@ -86,6 +90,13 @@ export default function AssignmentQuestionEditor({ assignment, hasStudentData, o
     } catch (jsonError) {
       setError(jsonError.message);
     }
+  };
+
+  const applyMetadataEdit = (index, nextQuestion) => {
+    if (hasStudentData && !window.confirm('Student records already exist. Changing TEKS, DOK, difficulty, purpose, or evidence weight will recalculate standards/mastery reports for existing responses. Continue?')) return;
+    setQuestions((current) => current.map((question, questionIndex) => questionIndex === index ? nextQuestion : question));
+    setMetadataEditingIndex(null);
+    setError('');
   };
 
   const save = async () => {
@@ -123,18 +134,26 @@ export default function AssignmentQuestionEditor({ assignment, hasStudentData, o
           <div style={{ display: 'grid', gap: '12px' }}>
             {questions.map((question, index) => {
               const excluded = question.teacherExcluded === true;
+              const metadataSummary = getQuestionMetadataSummary(question);
               return (
                 <article key={question.questionId || index} style={{ padding: '15px', borderRadius: '11px', border: `2px solid ${excluded ? '#c7cbd1' : '#c6d8f1'}`, background: excluded ? '#f1f3f4' : '#fbfcff', opacity: excluded ? 0.78 : 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
                     <div style={{ flex: '1 1 430px' }}>
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}><strong style={{ fontSize: '16px' }}>Question {index + 1}</strong><span style={{ padding: '3px 7px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6', fontSize: '11px', fontWeight: 900 }}>{question.type}</span>{excluded && <span style={{ padding: '3px 7px', borderRadius: '999px', background: '#5f6368', color: '#fff', fontSize: '11px', fontWeight: 900 }}>EXCLUDED</span>}</div>
                       <p style={{ margin: '8px 0 0', color: '#3c4043', lineHeight: 1.45 }}>{promptSummary(question).slice(0, 240)}</p>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '9px' }}>
+                        {metadataSummary.primary.map((code) => <span key={code} style={{ padding: '3px 7px', borderRadius: '999px', background: '#e6f4ea', color: '#137333', fontSize: '10px', fontWeight: 900 }}>TEKS {code}</span>)}
+                        {metadataSummary.dok && <span style={{ padding: '3px 7px', borderRadius: '999px', background: '#fff3e0', color: '#8a4f00', fontSize: '10px', fontWeight: 900 }}>DOK {metadataSummary.dok}</span>}
+                        <span style={{ padding: '3px 7px', borderRadius: '999px', background: '#f3e8fd', color: '#7b1fa2', fontSize: '10px', fontWeight: 900 }}>{metadataSummary.difficultyLabel}</span>
+                        {metadataSummary.issues.length > 0 && <span title={metadataSummary.issues.join(' · ')} style={{ padding: '3px 7px', borderRadius: '999px', background: '#fce8e6', color: '#a50e0e', fontSize: '10px', fontWeight: 900 }}>Metadata incomplete</span>}
+                      </div>
                     </div>
                     <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                       <button type="button" onClick={() => moveQuestion(index, -1)} disabled={hasStudentData || index === 0} title={hasStudentData ? 'Reordering is disabled because student data exists.' : 'Move up'}>↑</button>
                       <button type="button" onClick={() => moveQuestion(index, 1)} disabled={hasStudentData || index === questions.length - 1} title={hasStudentData ? 'Reordering is disabled because student data exists.' : 'Move down'}>↓</button>
                       <button type="button" onClick={() => duplicateQuestion(index)}>Duplicate</button>
                       <button type="button" onClick={() => beginJsonEdit(index)}>Edit JSON</button>
+                      <button type="button" onClick={() => { setEditingIndex(null); setMetadataEditingIndex(metadataEditingIndex === index ? null : index); setError(''); }} style={{ color: '#174ea6' }}>Standards & Difficulty</button>
                       <button type="button" onClick={() => toggleExcluded(index)} style={{ color: excluded ? '#137333' : '#8a5a00' }}>{excluded ? 'Include' : 'Exclude'}</button>
                       <button type="button" onClick={() => removeQuestion(index)} style={{ color: '#d93025' }}>{hasStudentData ? 'Throw Out Safely' : 'Remove'}</button>
                     </div>
@@ -144,6 +163,13 @@ export default function AssignmentQuestionEditor({ assignment, hasStudentData, o
                       <textarea value={questionJson} onChange={(event) => setQuestionJson(event.target.value)} style={{ width: '100%', minHeight: '250px', padding: '12px', boxSizing: 'border-box', borderRadius: '8px', border: '1px solid #aeb8c6', fontFamily: 'monospace', fontSize: '13px' }} />
                       <div style={{ display: 'flex', gap: '8px', marginTop: '9px' }}><button type="button" onClick={applyJsonEdit} style={{ padding: '9px 13px', border: 0, borderRadius: '7px', background: '#188038', color: '#fff', fontWeight: 800 }}>Apply Question JSON</button><button type="button" onClick={() => { setEditingIndex(null); setError(''); }} style={{ padding: '9px 13px', border: '1px solid #cbd1da', borderRadius: '7px', background: '#fff', fontWeight: 800 }}>Cancel</button></div>
                     </div>
+                  )}
+                  {metadataEditingIndex === index && (
+                    <QuestionStandardsEditor
+                      question={question}
+                      onApply={(nextQuestion) => applyMetadataEdit(index, nextQuestion)}
+                      onCancel={() => setMetadataEditingIndex(null)}
+                    />
                   )}
                 </article>
               );

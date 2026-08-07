@@ -1,4 +1,6 @@
 import { isPersonalizedBlueprint } from './problemGenerator.js';
+import { normalizeQuestionStandards } from './questionMetadata.js';
+import { getTexasStandard } from './texasStandards.js';
 
 export const DEFAULT_ASSIGNMENT_BLUEPRINT = `[
   {
@@ -117,6 +119,55 @@ Use "P1" through "P8", numbers 1 through 8, or "Period 1" through "Period 8" in 
 If variantMode is omitted, MathMaster automatically chooses Shared for fixed lesson questions and Personalized for generated/variant questions.
 If folder is supplied, MathMaster creates the folder path automatically.
 Legacy question-array JSON still works; manual title and dates remain available as fallbacks.
+
+TEXAS STANDARDS + DIFFICULTY METADATA
+
+Every question may carry the following optional metadata. JSON is the source of truth; the Assignment Question Editor can write the same fields without hand-editing JSON.
+
+{
+  "standards": {
+    "primary": [{ "code": "A.2A", "level": "assessed" }],
+    "secondary": [{ "code": "A.1D", "level": "practiced" }],
+    "prerequisite": []
+  },
+  "complexity": { "framework": "DOK", "level": 2 },
+  "difficulty": { "instructionalLevel": "gradeLevel", "generatorBand": 3 },
+  "purpose": "independentPractice",
+  "evidenceWeight": 0.75,
+  "differentiation": { "mode": "recommend" }
+}
+
+TEKS evidence levels: introduced, practiced, assessed, masteryEvidence.
+DOK levels: 1 through 4. DOK measures cognitive complexity; it is not the same as instructional difficulty.
+Generator bands: 1 Prerequisite, 2 Developing, 3 Grade Level, 4 Advanced, 5 Extension.
+Differentiation modes: off, recommend, auto. Auto changes content only when the question includes difficulty-tagged variants or authored differentiation.bandProfiles. Students with insufficient evidence default to Grade Level (Band 3).
+
+TEXAS COURSE + VERTICAL TEKS
+
+Algebra I and Algebra II registries are loaded. Course ID is inferred from the TEKS code, so this is valid:
+
+{
+  "standards": {
+    "primary": [{ "code": "A2.4F", "level": "assessed" }],
+    "secondary": [{ "code": "A2.1D", "level": "practiced" }],
+    "prerequisite": [{ "code": "A.8A", "level": "prerequisite" }]
+  }
+}
+
+The grade-level/course target remains in standards.primary. Earlier-course standards belong in standards.prerequisite. MathMaster can recommend prior-course TEKS from the pathway registry when evidence shows a student needs support; it does not silently replace the current-course target.
+
+Example auto-differentiation profiles:
+
+{
+  "differentiation": {
+    "mode": "auto",
+    "bandProfiles": {
+      "2": { "generator": { "coefficientRange": [1, 4] } },
+      "3": { "generator": { "coefficientRange": [2, 9] } },
+      "4": { "generator": { "coefficientRange": [-12, 12] } }
+    }
+  }
+}
 
 PERSONALIZED QUESTIONS WITHOUT DATABASE BLOAT
 
@@ -660,6 +711,13 @@ export const assertFirestoreSafeAssignmentPayload = (value) => {
   return value;
 };
 
+// These belong to the graph point-builder used by functionInvestigation/analysisRequests
+// origin points, not to relationshipModel. RelationshipModel.jsx never reads them - it only
+// grades the origin explanation against origin.requiredConcepts (a free-text textarea). A
+// question authored with these fields but no requiredConcepts silently accepts any non-blank
+// answer as correct, since matchesConceptGroups treats a missing concept list as "ungraded".
+const RELATIONSHIP_MODEL_ORIGIN_FOREIGN_KEYS = ['target', 'responseMode', 'coordinates', 'applyResponseToGraph'];
+
 export const validateAssignmentQuestions = (questions, options = {}) => {
   if (!Array.isArray(questions) || questions.length === 0) {
     throw new Error('JSON must be a non-empty array of questions.');
@@ -677,6 +735,36 @@ export const validateAssignmentQuestions = (questions, options = {}) => {
     if (!question?.type) throw new Error(`Question ${index + 1} is missing a type.`);
     if (!supportedTypes.has(question.type)) {
       throw new Error(`Question ${index + 1} uses unsupported type ${question.type}.`);
+    }
+    const rawDok = question?.complexity?.level ?? question?.complexity?.dok ?? question?.standards?.dok ?? question?.dok;
+    if (rawDok !== undefined && rawDok !== null && rawDok !== '' && (!Number.isInteger(Number(rawDok)) || Number(rawDok) < 1 || Number(rawDok) > 4)) {
+      throw new Error(`Question ${index + 1} has invalid DOK ${rawDok}. Use an integer from 1 through 4.`);
+    }
+    const rawBand = question?.difficulty?.generatorBand ?? question?.difficulty?.band ?? question?.generatorBand;
+    if (rawBand !== undefined && rawBand !== null && rawBand !== '' && (!Number.isInteger(Number(rawBand)) || Number(rawBand) < 1 || Number(rawBand) > 5)) {
+      throw new Error(`Question ${index + 1} has invalid difficulty band ${rawBand}. Use an integer from 1 through 5.`);
+    }
+    if (question?.evidenceWeight !== undefined && (!Number.isFinite(Number(question.evidenceWeight)) || Number(question.evidenceWeight) < 0 || Number(question.evidenceWeight) > 2)) {
+      throw new Error(`Question ${index + 1} has invalid evidenceWeight. Use a number from 0 through 2.`);
+    }
+    if (question?.differentiation?.mode && !['off', 'recommend', 'auto'].includes(question.differentiation.mode)) {
+      throw new Error(`Question ${index + 1} has invalid differentiation mode. Use off, recommend, or auto.`);
+    }
+    if (question?.standards) {
+      const standards = normalizeQuestionStandards(question);
+      [...standards.primary, ...standards.secondary, ...standards.prerequisite].forEach((entry) => {
+        if (!getTexasStandard(entry.code)) {
+          throw new Error(`Question ${index + 1} references TEKS ${entry.code}, which is not in a loaded Texas Math registry.`);
+        }
+      });
+    }
+    if (question.type === 'relationshipModel' && question.origin && typeof question.origin === 'object') {
+      const foreignKeys = RELATIONSHIP_MODEL_ORIGIN_FOREIGN_KEYS.filter((key) => key in question.origin);
+      if (foreignKeys.length > 0) {
+        throw new Error(
+          `Question ${index + 1} (relationshipModel) has origin.${foreignKeys.join(', origin.')}, which belongs to a different question type and has no effect here. relationshipModel grades the origin explanation using origin.requiredConcepts (a list of key words/phrases the student's answer must include), not a graph point builder. Remove ${foreignKeys.join(', ')} and add requiredConcepts.`,
+        );
+      }
     }
     if (!allowFixed && !isPersonalizedBlueprint(question)) {
       throw new Error(

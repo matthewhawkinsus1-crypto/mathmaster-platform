@@ -155,7 +155,7 @@ export default function QuestionEngine({
         answerState.isCorrect,
         answerState.questionDetails,
         answerState.parts || [],
-        supportUsage,
+        { ...supportUsage, scaffoldUsed: Boolean(scaffoldComplete) },
         answerState.responseKey ?? '',
       );
       setFeedback(

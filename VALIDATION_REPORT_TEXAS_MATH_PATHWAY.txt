@@ -1,0 +1,55 @@
+MathMaster Texas Math Pathway Validation
+Date: 2026-08-07
+
+BASE
+- Built on the current MathMaster Texas Standards & Mastery / Assignment Package V2 codebase.
+- Preserves graph axis builder, Point Meaning Builder, folders/library, attempts, drafts/resume, scratchpad, inclusion/modification, DOL, Google Classroom, and prior features.
+
+ACTIVE REGISTRY CHECKS
+PASS - Grade 6 registry contains 59 expectations: 7 process + 52 content.
+PASS - Grade 7 registry contains 50 expectations: 7 process + 43 content.
+PASS - Grade 8 registry contains 52 expectations: 7 process + 45 content.
+PASS - Algebra I registry contains 56 expectations.
+PASS - Algebra II registry contains 55 expectations: 7 process + 48 content.
+PASS - Combined active registry contains 272 expectations.
+PASS - Five active course/grade registries: Grade 6, Grade 7, Grade 8, Algebra I, Algebra II.
+PASS - Geometry and Precalculus remain explicit planned registry slots rather than incomplete active registries.
+PASS - Middle-school canonical normalization accepts 8.5(I) -> 8.5I and preserves letterless standards such as 7.7.
+PASS - Algebra II canonical normalization accepts A2.4(F) -> A2.4F.
+PASS - Loaded standards can be resolved by code across all five active registries.
+
+VERTICAL PATH / DIFFERENTIATION CHECKS
+PASS - A2.3A recursive prior path reaches Algebra I, Grade 8, Grade 7, and Grade 6.
+PASS - A2.3A immediate support resolves to A.2I and A.5C.
+PASS - Example recursive path:
+       depth 0 Algebra II: A2.3A
+       depth 1 Algebra I: A.2I, A.5C
+       depth 2 Grade 8: 8.5I, 8.9
+       depth 3 Grade 7: 7.4A, 7.7, 7.11A
+       depth 4 Grade 6: linked Grade 6 foundations
+PASS - Differentiation returns immediate support standards separately from the deeper roadmap.
+PASS - Engine language explicitly requires stepwise/evidence-gated movement rather than an automatic multi-grade drop.
+PASS - The current-course TEKS remains the instructional evidence target.
+PASS - Insufficient evidence remains current-course Band 3.
+
+QUESTION / ASSIGNMENT CHECKS
+PASS - Question editor can browse all five active registries.
+PASS - Course-specific TEKS placeholders are available for Grade 6, Grade 7, Grade 8, Algebra I, and Algebra II.
+PASS - Assignment validator accepts Grade 8 TEKS metadata such as 8.5I.
+PASS - Assignment validator accepts Algebra II TEKS metadata.
+PASS - Assignment validator rejects unknown TEKS when standards metadata is supplied.
+PASS - Algebra II sample Assignment Package V2 parses and validates in personalized mode.
+
+MASTERY / ANALYTICS CHECKS
+PASS - Evidence rows retain courseId/course.
+PASS - Student profiles store separate course summaries under profile.courses.
+PASS - Synthetic cross-course evidence produced separate Grade 8 and Algebra II course profiles.
+PASS - Item analytics preserves Grade 8 and Algebra II course IDs independently.
+PASS - Modified evidence remains separate from grade-level evidence.
+
+SOURCE PARSE
+PASS - TypeScript parser parsed 69 JavaScript/JSX files with 0 syntax failures.
+
+BUILD NOTE
+- A full Vite production build was not run because the extracted project does not contain node_modules.
+- Source parsing and engine-level runtime tests were completed successfully.

@@ -7,6 +7,7 @@ export const emptyQuestionRecord = () => ({
   totalAttempts: 0,
   variantIndex: 0,
   timeSpent: 0,
+  lastAttemptAt: null,
   questionDetails: '',
   lastResponseKey: '',
   stepGrades: [],
@@ -14,7 +15,7 @@ export const emptyQuestionRecord = () => ({
   bestPartialCredit: 0,
   algebraState: null,
   partGrades: [],
-  supportUsage: { modified: false, accommodations: [], modifications: [] },
+  supportUsage: { modified: false, accommodations: [], modifications: [], scaffoldUsed: false },
 });
 
 const clampPercent = (value) =>
@@ -57,6 +58,7 @@ export const normalizeQuestionRecord = (record) => {
     timeSpent: Number.isFinite(Number(record.timeSpent))
       ? Math.max(0, Number(record.timeSpent))
       : 0,
+    lastAttemptAt: record.lastAttemptAt || record.recordedAt || null,
     stepGrades,
     partialCredit: clampPercent(record.partialCredit),
     bestPartialCredit: clampPercent(
@@ -68,6 +70,7 @@ export const normalizeQuestionRecord = (record) => {
       modified: Boolean(record.supportUsage?.modified),
       accommodations: Array.isArray(record.supportUsage?.accommodations) ? record.supportUsage.accommodations.slice(0, 20) : [],
       modifications: Array.isArray(record.supportUsage?.modifications) ? record.supportUsage.modifications.slice(0, 20) : [],
+      scaffoldUsed: Boolean(record.supportUsage?.scaffoldUsed),
     },
   };
 };
@@ -170,7 +173,9 @@ export const recordQuestionStep = ({
       modified: Boolean(supportUsage.modified),
       accommodations: Array.isArray(supportUsage.accommodations) ? supportUsage.accommodations.slice(0, 20) : [],
       modifications: Array.isArray(supportUsage.modifications) ? supportUsage.modifications.slice(0, 20) : [],
+      scaffoldUsed: Boolean(supportUsage.scaffoldUsed),
     } : current.supportUsage,
+    lastAttemptAt: new Date().toISOString(),
   };
 
   return {
@@ -257,7 +262,9 @@ export const recordQuestionAttempt = ({
       modified: Boolean(supportUsage.modified),
       accommodations: Array.isArray(supportUsage.accommodations) ? supportUsage.accommodations.slice(0, 20) : [],
       modifications: Array.isArray(supportUsage.modifications) ? supportUsage.modifications.slice(0, 20) : [],
+      scaffoldUsed: Boolean(supportUsage.scaffoldUsed),
     } : current.supportUsage,
+    lastAttemptAt: new Date().toISOString(),
   };
 
   return {

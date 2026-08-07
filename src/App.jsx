@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 import {
   addDoc,
@@ -74,6 +74,8 @@ import AssignmentLibrary from './AssignmentLibrary';
 import AssignmentCardMenu from './AssignmentCardMenu';
 import ClassesWorkspace from './ClassesWorkspace';
 import TeacherHome from './TeacherHome';
+import TexasStandardsDashboard from './TexasStandardsDashboard';
+import { buildStudentMasteryProfile } from './masteryEngine.js';
 import { SMART_VIEWS, matchesSmartView } from './assignmentSmartViews';
 import { assignmentFolderMatches, normalizeFolderPath, normalizeFolderPaths, renameFolderPath } from './assignmentFolders';
 
@@ -180,6 +182,35 @@ function App() {
   const [libraryNavigation, setLibraryNavigation] = useState(null);
   const [movingFolderAssignmentId, setMovingFolderAssignmentId] = useState(null);
   const [movingFolderValue, setMovingFolderValue] = useState('');
+
+  const currentStudentMasteryProfile = useMemo(() => {
+    if (user?.role !== 'student') return null;
+    return buildStudentMasteryProfile({
+      student: {
+        id: user.id,
+        classPeriod: user.classPeriod,
+        gradesByAssignment: tracker,
+        supportUsageByAssignment,
+      },
+      assignments,
+    });
+  }, [user, tracker, supportUsageByAssignment, assignments]);
+
+  const adaptiveStudentProfile = useMemo(() => {
+    if (user?.role !== 'student') return null;
+    return {
+      ...(user.profile || {}),
+      adaptiveInstruction: currentStudentMasteryProfile?.adaptiveInstruction || { generatorBand: 3, byTeks: {}, confidence: 'Low', performanceLevel: 'insufficient' },
+    };
+  }, [user, currentStudentMasteryProfile]);
+
+  const teacherMasteryProfilesByStudentId = useMemo(() => {
+    if (!allStudents.length) return {};
+    return Object.fromEntries(allStudents.map((student) => {
+      const profile = buildStudentMasteryProfile({ student, assignments });
+      return [student.id, profile];
+    }));
+  }, [allStudents, assignments]);
 
   useEffect(() => {
     if (!pendingLaunchAssignmentId) return;
@@ -2495,7 +2526,7 @@ function App() {
               onRequestNewQuestion={handleRequestNewQuestion}
               onLoadScratchpad={handleLoadScratchpad}
               onSaveScratchpad={handleSaveScratchpad}
-              studentProfile={preview ? null : user?.profile}
+              studentProfile={preview ? null : adaptiveStudentProfile || user?.profile}
               guidedMode={assignment.assignmentType === 'notesClasswork'}
               assignmentLocked={!preview && lifecycle.isClosed}
               dolMode={!preview && currentIsDOL && dolState.status === 'active'}
@@ -2825,7 +2856,7 @@ function App() {
                 {allStudents.map((student) => (
                   <article key={student.id} style={{ marginBottom: '14px', padding: '18px', border: '1px solid #d8dde6', borderRadius: '10px', textAlign: 'left' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-                      <div><strong style={{ fontSize: '18px' }}>{student.id}</strong><div style={{ color: '#5f6368', marginTop: '4px' }}>{student.classPeriod || 'Unassigned'}</div></div>
+                      <div><strong style={{ fontSize: '18px' }}>{student.id}</strong><div style={{ color: '#5f6368', marginTop: '4px' }}>{student.classPeriod || 'Unassigned'}</div>{(() => { const mastery = teacherMasteryProfilesByStudentId[student.id]; return <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '7px' }}><span style={{ padding: '3px 7px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6', fontSize: '10px', fontWeight: 900 }}>Estimated {mastery?.overall?.performance?.shortLabel || 'Insufficient'}</span><span style={{ padding: '3px 7px', borderRadius: '999px', background: '#f1f3f4', color: '#5f6368', fontSize: '10px', fontWeight: 900 }}>{mastery?.overall?.confidence || 'Low'} confidence</span><span style={{ padding: '3px 7px', borderRadius: '999px', background: '#e6f4ea', color: '#137333', fontSize: '10px', fontWeight: 900 }}>Recommended Band {mastery?.overall?.recommendedGeneratorBand || 3}</span></div>; })()}</div>
                       <select value={student.classPeriod || 'Unassigned'} onChange={(event) => handleChangeClassPeriod(student.id, event.target.value)} style={{ padding: '9px', borderRadius: '6px', border: '1px solid #ccc' }}><option value="Unassigned">Unassigned</option>{CLASS_PERIODS.map((period) => <option key={period} value={period}>{period}</option>)}</select>
                       <label style={{ padding: '9px 12px', borderRadius: '999px', background: student.profile?.inclusionStatus ? '#efe4ff' : '#f1f3f4', color: student.profile?.inclusionStatus ? '#6f2da8' : '#3c4043', fontWeight: 900 }}><input type="checkbox" checked={Boolean(student.profile?.inclusionStatus)} onChange={(event) => handleUpdateStudentProfile(student.id, { inclusionStatus: event.target.checked })} /> Inclusion</label>
                       <button onClick={() => openIEPReport(student)} style={{ padding: '9px 13px', border: '1px solid #6f2da8', borderRadius: '7px', background: '#fff', color: '#6f2da8', fontWeight: 900, cursor: 'pointer' }}>Generate IEP Report</button>
@@ -2886,6 +2917,10 @@ function App() {
 
                 {gradebookFilter.student && selectedAssignment && (() => { const student = gradebookFilter.student; const studentGrades = student.gradesByAssignment?.[selectedAssignment.id] || {}; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? '#efe4ff' : '#e8f0fe', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{student.id} · {selectedAssignment.title}</h3><div style={{ marginTop: '5px' }}>Score: <strong>{calculateGrade(studentGrades, selectedAssignment)}%</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>Total engagement {formatTime(activity.totalTimeSeconds || 0)} · Late engagement {formatTime(activity.lateSeconds || 0)}</div></div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: '#fff', color: '#6f2da8', fontWeight: 900 }}>Generate IEP Report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px' }}>{selectedAssignment.questions.map((question, index) => { if (!questionIsIncluded(question)) return null; const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? '#e6f4ea' : record.status === 'expired' && credit < 50 ? '#fce8e6' : credit >= 50 ? '#fff4ce' : '#f1f3f4', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? '#137333' : '#b3261e' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid #aeb8c6', borderRadius: '6px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>View Student Work</button></article>; })}</div></div>; })()}
               </div>
+            )}
+
+            {teacherTab === 'standards' && (
+              <TexasStandardsDashboard allStudents={allStudents} assignments={assignments} />
             )}
 
             {teacherTab === 'access' && <SignInAccess signedInEmail={user.email} />}

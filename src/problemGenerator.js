@@ -8,6 +8,7 @@ import {
   buildInteractivePointTasks,
 } from './interactiveGraphEngine.js';
 import { applyStudentSupportToQuestion } from './studentSupport.js';
+import { applyAdaptiveDifferentiation, chooseVariantsForAdaptiveBand } from './differentiationEngine.js';
 
 const hashString = (value) => {
   let hash = 2166136261;
@@ -470,7 +471,10 @@ const generateGraphFeatureAnalysis = (question, random) => {
 
 const selectVariant = (question, random) => {
   if (!Array.isArray(question.variants) || question.variants.length === 0) return question;
-  const variant = choose(random, question.variants);
+  const candidates = question.adaptiveMeta?.mode === 'auto'
+    ? chooseVariantsForAdaptiveBand(question.variants, question.adaptiveTargetBand || 3)
+    : question.variants;
+  const variant = choose(random, candidates.length ? candidates : question.variants);
   const { variants, ...base } = question;
   return { ...base, ...variant };
 };
@@ -510,7 +514,10 @@ const getReplacementKeyParts = (generationKey) => {
 
 export const generateQuestion = (question, generationKey, studentProfile = null) => {
   if (!question) return null;
-  const supportedQuestion = applyStudentSupportToQuestion(question, studentProfile).question;
+  const adaptiveQuestion = applyAdaptiveDifferentiation(question, studentProfile).question;
+  // Apply accommodations/modifications after adaptive selection so a student
+  // support plan always wins if the two would otherwise change the same field.
+  const supportedQuestion = applyStudentSupportToQuestion(adaptiveQuestion, studentProfile).question;
   const candidate = generateQuestionFromKey(supportedQuestion, generationKey);
   const replacement = getReplacementKeyParts(generationKey);
   if (!replacement || replacement.variantIndex <= 0) return candidate;

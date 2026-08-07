@@ -1,0 +1,377 @@
+import { getQuestionCredit, normalizeQuestionRecord } from './attemptPolicy.js';
+import {
+  getQuestionPrimaryTeksCodes,
+  normalizeQuestionInstructionalMetadata,
+} from './questionMetadata.js';
+import { getTexasStandard, TEXAS_PERFORMANCE_LEVELS } from './texasStandards.js';
+
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+const round = (value, places = 1) => Number(Number(value || 0).toFixed(places));
+
+const DOK_WEIGHT = { 1: 0.9, 2: 1, 3: 1.1, 4: 1.15 };
+const CLASSIFICATION_WEIGHT = { readiness: 1.1, supporting: 1, content: 1, process: 0.45 };
+const EVIDENCE_LEVEL_WEIGHT = {
+  introduced: 0.25,
+  practiced: 0.6,
+  assessed: 1,
+  masteryEvidence: 1.1,
+  prerequisite: 0.5,
+};
+
+const getRecencyWeight = (value) => {
+  if (!value) return 1;
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) return 1;
+  const ageDays = Math.max(0, (Date.now() - timestamp) / 86400000);
+  if (ageDays <= 45) return 1;
+  if (ageDays <= 90) return 0.95;
+  if (ageDays <= 180) return 0.85;
+  return 0.75;
+};
+
+const makeLevel = (key) => TEXAS_PERFORMANCE_LEVELS.find((item) => item.key === key) || null;
+
+export const estimateInstructionalPerformanceLevel = ({
+  score = 0,
+  itemCount = 0,
+  effectiveEvidence = 0,
+  maxDok = null,
+  highDokEvidenceCount = 0,
+} = {}) => {
+  if (itemCount < 2 || effectiveEvidence < 1.1) {
+    return {
+      key: 'insufficient',
+      label: 'Insufficient Evidence',
+      shortLabel: 'Insufficient',
+      score: round(score),
+      ceilingReason: null,
+    };
+  }
+
+  let key = score >= 85 ? 'masters' : score >= 70 ? 'meets' : score >= 55 ? 'approaches' : 'didNotMeet';
+  let ceilingReason = null;
+
+  // MathMaster deliberately does not award an estimated Masters label from only
+  // low-complexity evidence. This is an instructional safeguard, not a STAAR rule.
+  if (key === 'masters' && (!(maxDok >= 3) || highDokEvidenceCount < 1 || itemCount < 4)) {
+    key = 'meets';
+    ceilingReason = 'Masters estimate requires at least one DOK 3+ item and a broader evidence set.';
+  }
+
+  const definition = makeLevel(key);
+  return {
+    ...definition,
+    score: round(score),
+    ceilingReason,
+  };
+};
+
+export const estimateConfidence = ({ itemCount = 0, effectiveEvidence = 0, dokLevels = [] } = {}) => {
+  const uniqueDok = new Set(dokLevels.filter(Boolean));
+  if (itemCount >= 8 && effectiveEvidence >= 5 && uniqueDok.size >= 2) return 'High';
+  if (itemCount >= 4 && effectiveEvidence >= 2.4) return 'Medium';
+  return 'Low';
+};
+
+export const recommendGeneratorBand = ({ levelKey, score, confidence } = {}) => {
+  if (!levelKey || levelKey === 'insufficient') return 3;
+  if (levelKey === 'didNotMeet') return 1;
+  if (levelKey === 'approaches') return 2;
+  if (levelKey === 'meets') return 3;
+  if (levelKey === 'masters') return Number(score) >= 93 && confidence === 'High' ? 5 : 4;
+  return 3;
+};
+
+const resolveQuestionEvidenceWeight = ({ question, assignment, standardEntry, record }) => {
+  const metadata = normalizeQuestionInstructionalMetadata(question, assignment);
+  const standard = getTexasStandard(standardEntry.code);
+  const dok = metadata.complexity.level;
+  const modified = Boolean(record.supportUsage?.modified);
+  const scaffoldFactor = record.supportUsage?.scaffoldUsed ? 0.85 : 1;
+  const classificationFactor = CLASSIFICATION_WEIGHT[standard?.classification] || 1;
+  const evidenceLevelFactor = EVIDENCE_LEVEL_WEIGHT[standardEntry.level] || 1;
+  const dokFactor = DOK_WEIGHT[dok] || 0.9;
+  const recency = getRecencyWeight(record.lastAttemptAt || record.recordedAt);
+  const base = Number(metadata.evidenceWeight) || 0;
+
+  return {
+    rawWeight: base,
+    gradeLevelWeight: modified ? 0 : base * classificationFactor * evidenceLevelFactor * dokFactor * scaffoldFactor * recency,
+    modifiedWeight: modified ? base * classificationFactor * evidenceLevelFactor * dokFactor * scaffoldFactor * recency : 0,
+    metadata,
+    standard,
+  };
+};
+
+export const collectStudentEvidence = ({ student, assignments = [] } = {}) => {
+  const evidence = [];
+  const gradesByAssignment = student?.gradesByAssignment || {};
+
+  assignments.forEach((assignment) => {
+    const assignmentGrades = gradesByAssignment?.[assignment.id];
+    if (!assignmentGrades || !Array.isArray(assignment.questions)) return;
+
+    assignment.questions.forEach((question, questionIndex) => {
+      if (question?.teacherExcluded === true) return;
+      const record = normalizeQuestionRecord(assignmentGrades?.[questionIndex]);
+      if (record.status === 'unattempted' && record.totalAttempts <= 0) return;
+      const metadata = normalizeQuestionInstructionalMetadata(question, assignment);
+      const primary = metadata.standards.primary;
+      if (!primary.length) return;
+
+      primary.forEach((standardEntry) => {
+        const weights = resolveQuestionEvidenceWeight({ question, assignment, standardEntry, record });
+        evidence.push({
+          studentId: student?.id || '',
+          assignmentId: assignment.id,
+          assignmentTitle: assignment.title || '',
+          questionIndex,
+          questionId: question.questionId || '',
+          questionType: question.type || '',
+          teks: standardEntry.code,
+          teksLevel: standardEntry.level,
+          courseId: weights.standard?.courseId || standardEntry.courseId || null,
+          course: weights.standard?.course || '',
+          reportingCategory: weights.standard?.reportingCategory ?? null,
+          classification: weights.standard?.classification || 'unknown',
+          dok: metadata.complexity.level,
+          instructionalLevel: metadata.difficulty.instructionalLevel,
+          generatorBand: metadata.difficulty.generatorBand,
+          purpose: metadata.purpose,
+          evidenceWeight: metadata.evidenceWeight,
+          gradeLevelWeight: weights.gradeLevelWeight,
+          modifiedWeight: weights.modifiedWeight,
+          credit: getQuestionCredit(record),
+          percentCredit: Math.round(getQuestionCredit(record) * 100),
+          totalAttempts: record.totalAttempts,
+          firstAttemptCorrect: record.status === 'correct' && record.totalAttempts === 1,
+          eventuallyCorrect: record.status === 'correct',
+          modified: Boolean(record.supportUsage?.modified),
+          scaffoldUsed: Boolean(record.supportUsage?.scaffoldUsed),
+          accommodations: record.supportUsage?.accommodations || [],
+          modifications: record.supportUsage?.modifications || [],
+          lastAttemptAt: record.lastAttemptAt || null,
+        });
+      });
+    });
+  });
+
+  return evidence;
+};
+
+const summarizeEvidenceRows = (rows, { includeModified = false } = {}) => {
+  const applicable = rows.filter((row) => includeModified ? row.modifiedWeight > 0 : row.gradeLevelWeight > 0);
+  const weightKey = includeModified ? 'modifiedWeight' : 'gradeLevelWeight';
+  const totalWeight = applicable.reduce((sum, row) => sum + Number(row[weightKey] || 0), 0);
+  const weightedScore = totalWeight > 0
+    ? applicable.reduce((sum, row) => sum + row.credit * Number(row[weightKey] || 0), 0) / totalWeight * 100
+    : 0;
+  const firstAttemptRows = applicable.filter((row) => row.totalAttempts > 0);
+  const firstAttemptRate = firstAttemptRows.length
+    ? firstAttemptRows.filter((row) => row.firstAttemptCorrect).length / firstAttemptRows.length * 100
+    : 0;
+  const eventualRate = firstAttemptRows.length
+    ? firstAttemptRows.filter((row) => row.eventuallyCorrect).length / firstAttemptRows.length * 100
+    : 0;
+  const maxDok = applicable.reduce((max, row) => Math.max(max, Number(row.dok) || 0), 0) || null;
+  const highDokEvidenceCount = applicable.filter((row) => Number(row.dok) >= 3).length;
+  const dokLevels = applicable.map((row) => row.dok).filter(Boolean);
+  const confidence = estimateConfidence({ itemCount: applicable.length, effectiveEvidence: totalWeight, dokLevels });
+  const performance = estimateInstructionalPerformanceLevel({
+    score: weightedScore,
+    itemCount: applicable.length,
+    effectiveEvidence: totalWeight,
+    maxDok,
+    highDokEvidenceCount,
+  });
+
+  return {
+    itemCount: applicable.length,
+    effectiveEvidence: round(totalWeight, 2),
+    score: round(weightedScore),
+    firstAttemptCorrectRate: round(firstAttemptRate),
+    eventualCorrectRate: round(eventualRate),
+    averageAttempts: applicable.length
+      ? round(applicable.reduce((sum, row) => sum + Number(row.totalAttempts || 0), 0) / applicable.length, 2)
+      : 0,
+    maxDok,
+    dokLevels: [...new Set(dokLevels)].sort(),
+    highDokEvidenceCount,
+    confidence,
+    performance,
+    recommendedGeneratorBand: recommendGeneratorBand({
+      levelKey: performance.key,
+      score: weightedScore,
+      confidence,
+    }),
+  };
+};
+
+export const buildStudentMasteryProfile = ({ student, assignments = [] } = {}) => {
+  const evidence = collectStudentEvidence({ student, assignments });
+  const byTeksRows = new Map();
+  evidence.forEach((row) => {
+    if (!byTeksRows.has(row.teks)) byTeksRows.set(row.teks, []);
+    byTeksRows.get(row.teks).push(row);
+  });
+
+  const teks = {};
+  [...byTeksRows.entries()].forEach(([code, rows]) => {
+    const gradeLevel = summarizeEvidenceRows(rows);
+    const modified = summarizeEvidenceRows(rows, { includeModified: true });
+    const standard = getTexasStandard(code);
+    teks[code] = {
+      code,
+      description: standard?.description || '',
+      courseId: standard?.courseId || rows[0]?.courseId || null,
+      course: standard?.course || rows[0]?.course || '',
+      classification: standard?.classification || rows[0]?.classification || 'unknown',
+      reportingCategory: standard?.reportingCategory ?? rows[0]?.reportingCategory ?? null,
+      ...gradeLevel,
+      modifiedEvidence: modified,
+    };
+  });
+
+  const overall = summarizeEvidenceRows(evidence);
+  const modifiedOverall = summarizeEvidenceRows(evidence, { includeModified: true });
+  const primaryCodes = Object.keys(teks);
+  const readinessCodes = primaryCodes.filter((code) => getTexasStandard(code)?.classification === 'readiness');
+  const supportingCodes = primaryCodes.filter((code) => getTexasStandard(code)?.classification === 'supporting');
+
+  // Preserve a course-specific view so a student can move between Algebra I and
+  // Algebra II evidence without blending the two into a misleading single score.
+  const courseIds = [...new Set(evidence.map((row) => row.courseId).filter(Boolean))];
+  const courses = Object.fromEntries(courseIds.map((courseId) => {
+    const courseEvidence = evidence.filter((row) => row.courseId === courseId);
+    const courseTeks = Object.fromEntries(Object.entries(teks).filter(([, summary]) => summary.courseId === courseId));
+    const codes = Object.keys(courseTeks);
+    return [courseId, {
+      courseId,
+      course: courseEvidence[0]?.course || '',
+      evidenceCount: courseEvidence.length,
+      overall: summarizeEvidenceRows(courseEvidence),
+      modifiedOverall: summarizeEvidenceRows(courseEvidence, { includeModified: true }),
+      teks: courseTeks,
+      readinessCodes: codes.filter((code) => getTexasStandard(code)?.classification === 'readiness'),
+      supportingCodes: codes.filter((code) => getTexasStandard(code)?.classification === 'supporting'),
+      contentCodes: codes.filter((code) => getTexasStandard(code)?.classification === 'content'),
+      processCodes: codes.filter((code) => getTexasStandard(code)?.classification === 'process'),
+    }];
+  }));
+
+  return {
+    studentId: student?.id || '',
+    classPeriod: student?.classPeriod || 'Unassigned',
+    evidenceCount: evidence.length,
+    metadataCoveragePercent: (() => {
+      let attemptedQuestions = 0;
+      let taggedQuestions = 0;
+      assignments.forEach((assignment) => {
+        const assignmentGrades = student?.gradesByAssignment?.[assignment.id];
+        if (!assignmentGrades) return;
+        assignment.questions?.forEach((question, index) => {
+          const record = normalizeQuestionRecord(assignmentGrades[index]);
+          if (record.status === 'unattempted' && record.totalAttempts <= 0) return;
+          attemptedQuestions += 1;
+          if (getQuestionPrimaryTeksCodes(question).length) taggedQuestions += 1;
+        });
+      });
+      return attemptedQuestions ? Math.round(taggedQuestions / attemptedQuestions * 100) : 0;
+    })(),
+    overall,
+    modifiedOverall,
+    teks,
+    readinessCodes,
+    supportingCodes,
+    courses,
+    adaptiveInstruction: {
+      generatorBand: overall.recommendedGeneratorBand || 3,
+      performanceLevel: overall.performance?.key || 'insufficient',
+      confidence: overall.confidence,
+      byTeks: Object.fromEntries(Object.entries(teks).map(([code, summary]) => [code, {
+        courseId: summary.courseId,
+        generatorBand: summary.recommendedGeneratorBand,
+        performanceLevel: summary.performance.key,
+        score: summary.score,
+        confidence: summary.confidence,
+      }])),
+    },
+  };
+};
+
+export const buildClassMasteryProfiles = ({ students = [], assignments = [] } = {}) => students.map((student) => buildStudentMasteryProfile({ student, assignments }));
+
+export const getObservedDifficultyLabel = (firstAttemptCorrectRate, responseCount) => {
+  if (responseCount < 5) return 'Not enough data';
+  const rate = Number(firstAttemptCorrectRate) || 0;
+  if (rate >= 80) return 'Low observed difficulty';
+  if (rate >= 60) return 'Moderate observed difficulty';
+  if (rate >= 40) return 'High observed difficulty';
+  return 'Very high observed difficulty';
+};
+
+export const buildItemAnalytics = ({ students = [], assignments = [] } = {}) => {
+  const rows = [];
+  assignments.forEach((assignment) => {
+    assignment.questions?.forEach((question, questionIndex) => {
+      if (question?.teacherExcluded === true) return;
+      const metadata = normalizeQuestionInstructionalMetadata(question, assignment);
+      const records = students.map((student) => ({
+        student,
+        record: normalizeQuestionRecord(student?.gradesByAssignment?.[assignment.id]?.[questionIndex]),
+      })).filter(({ record }) => record.status !== 'unattempted' || record.totalAttempts > 0);
+      const responseCount = records.length;
+      const firstCorrect = records.filter(({ record }) => record.status === 'correct' && record.totalAttempts === 1).length;
+      const eventualCorrect = records.filter(({ record }) => record.status === 'correct').length;
+      const firstAttemptCorrectRate = responseCount ? firstCorrect / responseCount * 100 : 0;
+      const eventualCorrectRate = responseCount ? eventualCorrect / responseCount * 100 : 0;
+      const averageAttempts = responseCount
+        ? records.reduce((sum, { record }) => sum + Number(record.totalAttempts || 0), 0) / responseCount
+        : 0;
+      const averageCredit = responseCount
+        ? records.reduce((sum, { record }) => sum + getQuestionCredit(record), 0) / responseCount * 100
+        : 0;
+      const modifiedResponses = records.filter(({ record }) => record.supportUsage?.modified).length;
+
+      rows.push({
+        assignmentId: assignment.id,
+        assignmentTitle: assignment.title || '',
+        questionIndex,
+        questionNumber: questionIndex + 1,
+        questionId: question.questionId || '',
+        type: question.type || '',
+        primaryTeks: metadata.standards.primary.map((entry) => entry.code),
+        courseIds: [...new Set(metadata.standards.primary.map((entry) => getTexasStandard(entry.code)?.courseId || entry.courseId).filter(Boolean))],
+        primaryCourse: (() => {
+          const first = metadata.standards.primary[0];
+          const standard = first ? getTexasStandard(first.code) : null;
+          return standard?.course || '';
+        })(),
+        dok: metadata.complexity.level,
+        intendedDifficulty: metadata.difficulty.instructionalLevel,
+        generatorBand: metadata.difficulty.generatorBand,
+        purpose: metadata.purpose,
+        responseCount,
+        modifiedResponses,
+        firstAttemptCorrectRate: round(firstAttemptCorrectRate),
+        eventualCorrectRate: round(eventualCorrectRate),
+        averageAttempts: round(averageAttempts, 2),
+        averageCredit: round(averageCredit),
+        observedDifficultyIndex: responseCount ? round(100 - firstAttemptCorrectRate) : null,
+        observedDifficultyLabel: getObservedDifficultyLabel(firstAttemptCorrectRate, responseCount),
+      });
+    });
+  });
+  return rows;
+};
+
+export const buildStandardsExportPayload = ({ students = [], assignments = [] } = {}) => ({
+  generatedAt: new Date().toISOString(),
+  framework: 'Texas TEKS + MathMaster instructional mastery estimate',
+  disclaimer: 'Estimated performance levels are local instructional estimates and are not official STAAR classifications or scale scores.',
+  students: students.map((student) => ({
+    ...buildStudentMasteryProfile({ student, assignments }),
+    evidence: collectStudentEvidence({ student, assignments }),
+  })),
+  itemAnalytics: buildItemAnalytics({ students, assignments }),
+});

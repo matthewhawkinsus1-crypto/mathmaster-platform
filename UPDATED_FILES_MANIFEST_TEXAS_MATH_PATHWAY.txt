@@ -1,0 +1,37 @@
+MathMaster Texas Math Pathway update files
+
+src/texasMiddleSchoolStandards.js
+  - Full Grade 6, Grade 7, and Grade 8 TEKS registries.
+
+src/texasStandards.js
+  - Grade 6-8 + Algebra I + Algebra II active registries.
+  - Course metadata and prerequisite relationships.
+  - Canonical code normalization.
+  - MathMaster prior/next instructional TEKS links.
+  - Recursive multi-level support path.
+
+src/questionMetadata.js
+  - Course-aware TEKS metadata normalization.
+
+src/QuestionStandardsEditor.jsx
+  - Browse/tag TEKS across Grade 6, Grade 7, Grade 8, Algebra I, and Algebra II.
+  - Course-specific examples and Add prior support.
+
+src/masteryEngine.js
+  - Course-aware evidence, mastery profiles, analytics, and exports.
+
+src/differentiationEngine.js
+  - Immediate prerequisite recommendation plus multi-level support roadmap.
+  - Stepwise evidence-gated movement between course/grade TEKS.
+
+src/TexasStandardsDashboard.jsx
+  - Course tabs and registry views.
+  - TEKS pathway navigator and multi-level prerequisite support ladder.
+
+src/assignmentBlueprint.js
+  - Assignment JSON validation recognizes all loaded Texas Math registries.
+
+TEXAS_MATH_PATHWAY_TEKS.md
+TEXAS_MATH_PATHWAY_PATCH_INSTRUCTIONS.txt
+VALIDATION_REPORT_TEXAS_MATH_PATHWAY.txt
+SAMPLE_ALGEBRA_II_TEKS_PATHWAY_ASSIGNMENT.json

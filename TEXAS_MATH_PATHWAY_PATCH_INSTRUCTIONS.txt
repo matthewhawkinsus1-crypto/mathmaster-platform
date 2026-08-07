@@ -1,0 +1,16 @@
+MathMaster Texas Math Pathway patch
+
+This patch is intended for the current MathMaster version that already contains the Texas Standards & Mastery Engine / Assignment Package V2 work.
+
+1. Place mathmaster-texas-math-pathway-patch.zip beside package.json.
+2. Run:
+
+cd /home/matthewhawkinsus1-crypto/mathmaster-platform
+unzip -o mathmaster-texas-math-pathway-patch.zip
+rm -f mathmaster-texas-math-pathway-patch.zip
+pkill -f vite || true
+npm run dev -- --host 0.0.0.0
+
+3. Hard refresh the browser with Ctrl+Shift+R.
+
+If the patch is being applied to an older project state, use the complete updated project ZIP instead.

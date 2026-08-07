@@ -1,0 +1,12 @@
+MathMaster Texas Standards & Mastery Engine Patch
+
+This patch is designed to be extracted at the MathMaster project root (the folder containing package.json).
+It includes the Assignment Package V2 creation updates plus the Texas Standards & Mastery Engine.
+
+Install:
+  unzip -o mathmaster-texas-standards-mastery-patch.zip
+  rm -f mathmaster-texas-standards-mastery-patch.zip
+  pkill -f vite || true
+  npm run dev -- --host 0.0.0.0
+
+Then hard-refresh the browser with Ctrl+Shift+R.

@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 2,
+  "assignment": {
+    "assignmentKey": "texas-mastery-engine-sample",
+    "title": "Texas Standards & Mastery Engine Sample",
+    "folder": "Algebra I/Standards Engine Samples",
+    "template": "practice",
+    "assignmentType": "practice",
+    "variantMode": "personalized",
+    "classes": ["Period 1"],
+    "standards": ["A.2A", "A.3C", "A.5A"],
+    "curriculum": {
+      "state": "TX",
+      "standards": "TEKS",
+      "course": "Algebra I"
+    }
+  },
+  "questions": [
+    {
+      "type": "stepAlgebra",
+      "prompt": "Solve the equation by keeping both sides balanced.",
+      "mode": "rigorous",
+      "objective": { "kind": "isolate", "variable": "x", "simplifyRequired": true },
+      "generator": {
+        "kind": "stepLinearEquation",
+        "solutionRange": [-9, 9],
+        "coefficientRange": [2, 9],
+        "constantRange": [-12, 12]
+      },
+      "standards": {
+        "primary": [{ "code": "A.5A", "level": "assessed" }],
+        "secondary": [{ "code": "A.1B", "level": "practiced" }],
+        "prerequisite": []
+      },
+      "complexity": { "framework": "DOK", "level": 2 },
+      "difficulty": { "instructionalLevel": "gradeLevel", "generatorBand": 3 },
+      "purpose": "independentPractice",
+      "evidenceWeight": 0.75,
+      "differentiation": {
+        "mode": "auto",
+        "bandProfiles": {
+          "1": { "generator": { "solutionRange": [-5, 5], "coefficientRange": [2, 4], "constantRange": [-6, 6] } },
+          "2": { "generator": { "solutionRange": [-7, 7], "coefficientRange": [2, 6], "constantRange": [-9, 9] } },
+          "3": { "generator": { "solutionRange": [-9, 9], "coefficientRange": [2, 9], "constantRange": [-12, 12] } },
+          "4": { "generator": { "solutionRange": [-12, 12], "coefficientRange": [3, 12], "constantRange": [-18, 18] } },
+          "5": { "generator": { "solutionRange": [-15, 15], "coefficientRange": [4, 15], "constantRange": [-24, 24] } }
+        }
+      }
+    },
+    {
+      "type": "graphing",
+      "prompt": "Graph the linear relationship.",
+      "generator": {
+        "kind": "lineGraph",
+        "slopeRange": [-5, 5],
+        "interceptRange": [-8, 8]
+      },
+      "standards": {
+        "primary": [{ "code": "A.3C", "level": "assessed" }],
+        "secondary": [{ "code": "A.1D", "level": "practiced" }],
+        "prerequisite": []
+      },
+      "complexity": { "framework": "DOK", "level": 2 },
+      "difficulty": { "instructionalLevel": "gradeLevel", "generatorBand": 3 },
+      "purpose": "formative",
+      "evidenceWeight": 0.9,
+      "differentiation": { "mode": "recommend" }
+    },
+    {
+      "type": "table",
+      "prompt": "Complete the function table and use the relationship to reason about reasonable inputs and outputs.",
+      "showRule": true,
+      "generator": {
+        "kind": "functionTable",
+        "ruleType": "linear",
+        "rowCount": 5,
+        "blankCount": 3,
+        "slopeRange": [-6, 6],
+        "interceptRange": [-12, 12]
+      },
+      "standards": {
+        "primary": [{ "code": "A.2A", "level": "practiced" }],
+        "secondary": [{ "code": "A.1E", "level": "practiced" }],
+        "prerequisite": []
+      },
+      "complexity": { "framework": "DOK", "level": 2 },
+      "difficulty": { "instructionalLevel": "developing", "generatorBand": 2 },
+      "purpose": "guidedPractice",
+      "evidenceWeight": 0.4,
+      "differentiation": { "mode": "recommend" }
+    },
+    {
+      "type": "system",
+      "prompt": "Solve the system and interpret the intersection as the solution common to both relationships.",
+      "showEquations": true,
+      "showGraph": true,
+      "generator": {
+        "kind": "linearSystem",
+        "xRange": [-10, 10],
+        "yRange": [-10, 10]
+      },
+      "standards": {
+        "primary": [{ "code": "A.5C", "level": "masteryEvidence" }],
+        "secondary": [{ "code": "A.1F", "level": "assessed" }],
+        "prerequisite": [{ "code": "A.3F", "level": "prerequisite" }]
+      },
+      "complexity": { "framework": "DOK", "level": 3 },
+      "difficulty": { "instructionalLevel": "advanced", "generatorBand": 4 },
+      "purpose": "assessment",
+      "evidenceWeight": 1.25,
+      "differentiation": { "mode": "recommend" }
+    }
+  ]
+}
