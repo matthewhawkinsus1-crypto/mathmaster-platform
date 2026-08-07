@@ -66,6 +66,7 @@ import {
 } from './studentSupport';
 import TeacherSidebar from './TeacherSidebar';
 import AssignmentLibrary from './AssignmentLibrary';
+import AssignmentCardMenu from './AssignmentCardMenu';
 import { SMART_VIEWS, matchesSmartView } from './assignmentSmartViews';
 import { assignmentFolderMatches, normalizeFolderPath, normalizeFolderPaths, renameFolderPath } from './assignmentFolders';
 
@@ -1315,6 +1316,24 @@ function App() {
     await fetchAssignments();
   };
 
+  const handleDuplicateAssignment = async (assignment) => {
+    const { id: _id, archived: _archived, ...rest } = assignment;
+    const duplicateQuestions = (assignment.questions || []).map((question) => ({ ...question, questionId: createQuestionId() }));
+    await addDoc(collection(db, 'assignments'), {
+      ...rest,
+      title: `${assignment.title} (Copy)`,
+      questions: duplicateQuestions,
+      createdAt: new Date(),
+    });
+    await fetchAssignments();
+    window.alert('Duplicated. The copy is unpublished from Google Classroom and has no student records.');
+  };
+
+  const handleToggleArchiveAssignment = async (assignment) => {
+    await updateDoc(doc(db, 'assignments', assignment.id), { archived: !assignment.archived });
+    await fetchAssignments();
+  };
+
   const beginEditAssignmentDates = (assignment) => {
     const toLocalInput = (value) => {
       const date = value ? new Date(value) : null;
@@ -2422,16 +2441,22 @@ function App() {
                             <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: lifecycle.isClosed ? '#fce8e6' : lifecycle.isLate ? '#fff4ce' : '#e6f4ea', color: lifecycle.isClosed ? '#a50e0e' : lifecycle.isLate ? '#7a4f00' : '#137333' }}>{lifecycle.status.toUpperCase()}</span>
                             <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#e8f0fe', color: '#174ea6' }}>{assignment.assignmentType === 'notesClasswork' ? 'NOTES / CLASSWORK' : 'PRACTICE'}</span>
                             {assignment.variantMode === 'shared' && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#e6f4ea', color: '#137333' }}>SHARED VERSION</span>}
+                            {assignment.archived && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#f1f3f4', color: '#5f6368' }}>ARCHIVED</span>}
                           </div>
                           <div style={{ marginTop: '7px', color: '#5f6368', fontSize: '13px', lineHeight: 1.55 }}>{getIncludedQuestionIndices(assignment).length} included question{getIncludedQuestionIndices(assignment).length === 1 ? '' : 's'}{(assignment.questions?.length || 0) !== getIncludedQuestionIndices(assignment).length ? ` · ${assignment.questions.length - getIncludedQuestionIndices(assignment).length} excluded` : ''} · Classes: {(assignment.assignedClassPeriods || CLASS_PERIODS).join(', ')}<br />Due {formatDueDate(assignment)} · Late close {formatLateDueDate(assignment)} · {affectedStudents} student record{affectedStudents === 1 ? '' : 's'}</div>
                         </div>
-                        <div style={{ display: 'flex', gap: '9px', flexWrap: 'wrap' }}>
-                          <button onClick={() => startTeacherPreview(assignment.id)} style={{ padding: '9px 13px', color: '#174ea6', background: '#e8f0fe', border: '1px solid #aecbfa', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>View as Student</button>
-                          <button onClick={() => openQuestionEditor(assignment)} style={{ padding: '9px 13px', color: '#174ea6', background: '#fff', border: '1px solid #1a73e8', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Edit Questions</button>
-                          <button onClick={() => beginEditAssignmentDates(assignment)} style={{ padding: '9px 13px', color: '#5f4400', background: '#fff4ce', border: '1px solid #f9ab00', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Dates & Classes</button>
-                          <button onClick={() => { setMovingFolderAssignmentId(movingFolderAssignmentId === assignment.id ? null : assignment.id); setMovingFolderValue(assignment.folder || ''); }} style={{ padding: '9px 13px', color: '#3c4043', background: '#fff', border: '1px solid #dadce0', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Move to Folder</button>
-                          <button onClick={() => openDeleteDialog(assignment)} style={{ padding: '9px 13px', color: '#d93025', background: '#fff', border: '1px solid #d93025', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Delete</button>
-                        </div>
+                        <AssignmentCardMenu
+                          ariaLabel={`More actions for ${assignment.title}`}
+                          items={[
+                            { key: 'preview', label: 'View as Student', onClick: () => startTeacherPreview(assignment.id) },
+                            { key: 'edit-questions', label: 'Edit Questions', onClick: () => openQuestionEditor(assignment) },
+                            { key: 'dates-classes', label: 'Dates & Classes', onClick: () => beginEditAssignmentDates(assignment) },
+                            { key: 'move-folder', label: 'Move to Folder', onClick: () => { setMovingFolderAssignmentId(assignment.id); setMovingFolderValue(assignment.folder || ''); } },
+                            { key: 'duplicate', label: 'Duplicate', onClick: () => handleDuplicateAssignment(assignment) },
+                            { key: 'archive', label: assignment.archived ? 'Unarchive' : 'Archive', onClick: () => handleToggleArchiveAssignment(assignment) },
+                            { key: 'delete', label: 'Delete', tone: 'danger', onClick: () => openDeleteDialog(assignment) },
+                          ]}
+                        />
                       </div>
                       {movingFolderAssignmentId === assignment.id && (
                         <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #d8dde6', display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'end' }}>

@@ -125,13 +125,20 @@ export default function AssignmentLibrary({
 
   const topLevelFolders = getFolderChildren(folderPaths, '');
 
-  const filteredAssignments = useMemo(() => assignments.filter((assignment) => (
-    assignmentFolderMatches(assignment, selectedFolder)
-    && matchesSmartView(assignment, smartView, { nowValue, classSchedule })
-    && titleOrFolderMatches(assignment, searchQuery)
-  )), [assignments, selectedFolder, smartView, searchQuery, nowValue, classSchedule]);
+  // Smart view (including the implicit "hide archived unless viewing
+  // Archived" rule baked into matchesSmartView) applies before folder/search
+  // narrowing, so the folder counts below stay consistent with what's
+  // actually shown in the list.
+  const visibleForSmartView = useMemo(() => assignments.filter((assignment) => (
+    matchesSmartView(assignment, smartView, { nowValue, classSchedule })
+  )), [assignments, smartView, nowValue, classSchedule]);
 
-  const uncategorizedCount = assignments.filter((assignment) => !normalizeFolderPath(assignment.folder)).length;
+  const filteredAssignments = useMemo(() => visibleForSmartView.filter((assignment) => (
+    assignmentFolderMatches(assignment, selectedFolder)
+    && titleOrFolderMatches(assignment, searchQuery)
+  )), [visibleForSmartView, selectedFolder, searchQuery]);
+
+  const uncategorizedCount = visibleForSmartView.filter((assignment) => !normalizeFolderPath(assignment.folder)).length;
 
   const closeDialog = () => { setFolderDialog(null); setDialogError(null); };
 
@@ -225,7 +232,7 @@ export default function AssignmentLibrary({
             onClick={() => setSelectedFolder('')}
             style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', marginBottom: '2px', border: 'none', borderRadius: '7px', background: selectedFolder === '' ? '#e8f0fe' : 'transparent', color: selectedFolder === '' ? '#1a73e8' : '#3c4043', fontWeight: selectedFolder === '' ? 800 : 600, fontSize: '13px', cursor: 'pointer' }}
           >
-            All ({assignments.length})
+            All ({visibleForSmartView.length})
           </button>
           <button
             type="button"
@@ -282,7 +289,7 @@ export default function AssignmentLibrary({
                 <div>
                   <div style={{ fontWeight: 'bold' }}>{assignment.title}</div>
                   <div style={{ fontSize: '12px', color: '#5f6368' }}>
-                    {normalizeFolderPath(assignment.folder) || 'Uncategorized'} &middot; {lifecycle.status}
+                    {normalizeFolderPath(assignment.folder) || 'Uncategorized'} &middot; {assignment.archived ? 'archived' : lifecycle.status}
                   </div>
                 </div>
               </div>
