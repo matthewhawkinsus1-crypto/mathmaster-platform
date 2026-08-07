@@ -64,6 +64,10 @@ import {
   getStudentSupportPresentation,
   normalizeStudentProfile,
 } from './studentSupport';
+import TeacherSidebar from './TeacherSidebar';
+import AssignmentLibrary from './AssignmentLibrary';
+import { SMART_VIEWS, matchesSmartView } from './assignmentSmartViews';
+import { assignmentFolderMatches, normalizeFolderPath, normalizeFolderPaths, renameFolderPath } from './assignmentFolders';
 
 
 
@@ -159,6 +163,11 @@ function App() {
   const [editingAssignmentId, setEditingAssignmentId] = useState(null);
   const [editingAssignmentDates, setEditingAssignmentDates] = useState({ dueAt: '', lateDueAt: '', assignedClassPeriods: [] });
   const [questionEditorAssignment, setQuestionEditorAssignment] = useState(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [assignmentFolderPaths, setAssignmentFolderPaths] = useState([]);
+  const [libraryNavigation, setLibraryNavigation] = useState(null);
+  const [movingFolderAssignmentId, setMovingFolderAssignmentId] = useState(null);
+  const [movingFolderValue, setMovingFolderValue] = useState('');
 
   useEffect(() => {
     if (!pendingLaunchAssignmentId) return;
@@ -267,6 +276,19 @@ function App() {
     }
   };
 
+  const fetchAssignmentFolders = async () => {
+    try {
+      const snapshot = await getDoc(doc(db, 'settings', 'assignmentFolders'));
+      const value = normalizeFolderPaths(snapshot.exists() ? snapshot.data()?.paths : []);
+      setAssignmentFolderPaths(value);
+      return value;
+    } catch (error) {
+      console.error('Could not load assignment folders:', error);
+      setAssignmentFolderPaths([]);
+      return [];
+    }
+  };
+
   const getLiveAssignment = async (assignmentId) => {
     const assignmentSnapshot = await getDoc(doc(db, 'assignments', assignmentId));
     if (!assignmentSnapshot.exists()) return null;
@@ -291,7 +313,7 @@ function App() {
     try {
       const fetchedAssignments = await fetchAssignments();
       if (cleanInput.toUpperCase() === 'TEACHER') {
-        await Promise.all([fetchStudents(), fetchClassSchedule()]);
+        await Promise.all([fetchStudents(), fetchClassSchedule(), fetchAssignmentFolders()]);
         setUser({ id: 'TEACHER', role: 'teacher' });
         setResumeAction(null);
       } else {
@@ -1248,6 +1270,49 @@ function App() {
     await setDoc(doc(db, 'settings', 'classSchedule'), normalized);
     setClassSchedule(normalized);
     window.alert('Class schedule saved. DOL windows now use these period times.');
+  };
+
+  const saveAssignmentFolderPaths = async (paths) => {
+    const normalized = normalizeFolderPaths(paths);
+    await setDoc(doc(db, 'settings', 'assignmentFolders'), { paths: normalized });
+    setAssignmentFolderPaths(normalized);
+    return normalized;
+  };
+
+  // Batches every assignment doc whose folder equals or is nested under
+  // `path` through `updateAssignmentFolder`, chunked below the per-batch
+  // write ceiling, mirroring deleteAssignmentPermanently's write pattern.
+  const batchUpdateAssignmentsInFolder = async (path, updateAssignmentFolder) => {
+    const affected = assignments.filter((assignment) => assignmentFolderMatches(assignment, path));
+    if (!affected.length) return;
+    const chunkSize = 400;
+    for (let startIndex = 0; startIndex < affected.length; startIndex += chunkSize) {
+      const batch = writeBatch(db);
+      affected.slice(startIndex, startIndex + chunkSize).forEach((assignment) => {
+        batch.update(doc(db, 'assignments', assignment.id), { folder: updateAssignmentFolder(assignment) });
+      });
+      await batch.commit();
+    }
+    await fetchAssignments();
+  };
+
+  const handleCreateFolder = async (path) => {
+    await saveAssignmentFolderPaths([...assignmentFolderPaths, path]);
+  };
+
+  const handleRenameFolder = async (oldPath, newPath) => {
+    await saveAssignmentFolderPaths(assignmentFolderPaths.map((existing) => renameFolderPath(existing, oldPath, newPath)));
+    await batchUpdateAssignmentsInFolder(oldPath, (assignment) => renameFolderPath(assignment.folder, oldPath, newPath));
+  };
+
+  const handleDeleteFolder = async (path) => {
+    await saveAssignmentFolderPaths(assignmentFolderPaths.filter((existing) => existing !== path && !existing.startsWith(`${path}/`)));
+    await batchUpdateAssignmentsInFolder(path, () => null);
+  };
+
+  const handleMoveAssignmentToFolder = async (assignmentId, folderPath) => {
+    await updateDoc(doc(db, 'assignments', assignmentId), { folder: folderPath ? normalizeFolderPath(folderPath) : null });
+    await fetchAssignments();
   };
 
   const beginEditAssignmentDates = (assignment) => {
@@ -2241,7 +2306,14 @@ function App() {
             onClose={() => setQuestionEditorAssignment(null)}
           />
         )}
-        <div style={{ maxWidth: '1160px', margin: '0 auto', background: '#fff', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+        <div style={{ maxWidth: '1360px', margin: '0 auto', background: '#fff', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'stretch' }}>
+          <TeacherSidebar
+            activeTab={teacherTab}
+            onSelectTab={(tab) => { setTeacherTab(tab); setGradebookFilter({ classPeriod: '', assignmentId: null, student: null }); }}
+            collapsed={sidebarCollapsed}
+            onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
+          />
+          <div style={{ flex: 1, minWidth: 0 }}>
           <header style={{ padding: '28px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e8eaed', gap: '20px' }}>
             <div>
               <h1 style={{ margin: 0, color: '#202124', fontSize: '25px' }}>Instructor Dashboard</h1>
@@ -2250,15 +2322,20 @@ function App() {
             <button onClick={handleLogout} style={{ padding: '8px 16px', background: '#fff', color: '#d93025', border: '1px solid #d93025', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Log Out</button>
           </header>
 
-          <div style={{ display: 'flex', borderBottom: '1px solid #e8eaed', background: '#f8f9fa', overflowX: 'auto' }}>
-            {['assignments', 'students', 'classes', 'grades', 'classroom'].map((tab) => (
-              <button key={tab} onClick={() => { setTeacherTab(tab); setGradebookFilter({ classPeriod: '', assignmentId: null, student: null }); }} style={{ flex: '1 0 180px', padding: '15px', border: 'none', background: teacherTab === tab ? '#fff' : 'transparent', borderBottom: teacherTab === tab ? '3px solid #1a73e8' : '3px solid transparent', cursor: 'pointer', fontWeight: 'bold', color: teacherTab === tab ? '#1a73e8' : '#5f6368', textTransform: 'capitalize', fontSize: '16px' }}>
-                {tab === 'classes' ? 'Class Schedule' : tab === 'classroom' ? 'Google Classroom' : `Manage ${tab}`}
-              </button>
-            ))}
-          </div>
-
           <div style={{ padding: '30px' }}>
+            {teacherTab === 'library' && (
+              <AssignmentLibrary
+                assignments={assignments}
+                folderPaths={assignmentFolderPaths}
+                onCreateFolder={handleCreateFolder}
+                onRenameFolder={handleRenameFolder}
+                onDeleteFolder={handleDeleteFolder}
+                onMoveAssignment={handleMoveAssignmentToFolder}
+                onNavigateToAssignments={(navigation) => { setLibraryNavigation(navigation); setTeacherTab('assignments'); }}
+                nowValue={now}
+                classSchedule={classSchedule}
+              />
+            )}
             {teacherTab === 'assignments' && (
               <div>
                 <h2 style={{ marginTop: 0 }}>Create and Assign</h2>
@@ -2324,7 +2401,16 @@ function App() {
                 </form>
 
                 <h2>Assignments</h2>
-                {assignments.map((assignment) => {
+                {libraryNavigation && (libraryNavigation.folder || libraryNavigation.smartView) && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap', padding: '10px 14px', marginBottom: '14px', background: '#e8f0fe', border: '1px solid #aecbfa', borderRadius: '8px', color: '#174ea6', fontWeight: 'bold', fontSize: '13px' }}>
+                    <span>Filtered from Library{libraryNavigation.folder ? ` · ${libraryNavigation.folder}` : ''}{libraryNavigation.smartView ? ` · ${SMART_VIEWS.find((view) => view.id === libraryNavigation.smartView)?.label || libraryNavigation.smartView}` : ''}</span>
+                    <button type="button" onClick={() => setLibraryNavigation(null)} style={{ padding: '6px 10px', border: '1px solid #1a73e8', borderRadius: '6px', background: '#fff', color: '#1a73e8', fontWeight: 'bold', cursor: 'pointer' }}>Clear filter</button>
+                  </div>
+                )}
+                {assignments.filter((assignment) => (
+                  assignmentFolderMatches(assignment, libraryNavigation?.folder)
+                  && matchesSmartView(assignment, libraryNavigation?.smartView, { nowValue: now, classSchedule })
+                )).map((assignment) => {
                   const lifecycle = getAssignmentLifecycle(assignment, now);
                   const affectedStudents = allStudents.filter((student) => student.gradesByAssignment?.[assignment.id] !== undefined).length;
                   return (
@@ -2343,9 +2429,22 @@ function App() {
                           <button onClick={() => startTeacherPreview(assignment.id)} style={{ padding: '9px 13px', color: '#174ea6', background: '#e8f0fe', border: '1px solid #aecbfa', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>View as Student</button>
                           <button onClick={() => openQuestionEditor(assignment)} style={{ padding: '9px 13px', color: '#174ea6', background: '#fff', border: '1px solid #1a73e8', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Edit Questions</button>
                           <button onClick={() => beginEditAssignmentDates(assignment)} style={{ padding: '9px 13px', color: '#5f4400', background: '#fff4ce', border: '1px solid #f9ab00', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Dates & Classes</button>
+                          <button onClick={() => { setMovingFolderAssignmentId(movingFolderAssignmentId === assignment.id ? null : assignment.id); setMovingFolderValue(assignment.folder || ''); }} style={{ padding: '9px 13px', color: '#3c4043', background: '#fff', border: '1px solid #dadce0', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Move to Folder</button>
                           <button onClick={() => openDeleteDialog(assignment)} style={{ padding: '9px 13px', color: '#d93025', background: '#fff', border: '1px solid #d93025', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Delete</button>
                         </div>
                       </div>
+                      {movingFolderAssignmentId === assignment.id && (
+                        <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #d8dde6', display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'end' }}>
+                          <label style={{ fontWeight: 'bold', fontSize: '13px' }}>Folder
+                            <select value={movingFolderValue} onChange={(event) => setMovingFolderValue(event.target.value)} style={{ display: 'block', marginTop: '5px', padding: '9px', border: '1px solid #c9ced6', borderRadius: '7px', minWidth: '220px' }}>
+                              <option value="">Uncategorized</option>
+                              {assignmentFolderPaths.map((path) => <option key={path} value={path}>{path}</option>)}
+                            </select>
+                          </label>
+                          <button onClick={async () => { await handleMoveAssignmentToFolder(assignment.id, movingFolderValue); setMovingFolderAssignmentId(null); }} style={{ padding: '10px 15px', background: '#188038', color: '#fff', border: 0, borderRadius: '7px', fontWeight: 'bold' }}>Save Folder</button>
+                          <button onClick={() => setMovingFolderAssignmentId(null)} style={{ padding: '10px 15px', background: '#fff', border: '1px solid #c9ced6', borderRadius: '7px', fontWeight: 'bold' }}>Cancel</button>
+                        </div>
+                      )}
                       {editingAssignmentId === assignment.id && (
                         <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #d8dde6', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'end' }}>
                           <label style={{ fontWeight: 'bold' }}>Regular due <input type="datetime-local" value={editingAssignmentDates.dueAt} onChange={(event) => setEditingAssignmentDates((current) => ({ ...current, dueAt: event.target.value }))} style={{ display: 'block', padding: '8px', marginTop: '5px' }} /></label>
@@ -2411,6 +2510,7 @@ function App() {
             )}
 
             {teacherTab === 'classroom' && <ClassroomSync assignments={assignments} />}
+          </div>
           </div>
         </div>
       </div>
