@@ -67,6 +67,7 @@ import {
 import TeacherSidebar from './TeacherSidebar';
 import AssignmentLibrary from './AssignmentLibrary';
 import AssignmentCardMenu from './AssignmentCardMenu';
+import ClassesWorkspace from './ClassesWorkspace';
 import { SMART_VIEWS, matchesSmartView } from './assignmentSmartViews';
 import { assignmentFolderMatches, normalizeFolderPath, normalizeFolderPaths, renameFolderPath } from './assignmentFolders';
 
@@ -1205,6 +1206,11 @@ function App() {
     });
     setQuestionEditorAssignment(null);
     await fetchAssignments();
+  };
+
+  const handleViewClassGradebook = (period, student = null) => {
+    setGradebookFilter({ classPeriod: period, assignmentId: null, student });
+    setTeacherTab('grades');
   };
 
   const handleChangeClassPeriod = async (studentId, newPeriod) => {
@@ -2505,6 +2511,16 @@ function App() {
                   </article>
                 ))}
               </div>
+            )}
+
+            {teacherTab === 'classesWorkspace' && (
+              <ClassesWorkspace
+                allStudents={allStudents}
+                assignments={assignments}
+                classSchedule={classSchedule}
+                nowValue={now}
+                onViewGradebook={handleViewClassGradebook}
+              />
             )}
 
             {teacherTab === 'classes' && (
