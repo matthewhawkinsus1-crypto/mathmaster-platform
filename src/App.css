@@ -215,6 +215,33 @@
   .algebra-operation-grid {
     grid-template-columns: repeat(2, minmax(105px, 1fr));
   }
+
+  .algebra-rail {
+    padding: 3px !important;
+    gap: 5px !important;
+  }
+
+  .algebra-rail-tile {
+    width: 44px !important;
+    height: 44px !important;
+    font-size: 18px !important;
+    border-radius: 9px !important;
+  }
+
+  .algebra-equation-side {
+    font-size: 20px !important;
+  }
+
+  .algebra-equation-stage {
+    grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr) !important;
+    padding: 10px !important;
+    gap: 6px !important;
+  }
+
+  .algebra-equation-box {
+    min-height: 170px !important;
+    padding: 12px 6px !important;
+  }
 }
 
 @keyframes mathmasterSnapReveal {
@@ -260,6 +287,61 @@
 
 .algebra-mirror-arrive {
   animation: algebraMirrorArrive 320ms ease-out both;
+}
+
+@keyframes algebraTermPop {
+  0% { transform: scale(0.4); opacity: 0; }
+  65% { transform: scale(1.14); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.algebra-term-pop {
+  animation: algebraTermPop 0.32s cubic-bezier(0.3, 0.9, 0.3, 1.25);
+}
+
+@keyframes algebraTentativePulse {
+  0%, 100% { outline-color: rgba(26, 115, 232, 0.45); }
+  50% { outline-color: rgba(26, 115, 232, 0.95); }
+}
+
+.algebra-factor-tentative {
+  outline: 2px dashed rgba(26, 115, 232, 0.7);
+  outline-offset: 4px;
+  border-radius: 10px;
+  padding: 4px 8px;
+  animation: algebraTentativePulse 1.3s ease-in-out infinite;
+}
+
+.algebra-factor-tentative.algebra-factor-armed {
+  outline-style: solid;
+  outline-color: #1a73e8;
+  background: rgba(26, 115, 232, 0.08);
+  animation: none;
+}
+
+.algebra-factor-value {
+  font-family: ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace;
+  font-weight: 800;
+  font-size: 0.6em;
+  color: #174ea6;
+  padding: 0 6px;
+}
+
+.algebra-paren-inner {
+  padding: 0 3px;
+  white-space: nowrap;
+}
+
+.algebra-div-num {
+  padding: 0 6px;
+}
+
+.algebra-div-den {
+  font-family: ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace;
+  font-size: 0.55em;
+  font-weight: 800;
+  color: #174ea6;
+  text-align: center;
 }
 
 .mathmaster-support-large-text {

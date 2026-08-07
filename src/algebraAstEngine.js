@@ -41,14 +41,55 @@ export const parseEquationInput = (question = {}) => {
   return { left: parts[0].trim(), right: parts[1].trim(), variable: objective.variable, objective };
 };
 
+const cleanImplicitMultiplicationLatex = (latex) => latex
+  .replace(/([0-9}])\s*\\cdot\s*(?=[a-zA-Z\\])/g, '$1')
+  .replace(/([a-zA-Z}])\s*\\cdot\s*(?=\\left\s*\()/g, '$1');
+
 export const simplifyExpression = (expression) => simplify(parse(String(expression))).toString({ parenthesis: 'auto', implicit: 'hide' });
-export const expressionToLatex = (expression) => {
-  const latex = parse(String(expression)).toTex({ parenthesis: 'keep', implicit: 'hide' });
-  return latex
-    .replace(/([0-9}])\s*\\cdot\s*(?=[a-zA-Z\\])/g, '$1')
-    .replace(/([a-zA-Z}])\s*\\cdot\s*(?=\\left\s*\()/g, '$1');
-};
+export const expressionToLatex = (expression) => cleanImplicitMultiplicationLatex(parse(String(expression)).toTex({ parenthesis: 'keep', implicit: 'hide' }));
 export const equationToLatex = ({ left, right }) => `${expressionToLatex(left)} = ${expressionToLatex(right)}`;
+
+// --- Presentation-only term splitting ---------------------------------------
+// Flattens the top-level +/- chain of an expression into individually
+// addressable terms for the interactive term renderer. This never affects
+// correctness: callers must keep reading/writing the plain expression
+// strings above for grading, undo, and persistence. Any node that isn't part
+// of a top-level additive chain (a product, a power, a division, ...) simply
+// becomes a single opaque term rather than being decomposed further.
+const flattenAdditiveChain = (node, sign, terms) => {
+  if (node.type === 'OperatorNode' && node.fn === 'add' && node.args.length === 2) {
+    flattenAdditiveChain(node.args[0], sign, terms);
+    flattenAdditiveChain(node.args[1], sign, terms);
+  } else if (node.type === 'OperatorNode' && node.fn === 'subtract' && node.args.length === 2) {
+    flattenAdditiveChain(node.args[0], sign, terms);
+    flattenAdditiveChain(node.args[1], -sign, terms);
+  } else if (node.type === 'OperatorNode' && node.fn === 'unaryMinus' && node.args.length === 1) {
+    flattenAdditiveChain(node.args[0], -sign, terms);
+  } else if (node.type === 'ParenthesisNode') {
+    flattenAdditiveChain(node.content, sign, terms);
+  } else {
+    terms.push({ node, sign });
+  }
+  return terms;
+};
+
+export const splitAdditiveTerms = (expression) => {
+  try {
+    const parts = flattenAdditiveChain(parse(String(expression)), 1, []);
+    return parts.map(({ node, sign }, index) => {
+      const magnitudeText = node.toString({ parenthesis: 'auto', implicit: 'hide' });
+      const magnitudeLatex = cleanImplicitMultiplicationLatex(node.toTex({ parenthesis: 'keep', implicit: 'hide' }));
+      const isFirst = index === 0;
+      return {
+        text: isFirst ? (sign < 0 ? `-${magnitudeText}` : magnitudeText) : `${sign < 0 ? '-' : '+'} ${magnitudeText}`,
+        latex: isFirst ? (sign < 0 ? `-${magnitudeLatex}` : magnitudeLatex) : `${sign < 0 ? '-' : '+'} ${magnitudeLatex}`,
+        sign,
+      };
+    });
+  } catch {
+    return null;
+  }
+};
 
 const evaluateAt = (expression, variable, value) => {
   const node = parse(String(expression));
