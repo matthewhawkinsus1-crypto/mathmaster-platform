@@ -1,5 +1,6 @@
 // src/firebase.js
 import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getFunctions } from 'firebase/functions';
 
@@ -18,6 +19,7 @@ const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 // Analytics is intentionally not initialized during application startup.
 // It is optional, and unsupported preview/browser environments should never
 // be allowed to prevent MathMaster from rendering.
+export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const functions = getFunctions(app);
 export { app };
