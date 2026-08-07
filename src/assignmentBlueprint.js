@@ -295,6 +295,32 @@ Independent/dependent quantities, discrete/continuous classification, axis label
 reasonable scales, and origin meaning:
 "type": "relationshipModel"
 
+For lessons where students must determine graph labels, units, or scale, hide those
+answers initially and let student responses build the graph:
+"axisSetup": {
+  "required": true,
+  "requireScale": true,
+  "inputMode": "type",
+  "applyToGraph": true,
+  "hideGraphLabels": true,
+  "hideGraphUnits": true,
+  "hideGraphScale": true
+}
+
+Set "inputMode": "drag" to give students quantity/unit cards that can be dragged
+directly to the X- and Y-axis targets. Touch users may tap a card and then tap its
+destination. Typed or dragged answers appear on the graph immediately. When
+"hideGraphScale" is true, numeric tick labels remain hidden until the student enters
+a positive count-by value for that axis.
+
+Any structured graph may also control static visibility with:
+"axisDisplay": {
+  "showXTickLabels": false,
+  "showYTickLabels": false,
+  "showAxisTitles": false,
+  "showAxisSymbols": true
+}
+
 Scenario-to-graph card sort with one-to-one matching and partial credit:
 "type": "graphScenarioMatch"
 
@@ -452,7 +478,7 @@ export const validateAssignmentQuestions = (questions, options = {}) => {
     'algebra', 'fraction', 'numberLine', 'graphing', 'functionGraph',
     'functionInvestigation', 'graphAnalysis', 'stepAlgebra', 'literal',
     'system', 'table', 'orderedPair', 'multiAnswer', 'relationshipModel',
-    'graphScenarioMatch', 'graphComparison', 'graphStory',
+    'graphScenarioMatch', 'graphComparison', 'graphStory', 'contextInterpretation',
   ]);
 
   questions.forEach((question, index) => {

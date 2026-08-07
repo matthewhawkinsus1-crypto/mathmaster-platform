@@ -22,7 +22,11 @@ export const matchesConceptGroups = (value, conceptGroups = []) => {
   const groups = Array.isArray(conceptGroups) ? conceptGroups : [];
   if (!groups.length) return normalized.length > 0;
   return groups.every((group) => {
-    const alternatives = Array.isArray(group) ? group : [group];
+    const alternatives = Array.isArray(group)
+      ? group
+      : group && typeof group === 'object' && Array.isArray(group.anyOf)
+        ? group.anyOf
+        : [group];
     return alternatives.some((candidate) => {
       const concept = normalizeResponseText(candidate);
       return concept && normalized.includes(concept);

@@ -9,6 +9,7 @@ import {
   sampleVisibleFunctionPaths,
 } from './interactiveGraphEngine';
 import { formatGraphEquationLatex, getSuggestedGraphPoints } from './functionGraphUtils';
+import { normalizeInterpretationConfig } from './contextInterpretationUtils';
 
 const asText = (value) => String(value ?? '').trim();
 const pointText = (point) => `(${point[0]}, ${point[1]})`;
@@ -118,6 +119,17 @@ const buildRepresentations = (question) => {
         question.sampleExplanation ? `Sample explanation: ${question.sampleExplanation}` : '',
         'A complete response includes a scenario, quantities, labeled axes, a graph sketch, and an explanation.',
       ]).slice(0, 3);
+    case 'contextInterpretation': {
+      const config = normalizeInterpretationConfig(question);
+      const [x, y] = config.target.coordinates;
+      return unique([
+        Number.isFinite(x) && Number.isFinite(y) ? `Point: (${x}, ${y})` : '',
+        config.sampleAnswer,
+        Number.isFinite(x) && Number.isFinite(y)
+          ? `When ${config.x.name || 'the x-quantity'} is ${x} ${config.x.unit || ''}, ${config.y.name || 'the y-quantity'} is ${y} ${config.y.unit || ''}.`
+          : '',
+      ]).slice(0, 3);
+    }
     case 'stepAlgebra': {
       if (question.generatedAnswer !== undefined) {
         return unique([
@@ -162,6 +174,15 @@ const buildCompleteAnswerDetails = (question) => {
       `Independent quantity: ${quantities[question.correctIndependentId] || question.correctIndependentId || ''}`,
       `Dependent quantity: ${quantities[question.correctDependentId] || question.correctDependentId || ''}`,
       question.origin?.sampleAnswer ? `Starting point: ${question.origin.sampleAnswer}` : '',
+    ].filter(Boolean);
+  }
+  if (question.type === 'contextInterpretation') {
+    const config = normalizeInterpretationConfig(question);
+    const [x, y] = config.target.coordinates;
+    return [
+      `X-coordinate: ${config.x.name || 'x'} = ${Number.isFinite(x) ? x : ''} ${config.x.unit || ''}`.trim(),
+      `Y-coordinate: ${config.y.name || 'y'} = ${Number.isFinite(y) ? y : ''} ${config.y.unit || ''}`.trim(),
+      config.sampleAnswer ? `In context: ${config.sampleAnswer}` : '',
     ].filter(Boolean);
   }
   if (question.type === 'graphScenarioMatch') {

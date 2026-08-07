@@ -1,10 +1,16 @@
 const unique = (values) => [...new Set((Array.isArray(values) ? values : []).map(String))];
 
-export const normalizeStudentProfile = (profile = {}) => ({
-  inclusionStatus: Boolean(profile.inclusionStatus),
-  accommodations: unique(profile.accommodations),
-  modifications: unique(profile.modifications),
-});
+export const normalizeStudentProfile = (profile = {}) => {
+  const safeProfile = profile && typeof profile === 'object' && !Array.isArray(profile)
+    ? profile
+    : {};
+
+  return {
+    inclusionStatus: Boolean(safeProfile.inclusionStatus),
+    accommodations: unique(safeProfile.accommodations),
+    modifications: unique(safeProfile.modifications),
+  };
+};
 
 export const studentHasSupport = (profile, value) => {
   const normalized = normalizeStudentProfile(profile);

@@ -50,30 +50,16 @@ const evaluateFunction = (spec, x) => {
     if (x > maximum || (domain.maxInclusive === false && Math.abs(x - maximum) < 1e-8)) return Number.NaN;
   }
 
-  if (type === 'line') {
-    return Number(spec.m ?? 1) * x + Number(spec.b ?? 0);
-  }
-  if (type === 'quadratic') {
-    return (
-      Number(spec.a ?? 1) * x * x +
-      Number(spec.b ?? 0) * x +
-      Number(spec.c ?? 0)
-    );
-  }
-  if (type === 'absolute') {
-    return Number(spec.a ?? 1) * Math.abs(x - Number(spec.h ?? 0)) + Number(spec.k ?? 0);
-  }
+  if (type === 'line') return Number(spec.m ?? 1) * x + Number(spec.b ?? 0);
+  if (type === 'quadratic') return Number(spec.a ?? 1) * x * x + Number(spec.b ?? 0) * x + Number(spec.c ?? 0);
+  if (type === 'absolute') return Number(spec.a ?? 1) * Math.abs(x - Number(spec.h ?? 0)) + Number(spec.k ?? 0);
   if (type === 'squareRoot') {
     const radicand = x - Number(spec.h ?? 0);
     if (radicand < 0) return Number.NaN;
     return Number(spec.a ?? 1) * Math.sqrt(radicand) + Number(spec.k ?? 0);
   }
-  if (type === 'cubic') {
-    return Number(spec.a ?? 1) * (x - Number(spec.h ?? 0)) ** 3 + Number(spec.k ?? 0);
-  }
-  if (type === 'cubeRoot') {
-    return Number(spec.a ?? 1) * Math.cbrt(x - Number(spec.h ?? 0)) + Number(spec.k ?? 0);
-  }
+  if (type === 'cubic') return Number(spec.a ?? 1) * (x - Number(spec.h ?? 0)) ** 3 + Number(spec.k ?? 0);
+  if (type === 'cubeRoot') return Number(spec.a ?? 1) * Math.cbrt(x - Number(spec.h ?? 0)) + Number(spec.k ?? 0);
   if (type === 'logarithmic') {
     const argument = x - Number(spec.h ?? 0);
     const base = Number(spec.base ?? 2);
@@ -81,11 +67,7 @@ const evaluateFunction = (spec, x) => {
     return Number(spec.a ?? 1) * (Math.log(argument) / Math.log(base)) + Number(spec.k ?? 0);
   }
   if (type === 'exponential') {
-    return (
-      Number(spec.a ?? 1) *
-        Number(spec.base ?? 2) ** (x - Number(spec.h ?? 0)) +
-      Number(spec.k ?? 0)
-    );
+    return Number(spec.a ?? 1) * Number(spec.base ?? 2) ** (x - Number(spec.h ?? 0)) + Number(spec.k ?? 0);
   }
   if (type === 'reciprocal' || type === 'rational') {
     const denominator = x - Number(spec.h ?? 0);
@@ -128,9 +110,20 @@ const toPathData = (points) =>
     .map(([x, y], index) => `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`)
     .join(' ');
 
+const axisTitle = (label, unit) => {
+  const cleanLabel = String(label || '').trim();
+  const cleanUnit = String(unit || '').trim();
+  if (cleanLabel && cleanUnit) return `${cleanLabel} (${cleanUnit})`;
+  return cleanLabel || cleanUnit;
+};
+
 /**
  * Safe, structured graph renderer. It intentionally does not execute equation
  * strings. Blueprints describe graphs with numeric fields instead.
+ *
+ * Optional graph.axisDisplay flags let a question hide labels, units, or
+ * numeric tick labels until the student supplies them. This is especially
+ * useful for graph-labeling and scale questions.
  */
 export default function GraphDisplay({ graph, title = 'Coordinate graph' }) {
   if (!graph) return null;
@@ -156,6 +149,22 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph' }) {
   const points = Array.isArray(graph.points) ? graph.points : [];
   const segments = Array.isArray(graph.segments) ? graph.segments : [];
   const endpointRequirements = Array.isArray(graph.endpointRequirements) ? graph.endpointRequirements : [];
+  const axisDisplay = graph.axisDisplay && typeof graph.axisDisplay === 'object' ? graph.axisDisplay : {};
+  const showXTickLabels = axisDisplay.showXTickLabels !== false;
+  const showYTickLabels = axisDisplay.showYTickLabels !== false;
+  const showAxisSymbols = axisDisplay.showAxisSymbols !== false;
+  const showAxisTitles = axisDisplay.showAxisTitles !== false;
+  const xTitle = showAxisTitles ? axisTitle(graph.xAxisLabel, graph.xAxisUnit) : '';
+  const yTitle = showAxisTitles ? axisTitle(graph.yAxisLabel, graph.yAxisUnit) : '';
+  const interactionHighlight = graph.interactionHighlight && typeof graph.interactionHighlight === 'object'
+    ? graph.interactionHighlight
+    : {};
+  const highlightX = Number(interactionHighlight.xValue);
+  const highlightY = Number(interactionHighlight.yValue);
+  const showHighlightX = Number.isFinite(highlightX) && highlightX >= xMin && highlightX <= xMax;
+  const showHighlightY = Number.isFinite(highlightY) && highlightY >= yMin && highlightY <= yMax;
+  const xAxisActive = interactionHighlight.xAxisActive === true;
+  const yAxisActive = interactionHighlight.yAxisActive === true;
 
   const axisX = yMin <= 0 && yMax >= 0 ? toScreenY(0) : toScreenY(yMin);
   const axisY = xMin <= 0 && xMax >= 0 ? toScreenX(0) : toScreenX(xMin);
@@ -180,23 +189,18 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph' }) {
         style={{ display: 'block', width: '100%', height: 'auto' }}
       >
         <title>{graph.ariaLabel || title}</title>
-        <rect
-          x={PADDING}
-          y={PADDING}
-          width={innerWidth}
-          height={innerHeight}
-          fill="#ffffff"
-          stroke="#cfd4da"
-        />
+        <rect x={PADDING} y={PADDING} width={innerWidth} height={innerHeight} fill="#ffffff" stroke="#cfd4da" />
 
         {xTicks.map((tick) => {
           const x = toScreenX(tick);
           return (
             <g key={`x-${tick}`}>
               <line x1={x} y1={PADDING} x2={x} y2={PADDING + innerHeight} stroke="#eceff1" />
-              <text x={x} y={axisX + 20} textAnchor="middle" fontSize="12" fill="#5f6368">
-                {tick}
-              </text>
+              {showXTickLabels && (
+                <text x={x} y={axisX + 20} textAnchor="middle" fontSize="12" fill="#5f6368">
+                  {tick}
+                </text>
+              )}
             </g>
           );
         })}
@@ -206,7 +210,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph' }) {
           return (
             <g key={`y-${tick}`}>
               <line x1={PADDING} y1={y} x2={PADDING + innerWidth} y2={y} stroke="#eceff1" />
-              {tick !== 0 && (
+              {showYTickLabels && tick !== 0 && (
                 <text x={axisY - 9} y={y + 4} textAnchor="end" fontSize="12" fill="#5f6368">
                   {tick}
                 </text>
@@ -215,23 +219,46 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph' }) {
           );
         })}
 
-        <line x1={PADDING} y1={axisX} x2={PADDING + innerWidth} y2={axisX} stroke="#5f6368" strokeWidth="2" />
-        <line x1={axisY} y1={PADDING} x2={axisY} y2={PADDING + innerHeight} stroke="#5f6368" strokeWidth="2" />
+        <line x1={PADDING} y1={axisX} x2={PADDING + innerWidth} y2={axisX} stroke={xAxisActive ? '#174ea6' : '#5f6368'} strokeWidth={xAxisActive ? '4' : '2'} />
+        <line x1={axisY} y1={PADDING} x2={axisY} y2={PADDING + innerHeight} stroke={yAxisActive ? '#9334e6' : '#5f6368'} strokeWidth={yAxisActive ? '4' : '2'} />
+
+        {showHighlightX && (
+          <line
+            x1={toScreenX(highlightX)}
+            y1={PADDING}
+            x2={toScreenX(highlightX)}
+            y2={PADDING + innerHeight}
+            stroke="#f9ab00"
+            strokeWidth="3"
+            strokeDasharray="8 6"
+            opacity="0.9"
+          />
+        )}
+        {showHighlightY && (
+          <line
+            x1={PADDING}
+            y1={toScreenY(highlightY)}
+            x2={PADDING + innerWidth}
+            y2={toScreenY(highlightY)}
+            stroke="#f9ab00"
+            strokeWidth="3"
+            strokeDasharray="8 6"
+            opacity="0.9"
+          />
+        )}
 
         {functions.map((spec, functionIndex) =>
-          buildFunctionPaths(spec, xMin, xMax, yMin, yMax, toScreenX, toScreenY).map(
-            (path, pathIndex) => (
-              <path
-                key={`function-${functionIndex}-${pathIndex}`}
-                d={toPathData(path)}
-                fill="none"
-                stroke={spec.stroke || '#1a73e8'}
-                strokeWidth={spec.strokeWidth || 3}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            ),
-          ),
+          buildFunctionPaths(spec, xMin, xMax, yMin, yMax, toScreenX, toScreenY).map((path, pathIndex) => (
+            <path
+              key={`function-${functionIndex}-${pathIndex}`}
+              d={toPathData(path)}
+              fill="none"
+              stroke={spec.stroke || '#1a73e8'}
+              strokeWidth={spec.strokeWidth || 3}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          )),
         )}
 
         {segments.map((segment, index) => {
@@ -271,22 +298,9 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph' }) {
           if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
           return (
             <g key={`point-${index}`}>
-              <circle
-                cx={toScreenX(x)}
-                cy={toScreenY(y)}
-                r={Number(point.radius) || 5}
-                fill={point.fill || '#d93025'}
-                stroke="#fff"
-                strokeWidth="2"
-              />
+              <circle cx={toScreenX(x)} cy={toScreenY(y)} r={Number(point.radius) || 5} fill={point.fill || '#d93025'} stroke="#fff" strokeWidth="2" />
               {!Array.isArray(point) && point.label && (
-                <text
-                  x={toScreenX(x) + 9}
-                  y={toScreenY(y) - 9}
-                  fontSize="13"
-                  fontWeight="bold"
-                  fill="#3c4043"
-                >
+                <text x={toScreenX(x) + 9} y={toScreenY(y) - 9} fontSize="13" fontWeight="bold" fill="#3c4043">
                   {point.label}
                 </text>
               )}
@@ -294,23 +308,59 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph' }) {
           );
         })}
 
-        <text x={PADDING + innerWidth - 4} y={axisX - 9} textAnchor="end" fontSize="14" fontWeight="bold" fill="#3c4043">
-          x
-        </text>
-        <text x={axisY + 9} y={PADDING + 14} fontSize="14" fontWeight="bold" fill="#3c4043">
-          y
-        </text>
+        {interactionHighlight.showPoint === true && showHighlightX && showHighlightY && (
+          <g>
+            <circle
+              cx={toScreenX(highlightX)}
+              cy={toScreenY(highlightY)}
+              r="12"
+              fill="#fff4ce"
+              stroke="#f9ab00"
+              strokeWidth="4"
+            />
+            <circle cx={toScreenX(highlightX)} cy={toScreenY(highlightY)} r="5" fill="#d93025" />
+            {interactionHighlight.label && (
+              <text
+                x={toScreenX(highlightX) + 15}
+                y={toScreenY(highlightY) - 13}
+                fontSize="14"
+                fontWeight="bold"
+                fill="#8a4f00"
+              >
+                {interactionHighlight.label}
+              </text>
+            )}
+          </g>
+        )}
+
+        {showAxisSymbols && !xTitle && (
+          <text x={PADDING + innerWidth - 4} y={axisX - 9} textAnchor="end" fontSize="14" fontWeight="bold" fill="#3c4043">x</text>
+        )}
+        {showAxisSymbols && !yTitle && (
+          <text x={axisY + 9} y={PADDING + 14} fontSize="14" fontWeight="bold" fill="#3c4043">y</text>
+        )}
+        {xTitle && (
+          <text x={PADDING + innerWidth / 2} y={DEFAULT_HEIGHT - 9} textAnchor="middle" fontSize="14" fontWeight="bold" fill="#174ea6">
+            {xTitle}
+          </text>
+        )}
+        {yTitle && (
+          <text
+            x="15"
+            y={PADDING + innerHeight / 2}
+            textAnchor="middle"
+            fontSize="14"
+            fontWeight="bold"
+            fill="#174ea6"
+            transform={`rotate(-90 15 ${PADDING + innerHeight / 2})`}
+          >
+            {yTitle}
+          </text>
+        )}
       </svg>
       {graph.caption && (
         <figcaption style={{ color: '#5f6368', fontSize: '14px', padding: '8px 6px 2px' }}>
-          <QuestionPrompt
-            style={{
-              color: '#5f6368',
-              fontSize: '14px',
-              lineHeight: 1.45,
-              margin: 0,
-            }}
-          >
+          <QuestionPrompt style={{ color: '#5f6368', fontSize: '14px', lineHeight: 1.45, margin: 0 }}>
             {graph.caption}
           </QuestionPrompt>
         </figcaption>

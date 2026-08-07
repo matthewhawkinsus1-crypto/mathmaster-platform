@@ -1,0 +1,735 @@
+[
+  {
+    "type": "graphScenarioMatch",
+    "prompt": "Activity 1.1 — Match each real-world scenario to the graph that best tells its story.",
+    "scenarios": [
+      {
+        "id": "music",
+        "title": "Music Downloads",
+        "description": "A music service charges $1 for each song purchased.",
+        "quantities": "Number of songs purchased; total cost in dollars"
+      },
+      {
+        "id": "aquarium",
+        "title": "Aquarium Draining",
+        "description": "A 200-gallon aquarium is drained at a constant rate of 10 gallons per minute.",
+        "quantities": "Time in minutes; gallons of water remaining"
+      },
+      {
+        "id": "interest",
+        "title": "Doubling Interest",
+        "description": "Interest begins at $1 and doubles after each week.",
+        "quantities": "Number of weeks; interest owed in dollars"
+      },
+      {
+        "id": "rope",
+        "title": "Repeated Halving",
+        "description": "A 20-foot piece of rope is repeatedly cut so that the remaining piece is half as long after each cut.",
+        "quantities": "Number of cuts; length of the remaining piece in feet"
+      },
+      {
+        "id": "baton",
+        "title": "Baton Toss",
+        "description": "A baton rises, reaches a maximum height of 22 feet, and returns to its starting height after 2 seconds.",
+        "quantities": "Time in seconds; baton height in feet"
+      },
+      {
+        "id": "halfpipe",
+        "title": "Half-Pipe Ride",
+        "description": "A skateboarder starts 4 feet above the ground, moves down to the bottom of a half-pipe, and rises back to 4 feet.",
+        "quantities": "Time or travel progress; height above the ground in feet"
+      }
+    ],
+    "graphs": [
+      {
+        "id": "graph-a",
+        "label": "Graph A",
+        "graph": {
+          "xMin": 0,
+          "xMax": 20,
+          "yMin": 0,
+          "yMax": 200,
+          "xStep": 2,
+          "yStep": 20,
+          "functions": [
+            {
+              "type": "line",
+              "m": -10,
+              "b": 200
+            }
+          ],
+          "ariaLabel": "A straight line decreasing from 200 to 0"
+        }
+      },
+      {
+        "id": "graph-b",
+        "label": "Graph B",
+        "graph": {
+          "xMin": 0,
+          "xMax": 7,
+          "yMin": 0,
+          "yMax": 140,
+          "xStep": 1,
+          "yStep": 20,
+          "functions": [
+            {
+              "type": "exponential",
+              "a": 1,
+              "base": 2,
+              "h": 0,
+              "k": 0
+            }
+          ],
+          "ariaLabel": "An exponential growth curve"
+        }
+      },
+      {
+        "id": "graph-c",
+        "label": "Graph C",
+        "graph": {
+          "xMin": 0,
+          "xMax": 8,
+          "yMin": 0,
+          "yMax": 5,
+          "xStep": 1,
+          "yStep": 1,
+          "functions": [
+            {
+              "type": "quadratic",
+              "a": 0.25,
+              "b": -2,
+              "c": 4
+            }
+          ],
+          "ariaLabel": "An upward opening parabola with a minimum"
+        }
+      },
+      {
+        "id": "graph-d",
+        "label": "Graph D",
+        "graph": {
+          "xMin": 0,
+          "xMax": 8,
+          "yMin": 0,
+          "yMax": 20,
+          "xStep": 1,
+          "yStep": 2,
+          "functions": [
+            {
+              "type": "exponential",
+              "a": 20,
+              "base": 0.5,
+              "h": 0,
+              "k": 0
+            }
+          ],
+          "ariaLabel": "An exponential decay curve"
+        }
+      },
+      {
+        "id": "graph-e",
+        "label": "Graph E",
+        "graph": {
+          "xMin": 0,
+          "xMax": 10,
+          "yMin": 0,
+          "yMax": 10,
+          "xStep": 1,
+          "yStep": 1,
+          "functions": [
+            {
+              "type": "line",
+              "m": 1,
+              "b": 0
+            }
+          ],
+          "ariaLabel": "A straight line increasing through the origin"
+        }
+      },
+      {
+        "id": "graph-f",
+        "label": "Graph F",
+        "graph": {
+          "xMin": 0,
+          "xMax": 2,
+          "yMin": 0,
+          "yMax": 24,
+          "xStep": 0.5,
+          "yStep": 4,
+          "functions": [
+            {
+              "type": "quadratic",
+              "a": -22,
+              "b": 44,
+              "c": 0
+            }
+          ],
+          "ariaLabel": "A downward opening parabola with a maximum"
+        }
+      }
+    ],
+    "correctMatches": {
+      "music": "graph-e",
+      "aquarium": "graph-a",
+      "interest": "graph-b",
+      "rope": "graph-d",
+      "baton": "graph-f",
+      "halfpipe": "graph-c"
+    },
+    "variants": [
+      {
+        "compatibilityVariant": "A"
+      },
+      {
+        "compatibilityVariant": "B"
+      }
+    ]
+  },
+  {
+    "type": "relationshipModel",
+    "prompt": "Music Downloads — identify the quantities and describe how the graph should be labeled.",
+    "scenario": "A music service charges $1 for each song purchased.",
+    "quantities": [
+      {
+        "id": "songs",
+        "label": "Number of songs purchased",
+        "unit": "songs"
+      },
+      {
+        "id": "cost",
+        "label": "Total cost",
+        "unit": "dollars"
+      }
+    ],
+    "correctIndependentId": "songs",
+    "correctDependentId": "cost",
+    "relationshipType": "discrete",
+    "axisSetup": {
+      "required": true,
+      "requireScale": true,
+      "acceptedXLabels": [
+        "number of songs purchased",
+        "songs purchased",
+        "number of songs",
+        "songs"
+      ],
+      "acceptedYLabels": [
+        "total cost",
+        "cost",
+        "amount spent"
+      ],
+      "acceptedXUnits": [
+        "songs",
+        "song"
+      ],
+      "acceptedYUnits": [
+        "dollars",
+        "dollar",
+        "$"
+      ],
+      "acceptedXSteps": [
+        1,
+        2
+      ],
+      "acceptedYSteps": [
+        1,
+        2
+      ],
+      "inputMode": "drag",
+      "applyToGraph": true,
+      "hideGraphLabels": true,
+      "hideGraphUnits": true,
+      "hideGraphScale": true
+    },
+    "origin": {
+      "required": true,
+      "requiredConcepts": [
+        "0",
+        "songs",
+        "cost"
+      ]
+    },
+    "graph": {
+      "xMin": 0,
+      "xMax": 10,
+      "yMin": 0,
+      "yMax": 10,
+      "xStep": 1,
+      "yStep": 1,
+      "functions": [
+        {
+          "type": "line",
+          "m": 1,
+          "b": 0
+        }
+      ],
+      "ariaLabel": "Cost increases by one dollar for each song"
+    },
+    "variants": [
+      {
+        "compatibilityVariant": "A"
+      },
+      {
+        "compatibilityVariant": "B"
+      }
+    ]
+  },
+  {
+    "type": "relationshipModel",
+    "prompt": "Aquarium Draining — identify the quantities, label the graph, choose a reasonable scale, and interpret the starting point.",
+    "scenario": "A 200-gallon aquarium is drained at a constant rate of 10 gallons per minute.",
+    "quantities": [
+      {
+        "id": "time",
+        "label": "Time spent draining",
+        "unit": "minutes"
+      },
+      {
+        "id": "water",
+        "label": "Water remaining",
+        "unit": "gallons"
+      }
+    ],
+    "correctIndependentId": "time",
+    "correctDependentId": "water",
+    "relationshipType": "continuous",
+    "axisSetup": {
+      "required": true,
+      "requireScale": true,
+      "acceptedXLabels": [
+        "time spent draining",
+        "time",
+        "minutes"
+      ],
+      "acceptedYLabels": [
+        "water remaining",
+        "gallons remaining",
+        "amount of water"
+      ],
+      "acceptedXUnits": [
+        "minutes",
+        "minute",
+        "min"
+      ],
+      "acceptedYUnits": [
+        "gallons",
+        "gallon",
+        "gal"
+      ],
+      "acceptedXSteps": [
+        1,
+        2,
+        5
+      ],
+      "acceptedYSteps": [
+        10,
+        20,
+        25,
+        50
+      ],
+      "inputMode": "type",
+      "applyToGraph": true,
+      "hideGraphLabels": true,
+      "hideGraphUnits": true,
+      "hideGraphScale": true
+    },
+    "origin": {
+      "required": true,
+      "requiredConcepts": [
+        "0",
+        "minutes",
+        "200",
+        "gallons"
+      ]
+    },
+    "graph": {
+      "xMin": 0,
+      "xMax": 20,
+      "yMin": 0,
+      "yMax": 200,
+      "xStep": 2,
+      "yStep": 20,
+      "functions": [
+        {
+          "type": "line",
+          "m": -10,
+          "b": 200
+        }
+      ],
+      "ariaLabel": "Water decreases from 200 gallons to zero over twenty minutes"
+    },
+    "variants": [
+      {
+        "compatibilityVariant": "A"
+      },
+      {
+        "compatibilityVariant": "B"
+      }
+    ]
+  },
+  {
+    "type": "relationshipModel",
+    "prompt": "Doubling Interest — identify the quantities and explain the graph's starting value.",
+    "scenario": "Interest begins at $1 and doubles after each week.",
+    "quantities": [
+      {
+        "id": "weeks",
+        "label": "Number of weeks",
+        "unit": "weeks"
+      },
+      {
+        "id": "interest",
+        "label": "Interest owed",
+        "unit": "dollars"
+      }
+    ],
+    "correctIndependentId": "weeks",
+    "correctDependentId": "interest",
+    "relationshipType": "discrete",
+    "axisSetup": {
+      "required": true,
+      "requireScale": true,
+      "acceptedXLabels": [
+        "number of weeks",
+        "weeks",
+        "time"
+      ],
+      "acceptedYLabels": [
+        "interest owed",
+        "interest",
+        "amount of interest"
+      ],
+      "acceptedXUnits": [
+        "weeks",
+        "week"
+      ],
+      "acceptedYUnits": [
+        "dollars",
+        "dollar",
+        "$"
+      ],
+      "acceptedXSteps": [
+        1
+      ],
+      "acceptedYSteps": [
+        10,
+        20,
+        25,
+        50
+      ],
+      "inputMode": "drag",
+      "applyToGraph": true,
+      "hideGraphLabels": true,
+      "hideGraphUnits": true,
+      "hideGraphScale": true
+    },
+    "origin": {
+      "required": true,
+      "requiredConcepts": [
+        "0",
+        "weeks",
+        "1",
+        "interest"
+      ]
+    },
+    "graph": {
+      "xMin": 0,
+      "xMax": 7,
+      "yMin": 0,
+      "yMax": 140,
+      "xStep": 1,
+      "yStep": 20,
+      "functions": [
+        {
+          "type": "exponential",
+          "a": 1,
+          "base": 2,
+          "h": 0,
+          "k": 0
+        }
+      ],
+      "ariaLabel": "Interest doubles each week"
+    },
+    "variants": [
+      {
+        "compatibilityVariant": "A"
+      },
+      {
+        "compatibilityVariant": "B"
+      }
+    ]
+  },
+  {
+    "type": "relationshipModel",
+    "prompt": "Repeated Halving — identify the quantities and describe the graph's starting value.",
+    "scenario": "A 20-foot piece of rope is repeatedly cut so that the remaining piece is half as long after each cut.",
+    "quantities": [
+      {
+        "id": "cuts",
+        "label": "Number of cuts",
+        "unit": "cuts"
+      },
+      {
+        "id": "length",
+        "label": "Length of the remaining piece",
+        "unit": "feet"
+      }
+    ],
+    "correctIndependentId": "cuts",
+    "correctDependentId": "length",
+    "relationshipType": "discrete",
+    "axisSetup": {
+      "required": true,
+      "requireScale": true,
+      "acceptedXLabels": [
+        "number of cuts",
+        "cuts"
+      ],
+      "acceptedYLabels": [
+        "length of the remaining piece",
+        "remaining length",
+        "rope length",
+        "length"
+      ],
+      "acceptedXUnits": [
+        "cuts",
+        "cut"
+      ],
+      "acceptedYUnits": [
+        "feet",
+        "foot",
+        "ft"
+      ],
+      "acceptedXSteps": [
+        1
+      ],
+      "acceptedYSteps": [
+        1,
+        2,
+        2.5,
+        5
+      ],
+      "inputMode": "type",
+      "applyToGraph": true,
+      "hideGraphLabels": true,
+      "hideGraphUnits": true,
+      "hideGraphScale": true
+    },
+    "origin": {
+      "required": true,
+      "requiredConcepts": [
+        "0",
+        "cuts",
+        "20",
+        "feet"
+      ]
+    },
+    "graph": {
+      "xMin": 0,
+      "xMax": 8,
+      "yMin": 0,
+      "yMax": 20,
+      "xStep": 1,
+      "yStep": 2,
+      "functions": [
+        {
+          "type": "exponential",
+          "a": 20,
+          "base": 0.5,
+          "h": 0,
+          "k": 0
+        }
+      ],
+      "ariaLabel": "Rope length is halved after each cut"
+    },
+    "variants": [
+      {
+        "compatibilityVariant": "A"
+      },
+      {
+        "compatibilityVariant": "B"
+      }
+    ]
+  },
+  {
+    "type": "relationshipModel",
+    "prompt": "Baton Toss — identify the quantities, label the axes, and interpret the beginning of the motion.",
+    "scenario": "A baton rises, reaches a maximum height of 22 feet, and returns to its starting height after 2 seconds.",
+    "quantities": [
+      {
+        "id": "time",
+        "label": "Time since the toss",
+        "unit": "seconds"
+      },
+      {
+        "id": "height",
+        "label": "Baton height",
+        "unit": "feet"
+      }
+    ],
+    "correctIndependentId": "time",
+    "correctDependentId": "height",
+    "relationshipType": "continuous",
+    "axisSetup": {
+      "required": true,
+      "requireScale": true,
+      "acceptedXLabels": [
+        "time since the toss",
+        "time",
+        "seconds"
+      ],
+      "acceptedYLabels": [
+        "baton height",
+        "height",
+        "height of baton"
+      ],
+      "acceptedXUnits": [
+        "seconds",
+        "second",
+        "sec"
+      ],
+      "acceptedYUnits": [
+        "feet",
+        "foot",
+        "ft"
+      ],
+      "acceptedXSteps": [
+        0.25,
+        0.5,
+        1
+      ],
+      "acceptedYSteps": [
+        2,
+        4,
+        5,
+        10
+      ],
+      "inputMode": "drag",
+      "applyToGraph": true,
+      "hideGraphLabels": true,
+      "hideGraphUnits": true,
+      "hideGraphScale": true
+    },
+    "origin": {
+      "required": true,
+      "requiredConcepts": [
+        "0",
+        "seconds",
+        "feet"
+      ]
+    },
+    "graph": {
+      "xMin": 0,
+      "xMax": 2,
+      "yMin": 0,
+      "yMax": 24,
+      "xStep": 0.5,
+      "yStep": 4,
+      "functions": [
+        {
+          "type": "quadratic",
+          "a": -22,
+          "b": 44,
+          "c": 0
+        }
+      ],
+      "ariaLabel": "Baton height rises to twenty-two feet and then falls"
+    },
+    "variants": [
+      {
+        "compatibilityVariant": "A"
+      },
+      {
+        "compatibilityVariant": "B"
+      }
+    ]
+  },
+  {
+    "type": "relationshipModel",
+    "prompt": "Half-Pipe Ride — identify the quantities, label the axes, choose a reasonable scale, and interpret the starting point.",
+    "scenario": "A skateboarder starts 4 feet above the ground, moves down to the bottom of a half-pipe, and rises back to 4 feet.",
+    "quantities": [
+      {
+        "id": "time",
+        "label": "Time since starting",
+        "unit": "seconds"
+      },
+      {
+        "id": "height",
+        "label": "Height above the ground",
+        "unit": "feet"
+      }
+    ],
+    "correctIndependentId": "time",
+    "correctDependentId": "height",
+    "relationshipType": "continuous",
+    "axisSetup": {
+      "required": true,
+      "requireScale": true,
+      "acceptedXLabels": [
+        "time since starting",
+        "time",
+        "seconds"
+      ],
+      "acceptedYLabels": [
+        "height above the ground",
+        "height",
+        "skateboard height"
+      ],
+      "acceptedXUnits": [
+        "seconds",
+        "second",
+        "sec"
+      ],
+      "acceptedYUnits": [
+        "feet",
+        "foot",
+        "ft"
+      ],
+      "acceptedYSteps": [
+        0.5,
+        1,
+        2
+      ],
+      "inputMode": "type",
+      "applyToGraph": true,
+      "hideGraphLabels": true,
+      "hideGraphUnits": true,
+      "hideGraphScale": true
+    },
+    "origin": {
+      "required": true,
+      "requiredConcepts": [
+        "0",
+        "seconds",
+        "4",
+        "feet"
+      ]
+    },
+    "graph": {
+      "xMin": 0,
+      "xMax": 8,
+      "yMin": 0,
+      "yMax": 5,
+      "xStep": 1,
+      "yStep": 1,
+      "functions": [
+        {
+          "type": "quadratic",
+          "a": 0.25,
+          "b": -2,
+          "c": 4
+        }
+      ],
+      "ariaLabel": "Height decreases to zero and then rises back to four feet"
+    },
+    "variants": [
+      {
+        "compatibilityVariant": "A"
+      },
+      {
+        "compatibilityVariant": "B"
+      }
+    ]
+  }
+]

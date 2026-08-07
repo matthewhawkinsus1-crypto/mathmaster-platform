@@ -18,6 +18,7 @@ import RelationshipModel from './RelationshipModel';
 import GraphScenarioMatch from './GraphScenarioMatch';
 import GraphComparison from './GraphComparison';
 import GraphStory from './GraphStory';
+import ContextInterpretation from './ContextInterpretation';
 import MathDisplay from './MathDisplay';
 import { generateQuestion } from './problemGenerator';
 import { buildSupportUsage, getStudentSupportPresentation } from './studentSupport';
@@ -48,6 +49,7 @@ const MULTIPART_TYPES = new Set([
   'graphScenarioMatch',
   'graphComparison',
   'graphStory',
+  'contextInterpretation',
 ]);
 
 const speakText = (text) => {
@@ -265,6 +267,8 @@ export default function QuestionEngine({
         return <GraphComparison {...commonModuleProps} />;
       case 'graphStory':
         return <GraphStory {...commonModuleProps} />;
+      case 'contextInterpretation':
+        return <ContextInterpretation {...commonModuleProps} />;
       default:
         return <div>Unknown question type: {processedQuestion.type}</div>;
     }
