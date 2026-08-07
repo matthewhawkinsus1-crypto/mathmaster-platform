@@ -2566,6 +2566,57 @@ function App() {
       : Math.max(0, fallbackQuestionIndex);
     const resumeLifecycle = getAssignmentLifecycle(resumeAssignment, now);
     const activeDols = visibleAssignments.map((assignment) => ({ assignment, lifecycle: getAssignmentLifecycle(assignment, now), state: getDOLState({ assignment, schedule: classSchedule, classPeriod: user.classPeriod, nowValue: now }) })).filter(({ state, lifecycle }) => lifecycle.isOpen && state.status === 'active');
+    const activeDolIds = new Set(activeDols.map(({ assignment }) => assignment.id));
+
+    // Every assignment is bucketed once here so the same lifecycle/access
+    // computation isn't repeated per section, and so the card below always
+    // renders from this one source of truth regardless of which section
+    // it lands in.
+    const isAssignmentDone = (assignment, assignmentTracker, lifecycle) => {
+      if (assignment.assignmentType === 'notesClasswork') {
+        return classworkGradesByAssignment[assignment.id]?.score === 100 || lifecycle.isClosed;
+      }
+      const included = getIncludedQuestionIndices(assignment);
+      const fullyTerminal = included.length > 0 && assignmentTracker
+        && included.every((index) => ['correct', 'expired'].includes(normalizeQuestionRecord(assignmentTracker[index]).status));
+      return fullyTerminal || lifecycle.isClosed;
+    };
+    const assignmentEntries = visibleAssignments
+      .filter((assignment) => assignment.id !== resumeAssignment?.id && !activeDolIds.has(assignment.id))
+      .map((assignment) => {
+        const assignmentTracker = tracker[assignment.id];
+        const isAttempted = !!assignmentTracker;
+        const lifecycle = getAssignmentLifecycle(assignment, now);
+        const access = prerequisiteAccess({ assignment, classworkGradesByAssignment, nowValue: now });
+        const recordedGrade = calculateGrade(assignmentTracker, assignment);
+        const activity = assignmentActivity[assignment.id] || {};
+        const classwork = classworkGradesByAssignment[assignment.id];
+        const dol = getDOLState({ assignment, schedule: classSchedule, classPeriod: user.classPeriod, nowValue: now });
+        const disabled = (lifecycle.isScheduled && access.reason !== 'prerequisiteMet') || !access.open;
+        const done = isAssignmentDone(assignment, assignmentTracker, lifecycle);
+        const dueSoon = matchesSmartView(assignment, 'today', { nowValue: now }) || lifecycle.isLate;
+        const bucket = done ? 'completed' : (!lifecycle.isScheduled && access.open && dueSoon) ? 'doNow' : 'comingUp';
+        return { assignment, assignmentTracker, isAttempted, lifecycle, access, recordedGrade, activity, classwork, dol, disabled, bucket };
+      });
+    const doNowEntries = assignmentEntries.filter((entry) => entry.bucket === 'doNow');
+    const comingUpEntries = assignmentEntries.filter((entry) => entry.bucket === 'comingUp');
+    const completedEntries = assignmentEntries.filter((entry) => entry.bucket === 'completed');
+
+    const renderAssignmentCard = ({ assignment, isAttempted, lifecycle, access, recordedGrade, activity, classwork, dol, disabled }) => {
+      const statusStyle = lifecycle.isClosed ? { border: '#d93025', bg: '#fce8e6', color: '#a50e0e', label: 'Permanently closed' } : lifecycle.isLate ? { border: '#f9ab00', bg: '#fff4ce', color: '#7a4f00', label: 'Late' } : lifecycle.isScheduled ? { border: '#9aa0a6', bg: '#f1f3f4', color: '#3c4043', label: 'Scheduled' } : { border: '#d8dde6', bg: '#e6f4ea', color: '#137333', label: 'On time' };
+      return (
+        <article key={assignment.id} style={{ background: '#fff', padding: '21px 26px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', flexWrap: 'wrap', border: `2px solid ${statusStyle.border}` }}>
+          <div style={{ textAlign: 'left', flex: '1 1 470px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}><h3 style={{ margin: 0, color: '#202124' }}>{assignment.title}</h3><span style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', padding: '4px 8px', borderRadius: '999px', background: statusStyle.bg, color: statusStyle.color }}>{statusStyle.label}</span><span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6' }}>{assignment.assignmentType === 'notesClasswork' ? 'NOTES / CLASSWORK' : 'PRACTICE'}</span>{assignment.variantMode === 'shared' && <span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: '#e6f4ea', color: '#137333' }}>SAME CLASS VERSION</span>}</div>
+            <div style={{ color: '#5f6368', fontSize: '13px', lineHeight: 1.55 }}>Regular due: {formatDueDate(assignment)} · Final late due: {formatLateDueDate(assignment)}{lifecycle.isLate && <><br /><strong style={{ color: '#7a4f00' }}>Late work remains open for {formatRemainingTime(lifecycle.millisecondsRemaining)}.</strong></>}{!access.open && <><br /><strong style={{ color: '#a50e0e' }}>Complete the prerequisite notes/classwork first. It opens automatically at {formatDateTime(assignment.releaseAt)} if not completed.</strong></>}{assignment.assignmentType === 'notesClasswork' && <><br />Engaged: {formatTime(activity.totalTimeSeconds || 0)} · Daily grade: {classwork?.score === 100 ? '100 — prerequisite met' : 'In progress'}</>}{dol.enabled && dol.status === 'waiting' && <><br />DOL opens during the final {assignment.dol?.minutesBeforeEnd || 10} minutes of class.</>}</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>
+            {isAttempted && <div style={{ textAlign: 'right' }}><div style={{ fontSize: '11px', color: '#5f6368', textTransform: 'uppercase', fontWeight: 'bold' }}>{lifecycle.isClosed ? 'Final grade' : 'Current grade'}</div><div style={{ fontSize: '19px', fontWeight: 900, color: recordedGrade >= 70 ? '#188038' : '#202124' }}>{recordedGrade}%</div></div>}
+            <button disabled={disabled} onClick={() => startAssignment(assignment.id)} style={{ padding: '10px 20px', background: disabled ? '#dadce0' : lifecycle.isClosed ? '#5f6368' : lifecycle.isLate ? '#8a5a00' : '#1a73e8', color: '#fff', border: 'none', borderRadius: '8px', cursor: disabled ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>{lifecycle.isClosed ? 'Review' : lifecycle.isLate ? 'Continue Late Work' : disabled ? 'Locked' : isAttempted ? 'Continue' : 'Start'}</button>
+          </div>
+        </article>
+      );
+    };
 
     return (
       <div className={`${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`} style={{ fontFamily: '"Segoe UI", sans-serif', backgroundColor: supportPresentation.highContrast ? '#fff' : '#f0f2f5', minHeight: '100vh', padding: '34px 20px', fontSize: supportPresentation.largeText ? '120%' : undefined }}>
@@ -2589,34 +2640,29 @@ function App() {
             </section>
           )}
 
-          <h2 style={{ color: '#202124', textAlign: 'left' }}>Your Assignments</h2>
           {visibleAssignments.length === 0 ? <div style={{ background: '#fff', padding: '30px', borderRadius: '12px', textAlign: 'center', color: '#5f6368' }}>No assignments are assigned to {user.classPeriod}.</div> : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              {visibleAssignments.map((assignment) => {
-                const assignmentTracker = tracker[assignment.id];
-                const isAttempted = !!assignmentTracker;
-                const lifecycle = getAssignmentLifecycle(assignment, now);
-                const access = prerequisiteAccess({ assignment, classworkGradesByAssignment, nowValue: now });
-                const recordedGrade = calculateGrade(assignmentTracker, assignment);
-                const activity = assignmentActivity[assignment.id] || {};
-                const classwork = classworkGradesByAssignment[assignment.id];
-                const dol = getDOLState({ assignment, schedule: classSchedule, classPeriod: user.classPeriod, nowValue: now });
-                const disabled = (lifecycle.isScheduled && access.reason !== 'prerequisiteMet') || !access.open;
-                const statusStyle = lifecycle.isClosed ? { border: '#d93025', bg: '#fce8e6', color: '#a50e0e', label: 'Permanently closed' } : lifecycle.isLate ? { border: '#f9ab00', bg: '#fff4ce', color: '#7a4f00', label: 'Late' } : lifecycle.isScheduled ? { border: '#9aa0a6', bg: '#f1f3f4', color: '#3c4043', label: 'Scheduled' } : { border: '#d8dde6', bg: '#e6f4ea', color: '#137333', label: 'On time' };
-                return (
-                  <article key={assignment.id} style={{ background: '#fff', padding: '21px 26px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', flexWrap: 'wrap', border: `2px solid ${statusStyle.border}` }}>
-                    <div style={{ textAlign: 'left', flex: '1 1 470px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}><h3 style={{ margin: 0, color: '#202124' }}>{assignment.title}</h3><span style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', padding: '4px 8px', borderRadius: '999px', background: statusStyle.bg, color: statusStyle.color }}>{statusStyle.label}</span><span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6' }}>{assignment.assignmentType === 'notesClasswork' ? 'NOTES / CLASSWORK' : 'PRACTICE'}</span>{assignment.variantMode === 'shared' && <span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: '#e6f4ea', color: '#137333' }}>SAME CLASS VERSION</span>}</div>
-                      <div style={{ color: '#5f6368', fontSize: '13px', lineHeight: 1.55 }}>Regular due: {formatDueDate(assignment)} · Final late due: {formatLateDueDate(assignment)}{lifecycle.isLate && <><br /><strong style={{ color: '#7a4f00' }}>Late work remains open for {formatRemainingTime(lifecycle.millisecondsRemaining)}.</strong></>}{!access.open && <><br /><strong style={{ color: '#a50e0e' }}>Complete the prerequisite notes/classwork first. It opens automatically at {formatDateTime(assignment.releaseAt)} if not completed.</strong></>}{assignment.assignmentType === 'notesClasswork' && <><br />Engaged: {formatTime(activity.totalTimeSeconds || 0)} · Daily grade: {classwork?.score === 100 ? '100 — prerequisite met' : 'In progress'}</>}{dol.enabled && dol.status === 'waiting' && <><br />DOL opens during the final {assignment.dol?.minutesBeforeEnd || 10} minutes of class.</>}</div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>
-                      {isAttempted && <div style={{ textAlign: 'right' }}><div style={{ fontSize: '11px', color: '#5f6368', textTransform: 'uppercase', fontWeight: 'bold' }}>{lifecycle.isClosed ? 'Final grade' : 'Current grade'}</div><div style={{ fontSize: '19px', fontWeight: 900, color: recordedGrade >= 70 ? '#188038' : '#202124' }}>{recordedGrade}%</div></div>}
-                      <button disabled={disabled} onClick={() => startAssignment(assignment.id)} style={{ padding: '10px 20px', background: disabled ? '#dadce0' : lifecycle.isClosed ? '#5f6368' : lifecycle.isLate ? '#8a5a00' : '#1a73e8', color: '#fff', border: 'none', borderRadius: '8px', cursor: disabled ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>{lifecycle.isClosed ? 'Review' : lifecycle.isLate ? 'Continue Late Work' : disabled ? 'Locked' : isAttempted ? 'Continue' : 'Start'}</button>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
+            <>
+              <h2 style={{ color: '#202124', textAlign: 'left' }}>Do Now</h2>
+              {doNowEntries.length === 0 ? (
+                <div style={{ background: '#fff', padding: '22px', borderRadius: '12px', textAlign: 'center', color: '#5f6368', marginBottom: '10px' }}>Nothing needs immediate action right now.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '10px' }}>{doNowEntries.map(renderAssignmentCard)}</div>
+              )}
+
+              <h2 style={{ color: '#202124', textAlign: 'left', marginTop: '30px' }}>Coming Up</h2>
+              {comingUpEntries.length === 0 ? (
+                <div style={{ background: '#fff', padding: '22px', borderRadius: '12px', textAlign: 'center', color: '#5f6368', marginBottom: '10px' }}>Nothing else scheduled.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '10px' }}>{comingUpEntries.map(renderAssignmentCard)}</div>
+              )}
+
+              {completedEntries.length > 0 && (
+                <details style={{ marginTop: '30px', textAlign: 'left' }}>
+                  <summary style={{ cursor: 'pointer', fontWeight: 900, fontSize: '19px', color: '#202124', padding: '4px 0' }}>Completed ({completedEntries.length})</summary>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '15px' }}>{completedEntries.map(renderAssignmentCard)}</div>
+                </details>
+              )}
+            </>
           )}
         </div>
       </div>
