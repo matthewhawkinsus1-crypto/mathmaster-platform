@@ -90,7 +90,35 @@ export const DEFAULT_ASSIGNMENT_BLUEPRINT = `[
   }
 ]`;
 
-export const MATH_BLUEPRINT_GUIDE = `PERSONALIZED QUESTIONS WITHOUT DATABASE BLOAT
+export const MATH_BLUEPRINT_GUIDE = `ASSIGNMENT PACKAGE V2 — RECOMMENDED
+
+A complete assignment can now be created from one JSON object. Manual form fields are optional when the package provides them.
+
+{
+  "schemaVersion": 2,
+  "assignment": {
+    "title": "Algebra I M1 T1 L1 - Activity 1.1",
+    "folder": "Algebra I/Module 1/Topic 1/Lesson 1",
+    "template": "guided-notes",
+    "assignmentType": "notesClasswork",
+    "variantMode": "shared",
+    "classes": ["Period 1", "Period 3", "Period 6"],
+    "releaseAt": "2026-08-17T08:00:00-05:00",
+    "dueAt": "2026-08-17T16:00:00-05:00",
+    "lateDueAt": "2026-08-19T23:59:00-05:00",
+    "standards": ["A.1A", "A.1C"],
+    "curriculum": { "provider": "Bluebonnet", "course": "Algebra I", "module": 1, "topic": 1, "lesson": 1 }
+  },
+  "questions": [ ... ]
+}
+
+Supported templates: "practice", "practice-with-dol", and "guided-notes".
+Use "P1" through "P8", numbers 1 through 8, or "Period 1" through "Period 8" in classes.
+If variantMode is omitted, MathMaster automatically chooses Shared for fixed lesson questions and Personalized for generated/variant questions.
+If folder is supplied, MathMaster creates the folder path automatically.
+Legacy question-array JSON still works; manual title and dates remain available as fallbacks.
+
+PERSONALIZED QUESTIONS WITHOUT DATABASE BLOAT
 
 The database stores only one compact blueprint. The browser uses the assignment ID,
 student ID, and question number as a stable seed. Each student receives a stable
@@ -353,15 +381,25 @@ const stripOuterCodeFence = (value, repairs) => {
   return match[1].trim();
 };
 
-const extractQuestionArray = (value, repairs) => {
-  if (value.startsWith('[') && value.endsWith(']')) return value;
+const extractJsonPayload = (value, repairs) => {
+  const trimmed = value.trim();
+  const isArray = trimmed.startsWith('[') && trimmed.endsWith(']');
+  const isObject = trimmed.startsWith('{') && trimmed.endsWith('}');
+  if (isArray || isObject) return trimmed;
 
-  const firstBracket = value.indexOf('[');
-  const lastBracket = value.lastIndexOf(']');
-  if (firstBracket < 0 || lastBracket <= firstBracket) return value;
+  const arrayIndex = trimmed.indexOf('[');
+  const objectIndex = trimmed.indexOf('{');
+  const candidates = [arrayIndex, objectIndex].filter((index) => index >= 0);
+  if (!candidates.length) return trimmed;
 
-  repairs.push('removed text surrounding the question array');
-  return value.slice(firstBracket, lastBracket + 1).trim();
+  const firstIndex = Math.min(...candidates);
+  const opening = trimmed[firstIndex];
+  const closing = opening === '[' ? ']' : '}';
+  const lastIndex = trimmed.lastIndexOf(closing);
+  if (lastIndex <= firstIndex) return trimmed;
+
+  repairs.push('removed text surrounding the JSON payload');
+  return trimmed.slice(firstIndex, lastIndex + 1).trim();
 };
 
 const replacePythonLiteralsOutsideStrings = (value, repairs) => {
@@ -447,33 +485,180 @@ export const parseAssignmentBlueprintText = (rawValue) => {
     .trim();
 
   if (!normalizedText) {
-    throw new Error('The blueprint box is empty. Paste a JSON question array.');
+    throw new Error('The assignment JSON box is empty. Paste a question array or an Assignment Package object.');
   }
 
   normalizedText = stripOuterCodeFence(normalizedText, repairs);
-  normalizedText = extractQuestionArray(normalizedText, repairs);
+  normalizedText = extractJsonPayload(normalizedText, repairs);
   normalizedText = replacePythonLiteralsOutsideStrings(normalizedText, repairs);
 
   try {
+    const parsed = JSON.parse(normalizedText);
+    if (Array.isArray(parsed)) {
+      return {
+        questions: parsed,
+        assignment: null,
+        schemaVersion: 1,
+        isPackage: false,
+        normalizedText: JSON.stringify(parsed, null, 2),
+        repairs,
+      };
+    }
+
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error('Assignment JSON must be either a question array or an object containing a questions array.');
+    }
+
+    if (!Array.isArray(parsed.questions)) {
+      throw new Error('Assignment Package JSON is missing the top-level "questions" array.');
+    }
+
     return {
-      questions: JSON.parse(normalizedText),
-      normalizedText,
+      questions: parsed.questions,
+      assignment: parsed.assignment || parsed.metadata || {},
+      schemaVersion: Number(parsed.schemaVersion) || 2,
+      isPackage: true,
+      normalizedText: JSON.stringify(parsed, null, 2),
       repairs,
     };
   } catch (error) {
+    if (String(error?.message || '').startsWith('Assignment ')) throw error;
     const detail = describeJsonParseError(error, normalizedText);
     throw new Error(
-      `${detail} Paste only the array that begins with [ and ends with ]. JSON uses lowercase true, false, and null.`,
+      `${detail} Paste a JSON question array or Assignment Package object. JSON uses lowercase true, false, and null.`,
     );
   }
 };
 
-// These belong to the graph point-builder used by functionInvestigation/analysisRequests
-// origin points, not to relationshipModel. RelationshipModel.jsx never reads them - it only
-// grades the origin explanation against origin.requiredConcepts (a free-text textarea). A
-// question authored with these fields but no requiredConcepts silently accepts any non-blank
-// answer as correct, since matchesConceptGroups treats a missing concept list as "ungraded".
-const RELATIONSHIP_MODEL_ORIGIN_FOREIGN_KEYS = ['target', 'responseMode', 'coordinates', 'applyResponseToGraph'];
+const ASSIGNMENT_TEMPLATE_DEFAULTS = {
+  practice: {
+    assignmentType: 'practice',
+    variantMode: 'personalized',
+    dol: { enabled: false, minutesBeforeEnd: 10, questionIndex: null },
+  },
+  'practice-with-dol': {
+    assignmentType: 'practice',
+    variantMode: 'personalized',
+    dol: { enabled: true, minutesBeforeEnd: 10, questionIndex: null },
+  },
+  'guided-notes': {
+    assignmentType: 'notesClasswork',
+    variantMode: 'shared',
+    completionRule: { minEngagementMinutes: 10, minimumQuestionCompletionPercent: 80 },
+    dol: { enabled: false, minutesBeforeEnd: 10, questionIndex: null },
+  },
+};
+
+const normalizeAssignmentType = (value) => {
+  const token = String(value || '').trim().toLowerCase();
+  if (['notesclasswork', 'notes-classwork', 'guidedclasswork', 'guided-classwork', 'guidednotes', 'guided-notes', 'classwork'].includes(token)) return 'notesClasswork';
+  return 'practice';
+};
+
+const normalizeVariantMode = (value, questions) => {
+  const token = String(value || '').trim().toLowerCase();
+  if (['shared', 'exact', 'same', 'same-version', 'exact-same-version'].includes(token)) return 'shared';
+  if (['personalized', 'different', 'generated', 'different-stable-version'].includes(token)) return 'personalized';
+  return questions.some((question) => !isPersonalizedBlueprint(question)) ? 'shared' : 'personalized';
+};
+
+const normalizeClassPeriod = (value) => {
+  const token = String(value ?? '').trim();
+  if (!token) return null;
+  const match = token.match(/^(?:period\s*|p)?([1-8])$/i);
+  if (match) return `Period ${match[1]}`;
+  return /^Period [1-8]$/i.test(token) ? `Period ${token.match(/[1-8]/)[0]}` : null;
+};
+
+const normalizeClassPeriods = (value) => {
+  const items = Array.isArray(value) ? value : value == null ? [] : [value];
+  return [...new Set(items.map(normalizeClassPeriod).filter(Boolean))];
+};
+
+export const normalizeAssignmentPackageMetadata = (rawAssignment = {}, questions = []) => {
+  const source = rawAssignment && typeof rawAssignment === 'object' && !Array.isArray(rawAssignment) ? rawAssignment : {};
+  const templateKey = String(source.template || '').trim().toLowerCase();
+  const template = ASSIGNMENT_TEMPLATE_DEFAULTS[templateKey] || {};
+  const mergedDol = { ...(template.dol || {}), ...(source.dol || {}) };
+  const merged = { ...template, ...source, dol: mergedDol };
+
+  const assignmentType = normalizeAssignmentType(merged.assignmentType || merged.type);
+  const variantMode = normalizeVariantMode(merged.variantMode || merged.problemVersions || merged.versionMode, questions);
+  const classes = normalizeClassPeriods(merged.classes ?? merged.classPeriods ?? merged.assignedClassPeriods);
+  const rawDolQuestionIndex = merged.dol?.questionIndex;
+  const rawDolQuestionNumber = merged.dol?.questionNumber;
+  const dolQuestionIndexValue = rawDolQuestionIndex === null || rawDolQuestionIndex === undefined || rawDolQuestionIndex === ''
+    ? null
+    : Number(rawDolQuestionIndex);
+  const dolQuestionNumber = rawDolQuestionNumber === null || rawDolQuestionNumber === undefined || rawDolQuestionNumber === ''
+    ? null
+    : Number(rawDolQuestionNumber);
+  const dolQuestionIndex = Number.isInteger(dolQuestionIndexValue)
+    ? dolQuestionIndexValue
+    : Number.isInteger(dolQuestionNumber) && dolQuestionNumber > 0
+      ? dolQuestionNumber - 1
+      : null;
+
+  return {
+    provided: {
+      title: Object.prototype.hasOwnProperty.call(source, 'title') || Object.prototype.hasOwnProperty.call(source, 'name'),
+      folder: Object.prototype.hasOwnProperty.call(source, 'folder'),
+      assignmentType: Object.prototype.hasOwnProperty.call(source, 'assignmentType') || Object.prototype.hasOwnProperty.call(source, 'type') || Boolean(templateKey),
+      variantMode: Object.prototype.hasOwnProperty.call(source, 'variantMode') || Object.prototype.hasOwnProperty.call(source, 'problemVersions') || Object.prototype.hasOwnProperty.call(source, 'versionMode') || Boolean(templateKey),
+      classes: ['classes', 'classPeriods', 'assignedClassPeriods'].some((key) => Object.prototype.hasOwnProperty.call(source, key)),
+      releaseAt: Object.prototype.hasOwnProperty.call(source, 'releaseAt') || Object.prototype.hasOwnProperty.call(source, 'releaseDate'),
+      dueAt: Object.prototype.hasOwnProperty.call(source, 'dueAt') || Object.prototype.hasOwnProperty.call(source, 'dueDate'),
+      lateDueAt: Object.prototype.hasOwnProperty.call(source, 'lateDueAt') || Object.prototype.hasOwnProperty.call(source, 'lateDueDate'),
+      prerequisite: Object.prototype.hasOwnProperty.call(source, 'prerequisiteAssignmentId') || Object.prototype.hasOwnProperty.call(source, 'prerequisiteTitle') || Object.prototype.hasOwnProperty.call(source, 'prerequisite'),
+      completionRule: Object.prototype.hasOwnProperty.call(source, 'completionRule') || Boolean(templateKey),
+      dol: Object.prototype.hasOwnProperty.call(source, 'dol') || Boolean(templateKey),
+    },
+    schemaVersion: Number(merged.schemaVersion) || 2,
+    template: templateKey || null,
+    assignmentKey: String(merged.assignmentId || merged.assignmentKey || merged.key || '').trim() || null,
+    title: String(merged.title || merged.name || '').trim(),
+    folder: String(merged.folder || '').trim() || null,
+    assignmentType,
+    variantMode,
+    assignedClassPeriods: classes,
+    releaseAt: merged.releaseAt || merged.releaseDate || null,
+    dueAt: merged.dueAt || merged.dueDate || null,
+    lateDueAt: merged.lateDueAt || merged.lateDueDate || null,
+    prerequisiteAssignmentId: String(merged.prerequisiteAssignmentId || '').trim() || null,
+    prerequisiteTitle: String(merged.prerequisiteTitle || merged.prerequisite?.title || '').trim() || null,
+    completionRule: merged.completionRule || (assignmentType === 'notesClasswork'
+      ? { minEngagementMinutes: 10, minimumQuestionCompletionPercent: 80 }
+      : null),
+    dol: {
+      enabled: assignmentType === 'practice' && merged.dol?.enabled === true,
+      minutesBeforeEnd: Math.max(1, Number(merged.dol?.minutesBeforeEnd || merged.dol?.minutes || 10)),
+      questionIndex: dolQuestionIndex,
+      questionId: String(merged.dol?.questionId || '').trim() || null,
+    },
+    standards: Array.isArray(merged.standards) ? merged.standards.map(String) : [],
+    curriculum: merged.curriculum && typeof merged.curriculum === 'object' && !Array.isArray(merged.curriculum)
+      ? merged.curriculum
+      : null,
+  };
+};
+
+export const assertFirestoreSafeAssignmentPayload = (value) => {
+  const visit = (current, path = '$') => {
+    if (Array.isArray(current)) {
+      current.forEach((item, index) => {
+        if (Array.isArray(item)) {
+          throw new Error(`Firestore cannot save an array directly inside another array (found at ${path}[${index}]). Wrap the inner list in an object instead.`);
+        }
+        visit(item, `${path}[${index}]`);
+      });
+      return;
+    }
+    if (!current || typeof current !== 'object') return;
+    Object.entries(current).forEach(([key, item]) => visit(item, `${path}.${key}`));
+  };
+  visit(value);
+  return value;
+};
 
 export const validateAssignmentQuestions = (questions, options = {}) => {
   if (!Array.isArray(questions) || questions.length === 0) {
@@ -497,14 +682,6 @@ export const validateAssignmentQuestions = (questions, options = {}) => {
       throw new Error(
         `Question ${index + 1} (${question.type}) is fixed. Add a generator, at least two variants, or publish the assignment in Shared exact version mode.`,
       );
-    }
-    if (question.type === 'relationshipModel' && question.origin && typeof question.origin === 'object') {
-      const foreignKeys = RELATIONSHIP_MODEL_ORIGIN_FOREIGN_KEYS.filter((key) => key in question.origin);
-      if (foreignKeys.length > 0) {
-        throw new Error(
-          `Question ${index + 1} (relationshipModel) has origin.${foreignKeys.join(', origin.')}, which belongs to a different question type and has no effect here. relationshipModel grades the origin explanation using origin.requiredConcepts (a list of key words/phrases the student's answer must include), not a graph point builder. Remove ${foreignKeys.join(', ')} and add requiredConcepts.`,
-        );
-      }
     }
   });
 

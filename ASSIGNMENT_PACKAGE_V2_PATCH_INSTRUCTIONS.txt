@@ -1,0 +1,16 @@
+Upload the patch ZIP beside package.json, then run:
+
+unzip -o mathmaster-assignment-package-v2-patch.zip
+rm -f mathmaster-assignment-package-v2-patch.zip
+pkill -f vite || true
+npm run dev -- --host 0.0.0.0
+
+Then hard refresh the browser with Ctrl+Shift+R.
+
+The patch replaces:
+- src/App.jsx
+- src/assignmentBlueprint.js
+
+It also adds:
+- SAMPLE_ASSIGNMENT_PACKAGE_V2.json
+- ASSIGNMENT_PACKAGE_V2.md
