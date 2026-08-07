@@ -68,6 +68,7 @@ import TeacherSidebar from './TeacherSidebar';
 import AssignmentLibrary from './AssignmentLibrary';
 import AssignmentCardMenu from './AssignmentCardMenu';
 import ClassesWorkspace from './ClassesWorkspace';
+import TeacherHome from './TeacherHome';
 import { SMART_VIEWS, matchesSmartView } from './assignmentSmartViews';
 import { assignmentFolderMatches, normalizeFolderPath, normalizeFolderPaths, renameFolderPath } from './assignmentFolders';
 
@@ -142,7 +143,8 @@ function App() {
   }, []);
 
   const [activeView, setActiveView] = useState('dashboard');
-  const [teacherTab, setTeacherTab] = useState('assignments');
+  const [teacherTab, setTeacherTab] = useState('home');
+  const [homeNavigationPeriod, setHomeNavigationPeriod] = useState(null);
   const [assignments, setAssignments] = useState([]);
   const [allStudents, setAllStudents] = useState([]);
   const [activeAssignmentId, setActiveAssignmentId] = useState(null);
@@ -1211,6 +1213,11 @@ function App() {
   const handleViewClassGradebook = (period, student = null) => {
     setGradebookFilter({ classPeriod: period, assignmentId: null, student });
     setTeacherTab('grades');
+  };
+
+  const handleGoToClassFromHome = (period) => {
+    setHomeNavigationPeriod(period);
+    setTeacherTab('classesWorkspace');
   };
 
   const handleChangeClassPeriod = async (studentId, newPeriod) => {
@@ -2334,7 +2341,7 @@ function App() {
         <div style={{ maxWidth: '1360px', margin: '0 auto', background: '#fff', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'stretch' }}>
           <TeacherSidebar
             activeTab={teacherTab}
-            onSelectTab={(tab) => { setTeacherTab(tab); setGradebookFilter({ classPeriod: '', assignmentId: null, student: null }); }}
+            onSelectTab={(tab) => { setTeacherTab(tab); setGradebookFilter({ classPeriod: '', assignmentId: null, student: null }); setHomeNavigationPeriod(null); }}
             collapsed={sidebarCollapsed}
             onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
           />
@@ -2513,6 +2520,16 @@ function App() {
               </div>
             )}
 
+            {teacherTab === 'home' && (
+              <TeacherHome
+                allStudents={allStudents}
+                assignments={assignments}
+                classSchedule={classSchedule}
+                nowValue={now}
+                onSelectPeriod={handleGoToClassFromHome}
+              />
+            )}
+
             {teacherTab === 'classesWorkspace' && (
               <ClassesWorkspace
                 allStudents={allStudents}
@@ -2520,6 +2537,7 @@ function App() {
                 classSchedule={classSchedule}
                 nowValue={now}
                 onViewGradebook={handleViewClassGradebook}
+                initialPeriod={homeNavigationPeriod}
               />
             )}
 

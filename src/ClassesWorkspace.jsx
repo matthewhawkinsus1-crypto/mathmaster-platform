@@ -17,8 +17,8 @@ const formatClock = (date) => date instanceof Date ? date.toLocaleTimeString(und
 // duplicate that gradebook detail (attempts, activity breakdowns, IEP
 // report generation, ...) — "View full gradebook" hands off to the
 // existing Grades tab already wired for that.
-export default function ClassesWorkspace({ allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), onViewGradebook }) {
-  const [selectedPeriod, setSelectedPeriod] = useState(null);
+export default function ClassesWorkspace({ allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), onViewGradebook, initialPeriod = null }) {
+  const [selectedPeriod, setSelectedPeriod] = useState(() => initialPeriod);
 
   if (!selectedPeriod) {
     return (
