@@ -468,6 +468,13 @@ export const parseAssignmentBlueprintText = (rawValue) => {
   }
 };
 
+// These belong to the graph point-builder used by functionInvestigation/analysisRequests
+// origin points, not to relationshipModel. RelationshipModel.jsx never reads them - it only
+// grades the origin explanation against origin.requiredConcepts (a free-text textarea). A
+// question authored with these fields but no requiredConcepts silently accepts any non-blank
+// answer as correct, since matchesConceptGroups treats a missing concept list as "ungraded".
+const RELATIONSHIP_MODEL_ORIGIN_FOREIGN_KEYS = ['target', 'responseMode', 'coordinates', 'applyResponseToGraph'];
+
 export const validateAssignmentQuestions = (questions, options = {}) => {
   if (!Array.isArray(questions) || questions.length === 0) {
     throw new Error('JSON must be a non-empty array of questions.');
@@ -490,6 +497,14 @@ export const validateAssignmentQuestions = (questions, options = {}) => {
       throw new Error(
         `Question ${index + 1} (${question.type}) is fixed. Add a generator, at least two variants, or publish the assignment in Shared exact version mode.`,
       );
+    }
+    if (question.type === 'relationshipModel' && question.origin && typeof question.origin === 'object') {
+      const foreignKeys = RELATIONSHIP_MODEL_ORIGIN_FOREIGN_KEYS.filter((key) => key in question.origin);
+      if (foreignKeys.length > 0) {
+        throw new Error(
+          `Question ${index + 1} (relationshipModel) has origin.${foreignKeys.join(', origin.')}, which belongs to a different question type and has no effect here. relationshipModel grades the origin explanation using origin.requiredConcepts (a list of key words/phrases the student's answer must include), not a graph point builder. Remove ${foreignKeys.join(', ')} and add requiredConcepts.`,
+        );
+      }
     }
   });
 
