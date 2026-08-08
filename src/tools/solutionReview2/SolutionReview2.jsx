@@ -1,17 +1,109 @@
 import React from 'react';
-import ToolShell,{Panel,ToolGrid} from '../shared/ToolShell';
+import ToolShell, { Panel, ToolGrid } from '../shared/ToolShell';
+
+// A student review screen is the wrong place for a JSON dump. Render the
+// response as readable statements, and fall back to hiding it rather than
+// showing an object literal to a fifteen-year-old.
+const describeResponse = (response) => {
+  if (response == null) return [];
+  if (Array.isArray(response)) {
+    return response.map((entry, index) => ({ label: `Part ${index + 1}`, value: describeValue(entry) }));
+  }
+  if (typeof response === 'object') {
+    return Object.entries(response)
+      .map(([key, value]) => ({ label: humanizeKey(key), value: describeValue(value) }))
+      .filter((entry) => entry.value !== null);
+  }
+  return [{ label: 'Your answer', value: String(response) }];
+};
+
+const humanizeKey = (key) => String(key)
+  .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+  .replace(/[_-]+/g, ' ')
+  .replace(/^./, (character) => character.toUpperCase());
+
+const describeValue = (value) => {
+  if (value == null || value === '') return null;
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (typeof value === 'number' || typeof value === 'string') return String(value);
+  if (Array.isArray(value)) {
+    // Coordinate pairs are the common case and read far better as (x, y).
+    if (value.length === 2 && value.every((entry) => typeof entry === 'number')) return `(${value[0]}, ${value[1]})`;
+    const described = value.map(describeValue).filter(Boolean);
+    return described.length ? described.join(', ') : null;
+  }
+  if (typeof value === 'object') {
+    const described = Object.entries(value).map(([key, entry]) => {
+      const rendered = describeValue(entry);
+      return rendered ? `${humanizeKey(key)}: ${rendered}` : null;
+    }).filter(Boolean);
+    return described.length ? described.join(' · ') : null;
+  }
+  return null;
+};
 
 export default function SolutionReview2({ questionData = {}, attemptRecord = {}, review = {} }) {
   const steps = review.steps || questionData.solutionSteps || [
-    'Identify the mathematical structure and the target quantity.',
-    'Choose a representation or operation that preserves the relationship.',
-    'Check the result in the original representation.',
+    'Identify what the question is actually asking for.',
+    'Choose a representation or operation that keeps the relationship true.',
+    'Check the result against the original problem.',
   ];
   const misconceptions = review.misconceptions || attemptRecord.misconceptions || [];
-  return <ToolShell title="Solution Review 2.0" subtitle="Tool-specific review that explains strategy, evidence, and next-step reasoning instead of only revealing an answer." badge="Shared review service">
-    <ToolGrid min={320}>
-      <Panel title="Your evidence"><p><strong>Result:</strong> {attemptRecord.isCorrect?'Correct':'Needs revision'}</p><p><strong>Attempts:</strong> {attemptRecord.attemptNumber??'—'}</p><p><strong>Score:</strong> {typeof attemptRecord.score==='number'?`${Math.round(attemptRecord.score*100)}%`:'—'}</p>{attemptRecord.response?<pre style={{whiteSpace:'pre-wrap',background:'#fff',border:'1px solid #e5e7eb',padding:10,borderRadius:8}}>{JSON.stringify(attemptRecord.response,null,2)}</pre>:null}</Panel>
-      <Panel title="A strong solution path"><ol style={{lineHeight:1.7,paddingLeft:20}}>{steps.map((step,i)=><li key={i}>{step}</li>)}</ol>{misconceptions.length?<><h4>Watch for</h4><ul>{misconceptions.map((item,i)=><li key={i}>{item}</li>)}</ul></>:null}</Panel>
-    </ToolGrid>
-  </ToolShell>;
+  const responseEntries = describeResponse(attemptRecord.response);
+  const scoreText = typeof attemptRecord.score === 'number' ? `${Math.round(attemptRecord.score * 100)}%` : null;
+
+  return (
+    <ToolShell
+      title="Solution Review"
+      subtitle="What your work showed, and what a strong solution path looks like for this kind of problem."
+      badge="Review"
+    >
+      <ToolGrid min={320}>
+        <Panel title="What you submitted">
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 12px', borderRadius: 999, fontWeight: 800,
+            background: attemptRecord.isCorrect ? '#e6f4ea' : '#fef7e0',
+            color: attemptRecord.isCorrect ? '#137333' : '#7a4f01',
+          }}>
+            {attemptRecord.isCorrect ? '✓ Correct' : '↻ Worth another look'}
+          </div>
+
+          <dl style={{ margin: '14px 0 0', display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 14px', alignItems: 'baseline' }}>
+            {attemptRecord.attemptNumber != null ? <>
+              <dt style={{ color: '#5f6b7a', fontSize: 13 }}>Attempt</dt>
+              <dd style={{ margin: 0, fontWeight: 700 }}>{attemptRecord.attemptNumber}</dd>
+            </> : null}
+            {scoreText ? <>
+              <dt style={{ color: '#5f6b7a', fontSize: 13 }}>Credit earned</dt>
+              <dd style={{ margin: 0, fontWeight: 700 }}>{scoreText}</dd>
+            </> : null}
+            {responseEntries.map((entry) => (
+              <React.Fragment key={entry.label}>
+                <dt style={{ color: '#5f6b7a', fontSize: 13 }}>{entry.label}</dt>
+                <dd style={{ margin: 0, fontWeight: 700 }}>{entry.value}</dd>
+              </React.Fragment>
+            ))}
+          </dl>
+
+          {!responseEntries.length ? (
+            <p style={{ color: '#5f6b7a', marginBottom: 0, marginTop: 14 }}>No response was recorded for this attempt.</p>
+          ) : null}
+        </Panel>
+
+        <Panel title="A strong solution path">
+          <ol style={{ lineHeight: 1.7, paddingLeft: 20, margin: 0 }}>
+            {steps.map((step, index) => <li key={index}>{step}</li>)}
+          </ol>
+          {misconceptions.length ? (
+            <>
+              <h4 style={{ margin: '16px 0 6px', fontSize: 14, color: '#7a4f01' }}>Common traps on this one</h4>
+              <ul style={{ lineHeight: 1.7, paddingLeft: 20, margin: 0, color: '#3c4756' }}>
+                {misconceptions.map((item, index) => <li key={index}>{item}</li>)}
+              </ul>
+            </>
+          ) : null}
+        </Panel>
+      </ToolGrid>
+    </ToolShell>
+  );
 }

@@ -458,3 +458,27 @@
   outline-offset: 2px;
   border-radius: 6px;
 }
+
+/* Graph-primary tool layout: the coordinate plane is the thing the student
+   actually works in, so it gets the larger column instead of an even split
+   with a panel of text. Collapses to one column before the plane gets too
+   narrow to read gridlines off. */
+.mathmaster-tool-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .mathmaster-tool-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The interactive plane is a click target, so it needs a visible focus ring of
+   its own for keyboard plotting. */
+.mathmaster-responsive-canvas:focus-visible {
+  outline: 3px solid var(--mm-primary, #1a73e8);
+  outline-offset: 2px;
+}

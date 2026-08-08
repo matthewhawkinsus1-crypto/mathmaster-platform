@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { getTexasStandard } from '../../texasStandards';
+import { normalizeQuestionStandards } from '../../questionMetadata';
 
 export default function ToolShell({ title, subtitle, badge, children, footer }) {
   return (
@@ -30,6 +32,12 @@ export const ToolGrid = ({ children, min = 260 }) => (
   <div className="mathmaster-tool-grid" style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(${min}px, 1fr))`, gap: 18 }}>{children}</div>
 );
 
+// For tools where a graph is the workspace and the rest is controls: the plane
+// gets the wider column instead of an even split with a panel of text.
+export const ToolSplit = ({ children }) => (
+  <div className="mathmaster-tool-split">{children}</div>
+);
+
 export const Panel = ({ title, children }) => (
   <div className="mathmaster-tool-panel" style={{ border: '1px solid #dde5f0', borderRadius: 14, padding: 16, background: '#fbfdff' }}>
     {title ? <h3 style={{ margin: '0 0 12px', fontSize: 16, color: '#24324a' }}>{title}</h3> : null}
@@ -42,3 +50,86 @@ export const ResultPill = ({ ok, children }) => (
     {ok ? '✓' : '•'} {children}
   </span>
 );
+
+// Every tool leads with the same thing: one sentence naming the task, then the
+// concrete steps. Previously each tool buried its directions in a paragraph
+// under the workspace, where a student reads them only after guessing wrong.
+export const TaskCard = ({ task, steps = [], note = null, question = null }) => {
+  // Surface the TEKS the item is already tagged with, so a student can see what
+  // skill this is building rather than just what to click. Silent when the
+  // question carries no alignment — an untagged item should not invent one.
+  const standards = question ? normalizeQuestionStandards(question).primary : [];
+  const aligned = standards
+    .map((entry) => ({ code: entry.code, description: getTexasStandard(entry.code)?.description }))
+    .filter((entry) => entry.description)
+    .slice(0, 2);
+
+  return (
+    <div style={{
+      border: '1px solid #9bb8e8', borderLeft: '6px solid #1a73e8', borderRadius: 12,
+      background: '#f4f8ff', padding: '14px 18px', marginBottom: 18,
+    }}>
+      <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#174ea6' }}>Your task</div>
+      <p style={{ margin: '6px 0 0', fontSize: 17, fontWeight: 700, color: '#172033', lineHeight: 1.4 }}>{task}</p>
+      {steps.length ? (
+        <ol style={{ margin: '10px 0 0', paddingLeft: 20, color: '#3c4756', lineHeight: 1.6 }}>
+          {steps.map((step, index) => <li key={index}>{step}</li>)}
+        </ol>
+      ) : null}
+      {note ? <p style={{ margin: '10px 0 0', fontSize: 13, color: '#5f6b7a' }}>{note}</p> : null}
+      {aligned.length ? (
+        <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid #d5e2f7' }}>
+          <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#5f6b7a' }}>You are practicing</div>
+          {aligned.map((entry) => (
+            <p key={entry.code} style={{ margin: '4px 0 0', fontSize: 13, color: '#3c4756', lineHeight: 1.5 }}>
+              <strong style={{ color: '#174ea6' }}>{entry.code}</strong> — {entry.description}
+            </p>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
+// Progressive hints: a nudge, then the strategy, then the worked step. Each
+// reveal is reported so attempt scoring can discount mathematical help the same
+// way it does everywhere else in the platform.
+export const HintPanel = ({ hints = [], onHintUsed }) => {
+  const [revealed, setRevealed] = useState(0);
+  if (!hints.length) return null;
+  const revealNext = () => {
+    setRevealed((current) => {
+      const next = Math.min(hints.length, current + 1);
+      if (next > current) onHintUsed?.(next);
+      return next;
+    });
+  };
+  return (
+    <div style={{ marginTop: 16, border: '1px solid #f0d9a8', borderRadius: 12, background: '#fffaf0', padding: '12px 15px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <strong style={{ color: '#7a4f01', fontSize: 14 }}>Stuck? Hints</strong>
+        <button
+          type="button"
+          onClick={revealNext}
+          disabled={revealed >= hints.length}
+          style={{
+            padding: '7px 13px', borderRadius: 999, border: '1px solid #e0a800',
+            background: revealed >= hints.length ? '#f1f1f1' : '#fff', color: '#7a4f01',
+            fontWeight: 800, fontSize: 13, cursor: revealed >= hints.length ? 'default' : 'pointer',
+          }}
+        >
+          {revealed === 0 ? 'Show a hint' : revealed >= hints.length ? 'All hints shown' : `Show hint ${revealed + 1} of ${hints.length}`}
+        </button>
+      </div>
+      {revealed > 0 ? (
+        <ol style={{ margin: '10px 0 0', paddingLeft: 20, color: '#5f4400', lineHeight: 1.6 }}>
+          {hints.slice(0, revealed).map((hint, index) => <li key={index} style={{ marginBottom: 4 }}>{hint}</li>)}
+        </ol>
+      ) : (
+        <p style={{ margin: '8px 0 0', fontSize: 13, color: '#7a6027' }}>
+          Try it on your own first. Hints get more specific as you go, and using one is recorded for your teacher.
+        </p>
+      )}
+    </div>
+  );
+};

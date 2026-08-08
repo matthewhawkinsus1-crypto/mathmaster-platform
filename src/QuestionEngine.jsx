@@ -244,6 +244,13 @@ export default function QuestionEngine({
   };
 
   const handleMissingToolAction = async (type, payload = {}) => {
+    // A hint revealed inside a tool is mathematical help, exactly like a hint
+    // from the coach panel, so it has to reach the same support-usage record
+    // that discounts mastery weight.
+    if (type === 'HINT_USED') {
+      setHintUsed(true);
+      return;
+    }
     if (type !== 'ATTEMPT_SUBMITTED' || submitting || locked) return;
     setSubmitting(true);
     try {
