@@ -41,10 +41,14 @@ function FolderRow({
   dragOverFolder,
   onDragOverFolder,
   onDropOnFolder,
+  expandedPaths,
+  onToggleExpanded,
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const children = getFolderChildren(folderPaths, path);
   const active = selectedFolder === path;
   const isDragOver = dragOverFolder === path;
+  const expanded = expandedPaths.has(path);
   return (
     <div>
       <div
@@ -65,6 +69,14 @@ function FolderRow({
       >
         <button
           type="button"
+          onClick={() => children.length && onToggleExpanded(path)}
+          aria-label={children.length ? `${expanded ? 'Collapse' : 'Expand'} ${getFolderLabel(path)}` : undefined}
+          style={{ width: 22, border: 0, background: 'transparent', color: '#5f6368', cursor: children.length ? 'pointer' : 'default', padding: 0 }}
+        >
+          {children.length ? (expanded ? '⌄' : '›') : '·'}
+        </button>
+        <button
+          type="button"
           onClick={() => onSelect(path)}
           style={{
             flex: 1,
@@ -80,13 +92,16 @@ function FolderRow({
         >
           {getFolderLabel(path)}
         </button>
-        <div style={{ display: 'flex', gap: '4px' }}>
-          <button type="button" onClick={() => onOpenDialog({ mode: 'create', parentPath: path, input: `${path}/` })} title="New subfolder" style={{ fontSize: '11px', padding: '2px 6px', border: '1px solid #dadce0', borderRadius: '6px', background: '#fff', color: '#5f6368', cursor: 'pointer' }}>+</button>
-          <button type="button" onClick={() => onOpenDialog({ mode: 'rename', path, input: path })} title="Rename" style={{ fontSize: '11px', padding: '2px 6px', border: '1px solid #dadce0', borderRadius: '6px', background: '#fff', color: '#5f6368', cursor: 'pointer' }}>Rename</button>
-          <button type="button" onClick={() => onOpenDialog({ mode: 'delete', path })} title="Delete" style={{ fontSize: '11px', padding: '2px 6px', border: '1px solid #dadce0', borderRadius: '6px', background: '#fff', color: '#c5221f', cursor: 'pointer' }}>Delete</button>
+        <div style={{ position: 'relative' }}>
+          <button type="button" onClick={() => setMenuOpen((value) => !value)} aria-label={`Folder actions for ${getFolderLabel(path)}`} title="Folder actions" style={{ fontSize: '16px', width: 28, height: 28, border: '1px solid #dadce0', borderRadius: '6px', background: '#fff', color: '#5f6368', cursor: 'pointer' }}>⋯</button>
+          {menuOpen && <div style={{ position: 'absolute', right: 0, top: 31, zIndex: 20, minWidth: 130, padding: 5, border: '1px solid #d8dde6', borderRadius: 8, background: '#fff', boxShadow: '0 8px 22px rgba(0,0,0,.14)' }}>
+            <button type="button" onClick={() => { setMenuOpen(false); onOpenDialog({ mode: 'create', parentPath: path, input: `${path}/` }); }} style={{ display: 'block', width: '100%', padding: 7, border: 0, background: '#fff', textAlign: 'left' }}>New subfolder</button>
+            <button type="button" onClick={() => { setMenuOpen(false); onOpenDialog({ mode: 'rename', path, input: path }); }} style={{ display: 'block', width: '100%', padding: 7, border: 0, background: '#fff', textAlign: 'left' }}>Rename</button>
+            <button type="button" onClick={() => { setMenuOpen(false); onOpenDialog({ mode: 'delete', path }); }} style={{ display: 'block', width: '100%', padding: 7, border: 0, background: '#fff', color: '#c5221f', textAlign: 'left' }}>Delete</button>
+          </div>}
         </div>
       </div>
-      {children.map((childPath) => (
+      {expanded && children.map((childPath) => (
         <FolderRow
           key={childPath}
           path={childPath}
@@ -98,6 +113,8 @@ function FolderRow({
           dragOverFolder={dragOverFolder}
           onDragOverFolder={onDragOverFolder}
           onDropOnFolder={onDropOnFolder}
+          expandedPaths={expandedPaths}
+          onToggleExpanded={onToggleExpanded}
         />
       ))}
     </div>
@@ -122,6 +139,13 @@ export default function AssignmentLibrary({
   const [dragOverFolder, setDragOverFolder] = useState(null);
   const [folderDialog, setFolderDialog] = useState(null); // { mode, path?, parentPath?, input }
   const [dialogError, setDialogError] = useState(null);
+  const [folderPaneCollapsed, setFolderPaneCollapsed] = useState(() => {
+    try { return window.localStorage.getItem('mathmaster:library:folder-pane-collapsed') === 'true'; } catch { return false; }
+  });
+  const [expandedPaths, setExpandedPaths] = useState(() => {
+    try { return new Set(JSON.parse(window.localStorage.getItem('mathmaster:library:expanded-folders') || '[]')); } catch { return new Set(); }
+  });
+  const [sortMode, setSortMode] = useState('title');
 
   const topLevelFolders = getFolderChildren(folderPaths, '');
 
@@ -133,10 +157,17 @@ export default function AssignmentLibrary({
     matchesSmartView(assignment, smartView, { nowValue, classSchedule })
   )), [assignments, smartView, nowValue, classSchedule]);
 
-  const filteredAssignments = useMemo(() => visibleForSmartView.filter((assignment) => (
-    assignmentFolderMatches(assignment, selectedFolder)
-    && titleOrFolderMatches(assignment, searchQuery)
-  )), [visibleForSmartView, selectedFolder, searchQuery]);
+  const filteredAssignments = useMemo(() => {
+    const items = visibleForSmartView.filter((assignment) => (
+      assignmentFolderMatches(assignment, selectedFolder)
+      && titleOrFolderMatches(assignment, searchQuery)
+    ));
+    return [...items].sort((left, right) => {
+      if (sortMode === 'due') return new Date(left.dueAt || left.dueDate || 0).getTime() - new Date(right.dueAt || right.dueDate || 0).getTime();
+      if (sortMode === 'status') return getAssignmentLifecycle(left, nowValue).status.localeCompare(getAssignmentLifecycle(right, nowValue).status);
+      return String(left.title || '').localeCompare(String(right.title || ''));
+    });
+  }, [visibleForSmartView, selectedFolder, searchQuery, sortMode, nowValue]);
 
   const uncategorizedCount = visibleForSmartView.filter((assignment) => !normalizeFolderPath(assignment.folder)).length;
 
@@ -178,6 +209,19 @@ export default function AssignmentLibrary({
     setDraggedAssignmentId(null);
   };
 
+  const toggleFolderPane = () => setFolderPaneCollapsed((current) => {
+    const next = !current;
+    try { window.localStorage.setItem('mathmaster:library:folder-pane-collapsed', String(next)); } catch { /* best effort */ }
+    return next;
+  });
+
+  const toggleExpanded = (path) => setExpandedPaths((current) => {
+    const next = new Set(current);
+    if (next.has(path)) next.delete(path); else next.add(path);
+    try { window.localStorage.setItem('mathmaster:library:expanded-folders', JSON.stringify([...next])); } catch { /* best effort */ }
+    return next;
+  });
+
   return (
     <div style={{ textAlign: 'left' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
@@ -199,6 +243,7 @@ export default function AssignmentLibrary({
           placeholder="Search title or folder"
           style={{ flex: '1 1 220px', padding: '9px 12px', border: '1px solid #c9ced6', borderRadius: '8px' }}
         />
+        <select value={sortMode} onChange={(event) => setSortMode(event.target.value)} aria-label="Sort library assignments" style={{ padding: '8px 10px', border: '1px solid #dadce0', borderRadius: 8, background: '#fff' }}><option value="title">Sort: Title</option><option value="due">Sort: Due date</option><option value="status">Sort: Status</option></select>
         {SMART_VIEWS.map((view) => (
           <button
             type="button"
@@ -221,10 +266,10 @@ export default function AssignmentLibrary({
       </div>
 
       <div style={{ display: 'flex', gap: '18px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-        <div style={{ flex: '0 0 260px', minWidth: '220px', border: '1px solid #e0e3e7', borderRadius: '10px', padding: '12px', background: '#f8f9fa' }}>
+        {folderPaneCollapsed ? <button type="button" onClick={toggleFolderPane} aria-label="Expand folders" title="Expand folders" style={{ flex: '0 0 44px', width: 44, minHeight: 170, border: '1px solid #e0e3e7', borderRadius: 10, background: '#f8f9fa', color: '#174ea6', fontWeight: 900, cursor: 'pointer', writingMode: 'vertical-rl' }}>› Folders</button> : <div style={{ flex: '0 0 260px', minWidth: '220px', border: '1px solid #e0e3e7', borderRadius: '10px', padding: '12px', background: '#f8f9fa' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
             <strong style={{ fontSize: '13px', color: '#5f6368', textTransform: 'uppercase' }}>Folders</strong>
-            <button type="button" onClick={() => setFolderDialog({ mode: 'create', input: '' })} style={{ fontSize: '11px', padding: '3px 8px', border: '1px solid #1a73e8', borderRadius: '6px', background: '#fff', color: '#1a73e8', fontWeight: 'bold', cursor: 'pointer' }}>+ New Folder</button>
+            <div style={{ display: 'flex', gap: 5 }}><button type="button" onClick={() => setFolderDialog({ mode: 'create', input: '' })} style={{ fontSize: '11px', padding: '3px 8px', border: '1px solid #1a73e8', borderRadius: '6px', background: '#fff', color: '#1a73e8', fontWeight: 'bold', cursor: 'pointer' }}>+ New</button><button type="button" onClick={toggleFolderPane} title="Collapse folders" aria-label="Collapse folders" style={{ width: 28, border: '1px solid #dadce0', borderRadius: 6, background: '#fff', color: '#5f6368' }}>‹</button></div>
           </div>
 
           <button
@@ -258,9 +303,11 @@ export default function AssignmentLibrary({
               dragOverFolder={dragOverFolder}
               onDragOverFolder={setDragOverFolder}
               onDropOnFolder={handleDropOnFolder}
+              expandedPaths={expandedPaths}
+              onToggleExpanded={toggleExpanded}
             />
           ))}
-        </div>
+        </div>}
 
         <div style={{ flex: '1 1 320px', minWidth: '260px' }}>
           {filteredAssignments.length === 0 && <p style={{ color: '#80868b' }}>No assignments match this filter.</p>}

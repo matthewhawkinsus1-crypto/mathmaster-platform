@@ -61,15 +61,18 @@ const pill = (background, color) => ({
  * account on day one, and a forgotten PIN is the single most common support
  * request, so both are one click away here.
  */
-export default function SignInAccess({ signedInEmail }) {
-  const [access, setAccess] = useState({ students: [], teachers: [], bootstrapTeachers: [] });
+export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
+  const [access, setAccess] = useState({ students: [], teachers: [], bootstrapTeachers: [], authority: {} });
   const [codes, setCodes] = useState([]);
+  const [auditEvents, setAuditEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [status, setStatus] = useState(null);
   const [pendingAction, setPendingAction] = useState(null);
   const [search, setSearch] = useState('');
   const [teacherEmail, setTeacherEmail] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -83,14 +86,21 @@ export default function SignInAccess({ signedInEmail }) {
         students: accessResult.students || [],
         teachers: accessResult.teachers || [],
         bootstrapTeachers: accessResult.bootstrapTeachers || [],
+        authority: accessResult.authority || {},
       });
       setCodes(codeResult.codes || []);
+      if (mode === 'admin' && accessResult.authority?.isRootAdmin === true) {
+        const audit = await teacherAdmin.listAdminAuditLog(40);
+        setAuditEvents(audit.events || []);
+      } else {
+        setAuditEvents([]);
+      }
     } catch (caught) {
       setError(describeAuthError(caught));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [mode]);
 
   useEffect(() => {
     refresh();
@@ -134,14 +144,33 @@ export default function SignInAccess({ signedInEmail }) {
   }, [access.students, search]);
 
   const needingSetup = access.students.filter((student) => !student.hasPasscode).length;
+  const isRootAdmin = access.authority?.isRootAdmin === true;
+  const adminMode = mode === 'admin';
+
+  const confirmPermanentDeletion = async () => {
+    if (!deleteTarget || !isRootAdmin) return;
+    const studentId = deleteTarget.studentId;
+    const result = await runAction(
+      `delete:${studentId}`,
+      () => teacherAdmin.permanentlyDeleteStudent(studentId, deleteConfirmation),
+      `${studentId} and its MathMaster data were permanently deleted.`,
+    );
+    if (result) {
+      setDeleteTarget(null);
+      setDeleteConfirmation('');
+    }
+  };
 
   return (
     <div>
-      <h2 style={{ marginTop: 0 }}>Sign-in Access</h2>
+      <h2 style={{ marginTop: 0 }}>{adminMode ? 'Administration' : 'Student Access'}</h2>
       <p style={{ color: '#5f6368', maxWidth: '80ch', lineHeight: 1.6 }}>
-        Students sign in with a school Google account, or with their student ID and a PIN they choose once using the
-        class code below. Nobody can reach a roster, a grade or another student&apos;s work without signing in.
+        {adminMode
+          ? 'Root administration is server-authorized. Manage teacher access, student accounts, permanent erasure, and the administrative audit trail here.'
+          : 'Students sign in with a school Google account, or with their student ID and a PIN they choose once using the class code below.'}
       </p>
+
+      {adminMode && !loading && !isRootAdmin && <div role="alert" style={{ ...card, background: '#fce8e6', borderColor: '#d93025', color: '#a50e0e' }}><strong>Root administrator access required.</strong> This workspace is not available to ordinary teacher accounts.</div>}
 
       {error && (
         <div role="alert" style={{ ...card, background: '#fce8e6', borderColor: '#d93025', color: '#a50e0e' }}>
@@ -154,7 +183,7 @@ export default function SignInAccess({ signedInEmail }) {
         </div>
       )}
 
-      <section style={card}>
+      {!adminMode && <section style={card}>
         <h3 style={{ margin: '0 0 6px' }}>Class join codes</h3>
         <p style={{ margin: '0 0 16px', color: '#5f6368', fontSize: '14px', lineHeight: 1.55 }}>
           Show a period&apos;s code on the board on day one. A student needs it once — to set their PIN or to connect a
@@ -200,7 +229,7 @@ export default function SignInAccess({ signedInEmail }) {
             );
           })}
         </div>
-      </section>
+      </section>}
 
       <section style={card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px', flexWrap: 'wrap', marginBottom: '6px' }}>
@@ -297,6 +326,9 @@ export default function SignInAccess({ signedInEmail }) {
                       {unlinking ? 'Unlinking…' : 'Unlink Google'}
                     </button>
                   )}
+                  {adminMode && isRootAdmin && (
+                    <button type="button" onClick={() => { setDeleteTarget(student); setDeleteConfirmation(''); }} style={{ ...quietButton, borderColor: '#d93025', color: '#b3261e' }}>Permanently delete</button>
+                  )}
                 </div>
               </div>
             );
@@ -304,7 +336,7 @@ export default function SignInAccess({ signedInEmail }) {
         </div>
       </section>
 
-      <section style={card}>
+      {adminMode && isRootAdmin && <section style={card}>
         <h3 style={{ margin: '0 0 6px' }}>Teacher access</h3>
         <p style={{ margin: '0 0 14px', color: '#5f6368', fontSize: '14px', lineHeight: 1.55 }}>
           Anyone listed here gets the instructor dashboard when they sign in with that Google account — the full
@@ -359,11 +391,7 @@ export default function SignInAccess({ signedInEmail }) {
                   borderRadius: '10px',
                 }}
               >
-                <span style={{ wordBreak: 'break-word' }}>
-                  {teacher.email}
-                  {isSelf && <span style={{ ...pill('#e8f0fe', '#174ea6'), marginLeft: '9px' }}>You</span>}
-                  {!teacher.active && <span style={{ ...pill('#f1f3f4', '#3c4043'), marginLeft: '9px' }}>Revoked</span>}
-                </span>
+                <div style={{ minWidth: 0, wordBreak: 'break-word' }}><div><strong>{teacher.email}</strong>{teacher.accessLevel === 'rootAdmin' && <span style={{ ...pill('#202124', '#fff'), marginLeft: 9 }}>Root admin</span>}{isSelf && <span style={{ ...pill('#e8f0fe', '#174ea6'), marginLeft: '9px' }}>You</span>}{!teacher.active && <span style={{ ...pill('#f1f3f4', '#3c4043'), marginLeft: '9px' }}>Revoked</span>}</div><div style={{ marginTop: 4, color: '#5f6368', fontSize: 12 }}>{teacher.hasSignedIn ? `Last sign-in: ${teacher.lastSignInAt ? new Date(teacher.lastSignInAt).toLocaleString() : 'recorded account'}` : 'Has not signed in yet'}</div></div>
                 <button
                   type="button"
                   style={{ ...quietButton, opacity: busy ? 0.6 : 1 }}
@@ -391,7 +419,24 @@ export default function SignInAccess({ signedInEmail }) {
             <strong>{access.bootstrapTeachers.join(', ')}</strong>. Remove them there once real teacher accounts exist.
           </p>
         )}
-      </section>
+      </section>}
+
+      {adminMode && isRootAdmin && <section style={card}>
+        <h3 style={{ margin: '0 0 6px' }}>Administrative audit log</h3>
+        <p style={{ margin: '0 0 14px', color: '#5f6368', fontSize: 14 }}>Recent privileged account-management actions. Student erasure receipts do not retain deleted instructional data.</p>
+        {auditEvents.length === 0 ? <p style={{ color: '#5f6368' }}>No administrative actions recorded yet.</p> : <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}><thead><tr style={{ background: '#f8f9fa' }}><th style={{ textAlign: 'left', padding: 9 }}>When</th><th style={{ textAlign: 'left' }}>Actor</th><th style={{ textAlign: 'left' }}>Action</th><th style={{ textAlign: 'left' }}>Target / receipt</th></tr></thead><tbody>{auditEvents.map((event) => <tr key={event.id} style={{ borderBottom: '1px solid #eef0f2' }}><td style={{ padding: 9 }}>{event.createdAt ? new Date(event.createdAt).toLocaleString() : '—'}</td><td>{event.actorEmail || '—'}</td><td>{String(event.action || '').replaceAll('_', ' ')}</td><td>{event.target || '—'}</td></tr>)}</tbody></table></div>}
+      </section>}
+
+      {deleteTarget && adminMode && isRootAdmin && (
+        <div role="presentation" style={{ position: 'fixed', inset: 0, zIndex: 12000, display: 'grid', placeItems: 'center', padding: 20, background: 'rgba(32,33,36,.72)' }}>
+          <section role="dialog" aria-modal="true" aria-label="Permanent student deletion" style={{ width: 'min(560px, 96vw)', padding: 24, borderRadius: 14, background: '#fff', boxShadow: '0 24px 70px rgba(0,0,0,.3)' }}>
+            <h3 style={{ marginTop: 0, color: '#a50e0e' }}>Permanently delete {deleteTarget.studentId}?</h3>
+            <p style={{ lineHeight: 1.55 }}>This erases the student&apos;s sign-in identity and MathMaster grades, submissions, mastery/retention state, My Math Path history, labs, secure-exam data, supports, and Classroom linkage records. <strong>This cannot be undone.</strong></p>
+            <label style={{ display: 'block', fontWeight: 800 }}>Type <code>DELETE {deleteTarget.studentId}</code> to confirm<input autoFocus value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} style={{ ...inputStyle, width: '100%', marginTop: 7, boxSizing: 'border-box' }} /></label>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}><button type="button" onClick={() => { setDeleteTarget(null); setDeleteConfirmation(''); }} style={quietButton}>Cancel</button><button type="button" disabled={deleteConfirmation !== `DELETE ${deleteTarget.studentId}` || pendingAction === `delete:${deleteTarget.studentId}`} onClick={confirmPermanentDeletion} style={{ ...primaryButton, background: deleteConfirmation === `DELETE ${deleteTarget.studentId}` ? '#b3261e' : '#dadce0' }}>{pendingAction === `delete:${deleteTarget.studentId}` ? 'Deleting…' : 'Permanently Delete Student'}</button></div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

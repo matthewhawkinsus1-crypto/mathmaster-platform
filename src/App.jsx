@@ -88,7 +88,17 @@ import MyMathPathApp from './components/student/MyMathPathApp.jsx';
 import StudentSecureExamDashboard from './components/assessment/StudentSecureExamDashboard.jsx';
 import TeacherSecureExamDashboard from './components/assessment/TeacherSecureExamDashboard.jsx';
 import TeacherAnalyticsDashboard from './components/analytics/TeacherAnalyticsDashboard.jsx';
-import ShowcaseClassroomDashboard from './components/analytics/ShowcaseClassroomDashboard.jsx';
+import DemoExperience from './components/demo/DemoExperience.jsx';
+import StudentsRoster from './components/teacher/StudentsRoster.jsx';
+import ClassCourseSettings from './components/teacher/ClassCourseSettings.jsx';
+import SignInAccess from './SignInAccess.jsx';
+import {
+  buildHonorsEnrichmentQuestion,
+  defaultCourseProfiles,
+  inspectHonorsRigor,
+  normalizeCourseProfiles,
+  splitClassPeriodsByRigor,
+} from './platform/rigor/courseRigor.js';
 import LoginScreen from './LoginScreen.jsx';
 import { useAuth } from './auth/AuthProvider.jsx';
 
@@ -196,6 +206,7 @@ function App() {
 
   const [activeView, setActiveView] = useState('dashboard');
   const [teacherTab, setTeacherTab] = useState('home');
+  const [teacherWorkspaceMode, setTeacherWorkspaceMode] = useState('teacher');
   const [homeNavigationPeriod, setHomeNavigationPeriod] = useState(null);
   const [assignments, setAssignments] = useState([]);
   const [allStudents, setAllStudents] = useState([]);
@@ -210,6 +221,8 @@ function App() {
   const [resumeAction, setResumeAction] = useState(null);
   const [now, setNow] = useState(Date.now());
   const [classSchedule, setClassSchedule] = useState(DEFAULT_CLASS_SCHEDULE);
+  const [courseProfiles, setCourseProfiles] = useState(() => defaultCourseProfiles(CLASS_PERIODS));
+  const [courseProfilesSaving, setCourseProfilesSaving] = useState(false);
   const [assignmentActivity, setAssignmentActivity] = useState({});
   const [dolGradesByAssignment, setDolGradesByAssignment] = useState({});
   const [classworkGradesByAssignment, setClassworkGradesByAssignment] = useState({});
@@ -370,6 +383,20 @@ function App() {
     }
   };
 
+  const fetchCourseProfiles = async () => {
+    try {
+      const snapshot = await getDoc(doc(db, 'settings', 'courseProfiles'));
+      const value = normalizeCourseProfiles(snapshot.exists() ? snapshot.data()?.profiles : {}, CLASS_PERIODS);
+      setCourseProfiles(value);
+      return value;
+    } catch (error) {
+      console.error('Could not load class course settings:', error);
+      const fallback = defaultCourseProfiles(CLASS_PERIODS);
+      setCourseProfiles(fallback);
+      return fallback;
+    }
+  };
+
   const fetchAssignmentFolders = async () => {
     try {
       const snapshot = await getDoc(doc(db, 'settings', 'assignmentFolders'));
@@ -413,7 +440,7 @@ function App() {
         const fetchedAssignments = await fetchAssignments();
         if (cancelled) return;
         if (session.role === 'teacher') {
-          await Promise.all([fetchStudents(), fetchClassSchedule(), fetchAssignmentFolders()]);
+          await Promise.all([fetchStudents(), fetchClassSchedule(), fetchCourseProfiles(), fetchAssignmentFolders()]);
           if (cancelled) return;
           setUser({
             id: session.uid,
@@ -421,6 +448,8 @@ function App() {
             role: 'teacher',
             email: session.email,
             displayName: session.displayName,
+            accessLevel: session.accessLevel,
+            isRootAdmin: session.isRootAdmin === true,
           });
           setResumeAction(null);
           return;
@@ -434,6 +463,7 @@ function App() {
         if (!studentSnapshot.exists()) throw new Error('Your student record is not available. Ask your teacher to add you to the roster.');
         const studentData = studentSnapshot.data() || {};
         const studentProfile = normalizeStudentProfile(studentData.profile || studentData);
+        const loadedCourseProfiles = await fetchCourseProfiles();
         await fetchClassSchedule();
         if (cancelled) return;
         setUser({
@@ -443,7 +473,11 @@ function App() {
           email: session.email,
           displayName: session.displayName || studentId,
           classPeriod: studentData.classPeriod || 'Unassigned',
-          profile: studentProfile,
+          profile: {
+            ...studentProfile,
+            course: loadedCourseProfiles?.[studentData.classPeriod]?.course || 'algebra1',
+            courseLevel: loadedCourseProfiles?.[studentData.classPeriod]?.courseLevel || 'standard',
+          },
         });
         setTracker(studentData.gradesByAssignment || {});
         setAssignmentActivity(studentData.assignmentActivity || {});
@@ -472,7 +506,8 @@ function App() {
   const handleLogout = async () => {
     setUser(null);
     setActiveView('dashboard');
-    setTeacherTab('assignments');
+    setTeacherTab('home');
+    setTeacherWorkspaceMode('teacher');
     setActiveAssignmentId(null);
     setPracticeTracker({});
     setPreviewTracker({});
@@ -1491,16 +1526,18 @@ function App() {
           ? { minEngagementMinutes: 10, minimumQuestionCompletionPercent: 80 }
           : null;
 
-      if (packageMetadata?.assignmentKey && assignments.some((assignment) => assignment.assignmentKey === packageMetadata.assignmentKey)) {
+      if (packageMetadata?.assignmentKey && assignments.some((assignment) => (
+        assignment.assignmentKey === packageMetadata.assignmentKey
+        || String(assignment.assignmentKey || '').startsWith(`${packageMetadata.assignmentKey}:`)
+      ))) {
         throw new Error(`An assignment with assignmentKey "${packageMetadata.assignmentKey}" already exists. Change or remove assignment.assignmentKey if you intend to create a separate copy.`);
       }
 
-      const assignmentPayload = {
+      const assignmentPayloadBase = {
         title,
         dueAt: dueAt.toISOString(),
         lateDueAt: lateDueAt.toISOString(),
         dueDate: dueAt.toISOString(),
-        assignedClassPeriods,
         assignmentType,
         variantMode,
         releaseAt,
@@ -1511,9 +1548,7 @@ function App() {
           minutesBeforeEnd: dolMinutesBeforeEnd,
           questionIndex: dolQuestionIndex,
         },
-        questions: parsedQuestions,
         folder,
-        assignmentKey: packageMetadata?.assignmentKey || null,
         assignmentPackageSchemaVersion: parsed.isPackage ? parsed.schemaVersion : 1,
         assignmentTemplate: packageMetadata?.template || null,
         standards: packageMetadata?.standards || [],
@@ -1527,8 +1562,6 @@ function App() {
         createdAt: new Date(),
       };
 
-      assertFirestoreSafeAssignmentPayload(assignmentPayload);
-
       if (folder && !assignmentFolderPaths.includes(folder)) {
         await saveAssignmentFolderPaths([...assignmentFolderPaths, folder]);
       }
@@ -1536,23 +1569,102 @@ function App() {
       const bundleLabs = parsed.isBundle
         ? (parsed.bundleSource?.activities || []).filter((activity) => activity?.labDefinition || activity?.isModelingLab)
         : [];
-      if (bundleLabs.length) {
+      const privateLabsById = new Map(bundleLabs.map((activity) => {
+        const definition = normalizeLabDefinition(activity.labDefinition || activity, { includeEvaluation: true });
+        return [definition.labId, { definition, activity }];
+      }));
+
+      const destinationGroups = Object.values(assignedClassPeriods.reduce((groups, period) => {
+        const profile = courseProfiles?.[period] || { course: 'algebra1', courseLevel: 'standard' };
+        const course = profile.course || 'algebra1';
+        const courseLevel = profile.courseLevel === 'honors' ? 'honors' : 'standard';
+        const key = `${course}:${courseLevel}`;
+        if (!groups[key]) groups[key] = { key, course, courseLevel, periods: [] };
+        groups[key].periods.push(period);
+        return groups;
+      }, {}));
+      const sourceHonorsReport = inspectHonorsRigor(parsedQuestions, { allowNarrowCheckpoint: true });
+      const splitVariantGroupId = destinationGroups.length > 1 ? `rigor_${createQuestionId()}` : null;
+
+      const writeAssignmentVariant = async ({ destination, questions }) => {
         const assignmentRef = doc(collection(db, 'assignments'));
-        const batch = writeBatch(db);
-        batch.set(assignmentRef, assignmentPayload);
-        bundleLabs.forEach((activity) => {
-          const privateDefinition = normalizeLabDefinition(activity.labDefinition || activity, { includeEvaluation: true });
-          batch.set(doc(db, 'modelingLabDefinitions', privateDefinition.labId), {
-            ...privateDefinition,
+        const labSuffix = `${destination.course}-${destination.courseLevel}-${assignmentRef.id.slice(0, 8)}`;
+        const privateLabWrites = [];
+        const variantQuestions = questions.map((question) => {
+          if (question?.type !== 'modelingLab' || !question.labDefinition?.labId) return question;
+          const originalLabId = question.labDefinition.labId;
+          const privateSource = privateLabsById.get(originalLabId);
+          if (!privateSource) {
+            if (bundleLabs.length) throw new Error(`Modeling lab ${originalLabId} could not be matched to its private Bundle V3 definition.`);
+            return question;
+          }
+          const nextLabId = `${originalLabId}-${labSuffix}`;
+          if (privateSource) privateLabWrites.push({ nextLabId, ...privateSource });
+          return { ...question, labDefinition: { ...question.labDefinition, labId: nextLabId } };
+        });
+        const payload = {
+          ...assignmentPayloadBase,
+          assignedClassPeriods: destination.periods,
+          questions: variantQuestions,
+          courseProfile: { course: destination.course, courseLevel: destination.courseLevel },
+          rigorVariant: destination.courseLevel,
+          rigorVariantGroupId: splitVariantGroupId,
+          assignmentKey: packageMetadata?.assignmentKey
+            ? destinationGroups.length > 1 ? `${packageMetadata.assignmentKey}:${destination.course}:${destination.courseLevel}` : packageMetadata.assignmentKey
+            : null,
+          honorsContractVersion: destination.courseLevel === 'honors' ? 1 : null,
+          honorsContractScope: destination.courseLevel === 'honors' ? sourceHonorsReport.scope : null,
+        };
+        assertFirestoreSafeAssignmentPayload(payload);
+        if (privateLabWrites.length) {
+          const batch = writeBatch(db);
+          batch.set(assignmentRef, payload);
+          privateLabWrites.forEach(({ nextLabId, definition, activity }) => batch.set(doc(db, 'modelingLabDefinitions', nextLabId), {
+            ...definition,
+            labId: nextLabId,
             assignmentId: assignmentRef.id,
             activityId: activity.activityId || null,
             activityRole: activity.role || 'classwork',
             updatedAt: new Date(),
-          });
-        });
-        await batch.commit();
-      } else {
-        await addDoc(collection(db, 'assignments'), assignmentPayload);
+          }));
+          await batch.commit();
+        } else {
+          await setDoc(assignmentRef, payload);
+        }
+      };
+
+      const destinationVariants = destinationGroups.map((destination) => {
+        let destinationQuestions = parsedQuestions;
+        if (destination.courseLevel === 'honors') {
+          let enrichmentQuestion = null;
+          if (!sourceHonorsReport.isHonorsReady) {
+            if (!teacherReview?.honorsEnrichmentQuestion) {
+              throw new Error('This Honors destination does not yet meet the Honors rigor/CCMR contract. Return to preflight and choose Build Honors Enrichment.');
+            }
+            enrichmentQuestion = destination.course === courseProfiles?.[splitClassPeriodsByRigor(assignedClassPeriods, courseProfiles).honors[0]]?.course
+              ? teacherReview.honorsEnrichmentQuestion
+              : buildHonorsEnrichmentQuestion({ questions: parsedQuestions, course: destination.course });
+          }
+          destinationQuestions = normalizeAssignmentQuestions([
+            ...parsedQuestions,
+            ...(enrichmentQuestion ? [enrichmentQuestion] : []),
+          ]);
+          const finalHonorsReport = inspectHonorsRigor(destinationQuestions, { allowNarrowCheckpoint: true });
+          if (!finalHonorsReport.isHonorsReady) throw new Error(`Honors preflight is still missing: ${finalHonorsReport.missing.join(', ')}.`);
+          validateAssignmentQuestions(destinationQuestions, { variantMode, allowFixed: variantMode === 'shared' });
+        }
+        return { destination, questions: destinationQuestions };
+      });
+
+      for (const variant of destinationVariants) {
+        // Sequential writes keep the destination variants and their private lab
+        // definitions easy to audit. A normal assignment creates one group.
+        // eslint-disable-next-line no-await-in-loop
+        await writeAssignmentVariant(variant);
+      }
+
+      if (destinationGroups.length === 0) {
+        throw new Error('Select at least one class period before creating the assignment.');
       }
 
       if (variantMode !== newAssignmentVariantMode) setNewAssignmentVariantMode(variantMode);
@@ -1719,6 +1831,25 @@ function App() {
     await setDoc(doc(db, 'settings', 'classSchedule'), normalized);
     setClassSchedule(normalized);
     window.alert('Class schedule saved. DOL windows now use these period times.');
+  };
+
+  const handleUpdateCourseProfile = (period, patch) => {
+    setCourseProfiles((current) => normalizeCourseProfiles({
+      ...current,
+      [period]: { ...(current?.[period] || {}), ...patch },
+    }, CLASS_PERIODS));
+  };
+
+  const handleSaveCourseProfiles = async () => {
+    setCourseProfilesSaving(true);
+    try {
+      const normalized = normalizeCourseProfiles(courseProfiles, CLASS_PERIODS);
+      await setDoc(doc(db, 'settings', 'courseProfiles'), { profiles: normalized, updatedAt: new Date().toISOString() });
+      setCourseProfiles(normalized);
+      window.alert('Course settings saved. Honors preflight now follows these class designations.');
+    } finally {
+      setCourseProfilesSaving(false);
+    }
   };
 
   const saveAssignmentFolderPaths = async (paths) => {
@@ -2819,6 +2950,20 @@ function App() {
       ],
     };
 
+    if (teacherWorkspaceMode === 'administration' && user.isRootAdmin) {
+      return (
+        <div style={{ fontFamily: '"Segoe UI", sans-serif', backgroundColor: '#f3f5f8', minHeight: '100vh', padding: '20px' }}>
+          <div style={{ maxWidth: 1260, margin: '0 auto', background: '#fff', borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,.06)', overflow: 'hidden' }}>
+            <header style={{ padding: '22px 28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap', borderBottom: '1px solid #e8eaed', background: '#202124', color: '#fff' }}>
+              <div><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.08em', color: '#c6dafc' }}>ROOT ADMINISTRATOR</div><h1 style={{ margin: '4px 0 0', fontSize: 25 }}>MathMaster Administration</h1><p style={{ margin: '4px 0 0', color: '#dadce0', fontSize: 13 }}>{user.email}</p></div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><div role="group" aria-label="Root administrator workspace" style={{ display: 'inline-flex', padding: 3, borderRadius: 9, background: '#3c4043', border: '1px solid #5f6368' }}><button type="button" aria-pressed="false" onClick={() => setTeacherWorkspaceMode('teacher')} style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: 'transparent', color: '#e8eaed', fontWeight: 900 }}>Teacher View</button><button type="button" aria-pressed="true" style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: '#fff', color: '#202124', fontWeight: 900 }}>Administration</button></div><button type="button" onClick={() => { setTeacherWorkspaceMode('teacher'); setTeacherTab('demo'); }} style={{ padding: '9px 13px', border: '1px solid #c7a9ea', borderRadius: 8, background: '#f8f0fc', color: '#6f2da8', fontWeight: 900 }}>Open Demo Experience</button><button onClick={handleLogout} style={{ padding: '9px 13px', background: 'transparent', color: '#f28b82', border: '1px solid #f28b82', borderRadius: 8, fontWeight: 900 }}>Log Out</button></div>
+            </header>
+            <main style={{ padding: 28 }}><SignInAccess signedInEmail={user.email} mode="admin" /></main>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div style={{ fontFamily: '"Segoe UI", sans-serif', backgroundColor: '#f8f9fa', minHeight: '100vh', padding: '20px' }}>
         {renderDeleteAssignmentDialog()}
@@ -2831,6 +2976,7 @@ function App() {
             lessonBundle={assignmentPreflight.lessonBundle}
             initialDraft={assignmentPreflight.initialDraft}
             classPeriods={CLASS_PERIODS}
+            courseProfiles={courseProfiles}
             sourceLabel={assignmentPreflight.sourceLabel}
             onClose={() => setAssignmentPreflight(null)}
             onConfirmPublish={confirmAssignmentPreflight}
@@ -2863,10 +3009,14 @@ function App() {
               <h1 style={{ margin: 0, color: '#202124', fontSize: '25px' }}>Instructor Dashboard</h1>
               <p style={{ margin: '5px 0 0', color: '#5f6368' }}>Assignments, eight class periods, DOL schedules, inclusion supports, and evidence reports</p>
             </div>
-            <button onClick={handleLogout} style={{ padding: '8px 16px', background: '#fff', color: '#d93025', border: '1px solid #d93025', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Log Out</button>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {user.isRootAdmin && <div role="group" aria-label="Root administrator workspace" style={{ display: 'inline-flex', padding: 3, borderRadius: 9, background: '#f1f3f4', border: '1px solid #dadce0' }}><button type="button" aria-pressed="true" style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: '#fff', color: '#174ea6', fontWeight: 900 }}>Teacher View</button><button type="button" aria-pressed="false" onClick={() => setTeacherWorkspaceMode('administration')} style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: 'transparent', color: '#3c4043', cursor: 'pointer', fontWeight: 900 }}>Administration</button></div>}
+              <button onClick={handleLogout} style={{ padding: '8px 16px', background: '#fff', color: '#d93025', border: '1px solid #d93025', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Log Out</button>
+            </div>
           </header>
 
           <div style={{ padding: '30px' }}>
+            {teacherTab === 'demo' && <DemoExperience />}
             {teacherTab === 'library' && (
               <AssignmentLibrary
                 assignments={assignments}
@@ -3084,25 +3234,19 @@ function App() {
             )}
 
             {teacherTab === 'students' && (
-              <div>
-                <h2 style={{ marginTop: 0 }}>Students and Inclusion Supports</h2>
-                <p style={{ color: '#5f6368' }}>Inclusion accommodations change how a student learns. Modifications change question generation and are reported separately with a MOD indicator.</p>
-                {allStudents.map((student) => (
-                  <article key={student.id} style={{ marginBottom: '14px', padding: '18px', border: '1px solid #d8dde6', borderRadius: '10px', textAlign: 'left' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-                      <div><strong style={{ fontSize: '18px' }}>{student.id}</strong><div style={{ color: '#5f6368', marginTop: '4px' }}>{student.classPeriod || 'Unassigned'}</div>{(() => { const mastery = teacherMasteryProfilesByStudentId[student.id]; return <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '7px' }}><span style={{ padding: '3px 7px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6', fontSize: '10px', fontWeight: 900 }}>Estimated {mastery?.overall?.performance?.shortLabel || 'Insufficient'}</span><span style={{ padding: '3px 7px', borderRadius: '999px', background: '#f1f3f4', color: '#5f6368', fontSize: '10px', fontWeight: 900 }}>{mastery?.overall?.confidence || 'Low'} confidence</span><span style={{ padding: '3px 7px', borderRadius: '999px', background: '#e6f4ea', color: '#137333', fontSize: '10px', fontWeight: 900 }}>Recommended Band {mastery?.overall?.recommendedGeneratorBand || 3}</span></div>; })()}</div>
-                      <select value={student.classPeriod || 'Unassigned'} onChange={(event) => handleChangeClassPeriod(student.id, event.target.value)} style={{ padding: '9px', borderRadius: '6px', border: '1px solid #ccc' }}><option value="Unassigned">Unassigned</option>{CLASS_PERIODS.map((period) => <option key={period} value={period}>{period}</option>)}</select>
-                      <label style={{ padding: '9px 12px', borderRadius: '999px', background: student.profile?.inclusionStatus ? '#efe4ff' : '#f1f3f4', color: student.profile?.inclusionStatus ? '#6f2da8' : '#3c4043', fontWeight: 900 }}><input type="checkbox" checked={Boolean(student.profile?.inclusionStatus)} onChange={(event) => handleUpdateStudentProfile(student.id, { inclusionStatus: event.target.checked })} /> Inclusion</label>
-                      <button onClick={() => openIEPReport(student)} style={{ padding: '9px 13px', border: '1px solid #6f2da8', borderRadius: '7px', background: '#fff', color: '#6f2da8', fontWeight: 900, cursor: 'pointer' }}>Generate IEP Report</button>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', marginTop: '15px' }}>
-                      {Object.entries(supportOptions).map(([group, options]) => (
-                        <fieldset key={group} style={{ border: '1px solid #d8dde6', borderRadius: '8px', padding: '12px' }}><legend style={{ fontWeight: 900, textTransform: 'capitalize' }}>{group}</legend>{options.map(([value, label]) => <label key={value} style={{ display: 'block', margin: '8px 0' }}><input type="checkbox" checked={(student.profile?.[group] || []).includes(value)} onChange={() => toggleStudentSupport(student, group, value)} /> {label}</label>)}</fieldset>
-                      ))}
-                    </div>
-                  </article>
-                ))}
-              </div>
+              <StudentsRoster
+                students={allStudents}
+                classPeriods={CLASS_PERIODS}
+                courseProfiles={courseProfiles}
+                masteryProfilesByStudentId={teacherMasteryProfilesByStudentId}
+                supportOptions={supportOptions}
+                onChangeClassPeriod={handleChangeClassPeriod}
+                onUpdateStudentProfile={handleUpdateStudentProfile}
+                onToggleStudentSupport={toggleStudentSupport}
+                onGenerateIEPReport={openIEPReport}
+                isRootAdmin={user.isRootAdmin === true}
+                onOpenAdministration={() => setTeacherWorkspaceMode('administration')}
+              />
             )}
 
             {teacherTab === 'home' && (
@@ -3130,6 +3274,7 @@ function App() {
               <div>
                 <h2 style={{ marginTop: 0 }}>Eight-Period Class Schedule</h2>
                 <p style={{ color: '#5f6368' }}>The DOL window opens during the configured final minutes of each period. A temporary schedule can override today without changing the normal schedule.</p>
+                <ClassCourseSettings classPeriods={CLASS_PERIODS} courseProfiles={courseProfiles} assignments={assignments} onChange={handleUpdateCourseProfile} onSave={handleSaveCourseProfiles} saving={courseProfilesSaving} />
                 <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr style={{ background: '#f8f9fa' }}><th style={{ padding: '11px', textAlign: 'left' }}>Period</th><th>Enabled</th><th>Start</th><th>End</th></tr></thead><tbody>{CLASS_PERIODS.map((period) => { const item = classSchedule.periods?.[period] || {}; return <tr key={period} style={{ borderBottom: '1px solid #e8eaed' }}><td style={{ padding: '11px', fontWeight: 'bold' }}>{period}</td><td style={{ textAlign: 'center' }}><input type="checkbox" checked={Boolean(item.enabled)} onChange={(event) => updateSchedulePeriod(period, 'enabled', event.target.checked)} /></td><td style={{ textAlign: 'center' }}><input type="time" value={item.start || ''} onChange={(event) => updateSchedulePeriod(period, 'start', event.target.value)} /></td><td style={{ textAlign: 'center' }}><input type="time" value={item.end || ''} onChange={(event) => updateSchedulePeriod(period, 'end', event.target.value)} /></td></tr>; })}</tbody></table></div>
                 <div style={{ marginTop: '18px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}><button onClick={handleSaveClassSchedule} style={{ padding: '10px 16px', border: 0, borderRadius: '7px', background: '#1a73e8', color: '#fff', fontWeight: 900 }}>Save Normal Schedule</button><button onClick={() => setClassSchedule((current) => ({ ...normalizeSchedule(current), modifiedSchedules: { ...normalizeSchedule(current).modifiedSchedules, [todayKey]: { periods: JSON.parse(JSON.stringify(normalizeSchedule(current).periods)) } } }))} style={{ padding: '10px 16px', border: '1px solid #f9ab00', borderRadius: '7px', background: '#fff4ce', color: '#5f4400', fontWeight: 900 }}>Create / Reset Today&apos;s Modified Schedule</button></div>
                 {todayOverride && <section style={{ marginTop: '28px', padding: '18px', background: '#fff8e1', border: '2px solid #f9ab00', borderRadius: '10px' }}><h3 style={{ marginTop: 0 }}>Temporary schedule for {todayKey}</h3><table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr><th style={{ textAlign: 'left' }}>Period</th><th>Enabled</th><th>Start</th><th>End</th></tr></thead><tbody>{CLASS_PERIODS.map((period) => { const item = todayOverride[period] || {}; return <tr key={period}><td style={{ padding: '8px', fontWeight: 'bold' }}>{period}</td><td style={{ textAlign: 'center' }}><input type="checkbox" checked={Boolean(item.enabled)} onChange={(event) => updateSchedulePeriod(period, 'enabled', event.target.checked, true)} /></td><td style={{ textAlign: 'center' }}><input type="time" value={item.start || ''} onChange={(event) => updateSchedulePeriod(period, 'start', event.target.value, true)} /></td><td style={{ textAlign: 'center' }}><input type="time" value={item.end || ''} onChange={(event) => updateSchedulePeriod(period, 'end', event.target.value, true)} /></td></tr>; })}</tbody></table><div style={{ marginTop: '14px', display: 'flex', gap: '10px' }}><button onClick={handleSaveClassSchedule} style={{ padding: '9px 14px', border: 0, borderRadius: '7px', background: '#188038', color: '#fff', fontWeight: 900 }}>Save Today&apos;s Schedule</button><button onClick={() => setClassSchedule((current) => { const next = normalizeSchedule(current); const modifiedSchedules = { ...next.modifiedSchedules }; delete modifiedSchedules[todayKey]; return { ...next, modifiedSchedules }; })} style={{ padding: '9px 14px', border: '1px solid #d93025', borderRadius: '7px', background: '#fff', color: '#d93025', fontWeight: 900 }}>Remove Today Override</button></div></section>}
@@ -3172,10 +3317,7 @@ function App() {
             )}
 
             {teacherTab === 'analytics' && (
-              <div style={{ display: 'grid', gap: '34px' }}>
-                <TeacherAnalyticsDashboard students={allStudents} masteryProfilesByStudentId={teacherMasteryProfilesByStudentId} />
-                <ShowcaseClassroomDashboard />
-              </div>
+              <TeacherAnalyticsDashboard students={allStudents} masteryProfilesByStudentId={teacherMasteryProfilesByStudentId} />
             )}
 
             {teacherTab === 'exams' && (
@@ -3183,6 +3325,8 @@ function App() {
             )}
 
             {teacherTab === 'classroom' && <ClassroomSync assignments={assignments} />}
+
+            {teacherTab === 'access' && <SignInAccess signedInEmail={user.email} mode="teacher" />}
           </div>
           </div>
         </div>

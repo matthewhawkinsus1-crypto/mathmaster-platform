@@ -33,6 +33,7 @@ const mathPath = require("./lib/mathPath");
 const labEvaluation = require("./lib/labEvaluation");
 const secureExam = require("./lib/secureExam");
 const adminPolicy = require("./lib/admin");
+const rigorPolicy = require("./lib/rigorPolicy");
 
 initializeApp();
 
@@ -1720,10 +1721,13 @@ exports.issueNextQuestion = onCall(async (request) => {
     return { questionInstance: mathPath.buildSanitizedQuestion(session.currentQuestion, { questionInstanceId: session.currentQuestion.questionInstanceId, attemptsAllowed: session.currentQuestion.attemptsAllowed, attemptsUsed: session.currentQuestion.attemptsUsed }) };
   }
 
-  const bankSnapshot = await db.collection("pathQuestionBank")
-    .where("alignmentKeys", "array-contains", session.target.alignmentKey)
-    .limit(40)
-    .get();
+  const targetDisplayCode = mathPath.displayAlignmentKey(session.target.alignmentKey);
+  const [bankSnapshot, masterySnapshot, rosterSnapshot, courseSettingsSnapshot] = await Promise.all([
+    db.collection("pathQuestionBank").where("alignmentKeys", "array-contains", session.target.alignmentKey).limit(40).get(),
+    db.collection("studentMasteryProfiles").doc(studentId).get(),
+    db.collection("grades").doc(studentId).get(),
+    db.collection("settings").doc("courseProfiles").get(),
+  ]);
   const candidates = bankSnapshot.docs
     .map((questionDoc) => ({ id: questionDoc.id, ...questionDoc.data() }))
     .filter((question) => question.active !== false && mathPath.hasGradeableDefinition(question));
@@ -1731,8 +1735,13 @@ exports.issueNextQuestion = onCall(async (request) => {
     throw new HttpsError("failed-precondition", `No active secure question family is published for ${session.target.alignmentKey}.`);
   }
 
-  const index = Number(session.summary?.completedQuestions || 0) % candidates.length;
-  const authored = candidates[index];
+  const classPeriod = rosterSnapshot.data()?.classPeriod || "Unassigned";
+  const courseLevel = courseSettingsSnapshot.data()?.profiles?.[classPeriod]?.courseLevel || "standard";
+  const masteryProfile = masterySnapshot.data()?.profiles?.[targetDisplayCode] || {};
+  const adaptiveRigor = rigorPolicy.resolveAdaptiveRigor({ courseLevel, profile: masteryProfile });
+  const difficultyPool = rigorPolicy.nearestDifficultyCandidates(candidates, adaptiveRigor.preferredDifficultyBand);
+  const index = Number(session.summary?.completedQuestions || 0) % difficultyPool.length;
+  const authored = difficultyPool[index];
   const attemptsAllowed = session.sessionKind === "retentionProbe" ? 1 : 3;
   const questionInstanceId = mathPath.runtimeId("qi");
   const currentQuestion = {
@@ -1741,6 +1750,7 @@ exports.issueNextQuestion = onCall(async (request) => {
     alignmentKeys: [session.target.alignmentKey],
     attemptsAllowed,
     attemptsUsed: 0,
+    adaptiveRigor,
     privateGrading: mathPath.privateGradingDefinition(authored),
   };
 

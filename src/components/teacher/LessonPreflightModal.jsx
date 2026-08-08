@@ -4,6 +4,7 @@ import { getEffectiveActivityPolicy } from '../../platform/policies/activityPoli
 import { PUBLICATION_STRATEGIES, planClassroomPublication } from '../../platform/publishing/publicationPlanner';
 import { validateLessonBundle } from '../../platform/validation/bundleValidator';
 import InteractiveModelingLabPlayer from '../labs/InteractiveModelingLabPlayer.jsx';
+import { buildHonorsEnrichmentQuestion, inspectHonorsRigor, splitClassPeriodsByRigor } from '../../platform/rigor/courseRigor.js';
 
 const tabButtonStyle = (active) => ({
   padding: '14px 18px',
@@ -62,6 +63,7 @@ export const LessonPreflightModal = ({
   publicationPlan: suppliedPublicationPlan = null,
   initialDraft = {},
   classPeriods = [],
+  courseProfiles = {},
   sourceLabel = '',
   onClose,
   onConfirmPublish,
@@ -74,6 +76,7 @@ export const LessonPreflightModal = ({
   const [demoQuestionIndex, setDemoQuestionIndex] = useState(0);
   const [demoTranslation, setDemoTranslation] = useState('en');
   const [demoCalculator, setDemoCalculator] = useState(false);
+  const [honorsEnrichmentQuestion, setHonorsEnrichmentQuestion] = useState(null);
 
   const effectiveBundle = useMemo(() => ({
     ...lessonBundle,
@@ -107,6 +110,32 @@ export const LessonPreflightModal = ({
   const questions = Array.isArray(currentActivity?.questions) ? currentActivity.questions : [];
   const currentQuestion = questions[demoQuestionIndex] || null;
   const currentPolicy = currentActivity ? getEffectiveActivityPolicy(currentActivity.role) : null;
+  const rigorDestinations = useMemo(
+    () => splitClassPeriodsByRigor(draft.assignedClassPeriods, courseProfiles),
+    [draft.assignedClassPeriods, courseProfiles],
+  );
+  const sourceRigorQuestions = useMemo(() => activities.flatMap((activity) => [
+    ...(Array.isArray(activity.questions) ? activity.questions.map((question) => ({
+      ...question,
+      activityRole: question.activityRole || activity.role || 'classwork',
+    })) : []),
+    ...(activity.isModelingLab ? [{
+      type: 'modelingLab',
+      activityRole: activity.role || 'classwork',
+      dok: activity.labDefinition?.dokLevel || activity.labDefinition?.dok || 3,
+      teks: activity.labDefinition?.teksAlignments || activity.labDefinition?.teks || [],
+      prompt: activity.labDefinition?.guidingQuestion || activity.title,
+      ccmr: activity.labDefinition?.ccmr === true,
+    }] : []),
+  ]), [activities]);
+  const honorsReport = useMemo(
+    () => inspectHonorsRigor(
+      [...sourceRigorQuestions, ...(honorsEnrichmentQuestion ? [honorsEnrichmentQuestion] : [])],
+      { allowNarrowCheckpoint: true },
+    ),
+    [sourceRigorQuestions, honorsEnrichmentQuestion],
+  );
+  const honorsSelected = rigorDestinations.honors.length > 0;
 
   const reviewErrors = useMemo(() => {
     const errors = [];
@@ -119,8 +148,9 @@ export const LessonPreflightModal = ({
       if (!Number.isFinite(due) || !Number.isFinite(late) || late <= due) errors.push('Final late due date must be later than the regular due date.');
     }
     if (classPeriods.length && draft.assignedClassPeriods.length === 0) errors.push('Select at least one class period.');
+    if (honorsSelected && !honorsReport.isHonorsReady) errors.push('Honors destination needs the missing rigor/CCMR elements shown below before creation.');
     return errors;
-  }, [draft, classPeriods.length]);
+  }, [draft, classPeriods.length, honorsSelected, honorsReport.isHonorsReady]);
 
   useEffect(() => {
     if (demoActivityIndex >= activities.length) setDemoActivityIndex(Math.max(0, activities.length - 1));
@@ -188,6 +218,22 @@ export const LessonPreflightModal = ({
                   </label>
                 ))}
               </div>
+            </fieldset>
+
+            <fieldset style={{ marginTop: 18, padding: 15, border: `1px solid ${honorsSelected ? '#c7a9ea' : '#d8dde6'}`, borderRadius: 10, background: honorsSelected ? '#fcf9ff' : '#fff' }}>
+              <legend style={{ fontWeight: 900 }}>Course rigor destinations</legend>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}><span style={{ padding: '4px 9px', borderRadius: 999, background: '#f1f3f4', fontSize: 11, fontWeight: 900 }}>STANDARD: {rigorDestinations.standard.join(', ') || 'none'}</span><span style={{ padding: '4px 9px', borderRadius: 999, background: '#efe4ff', color: '#6f2da8', fontSize: 11, fontWeight: 900 }}>HONORS: {rigorDestinations.honors.join(', ') || 'none'}</span></div>
+              <p style={{ color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>{honorsSelected ? 'Honors periods are validated from the saved class designation. When Standard and Honors destinations are selected together, MathMaster creates destination variants from this one source assignment.' : 'No selected class is designated Honors. Standard validation applies.'}</p>
+              {honorsSelected && honorsReport.isNarrowCheckpoint && <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: '#e8f0fe', color: '#174ea6', fontSize: 12, lineHeight: 1.5 }}><strong>Narrow Honors checkpoint.</strong> Warm-Ups and DOLs with three or fewer items may stay focused on the current TEKS. Depth, prerequisite repair, and CCMR are balanced across the recent Honors sequence instead of forced into every short check.</div>}
+              {honorsSelected && !honorsReport.isNarrowCheckpoint && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 7 }}>{[
+                ['coreTeks', 'Core TEKS'], ['higherOrderReasoning', 'Higher-order reasoning'], ['multipleRepresentations', 'Multiple representations'], ['justification', 'Explanation / justification'], ['modelingApplication', 'Modeling / application'], ['ccmrEnrichment', 'CCMR enrichment'],
+              ].map(([key, label]) => <div key={key} style={{ padding: '8px 10px', borderRadius: 8, background: honorsReport.checks[key] ? '#e6f4ea' : '#fff4ce', color: honorsReport.checks[key] ? '#137333' : '#7a4f00', fontWeight: 800, fontSize: 12 }}>{honorsReport.checks[key] ? '✓' : '!' } {label}</div>)}</div>}
+              {honorsSelected && !honorsReport.isNarrowCheckpoint && !honorsReport.isHonorsReady && <button type="button" onClick={() => {
+                const firstHonorsPeriod = rigorDestinations.honors[0];
+                setHonorsEnrichmentQuestion(buildHonorsEnrichmentQuestion({ questions: sourceRigorQuestions, course: courseProfiles?.[firstHonorsPeriod]?.course || 'algebra1' }));
+              }} style={{ marginTop: 12, padding: '9px 13px', border: 0, borderRadius: 8, background: '#6f2da8', color: '#fff', fontWeight: 900 }}>Build Honors Enrichment</button>}
+              {honorsEnrichmentQuestion && <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: '#e6f4ea', color: '#137333', fontSize: 12 }}><strong>MathMaster enrichment addendum prepared.</strong> It will be added only to the Honors destination variant after teacher confirmation.</div>}
+              {honorsSelected && honorsReport.isHonorsReady && !honorsReport.isNarrowCheckpoint && !honorsEnrichmentQuestion && <div style={{ marginTop: 10, color: '#137333', fontWeight: 800, fontSize: 12 }}>✓ Source assignment already satisfies the Honors contract; MathMaster will not rewrite it.</div>}
             </fieldset>
 
             {draft.assignmentType === 'practice' && (
@@ -269,7 +315,7 @@ export const LessonPreflightModal = ({
 
         <footer style={{ padding: '13px 18px', borderTop: '1px solid #ccc', background: '#f8f9fa', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 12, color: canCreate ? '#5f6368' : '#a50e0e' }}>{canCreate ? 'Student preview is isolated; teacher review settings will override JSON metadata.' : 'Creation is blocked until review and validation errors are resolved.'}</span>
-          <div style={{ display: 'flex', gap: 10 }}><button type="button" onClick={onClose} disabled={busy} style={{ minHeight: 44, padding: '9px 16px' }}>Back to JSON</button><button type="button" disabled={!canCreate} onClick={() => onConfirmPublish?.({ draft, publicationPlan, lessonBundle: effectiveBundle })} style={{ minHeight: 44, padding: '9px 20px', border: 'none', borderRadius: 7, background: canCreate ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 800 }}>{busy ? 'Creating…' : 'Apply Review & Create Assignment'}</button></div>
+          <div style={{ display: 'flex', gap: 10 }}><button type="button" onClick={onClose} disabled={busy} style={{ minHeight: 44, padding: '9px 16px' }}>Back to JSON</button><button type="button" disabled={!canCreate} onClick={() => onConfirmPublish?.({ draft: { ...draft, honorsEnrichmentQuestion }, publicationPlan, lessonBundle: effectiveBundle, honorsReport })} style={{ minHeight: 44, padding: '9px 20px', border: 'none', borderRadius: 7, background: canCreate ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 800 }}>{busy ? 'Creating…' : 'Apply Review & Create Assignment'}</button></div>
         </footer>
       </section>
     </div>

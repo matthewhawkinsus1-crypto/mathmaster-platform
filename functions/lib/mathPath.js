@@ -82,6 +82,13 @@ function buildSanitizedQuestion(question, { questionInstanceId, attemptsAllowed,
     context: sanitizeContext(question.context),
     attemptsAllowed,
     attemptsUsed,
+    adaptiveRigor: question.adaptiveRigor ? {
+      courseLevel: question.adaptiveRigor.courseLevel,
+      readiness: question.adaptiveRigor.readiness,
+      mode: question.adaptiveRigor.mode,
+      preferredDifficultyBand: question.adaptiveRigor.preferredDifficultyBand,
+      returnTargetBand: question.adaptiveRigor.returnTargetBand,
+    } : null,
   };
 }
 

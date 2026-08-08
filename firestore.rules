@@ -21,7 +21,9 @@ service cloud.firestore {
     match /grades/{studentId} {
       allow read: if teacher() || ownsStudent(studentId);
       allow create, update: if teacher() || ownsStudent(studentId);
-      allow delete: if teacher();
+      // Permanent roster deletion is callable-only. Even a root-admin browser
+      // must use the audited server erasure path so related data is not orphaned.
+      allow delete: if false;
 
       match /scratchpads/{scratchpadId} {
         allow read: if teacher() || ownsStudent(studentId);
@@ -101,6 +103,7 @@ service cloud.firestore {
     match /examSessions/{docId} { allow read, write: if false; }
     match /examSubmissions/{docId} { allow read, write: if false; }
     match /examIntegrityEvents/{docId} { allow read, write: if false; }
+    match /adminAuditLog/{docId} { allow read, write: if false; }
 
     match /{document=**} {
       allow read, write: if false;

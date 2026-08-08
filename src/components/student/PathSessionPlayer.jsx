@@ -23,6 +23,14 @@ export const PathSessionPlayer = ({ session, questionInstance, lastGradingResult
   const complete = fields.every((field) => String(responses[field.id] ?? '').trim() !== '');
   const attemptsUsed = Number(questionInstance.attemptsUsed ?? lastGradingResult?.attemptNumber) || 0;
   const attemptsAllowed = Number(questionInstance.attemptsAllowed) || activityPolicy.attempts;
+  const rigorLabel = ({
+    individualEnrichment: 'Individual enrichment',
+    honorsRepair: 'Prerequisite repair → Honors target',
+    honorsExtension: 'Honors extension',
+    honors: 'Honors rigor',
+    repair: 'Targeted prerequisite support',
+    standard: 'On-track practice',
+  })[questionInstance.adaptiveRigor?.mode] || null;
 
   const submit = async (event) => {
     event.preventDefault();
@@ -53,7 +61,7 @@ export const PathSessionPlayer = ({ session, questionInstance, lastGradingResult
         {questionInstance.context?.scenario && (
           <ProblemUnderstandingPanel context={questionInstance.context} onScaffoldComplete={() => setContextScaffoldUsed(true)} />
         )}
-        <div style={{ color: '#5f6368', fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>DOK {questionInstance.dok || '—'} · Band {questionInstance.difficultyBand || '—'}</div>
+        <div style={{ color: '#5f6368', fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>DOK {questionInstance.dok || '—'} · Band {questionInstance.difficultyBand || '—'}{rigorLabel ? ` · ${rigorLabel}` : ''}</div>
         <h1 style={{ margin: '9px 0 22px', fontSize: '23px', color: '#202124', lineHeight: 1.45 }}>{questionInstance.prompt}</h1>
 
         <form onSubmit={submit}>
