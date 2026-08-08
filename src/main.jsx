@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App.jsx';
 import { AuthProvider } from './auth/AuthProvider.jsx';
-import { ToastProvider } from './ui/Toast.jsx';
 
 class AppErrorBoundary extends Component {
   constructor(props) {
@@ -89,12 +88,9 @@ if (!rootElement) {
 createRoot(rootElement).render(
   <StrictMode>
     <AppErrorBoundary>
-      {/* Outside AuthProvider so sign-in problems can surface as toasts too. */}
-      <ToastProvider>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </ToastProvider>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
     </AppErrorBoundary>
   </StrictMode>,
 );

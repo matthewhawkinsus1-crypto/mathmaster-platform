@@ -6,12 +6,7 @@ import { compareMathAnswer } from './answerUtils';
 import useUndoHistory from './useUndoHistory';
 
 export default function TableGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
-  const { prompt, ruleLatex, showRule = false } = question;
-  // A `= {}` default only fires for undefined, so an explicit `"table": null`
-  // in a blueprint slipped straight through and threw on `.columns`.
-  const table = question.table && typeof question.table === 'object' && !Array.isArray(question.table)
-    ? question.table
-    : {};
+  const { prompt, table = {}, ruleLatex, showRule = false } = question;
   const columns = Array.isArray(table.columns) ? table.columns : [];
   const rows = Array.isArray(table.rows) ? table.rows : [];
   const answers = table.answers || {};

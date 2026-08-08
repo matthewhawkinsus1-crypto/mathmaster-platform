@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import QuestionStandardsEditor from './QuestionStandardsEditor';
 import { getQuestionMetadataSummary } from './questionMetadata.js';
-import { useToast } from './ui/Toast';
 
 const newQuestionId = () => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -19,7 +18,6 @@ const promptSummary = (question) => String(
 ).replace(/\s+/g, ' ').trim();
 
 export default function AssignmentQuestionEditor({ assignment, hasStudentData, onSave, onClose }) {
-  const { confirm: confirmAction } = useToast();
   const [title, setTitle] = useState(assignment.title || '');
   const [questions, setQuestions] = useState(() => ensureQuestionIds(assignment.questions || []));
   const [editingIndex, setEditingIndex] = useState(null);
@@ -33,25 +31,14 @@ export default function AssignmentQuestionEditor({ assignment, hasStudentData, o
     setQuestions((current) => current.map((question, questionIndex) => questionIndex === index ? { ...question, teacherExcluded: question.teacherExcluded !== true } : question));
   };
 
-  const removeQuestion = async (index) => {
+  const removeQuestion = (index) => {
     const question = questions[index];
     if (hasStudentData) {
-      const proceed = await confirmAction({
-        title: 'Throw this question out safely?',
-        message: 'Student records already exist, so the question stays at its original index and is only hidden from students and excluded from grading. That keeps existing responses lined up with the right questions.',
-        confirmLabel: 'Throw Out Safely',
-      });
-      if (!proceed) return;
+      if (!window.confirm('Student records already exist. This question will be excluded from student access and grading, but retained at its original index so existing data is not misaligned. Continue?')) return;
       setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, teacherExcluded: true } : item));
       return;
     }
-    const proceed = await confirmAction({
-      title: `Permanently remove Question ${index + 1}?`,
-      message: promptSummary(question).slice(0, 160),
-      confirmLabel: 'Remove',
-      tone: 'danger',
-    });
-    if (!proceed) return;
+    if (!window.confirm(`Permanently remove Question ${index + 1}: ${promptSummary(question).slice(0, 80)}?`)) return;
     setQuestions((current) => current.filter((_, itemIndex) => itemIndex !== index));
   };
 
@@ -105,15 +92,8 @@ export default function AssignmentQuestionEditor({ assignment, hasStudentData, o
     }
   };
 
-  const applyMetadataEdit = async (index, nextQuestion) => {
-    if (hasStudentData) {
-      const proceed = await confirmAction({
-        title: 'Recalculate existing mastery reports?',
-        message: 'Student records already exist. Changing TEKS, DOK, difficulty, purpose, or evidence weight will recalculate standards and mastery reports for responses students have already submitted.',
-        confirmLabel: 'Apply changes',
-      });
-      if (!proceed) return;
-    }
+  const applyMetadataEdit = (index, nextQuestion) => {
+    if (hasStudentData && !window.confirm('Student records already exist. Changing TEKS, DOK, difficulty, purpose, or evidence weight will recalculate standards/mastery reports for existing responses. Continue?')) return;
     setQuestions((current) => current.map((question, questionIndex) => questionIndex === index ? nextQuestion : question));
     setMetadataEditingIndex(null);
     setError('');

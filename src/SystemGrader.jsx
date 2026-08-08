@@ -8,10 +8,7 @@ import QuestionVisual from './QuestionVisual';
 import { compareOrderedPair, parseOrderedPair } from './answerUtils';
 
 export default function SystemGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
-  const { prompt, solution, showEquations = true, showGraph = true, graph } = question;
-  // Same null-vs-undefined trap as TableGrader: `= []` does not catch an
-  // explicit null, and this value is used via `.length` further down.
-  const equationsLatex = Array.isArray(question.equationsLatex) ? question.equationsLatex : [];
+  const { prompt, equationsLatex = [], solution, showEquations = true, showGraph = true, graph } = question;
   const [answer, setAnswer] = useLocalDraftState(draftKey ? `${draftKey}:system` : null, '');
   const parsed = parseOrderedPair(answer);
   const isComplete = Boolean(parsed);

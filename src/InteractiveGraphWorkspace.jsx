@@ -30,29 +30,11 @@ const PADDING = 56;
 const POINT_GUIDE_COLOR = '#00a6a6';
 const MARKER_SNAP_PIXELS = 82;
 
-// Matches GraphDisplay's cap. Guarding the step alone is not enough: a valid
-// step of 1 across a blueprint window of -1e9..1e9 is two billion iterations,
-// which hard-freezes the tab the student is working in.
-const MAX_TICKS = 200;
-
 const buildTicks = (minimum, maximum, step) => {
-  const min = Number(minimum);
-  const max = Number(maximum);
-  if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return [];
-
-  let safeStep = Number(step) > 0 ? Number(step) : 1;
-  const span = max - min;
-  if (span / safeStep > MAX_TICKS) safeStep = span / MAX_TICKS;
-  if (!Number.isFinite(safeStep) || safeStep <= 0) return [];
-
+  const safeStep = Number(step) > 0 ? Number(step) : 1;
   const ticks = [];
-  const first = Math.ceil(min / safeStep) * safeStep;
-  if (!Number.isFinite(first)) return [];
-
-  for (let value = first; value <= max + safeStep * 0.001; value += safeStep) {
-    ticks.push(Number(value.toFixed(6)));
-    if (ticks.length >= MAX_TICKS) break;
-  }
+  const first = Math.ceil(minimum / safeStep) * safeStep;
+  for (let value = first; value <= maximum + safeStep * 0.001; value += safeStep) ticks.push(Number(value.toFixed(6)));
   return ticks;
 };
 

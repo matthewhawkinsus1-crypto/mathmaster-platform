@@ -32,9 +32,3 @@ See `SCRATCHPAD_MULTIPART_UNDO_ARCHITECTURE.md` for the complete design and
 ## Google Classroom sync
 
 See [`docs/google-classroom-multi-course-setup.md`](docs/google-classroom-multi-course-setup.md) for the complete connection and testing guide. The integration can publish one MathMaster assignment to several Classroom courses, stores a separate publication and roster mapping per course, prevents duplicate re-publishing, and routes grade passback independently to each destination.
-
-## Administration
-
-`matthew.hawkins@desotoisd.org` is the server-pinned root administrator. The root account inherits the complete teacher workspace and receives an **Administration** tab for teacher authorization, student sign-in support, permanent student/data deletion, and the administrative audit trail. Ordinary teachers cannot grant other teachers or permanently erase student accounts.
-
-See [`docs/authentication.md`](docs/authentication.md) for deployment order and the full authority model.

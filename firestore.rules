@@ -10,12 +10,6 @@ service cloud.firestore {
       return signedIn() && request.auth.token.role == 'teacher';
     }
 
-    function rootAdmin() {
-      return teacher()
-        && request.auth.token.admin == true
-        && request.auth.token.rootAdmin == true;
-    }
-
     function ownsStudent(studentId) {
       return signedIn()
         && request.auth.token.role == 'student'
@@ -23,13 +17,11 @@ service cloud.firestore {
     }
 
     // Student work: students can read/update only their own document. Teachers
-    // can manage the roster. Permanent account deletion is never a client
-    // permission — even the root administrator must use the audited server
-    // callable that removes the student's complete cross-collection footprint.
+    // can manage the roster. Students cannot delete their permanent record.
     match /grades/{studentId} {
       allow read: if teacher() || ownsStudent(studentId);
       allow create, update: if teacher() || ownsStudent(studentId);
-      allow delete: if false;
+      allow delete: if teacher();
 
       match /scratchpads/{scratchpadId} {
         allow read: if teacher() || ownsStudent(studentId);
@@ -99,7 +91,6 @@ service cloud.firestore {
     match /studentAliases/{docId} { allow read, write: if false; }
     match /studentDirectory/{docId} { allow read, write: if false; }
     match /teacherDirectory/{docId} { allow read, write: if false; }
-    match /adminAuditLog/{docId} { allow read, write: if false; }
     match /classJoinCodes/{docId} { allow read, write: if false; }
     match /authThrottle/{docId} { allow read, write: if false; }
     match /activePathLocks/{docId} { allow read, write: if false; }

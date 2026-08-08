@@ -12,7 +12,6 @@ const round = (value, places = 1) => Number(Number(value || 0).toFixed(places));
 
 const DOK_WEIGHT = { 1: 0.9, 2: 1, 3: 1.1, 4: 1.15 };
 const CLASSIFICATION_WEIGHT = { readiness: 1.1, supporting: 1, content: 1, process: 0.45 };
-
 const EVIDENCE_LEVEL_WEIGHT = {
   introduced: 0.25,
   practiced: 0.6,
@@ -165,7 +164,6 @@ export const collectStudentEvidence = ({ student, assignments = [] } = {}) => {
           activityEvidenceType: weights.activityEvidenceType,
           gradeLevelWeight: weights.gradeLevelWeight,
           modifiedWeight: weights.modifiedWeight,
-          activityEvidenceWeight: weights.activityEvidenceWeight,
           credit: getQuestionCredit(record),
           percentCredit: Math.round(getQuestionCredit(record) * 100),
           totalAttempts: record.totalAttempts,
