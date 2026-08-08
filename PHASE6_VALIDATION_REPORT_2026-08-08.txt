@@ -1,0 +1,59 @@
+MathMaster Phase 6A-6D Reconciled Validation Report
+Date: 2026-08-08
+
+RESULT: PASS
+
+Automated regression suite
+  Command: node --test tests/tools/*.test.mjs tests/platform/*.test.mjs
+  Tests: 122
+  Passed: 122
+  Failed: 0
+
+Phase 6 integration coverage includes:
+  - public/private modeling-lab definition separation
+  - restricted server math/constraint evaluator
+  - distinct-trial lab telemetry and human-review signal
+  - lab-only Bundle V3 parsing and deep validation
+  - SAT 35/35/15/15 domain quota allocation
+  - canonical/display TEKS score projection equivalence
+  - evidence coverage reporting and ASVAB non-AFQT disclaimer
+  - ACT/TSIA2/ASVAB timing/calculator policy boundaries
+  - TSIA2 alternate Diagnostic Level 6 readiness pathway represented in projection metadata
+  - accommodation-array handling with explicit human confirmation for deviations
+  - secure-session payload redaction (answer keys, current item, bank IDs, correctness)
+  - retention-aware intervention tiering
+  - evidence-qualified readiness denominators
+  - unique-student support percentages
+  - translationLanguage-aware evidence-derived parent summary
+
+Production client build
+  Command: npm run build
+  Result: PASS
+  Vite transformed 1251 modules and produced the production bundle.
+  Advisory: Vite reports the existing main bundle is over its 500 kB chunk-size advisory threshold.
+
+Lint
+  Command: npm run lint
+  Result: PASS (exit 0)
+  Non-blocking warnings remain in the inherited codebase, primarily unused legacy variables and empty-spread style warnings.
+
+Cloud Functions syntax
+  Commands: node --check functions/index.js; node --check functions/lib/*.js
+  Result: PASS
+
+Security/reconciliation checks
+  - Modeling lab criteria are server-side; student payloads do not contain evaluation targets.
+  - No eval/new Function is used for lab mathematical expressions.
+  - Secure exam answer keys and private grading remain server-only.
+  - Browser exam responses are graded on the server.
+  - Secure exam drafts autosave through an authenticated callable; timeout/force-submit finalizes a saved open response.
+  - No default or client-side proctor PIN exists; privileged exam actions require teacher authentication.
+  - Unreleased secure-exam correctness is not returned to students and does not enter mastery evidence until teacher release.
+  - Firestore rules deny client access to exam runtime/internal collections.
+  - Accommodations use the existing array-shaped Phase 4 model; modifications remain separate.
+  - District/principal/parent showcase data is synthetic and does not imply production authorization roles.
+
+Known operational prerequisites / honest boundaries
+  - A standard web browser cannot provide OS-level kiosk/lockdown guarantees. Phase 6C is monitored secure web delivery, not a dedicated lockdown-browser replacement.
+  - Teachers must seed/review examQuestionBank content before secure sessions can issue real exam items.
+  - External exam policies can change; re-verify official test-owner rules before a future testing season.

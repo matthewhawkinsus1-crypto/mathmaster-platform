@@ -7,18 +7,20 @@ const TAB_LABELS = {
   classes: 'Class Schedule',
   grades: 'Grades',
   standards: 'TEKS & Mastery',
-  access: 'Sign-in Access',
+  analytics: 'Analytics',
+  exams: 'Secure Exams',
   classroom: 'Google Classroom',
+  access: 'Sign-in Access',
 };
 
-const TABS = ['home', 'assignments', 'library', 'students', 'classesWorkspace', 'classes', 'grades', 'standards', 'access', 'classroom'];
+const TABS = ['home', 'assignments', 'library', 'students', 'classesWorkspace', 'classes', 'grades', 'standards', 'analytics', 'exams', 'classroom', 'access'];
 
 // Purely presentational, controlled navigation rail. Owns no data of its
 // own — `App.jsx` still owns `teacherTab`/`sidebarCollapsed` state and is
 // responsible for any side effects (like resetting the gradebook filter)
 // that should run when the active tab changes; this component only reports
 // which tab was clicked.
-export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onToggleCollapsed }) {
+export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onToggleCollapsed, isRootAdmin = false }) {
   return (
     <nav
       aria-label="Teacher dashboard navigation"
@@ -57,7 +59,7 @@ export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onTo
       </button>
 
       {TABS.map((tab) => {
-        const label = TAB_LABELS[tab];
+        const label = tab === 'access' && isRootAdmin ? 'Administration' : TAB_LABELS[tab];
         const active = activeTab === tab;
         return (
           <button

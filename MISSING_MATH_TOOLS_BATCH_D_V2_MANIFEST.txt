@@ -1,0 +1,31 @@
+MATHMASTER MISSING MATH TOOLS — BATCH D V2 MANIFEST
+
+NEW FILES
+- src/tools/transformations/transformationsMath.js
+- src/tools/representationMatch/representationMath.js
+- src/tools/functionInvestigation2/functionInvestigationMath.js
+- src/tools/graphing2/graphingMath.js
+- tests/tools/batchDDeepening.test.mjs
+- SAMPLE_BATCH_D_DEEP_DIVE.json
+- MISSING_MATH_TOOLS_BATCH_D_V2_GUIDE.md
+- MISSING_MATH_TOOLS_BATCH_D_V2_VALIDATION_REPORT.txt
+- MISSING_MATH_TOOLS_BATCH_D_V2_MANIFEST.txt
+
+UPDATED FILES
+- src/tools/transformations/TransformationsLab.jsx
+- src/tools/representationMatch/RepresentationMatch.jsx
+- src/tools/functionInvestigation2/FunctionInvestigation2.jsx
+- src/tools/graphing2/Graphing2.jsx
+- src/tools/shared/toolMath.js
+- src/tools/toolSchemas.js
+- src/dev/MathToolsLab.jsx
+- MISSING_MATH_TOOLS_IMPLEMENTATION.md
+
+UNCHANGED INTEGRATION BOUNDARY
+- src/App.jsx
+- login/authentication files
+- src/firebase.js
+- Google Classroom files
+- functions authentication/Classroom files
+- assignment lifecycle wiring
+- My Math Path

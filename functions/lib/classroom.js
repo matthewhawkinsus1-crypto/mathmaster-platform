@@ -6,8 +6,9 @@ const {
   readPublicEnv,
 } = require("./config");
 
-// The broader app still does not have Firebase Authentication. Until teacher
-// auth is added, one connected Google teacher account is stored here.
+// Classroom OAuth currently uses one connected instructional Google account.
+// Firebase Authentication and role/admin authorization are enforced by the
+// callable layer before Classroom operations reach this helper.
 const TEACHER_INTEGRATION_DOC = "teacherIntegrations/default";
 
 const SCOPES = [

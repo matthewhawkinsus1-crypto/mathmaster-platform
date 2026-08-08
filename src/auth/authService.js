@@ -171,6 +171,10 @@ export const teacherAdmin = {
     callable('unlinkStudentAccount')({ studentId }).then((result) => result.data || {}),
   setTeacherAccess: (email, active) =>
     callable('setTeacherAccess')({ email, active }).then((result) => result.data || {}),
+  permanentlyDeleteStudent: (studentId, confirmation) =>
+    callable('permanentlyDeleteStudent')({ studentId, confirmation }).then((result) => result.data || {}),
+  listAdminAuditLog: (limit = 40) =>
+    callable('listAdminAuditLog')({ limit }).then((result) => result.data || {}),
 };
 
 export async function signOutSession() {

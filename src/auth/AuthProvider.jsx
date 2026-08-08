@@ -31,6 +31,8 @@ function toSession(firebaseUser, claims) {
     displayName: firebaseUser.displayName || claims.studentId || firebaseUser.email || 'MathMaster user',
     photoURL: firebaseUser.photoURL || null,
     classPeriod: null,
+    accessLevel: claims.rootAdmin === true ? 'rootAdmin' : claims.role,
+    isRootAdmin: claims.rootAdmin === true && claims.admin === true,
   };
 }
 
@@ -55,10 +57,11 @@ export function AuthProvider({ children }) {
     try {
       let { claims } = await firebaseUser.getIdTokenResult();
 
-      // A student signing in with ID + PIN already carries claims from the
-      // custom token. Anyone arriving through Google or a password needs the
-      // server to decide what they are.
-      if (!claims.role) {
+      // Student custom tokens already carry their identity. Teachers are
+      // intentionally re-resolved on session startup so an existing teacher
+      // token can receive a newly deployed root-admin claim and revoked staff
+      // access is never trusted merely because an older token says teacher.
+      if (!claims.role || claims.role === 'teacher') {
         const resolution = await resolveSignedInRole();
         if (resolution.needsLink) {
           setState({

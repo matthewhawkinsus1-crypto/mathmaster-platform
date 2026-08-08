@@ -15,7 +15,19 @@ export const emptyQuestionRecord = () => ({
   bestPartialCredit: 0,
   algebraState: null,
   partGrades: [],
-  supportUsage: { modified: false, accommodations: [], modifications: [], scaffoldUsed: false },
+  supportUsage: {
+    modified: false,
+    accommodations: [],
+    modifications: [],
+    hintUsed: false,
+    teacherAssisted: false,
+    scaffoldUsed: false,
+    contextScaffoldUsed: false,
+    remediationUsed: false,
+    workedExampleUsed: false,
+    calculatorUsed: false,
+    isMathematicallyIndependent: true,
+  },
 });
 
 const clampPercent = (value) =>
@@ -70,7 +82,19 @@ export const normalizeQuestionRecord = (record) => {
       modified: Boolean(record.supportUsage?.modified),
       accommodations: Array.isArray(record.supportUsage?.accommodations) ? record.supportUsage.accommodations.slice(0, 20) : [],
       modifications: Array.isArray(record.supportUsage?.modifications) ? record.supportUsage.modifications.slice(0, 20) : [],
+      hintUsed: Boolean(record.supportUsage?.hintUsed),
+      teacherAssisted: Boolean(record.supportUsage?.teacherAssisted),
       scaffoldUsed: Boolean(record.supportUsage?.scaffoldUsed),
+      contextScaffoldUsed: Boolean(record.supportUsage?.contextScaffoldUsed),
+      remediationUsed: Boolean(record.supportUsage?.remediationUsed),
+      workedExampleUsed: Boolean(record.supportUsage?.workedExampleUsed),
+      calculatorUsed: Boolean(record.supportUsage?.calculatorUsed),
+      isMathematicallyIndependent: record.supportUsage?.isMathematicallyIndependent !== false
+        && !record.supportUsage?.hintUsed
+        && !record.supportUsage?.teacherAssisted
+        && !record.supportUsage?.scaffoldUsed
+        && !record.supportUsage?.remediationUsed
+        && !record.supportUsage?.workedExampleUsed,
     },
   };
 };
@@ -173,7 +197,19 @@ export const recordQuestionStep = ({
       modified: Boolean(supportUsage.modified),
       accommodations: Array.isArray(supportUsage.accommodations) ? supportUsage.accommodations.slice(0, 20) : [],
       modifications: Array.isArray(supportUsage.modifications) ? supportUsage.modifications.slice(0, 20) : [],
+      hintUsed: Boolean(supportUsage.hintUsed),
+      teacherAssisted: Boolean(supportUsage.teacherAssisted),
       scaffoldUsed: Boolean(supportUsage.scaffoldUsed),
+      contextScaffoldUsed: Boolean(supportUsage.contextScaffoldUsed),
+      remediationUsed: Boolean(supportUsage.remediationUsed),
+      workedExampleUsed: Boolean(supportUsage.workedExampleUsed),
+      calculatorUsed: Boolean(supportUsage.calculatorUsed),
+      isMathematicallyIndependent: supportUsage.isMathematicallyIndependent !== false
+        && !supportUsage.hintUsed
+        && !supportUsage.teacherAssisted
+        && !supportUsage.scaffoldUsed
+        && !supportUsage.remediationUsed
+        && !supportUsage.workedExampleUsed,
     } : current.supportUsage,
     lastAttemptAt: new Date().toISOString(),
   };
@@ -197,6 +233,7 @@ export const recordQuestionAttempt = ({
   parts = [],
   supportUsage = null,
   responseKey = '',
+  partialCreditPercent = null,
   maximumAttempts = MAX_ATTEMPTS_PER_QUESTION,
 }) => {
   const current = normalizeQuestionRecord(record);
@@ -243,10 +280,13 @@ export const recordQuestionAttempt = ({
   const earnedPartPercent = compactParts.length
     ? Math.min(90, Math.round((correctParts.length / compactParts.length) * 100))
     : 0;
+  const suppliedPartialPercent = partialCreditPercent === null || partialCreditPercent === undefined
+    ? 0
+    : Math.min(90, clampPercent(partialCreditPercent));
   const attemptCount = Math.min(maximumAttempts, current.attemptCount + 1);
   const expired = !isCorrect && attemptCount >= maximumAttempts;
   const status = isCorrect ? 'correct' : expired ? 'expired' : 'attempted';
-  const partialCredit = isCorrect ? 100 : Math.max(current.partialCredit, earnedPartPercent);
+  const partialCredit = isCorrect ? 100 : Math.max(current.partialCredit, earnedPartPercent, suppliedPartialPercent);
   const nextRecord = {
     ...current,
     status,
@@ -262,7 +302,19 @@ export const recordQuestionAttempt = ({
       modified: Boolean(supportUsage.modified),
       accommodations: Array.isArray(supportUsage.accommodations) ? supportUsage.accommodations.slice(0, 20) : [],
       modifications: Array.isArray(supportUsage.modifications) ? supportUsage.modifications.slice(0, 20) : [],
+      hintUsed: Boolean(supportUsage.hintUsed),
+      teacherAssisted: Boolean(supportUsage.teacherAssisted),
       scaffoldUsed: Boolean(supportUsage.scaffoldUsed),
+      contextScaffoldUsed: Boolean(supportUsage.contextScaffoldUsed),
+      remediationUsed: Boolean(supportUsage.remediationUsed),
+      workedExampleUsed: Boolean(supportUsage.workedExampleUsed),
+      calculatorUsed: Boolean(supportUsage.calculatorUsed),
+      isMathematicallyIndependent: supportUsage.isMathematicallyIndependent !== false
+        && !supportUsage.hintUsed
+        && !supportUsage.teacherAssisted
+        && !supportUsage.scaffoldUsed
+        && !supportUsage.remediationUsed
+        && !supportUsage.workedExampleUsed,
     } : current.supportUsage,
     lastAttemptAt: new Date().toISOString(),
   };

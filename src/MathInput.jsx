@@ -13,6 +13,15 @@ const BASIC_KEYS = [
   { label: 'a⁄b', command: '\\frac{#0}{#?}', ariaLabel: 'Insert stacked fraction' },
 ];
 
+const MOBILE_ENTRY_KEYS = [
+  ...['7', '8', '9', '4', '5', '6', '1', '2', '3', '0'].map((label) => ({ label, command: label, ariaLabel: `Insert ${label}` })),
+  { label: '.', command: '.', ariaLabel: 'Insert decimal point' },
+  { label: '−', command: '-', ariaLabel: 'Insert negative sign' },
+  { label: '+', command: '+', ariaLabel: 'Insert plus sign' },
+  { label: '=', command: '=', ariaLabel: 'Insert equals sign' },
+  { label: '⌫', action: 'deleteBackward', ariaLabel: 'Delete previous character' },
+];
+
 const INTERVAL_KEYS = [
   { label: '(', command: '(', ariaLabel: 'Insert open parenthesis' },
   { label: ')', command: ')', ariaLabel: 'Insert close parenthesis' },
@@ -44,6 +53,8 @@ const getToolKeys = (profile) => {
   return BASIC_KEYS;
 };
 
+const detectMobileInput = () => typeof window !== 'undefined' && (window.innerWidth <= 768 || window.matchMedia?.('(pointer: coarse)')?.matches === true);
+
 export default function MathInput({
   value,
   onChange,
@@ -57,7 +68,19 @@ export default function MathInput({
   const mfRef = useRef(null);
   const onChangeRef = useRef(onChange);
   const [showTools, setShowTools] = useState(showToolsInitially);
-  const tools = useMemo(() => getToolKeys(toolProfile), [toolProfile]);
+  const [isMobile, setIsMobile] = useState(detectMobileInput);
+  const tools = useMemo(() => (isMobile ? [...MOBILE_ENTRY_KEYS, ...getToolKeys(toolProfile)] : getToolKeys(toolProfile)), [toolProfile, isMobile]);
+
+  useEffect(() => {
+    const update = () => setIsMobile(detectMobileInput());
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('orientationchange', update);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('orientationchange', update);
+    };
+  }, []);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -68,6 +91,8 @@ export default function MathInput({
     if (!mathField) return undefined;
 
     mathField.mathVirtualKeyboardPolicy = 'manual';
+    if (isMobile) mathField.setAttribute('inputmode', 'none');
+    else mathField.removeAttribute('inputmode');
     mathField.menuItems = [];
     mathField.smartFence = true;
     mathField.smartSuperscript = true;
@@ -93,7 +118,7 @@ export default function MathInput({
       mathField.removeEventListener('keydown', preventUnusedModes, { capture: true });
       mathField.removeEventListener('contextmenu', preventContextMenu);
     };
-  }, [placeholder]);
+  }, [placeholder, isMobile]);
 
   useEffect(() => {
     if (mfRef.current && mfRef.current.value !== value) mfRef.current.value = value || '';
@@ -116,10 +141,15 @@ export default function MathInput({
     return () => onUndoStateChange?.(null);
   }, [value, undo, onUndoStateChange]);
 
-  const insert = useCallback((command) => {
+  const insert = useCallback((command, action = null) => {
     const mathField = mfRef.current;
     if (!mathField) return;
     mathField.focus();
+    if (action) {
+      mathField.executeCommand?.(action);
+      onChangeRef.current(mathField.value);
+      return;
+    }
     mathField.insert(command, {
       insertionMode: 'replaceSelection',
       selectionMode: /#0|#\?/.test(command) ? 'placeholder' : 'after',
@@ -134,11 +164,13 @@ export default function MathInput({
       : '#1a73e8';
 
   return (
-    <div style={{ width: 'min(100%, 540px)', margin: '0 auto' }}>
+    <div className="mathmaster-math-input" style={{ width: 'min(100%, 540px)', margin: '0 auto' }}>
       <math-field
         ref={mfRef}
         aria-label={ariaLabel || placeholder || 'Math answer'}
         math-virtual-keyboard-policy="manual"
+        inputmode={isMobile ? 'none' : undefined}
+        onFocus={() => { if (isMobile) setShowTools(true); }}
         style={{
           display: 'block',
           width: '100%',
@@ -173,6 +205,7 @@ export default function MathInput({
 
       {showTools && (
         <div
+          className="mathmaster-math-input-tools"
           aria-label="Math tools"
           style={{
             display: 'grid',
@@ -191,7 +224,8 @@ export default function MathInput({
               key={`${toolProfile}-${tool.ariaLabel}`}
               aria-label={tool.ariaLabel}
               title={tool.ariaLabel}
-              onClick={() => insert(tool.command)}
+              onPointerDown={(event) => event.preventDefault()}
+              onClick={() => insert(tool.command, tool.action)}
               style={{
                 minHeight: '44px',
                 border: '1px solid #b8c8df',

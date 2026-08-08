@@ -1,9 +1,9 @@
 const crypto = require("crypto");
 const { initializeApp } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
-const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+const { getFirestore, FieldPath, FieldValue } = require("firebase-admin/firestore");
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
-const { onDocumentWritten } = require("firebase-functions/v2/firestore");
+const { onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/firestore");
 const logger = require("firebase-functions/logger");
 
 const classroomLib = require("./lib/classroom");
@@ -24,6 +24,15 @@ const {
   publicationMarker,
 } = require("./lib/publication");
 const authLib = require("./lib/auth");
+const {
+  assignmentUsesTeacherReleasePolicy,
+  assignmentFeedbackWasReleased,
+  assignmentFeedbackIsHeld,
+} = require("./lib/activityFeedback");
+const mathPath = require("./lib/mathPath");
+const labEvaluation = require("./lib/labEvaluation");
+const secureExam = require("./lib/secureExam");
+const adminPolicy = require("./lib/admin");
 
 initializeApp();
 
@@ -134,16 +143,56 @@ async function requireTeacher(request) {
   return request.auth.uid;
 }
 
+function requireRootAdmin(request) {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Sign in before making this administrative change.");
+  }
+  const email = callerEmail(request);
+  const token = request.auth.token || {};
+  if (
+    token.role !== "teacher"
+    || token.rootAdmin !== true
+    || token.admin !== true
+    || !authLib.isRootAdminEmail(email)
+  ) {
+    throw new HttpsError("permission-denied", "This action is restricted to the MathMaster root administrator.");
+  }
+  return { uid: request.auth.uid, email };
+}
+
+function requireStudent(request) {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Sign in before starting My Math Path.");
+  }
+  const token = request.auth.token || {};
+  if (token.role !== "student" || !token.studentId) {
+    throw new HttpsError("permission-denied", "My Math Path practice is available to signed-in students.");
+  }
+  return { uid: request.auth.uid, studentId: String(token.studentId) };
+}
+
 /** True when this email may hold the teacher role right now. */
 async function isAuthorizedTeacher(db, email) {
   if (!email) return false;
-  if (authLib.bootstrapTeacherEmails().includes(email)) return true;
+  if (authLib.isRootAdminEmail(email)) return true;
   const snapshot = await db.collection(authLib.TEACHER_COLLECTION).doc(email).get();
-  return snapshot.exists && snapshot.data()?.active !== false;
+  if (snapshot.exists) return snapshot.data()?.active !== false;
+  return authLib.bootstrapTeacherEmails().includes(email);
 }
 
 async function assignClaims(uid, claims) {
   await getAuth().setCustomUserClaims(uid, claims);
+}
+
+async function writeAdminAudit(db, actor, action, target, details = {}) {
+  await db.collection(authLib.ADMIN_AUDIT_COLLECTION).add({
+    actorUid: actor.uid,
+    actorEmail: actor.email,
+    action,
+    target,
+    details,
+    createdAt: FieldValue.serverTimestamp(),
+  });
 }
 
 /** Creates the `grades` document a student's whole dashboard hangs off of. */
@@ -220,12 +269,28 @@ exports.resolveSignedInRole = onCall(async (request) => {
   const email = callerEmail(request);
 
   if (await isAuthorizedTeacher(db, email)) {
-    if (token.role !== "teacher") await assignClaims(uid, { role: "teacher" });
+    const isRootAdmin = authLib.isRootAdminEmail(email);
+    const nextClaims = isRootAdmin
+      ? { role: "teacher", admin: true, rootAdmin: true }
+      : { role: "teacher" };
+    if (
+      token.role !== "teacher"
+      || Boolean(token.admin) !== isRootAdmin
+      || Boolean(token.rootAdmin) !== isRootAdmin
+    ) {
+      await assignClaims(uid, nextClaims);
+    }
     await db.collection(authLib.TEACHER_COLLECTION).doc(email).set(
-      { email, active: true, lastSignInAt: FieldValue.serverTimestamp(), uid },
+      {
+        email,
+        active: true,
+        accessLevel: isRootAdmin ? "rootAdmin" : "teacher",
+        lastSignInAt: FieldValue.serverTimestamp(),
+        uid,
+      },
       { merge: true },
     );
-    return { role: "teacher", email };
+    return { role: "teacher", email, accessLevel: isRootAdmin ? "rootAdmin" : "teacher", rootAdmin: isRootAdmin };
   }
 
   if (email) {
@@ -526,6 +591,8 @@ exports.listClassJoinCodes = onCall(async (request) => {
 exports.listSignInAccess = onCall(async (request) => {
   await requireTeacher(request);
   const db = getFirestore();
+  const isRootAdmin = request.auth?.token?.rootAdmin === true
+    && authLib.isRootAdminEmail(callerEmail(request));
 
   const [roster, credentials, directory, aliases, teachers] = await Promise.all([
     // Only these two fields — the rest of a grades document is the student's
@@ -571,17 +638,32 @@ exports.listSignInAccess = onCall(async (request) => {
 
   return {
     students,
-    teachers: teachers.docs.map((teacherDoc) => ({
-      email: teacherDoc.id,
-      active: teacherDoc.data()?.active !== false,
-    })),
-    bootstrapTeachers: authLib.bootstrapTeacherEmails(),
+    authority: {
+      accessLevel: isRootAdmin ? "rootAdmin" : "teacher",
+      isRootAdmin,
+      email: callerEmail(request),
+    },
+    teachers: isRootAdmin ? teachers.docs.map((teacherDoc) => {
+      const data = teacherDoc.data() || {};
+      return {
+        email: teacherDoc.id,
+        active: data.active !== false,
+        accessLevel: authLib.isRootAdminEmail(teacherDoc.id) ? "rootAdmin" : "teacher",
+        hasSignedIn: Boolean(data.uid),
+        lastSignInAt: serializableDate(data.lastSignInAt),
+      };
+    }).sort((a, b) => {
+      if (a.accessLevel === "rootAdmin") return -1;
+      if (b.accessLevel === "rootAdmin") return 1;
+      return a.email.localeCompare(b.email);
+    }) : [],
+    bootstrapTeachers: isRootAdmin ? authLib.bootstrapTeacherEmails() : [],
   };
 });
 
-/** Teacher action: grant or revoke another teacher's access. */
+/** Root-admin action: grant or revoke an ordinary teacher's access. */
 exports.setTeacherAccess = onCall(async (request) => {
-  await requireTeacher(request);
+  const actor = requireRootAdmin(request);
   const db = getFirestore();
 
   let email;
@@ -592,25 +674,241 @@ exports.setTeacherAccess = onCall(async (request) => {
   }
   const active = request.data?.active !== false;
 
-  const ref = db.collection(authLib.TEACHER_COLLECTION).doc(email);
-  await ref.set({ email, active, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-
-  if (!active) {
-    const uid = (await ref.get()).data()?.uid;
-    if (uid) await assignClaims(uid, {}).catch(() => {});
+  if (authLib.isRootAdminEmail(email)) {
+    throw new HttpsError("failed-precondition", "The root administrator cannot be revoked or changed from the teacher access list.");
   }
+
+  const ref = db.collection(authLib.TEACHER_COLLECTION).doc(email);
+  const existing = await ref.get();
+  const uid = existing.data()?.uid || null;
+
+  if (uid) {
+    if (active) {
+      await getAuth().updateUser(uid, { disabled: false });
+      await assignClaims(uid, { role: "teacher" });
+    } else {
+      // Disabling the Firebase user closes the gap in which an already-issued
+      // teacher token could otherwise retain access until its normal expiry.
+      await getAuth().updateUser(uid, { disabled: true });
+      await assignClaims(uid, {}).catch(() => {});
+      await getAuth().revokeRefreshTokens(uid).catch(() => {});
+    }
+  }
+
+  await ref.set({
+    email,
+    active,
+    accessLevel: "teacher",
+    updatedAt: FieldValue.serverTimestamp(),
+    updatedBy: actor.uid,
+  }, { merge: true });
+  await writeAdminAudit(db, actor, active ? "teacher_access_granted" : "teacher_access_revoked", email, {
+    existingAccount: existing.exists,
+    hasSignedIn: Boolean(uid),
+  });
 
   return { email, active };
 });
 
+async function recursiveDeleteDocument(db, ref, deleted, label) {
+  const snapshot = await ref.get();
+  if (!snapshot.exists) return 0;
+  await db.recursiveDelete(ref);
+  deleted[label] = Number(deleted[label] || 0) + 1;
+  return 1;
+}
+
+async function recursiveDeleteQuery(db, query, deleted, label) {
+  const snapshot = await query.get();
+  for (const documentSnapshot of snapshot.docs) {
+    // Sequential recursive deletion avoids turning one large student history
+    // into an unbounded burst of writes. Student deletion is rare and explicit.
+    // eslint-disable-next-line no-await-in-loop
+    await db.recursiveDelete(documentSnapshot.ref);
+  }
+  if (snapshot.size) deleted[label] = Number(deleted[label] || 0) + snapshot.size;
+  return snapshot.docs;
+}
+
+/** Root-admin view of recent privileged account-management actions. */
+exports.listAdminAuditLog = onCall(async (request) => {
+  requireRootAdmin(request);
+  const limit = Math.max(1, Math.min(100, Number(request.data?.limit) || 40));
+  const snapshot = await getFirestore()
+    .collection(authLib.ADMIN_AUDIT_COLLECTION)
+    .orderBy("createdAt", "desc")
+    .limit(limit)
+    .get();
+  return {
+    events: snapshot.docs.map((eventDoc) => {
+      const data = eventDoc.data() || {};
+      return {
+        id: eventDoc.id,
+        actorEmail: data.actorEmail || null,
+        action: data.action || "administrative_action",
+        target: data.target || null,
+        details: data.details || {},
+        createdAt: serializableDate(data.createdAt),
+      };
+    }),
+  };
+});
+
+/**
+ * Root-admin-only permanent student erasure.
+ *
+ * This intentionally lives behind a callable instead of Firestore delete
+ * rules. The browser never receives authority to recursively erase records;
+ * the server resolves every MathMaster collection that can contain student
+ * identity, assessment, practice, evidence, or Classroom-link data.
+ */
+exports.permanentlyDeleteStudent = onCall(async (request) => {
+  const actor = requireRootAdmin(request);
+  const db = getFirestore();
+
+  let studentId;
+  let studentKey;
+  try {
+    studentId = authLib.normalizeStudentId(request.data?.studentId);
+    studentKey = authLib.studentIdKey(studentId);
+  } catch (error) {
+    throw translateAuthError(error);
+  }
+  if (studentId === "test_connection") {
+    throw new HttpsError("failed-precondition", "The connection-test record is not a student account.");
+  }
+  if (!adminPolicy.isPermanentDeleteConfirmed(studentId, request.data?.confirmation)) {
+    throw new HttpsError(
+      "failed-precondition",
+      `Permanent deletion requires the exact confirmation ${adminPolicy.permanentDeleteConfirmation(studentId)}.`,
+    );
+  }
+
+  const rosterRef = db.collection("grades").doc(studentId);
+  const [rosterSnapshot, directorySnapshot, aliasSnapshot] = await Promise.all([
+    rosterRef.get(),
+    db.collection(authLib.DIRECTORY_COLLECTION).where("studentId", "==", studentId).get(),
+    db.collection(authLib.ALIAS_COLLECTION).where("studentId", "==", studentId).get(),
+  ]);
+  if (!rosterSnapshot.exists && directorySnapshot.empty && aliasSnapshot.empty) {
+    throw new HttpsError("not-found", "That student account is not present in MathMaster.");
+  }
+
+  // Resolve every Firebase Auth identity attached to this MathMaster student.
+  // A teacher/root identity is never deleted even if bad legacy data linked it
+  // to a student record.
+  const authUids = new Set([`student:${studentKey}`]);
+  const linkedEmails = new Set(
+    [rosterSnapshot.data()?.linkedEmail, ...directorySnapshot.docs.map((entry) => entry.id)]
+      .filter(Boolean)
+      .map((email) => String(email).trim().toLowerCase()),
+  );
+  directorySnapshot.docs.forEach((entry) => {
+    if (entry.data()?.uid) authUids.add(entry.data().uid);
+  });
+
+  for (const email of linkedEmails) {
+    // eslint-disable-next-line no-await-in-loop
+    const teacherDirectory = await db.collection(authLib.TEACHER_COLLECTION).doc(email).get();
+    const protectedTeacher = teacherDirectory.exists
+      || authLib.isRootAdminEmail(email)
+      || authLib.bootstrapTeacherEmails().includes(email);
+    if (protectedTeacher) {
+      directorySnapshot.docs
+        .filter((entry) => entry.id === email && entry.data()?.uid)
+        .forEach((entry) => authUids.delete(entry.data().uid));
+      continue;
+    }
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const authUser = await getAuth().getUserByEmail(email);
+      authUids.add(authUser.uid);
+    } catch (error) {
+      if (error?.code !== "auth/user-not-found") throw error;
+    }
+  }
+
+  let deletedAuthUsers = 0;
+  for (const uid of authUids) {
+    try {
+      // Revoke before delete so a partially failed operation never leaves a
+      // valid refresh token for an account that is being erased.
+      // eslint-disable-next-line no-await-in-loop
+      await getAuth().revokeRefreshTokens(uid).catch(() => {});
+      // eslint-disable-next-line no-await-in-loop
+      await getAuth().deleteUser(uid);
+      deletedAuthUsers += 1;
+    } catch (error) {
+      if (error?.code !== "auth/user-not-found") throw error;
+    }
+  }
+
+  const deleted = {};
+
+  // Parent deletion is recursive: scratchpads and immutable evidence events
+  // disappear with the grade/roster document.
+  await recursiveDeleteDocument(db, rosterRef, deleted, "gradesWithSubcollections");
+
+  await Promise.all([
+    recursiveDeleteDocument(db, db.collection(authLib.CREDENTIALS_COLLECTION).doc(studentKey), deleted, "studentCredentials"),
+    recursiveDeleteDocument(db, db.collection(authLib.ALIAS_COLLECTION).doc(studentKey), deleted, "studentAliases"),
+    recursiveDeleteDocument(db, db.collection(authLib.THROTTLE_COLLECTION).doc(`student_${studentKey}`), deleted, "authThrottle"),
+  ]);
+
+  await recursiveDeleteQuery(
+    db,
+    db.collection(authLib.DIRECTORY_COLLECTION).where("studentId", "==", studentId),
+    deleted,
+    "studentDirectory",
+  );
+  await recursiveDeleteQuery(
+    db,
+    db.collection(authLib.ALIAS_COLLECTION).where("studentId", "==", studentId),
+    deleted,
+    "studentAliases",
+  );
+
+  for (const collectionName of adminPolicy.STUDENT_DIRECT_COLLECTIONS) {
+    // eslint-disable-next-line no-await-in-loop
+    await recursiveDeleteDocument(db, db.collection(collectionName).doc(studentId), deleted, collectionName);
+  }
+  for (const collectionName of adminPolicy.STUDENT_QUERY_COLLECTIONS) {
+    // eslint-disable-next-line no-await-in-loop
+    await recursiveDeleteQuery(
+      db,
+      db.collection(collectionName).where("studentId", "==", studentId),
+      deleted,
+      collectionName,
+    );
+  }
+
+  // Preserve accountability without retaining the deleted student's ID in the
+  // audit collection. The short irreversible digest is only a deletion receipt.
+  const receipt = crypto.createHash("sha256").update(studentKey).digest("hex").slice(0, 16);
+  await writeAdminAudit(db, actor, "student_permanently_deleted", `deleted-student:${receipt}`, {
+    deletedAuthUsers,
+    deletedRecords: deleted,
+  });
+
+  return {
+    success: true,
+    studentId,
+    deletedAuthUsers,
+    deletedRecords: deleted,
+    receipt,
+  };
+});
+
 // --- OAuth connect flow -----------------------------------------------------
 
-exports.getGoogleAuthUrl = onCall({ secrets: GOOGLE_API_SECRETS }, async () => {
+exports.getGoogleAuthUrl = onCall({ secrets: GOOGLE_API_SECRETS }, async (request) => {
+  const teacherUid = await requireTeacher(request);
   const db = getFirestore();
   const state = crypto.randomBytes(16).toString("hex");
   await db.doc(`oauthStates/${state}`).set({
     createdAt: FieldValue.serverTimestamp(),
     expiresAt: Date.now() + 10 * 60 * 1000,
+    createdBy: teacherUid,
   });
   return { url: classroomLib.buildAuthUrl(state) };
 });
@@ -647,13 +945,15 @@ exports.oauthCallback = onRequest({ secrets: GOOGLE_API_SECRETS }, async (req, r
   }
 });
 
-exports.getClassroomConnectionStatus = onCall(async () => ({
-  connected: await classroomLib.isConnected(),
-}));
+exports.getClassroomConnectionStatus = onCall(async (request) => {
+  await requireTeacher(request);
+  return { connected: await classroomLib.isConnected() };
+});
 
 exports.getGoogleClassroomDiagnostics = onCall(
   { secrets: GOOGLE_AND_LINK_SECRETS },
-  async () => {
+  async (request) => {
+    await requireTeacher(request);
     const problems = [];
     const checks = {};
 
@@ -728,12 +1028,14 @@ exports.getGoogleClassroomDiagnostics = onCall(
 
 // --- Courses and course-specific roster links -------------------------------
 
-exports.listGoogleCourses = onCall({ secrets: GOOGLE_API_SECRETS }, async () => {
+exports.listGoogleCourses = onCall({ secrets: GOOGLE_API_SECRETS }, async (request) => {
+  await requireTeacher(request);
   const classroom = await classroomLib.getClassroomClient();
   return { courses: await classroomLib.listCourses(classroom) };
 });
 
 exports.listClassroomStudents = onCall({ secrets: GOOGLE_API_SECRETS }, async (request) => {
+  await requireTeacher(request);
   const { courseId } = request.data || {};
   if (!courseId) throw new HttpsError("invalid-argument", "courseId is required.");
   const classroom = await classroomLib.getClassroomClient();
@@ -741,6 +1043,7 @@ exports.listClassroomStudents = onCall({ secrets: GOOGLE_API_SECRETS }, async (r
 });
 
 exports.linkStudentToClassroom = onCall(async (request) => {
+  await requireTeacher(request);
   const { courseId, studentId, googleUserId, email, name } = request.data || {};
   if (!courseId || !studentId || !googleUserId) {
     throw new HttpsError(
@@ -998,6 +1301,7 @@ async function publishOneCourse({
 }
 
 async function publishAssignmentBatch(request) {
+  await requireTeacher(request);
   const { assignmentId, materials } = request.data || {};
   const rawCourseIds = request.data?.courseIds ||
     (request.data?.courseId ? [request.data.courseId] : []);
@@ -1091,7 +1395,8 @@ exports.publishAssignmentToClassroom = onCall(
   }
 );
 
-exports.listPublishedAssignments = onCall(async () => {
+exports.listPublishedAssignments = onCall(async (request) => {
+  await requireTeacher(request);
   const db = getFirestore();
   const snap = await db.collection("classroomLinks").limit(250).get();
   const links = snap.docs
@@ -1170,11 +1475,22 @@ exports.syncGradeToClassroom = onDocumentWritten(
     const beforeData = event.data?.before?.exists ? event.data.before.data() : {};
     const afterByAssignment = afterData.gradesByAssignment || {};
     const beforeByAssignment = beforeData.gradesByAssignment || {};
-    const changedAssignmentIds = Object.keys(afterByAssignment).filter(
+    const gradeChangedAssignmentIds = Object.keys(afterByAssignment).filter(
       (assignmentId) =>
         JSON.stringify(afterByAssignment[assignmentId]) !==
         JSON.stringify(beforeByAssignment[assignmentId])
     );
+    const afterReleaseSignals = afterData.classroomReleaseSignals || {};
+    const beforeReleaseSignals = beforeData.classroomReleaseSignals || {};
+    const releaseSignaledAssignmentIds = Object.keys(afterReleaseSignals).filter(
+      (assignmentId) =>
+        JSON.stringify(afterReleaseSignals[assignmentId]) !==
+        JSON.stringify(beforeReleaseSignals[assignmentId])
+    );
+    const changedAssignmentIds = [...new Set([
+      ...gradeChangedAssignmentIds,
+      ...releaseSignaledAssignmentIds,
+    ])];
     if (changedAssignmentIds.length === 0) return;
 
     const db = getFirestore();
@@ -1182,8 +1498,10 @@ exports.syncGradeToClassroom = onDocumentWritten(
 
     for (const assignmentId of changedAssignmentIds) {
       const assignmentSnap = await db.doc(`assignments/${assignmentId}`).get();
+      const assignment = assignmentSnap.exists ? assignmentSnap.data() : {};
+      if (assignmentFeedbackIsHeld(assignment)) continue;
       const questionCount = assignmentSnap.exists
-        ? (assignmentSnap.data().questions || []).length
+        ? (assignment.questions || []).length
         : 0;
       const assignmentTracker = afterByAssignment[assignmentId];
       if (!isAssignmentComplete(assignmentTracker, questionCount)) continue;
@@ -1285,4 +1603,855 @@ exports.syncGradeToClassroom = onDocumentWritten(
       }
     }
   }
+);
+
+// Quiz/Test grade writes happen as students work, but the central activity
+// policy keeps correctness and grades private until the teacher releases them.
+// When release flips on, signal the existing grade trigger for every student
+// who has this assignment so Classroom passback happens exactly then.
+exports.queueReleasedAssessmentGrades = onDocumentWritten(
+  { document: "assignments/{assignmentId}" },
+  async (event) => {
+    const after = event.data?.after;
+    if (!after || !after.exists) return;
+    const assignment = after.data() || {};
+    const before = event.data?.before?.exists ? event.data.before.data() : {};
+    if (!assignmentUsesTeacherReleasePolicy(assignment)) return;
+    if (!assignmentFeedbackWasReleased(assignment) || assignmentFeedbackWasReleased(before)) return;
+
+    const assignmentId = event.params.assignmentId;
+    const db = getFirestore();
+    const gradesSnap = await db.collection("grades").get();
+    const targets = gradesSnap.docs.filter((gradeDoc) => (
+      gradeDoc.data()?.gradesByAssignment?.[assignmentId] != null
+    ));
+
+    for (let offset = 0; offset < targets.length; offset += 400) {
+      const batch = db.batch();
+      targets.slice(offset, offset + 400).forEach((gradeDoc) => {
+        batch.update(
+          gradeDoc.ref,
+          new FieldPath("classroomReleaseSignals", assignmentId),
+          FieldValue.serverTimestamp()
+        );
+      });
+      await batch.commit();
+    }
+    logger.info(`Queued released assessment grade passback for ${targets.length} student record(s) on assignment ${assignmentId}.`);
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Phase 5D: secure My Math Path production seam
+// ---------------------------------------------------------------------------
+
+function publicPathSession(session = {}) {
+  const { currentQuestion, ...safe } = session;
+  return {
+    ...safe,
+    hasOpenQuestion: Boolean(currentQuestion),
+  };
+}
+
+function pathSessionRequiredQuestions(sessionKind, requested) {
+  if (sessionKind === "retentionProbe") return 2;
+  return Math.max(2, Math.min(10, Number(requested) || 5));
+}
+
+/** Start or resume one server-owned learning-path session for a TEKS target. */
+exports.startMyMathPathSession = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const targetAlignmentKey = mathPath.canonicalAlignmentKey(request.data?.targetAlignmentKey);
+  if (!targetAlignmentKey) throw new HttpsError("invalid-argument", "targetAlignmentKey is required.");
+  const sessionKind = request.data?.sessionKind === "retentionProbe" ? "retentionProbe" : "practice";
+  const requiredQuestions = pathSessionRequiredQuestions(sessionKind, request.data?.requiredQuestions);
+  const db = getFirestore();
+  const lockId = mathPath.opaqueId("pathlock", studentId, targetAlignmentKey);
+  const lockRef = db.collection("activePathLocks").doc(lockId);
+  const proposedSessionRef = db.collection("pathSessions").doc();
+
+  const session = await db.runTransaction(async (transaction) => {
+    const lock = await transaction.get(lockRef);
+    if (lock.exists && lock.data()?.sessionId) {
+      const existingRef = db.collection("pathSessions").doc(lock.data().sessionId);
+      const existing = await transaction.get(existingRef);
+      if (existing.exists && existing.data()?.status === "active" && existing.data()?.studentId === studentId) {
+        if (existing.data()?.sessionKind !== sessionKind) {
+          throw new HttpsError("failed-precondition", "Finish the active session for this TEKS before starting a different check.");
+        }
+        return existing.data();
+      }
+    }
+
+    const now = Date.now();
+    const next = {
+      sessionId: proposedSessionRef.id,
+      studentId,
+      status: "active",
+      sessionKind,
+      requiredQuestions,
+      target: { alignmentKey: targetAlignmentKey },
+      summary: { completedQuestions: 0, correctQuestions: 0, independentSuccesses: 0 },
+      pathState: { counters: { questionsThisSession: 0 } },
+      currentQuestion: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    transaction.set(proposedSessionRef, next);
+    transaction.set(lockRef, { sessionId: proposedSessionRef.id, studentId, targetAlignmentKey, sessionKind, updatedAt: now });
+    return next;
+  });
+
+  return { success: true, session: publicPathSession(session) };
+});
+
+/** Issue only a sanitized question payload. Expected answers remain server-side. */
+exports.issueNextQuestion = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const sessionId = String(request.data?.sessionId || "").trim();
+  if (!sessionId) throw new HttpsError("invalid-argument", "sessionId is required.");
+  const db = getFirestore();
+  const sessionRef = db.collection("pathSessions").doc(sessionId);
+  const sessionSnapshot = await sessionRef.get();
+  if (!sessionSnapshot.exists || sessionSnapshot.data()?.studentId !== studentId) throw new HttpsError("not-found", "That My Math Path session is not available.");
+  const session = sessionSnapshot.data();
+  if (session.status !== "active") throw new HttpsError("failed-precondition", "This My Math Path session is already complete.");
+  if (session.currentQuestion) {
+    return { questionInstance: mathPath.buildSanitizedQuestion(session.currentQuestion, { questionInstanceId: session.currentQuestion.questionInstanceId, attemptsAllowed: session.currentQuestion.attemptsAllowed, attemptsUsed: session.currentQuestion.attemptsUsed }) };
+  }
+
+  const bankSnapshot = await db.collection("pathQuestionBank")
+    .where("alignmentKeys", "array-contains", session.target.alignmentKey)
+    .limit(40)
+    .get();
+  const candidates = bankSnapshot.docs
+    .map((questionDoc) => ({ id: questionDoc.id, ...questionDoc.data() }))
+    .filter((question) => question.active !== false && mathPath.hasGradeableDefinition(question));
+  if (!candidates.length) {
+    throw new HttpsError("failed-precondition", `No active secure question family is published for ${session.target.alignmentKey}.`);
+  }
+
+  const index = Number(session.summary?.completedQuestions || 0) % candidates.length;
+  const authored = candidates[index];
+  const attemptsAllowed = session.sessionKind === "retentionProbe" ? 1 : 3;
+  const questionInstanceId = mathPath.runtimeId("qi");
+  const currentQuestion = {
+    ...mathPath.buildSanitizedQuestion(authored, { questionInstanceId, attemptsAllowed, attemptsUsed: 0 }),
+    bankQuestionId: authored.id,
+    alignmentKeys: [session.target.alignmentKey],
+    attemptsAllowed,
+    attemptsUsed: 0,
+    privateGrading: mathPath.privateGradingDefinition(authored),
+  };
+
+  const issuedQuestion = await db.runTransaction(async (transaction) => {
+    const fresh = await transaction.get(sessionRef);
+    const freshData = fresh.data();
+    if (!fresh.exists || freshData?.studentId !== studentId || freshData?.status !== "active") throw new HttpsError("failed-precondition", "This session changed before the question could be issued.");
+    if (freshData.currentQuestion) return freshData.currentQuestion;
+    transaction.update(sessionRef, { currentQuestion, updatedAt: Date.now() });
+    return currentQuestion;
+  });
+
+  return { questionInstance: mathPath.buildSanitizedQuestion(issuedQuestion, { questionInstanceId: issuedQuestion.questionInstanceId, attemptsAllowed: issuedQuestion.attemptsAllowed, attemptsUsed: issuedQuestion.attemptsUsed }) };
+});
+
+/**
+ * Grade a path response on the server and append immutable evidence in the same
+ * transaction. submissionId is a real idempotency key, so a network retry can
+ * safely repeat the request without creating a second attempt.
+ */
+exports.submitPathResponse = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const sessionId = String(request.data?.sessionId || "").trim();
+  const questionInstanceId = String(request.data?.questionInstanceId || "").trim();
+  const submissionId = String(request.data?.submissionId || "").trim();
+  if (!sessionId || !questionInstanceId || !submissionId) throw new HttpsError("invalid-argument", "sessionId, questionInstanceId, and submissionId are required.");
+  if (submissionId.length > 180) throw new HttpsError("invalid-argument", "submissionId is too long.");
+
+  const db = getFirestore();
+  const sessionRef = db.collection("pathSessions").doc(sessionId);
+  const submissionRef = db.collection("pathSubmissions").doc(mathPath.opaqueId("submission", sessionId, submissionId));
+
+  const transactionResult = await db.runTransaction(async (transaction) => {
+    const [sessionSnapshot, submissionSnapshot] = await Promise.all([
+      transaction.get(sessionRef),
+      transaction.get(submissionRef),
+    ]);
+    if (submissionSnapshot.exists) return { duplicate: true, result: submissionSnapshot.data()?.result };
+    if (!sessionSnapshot.exists || sessionSnapshot.data()?.studentId !== studentId) throw new HttpsError("not-found", "That My Math Path session is not available.");
+    const session = sessionSnapshot.data();
+    if (session.status !== "active" || !session.currentQuestion) throw new HttpsError("failed-precondition", "There is no open question to submit.");
+    const currentQuestion = session.currentQuestion;
+    if (currentQuestion.questionInstanceId !== questionInstanceId) throw new HttpsError("failed-precondition", "That question is no longer the active question.");
+
+    const gradingCore = mathPath.gradeResponse(currentQuestion.privateGrading, request.data?.responsePayload || {});
+    const attemptNumber = Number(currentQuestion.attemptsUsed || 0) + 1;
+    const attemptsRemaining = Math.max(0, Number(currentQuestion.attemptsAllowed || 1) - attemptNumber);
+    const questionFinalized = gradingCore.isCorrect || attemptsRemaining === 0;
+    const supportUsage = request.data?.supportUsage && typeof request.data.supportUsage === "object" ? request.data.supportUsage : {};
+    const independent = mathPath.mathematicalIndependence(supportUsage);
+    const now = Date.now();
+    const nextSummary = { ...(session.summary || {}) };
+    let nextStatus = session.status;
+    let nextCurrentQuestion = { ...currentQuestion, attemptsUsed: attemptNumber };
+
+    if (questionFinalized) {
+      nextSummary.completedQuestions = Number(nextSummary.completedQuestions || 0) + 1;
+      nextSummary.correctQuestions = Number(nextSummary.correctQuestions || 0) + (gradingCore.isCorrect ? 1 : 0);
+      nextSummary.independentSuccesses = Number(nextSummary.independentSuccesses || 0) + (gradingCore.isCorrect && independent ? 1 : 0);
+      nextCurrentQuestion = null;
+      if (nextSummary.completedQuestions >= Number(session.requiredQuestions || 5)) nextStatus = "completed";
+    }
+
+    let retentionSnapshot = null;
+    const retentionRef = db.collection("studentRetentionSchedules").doc(studentId);
+    if (nextStatus === "completed" && session.sessionKind === "retentionProbe") retentionSnapshot = await transaction.get(retentionRef);
+
+    const nextSession = {
+      ...session,
+      status: nextStatus,
+      summary: nextSummary,
+      pathState: { ...(session.pathState || {}), counters: { ...(session.pathState?.counters || {}), questionsThisSession: nextSummary.completedQuestions || 0 } },
+      currentQuestion: nextCurrentQuestion,
+      updatedAt: now,
+      completedAt: nextStatus === "completed" ? now : session.completedAt || null,
+    };
+    const evidenceKey = mathPath.opaqueId("ev", sessionId, questionInstanceId, attemptNumber);
+    const evidenceRef = db.collection("grades").doc(studentId).collection("evidenceEvents").doc(evidenceKey);
+    const event = {
+      schemaVersion: 1,
+      eventKey: evidenceKey,
+      studentId,
+      occurredAt: now,
+      alignmentKeys: currentQuestion.alignmentKeys || [session.target.alignmentKey],
+      masteryEvidenceKeys: currentQuestion.alignmentKeys || [session.target.alignmentKey],
+      questionSnapshot: {
+        questionInstanceId,
+        questionId: currentQuestion.bankQuestionId,
+        familyId: currentQuestion.familyId,
+        familyVersion: currentQuestion.familyVersion,
+        questionType: currentQuestion.questionType,
+        difficultyBand: currentQuestion.difficultyBand,
+        dok: currentQuestion.dok,
+      },
+      source: { kind: "myMathPath", activityRole: "practice", activitySessionId: sessionId, sessionKind: session.sessionKind },
+      performance: { score: gradingCore.score, isCorrect: gradingCore.isCorrect, attemptNumber, status: questionFinalized ? "finalized" : "attempted", isMathematicallyIndependent: independent },
+      supportUsage: { ...supportUsage, isMathematicallyIndependent: independent },
+      supportTelemetry: mathPath.supportTelemetry(supportUsage),
+    };
+
+    if (retentionSnapshot) {
+      const displayCode = mathPath.displayAlignmentKey(session.target.alignmentKey);
+      const schedules = retentionSnapshot.exists ? retentionSnapshot.data()?.schedules || {} : {};
+      const currentSchedule = schedules[displayCode] || {};
+      const passed = nextSummary.completedQuestions >= 2 && nextSummary.independentSuccesses >= 2;
+      const successfulCheckCount = passed ? Number(currentSchedule.successfulCheckCount || 0) + 1 : Number(currentSchedule.successfulCheckCount || 0);
+      const updatedSchedule = passed ? {
+        ...currentSchedule,
+        teksCode: displayCode,
+        status: "scheduled",
+        lastVerifiedAt: now,
+        successfulCheckCount,
+        nextCheckDueAt: mathPath.nextRetentionDue(now, successfulCheckCount),
+        daysOverdue: 0,
+      } : {
+        ...currentSchedule,
+        teksCode: displayCode,
+        status: "concern",
+        lastFailedCheckAt: now,
+      };
+      transaction.set(retentionRef, { schedules: { ...schedules, [displayCode]: updatedSchedule }, updatedAt: now }, { merge: true });
+      nextSession.retentionOutcome = passed ? "passed" : "failed";
+    }
+
+    transaction.set(evidenceRef, event);
+    transaction.set(sessionRef, nextSession);
+    if (nextStatus === "completed") {
+      const lockRef = db.collection("activePathLocks").doc(mathPath.opaqueId("pathlock", studentId, session.target.alignmentKey));
+      transaction.delete(lockRef);
+    }
+
+    const result = {
+      success: true,
+      submissionId,
+      grading: { ...gradingCore, attemptNumber, attemptsRemaining, questionFinalized },
+      session: publicPathSession(nextSession),
+      needsNextQuestion: questionFinalized && nextStatus === "active",
+    };
+    transaction.set(submissionRef, { studentId, sessionId, submissionId, createdAt: now, result });
+    return { duplicate: false, result };
+  });
+
+  return transactionResult.result;
+});
+
+// Phase 6A: DOK 3/4 modeling labs are graded from a teacher-authored private
+// definition. The browser submits only student telemetry; it never supplies the
+// target criteria used to award the score.
+exports.submitModelingLab = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  const labId = String(request.data?.labId || "").trim();
+  const submissionId = String(request.data?.submissionId || "").trim();
+  const submission = request.data?.submission && typeof request.data.submission === "object" ? request.data.submission : {};
+  if (!assignmentId || !labId || !submissionId) throw new HttpsError("invalid-argument", "assignmentId, labId, and submissionId are required.");
+  if (submissionId.length > 180) throw new HttpsError("invalid-argument", "submissionId is too long.");
+  if (String(submission.studentHypothesis || "").length > 2000 || String(submission.studentJustification || "").length > 8000) {
+    throw new HttpsError("invalid-argument", "Modeling lab written responses exceed the supported length.");
+  }
+  if (!Array.isArray(submission.trialHistory) || submission.trialHistory.length > 50) throw new HttpsError("invalid-argument", "Modeling labs require at most 50 recorded trials.");
+  const db = getFirestore();
+  const assignmentRef = db.collection("assignments").doc(assignmentId);
+  const labRef = db.collection("modelingLabDefinitions").doc(labId);
+  const studentRef = db.collection("grades").doc(studentId);
+  const markerRef = db.collection("modelingLabSubmissions").doc(mathPath.opaqueId("labsub", studentId, assignmentId, labId, submissionId));
+
+  const result = await db.runTransaction(async (transaction) => {
+    const [marker, assignmentSnapshot, labSnapshot, studentSnapshot] = await Promise.all([
+      transaction.get(markerRef),
+      transaction.get(assignmentRef),
+      transaction.get(labRef),
+      transaction.get(studentRef),
+    ]);
+    if (marker.exists) return marker.data()?.result;
+    if (!assignmentSnapshot.exists || !labSnapshot.exists) throw new HttpsError("not-found", "That modeling lab is not available.");
+    const assignment = assignmentSnapshot.data() || {};
+    const labDefinition = labSnapshot.data() || {};
+    if (String(labDefinition.assignmentId || "") !== assignmentId) throw new HttpsError("failed-precondition", "The modeling lab is not attached to this assignment.");
+    const classPeriod = studentSnapshot.exists ? String(studentSnapshot.data()?.classPeriod || "Unassigned") : "Unassigned";
+    const assignedPeriods = Array.isArray(assignment.assignedClassPeriods) ? assignment.assignedClassPeriods.map(String) : [];
+    if (assignedPeriods.length && !assignedPeriods.includes(classPeriod)) throw new HttpsError("permission-denied", "This modeling lab is not assigned to your class period.");
+
+    let evaluation;
+    try {
+      evaluation = labEvaluation.evaluateLabSubmission({
+        labDefinition,
+        studentHypothesis: submission.studentHypothesis,
+        trialHistory: submission.trialHistory,
+        finalParameterValues: submission.finalParameterValues,
+        studentJustification: submission.studentJustification,
+      });
+    } catch (error) {
+      throw new HttpsError("invalid-argument", `Modeling lab submission could not be evaluated: ${error.message}`);
+    }
+    const supportSource = submission.supportUsage && typeof submission.supportUsage === "object" ? submission.supportUsage : {};
+    const supportUsage = {
+      modified: Boolean(supportSource.modified),
+      accommodations: Array.isArray(supportSource.accommodations) ? supportSource.accommodations.map(String).slice(0, 20) : [],
+      modifications: Array.isArray(supportSource.modifications) ? supportSource.modifications.map(String).slice(0, 20) : [],
+      hintUsed: false,
+      teacherAssisted: Boolean(supportSource.teacherAssisted),
+      scaffoldUsed: false,
+      contextScaffoldUsed: false,
+      remediationUsed: false,
+      workedExampleUsed: false,
+      calculatorUsed: Boolean(supportSource.calculatorUsed),
+    };
+    supportUsage.isMathematicallyIndependent = mathPath.mathematicalIndependence(supportUsage);
+    const now = Date.now();
+    const eventKey = mathPath.opaqueId("evlab", studentId, assignmentId, labId, submissionId);
+    const eventRef = db.collection("grades").doc(studentId).collection("evidenceEvents").doc(eventKey);
+    const alignmentKeys = (labDefinition.teksAlignments || []).map(mathPath.canonicalAlignmentKey).filter(Boolean);
+    const event = {
+      schemaVersion: 1,
+      eventKey,
+      studentId,
+      occurredAt: now,
+      alignmentKeys,
+      masteryEvidenceKeys: alignmentKeys,
+      questionSnapshot: {
+        questionInstanceId: `lab:${labId}`,
+        questionId: labId,
+        familyId: `modelingLab:${labDefinition.labType || "modeling"}`,
+        familyVersion: 1,
+        questionType: "modelingLab",
+        difficultyBand: 5,
+        dok: Number(labDefinition.dokLevel) || 3,
+      },
+      source: { kind: "modelingLab", assignmentId, activityRole: labDefinition.activityRole || "classwork", labId },
+      performance: { score: evaluation.compositeScore, isCorrect: evaluation.isMastered, attemptNumber: 1, status: "finalized", isMathematicallyIndependent: supportUsage.isMathematicallyIndependent },
+      supportUsage,
+      supportTelemetry: mathPath.supportTelemetry(supportUsage),
+      modeling: { rubricBreakdown: evaluation.rubricBreakdown, trialCount: evaluation.trialCount, uniqueTrialCount: evaluation.uniqueTrialCount, constraintViolationCount: evaluation.constraintViolations.length },
+    };
+    const response = { success: true, submissionId, evaluation, gradingAuthority: "server" };
+    transaction.set(eventRef, event);
+    transaction.set(markerRef, { studentId, assignmentId, labId, submissionId, createdAt: now, result: response });
+    return response;
+  });
+  return result;
+});
+
+// --- Phase 6C secure assessment runtime ------------------------------------
+// Exam answer keys, response grading, integrity state, and release controls
+// remain on the server. A normal browser can monitor and restrict common
+// actions, but it is intentionally not represented as an OS-level lockdown
+// browser.
+
+const SECURE_EXAM_INTEGRITY_TYPES = new Set([
+  "tab_switch", "window_blur", "fullscreen_exit", "copy_paste_attempt", "context_menu", "shortcut_attempt",
+]);
+
+function secureExamSessionId(request) {
+  const value = String(request.data?.examSessionId || "").trim();
+  if (!value || value.length > 180) throw new HttpsError("invalid-argument", "A valid examSessionId is required.");
+  return value;
+}
+
+function secureExamAlignmentKeys(question = {}) {
+  const source = Array.isArray(question.alignmentKeys)
+    ? question.alignmentKeys
+    : Array.isArray(question.teksAlignments)
+      ? question.teksAlignments
+      : question.teks ? [question.teks] : [];
+  return [...new Set(source.map(mathPath.canonicalAlignmentKey).filter(Boolean))];
+}
+
+function assertStudentExamSession(snapshot, studentId) {
+  if (!snapshot.exists || String(snapshot.data()?.studentId || "") !== studentId) {
+    throw new HttpsError("not-found", "That secure exam session is not available.");
+  }
+  return snapshot.data();
+}
+
+function assertExamInProgress(session) {
+  if (secureExam.TERMINAL_STATES.has(session.status)) throw new HttpsError("failed-precondition", "This exam has already been submitted.");
+  if (secureExam.LOCKED_STATES.has(session.status)) throw new HttpsError("failed-precondition", "This exam is locked. Ask the proctor to review the session.");
+  if (session.status !== "in_progress") throw new HttpsError("failed-precondition", "This exam is not currently in progress.");
+  if (secureExam.isExpired(session)) throw new HttpsError("deadline-exceeded", "The exam time has expired.");
+}
+
+/** Teacher action: create a server-owned session for a rostered student. */
+exports.createSecureExamSession = onCall(async (request) => {
+  const teacherUid = await requireTeacher(request);
+  const studentId = String(request.data?.studentId || "").trim();
+  const examType = String(request.data?.examType || "").trim();
+  const policy = secureExam.policyFor(examType);
+  if (!studentId || studentId.length > 180) throw new HttpsError("invalid-argument", "studentId is required.");
+  if (!policy) throw new HttpsError("invalid-argument", "Choose a supported exam type.");
+  const db = getFirestore();
+  const student = await db.collection("grades").doc(studentId).get();
+  if (!student.exists || studentId === "test_connection") throw new HttpsError("not-found", "That student is not on the roster.");
+  const requestedCount = Number(request.data?.questionCount);
+  const requiredQuestions = Number.isInteger(requestedCount) && requestedCount > 0
+    ? Math.min(policy.totalQuestions, requestedCount)
+    : policy.totalQuestions;
+  const ref = db.collection("examSessions").doc();
+  const now = Date.now();
+  const session = {
+    examSessionId: ref.id,
+    studentId,
+    classPeriod: String(student.data()?.classPeriod || "Unassigned"),
+    examType,
+    title: String(request.data?.title || policy.title).trim().slice(0, 160) || policy.title,
+    status: "not_started",
+    requiredQuestions,
+    timeLimitSeconds: policy.timeLimitSeconds,
+    addedTimeSeconds: 0,
+    calculatorMode: policy.calculatorMode,
+    accommodationsConfirmed: request.data?.accommodationsConfirmed === true,
+    feedbackReleased: false,
+    violationCount: 0,
+    summary: { completedQuestions: 0, correctQuestions: 0 },
+    responses: {},
+    usedQuestionIds: [],
+    currentQuestion: null,
+    createdBy: teacherUid,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await ref.set(session);
+  return { success: true, session: secureExam.publicSession(session, { teacher: true }) };
+});
+
+/** Student action: start or resume only their teacher-created session. */
+exports.startSecureExamSession = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const examSessionId = secureExamSessionId(request);
+  const db = getFirestore();
+  const ref = db.collection("examSessions").doc(examSessionId);
+  const session = await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const current = assertStudentExamSession(snapshot, studentId);
+    if (secureExam.TERMINAL_STATES.has(current.status)) return current;
+    if (secureExam.LOCKED_STATES.has(current.status)) return current;
+    if (current.status !== "not_started" && current.status !== "in_progress") throw new HttpsError("failed-precondition", "This exam cannot be started.");
+    if (current.status === "in_progress") return current;
+    const next = { ...current, status: "in_progress", startedAt: Date.now(), updatedAt: Date.now() };
+    transaction.set(ref, next);
+    return next;
+  });
+  return { success: true, session: secureExam.publicSession(session) };
+});
+
+/** Student dashboard: discover only the caller's assigned secure sessions. */
+exports.listStudentSecureExamSessions = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const snapshot = await getFirestore().collection("examSessions").where("studentId", "==", studentId).limit(50).get();
+  const sessions = snapshot.docs
+    .map((docSnapshot) => secureExam.publicSession(docSnapshot.data()))
+    .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+  return { sessions };
+});
+
+/** Issue one sanitized exam item; expected answers never leave Functions. */
+exports.issueSecureExamQuestion = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const examSessionId = secureExamSessionId(request);
+  const db = getFirestore();
+  const sessionRef = db.collection("examSessions").doc(examSessionId);
+  const snapshot = await sessionRef.get();
+  const session = assertStudentExamSession(snapshot, studentId);
+  assertExamInProgress(session);
+  if (session.currentQuestion) {
+    return { questionInstance: mathPath.buildSanitizedQuestion(session.currentQuestion, session.currentQuestion), draftResponse: session.currentQuestion.draftResponse || null, session: secureExam.publicSession(session) };
+  }
+  if (Number(session.summary?.completedQuestions || 0) >= Number(session.requiredQuestions || 1)) {
+    throw new HttpsError("failed-precondition", "All required exam questions have been completed.");
+  }
+  const bank = await db.collection("examQuestionBank").where("examTypes", "array-contains", session.examType).limit(100).get();
+  const used = new Set(Array.isArray(session.usedQuestionIds) ? session.usedQuestionIds.map(String) : []);
+  const candidates = bank.docs
+    .map((docSnapshot) => ({ id: docSnapshot.id, ...docSnapshot.data() }))
+    .filter((question) => question.active !== false && !used.has(question.id) && mathPath.hasGradeableDefinition(question));
+  if (!candidates.length) throw new HttpsError("failed-precondition", `No unused secure ${session.examType} exam items are available.`);
+  const authored = candidates[Number(session.summary?.completedQuestions || 0) % candidates.length];
+  const questionInstanceId = mathPath.runtimeId("examq");
+  const currentQuestion = {
+    ...mathPath.buildSanitizedQuestion(authored, { questionInstanceId, attemptsAllowed: 1, attemptsUsed: 0 }),
+    bankQuestionId: authored.id,
+    alignmentKeys: secureExamAlignmentKeys(authored),
+    questionInstanceId,
+    attemptsAllowed: 1,
+    attemptsUsed: 0,
+    privateGrading: mathPath.privateGradingDefinition(authored),
+  };
+  const issued = await db.runTransaction(async (transaction) => {
+    const freshSnapshot = await transaction.get(sessionRef);
+    const fresh = assertStudentExamSession(freshSnapshot, studentId);
+    assertExamInProgress(fresh);
+    if (fresh.currentQuestion) return fresh;
+    const next = { ...fresh, currentQuestion, updatedAt: Date.now() };
+    transaction.set(sessionRef, next);
+    return next;
+  });
+  return { questionInstance: mathPath.buildSanitizedQuestion(issued.currentQuestion, issued.currentQuestion), draftResponse: issued.currentQuestion?.draftResponse || null, session: secureExam.publicSession(issued) };
+});
+
+function sanitizeSecureExamDraft(responsePayload, supportUsage) {
+  const source = responsePayload?.responses && typeof responsePayload.responses === "object" && !Array.isArray(responsePayload.responses) ? responsePayload.responses : {};
+  const responses = {};
+  Object.entries(source).slice(0, 20).forEach(([key, value]) => {
+    const id = String(key).trim().slice(0, 120);
+    if (id) responses[id] = String(value ?? "").slice(0, 2000);
+  });
+  if (JSON.stringify(responses).length > 10000) throw new HttpsError("invalid-argument", "Secure exam draft is too large.");
+  const sourceSupport = supportUsage && typeof supportUsage === "object" ? supportUsage : {};
+  return {
+    responsePayload: { responses },
+    supportUsage: {
+      accommodations: Array.isArray(sourceSupport.accommodations) ? sourceSupport.accommodations.map(String).slice(0, 20) : [],
+      modifications: Array.isArray(sourceSupport.modifications) ? sourceSupport.modifications.map(String).slice(0, 20) : [],
+      calculatorUsed: Boolean(sourceSupport.calculatorUsed),
+      teacherAssisted: Boolean(sourceSupport.teacherAssisted),
+    },
+  };
+}
+
+/** Transactional draft autosave. Draft values are student-authored and private. */
+exports.saveSecureExamDraft = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const examSessionId = secureExamSessionId(request);
+  const questionInstanceId = String(request.data?.questionInstanceId || "").trim();
+  if (!questionInstanceId) throw new HttpsError("invalid-argument", "questionInstanceId is required.");
+  const draft = sanitizeSecureExamDraft(request.data?.responsePayload, request.data?.supportUsage);
+  const db = getFirestore();
+  const ref = db.collection("examSessions").doc(examSessionId);
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const session = assertStudentExamSession(snapshot, studentId);
+    assertExamInProgress(session);
+    if (!session.currentQuestion || session.currentQuestion.questionInstanceId !== questionInstanceId) throw new HttpsError("failed-precondition", "That question is no longer active.");
+    transaction.set(ref, { ...session, currentQuestion: { ...session.currentQuestion, draftResponse: draft }, updatedAt: Date.now() });
+  });
+  return { success: true, recorded: true };
+});
+
+/** Grade and autosave one secure response. Correctness stays server-only. */
+exports.submitSecureExamResponse = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const examSessionId = secureExamSessionId(request);
+  const questionInstanceId = String(request.data?.questionInstanceId || "").trim();
+  const submissionId = String(request.data?.submissionId || "").trim();
+  if (!questionInstanceId || !submissionId || submissionId.length > 180) throw new HttpsError("invalid-argument", "questionInstanceId and a valid submissionId are required.");
+  const db = getFirestore();
+  const sessionRef = db.collection("examSessions").doc(examSessionId);
+  const markerRef = db.collection("examSubmissions").doc(mathPath.opaqueId("examsub", examSessionId, submissionId));
+  const result = await db.runTransaction(async (transaction) => {
+    const [sessionSnapshot, marker] = await Promise.all([transaction.get(sessionRef), transaction.get(markerRef)]);
+    if (marker.exists) return marker.data()?.result;
+    const session = assertStudentExamSession(sessionSnapshot, studentId);
+    assertExamInProgress(session);
+    const current = session.currentQuestion;
+    if (!current || current.questionInstanceId !== questionInstanceId) throw new HttpsError("failed-precondition", "That question is no longer active.");
+    const grading = mathPath.gradeResponse(current.privateGrading, request.data?.responsePayload || {});
+    const now = Date.now();
+    const completedQuestions = Number(session.summary?.completedQuestions || 0) + 1;
+    const correctQuestions = Number(session.summary?.correctQuestions || 0) + (grading.isCorrect ? 1 : 0);
+    const safeSupport = request.data?.supportUsage && typeof request.data.supportUsage === "object" ? {
+      accommodations: Array.isArray(request.data.supportUsage.accommodations) ? request.data.supportUsage.accommodations.map(String).slice(0, 20) : [],
+      modifications: Array.isArray(request.data.supportUsage.modifications) ? request.data.supportUsage.modifications.map(String).slice(0, 20) : [],
+      calculatorUsed: Boolean(request.data.supportUsage.calculatorUsed),
+      teacherAssisted: Boolean(request.data.supportUsage.teacherAssisted),
+    } : {};
+    const responseRecord = {
+      questionInstanceId,
+      bankQuestionId: current.bankQuestionId,
+      alignmentKeys: current.alignmentKeys || [],
+      questionType: current.questionType,
+      familyId: current.familyId,
+      dok: current.dok,
+      grading: { score: grading.score, isCorrect: grading.isCorrect },
+      supportUsage: safeSupport,
+      submittedAt: now,
+    };
+    const finished = completedQuestions >= Number(session.requiredQuestions || 1);
+    const next = {
+      ...session,
+      status: finished ? "submitted" : "in_progress",
+      submittedAt: finished ? now : session.submittedAt || null,
+      summary: { completedQuestions, correctQuestions },
+      responses: { ...(session.responses || {}), [questionInstanceId]: responseRecord },
+      usedQuestionIds: [...new Set([...(session.usedQuestionIds || []), current.bankQuestionId])],
+      currentQuestion: null,
+      updatedAt: now,
+    };
+    const publicResult = { success: true, submissionId, recorded: true, correctnessReleased: false, needsNextQuestion: !finished, session: secureExam.publicSession(next) };
+    transaction.set(sessionRef, next);
+    transaction.set(markerRef, { examSessionId, studentId, submissionId, createdAt: now, result: publicResult });
+    return publicResult;
+  });
+  return result;
+});
+
+/** Student-observed browser integrity events are idempotent and can only lock. */
+exports.recordSecureExamIntegrityEvent = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const examSessionId = secureExamSessionId(request);
+  const eventId = String(request.data?.eventId || "").trim();
+  const type = String(request.data?.type || "").trim();
+  if (!eventId || eventId.length > 180 || !SECURE_EXAM_INTEGRITY_TYPES.has(type)) throw new HttpsError("invalid-argument", "A valid integrity event is required.");
+  const details = request.data?.details && typeof request.data.details === "object" ? request.data.details : {};
+  if (JSON.stringify(details).length > 2000) throw new HttpsError("invalid-argument", "Integrity event details are too large.");
+  const db = getFirestore();
+  const sessionRef = db.collection("examSessions").doc(examSessionId);
+  const eventRef = db.collection("examIntegrityEvents").doc(mathPath.opaqueId("integrity", examSessionId, eventId));
+  return db.runTransaction(async (transaction) => {
+    const [sessionSnapshot, existingEvent] = await Promise.all([transaction.get(sessionRef), transaction.get(eventRef)]);
+    const session = assertStudentExamSession(sessionSnapshot, studentId);
+    if (existingEvent.exists) return { success: true, duplicate: true, status: session.status, violationCount: Number(session.violationCount || 0) };
+    if (secureExam.TERMINAL_STATES.has(session.status)) throw new HttpsError("failed-precondition", "This exam is already submitted.");
+    const count = Number(session.violationCount || 0) + 1;
+    const status = count >= 3 && session.status === "in_progress" ? "locked_integrity" : session.status;
+    const now = Date.now();
+    transaction.set(eventRef, { eventId, examSessionId, studentId, type, details, receivedAt: now });
+    transaction.set(sessionRef, { ...session, violationCount: count, status, lockReason: status === "locked_integrity" ? "Integrity event threshold reached; proctor review required." : session.lockReason || null, lockedAt: status === "locked_integrity" ? now : session.lockedAt || null, updatedAt: now });
+    return { success: true, status, violationCount: count };
+  });
+});
+
+function applyOpenSecureExamDraft(session, now) {
+  const current = session.currentQuestion;
+  const draft = current?.draftResponse;
+  const responses = draft?.responsePayload?.responses && typeof draft.responsePayload.responses === "object" ? draft.responsePayload.responses : {};
+  if (!current || !Object.values(responses).some((value) => String(value ?? "").trim())) return session;
+  const grading = mathPath.gradeResponse(current.privateGrading, draft.responsePayload);
+  const responseRecord = {
+    questionInstanceId: current.questionInstanceId,
+    bankQuestionId: current.bankQuestionId,
+    alignmentKeys: current.alignmentKeys || [],
+    questionType: current.questionType,
+    familyId: current.familyId,
+    dok: current.dok,
+    grading: { score: grading.score, isCorrect: grading.isCorrect },
+    supportUsage: draft.supportUsage || {},
+    submittedAt: now,
+    finalizedFromAutosave: true,
+  };
+  return {
+    ...session,
+    summary: {
+      completedQuestions: Number(session.summary?.completedQuestions || 0) + 1,
+      correctQuestions: Number(session.summary?.correctQuestions || 0) + (grading.isCorrect ? 1 : 0),
+    },
+    responses: { ...(session.responses || {}), [current.questionInstanceId]: responseRecord },
+    usedQuestionIds: [...new Set([...(session.usedQuestionIds || []), current.bankQuestionId])],
+  };
+}
+
+/** Student submit / verified timer autosubmit. */
+exports.finalizeSecureExam = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const examSessionId = secureExamSessionId(request);
+  const reason = request.data?.reason === "timeExpired" ? "timeExpired" : "studentSubmit";
+  const db = getFirestore();
+  const ref = db.collection("examSessions").doc(examSessionId);
+  const next = await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const session = assertStudentExamSession(snapshot, studentId);
+    if (secureExam.TERMINAL_STATES.has(session.status)) return session;
+    if (reason === "timeExpired" && !secureExam.isExpired(session)) throw new HttpsError("failed-precondition", "The server-side exam deadline has not been reached.");
+    if (reason !== "timeExpired" && secureExam.LOCKED_STATES.has(session.status)) throw new HttpsError("failed-precondition", "A locked exam must be resolved by the proctor.");
+    const now = Date.now();
+    const withDraft = applyOpenSecureExamDraft(session, now);
+    const updated = { ...withDraft, status: reason === "timeExpired" ? "time_expired" : "submitted", submittedAt: now, currentQuestion: null, updatedAt: now };
+    transaction.set(ref, updated);
+    return updated;
+  });
+  return { success: true, session: secureExam.publicSession(next) };
+});
+
+/** Teacher-only live monitor summaries. No answer payloads are returned. */
+exports.listProctorExamSessions = onCall(async (request) => {
+  await requireTeacher(request);
+  const examType = String(request.data?.examType || "").trim();
+  const db = getFirestore();
+  let query = db.collection("examSessions");
+  if (examType && secureExam.policyFor(examType)) query = query.where("examType", "==", examType);
+  const snapshot = await query.limit(200).get();
+  return { sessions: snapshot.docs.map((docSnapshot) => secureExam.publicSession(docSnapshot.data(), { teacher: true })) };
+});
+
+function releasedExamEvidence(session, response) {
+  const alignmentKeys = (response.alignmentKeys || []).map(mathPath.canonicalAlignmentKey).filter(Boolean);
+  const supportUsage = response.supportUsage || {};
+  return {
+    schemaVersion: 1,
+    studentId: session.studentId,
+    occurredAt: Number(response.submittedAt) || Date.now(),
+    alignmentKeys,
+    masteryEvidenceKeys: alignmentKeys,
+    questionSnapshot: { questionInstanceId: response.questionInstanceId, questionId: response.bankQuestionId, familyId: response.familyId, questionType: response.questionType, dok: response.dok },
+    source: { kind: "secureExam", examSessionId: session.examSessionId, examType: session.examType, activityRole: "test" },
+    performance: { score: Number(response.grading?.score) || 0, isCorrect: Boolean(response.grading?.isCorrect), attemptNumber: 1, status: "finalized", isMathematicallyIndependent: mathPath.mathematicalIndependence(supportUsage) },
+    supportUsage,
+    supportTelemetry: mathPath.supportTelemetry(supportUsage),
+  };
+}
+
+/** Authenticated proctor controls replace the insecure client-side PIN draft. */
+exports.proctorExamAction = onCall(async (request) => {
+  const teacherUid = await requireTeacher(request);
+  const examSessionId = secureExamSessionId(request);
+  const action = String(request.data?.action || "").trim();
+  if (!["unlock", "lock", "extendTime", "forceSubmit", "releaseFeedback"].includes(action)) throw new HttpsError("invalid-argument", "Choose a supported proctor action.");
+  const db = getFirestore();
+  const ref = db.collection("examSessions").doc(examSessionId);
+  const next = await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) throw new HttpsError("not-found", "Exam session not found.");
+    const session = snapshot.data();
+    const now = Date.now();
+    if (action === "releaseFeedback") {
+      if (!secureExam.TERMINAL_STATES.has(session.status)) throw new HttpsError("failed-precondition", "Submit the exam before releasing feedback.");
+      if (!session.feedbackReleased) {
+        Object.values(session.responses || {}).forEach((response) => {
+          const eventKey = mathPath.opaqueId("evexam", examSessionId, response.questionInstanceId);
+          const eventRef = db.collection("grades").doc(session.studentId).collection("evidenceEvents").doc(eventKey);
+          transaction.set(eventRef, { ...releasedExamEvidence(session, response), eventKey });
+        });
+      }
+      const updated = { ...session, feedbackReleased: true, feedbackReleasedAt: now, feedbackReleasedBy: teacherUid, updatedAt: now };
+      transaction.set(ref, updated);
+      return updated;
+    }
+    if (secureExam.TERMINAL_STATES.has(session.status)) throw new HttpsError("failed-precondition", "This submitted exam cannot be changed except to release feedback.");
+    let updated = { ...session, updatedAt: now, lastProctorActionBy: teacherUid };
+    if (action === "unlock") updated = { ...updated, status: "in_progress", lockReason: null, unlockedAt: now };
+    if (action === "lock") updated = { ...updated, status: "locked_proctor", lockReason: "Locked by proctor.", lockedAt: now };
+    if (action === "extendTime") {
+      const minutes = Math.max(1, Math.min(120, Math.round(Number(request.data?.minutes) || 5)));
+      updated = { ...updated, addedTimeSeconds: Number(session.addedTimeSeconds || 0) + minutes * 60 };
+    }
+    if (action === "forceSubmit") updated = { ...applyOpenSecureExamDraft(updated, now), status: "force_submitted", submittedAt: now, currentQuestion: null };
+    transaction.set(ref, updated);
+    return updated;
+  });
+  return { success: true, session: secureExam.publicSession(next, { teacher: true }) };
+});
+
+// Immutable evidence drives the Phase 5A mastery wheel. A separate idempotency
+// marker prevents a retried Firestore trigger from counting the same event twice.
+exports.updateMyMathPathMasteryFromEvidence = onDocumentCreated(
+  { document: "grades/{studentId}/evidenceEvents/{eventId}" },
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot?.exists) return;
+    const evidence = snapshot.data() || {};
+    const studentId = event.params.studentId;
+    if (evidence.studentId && String(evidence.studentId) !== String(studentId)) return;
+    const eventKey = String(evidence.eventKey || event.params.eventId);
+    const alignmentKeys = [...new Set((evidence.masteryEvidenceKeys?.length ? evidence.masteryEvidenceKeys : evidence.alignmentKeys || [])
+      .map(mathPath.canonicalAlignmentKey)
+      .filter((key) => key.startsWith("texas:")))];
+    if (!alignmentKeys.length) return;
+
+    const db = getFirestore();
+    const profileRef = db.collection("studentMasteryProfiles").doc(studentId);
+    const applicationRef = db.collection("masteryEvidenceApplications").doc(mathPath.opaqueId("mastery", studentId, eventKey));
+    const roleWeight = { warmup: 0.8, classwork: 0.9, dol: 1.25, practice: 1, quiz: 1.35, test: 1.4 }[evidence.source?.activityRole] || 1;
+    const modified = Boolean(evidence.supportUsage?.modified) || Boolean(evidence.supportUsage?.modifications?.length);
+    const independent = mathPath.mathematicalIndependence(evidence.supportUsage || {});
+    const score = Math.max(0, Math.min(1, Number(evidence.performance?.score) || 0));
+    const weight = modified ? 0 : roleWeight * (independent ? 1 : 0.85);
+    const dok = Number(evidence.questionSnapshot?.dok) || null;
+    const familyId = evidence.questionSnapshot?.familyId || null;
+
+    await db.runTransaction(async (transaction) => {
+      const [application, profileSnapshot] = await Promise.all([
+        transaction.get(applicationRef),
+        transaction.get(profileRef),
+      ]);
+      if (application.exists) return;
+      const profiles = profileSnapshot.exists ? { ...(profileSnapshot.data()?.profiles || {}) } : {};
+
+      alignmentKeys.forEach((alignmentKey) => {
+        const code = mathPath.displayAlignmentKey(alignmentKey);
+        const previous = profiles[code] || {};
+        const accumulator = previous.accumulator || {};
+        const effectiveWeight = Number(accumulator.effectiveWeight || 0) + weight;
+        const weightedScoreSum = Number(accumulator.weightedScoreSum || 0) + score * weight;
+        const eligibleEvents = Number(accumulator.eligibleEvents || 0) + (weight > 0 ? 1 : 0);
+        const modifiedEvents = Number(accumulator.modifiedEvents || 0) + (modified ? 1 : 0);
+        const dokRepresented = [...new Set([...(previous.dimensions?.dokRepresented || []), ...(dok ? [dok] : [])])].sort();
+        const familiesRepresented = [...new Set([...(previous.dimensions?.familiesRepresented || []), ...(familyId ? [familyId] : [])])];
+        const estimate = effectiveWeight > 0 ? Math.round((weightedScoreSum / effectiveWeight) * 100) : null;
+        let status = "Not Enough Evidence";
+        if (eligibleEvents >= 2 && effectiveWeight >= 1.1) {
+          if (estimate >= 85 && eligibleEvents >= 4 && dokRepresented.some((value) => Number(value) >= 3)) status = "Mastered";
+          else if (estimate >= 70) status = "Secure";
+          else if (estimate >= 50) status = "Developing";
+          else status = "Needs Attention";
+        }
+        const confidence = eligibleEvents >= 8 && effectiveWeight >= 5 && dokRepresented.length >= 2 ? "High" : eligibleEvents >= 4 && effectiveWeight >= 2.4 ? "Medium" : "Low";
+        const lastIndependentSuccessAt = evidence.performance?.isCorrect && independent
+          ? Math.max(Number(previous.dimensions?.lastIndependentSuccessAt || 0), Number(evidence.occurredAt || 0))
+          : previous.dimensions?.lastIndependentSuccessAt || null;
+        profiles[code] = {
+          ...previous,
+          teksCode: code,
+          mastery: { estimate, observedPerformance: estimate, status, confidence },
+          signals: { ...(previous.signals || {}), breadth: dokRepresented.length >= 2 ? "broad" : "developing", retention: previous.signals?.retention || "stable" },
+          dimensions: { eligibleGradeLevelEvents: eligibleEvents, modifiedEvidenceEvents: modifiedEvents, dokRepresented, familiesRepresented, lastIndependentSuccessAt },
+          accumulator: { effectiveWeight, weightedScoreSum, eligibleEvents, modifiedEvents },
+          recommendation: { reason: status === "Needs Attention" ? "Rebuild this skill with targeted grade-level support." : "Continue building independent accuracy and breadth." },
+          updatedAt: Date.now(),
+        };
+      });
+
+      transaction.set(profileRef, { profiles, updatedAt: Date.now() }, { merge: true });
+      transaction.set(applicationRef, { studentId, eventKey, appliedAt: Date.now() });
+    });
+  },
 );

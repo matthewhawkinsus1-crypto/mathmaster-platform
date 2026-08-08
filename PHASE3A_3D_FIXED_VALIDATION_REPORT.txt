@@ -1,0 +1,54 @@
+MathMaster Phase 3A-3D Fixed Integration Validation Report
+Date: 2026-08-08
+
+STATUS: VERIFIED / READY FOR HANDOFF
+
+Scope
+-----
+Phase 3A - Activity Policy Engine
+Phase 3B - Lesson Bundle V3
+Phase 3C - Classroom Publication Planner and Pre-Flight Sandbox
+Phase 3D - Calculator, Context, Unit, and Response-Field Policy/Grading
+
+Integration fixes completed
+---------------------------
+- Activity-role policy now reaches the shared runtime and attempt recorder.
+- DOL, Quiz, and Test enforce one-attempt independent-assessment behavior.
+- Delayed and teacher-release feedback stays neutral until the configured release point.
+- Quiz/Test Classroom grade passback is held until the teacher releases feedback, then queued for sync.
+- Warm-Up keeps engagement grading separate from diagnostic accuracy.
+- Classroom composite grade weights use Classwork 40% / DOL 35% / Practice 25%, renormalize over active components, and stay separate from mastery evidence weights.
+- Hybrid/bundle publishing never silently drops Quiz or Test and keeps assessments separate.
+- Bundle V3 uses deterministic stable IDs, normalizes QuestionDefinition v1, and strips forbidden question-level policy overrides.
+- Deep pre-flight validation blocks Publish and reports teacher-readable bundle/activity/question errors.
+- Calculator inheritance honors activity defaults, including Warm-Up calculator=none.
+- teacherChoice and assessment-context calculator policies are supported.
+- Calculator evaluation does not use JavaScript eval.
+- Existing accommodations-array support shape is honored.
+- Unit aliases normalize in one canonical direction; scalar responses cannot inherit the expected unit.
+- Context/reading scaffolds are recorded separately from mathematical assistance.
+- Context scaffolds do not reduce mathematical-independence evidence; math help does.
+- Batch A-D tools can pass through the shared policy-aware attempt/mastery runtime.
+- Algebraic response equivalence is hardened against fixed numeric-probe spoofing.
+- Student Quiz/Test dashboard cards do not leak teacher-release grades before release.
+- Teacher Gradebook provides the one-way Quiz/Test feedback release action.
+
+Verification
+------------
+Combined Phase 3 + Classroom feedback + Batch A-D tests: 96 passed / 96 total
+Cloud Functions syntax check: PASS
+Production Vite build: PASS
+All-tool Lab SSR compile: PASS
+Lesson pre-flight sandbox SSR compile: PASS
+Oxlint: PASS (exit 0; warning-level legacy cleanup items remain, no lint errors)
+
+Build note
+----------
+Vite reports the existing large-chunk advisory for the main JavaScript bundle. This is a
+performance/code-splitting advisory, not a build failure and not a Phase 3 correctness defect.
+
+Handoff rule
+------------
+Use the accompanying fresh src archive as a complete src replacement. Do not merge individual
+Phase 3 files by hand. The complete platform archive contains the same verified src plus the
+project configuration, functions, documentation, samples, and automated tests.

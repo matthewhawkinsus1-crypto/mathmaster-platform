@@ -1,0 +1,84 @@
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import MyMathPathDashboard from './MyMathPathDashboard.jsx';
+import MyMathPathProductionContainer from './MyMathPathProductionContainer.jsx';
+import StudentPracticeHistory from './StudentPracticeHistory.jsx';
+import { fetchStudentMasteryState } from '../../services/masteryStateService.js';
+import { fetchStudentEvidenceEvents } from '../../platform/history/evidencePersistence.js';
+import { toCanonicalKey, toDisplayCode } from '../../utils/teksUtils.js';
+
+const chooseRecommendedTeks = (profiles = {}) => {
+  const priority = ['Needs Attention', 'Developing', 'Not Enough Evidence', 'Secure', 'Mastered'];
+  const entries = Object.entries(profiles);
+  for (const status of priority) {
+    const match = entries.find(([, profile]) => profile?.mastery?.status === status);
+    if (match) return toDisplayCode(match[0]);
+  }
+  return 'A.5A';
+};
+
+export const MyMathPathApp = ({ studentId, studentName, studentProfile = null, assignments = null, onExit = null }) => {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [sessionConfig, setSessionConfig] = useState(null);
+  const [masteryData, setMasteryData] = useState({ masteryProfilesByTEKS: {}, retentionSchedulesByTEKS: {} });
+  const [evidenceEvents, setEvidenceEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [historyError, setHistoryError] = useState(null);
+
+  const loadState = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const [masteryResult, historyResult] = await Promise.allSettled([
+      fetchStudentMasteryState(studentId, { assignments }),
+      fetchStudentEvidenceEvents(studentId),
+    ]);
+    if (masteryResult.status === 'fulfilled') setMasteryData(masteryResult.value);
+    else setError(masteryResult.reason?.message || 'Mastery data is unavailable.');
+    if (historyResult.status === 'fulfilled') { setEvidenceEvents(historyResult.value); setHistoryError(null); }
+    else setHistoryError(historyResult.reason?.message || 'Practice history is temporarily unavailable.');
+    setLoading(false);
+  }, [studentId, assignments]);
+
+  useEffect(() => { loadState(); }, [loadState]);
+
+  const recommendedTeks = useMemo(() => chooseRecommendedTeks(masteryData.masteryProfilesByTEKS), [masteryData.masteryProfilesByTEKS]);
+  const availableTeks = useMemo(() => Object.keys(masteryData.masteryProfilesByTEKS).map(toDisplayCode), [masteryData.masteryProfilesByTEKS]);
+
+  const startSession = (teksCode, options = {}) => {
+    setSessionConfig({
+      targetAlignmentKey: toCanonicalKey(teksCode),
+      sessionKind: options.sessionKind || 'practice',
+      requiredQuestions: options.requiredQuestions || (options.sessionKind === 'retentionProbe' ? 2 : 5),
+    });
+    setActiveTab('session');
+  };
+
+  const returnToDashboard = () => {
+    setSessionConfig(null);
+    setActiveTab('dashboard');
+    loadState();
+  };
+
+  if (loading && !Object.keys(masteryData.masteryProfilesByTEKS).length) return <div style={{ padding: '60px', textAlign: 'center', color: '#174ea6' }}>Loading My Math Path…</div>;
+
+  return (
+    <div style={{ minHeight: '100%', background: '#f8f9fa' }}>
+      {activeTab !== 'session' && (
+        <header style={{ minHeight: '60px', padding: '0 20px', borderBottom: '1px solid #dadce0', background: '#fff', display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span aria-hidden="true">📐</span><strong>My Math Path</strong></div>
+          <nav aria-label="My Math Path navigation" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {['dashboard', 'history'].map((tab) => <button key={tab} type="button" onClick={() => setActiveTab(tab)} style={{ padding: '19px 8px 16px', border: 0, borderBottom: `3px solid ${activeTab === tab ? '#1a73e8' : 'transparent'}`, background: 'transparent', color: activeTab === tab ? '#174ea6' : '#5f6368', fontWeight: 900, cursor: 'pointer' }}>{tab === 'dashboard' ? 'Mastery Map' : 'Practice History'}</button>)}
+            {onExit && <button type="button" onClick={onExit} style={{ marginLeft: '6px', padding: '8px 11px', border: '1px solid #bdc1c6', borderRadius: '7px', background: '#fff', color: '#3c4043', fontWeight: 800, cursor: 'pointer' }}>Assignments</button>}
+          </nav>
+        </header>
+      )}
+
+      {error && <div role="alert" style={{ maxWidth: '940px', margin: '16px auto', padding: '12px 14px', borderRadius: '8px', background: '#fce8e6', color: '#a50e0e' }}>{error}</div>}
+      {activeTab === 'dashboard' && <MyMathPathDashboard studentName={studentName || studentId || 'Student'} masteryProfilesByTEKS={masteryData.masteryProfilesByTEKS} retentionSchedulesByTEKS={masteryData.retentionSchedulesByTEKS} recommendedTeks={recommendedTeks} onStartSession={startSession} />}
+      {activeTab === 'history' && <StudentPracticeHistory evidenceEvents={evidenceEvents} availableTeks={availableTeks} loading={loading} error={historyError} />}
+      {activeTab === 'session' && sessionConfig && <MyMathPathProductionContainer {...sessionConfig} studentProfile={studentProfile} onReturnToDashboard={returnToDashboard} onSessionComplete={() => loadState()} />}
+    </div>
+  );
+};
+
+export default MyMathPathApp;

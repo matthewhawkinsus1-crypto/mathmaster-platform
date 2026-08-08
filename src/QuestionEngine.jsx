@@ -23,6 +23,15 @@ import MathDisplay from './MathDisplay';
 import { generateQuestion } from './problemGenerator';
 import { buildSupportUsage, getStudentSupportPresentation } from './studentSupport';
 import { removeQuestionDraftFamily } from './questionDraftStorage';
+import CalculatorPanel from './components/CalculatorPanel';
+import ProblemUnderstandingPanel from './components/ProblemUnderstandingPanel';
+import MobileViewportContainer from './components/student/MobileViewportContainer';
+import { normalizeContextualQuestion } from './platform/context/wordProblemLayer';
+import { getEffectiveActivityPolicy } from './platform/policies/activityPolicies';
+import { resolveCalculatorPolicy } from './platform/policies/calculatorPolicy';
+import { getToolDefinition } from './tools/toolRegistry';
+import { ToolRuntimeProvider } from './tools/shared/ToolRuntimeContext';
+import InteractiveModelingLabPlayer from './components/labs/InteractiveModelingLabPlayer.jsx';
 import {
   getAttemptsRemaining,
   MAX_ATTEMPTS_PER_QUESTION,
@@ -50,6 +59,7 @@ const MULTIPART_TYPES = new Set([
   'graphComparison',
   'graphStory',
   'contextInterpretation',
+  'modelingLab',
 ]);
 
 const speakText = (text) => {
@@ -67,17 +77,31 @@ export default function QuestionEngine({
   onSaveScratchpad,
   generationKey,
   questionRecord,
-  maximumAttempts = MAX_ATTEMPTS_PER_QUESTION,
+  maximumAttempts = null,
   draftKey = null,
   studentProfile = null,
   guidedMode = false,
   assignmentLocked = false,
   replacementWarning = '',
   dolMode = false,
+  activityRole = 'practice',
+  activityPolicy = null,
+  feedbackReleased = false,
+  assessmentContext = null,
+  teacherCalculatorChoice = null,
+  assignmentId = null,
+  executionScope = 'student',
 }) {
+  const resolvedActivityPolicy = activityPolicy || getEffectiveActivityPolicy(activityRole);
+  const resolvedMaximumAttempts = Math.max(1, Number(maximumAttempts ?? resolvedActivityPolicy?.attempts ?? MAX_ATTEMPTS_PER_QUESTION) || MAX_ATTEMPTS_PER_QUESTION);
+  const showOutcomeFeedback = resolvedActivityPolicy?.feedback === 'immediate' || feedbackReleased === true;
   const processedQuestion = useMemo(
-    () => generateQuestion(question, generationKey, studentProfile),
+    () => normalizeContextualQuestion(generateQuestion(question, generationKey, studentProfile)),
     [question, generationKey, studentProfile],
+  );
+  const missingToolDefinition = useMemo(
+    () => getToolDefinition(processedQuestion?.toolId || processedQuestion?.type),
+    [processedQuestion],
   );
   const record = normalizeQuestionRecord(questionRecord);
   const [answerState, setAnswerState] = useState(EMPTY_ANSWER_STATE);
@@ -92,6 +116,10 @@ export default function QuestionEngine({
   const [unchangedConfirmOpen, setUnchangedConfirmOpen] = useState(false);
   const [scaffoldComplete, setScaffoldComplete] = useState(false);
   const [scaffoldMessage, setScaffoldMessage] = useState('');
+  const [contextScaffoldComplete, setContextScaffoldComplete] = useState(false);
+  const [contextScaffoldUsed, setContextScaffoldUsed] = useState(false);
+  const [calculatorUsed, setCalculatorUsed] = useState(false);
+  const [hintUsed, setHintUsed] = useState(false);
 
   const supportPresentation = useMemo(
     () => processedQuestion?.supportPresentation || getStudentSupportPresentation(studentProfile),
@@ -114,6 +142,10 @@ export default function QuestionEngine({
     setUnchangedConfirmOpen(false);
     setScaffoldComplete(false);
     setScaffoldMessage('');
+    setContextScaffoldComplete(false);
+    setContextScaffoldUsed(false);
+    setCalculatorUsed(false);
+    setHintUsed(false);
   }, [processedQuestion]);
 
   useEffect(() => {
@@ -129,7 +161,7 @@ export default function QuestionEngine({
     setUndoController(controller ? { ...controller } : null);
   }, []);
 
-  const remainingAttempts = getAttemptsRemaining(record, maximumAttempts);
+  const remainingAttempts = getAttemptsRemaining(record, resolvedMaximumAttempts);
   const isCorrect = record.status === 'correct' || feedback?.status === 'correct';
   const isExpired = record.status === 'expired' || feedback?.expired;
   const locked = Boolean(isCorrect || isExpired || assignmentLocked);
@@ -138,12 +170,31 @@ export default function QuestionEngine({
     Boolean(answerState.responseKey) &&
     answerState.responseKey === (record.lastResponseKey || lastSubmittedResponseKey);
   const isMultipart = MULTIPART_TYPES.has(processedQuestion?.type) || (answerState.parts || []).length > 1;
-  const scaffoldRequired = Boolean(supportPresentation.inclusion && record.status === 'attempted' && record.attemptCount >= 2 && !locked && !scaffoldComplete);
+  const scaffoldRequired = Boolean(resolvedActivityPolicy?.remediationAllowed !== false && supportPresentation.inclusion && record.status === 'attempted' && record.attemptCount >= 2 && !locked && !scaffoldComplete);
+  const contextScaffoldEnabled = Boolean(processedQuestion?.context?.scenario && processedQuestion?.context?.scaffold?.enabled !== false);
+  const contextScaffoldRequired = contextScaffoldEnabled && !contextScaffoldComplete && !locked;
+  const terminalFeedbackHidden = !showOutcomeFeedback && (isCorrect || isExpired);
+  const calculatorPolicy = useMemo(() => resolveCalculatorPolicy({
+    questionSpec: processedQuestion || {},
+    activityPolicy: resolvedActivityPolicy,
+    studentSupportProfile: studentProfile,
+    teacherCalculatorChoice,
+    assessmentContext,
+  }), [processedQuestion, resolvedActivityPolicy, studentProfile, teacherCalculatorChoice, assessmentContext]);
   const scaffold = processedQuestion?.scaffold || (processedQuestion?.type === 'stepAlgebra'
     ? { prompt: 'Let’s back up. What operation undoes multiplication?', options: ['Add', 'Divide'], correct: 'Divide' }
     : processedQuestion?.type === 'functionGraph' || processedQuestion?.type === 'functionInvestigation'
       ? { prompt: 'Before continuing, must a plotted point match both its x-coordinate and y-coordinate?', options: ['Yes', 'No'], correct: 'Yes' }
       : { prompt: 'Before continuing, should you revise the specific parts identified in the feedback?', options: ['Yes', 'No'], correct: 'Yes' });
+
+  const attemptSupportUsage = () => ({
+    ...supportUsage,
+    hintUsed: Boolean(hintUsed),
+    scaffoldUsed: Boolean(scaffoldComplete),
+    contextScaffoldUsed: Boolean(contextScaffoldUsed),
+    calculatorUsed: Boolean(calculatorUsed),
+    isMathematicallyIndependent: !hintUsed && !scaffoldComplete,
+  });
 
   const performSubmit = async () => {
     if (!answerState.isComplete || submitting || locked) return;
@@ -155,7 +206,7 @@ export default function QuestionEngine({
         answerState.isCorrect,
         answerState.questionDetails,
         answerState.parts || [],
-        { ...supportUsage, scaffoldUsed: Boolean(scaffoldComplete) },
+        attemptSupportUsage(),
         answerState.responseKey ?? '',
       );
       setFeedback(
@@ -163,8 +214,8 @@ export default function QuestionEngine({
           isCorrect: answerState.isCorrect,
           status: answerState.isCorrect ? 'correct' : 'attempted',
           attemptCount: record.attemptCount + 1,
-          remainingAttempts: Math.max(0, maximumAttempts - record.attemptCount - 1),
-          expired: !answerState.isCorrect && record.attemptCount + 1 >= maximumAttempts,
+          remainingAttempts: Math.max(0, resolvedMaximumAttempts - record.attemptCount - 1),
+          expired: !answerState.isCorrect && record.attemptCount + 1 >= resolvedMaximumAttempts,
           incorrectParts: (answerState.parts || []).filter((part) => !part.isCorrect).map((part) => part.label),
         },
       );
@@ -182,8 +233,82 @@ export default function QuestionEngine({
     await performSubmit();
   };
 
+  const handleMissingToolAction = async (type, payload = {}) => {
+    if (type !== 'ATTEMPT_SUBMITTED' || submitting || locked) return;
+    setSubmitting(true);
+    try {
+      const rawParts = payload?.metadata?.parts;
+      const parts = Array.isArray(rawParts)
+        ? rawParts.map((part, index) => ({
+            id: part?.id || `part-${index + 1}`,
+            label: part?.label || `Part ${index + 1}`,
+            isComplete: part?.isComplete !== false,
+            isCorrect: Boolean(part?.isCorrect),
+            response: part?.response ?? '',
+          }))
+        : rawParts && typeof rawParts === 'object'
+          ? Object.entries(rawParts).map(([id, value]) => ({ id, label: id, isComplete: true, isCorrect: Boolean(value), response: '' }))
+          : [];
+      const score = Number(payload?.score);
+      const partialCreditPercent = Number.isFinite(score)
+        ? Math.max(0, Math.min(100, Math.round((score <= 1 ? score * 100 : score))))
+        : null;
+      const responseKey = JSON.stringify(payload?.response ?? {});
+      const details = `${missingToolDefinition?.label || 'Math tool'} response submitted.`;
+      const result = await onGrade?.(
+        Boolean(payload?.isCorrect),
+        details,
+        parts,
+        attemptSupportUsage(),
+        responseKey,
+        { partialCreditPercent },
+      );
+      setFeedback(result || {
+        isCorrect: Boolean(payload?.isCorrect),
+        status: payload?.isCorrect ? 'correct' : record.attemptCount + 1 >= resolvedMaximumAttempts ? 'expired' : 'attempted',
+        attemptCount: record.attemptCount + 1,
+        remainingAttempts: Math.max(0, resolvedMaximumAttempts - record.attemptCount - 1),
+        expired: !payload?.isCorrect && record.attemptCount + 1 >= resolvedMaximumAttempts,
+        partialCredit: partialCreditPercent || 0,
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleModelingLabGrade = async (evaluation) => {
+    if (submitting || locked) return null;
+    setSubmitting(true);
+    try {
+      const partialCreditPercent = Math.max(0, Math.min(100, Math.round(Number(evaluation?.compositeScore || 0) * 100)));
+      const result = await onGrade?.(
+        Boolean(evaluation?.isMastered),
+        `Server-graded modeling lab · ${partialCreditPercent}% composite.`,
+        [
+          { id: 'modelAccuracy', label: 'Model accuracy', isComplete: true, isCorrect: Number(evaluation?.rubricBreakdown?.modelAccuracy || 0) >= 85 },
+          { id: 'hypothesis', label: 'Hypothesis / experimental process', isComplete: true, isCorrect: Number(evaluation?.rubricBreakdown?.hypothesisCompleteness || 0) >= 85 },
+          { id: 'justification', label: 'Written justification completion', isComplete: true, isCorrect: Number(evaluation?.rubricBreakdown?.writtenJustificationCompleteness || 0) >= 85 },
+        ],
+        attemptSupportUsage(),
+        `lab:${processedQuestion?.labDefinition?.labId}:${partialCreditPercent}`,
+        { partialCreditPercent },
+      );
+      setFeedback(result || {
+        isCorrect: Boolean(evaluation?.isMastered),
+        status: evaluation?.isMastered ? 'correct' : record.attemptCount + 1 >= resolvedMaximumAttempts ? 'expired' : 'attempted',
+        attemptCount: record.attemptCount + 1,
+        remainingAttempts: Math.max(0, resolvedMaximumAttempts - record.attemptCount - 1),
+        expired: !evaluation?.isMastered && record.attemptCount + 1 >= resolvedMaximumAttempts,
+        partialCredit: partialCreditPercent,
+      });
+      return result;
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleRequestNewQuestion = async () => {
-    if (!onRequestNewQuestion || requesting) return;
+    if (!resolvedActivityPolicy?.allowReplacement || !onRequestNewQuestion || requesting) return;
     if (replacementWarning && !window.confirm(replacementWarning)) return;
     setRequesting(true);
     try {
@@ -219,14 +344,24 @@ export default function QuestionEngine({
     question: processedQuestion,
     onStateChange: setAnswerState,
     onUndoStateChange: registerUndo,
-    feedback,
+    feedback: showOutcomeFeedback ? feedback : null,
     draftKey,
-    disabled: locked || scaffoldRequired,
+    disabled: locked || scaffoldRequired || contextScaffoldRequired || submitting,
   };
 
   const renderModule = () => {
     if (!processedQuestion) return null;
+    if (missingToolDefinition) {
+      const Tool = missingToolDefinition.component;
+      return (
+        <ToolRuntimeProvider showImmediateFeedback={showOutcomeFeedback}>
+          <Tool questionData={processedQuestion} onAction={handleMissingToolAction} />
+        </ToolRuntimeProvider>
+      );
+    }
     switch (processedQuestion.type) {
+      case 'modelingLab':
+        return <InteractiveModelingLabPlayer rawLabSpec={processedQuestion.labDefinition} assignmentId={assignmentId} executionScope={executionScope} supportUsage={supportUsage} disabled={commonModuleProps.disabled} onServerGraded={handleModelingLabGrade} />;
       case 'graphing':
         return <GraphLine {...commonModuleProps} />;
       case 'functionGraph':
@@ -239,8 +374,8 @@ export default function QuestionEngine({
           <StepByStepAlgebra
             {...commonModuleProps}
             questionRecord={record}
-            onStepGrade={onStepGrade}
-            maximumAttempts={maximumAttempts}
+            onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
+            maximumAttempts={resolvedMaximumAttempts}
           />
         );
       case 'algebra':
@@ -274,18 +409,18 @@ export default function QuestionEngine({
     }
   };
 
-  const submitDisabled = !answerState.isComplete || submitting || locked || scaffoldRequired;
-  const shouldShowSubmit = processedQuestion?.type !== 'stepAlgebra' || answerState.isComplete;
+  const submitDisabled = !answerState.isComplete || submitting || locked || scaffoldRequired || contextScaffoldRequired;
+  const shouldShowSubmit = !missingToolDefinition && processedQuestion?.type !== 'modelingLab' && (processedQuestion?.type !== 'stepAlgebra' || answerState.isComplete);
   const scratchpadQuestionDetails = answerState.questionDetails || processedQuestion?.prompt || 'Show your work for this question.';
   const partialPercent = Math.max(Number(record.bestPartialCredit) || 0, Number(feedback?.partialCredit) || 0);
   const expiredAlmost = isExpired && partialPercent >= 50;
   const formulaAnchor = processedQuestion?.formulaAnchor || processedQuestion?.formulaLatex || null;
+  const heldFeedbackMessage = resolvedActivityPolicy?.feedback === 'teacherRelease'
+    ? 'Your response is recorded. Your teacher will release correctness feedback.'
+    : 'Your response is recorded. Correctness feedback is held until the activity feedback window opens.';
 
-  return (
-    <div
-      className={`${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`}
-      style={{ position: 'relative', padding: '10px', textAlign: 'center', fontFamily: 'sans-serif', overflow: 'hidden' }}
-    >
+  const questionContextPanel = (
+    <div className="mathmaster-question-context-panel">
       {!supportPresentation.declutter && (
         <div
           role="status"
@@ -299,15 +434,15 @@ export default function QuestionEngine({
             padding: '12px 15px',
             maxWidth: '860px',
             borderRadius: '10px',
-            border: `1px solid ${record.status === 'attempted' ? '#f9ab00' : record.status === 'expired' ? '#e0b4b0' : record.status === 'correct' ? '#a8dab5' : '#d9e2f1'}`,
-            background: record.status === 'attempted' ? '#fef7e0' : record.status === 'expired' ? '#fce8e6' : record.status === 'correct' ? '#e6f4ea' : '#f8fbff',
+            border: `1px solid ${terminalFeedbackHidden ? '#c9d6e8' : record.status === 'attempted' ? '#f9ab00' : record.status === 'expired' ? '#e0b4b0' : record.status === 'correct' ? '#a8dab5' : '#d9e2f1'}`,
+            background: terminalFeedbackHidden ? '#f4f7fb' : record.status === 'attempted' ? '#fef7e0' : record.status === 'expired' ? '#fce8e6' : record.status === 'correct' ? '#e6f4ea' : '#f8fbff',
             color: '#3c4043',
           }}
         >
-          <strong>{record.status === 'correct' ? 'Question complete' : record.status === 'expired' ? 'This question has expired' : record.status === 'attempted' ? 'Question attempted' : 'Three attempts on this question'}</strong>
+          <strong>{terminalFeedbackHidden ? 'Response submitted' : record.status === 'correct' ? 'Question complete' : record.status === 'expired' ? 'This question is closed' : record.status === 'attempted' ? 'Question attempted' : `${resolvedMaximumAttempts} ${resolvedMaximumAttempts === 1 ? 'attempt' : 'attempts'} on this question`}</strong>
           <span>
-            Variant {record.variantIndex + 1} · {remainingAttempts} of {maximumAttempts} attempts remaining
-            {record.bestPartialCredit > 0 && record.status !== 'correct' ? ` · ${record.bestPartialCredit}% partial credit` : ''}
+            Variant {record.variantIndex + 1} · {terminalFeedbackHidden ? 'feedback held by activity policy' : `${remainingAttempts} of ${resolvedMaximumAttempts} attempts remaining`}
+            {!terminalFeedbackHidden && record.bestPartialCredit > 0 && record.status !== 'correct' ? ` · ${record.bestPartialCredit}% partial credit` : ''}
           </span>
         </div>
       )}
@@ -326,6 +461,12 @@ export default function QuestionEngine({
         )}
       </div>
 
+      <CalculatorPanel
+        policy={calculatorPolicy}
+        estimationRequired={processedQuestion?.estimationRequired === true}
+        onCalculatorOpened={() => setCalculatorUsed(true)}
+      />
+
       {formulaAnchor && supportPresentation.inclusion && (
         <aside style={{ position: 'sticky', top: '8px', zIndex: 4, margin: '0 0 12px auto', width: 'fit-content', maxWidth: '100%', padding: '10px 14px', borderRadius: '10px', background: '#fff4ce', border: '1px solid #f9ab00', color: '#5f4400', boxShadow: '0 4px 12px rgba(95,68,0,0.12)' }}>
           <strong style={{ display: 'block', fontSize: '12px', marginBottom: '4px' }}>Formula anchor</strong>
@@ -333,17 +474,44 @@ export default function QuestionEngine({
         </aside>
       )}
 
+      {contextScaffoldEnabled && !contextScaffoldComplete && !locked && (
+        <ProblemUnderstandingPanel
+          context={processedQuestion.context}
+          onScaffoldComplete={() => {
+            setContextScaffoldUsed(true);
+            setContextScaffoldComplete(true);
+          }}
+        />
+      )}
+      {contextScaffoldEnabled && (contextScaffoldComplete || locked) && (
+        <aside style={{ maxWidth: '860px', margin: '0 auto 18px', padding: '12px 15px', border: '1px solid #c5d5ef', borderRadius: '10px', background: '#f8fbff', textAlign: 'left', color: '#3c4043' }}>
+          <strong style={{ color: '#174ea6' }}>Context:</strong> {processedQuestion.context.scenario}
+        </aside>
+      )}
+
       <GuidedClassworkCoach
         question={processedQuestion}
         draftKey={draftKey}
-        enabled={guidedMode || supportPresentation.visualChunking}
+        enabled={resolvedActivityPolicy?.hintsAllowed !== false && (guidedMode || supportPresentation.visualChunking)}
         oneStepReveal={supportPresentation.visualChunking}
         disabled={locked}
+        onAssistanceUsed={() => setHintUsed(true)}
       />
+    </div>
+  );
 
+  return (
+    <div
+      className={`mathmaster-question-engine ${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`}
+      style={{ position: 'relative', padding: '10px', textAlign: 'center', fontFamily: 'sans-serif', overflow: 'hidden' }}
+    >
+      <MobileViewportContainer
+        promptText={processedQuestion?.prompt || processedQuestion?.scenario || 'Complete the math task.'}
+        contextPanel={questionContextPanel}
+        toolWorkspace={(
       <div style={{ position: 'relative' }}>
-        <fieldset disabled={locked || scaffoldRequired} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
-          <div aria-disabled={locked || scaffoldRequired ? 'true' : undefined} inert={locked || scaffoldRequired ? '' : undefined} style={{ pointerEvents: locked || scaffoldRequired ? 'none' : 'auto', opacity: locked ? 0.72 : scaffoldRequired ? 0.5 : 1 }}>
+        <fieldset disabled={locked || scaffoldRequired || contextScaffoldRequired || submitting} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+          <div aria-disabled={locked || scaffoldRequired || contextScaffoldRequired || submitting ? 'true' : undefined} inert={locked || scaffoldRequired || contextScaffoldRequired || submitting ? '' : undefined} style={{ pointerEvents: locked || scaffoldRequired || contextScaffoldRequired || submitting ? 'none' : 'auto', opacity: locked ? 0.72 : scaffoldRequired || contextScaffoldRequired ? 0.5 : 1 }}>
             {renderModule()}
           </div>
         </fieldset>
@@ -363,7 +531,7 @@ export default function QuestionEngine({
           </div>
         )}
 
-        {isCorrect && (
+        {isCorrect && showOutcomeFeedback && (
           <div aria-label="Correct answer" role="status" style={{ position: 'absolute', inset: 0, zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', background: 'rgba(230,244,234,0.18)' }}>
             <div style={{ transform: 'rotate(-8deg)', textAlign: 'center', color: 'rgba(24,128,56,0.24)', textShadow: '0 2px 18px rgba(24,128,56,0.12)' }}>
               <div style={{ fontSize: 'clamp(120px, 24vw, 250px)', fontWeight: 900, lineHeight: 0.72 }}>✓</div>
@@ -372,8 +540,8 @@ export default function QuestionEngine({
           </div>
         )}
 
-        {isExpired && (
-          <div aria-label={expiredAlmost ? 'Almost, try again' : 'Incorrect, try again'} role="status" style={{ position: 'absolute', inset: 0, zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', background: expiredAlmost ? 'rgba(255,248,225,0.24)' : 'rgba(252,232,230,0.22)' }}>
+        {isExpired && showOutcomeFeedback && (
+          <div aria-label={expiredAlmost ? 'Almost' : 'Incorrect'} role="status" style={{ position: 'absolute', inset: 0, zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', background: expiredAlmost ? 'rgba(255,248,225,0.24)' : 'rgba(252,232,230,0.22)' }}>
             <div style={{ transform: 'rotate(-6deg)', textAlign: 'center', color: expiredAlmost ? 'rgba(249,171,0,0.29)' : 'rgba(197,34,31,0.25)', textShadow: '0 3px 18px rgba(0,0,0,0.08)' }}>
               {expiredAlmost ? (
                 <div style={{ fontSize: 'clamp(150px, 28vw, 300px)', fontWeight: 900, lineHeight: 0.55 }}>−</div>
@@ -381,28 +549,39 @@ export default function QuestionEngine({
                 <div style={{ width: 'clamp(170px, 29vw, 310px)', height: 'clamp(170px, 29vw, 310px)', margin: '0 auto', border: 'clamp(12px, 2vw, 24px) solid currentColor', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'clamp(120px, 22vw, 245px)', fontWeight: 900, lineHeight: 1 }}>×</div>
               )}
               <div style={{ marginTop: expiredAlmost ? '-8px' : '8px', fontSize: 'clamp(38px, 7vw, 82px)', fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{expiredAlmost ? 'Almost' : 'Incorrect'}</div>
-              <div style={{ fontSize: 'clamp(58px, 10vw, 122px)', fontWeight: 1000, lineHeight: 0.95, textTransform: 'uppercase' }}>Try Again</div>
+              <div style={{ fontSize: 'clamp(58px, 10vw, 122px)', fontWeight: 1000, lineHeight: 0.95, textTransform: 'uppercase' }}>{resolvedActivityPolicy?.allowReplacement ? 'Try Again' : 'Recorded'}</div>
             </div>
           </div>
         )}
       </div>
-
-      {!locked && shouldShowSubmit && (
+        )}
+        actionButtons={!locked && shouldShowSubmit ? (
         <button onClick={handleSubmit} disabled={submitDisabled} style={{ marginTop: '40px', padding: '12px 24px', fontSize: '16px', fontWeight: 'bold', border: 'none', borderRadius: '8px', background: submitDisabled ? '#dadce0' : '#1a73e8', color: 'white', cursor: submitDisabled ? 'not-allowed' : 'pointer', boxShadow: submitDisabled ? 'none' : '0 4px 6px rgba(26, 115, 232, 0.2)' }}>
           {submitting ? 'Checking…' : processedQuestion?.type === 'stepAlgebra' ? 'Submit Solved Equation' : record.attemptCount > 0 ? 'Submit Another Attempt' : 'Submit Answer'}
         </button>
-      )}
+        ) : null}
+      />
 
       {sameIncorrectResponse && !isMultipart && !locked && (
         <p style={{ marginTop: '10px', color: '#5f6368', fontWeight: 'bold' }}>You may submit the same response again. No answer change is required.</p>
       )}
 
-      {feedback && (
+      {feedback && showOutcomeFeedback && (
         <div style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', backgroundColor: feedback.isCorrect ? '#e6f4ea' : '#fce8e6', color: feedback.isCorrect ? '#137333' : '#c5221f', fontSize: '16px', fontWeight: 'bold' }}>
-          {feedback.isCorrect ? 'Correct! This question is complete.' : feedback.expired ? 'That was the third unsuccessful attempt. This version is locked; review the solution and request a new question to continue.' : `Not quite. You have ${feedback.remainingAttempts} ${feedback.remainingAttempts === 1 ? 'attempt' : 'attempts'} remaining on this version.`}
+          {feedback.isCorrect
+            ? 'Correct! This question is complete.'
+            : feedback.expired
+              ? `That was the final allowed attempt (${resolvedMaximumAttempts} total). This response is locked.${resolvedActivityPolicy?.allowReplacement ? ' Review the solution, then request a new question to continue.' : ''}`
+              : `Not quite. You have ${feedback.remainingAttempts} ${feedback.remainingAttempts === 1 ? 'attempt' : 'attempts'} remaining on this version.`}
           {!feedback.isCorrect && Array.isArray(feedback.incorrectParts) && feedback.incorrectParts.length > 0 && (
             <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)' }}>Focus on: {feedback.incorrectParts.join(', ')}.</div>
           )}
+        </div>
+      )}
+
+      {terminalFeedbackHidden && (
+        <div role="status" style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', background: '#eef4ff', color: '#174ea6', border: '1px solid #aecbfa', fontSize: '15px', fontWeight: 'bold' }}>
+          {heldFeedbackMessage}
         </div>
       )}
 
@@ -410,14 +589,18 @@ export default function QuestionEngine({
         <div style={{ margin: '25px auto 0', padding: '18px', maxWidth: '700px', borderRadius: '10px', border: '2px solid #5f6368', background: '#f1f3f4', color: '#3c4043' }}><strong>This assignment is permanently closed.</strong> The saved response is available for review, but no changes or submissions are allowed.</div>
       )}
 
-      {isExpired && (
+      {isExpired && showOutcomeFeedback && (
         <div style={{ margin: '25px auto 0', padding: '18px', maxWidth: '700px', borderRadius: '10px', border: `2px solid ${expiredAlmost ? '#f9ab00' : '#d93025'}`, background: expiredAlmost ? '#fff8e1' : '#fce8e6', color: expiredAlmost ? '#6b5200' : '#5f2120', position: 'relative', zIndex: 45 }}>
-          <strong>This question version is closed after three attempts.</strong>
-          <p style={{ margin: '8px 0 14px' }}>Review the correct solution below, then request a new problem at the same difficulty. The new version clears the frozen submission screen.</p>
-          <SolutionReview question={processedQuestion} />
-          <button type="button" onClick={handleRequestNewQuestion} disabled={requesting || assignmentLocked} style={{ padding: '11px 18px', border: 'none', borderRadius: '8px', background: requesting || assignmentLocked ? '#dadce0' : '#1a73e8', color: '#fff', fontWeight: 'bold', cursor: requesting || assignmentLocked ? 'not-allowed' : 'pointer' }}>
-            {requesting ? 'Creating New Question…' : 'Request New Question'}
-          </button>
+          <strong>This response is closed after {resolvedMaximumAttempts} {resolvedMaximumAttempts === 1 ? 'attempt' : 'attempts'}.</strong>
+          {!missingToolDefinition && <SolutionReview question={processedQuestion} />}
+          {resolvedActivityPolicy?.allowReplacement && (
+            <>
+              <p style={{ margin: '8px 0 14px' }}>Review the solution, then request a new problem at the same difficulty.</p>
+              <button type="button" onClick={handleRequestNewQuestion} disabled={requesting || assignmentLocked} style={{ padding: '11px 18px', border: 'none', borderRadius: '8px', background: requesting || assignmentLocked ? '#dadce0' : '#1a73e8', color: '#fff', fontWeight: 'bold', cursor: requesting || assignmentLocked ? 'not-allowed' : 'pointer' }}>
+                {requesting ? 'Creating New Question…' : 'Request New Question'}
+              </button>
+            </>
+          )}
         </div>
       )}
 

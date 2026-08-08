@@ -13,10 +13,11 @@ This release replaces that with real Firebase Authentication, keeps sign-in to a
 few seconds on a phone or a Chromebook, and locks Firestore down to what the
 signed-in person is actually entitled to.
 
-## The four ways in
+## The ways in
 
 | Who | Method | What it needs |
 | --- | --- | --- |
+| Root administrator | Google or email + password | `matthew.hawkins@desotoisd.org` (server-pinned root identity) |
 | Teacher | Google | A Google account listed in `teacherDirectory` or `INITIAL_TEACHER_EMAILS` |
 | Teacher | Email + password | An account created in the Firebase console, plus a directory entry |
 | Student | Google | A school Google account linked once with a class code |
@@ -29,10 +30,12 @@ every teacher does either.
 
 ## Authorization comes from custom claims
 
-Two custom claims drive everything:
+Four custom claims/fields drive authorization:
 
 - `role` — `teacher` or `student`
 - `studentId` — the `grades` document the student owns
+- `admin` — present only on the root administrator
+- `rootAdmin` — present only on `matthew.hawkins@desotoisd.org`
 
 They are written **only** by Cloud Functions using the Admin SDK. A client can
 ask to be assigned a role (`resolveSignedInRole`), but it can never assert one,
@@ -41,18 +44,27 @@ the claim is not on the token, the data is not readable.
 
 ## Flows
 
+### Root administrator
+
+`matthew.hawkins@desotoisd.org` is the immutable MathMaster root administrator.
+It does not depend on `INITIAL_TEACHER_EMAILS`. After a successful verified
+Firebase sign-in, `resolveSignedInRole` assigns the teacher role plus the two
+root-admin claims. The root account inherits the complete instructor workspace
+and uniquely receives the **Administration** interface for teacher access,
+permanent student/data deletion, and administrative audit history.
+
 ### Teacher, first time
 
-1. Add the teacher's Google address to `INITIAL_TEACHER_EMAILS` in
-   `functions/.env.<project>` and deploy, **or** have an existing teacher add it
-   from the **Sign-in Access** tab.
+1. The root administrator adds the teacher's verified email from
+   **Administration → Teacher account access**. `INITIAL_TEACHER_EMAILS` remains
+   available only as an optional migration/bootstrap mechanism.
 2. They choose *I'm a teacher* → *Continue with Google*.
 3. `resolveSignedInRole` matches the email, sets `role: teacher`, and records
    the sign-in in `teacherDirectory`.
 
-`INITIAL_TEACHER_EMAILS` is the bootstrap for an empty directory — a chicken and
-egg fix, since only a teacher can grant teacher access. Once a real teacher
-exists, clear the variable.
+Ordinary teachers cannot grant or revoke other teachers. Revocation disables the
+Firebase user, clears its custom claims, and revokes refresh tokens rather than
+waiting for an old teacher token to expire normally.
 
 ### Student, first time (no Google account)
 
@@ -109,21 +121,26 @@ grade history is never stranded in a near-duplicate record.
 
 | Path | Read | Write |
 | --- | --- | --- |
-| `grades/{studentId}` and subcollections | owner or teacher | owner or teacher (delete: teacher only) |
+| `grades/{studentId}` and subcollections | owner or teacher | owner or teacher; parent-record delete is server-only |
 | `assignments/{id}` | any signed-in user | teacher |
 | `settings/{doc}` | any signed-in user | teacher |
-| `studentCredentials`, `studentDirectory`, `studentAliases`, `classJoinCodes`, `authThrottle`, `teacherDirectory` | nobody | nobody |
+| `studentCredentials`, `studentDirectory`, `studentAliases`, `classJoinCodes`, `authThrottle`, `teacherDirectory`, `adminAuditLog` | nobody | nobody |
 | Classroom integration collections | nobody | nobody |
 
 The server-only collections are unreachable from every client, teachers
 included — PIN hashes, join codes and lockout counters are only ever compared
 Admin-side.
 
-Deletes on `grades` are teacher-only deliberately. The recursive subcollection
-wildcard also matches the parent document, and Firestore rules are a permissive
-union, so a blanket `write` there would have handed students back the ability to
-erase their own grade history. `npm run test:rules` asserts this and 44 other
-cases against the real emulator; it needs Java and takes about a minute.
+No browser client can delete a `grades/{studentId}` parent document, including a
+root-admin browser session. Permanent deletion is available only through the
+root-admin callable, which recursively erases the student grade document and
+subcollections plus credentials, directory/alias/throttle records, mastery and
+retention state, My Math Path records, modeling-lab records, secure-exam records,
+Firebase student identities, and internal Classroom roster/grade-sync links.
+The UI requires the typed phrase `DELETE <studentId>` before invoking it.
+
+The server writes an audit event after the operation. The deletion event retains
+only a short one-way receipt digest instead of the deleted student's ID.
 
 ## Deploying this change
 
@@ -135,12 +152,13 @@ app.
 2. **Authorize your domains** under Authentication → Settings → Authorized
    domains (`mathmaster-aleks.web.app`, plus any custom domain and `localhost`).
    Google sign-in fails with `auth/unauthorized-domain` otherwise.
-3. **Set the bootstrap teacher**: add `INITIAL_TEACHER_EMAILS=you@school.org` to
-   `functions/.env.<project>`.
+3. **Root administrator**: no bootstrap environment entry is required for
+   `matthew.hawkins@desotoisd.org`. Keep `INITIAL_TEACHER_EMAILS` empty unless a
+   migration temporarily requires another pre-authorized teacher.
 4. **Deploy functions**: `firebase deploy --only functions`.
 5. **Deploy rules**: `firebase deploy --only firestore:rules`.
 6. **Deploy hosting**: `npm run build && firebase deploy --only hosting`.
-7. **Sign in as the teacher**, open **Sign-in Access**, and create a join code
+7. **Sign in as the root administrator or a teacher**, open **Sign-in Access** / **Administration**, and create a join code
    for each class period in use.
 8. **Give each class its code.** Students claim their accounts on first sign-in.
 
@@ -158,11 +176,12 @@ app.
 
 | File | Responsibility |
 | --- | --- |
-| `functions/lib/auth.js` | Validation, scrypt hashing, join codes, throttling. Dependency-free and unit testable. |
-| `functions/index.js` | The callables: `resolveSignedInRole`, `studentSignIn`, `linkGoogleAccount`, and the teacher admin actions. |
+| `functions/lib/auth.js` | Validation, root-admin identity, scrypt hashing, join codes, throttling. Dependency-free and unit testable. |
+| `functions/lib/admin.js` | Permanent-deletion policy and confirmation contract. |
+| `functions/index.js` | Role resolution plus teacher-support and root-admin callables. |
 | `src/auth/authService.js` | Firebase Auth wrappers, persistence, callable clients, error translation. |
 | `src/auth/AuthProvider.jsx` | `useAuth()` — session state machine (`loading` → `signedOut` / `linking` / `ready`). |
 | `src/LoginScreen.jsx` / `.css` | The login interface. |
-| `src/SignInAccess.jsx` | Teacher tab: join codes, PIN resets, unlinking, teacher access. |
+| `src/SignInAccess.jsx` | Teacher sign-in support plus the root-only administration interface. |
 | `firestore.rules` | Authorization, keyed on the two custom claims. |
 | `tests/firestore-rules.test.mjs` | Behavioural tests for the above. |

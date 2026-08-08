@@ -4,6 +4,8 @@ import {
   normalizeQuestionInstructionalMetadata,
 } from './questionMetadata.js';
 import { getTexasStandard, TEXAS_PERFORMANCE_LEVELS } from './texasStandards.js';
+import { resolveDOLQuestionIndex } from './assignmentLifecycle.js';
+import { getEffectiveActivityPolicy, resolveQuestionActivityRole } from './platform/policies/activityPolicies.js';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const round = (value, places = 1) => Number(Number(value || 0).toFixed(places));
@@ -28,6 +30,13 @@ const getRecencyWeight = (value) => {
   if (ageDays <= 180) return 0.85;
   return 0.75;
 };
+
+const usedMathematicalAssistance = (supportUsage = {}) => supportUsage.isMathematicallyIndependent === false
+  || Boolean(supportUsage.hintUsed)
+  || Boolean(supportUsage.teacherAssisted)
+  || Boolean(supportUsage.scaffoldUsed)
+  || Boolean(supportUsage.remediationUsed)
+  || Boolean(supportUsage.workedExampleUsed);
 
 const makeLevel = (key) => TEXAS_PERFORMANCE_LEVELS.find((item) => item.key === key) || null;
 
@@ -82,22 +91,33 @@ export const recommendGeneratorBand = ({ levelKey, score, confidence } = {}) => 
   return 3;
 };
 
-const resolveQuestionEvidenceWeight = ({ question, assignment, standardEntry, record }) => {
+const resolveQuestionEvidenceWeight = ({ question, assignment, standardEntry, record, questionIndex }) => {
   const metadata = normalizeQuestionInstructionalMetadata(question, assignment);
   const standard = getTexasStandard(standardEntry.code);
   const dok = metadata.complexity.level;
   const modified = Boolean(record.supportUsage?.modified);
-  const scaffoldFactor = record.supportUsage?.scaffoldUsed ? 0.85 : 1;
+  const scaffoldFactor = usedMathematicalAssistance(record.supportUsage) ? 0.85 : 1;
   const classificationFactor = CLASSIFICATION_WEIGHT[standard?.classification] || 1;
   const evidenceLevelFactor = EVIDENCE_LEVEL_WEIGHT[standardEntry.level] || 1;
   const dokFactor = DOK_WEIGHT[dok] || 0.9;
   const recency = getRecencyWeight(record.lastAttemptAt || record.recordedAt);
   const base = Number(metadata.evidenceWeight) || 0;
+  const dolEnabled = assignment?.dol?.enabled ?? assignment?.assignmentType === 'practice';
+  const activityRole = resolveQuestionActivityRole({
+    question,
+    assignment,
+    isDOL: Boolean(dolEnabled && resolveDOLQuestionIndex(assignment) === questionIndex),
+  });
+  const activityPolicy = getEffectiveActivityPolicy(activityRole);
+  const activityEvidenceWeight = Math.max(0, Number(activityPolicy.mastery.evidenceWeight) || 0);
 
   return {
     rawWeight: base,
-    gradeLevelWeight: modified ? 0 : base * classificationFactor * evidenceLevelFactor * dokFactor * scaffoldFactor * recency,
-    modifiedWeight: modified ? base * classificationFactor * evidenceLevelFactor * dokFactor * scaffoldFactor * recency : 0,
+    gradeLevelWeight: modified ? 0 : base * activityEvidenceWeight * classificationFactor * evidenceLevelFactor * dokFactor * scaffoldFactor * recency,
+    modifiedWeight: modified ? base * activityEvidenceWeight * classificationFactor * evidenceLevelFactor * dokFactor * scaffoldFactor * recency : 0,
+    activityRole,
+    activityEvidenceWeight,
+    activityEvidenceType: activityPolicy.mastery.evidenceType,
     metadata,
     standard,
   };
@@ -120,7 +140,7 @@ export const collectStudentEvidence = ({ student, assignments = [] } = {}) => {
       if (!primary.length) return;
 
       primary.forEach((standardEntry) => {
-        const weights = resolveQuestionEvidenceWeight({ question, assignment, standardEntry, record });
+        const weights = resolveQuestionEvidenceWeight({ question, assignment, standardEntry, record, questionIndex });
         evidence.push({
           studentId: student?.id || '',
           assignmentId: assignment.id,
@@ -139,6 +159,9 @@ export const collectStudentEvidence = ({ student, assignments = [] } = {}) => {
           generatorBand: metadata.difficulty.generatorBand,
           purpose: metadata.purpose,
           evidenceWeight: metadata.evidenceWeight,
+          activityRole: weights.activityRole,
+          activityEvidenceWeight: weights.activityEvidenceWeight,
+          activityEvidenceType: weights.activityEvidenceType,
           gradeLevelWeight: weights.gradeLevelWeight,
           modifiedWeight: weights.modifiedWeight,
           credit: getQuestionCredit(record),
@@ -148,6 +171,13 @@ export const collectStudentEvidence = ({ student, assignments = [] } = {}) => {
           eventuallyCorrect: record.status === 'correct',
           modified: Boolean(record.supportUsage?.modified),
           scaffoldUsed: Boolean(record.supportUsage?.scaffoldUsed),
+          hintUsed: Boolean(record.supportUsage?.hintUsed),
+          teacherAssisted: Boolean(record.supportUsage?.teacherAssisted),
+          remediationUsed: Boolean(record.supportUsage?.remediationUsed),
+          workedExampleUsed: Boolean(record.supportUsage?.workedExampleUsed),
+          contextScaffoldUsed: Boolean(record.supportUsage?.contextScaffoldUsed),
+          calculatorUsed: Boolean(record.supportUsage?.calculatorUsed),
+          isMathematicallyIndependent: !usedMathematicalAssistance(record.supportUsage),
           accommodations: record.supportUsage?.accommodations || [],
           modifications: record.supportUsage?.modifications || [],
           lastAttemptAt: record.lastAttemptAt || null,

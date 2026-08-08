@@ -336,7 +336,7 @@ export default function ScratchpadOverlay({
             display: 'block',
             width: '100%',
             height: '100%',
-            minHeight: '520px',
+            minHeight: 0,
             borderRadius: '14px',
             background: '#fff',
             boxShadow: '0 10px 30px rgba(60,64,67,0.16)',

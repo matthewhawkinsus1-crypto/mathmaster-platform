@@ -1,0 +1,62 @@
+MATHMASTER — JSON PREFLIGHT + MOBILE VIEWPORT VALIDATION
+Date: 2026-08-08
+
+OUTCOME
+- JSON drag/drop is now a first-class teacher workflow. Dropping or browsing a .json file opens the pre-flight automatically.
+- Lesson Bundle V3 activities are authoritative. A legacy top-level questions mirror can no longer make the created student assignment differ from the preview.
+- The pre-flight is editable before creation: title, folder, due/late/release dates, assignment type, problem version mode, MathMaster class periods, DOL settings, and publication-plan settings.
+- Teacher pre-flight values override JSON assignment metadata when the assignment is created.
+- Publication Preview and Student Experience are wired into the live pre-flight modal.
+- Student math questions now share a viewport-constrained mobile shell with portrait prompt drawer behavior and a 35/65 landscape split.
+- Interactive graph/canvas surfaces use touch-safe behavior, responsive viewBox coordinate conversion, and responsive sizing.
+- Native numeric response inputs receive an in-app mobile keypad; MathLive uses the in-app math controls instead of depending on the OS soft keyboard.
+- Touch-oriented graph controls preserve tap/select fallbacks; graph axis and scenario-match layouts collapse on narrow portrait screens.
+
+GOOGLE CLASSROOM SCOPE
+- The pre-flight assigns the new assignment to MathMaster class periods.
+- The Publication Preview is a Phase 3 publication PLAN. It does not claim to have created several Google Classroom coursework posts.
+- The existing Google Classroom Sync screen remains the real course-selection and publication path. Its backend currently creates one Classroom coursework item per MathMaster assignment/course, with its existing grade-passback record.
+- Implementing the publication planner as several live Classroom coursework records would require a corresponding multi-post grade-passback data-model change and is intentionally not misrepresented by this repair.
+
+AUTOMATED VERIFICATION
+- npm run build: PASS (Vite 8.2.0 production build)
+- Multi-page production compile of index.html + tools-lab.html: PASS
+- npm run lint: PASS / exit 0 (existing warnings remain; no lint failure)
+- node --test tests/platform/*.test.mjs tests/tools/*.test.mjs: PASS — 100/100 tests
+- functions JavaScript syntax check (all functions/**/*.js): PASS
+- Phase 3A-3D stress Bundle V3: PASS
+  - 6 activities
+  - 10 assignment questions
+  - deep bundle validation valid
+  - Bundle V3 Question 5 resolves to transformationsLab (not the legacy mirror)
+  - Period 1 package metadata detected for teacher review
+
+NEW REGRESSION COVERAGE
+- Bundle V3 activities override a conflicting legacy questions mirror.
+- Bundle V3 import works without a legacy top-level questions array.
+- SVG/viewBox-to-graph coordinate conversion is invariant under responsive scaling.
+- Taps outside the plotted viewBox region are rejected.
+
+PRIMARY FILES CHANGED
+- src/App.jsx
+- src/assignmentBlueprint.js
+- src/QuestionEngine.jsx
+- src/QuestionPrompt.jsx
+- src/MathInput.jsx
+- src/GraphDisplay.jsx
+- src/InteractiveGraphWorkspace.jsx
+- src/GraphAxisEditor.jsx
+- src/GraphScenarioMatch.jsx
+- src/ScratchpadOverlay.jsx
+- src/components/CalculatorPanel.jsx
+- src/components/teacher/LessonPreflightModal.jsx
+- src/tools/shared/CoordinatePlane.jsx
+- src/tools/shared/ToolShell.jsx
+
+NEW SOURCE FILES
+- src/components/student/MobileViewportContainer.jsx
+- src/components/student/MathToolMobileLayout.css
+- src/components/common/ResponsiveMathCanvas.jsx
+- src/components/common/InteractivePlotPoint.jsx
+- src/utils/responsiveCoordinates.js
+- tests/platform/jsonPreflightMobile.test.mjs

@@ -29,6 +29,7 @@ export default function QuestionPrompt({
 
   return (
     <div
+      className="mathmaster-question-prompt"
       style={{
         fontSize: '18px',
         color: '#5f6368',

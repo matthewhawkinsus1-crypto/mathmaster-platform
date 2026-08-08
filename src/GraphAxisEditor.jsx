@@ -100,6 +100,7 @@ export default function GraphAxisEditor({
   return (
     <div style={{ marginTop: '20px' }}>
       <div
+        className="mathmaster-axis-editor-grid"
         style={{
           display: 'grid',
           gridTemplateColumns: 'minmax(135px, 185px) minmax(0, 1fr)',

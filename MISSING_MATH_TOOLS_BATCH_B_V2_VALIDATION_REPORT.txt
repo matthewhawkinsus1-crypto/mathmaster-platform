@@ -1,0 +1,87 @@
+MathMaster Missing Math Tools — Batch B v2 Validation Report
+Date: 2026-08-08
+
+BASE
+- Built on: mathmaster-platform-missing-tools-batch-a-v2-updated.zip
+- Main App/authentication/Firebase/Classroom integration intentionally untouched.
+
+BATCH B SCOPE
+- Polynomial Workshop v2
+- Sign & Solution Analyzer v2
+- Parabola Geometry Lab v2
+
+AUTOMATED MATH / SCHEMA TESTS
+Command:
+node --test tests/tools/toolMath.test.mjs tests/tools/toolSchemas.test.mjs tests/tools/batchADeepening.test.mjs tests/tools/batchBDeepening.test.mjs
+
+Result:
+- 29 tests
+- 29 passed
+- 0 failed
+
+Batch B test coverage includes:
+- polynomial multiplication
+- polynomial long division
+- monic quadratic factor-pair logic
+- root multiplicity crossing/touching behavior
+- polynomial end behavior
+- rational cancellation: hole / zero / vertical asymptote
+- rational inequality sign intervals
+- strict vs inclusive endpoint semantics
+- denominator exclusions
+- even-multiplicity sign behavior
+- radical/extraneous candidate verification
+- vertical parabola focus/directrix/latus rectum
+- horizontal parabola geometry
+- focus/directrix reconstruction
+- parabola equidistance property
+- Batch B schema rejection cases
+
+SOURCE SYNTAX PARSE
+Method:
+- TypeScript parser, JS/JSX/MJS, no emit
+
+Result:
+- 98 src JS/JSX/MJS files parsed
+- 0 syntax errors
+
+RELATIVE IMPORT CHECK
+- 272 relative imports checked
+- 0 unresolved relative imports
+
+BATCH B SAMPLE JSON
+File:
+SAMPLE_BATCH_B_DEEP_DIVE.json
+
+Result:
+- 13 Batch B deep-dive configurations
+- 13 passed hard validation
+- 0 invalid
+
+SUPPORTED BATCH B MODES
+Polynomial Workshop:
+- factorZero
+- multiplyArea
+- factorQuadratic
+- division
+- graphConnection
+- rationalFeatures
+
+Sign & Solution Analyzer:
+- polynomial
+- rational
+- radicalCheck
+
+Parabola Geometry Lab:
+- features
+- equidistance
+- fromGeometry
+- equation
+
+PRODUCTION BUILD STATUS
+- A full Vite production build was not claimed.
+- This isolated workspace does not contain node_modules.
+- Source syntax, import resolution, schema validation, and pure-math behavior were validated independently.
+
+RESULT
+PASS for Batch B v2 draft/development integration.
