@@ -89,6 +89,7 @@
 .mathmaster-question-container math-field {
   max-width: 100%;
   font-size: max(16px, 1em);
+  min-height: 44px;
 }
 
 .mathmaster-question-container table {

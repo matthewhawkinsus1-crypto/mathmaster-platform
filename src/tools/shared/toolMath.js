@@ -146,3 +146,23 @@ export const intervalFromSigns = (factors = [], relation = '>') => {
 };
 
 export const formatNumber = (value, digits = 2) => Number.isFinite(Number(value)) ? round(Number(value), digits).toString() : '—';
+
+// `Number('')` is 0 and `Number.isFinite(0)` is true, so comparing a raw input
+// string with nearlyEqual scored an untouched box as correct whenever the
+// expected value happened to be 0 — and a vertex at the origin is the default
+// in several labs. Every tool that grades a typed number goes through here.
+export const parseNumericAnswer = (value) => {
+  if (value == null) return null;
+  const text = String(value).trim();
+  if (text === '') return null;
+  const parsed = Number(text);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+export const matchesNumericAnswer = (value, expected, tolerance = 0.01) => {
+  const parsed = parseNumericAnswer(value);
+  if (parsed == null || !Number.isFinite(Number(expected))) return false;
+  return Math.abs(parsed - Number(expected)) <= tolerance;
+};
+
+export const isBlankAnswer = (value) => parseNumericAnswer(value) == null;

@@ -482,3 +482,21 @@
   outline: 3px solid var(--mm-primary, #1a73e8);
   outline-offset: 2px;
 }
+
+/* Touch-target floor for everything inside a tool. The mobile stylesheet only
+   raised buttons, and only when the tool happened to be inside the student
+   question container — selects and text inputs stayed at ~34px, which is below
+   the comfortable tap size on a phone. */
+.mathmaster-tool-shell :is(button, select, input, textarea, [role="button"]) {
+  min-height: 44px;
+}
+
+.mathmaster-tool-shell :is(input, select, textarea) {
+  font-size: max(16px, 1em); /* stops iOS Safari zooming in on focus */
+}
+
+.mathmaster-tool-shell :is(button, a, input, select, textarea):focus-visible {
+  outline: 3px solid var(--mm-primary, #1a73e8);
+  outline-offset: 2px;
+  border-radius: 6px;
+}

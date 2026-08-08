@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { getToolDefinition, listTools } from '../tools/toolRegistry';
+import { ToolRuntimeProvider } from '../tools/shared/ToolRuntimeContext';
 
 const SAMPLE_SPECS = {
   dataModelingLab: { mode:'full', points:[[1,2],[2,3],[3,5],[4,5],[5,7],[6,8],[7,10]], causationSupported:false, expectedModel:'linear', predictionX:8 },
@@ -30,8 +31,8 @@ export default function MathToolsLab() {
   return <main style={{ minHeight:'100vh', background:'#eef2f7', color:'#172033', fontFamily:'Inter, ui-sans-serif, system-ui, sans-serif' }}>
     <header style={{ background:'linear-gradient(135deg,#174ea6,#2468e5)', color:'#fff', padding:'24px 28px' }}>
       <div style={{ maxWidth:1180, margin:'0 auto', display:'flex', justifyContent:'space-between', gap:18, alignItems:'center', flexWrap:'wrap' }}>
-        <div><div style={{fontWeight:900,fontSize:13,letterSpacing:1.1,opacity:.85}}>MATHMASTER · TOOL LAB</div><h1 style={{margin:'5px 0 0',fontSize:30}}>Missing Math Tools Development Suite</h1><p style={{margin:'6px 0 0',opacity:.9}}>15 contract-compliant tools · Batch D deepened: Transformations, Representation Match, Function Investigation, Graphing.</p></div>
-        <div style={{background:'rgba(255,255,255,.14)',border:'1px solid rgba(255,255,255,.28)',padding:'10px 14px',borderRadius:12,fontWeight:800}}>Draft Build · Batch D v2</div>
+        <div><div style={{fontWeight:900,fontSize:13,letterSpacing:1.1,opacity:.85}}>MATHMASTER · TOOL PREVIEW</div><h1 style={{margin:'5px 0 0',fontSize:30}}>Math Tools Preview Bench</h1><p style={{margin:'6px 0 0',opacity:.9}}>Try any interactive tool the way a student sees it. Nothing here is graded or saved. Worked answers are shown on this page only — students never see them.</p></div>
+        <div style={{background:'rgba(255,255,255,.14)',border:'1px solid rgba(255,255,255,.28)',padding:'10px 14px',borderRadius:12,fontWeight:800}}>Teacher preview</div>
       </div>
     </header>
     <div style={{ maxWidth:1180, margin:'0 auto', padding:24, display:'grid', gridTemplateColumns:'260px minmax(0,1fr)', gap:20 }}>
@@ -41,7 +42,11 @@ export default function MathToolsLab() {
       </aside>
       <section style={{minWidth:0}}>
         <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:12}}>{definition.courses.map(course=><span key={course} style={{padding:'6px 9px',borderRadius:999,background:'#fff',border:'1px solid #d9e2f1',fontSize:12,fontWeight:800}}>{course}</span>)}</div>
-        <Tool questionData={SAMPLE_SPECS[toolId] || {}} onAction={onAction} attemptRecord={{isCorrect:false,attemptNumber:2,score:.5,response:{sample:'student response'}}} />
+        {/* The teacher bench is the one surface that may show worked answers:
+            it exists to inspect a tool, not to be graded by it. */}
+        <ToolRuntimeProvider showImmediateFeedback revealAnswers>
+          <Tool questionData={SAMPLE_SPECS[toolId] || {}} onAction={onAction} attemptRecord={{isCorrect:false,attemptNumber:2,score:.5,response:{sample:'student response'}}} />
+        </ToolRuntimeProvider>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginTop:18}}>
           <div style={{background:'#fff',border:'1px solid #d9e2f1',borderRadius:14,padding:16}}><h3 style={{marginTop:0,fontSize:15}}>Capability Contract</h3><pre style={{whiteSpace:'pre-wrap',fontSize:12,margin:0}}>{JSON.stringify(definition.capabilities,null,2)}</pre></div>
           <div style={{background:'#fff',border:'1px solid #d9e2f1',borderRadius:14,padding:16}}><h3 style={{marginTop:0,fontSize:15}}>Attempt Event Preview</h3>{eventLog.length?eventLog.map((event,i)=><div key={i} style={{padding:'7px 0',borderBottom:'1px solid #edf1f6',fontSize:12}}><strong>{event.type}</strong> · {event.at}</div>):<p style={{color:'#667085',fontSize:13}}>Interact with the tool and submit a response to inspect its contract event.</p>}</div>

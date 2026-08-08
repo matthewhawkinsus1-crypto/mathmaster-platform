@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import ToolShell, { Panel, ResultPill, ToolGrid } from '../shared/ToolShell';
+import ToolShell, { Panel, ResultPill, ToolGrid, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
-import { correlation, linearRegression, residualsForLine, round } from '../shared/toolMath';
+import { correlation, linearRegression, parseNumericAnswer, residualsForLine, round } from '../shared/toolMath';
 import {
   buildCandidateModels,
   chooseBestModel,
@@ -23,6 +23,10 @@ const Field = ({ label, children }) => (
 const inputStyle = { width:'100%', boxSizing:'border-box', padding:'9px 10px', border:'1px solid #cfd8e6', borderRadius:8, background:'#fff' };
 
 const modelFunction = (entry) => entry?.predict || (() => Number.NaN);
+
+const MODE_TASKS = {'full': 'Fit a line to the data, describe the association, choose the best model family, and make a prediction you can defend.', 'lineFit': 'Find the slope and intercept of a line that fits this data well.', 'association': 'Describe the direction and strength of the association, and say what this data can justify.', 'prediction': 'Use the model to predict a value, and say whether that prediction is interpolation or extrapolation.', 'modelCompare': 'Decide which model family fits this data best.'};
+const MODE_STEPS = {'full': ['Adjust the slope and intercept until the residuals are small and evenly scattered.', 'Read the correlation to describe direction and strength.', 'Compare the model families, then predict and classify.'], 'lineFit': ['Move the slope until the line matches the overall trend.', 'Move the intercept until the line sits through the middle of the points.', 'Watch the residual plot — you want it scattered around zero with no pattern.'], 'association': ['Look at whether the points rise or fall from left to right.', 'Look at how tightly they cluster around a line.', 'Decide whether this data could show cause and effect, or only a relationship.'], 'prediction': ['Enter the x-value you are predicting at.', 'Use the model to compute the predicted y.', 'Decide whether that x is inside or outside the observed data.'], 'modelCompare': ['Compare the residual error of each candidate.', 'Check that the shape is reasonable for what the data describes.', 'Select the best model and check.']};
+const HINTS = {'full': ['Work through the panels in order — each one builds on the last.', 'A good fit has residuals scattered above and below zero with no curve or pattern in them.', 'Correlation describes how tightly the points follow a line. It never proves that one variable causes the other.'], 'lineFit': ['Get the slope roughly right first, then slide the intercept to centre the line.', 'Slope is rise over run: pick two points far apart on the trend and compare how much y changes to how much x changes.', 'If the residual plot curves, a straight line is the wrong shape for this data — that is information, not failure.'], 'association': ['Direction is about which way the cloud of points tilts.', 'Strength is about how close the points sit to a single line, not how steep that line is.', 'Observational data can only establish an association. Only a controlled experiment can establish cause and effect.'], 'prediction': ['Substitute your x into the model and compute the y it gives.', 'Interpolation means predicting inside the range of x-values you actually observed.', 'Extrapolation goes beyond the data, where the pattern may not hold — treat those predictions cautiously.'], 'modelCompare': ['Smaller residual error means the model is closer to the points on average.', 'RMSE punishes large misses more than MAE does, so a model with one big error will look worse under RMSE.', 'Also ask whether the shape makes sense: a model that fits well but predicts a negative quantity is still wrong.']};
 
 function ResidualPlot({ rows, xMin, xMax }) {
   const absMax = Math.max(2, ...rows.map((row) => Math.abs(row.residual || 0)));
@@ -76,11 +80,18 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
     const results = {};
     const slopeTolerance = Number(questionData.slopeTolerance ?? Math.max(0.2, Math.abs(regression.m) * 0.12));
     const interceptTolerance = Number(questionData.interceptTolerance ?? 0.8);
-    results.fit = Math.abs(Number(m) - regression.m) <= slopeTolerance && Math.abs(Number(b) - regression.b) <= interceptTolerance;
+    const fitSlope = parseNumericAnswer(m);
+    const fitIntercept = parseNumericAnswer(b);
+    results.fit = fitSlope != null && fitIntercept != null
+      && Math.abs(fitSlope - regression.m) <= slopeTolerance
+      && Math.abs(fitIntercept - regression.b) <= interceptTolerance;
     results.association = direction === descriptor.direction && strength === descriptor.strength && causation === (questionData.causationSupported ? 'causation' : 'association');
     results.modelChoice = modelChoice === expectedModelId;
     const predictionTolerance = Number(questionData.predictionTolerance ?? Math.max(0.5, Math.abs(expectedPrediction) * 0.08));
-    results.prediction = Number.isFinite(Number(predictionY)) && Math.abs(Number(predictionY) - expectedPrediction) <= predictionTolerance && predictionType === expectedPredictionType;
+    const predicted = parseNumericAnswer(predictionY);
+    results.prediction = predicted != null && Number.isFinite(expectedPrediction)
+      && Math.abs(predicted - expectedPrediction) <= predictionTolerance
+      && predictionType === expectedPredictionType;
 
     const scored = requiredParts.map((part) => results[part]);
     const score = scored.filter(Boolean).length / scored.length;
@@ -103,10 +114,10 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
       title="Data Modeling Lab"
       subtitle="Build a model, inspect residuals, compare functions, and make defensible predictions without confusing association with causation."
       badge="Algebra I / II · Data Modeling"
-      footer="Question JSON controls which reasoning parts are graded. The same lab supports line-of-best-fit, residual, prediction, correlation, and model-choice families."
     >
+      <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.full} steps={MODE_STEPS[mode] || MODE_STEPS.full} />
       <ToolGrid min={350}>
-        <Panel title="1 · Scatter plot and student model">
+        <Panel title="1 · Scatter plot and your model">
           <CoordinatePlane
             xMin={xMin} xMax={xMax} yMin={yMin} yMax={yMax}
             points={points.map(([x,y]) => ({ 0:x, 1:y }))}
@@ -153,14 +164,13 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
         <Panel title="4 · Compare model families">
           <div style={{ display:'grid', gap:8 }}>
             {candidateModels.map((entry) => (
-              <label key={entry.id} style={{ display:'grid', gridTemplateColumns:'auto 1fr auto', gap:10, alignItems:'center', padding:10, border:'1px solid #dde5f0', borderRadius:10, background:modelChoice===entry.id?'#eef4ff':'#fff' }}>
+              <label key={entry.id} style={{ display:'grid', gridTemplateColumns:'auto 1fr', gap:10, alignItems:'center', padding:10, border:'1px solid #dde5f0', borderRadius:10, background:modelChoice===entry.id?'#eef4ff':'#fff' }}>
                 <input type="radio" name="modelChoice" checked={modelChoice===entry.id} onChange={()=>setModelChoice(entry.id)} />
                 <span><strong>{entry.label}</strong><br/><span style={{fontSize:12,color:'#667085'}}>RMSE {round(entry.metrics.rmse,2)} · MAE {round(entry.metrics.mae,2)}</span></span>
-                <span style={{fontSize:12,fontWeight:800,color:'#52617a'}}>{entry.id}</span>
               </label>
             ))}
           </div>
-          <p style={{ color:'#5f6b7a', fontSize:13 }}>Choose the model with smaller residual error <em>and</em> a shape that is reasonable for the context. The family can lock the intended model when the instructional goal is model recognition.</p>
+          <p style={{ color:'#5f6b7a', fontSize:13 }}>Pick the model with the smaller residual error <em>and</em> a shape that makes sense for what the data describes. A model that fits these points slightly better but predicts something impossible is the wrong choice.</p>
         </Panel>
 
         <Panel title="5 · Prediction and reasonableness">
@@ -175,11 +185,21 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
         </Panel>
 
         <Panel title="Submit model reasoning">
-          <p style={{ marginTop:0, color:'#5f6b7a' }}>This task grades only the parts requested by <code>questionData.mode</code>. A full task can score fit, association, model choice, and prediction separately for partial credit.</p>
+          <p style={{ marginTop:0, color:'#5f6b7a' }}>Each part of your reasoning is graded separately, so getting some of it right still earns credit.</p>
           <button type="button" onClick={check} style={{ padding:'11px 18px', border:0, borderRadius:9, background:'#1a73e8', color:'#fff', fontWeight:800, cursor:'pointer' }}>Check data model</button>
+          <HintPanel hints={HINTS[mode] || HINTS.full} onHintUsed={() => onAction?.('HINT_USED')} />
           {feedback ? (
             <div style={{ marginTop:14 }}>
-              <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'All requested modeling evidence is correct.' : `Modeling evidence: ${Math.round(feedback.score*100)}%`}</ResultPill>
+              <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>
+              {(() => {
+                const parts = feedback.metadata?.parts || {};
+                const missed = requiredParts.filter((part) => !parts[part]);
+                const label = { fit:'the line of best fit', association:'the association description', modelChoice:'the model family', prediction:'the prediction' };
+                const text = feedback.isCorrect
+                  ? 'Every part of your modelling reasoning holds up.'
+                  : `Still to fix: ${missed.map((part) => label[part] || part).join(', ')}. Everything else is right.`;
+                return <p style={{ margin:'9px 0 0', color:'#3c4756', lineHeight:1.55 }}>{text}</p>;
+              })()}
               <div style={{ marginTop:12, padding:12, borderRadius:10, background:'#f7f9fc', fontSize:13, color:'#44516a' }}>
                 <strong>Reference after submit:</strong> linear regression y ≈ {round(regression.m,2)}x {regression.b>=0?'+':'−'} {Math.abs(round(regression.b,2))}; best candidate by {questionData.modelMetric || 'RMSE'}: {bestModel?.label || '—'}.
               </div>
