@@ -1,0 +1,157 @@
+{
+  "schemaVersion": 1,
+  "title": "MathMaster Missing Tools — Batch C Deep Dive",
+  "purpose": "Tool Lab QA for Sequence Explorer, Complex Plane Lab, and Exponential ↔ Log Bridge",
+  "questions": [
+    {
+      "toolId": "sequenceExplorer",
+      "mode": "analyze",
+      "difficultyBand": 2,
+      "dok": 2,
+      "masteryEvidenceKeys": ["texas:A.12D"],
+      "kind": "arithmetic",
+      "sequence": {"first": 4, "difference": 3},
+      "targetN": 8,
+      "displayCount": 7
+    },
+    {
+      "toolId": "sequenceExplorer",
+      "mode": "ruleBridge",
+      "difficultyBand": 3,
+      "dok": 2,
+      "masteryEvidenceKeys": ["texas:A.12C", "texas:A.12D"],
+      "kind": "geometric",
+      "sequence": {"first": 3, "ratio": 2}
+    },
+    {
+      "toolId": "sequenceExplorer",
+      "mode": "missingTerm",
+      "difficultyBand": 2,
+      "dok": 2,
+      "masteryEvidenceKeys": ["texas:A.12C"],
+      "kind": "arithmetic",
+      "sequence": {"first": -5, "difference": 4},
+      "missingIndex": 4,
+      "displayCount": 7
+    },
+    {
+      "toolId": "sequenceExplorer",
+      "mode": "partialSum",
+      "difficultyBand": 4,
+      "dok": 2,
+      "masteryEvidenceKeys": ["honors:finite-series"],
+      "kind": "geometric",
+      "sequence": {"first": 2, "ratio": 3},
+      "sumN": 5
+    },
+    {
+      "toolId": "sequenceExplorer",
+      "mode": "compare",
+      "difficultyBand": 4,
+      "dok": 3,
+      "masteryEvidenceKeys": ["texas:A.12D"],
+      "left": {"kind": "arithmetic", "first": 5, "difference": 4},
+      "right": {"kind": "geometric", "first": 1, "ratio": 2},
+      "compareN": 7,
+      "leftLabel": "Arithmetic A",
+      "rightLabel": "Geometric B"
+    },
+    {
+      "toolId": "complexPlaneLab",
+      "mode": "features",
+      "difficultyBand": 2,
+      "dok": 2,
+      "masteryEvidenceKeys": ["honors:complex-plane"],
+      "z": {"re": 3, "im": -4}
+    },
+    {
+      "toolId": "complexPlaneLab",
+      "mode": "operations",
+      "difficultyBand": 3,
+      "dok": 2,
+      "masteryEvidenceKeys": ["texas:A2.7A"],
+      "z": {"re": 2, "im": 3},
+      "w": {"re": -1, "im": 2},
+      "operation": "multiply"
+    },
+    {
+      "toolId": "complexPlaneLab",
+      "mode": "division",
+      "difficultyBand": 4,
+      "dok": 2,
+      "masteryEvidenceKeys": ["honors:complex-division"],
+      "z": {"re": 4, "im": 2},
+      "w": {"re": 1, "im": -1}
+    },
+    {
+      "toolId": "complexPlaneLab",
+      "mode": "powers",
+      "difficultyBand": 4,
+      "dok": 3,
+      "masteryEvidenceKeys": ["honors:complex-powers"],
+      "z": {"re": 1, "im": 1},
+      "exponent": 3
+    },
+    {
+      "toolId": "complexPlaneLab",
+      "mode": "rotation",
+      "difficultyBand": 4,
+      "dok": 3,
+      "masteryEvidenceKeys": ["honors:complex-plane"],
+      "z": {"re": 3, "im": 1},
+      "quarterTurns": 1
+    },
+    {
+      "toolId": "complexPlaneLab",
+      "mode": "quadraticRoots",
+      "difficultyBand": 4,
+      "dok": 3,
+      "masteryEvidenceKeys": ["honors:complex-quadratic-roots"],
+      "quadratic": {"a": 1, "b": 2, "c": 5}
+    },
+    {
+      "toolId": "exponentialLogBridge",
+      "mode": "equivalentForms",
+      "difficultyBand": 2,
+      "dok": 1,
+      "masteryEvidenceKeys": ["texas:A2.5C"],
+      "base": 3,
+      "exponent": 4
+    },
+    {
+      "toolId": "exponentialLogBridge",
+      "mode": "solveExponential",
+      "difficultyBand": 3,
+      "dok": 2,
+      "masteryEvidenceKeys": ["texas:A2.5D"],
+      "equation": {"base": 2, "m": 2, "c": -1, "rhs": 32}
+    },
+    {
+      "toolId": "exponentialLogBridge",
+      "mode": "solveLogarithmic",
+      "difficultyBand": 3,
+      "dok": 2,
+      "masteryEvidenceKeys": ["texas:A2.5D", "texas:A2.5E"],
+      "equation": {"base": 3, "m": 2, "c": 1, "result": 2}
+    },
+    {
+      "toolId": "exponentialLogBridge",
+      "mode": "inverse",
+      "difficultyBand": 4,
+      "dok": 3,
+      "masteryEvidenceKeys": ["texas:A2.2C", "texas:A2.5A"],
+      "function": {"a": 2, "base": 2, "h": 1, "k": -3},
+      "x": 3
+    },
+    {
+      "toolId": "exponentialLogBridge",
+      "mode": "composition",
+      "difficultyBand": 4,
+      "dok": 3,
+      "masteryEvidenceKeys": ["texas:A2.2C"],
+      "function": {"a": 2, "base": 2, "h": 1, "k": -3},
+      "x": 3,
+      "y": 13
+    }
+  ]
+}

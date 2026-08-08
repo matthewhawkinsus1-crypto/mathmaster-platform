@@ -367,3 +367,80 @@
   border-width: 2px !important;
   border-color: #000 !important;
 }
+
+/* ------------------------------------------------- Responsive dashboard pass
+ *
+ * The teacher dashboard was built as a fixed sidebar + content row with inline
+ * styles, which meant that on a phone or a narrow Chromebook split-screen the
+ * sidebar ate ~212px of a ~360px viewport and tables ran off the edge with no
+ * way to reach them. These rules are scoped to the dashboard shell so the
+ * student screens and the algebra solver are unaffected.
+ */
+
+/* Wide tables (gradebook, class schedule) must scroll inside their own box
+   rather than pushing the whole page sideways. */
+.mm-dashboard-content table {
+  min-width: 640px;
+}
+
+.mm-dashboard-content .mm-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 860px) {
+  /* Sidebar becomes a horizontal strip above the content instead of a rail
+     that competes with it for width. */
+  .mm-dashboard-shell {
+    flex-direction: column !important;
+  }
+
+  .mm-dashboard-nav {
+    width: 100% !important;
+    flex: 0 0 auto !important;
+    flex-direction: row !important;
+    overflow-x: auto;
+    border-right: none !important;
+    border-bottom: 1px solid var(--mm-border-soft, #e8eaed);
+    border-radius: 12px 12px 0 0 !important;
+    padding: 8px !important;
+    gap: 6px;
+    scrollbar-width: thin;
+  }
+
+  .mm-dashboard-nav button {
+    width: auto !important;
+    flex: 0 0 auto;
+    margin-bottom: 0 !important;
+    white-space: nowrap;
+  }
+
+  /* The collapse toggle is meaningless once the rail is horizontal. */
+  .mm-dashboard-nav .mm-nav-collapse {
+    display: none !important;
+  }
+
+  .mm-dashboard-content {
+    padding: 18px 14px !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .mm-bulkbar {
+    position: static;
+  }
+
+  .mm-toast-viewport {
+    right: 12px;
+    left: 12px;
+    width: auto;
+  }
+}
+
+/* Visible keyboard focus everywhere. Many dashboard controls are inline-styled
+   <button>s that inherited no focus ring at all. */
+.mm-dashboard-shell :is(button, a, input, select, textarea):focus-visible {
+  outline: 3px solid var(--mm-primary, #1a73e8);
+  outline-offset: 2px;
+  border-radius: 6px;
+}

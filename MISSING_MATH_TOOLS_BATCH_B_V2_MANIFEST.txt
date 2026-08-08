@@ -1,0 +1,21 @@
+MathMaster Missing Tools — Batch B v2
+Updated/New Files
+
+UPDATED
+src/dev/MathToolsLab.jsx
+src/tools/polynomialWorkshop/PolynomialWorkshop.jsx
+src/tools/signSolutionAnalyzer/SignSolutionAnalyzer.jsx
+src/tools/parabolaGeometry/ParabolaGeometryLab.jsx
+src/tools/toolSchemas.js
+
+NEW
+src/tools/polynomialWorkshop/polynomialMath.js
+src/tools/signSolutionAnalyzer/signSolutionMath.js
+src/tools/parabolaGeometry/parabolaGeometryMath.js
+tests/tools/batchBDeepening.test.mjs
+SAMPLE_BATCH_B_DEEP_DIVE.json
+MISSING_MATH_TOOLS_BATCH_B_V2_GUIDE.md
+MISSING_MATH_TOOLS_BATCH_B_V2_VALIDATION_REPORT.txt
+MISSING_MATH_TOOLS_BATCH_B_V2_MANIFEST.txt
+MathMaster_Missing_Tools_Batch_B_v2_Render.html
+MathMaster_Missing_Tools_Batch_B_v2_Render.png

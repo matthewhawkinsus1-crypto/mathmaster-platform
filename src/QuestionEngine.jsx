@@ -23,6 +23,7 @@ import MathDisplay from './MathDisplay';
 import { generateQuestion } from './problemGenerator';
 import { buildSupportUsage, getStudentSupportPresentation } from './studentSupport';
 import { removeQuestionDraftFamily } from './questionDraftStorage';
+import { useToast } from './ui/Toast';
 import {
   getAttemptsRemaining,
   MAX_ATTEMPTS_PER_QUESTION,
@@ -79,6 +80,7 @@ export default function QuestionEngine({
     () => generateQuestion(question, generationKey, studentProfile),
     [question, generationKey, studentProfile],
   );
+  const { confirm: confirmAction } = useToast();
   const record = normalizeQuestionRecord(questionRecord);
   const [answerState, setAnswerState] = useState(EMPTY_ANSWER_STATE);
   const [feedback, setFeedback] = useState(null);
@@ -184,7 +186,14 @@ export default function QuestionEngine({
 
   const handleRequestNewQuestion = async () => {
     if (!onRequestNewQuestion || requesting) return;
-    if (replacementWarning && !window.confirm(replacementWarning)) return;
+    if (replacementWarning) {
+      const proceed = await confirmAction({
+        title: 'Start a new problem?',
+        message: replacementWarning,
+        confirmLabel: 'New problem',
+      });
+      if (!proceed) return;
+    }
     setRequesting(true);
     try {
       removeQuestionDraftFamily(draftKey);

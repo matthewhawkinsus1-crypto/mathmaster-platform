@@ -1,0 +1,58 @@
+MathMaster Missing Math Tools — Batch A v2 Validation Report
+Date: 2026-08-08
+Base: mathmaster-platform-missing-math-tools-v1-updated.zip
+
+SCOPE
+Deepened:
+1. Data Modeling Lab
+2. Systems Workspace 2.0
+3. Inverse & Composition Lab
+
+AUTOMATED TESTS
+Command:
+node --test tests/tools/toolMath.test.mjs tests/tools/toolSchemas.test.mjs tests/tools/batchADeepening.test.mjs
+
+Result:
+18 tests passed
+0 tests failed
+
+New Batch A tests cover:
+- exact quadratic regression
+- exact exponential regression
+- candidate model comparison
+- correlation descriptors
+- interpolation vs extrapolation
+- half-plane feasibility and polygon clipping
+- linear–quadratic intersections
+- order-independent point-set grading
+- 2x2 unique / none / infinite matrix systems
+- linear, exponential, logarithmic, and restricted-quadratic inverse behavior
+- composition behavior
+- unsafe mode/base/quadratic schema rejection
+
+SOURCE SYNTAX
+95 JS/JSX/MJS files in src were parsed with the TypeScript JSX parser in no-emit mode.
+Result: 0 syntax errors.
+
+RELATIVE IMPORT CHECK
+Result: 0 unresolved relative imports.
+
+SAMPLE JSON
+SAMPLE_BATCH_A_DEEP_DIVE.json contains 10 Batch A QA items across all new modes.
+Result: all 10 pass hard tool-schema validation.
+
+BUILD STATUS
+A full Vite production build was NOT claimed.
+`npm ci --ignore-scripts` was attempted but the available package registry returned HTTP 404 for yargs-parser-21.1.1.tgz.
+
+INTEGRATION SAFETY
+This pass does NOT modify:
+- App.jsx
+- main.jsx
+- LoginScreen / AuthProvider / authService
+- Firestore rules
+- Firebase functions
+- Google Classroom integration
+- assignment policy
+
+The tools remain isolated development components ready for later registration into the canonical app branch.

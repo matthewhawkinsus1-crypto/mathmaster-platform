@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "title": "MathMaster Missing Tools — Batch A Deep Dive",
+  "purpose": "Tool Lab QA for Data Modeling, Systems Workspace 2.0, and Inverse & Composition Lab",
+  "questions": [
+    {
+      "toolId": "dataModelingLab",
+      "mode": "full",
+      "difficultyBand": 3,
+      "dok": 2,
+      "masteryEvidenceKeys": ["texas:A.4B"],
+      "points": [[1,2],[2,3],[3,5],[4,5],[5,7],[6,8],[7,10]],
+      "expectedModel": "linear",
+      "predictionX": 8,
+      "causationSupported": false
+    },
+    {
+      "toolId": "dataModelingLab",
+      "mode": "modelCompare",
+      "difficultyBand": 4,
+      "dok": 3,
+      "masteryEvidenceKeys": ["texas:2A.8B"],
+      "points": [[0,1],[1,4],[2,9],[3,16],[4,25]],
+      "expectedModel": "quadratic"
+    },
+    {
+      "toolId": "dataModelingLab",
+      "mode": "prediction",
+      "difficultyBand": 3,
+      "dok": 2,
+      "masteryEvidenceKeys": ["texas:A.4C"],
+      "points": [[2,5],[4,8],[6,11],[8,14],[10,17]],
+      "expectedModel": "linear",
+      "predictionX": 12,
+      "predictionTolerance": 0.6
+    },
+    {
+      "toolId": "systemsWorkspace",
+      "mode": "linear",
+      "difficultyBand": 3,
+      "dok": 2,
+      "masteryEvidenceKeys": ["texas:A.5C"],
+      "system": {"m1":2,"b1":1,"m2":-1,"b2":7}
+    },
+    {
+      "toolId": "systemsWorkspace",
+      "mode": "inequalities",
+      "difficultyBand": 3,
+      "dok": 2,
+      "masteryEvidenceKeys": ["texas:A.3D"],
+      "inequalities": [
+        {"m":1,"b":1,"relation":">="},
+        {"m":-0.5,"b":6,"relation":"<="}
+      ],
+      "testPoint": {"x":2,"y":4},
+      "graph": {"xMin":-4,"xMax":8,"yMin":-2,"yMax":10}
+    },
+    {
+      "toolId": "systemsWorkspace",
+      "mode": "linearQuadratic",
+      "difficultyBand": 4,
+      "dok": 3,
+      "masteryEvidenceKeys": ["texas:2A.3F"],
+      "linearQuadratic": {
+        "line": {"m":1,"b":2},
+        "quadratic": {"a":1,"b":0,"c":-4}
+      }
+    },
+    {
+      "toolId": "systemsWorkspace",
+      "mode": "matrix",
+      "difficultyBand": 4,
+      "dok": 2,
+      "masteryEvidenceKeys": ["texas:2A.3A"],
+      "matrix": {"a11":2,"a12":1,"b1":7,"a21":1,"a22":-1,"b2":2}
+    },
+    {
+      "toolId": "inverseCompositionLab",
+      "mode": "full",
+      "difficultyBand": 3,
+      "dok": 2,
+      "masteryEvidenceKeys": ["texas:2A.2A"],
+      "f": {"type":"linear","a":2,"h":0,"k":3},
+      "g": {"type":"linear","a":-1,"h":0,"k":4},
+      "x": 2
+    },
+    {
+      "toolId": "inverseCompositionLab",
+      "mode": "restriction",
+      "difficultyBand": 4,
+      "dok": 3,
+      "masteryEvidenceKeys": ["texas:2A.2B"],
+      "f": {"type":"quadratic","a":1,"h":2,"k":-1,"inverseBranch":"right","domain":{"min":2}},
+      "g": {"type":"linear","a":1,"h":0,"k":-2},
+      "x": 5
+    },
+    {
+      "toolId": "inverseCompositionLab",
+      "mode": "inverse",
+      "difficultyBand": 4,
+      "dok": 2,
+      "masteryEvidenceKeys": ["texas:2A.2C"],
+      "f": {"type":"exponential","a":3,"base":2,"h":1,"k":-4},
+      "g": {"type":"logarithmic","a":1,"base":2,"h":0,"k":0},
+      "x": 4
+    }
+  ]
+}

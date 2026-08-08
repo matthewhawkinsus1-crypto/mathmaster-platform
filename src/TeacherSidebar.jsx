@@ -7,11 +7,12 @@ const TAB_LABELS = {
   classes: 'Class Schedule',
   grades: 'Grades',
   standards: 'TEKS & Mastery',
+  mathTools: 'Math Tools Lab',
   access: 'Sign-in Access',
   classroom: 'Google Classroom',
 };
 
-const TABS = ['home', 'assignments', 'library', 'students', 'classesWorkspace', 'classes', 'grades', 'standards', 'access', 'classroom'];
+const TABS = ['home', 'assignments', 'library', 'students', 'classesWorkspace', 'classes', 'grades', 'standards', 'mathTools', 'access', 'classroom'];
 
 // Purely presentational, controlled navigation rail. Owns no data of its
 // own — `App.jsx` still owns `teacherTab`/`sidebarCollapsed` state and is
@@ -22,6 +23,7 @@ export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onTo
   return (
     <nav
       aria-label="Teacher dashboard navigation"
+      className="mm-dashboard-nav"
       style={{
         width: collapsed ? '64px' : '212px',
         flex: `0 0 ${collapsed ? '64px' : '212px'}`,
@@ -38,6 +40,7 @@ export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onTo
       <button
         type="button"
         onClick={onToggleCollapsed}
+        className="mm-nav-collapse"
         aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         style={{

@@ -1,0 +1,18 @@
+MathMaster Missing Tools Batch A v2 — Updated/New Files
+
+UPDATED
+src/tools/dataModeling/DataModelingLab.jsx
+src/tools/systemsWorkspace/SystemsWorkspace.jsx
+src/tools/inverseComposition/InverseCompositionLab.jsx
+src/tools/toolSchemas.js
+src/dev/MathToolsLab.jsx
+
+NEW
+src/tools/dataModeling/dataModelingMath.js
+src/tools/systemsWorkspace/systemsMath.js
+src/tools/inverseComposition/inverseCompositionMath.js
+tests/tools/batchADeepening.test.mjs
+SAMPLE_BATCH_A_DEEP_DIVE.json
+MISSING_MATH_TOOLS_BATCH_A_V2_GUIDE.md
+MISSING_MATH_TOOLS_BATCH_A_V2_VALIDATION_REPORT.txt
+MISSING_MATH_TOOLS_BATCH_A_V2_MANIFEST.txt

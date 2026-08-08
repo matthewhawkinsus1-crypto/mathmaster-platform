@@ -75,9 +75,12 @@ import AssignmentCardMenu from './AssignmentCardMenu';
 import ClassesWorkspace from './ClassesWorkspace';
 import TeacherHome from './TeacherHome';
 import TexasStandardsDashboard from './TexasStandardsDashboard';
+import MathToolsLab from './dev/MathToolsLab';
+import { useToast } from './ui/Toast';
+import { EmptyState, ProgressBar, SearchField, StatCard } from './ui/primitives';
 import { buildStudentMasteryProfile } from './masteryEngine.js';
 import { SMART_VIEWS, matchesSmartView } from './assignmentSmartViews';
-import { assignmentFolderMatches, normalizeFolderPath, normalizeFolderPaths, renameFolderPath } from './assignmentFolders';
+import { assignmentFolderMatches, normalizeFolderPath, normalizeFolderPaths, renameFolderPath, titleOrFolderMatches } from './assignmentFolders';
 
 
 
@@ -137,6 +140,7 @@ function App() {
   // roster record, class period and inclusion supports that hang off whoever
   // the auth layer says is signed in.
   const { status: authStatus, session, signOut } = useAuth();
+  const { toastSuccess, toastError, toastInfo, toastWarning, confirm: confirmAction } = useToast();
   const [user, setUser] = useState(null);
   const [sessionError, setSessionError] = useState(null);
 
@@ -182,6 +186,11 @@ function App() {
   const [libraryNavigation, setLibraryNavigation] = useState(null);
   const [movingFolderAssignmentId, setMovingFolderAssignmentId] = useState(null);
   const [movingFolderValue, setMovingFolderValue] = useState('');
+  const [assignmentSearch, setAssignmentSearch] = useState('');
+  const [selectedAssignmentIds, setSelectedAssignmentIds] = useState(() => new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [studentSort, setStudentSort] = useState('id');
 
   const currentStudentMasteryProfile = useMemo(() => {
     if (user?.role !== 'student') return null;
@@ -699,7 +708,7 @@ function App() {
 
     const dolState = getDOLState({ assignment, schedule: classSchedule, classPeriod: user.classPeriod, nowValue: Date.now() });
     if (!getAssignmentLifecycle(assignment, Date.now()).isClosed && newIndex === dolState.questionIndex && dolState.enabled && !['active', 'ended'].includes(dolState.status)) {
-      window.alert('The DOL question opens during the final minutes of this class period. Continue the practice questions until the DOL banner appears.');
+      toastInfo('DOL not open yet', 'The DOL question opens during the final minutes of this class period. Keep working the practice questions until the DOL banner appears.');
       return;
     }
 
@@ -752,24 +761,24 @@ function App() {
     );
     if (!assignmentData?.questions) return;
     if (user?.role === 'student' && !assignmentIsForStudent(assignmentData, user.classPeriod)) {
-      window.alert('This assignment is not assigned to your class period.');
+      toastWarning('Not assigned to your class', 'This assignment is not assigned to your class period.');
       return;
     }
     const access = prerequisiteAccess({ assignment: assignmentData, classworkGradesByAssignment, nowValue: Date.now() });
     if (user?.role === 'student' && !access.open) {
       const prerequisiteTitle = assignments.find((assignment) => assignment.id === access.prerequisiteId)?.title || 'the prerequisite notes/classwork assignment';
-      window.alert(`Complete ${prerequisiteTitle} first. This practice assignment will also open automatically at its scheduled release time.`);
+      toastInfo('Finish the prerequisite first', `Complete ${prerequisiteTitle} first. This practice assignment also opens automatically at its scheduled release time.`);
       return;
     }
     const lifecycle = getAssignmentLifecycle(assignmentData, Date.now());
     if (lifecycle.isScheduled && access.reason !== 'prerequisiteMet') {
-      window.alert(`This assignment opens ${formatDateTime(assignmentData.releaseAt)}.`);
+      toastInfo('Not open yet', `This assignment opens ${formatDateTime(assignmentData.releaseAt)}.`);
       return;
     }
 
     const includedQuestionIndices = getIncludedQuestionIndices(assignmentData);
     if (!includedQuestionIndices.length) {
-      window.alert('This assignment does not currently contain any included questions.');
+      toastWarning('Nothing to show yet', 'This assignment does not currently contain any included questions.');
       return;
     }
     const requested = Number(requestedQuestionIndex) || 0;
@@ -1387,10 +1396,13 @@ function App() {
         ? `\n\nPaste formatting repaired automatically: ${parsed.repairs.join('; ')}.`
         : '';
       const sourceMessage = parsed.isPackage ? 'Created from Assignment Package JSON.' : 'Created from legacy question-array JSON.';
-      window.alert(`${sourceMessage}\n\n${title}\nAssigned to ${assignedClassPeriods.length || 'all'} class period(s)${folder ? `\nFolder: ${folder}` : ''}.${repairMessage}`);
+      toastSuccess(
+        `Published “${title}”`,
+        `${sourceMessage} Assigned to ${assignedClassPeriods.length || 'all'} class period(s)${folder ? `\nFolder: ${folder}` : ''}.${repairMessage}`,
+      );
     } catch (error) {
       setAssignmentPackagePreview({ error: error.message });
-      window.alert(`Could not create assignment. ${error.message}`);
+      toastError('Could not create assignment', error.message);
     }
   };
 
@@ -1458,7 +1470,7 @@ function App() {
       setAllStudents((current) => current.map((entry) => entry.id === studentId ? { ...entry, profile: nextProfile } : entry));
     } catch (error) {
       console.error(error);
-      window.alert(`Could not update the student support profile. ${error.message}`);
+      toastError('Could not update support profile', error.message);
     }
   };
 
@@ -1504,7 +1516,7 @@ function App() {
     const normalized = normalizeSchedule(classSchedule);
     await setDoc(doc(db, 'settings', 'classSchedule'), normalized);
     setClassSchedule(normalized);
-    window.alert('Class schedule saved. DOL windows now use these period times.');
+    toastSuccess('Schedule saved', 'DOL windows now use these period times.');
   };
 
   const saveAssignmentFolderPaths = async (paths) => {
@@ -1561,12 +1573,78 @@ function App() {
       createdAt: new Date(),
     });
     await fetchAssignments();
-    window.alert('Duplicated. The copy is unpublished from Google Classroom and has no student records.');
+    toastSuccess(`Duplicated “${assignment.title}”`, 'The copy is unpublished from Google Classroom and has no student records.');
   };
 
   const handleToggleArchiveAssignment = async (assignment) => {
     await updateDoc(doc(db, 'assignments', assignment.id), { archived: !assignment.archived });
     await fetchAssignments();
+  };
+
+  const toggleAssignmentSelected = (assignmentId) => {
+    setSelectedAssignmentIds((current) => {
+      const next = new Set(current);
+      if (next.has(assignmentId)) next.delete(assignmentId);
+      else next.add(assignmentId);
+      return next;
+    });
+  };
+
+  const clearAssignmentSelection = () => setSelectedAssignmentIds(new Set());
+
+  /**
+   * One batched write for the whole selection rather than N sequential
+   * updateDoc calls, matching how folder renames already work. Chunked at 400
+   * because a Firestore batch caps at 500 operations.
+   */
+  const applyBulkAssignmentPatch = async (assignmentIds, patch, describe) => {
+    const ids = Array.from(assignmentIds);
+    if (!ids.length) return;
+    setBulkBusy(true);
+    try {
+      for (let start = 0; start < ids.length; start += 400) {
+        const batch = writeBatch(db);
+        ids.slice(start, start + 400).forEach((assignmentId) => {
+          batch.update(doc(db, 'assignments', assignmentId), patch);
+        });
+        await batch.commit();
+      }
+      await fetchAssignments();
+      clearAssignmentSelection();
+      toastSuccess(describe(ids.length));
+    } catch (error) {
+      console.error(error);
+      toastError('Bulk update failed', error.message);
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const handleBulkArchive = async (shouldArchive) => {
+    const count = selectedAssignmentIds.size;
+    const verb = shouldArchive ? 'Archive' : 'Unarchive';
+    const proceed = await confirmAction({
+      title: `${verb} ${count} assignment${count === 1 ? '' : 's'}?`,
+      message: shouldArchive
+        ? 'Archived assignments are hidden from the default list and from students, but nothing is deleted and no student records change. You can unarchive them at any time.'
+        : 'These assignments will reappear in the default list and become visible to students again according to their existing dates.',
+      confirmLabel: verb,
+    });
+    if (!proceed) return;
+    await applyBulkAssignmentPatch(
+      selectedAssignmentIds,
+      { archived: shouldArchive },
+      (done) => `${shouldArchive ? 'Archived' : 'Unarchived'} ${done} assignment${done === 1 ? '' : 's'}`,
+    );
+  };
+
+  const handleBulkMoveToFolder = async (rawFolder) => {
+    const folder = normalizeFolderPath(rawFolder);
+    await applyBulkAssignmentPatch(
+      selectedAssignmentIds,
+      { folder: folder || null },
+      (count) => `Moved ${count} assignment${count === 1 ? '' : 's'} to ${folder || 'Uncategorized'}`,
+    );
   };
 
   const beginEditAssignmentDates = (assignment) => {
@@ -1588,7 +1666,7 @@ function App() {
     const dueAt = new Date(editingAssignmentDates.dueAt);
     const lateDueAt = new Date(editingAssignmentDates.lateDueAt);
     if (Number.isNaN(dueAt.getTime()) || Number.isNaN(lateDueAt.getTime()) || lateDueAt <= dueAt) {
-      window.alert('The late due date must be later than the regular due date.');
+      toastError('Check the dates', 'The final late due date must be later than the regular due date.');
       return;
     }
     await updateDoc(doc(db, 'assignments', assignmentId), {
@@ -1613,7 +1691,7 @@ function App() {
     }));
     const reportWindow = window.open('', '_blank', 'width=1100,height=800');
     if (!reportWindow) {
-      window.alert('Allow pop-ups to open the printable IEP support report.');
+      toastWarning('Pop-up blocked', 'Allow pop-ups for this site to open the printable IEP support report.');
       return;
     }
     reportWindow.document.open();
@@ -2591,6 +2669,41 @@ function App() {
     const selectedAssignment = assignments.find((assignment) => assignment.id === gradebookFilter.assignmentId) || null;
     const selectedClassStudents = allStudents.filter((student) => (student.classPeriod || 'Unassigned') === gradebookFilter.classPeriod);
     const assignmentsForSelectedClass = assignments.filter((assignment) => !gradebookFilter.classPeriod || assignmentIsForStudent(assignment, gradebookFilter.classPeriod));
+
+    // The Assignments tab list, after the Library folder/smart-view filter and
+    // the free-text search. Computed once so the header count, the
+    // select-all-visible checkbox and the rendered cards can never disagree.
+    const visibleAssignments = assignments.filter((assignment) => (
+      assignmentFolderMatches(assignment, libraryNavigation?.folder)
+      && matchesSmartView(assignment, libraryNavigation?.smartView, { nowValue: now, classSchedule })
+      && titleOrFolderMatches(assignment, assignmentSearch)
+    ));
+    const visibleAssignmentIds = visibleAssignments.map((assignment) => assignment.id);
+    const allVisibleSelected = visibleAssignmentIds.length > 0
+      && visibleAssignmentIds.every((id) => selectedAssignmentIds.has(id));
+
+    const visibleStudents = allStudents
+      .filter((student) => {
+        const query = studentSearch.trim().toLowerCase();
+        if (!query) return true;
+        return String(student.id).toLowerCase().includes(query)
+          || String(student.classPeriod || '').toLowerCase().includes(query);
+      })
+      .slice()
+      .sort((a, b) => {
+        if (studentSort === 'period') {
+          // Unassigned students sort last rather than under "U".
+          const periodA = a.classPeriod || 'zzz';
+          const periodB = b.classPeriod || 'zzz';
+          if (periodA !== periodB) return periodA.localeCompare(periodB, undefined, { numeric: true });
+        }
+        if (studentSort === 'inclusion') {
+          const flagA = a.profile?.inclusionStatus ? 0 : 1;
+          const flagB = b.profile?.inclusionStatus ? 0 : 1;
+          if (flagA !== flagB) return flagA - flagB;
+        }
+        return String(a.id).localeCompare(String(b.id), undefined, { numeric: true });
+      });
     const supportOptions = {
       accommodations: [
         ['text-to-speech', 'Text to speech'],
@@ -2621,7 +2734,7 @@ function App() {
             onClose={() => setQuestionEditorAssignment(null)}
           />
         )}
-        <div style={{ maxWidth: '1360px', margin: '0 auto', background: '#fff', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'stretch' }}>
+        <div className="mm-dashboard-shell" style={{ maxWidth: '1360px', margin: '0 auto', background: '#fff', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'stretch' }}>
           <TeacherSidebar
             activeTab={teacherTab}
             onSelectTab={(tab) => { setTeacherTab(tab); setGradebookFilter({ classPeriod: '', assignmentId: null, student: null }); setHomeNavigationPeriod(null); }}
@@ -2643,7 +2756,7 @@ function App() {
             </div>
           </header>
 
-          <div style={{ padding: '30px' }}>
+          <div className="mm-dashboard-content" style={{ padding: '30px' }}>
             {teacherTab === 'library' && (
               <AssignmentLibrary
                 assignments={assignments}
@@ -2782,22 +2895,93 @@ function App() {
                   </details>
                 </form>
 
-                <h2>Assignments</h2>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px', flexWrap: 'wrap', marginTop: '30px', marginBottom: '14px' }}>
+                  <h2 style={{ margin: 0 }}>
+                    Assignments
+                    <span style={{ marginLeft: '10px', fontSize: '14px', fontWeight: 600, color: 'var(--mm-ink-muted)' }}>
+                      {visibleAssignments.length} shown
+                    </span>
+                  </h2>
+                  <SearchField
+                    value={assignmentSearch}
+                    onChange={setAssignmentSearch}
+                    placeholder="Search assignments by title or folder…"
+                    label="Search assignments"
+                    style={{ flex: '1 1 280px', maxWidth: '420px' }}
+                  />
+                </div>
+
+                {selectedAssignmentIds.size > 0 && (
+                  <div className="mm-bulkbar">
+                    <span className="mm-bulkbar__count">{selectedAssignmentIds.size} selected</span>
+                    <span className="mm-bulkbar__spacer" />
+                    <button type="button" className="mm-btn mm-btn--sm" disabled={bulkBusy} onClick={() => handleBulkArchive(true)}>Archive</button>
+                    <button type="button" className="mm-btn mm-btn--sm" disabled={bulkBusy} onClick={() => handleBulkArchive(false)}>Unarchive</button>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 700 }}>
+                      <span className="mm-sr-only">Move selected assignments to folder</span>
+                      <select
+                        value=""
+                        disabled={bulkBusy}
+                        onChange={(event) => { handleBulkMoveToFolder(event.target.value); event.target.value = ''; }}
+                        style={{ minHeight: '34px', padding: '0 8px', borderRadius: '7px', border: '1px solid rgba(255,255,255,0.45)', background: 'rgba(255,255,255,0.14)', color: '#fff', fontWeight: 700 }}
+                      >
+                        <option value="" disabled style={{ color: '#202124' }}>Move to folder…</option>
+                        <option value="" style={{ color: '#202124' }}>Uncategorized</option>
+                        {assignmentFolderPaths.map((path) => <option key={path} value={path} style={{ color: '#202124' }}>{path}</option>)}
+                      </select>
+                    </label>
+                    <button type="button" className="mm-btn mm-btn--sm" disabled={bulkBusy} onClick={clearAssignmentSelection}>Clear</button>
+                  </div>
+                )}
+
+                {visibleAssignments.length > 0 && (
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginBottom: '12px', fontSize: '13px', fontWeight: 700, color: 'var(--mm-ink-muted)', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      onChange={() => setSelectedAssignmentIds((current) => {
+                        const next = new Set(current);
+                        if (allVisibleSelected) visibleAssignmentIds.forEach((id) => next.delete(id));
+                        else visibleAssignmentIds.forEach((id) => next.add(id));
+                        return next;
+                      })}
+                    />
+                    Select all {visibleAssignmentIds.length} shown
+                  </label>
+                )}
+
                 {libraryNavigation && (libraryNavigation.folder || libraryNavigation.smartView) && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap', padding: '10px 14px', marginBottom: '14px', background: '#e8f0fe', border: '1px solid #aecbfa', borderRadius: '8px', color: '#174ea6', fontWeight: 'bold', fontSize: '13px' }}>
                     <span>Filtered from Library{libraryNavigation.folder ? ` · ${libraryNavigation.folder}` : ''}{libraryNavigation.smartView ? ` · ${SMART_VIEWS.find((view) => view.id === libraryNavigation.smartView)?.label || libraryNavigation.smartView}` : ''}</span>
                     <button type="button" onClick={() => setLibraryNavigation(null)} style={{ padding: '6px 10px', border: '1px solid #1a73e8', borderRadius: '6px', background: '#fff', color: '#1a73e8', fontWeight: 'bold', cursor: 'pointer' }}>Clear filter</button>
                   </div>
                 )}
-                {assignments.filter((assignment) => (
-                  assignmentFolderMatches(assignment, libraryNavigation?.folder)
-                  && matchesSmartView(assignment, libraryNavigation?.smartView, { nowValue: now, classSchedule })
-                )).map((assignment) => {
+                {visibleAssignments.length === 0 && (
+                  <EmptyState
+                    icon={assignmentSearch ? '🔍' : '📄'}
+                    title={assignmentSearch ? `No assignments match “${assignmentSearch}”` : 'No assignments here yet'}
+                    message={assignmentSearch
+                      ? 'Try a shorter search, or clear the search to see everything in this view.'
+                      : 'Publish one with the form above, or pick a different folder or Smart View in the Library.'}
+                    action={assignmentSearch
+                      ? <button type="button" className="mm-btn mm-btn--secondary" onClick={() => setAssignmentSearch('')}>Clear search</button>
+                      : null}
+                  />
+                )}
+                {visibleAssignments.map((assignment) => {
                   const lifecycle = getAssignmentLifecycle(assignment, now);
                   const affectedStudents = allStudents.filter((student) => student.gradesByAssignment?.[assignment.id] !== undefined).length;
+                  const isSelected = selectedAssignmentIds.has(assignment.id);
                   return (
-                    <article key={assignment.id} style={{ background: '#f8f9fa', padding: '18px', marginBottom: '12px', borderRadius: '10px', border: `1px solid ${lifecycle.isLate ? '#f9ab00' : lifecycle.isClosed ? '#d93025' : '#e0e3e7'}` }}>
+                    <article key={assignment.id} style={{ background: '#f8f9fa', padding: '18px', marginBottom: '12px', borderRadius: '10px', border: `1px solid ${isSelected ? 'var(--mm-primary)' : lifecycle.isLate ? '#f9ab00' : lifecycle.isClosed ? '#d93025' : '#e0e3e7'}`, boxShadow: isSelected ? '0 0 0 2px var(--mm-primary-soft)' : 'none' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '18px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleAssignmentSelected(assignment.id)}
+                          aria-label={`Select ${assignment.title}`}
+                          style={{ flex: '0 0 auto', width: '18px', height: '18px', cursor: 'pointer' }}
+                        />
                         <div style={{ flex: '1 1 440px', textAlign: 'left' }}>
                           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                             <strong style={{ fontSize: '18px' }}>{assignment.title}</strong>
@@ -2853,7 +3037,42 @@ function App() {
               <div>
                 <h2 style={{ marginTop: 0 }}>Students and Inclusion Supports</h2>
                 <p style={{ color: '#5f6368' }}>Inclusion accommodations change how a student learns. Modifications change question generation and are reported separately with a MOD indicator.</p>
-                {allStudents.map((student) => (
+
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', margin: '18px 0' }}>
+                  <SearchField
+                    value={studentSearch}
+                    onChange={setStudentSearch}
+                    placeholder="Search by student ID or class period…"
+                    label="Search students"
+                    style={{ flex: '1 1 260px', maxWidth: '420px' }}
+                  />
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, color: 'var(--mm-ink-muted)' }}>
+                    Sort by
+                    <select value={studentSort} onChange={(event) => setStudentSort(event.target.value)} style={{ minHeight: '44px', padding: '0 10px', borderRadius: '7px', border: '1px solid var(--mm-border)' }}>
+                      <option value="id">Student ID</option>
+                      <option value="period">Class period</option>
+                      <option value="inclusion">Inclusion first</option>
+                    </select>
+                  </label>
+                  <span style={{ fontSize: '13px', color: 'var(--mm-ink-muted)', fontWeight: 700 }}>
+                    {visibleStudents.length} of {allStudents.length}
+                  </span>
+                </div>
+
+                {visibleStudents.length === 0 && (
+                  <EmptyState
+                    icon={allStudents.length ? '🔍' : '👥'}
+                    title={allStudents.length ? `No students match “${studentSearch}”` : 'No students yet'}
+                    message={allStudents.length
+                      ? 'Try a shorter search, such as just the class period number.'
+                      : 'Students appear here automatically the first time they sign in with their class join code.'}
+                    action={allStudents.length
+                      ? <button type="button" className="mm-btn mm-btn--secondary" onClick={() => setStudentSearch('')}>Clear search</button>
+                      : null}
+                  />
+                )}
+
+                {visibleStudents.map((student) => (
                   <article key={student.id} style={{ marginBottom: '14px', padding: '18px', border: '1px solid #d8dde6', borderRadius: '10px', textAlign: 'left' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
                       <div><strong style={{ fontSize: '18px' }}>{student.id}</strong><div style={{ color: '#5f6368', marginTop: '4px' }}>{student.classPeriod || 'Unassigned'}</div>{(() => { const mastery = teacherMasteryProfilesByStudentId[student.id]; return <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '7px' }}><span style={{ padding: '3px 7px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6', fontSize: '10px', fontWeight: 900 }}>Estimated {mastery?.overall?.performance?.shortLabel || 'Insufficient'}</span><span style={{ padding: '3px 7px', borderRadius: '999px', background: '#f1f3f4', color: '#5f6368', fontSize: '10px', fontWeight: 900 }}>{mastery?.overall?.confidence || 'Low'} confidence</span><span style={{ padding: '3px 7px', borderRadius: '999px', background: '#e6f4ea', color: '#137333', fontSize: '10px', fontWeight: 900 }}>Recommended Band {mastery?.overall?.recommendedGeneratorBand || 3}</span></div>; })()}</div>
@@ -2923,6 +3142,17 @@ function App() {
               <TexasStandardsDashboard allStudents={allStudents} assignments={assignments} />
             )}
 
+            {teacherTab === 'mathTools' && (
+              <div>
+                <h2 style={{ marginTop: 0 }}>Math Tools Lab</h2>
+                <p style={{ color: 'var(--mm-ink-muted)', marginTop: '-4px' }}>
+                  A preview bench for the interactive tools. These run standalone — nothing here is graded,
+                  saved to a student record, or published to Google Classroom, so it is safe to experiment.
+                </p>
+                <MathToolsLab />
+              </div>
+            )}
+
             {teacherTab === 'access' && <SignInAccess signedInEmail={user.email} />}
 
             {teacherTab === 'classroom' && <ClassroomSync assignments={assignments} />}
@@ -2987,19 +3217,36 @@ function App() {
         const done = isAssignmentDone(assignment, assignmentTracker, lifecycle);
         const dueSoon = matchesSmartView(assignment, 'today', { nowValue: now }) || lifecycle.isLate;
         const bucket = done ? 'completed' : (!lifecycle.isScheduled && access.open && dueSoon) ? 'doNow' : 'comingUp';
-        return { assignment, assignmentTracker, isAttempted, lifecycle, access, recordedGrade, activity, classwork, dol, disabled, bucket };
+        // "How much is left" was previously invisible until a student opened
+        // the assignment, so a 1-question and a 12-question assignment looked
+        // identical on the dashboard.
+        const includedIndices = getIncludedQuestionIndices(assignment);
+        const questionsTotal = includedIndices.length;
+        const questionsDone = assignmentTracker
+          ? includedIndices.filter((index) => ['correct', 'expired'].includes(normalizeQuestionRecord(assignmentTracker[index]).status)).length
+          : 0;
+        return { assignment, assignmentTracker, isAttempted, lifecycle, access, recordedGrade, activity, classwork, dol, disabled, bucket, questionsTotal, questionsDone };
       });
     const doNowEntries = assignmentEntries.filter((entry) => entry.bucket === 'doNow');
     const comingUpEntries = assignmentEntries.filter((entry) => entry.bucket === 'comingUp');
     const completedEntries = assignmentEntries.filter((entry) => entry.bucket === 'completed');
 
-    const renderAssignmentCard = ({ assignment, isAttempted, lifecycle, access, recordedGrade, activity, classwork, dol, disabled }) => {
+    const renderAssignmentCard = ({ assignment, isAttempted, lifecycle, access, recordedGrade, activity, classwork, dol, disabled, questionsTotal, questionsDone }) => {
       const statusStyle = lifecycle.isClosed ? { border: '#d93025', bg: '#fce8e6', color: '#a50e0e', label: 'Permanently closed' } : lifecycle.isLate ? { border: '#f9ab00', bg: '#fff4ce', color: '#7a4f00', label: 'Late' } : lifecycle.isScheduled ? { border: '#9aa0a6', bg: '#f1f3f4', color: '#3c4043', label: 'Scheduled' } : { border: '#d8dde6', bg: '#e6f4ea', color: '#137333', label: 'On time' };
       return (
         <article key={assignment.id} style={{ background: '#fff', padding: '21px 26px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', flexWrap: 'wrap', border: `2px solid ${statusStyle.border}` }}>
           <div style={{ textAlign: 'left', flex: '1 1 470px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}><h3 style={{ margin: 0, color: '#202124' }}>{assignment.title}</h3><span style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', padding: '4px 8px', borderRadius: '999px', background: statusStyle.bg, color: statusStyle.color }}>{statusStyle.label}</span><span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6' }}>{assignment.assignmentType === 'notesClasswork' ? 'NOTES / CLASSWORK' : 'PRACTICE'}</span>{assignment.variantMode === 'shared' && <span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: '#e6f4ea', color: '#137333' }}>SAME CLASS VERSION</span>}</div>
             <div style={{ color: '#5f6368', fontSize: '13px', lineHeight: 1.55 }}>Regular due: {formatDueDate(assignment)} · Final late due: {formatLateDueDate(assignment)}{lifecycle.isLate && <><br /><strong style={{ color: '#7a4f00' }}>Late work remains open for {formatRemainingTime(lifecycle.millisecondsRemaining)}.</strong></>}{!access.open && <><br /><strong style={{ color: '#a50e0e' }}>Complete the prerequisite notes/classwork first. It opens automatically at {formatDateTime(assignment.releaseAt)} if not completed.</strong></>}{assignment.assignmentType === 'notesClasswork' && <><br />Engaged: {formatTime(activity.totalTimeSeconds || 0)} · Daily grade: {classwork?.score === 100 ? '100 — prerequisite met' : 'In progress'}</>}{dol.enabled && dol.status === 'waiting' && <><br />DOL opens during the final {assignment.dol?.minutesBeforeEnd || 10} minutes of class.</>}</div>
+            {questionsTotal > 0 && assignment.assignmentType !== 'notesClasswork' && (
+              <div style={{ marginTop: '12px', maxWidth: '340px' }}>
+                <ProgressBar
+                  value={questionsDone}
+                  max={questionsTotal}
+                  label={`${questionsDone} of ${questionsTotal} question${questionsTotal === 1 ? '' : 's'} finished`}
+                />
+              </div>
+            )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>
             {isAttempted && <div style={{ textAlign: 'right' }}><div style={{ fontSize: '11px', color: '#5f6368', textTransform: 'uppercase', fontWeight: 'bold' }}>{lifecycle.isClosed ? 'Final grade' : 'Current grade'}</div><div style={{ fontSize: '19px', fontWeight: 900, color: recordedGrade >= 70 ? '#188038' : '#202124' }}>{recordedGrade}%</div></div>}
@@ -3031,18 +3278,32 @@ function App() {
             </section>
           )}
 
-          {visibleAssignments.length === 0 ? <div style={{ background: '#fff', padding: '30px', borderRadius: '12px', textAlign: 'center', color: '#5f6368' }}>No assignments are assigned to {user.classPeriod}.</div> : (
+          {visibleAssignments.length === 0 ? (
+            <EmptyState
+              icon="🎉"
+              title="Nothing assigned yet"
+              message={`No assignments have been given to ${user.classPeriod} yet. Anything your teacher publishes will show up here automatically.`}
+            />
+          ) : (
             <>
+              {/* At-a-glance counts, so a student can see what is waiting
+                  without reading three lists first. */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px', marginBottom: '26px' }}>
+                <StatCard label="Do now" value={doNowEntries.length} tone={doNowEntries.length > 0 ? 'warning' : 'success'} hint={doNowEntries.length ? 'Needs attention' : 'All caught up'} />
+                <StatCard label="Coming up" value={comingUpEntries.length} tone="primary" />
+                <StatCard label="Completed" value={completedEntries.length} tone="success" />
+              </div>
+
               <h2 style={{ color: '#202124', textAlign: 'left' }}>Do Now</h2>
               {doNowEntries.length === 0 ? (
-                <div style={{ background: '#fff', padding: '22px', borderRadius: '12px', textAlign: 'center', color: '#5f6368', marginBottom: '10px' }}>Nothing needs immediate action right now.</div>
+                <EmptyState icon="✅" title="All caught up" message="Nothing needs your attention right now. Check Coming Up for what's next." />
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '10px' }}>{doNowEntries.map(renderAssignmentCard)}</div>
               )}
 
               <h2 style={{ color: '#202124', textAlign: 'left', marginTop: '30px' }}>Coming Up</h2>
               {comingUpEntries.length === 0 ? (
-                <div style={{ background: '#fff', padding: '22px', borderRadius: '12px', textAlign: 'center', color: '#5f6368', marginBottom: '10px' }}>Nothing else scheduled.</div>
+                <EmptyState icon="📅" title="Nothing else scheduled" message="When your teacher schedules more work, it will appear here before it opens." />
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '10px' }}>{comingUpEntries.map(renderAssignmentCard)}</div>
               )}

@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 1,
+  "title": "MathMaster Missing Tools — Batch B Deep Dive",
+  "purpose": "Tool Lab QA for Polynomial Workshop, Sign & Solution Analyzer, and Parabola Geometry Lab",
+  "questions": [
+    {
+      "toolId": "polynomialWorkshop",
+      "mode": "factorZero",
+      "difficultyBand": 2,
+      "dok": 1,
+      "masteryEvidenceKeys": ["texas:2A.7A"],
+      "coefficients": [1,-5,6],
+      "candidateRoot": 2
+    },
+    {
+      "toolId": "polynomialWorkshop",
+      "mode": "multiplyArea",
+      "difficultyBand": 2,
+      "dok": 2,
+      "masteryEvidenceKeys": ["texas:2A.7B"],
+      "leftBinomial": [2,3],
+      "rightBinomial": [1,-4]
+    },
+    {
+      "toolId": "polynomialWorkshop",
+      "mode": "factorQuadratic",
+      "difficultyBand": 3,
+      "dok": 2,
+      "masteryEvidenceKeys": ["texas:2A.7B"],
+      "coefficients": [1,-5,6]
+    },
+    {
+      "toolId": "polynomialWorkshop",
+      "mode": "division",
+      "difficultyBand": 3,
+      "dok": 2,
+      "masteryEvidenceKeys": ["texas:2A.7C"],
+      "dividend": [1,-4,-7,10],
+      "divisor": [1,-2]
+    },
+    {
+      "toolId": "polynomialWorkshop",
+      "mode": "graphConnection",
+      "difficultyBand": 4,
+      "dok": 3,
+      "masteryEvidenceKeys": ["texas:2A.7D"],
+      "roots": [{"root":-2,"multiplicity":2},{"root":3,"multiplicity":1}],
+      "leadingCoefficient": 0.35,
+      "targetRoot": -2
+    },
+    {
+      "toolId": "polynomialWorkshop",
+      "mode": "rationalFeatures",
+      "difficultyBand": 4,
+      "dok": 3,
+      "masteryEvidenceKeys": ["texas:2A.7E"],
+      "numeratorRoots": [2,-1],
+      "denominatorRoots": [2,4],
+      "targetValue": 2
+    },
+    {
+      "toolId": "signSolutionAnalyzer",
+      "mode": "polynomial",
+      "difficultyBand": 3,
+      "dok": 2,
+      "masteryEvidenceKeys": ["texas:2A.7F"],
+      "numeratorFactors": [{"root":-2,"multiplicity":1},{"root":3,"multiplicity":2}],
+      "relation": ">"
+    },
+    {
+      "toolId": "signSolutionAnalyzer",
+      "mode": "rational",
+      "difficultyBand": 4,
+      "dok": 3,
+      "masteryEvidenceKeys": ["texas:2A.7G"],
+      "numeratorFactors": [{"root":-2,"multiplicity":1},{"root":3,"multiplicity":1}],
+      "denominatorFactors": [{"root":1,"multiplicity":1}],
+      "relation": ">="
+    },
+    {
+      "toolId": "signSolutionAnalyzer",
+      "mode": "radicalCheck",
+      "difficultyBand": 3,
+      "dok": 2,
+      "masteryEvidenceKeys": ["texas:2A.4F"],
+      "radicalEquation": {
+        "radicand": {"m":1,"b":6},
+        "rhs": {"m":0,"b":3}
+      },
+      "candidates": [3,-15]
+    },
+    {
+      "toolId": "parabolaGeometryLab",
+      "mode": "features",
+      "difficultyBand": 3,
+      "dok": 2,
+      "masteryEvidenceKeys": ["texas:2A.6A"],
+      "h": 1,
+      "k": -1,
+      "p": 2,
+      "orientation": "vertical"
+    },
+    {
+      "toolId": "parabolaGeometryLab",
+      "mode": "equidistance",
+      "difficultyBand": 4,
+      "dok": 3,
+      "masteryEvidenceKeys": ["texas:2A.6A"],
+      "h": 0,
+      "k": 0,
+      "p": 2,
+      "orientation": "vertical",
+      "offset": 4
+    },
+    {
+      "toolId": "parabolaGeometryLab",
+      "mode": "fromGeometry",
+      "difficultyBand": 4,
+      "dok": 3,
+      "masteryEvidenceKeys": ["texas:2A.6A"],
+      "focus": [5,2],
+      "directrix": {"kind":"vertical","value":1}
+    },
+    {
+      "toolId": "parabolaGeometryLab",
+      "mode": "equation",
+      "difficultyBand": 3,
+      "dok": 2,
+      "masteryEvidenceKeys": ["texas:2A.6A"],
+      "h": -2,
+      "k": 1,
+      "p": -1.5,
+      "orientation": "horizontal"
+    }
+  ]
+}

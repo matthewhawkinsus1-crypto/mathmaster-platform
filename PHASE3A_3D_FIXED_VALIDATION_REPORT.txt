@@ -1,0 +1,49 @@
+MathMaster Phase 3A-3D Fixed Integration Validation Report
+Date: 2026-08-08
+
+STATUS: VERIFIED / READY FOR HANDOFF
+
+Scope
+-----
+Phase 3A - Activity Policy Engine
+Phase 3B - Lesson Bundle V3
+Phase 3C - Classroom Publication Planner and Pre-Flight Sandbox
+Phase 3D - Calculator, Context, Unit, and Response-Field Policy/Grading
+
+Integration fixes completed
+---------------------------
+- Activity-role policy now reaches the shared runtime and attempt recorder.
+- DOL, Quiz, and Test enforce one-attempt independent-assessment behavior.
+- Delayed and teacher-release feedback stays neutral until the configured release point.
+- Warm-Up keeps engagement grading separate from diagnostic accuracy.
+- Classroom composite grade weights are separate from mastery evidence weights.
+- Hybrid/bundle publishing never silently drops Quiz or Test and keeps assessments separate.
+- Bundle V3 uses deterministic stable IDs and strips forbidden question-level policy overrides.
+- Calculator inheritance honors activity defaults, including Warm-Up calculator=none.
+- teacherChoice and assessment-context calculator policies are supported.
+- Calculator evaluation does not use JavaScript eval.
+- Existing accommodations-array support shape is honored.
+- Unit aliases normalize in one canonical direction; scalar responses cannot inherit the expected unit.
+- Context/reading scaffolds are recorded separately from mathematical assistance.
+- Context scaffolds do not reduce mathematical-independence evidence; math help does.
+- Batch A-D tools can pass through the shared policy-aware attempt/mastery runtime.
+- Algebraic response equivalence is hardened against fixed numeric-probe spoofing.
+- Student Quiz/Test dashboard cards do not leak teacher-release grades before release.
+
+Verification
+------------
+Focused Phase 3 integration tests: 37 passed / 37 total
+Combined Phase 3 + Batch A-D tests: 93 passed / 93 total
+Production Vite build: PASS
+Oxlint: PASS (exit 0; warning-level legacy cleanup items remain, no lint errors)
+
+Build note
+----------
+Vite reports the existing large-chunk advisory for the main JavaScript bundle. This is a
+performance/code-splitting advisory, not a build failure and not a Phase 3 correctness defect.
+
+Handoff rule
+------------
+Use the accompanying fresh src archive as a complete src replacement. Do not merge individual
+Phase 3 files by hand. The complete platform archive contains the same verified src plus the
+project configuration, functions, documentation, samples, and automated tests.

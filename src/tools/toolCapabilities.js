@@ -1,0 +1,19 @@
+export const TOOL_CAPABILITIES = {
+  dataModelingLab: { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: true, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
+  inverseCompositionLab: { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: false, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
+  systemsWorkspace: { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: true, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
+  parabolaGeometryLab: { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: true, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
+  polynomialWorkshop: { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: true, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
+  signSolutionAnalyzer: { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: false, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
+  sequenceExplorer: { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: true, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
+  complexPlaneLab: { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: true, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
+  exponentialLogBridge: { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: true, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
+  transformationsLab: { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: true, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
+  representationMatch: { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: false, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
+  functionInvestigation2: { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: true, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
+  graphing2: { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: false, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
+  stepAlgebra2: { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: false, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
+  solutionReview2: { supportsAttempts: false, supportsSolutionReview: true, supportsCalculator: false, supportsScaffolds: false, supportsModifiedContent: false, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: false },
+};
+
+export const getToolCapabilities = (toolId) => TOOL_CAPABILITIES[toolId] || {};
