@@ -76,7 +76,12 @@ export const constructionEvidence = (points = [], target, tolerance = 0.12) => {
   const pointChecks = points.slice(0, 2).map((point) => pointOnLine(target, point, tolerance));
   const isValidLine = studentLine !== null;
   const isCorrect = isValidLine && linesEquivalent(studentLine, target, tolerance);
-  const score = isCorrect ? 1 : (isValidLine ? (pointChecks.filter(Boolean).length / 2) * 0.5 : 0);
+  // Partial credit keeps its original scale (points-on-line / 2). The supplied
+  // CRIT-01 patch also multiplied this by 0.5, which would have quietly halved
+  // the score of every partially-correct construction — a grading change well
+  // beyond the duplicate-point bug it was written to fix, and one the existing
+  // test suite explicitly pins.
+  const score = isCorrect ? 1 : (isValidLine ? pointChecks.filter(Boolean).length / 2 : 0);
   return { studentLine, pointChecks, score, isCorrect };
 };
 

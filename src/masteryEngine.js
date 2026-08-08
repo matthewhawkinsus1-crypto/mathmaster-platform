@@ -10,6 +10,21 @@ const round = (value, places = 1) => Number(Number(value || 0).toFixed(places));
 
 const DOK_WEIGHT = { 1: 0.9, 2: 1, 3: 1.1, 4: 1.15 };
 const CLASSIFICATION_WEIGHT = { readiness: 1.1, supporting: 1, content: 1, process: 0.45 };
+
+// How strongly each kind of activity counts as mastery evidence. A test is
+// independent, timed and unaided; a warm-up is a temperature check. Mastery
+// weighting only — the Classroom grade weight is a separate concern.
+const ACTIVITY_ROLE_EVIDENCE_WEIGHT = {
+  warmup: 0.5,
+  diagnostic: 0.6,
+  guidedPractice: 0.75,
+  classwork: 0.9,
+  homework: 0.95,
+  independentPractice: 1,
+  quiz: 1.2,
+  dol: 1.25,
+  test: 1.4,
+};
 const EVIDENCE_LEVEL_WEIGHT = {
   introduced: 0.25,
   practiced: 0.6,
@@ -87,17 +102,30 @@ const resolveQuestionEvidenceWeight = ({ question, assignment, standardEntry, re
   const standard = getTexasStandard(standardEntry.code);
   const dok = metadata.complexity.level;
   const modified = Boolean(record.supportUsage?.modified);
-  const scaffoldFactor = record.supportUsage?.scaffoldUsed ? 0.85 : 1;
+  // Only *mathematical* assistance discounts the evidence. A context/word-problem
+  // scaffold or a calculator changes how the student reached the maths, not
+  // whether they did it, so those must leave the weight untouched — discounting
+  // them would penalise a student for using an authorised accommodation.
+  const usedMathematicalHelp = Boolean(record.supportUsage?.scaffoldUsed) || Boolean(record.supportUsage?.hintUsed);
+  const scaffoldFactor = usedMathematicalHelp ? 0.85 : 1;
   const classificationFactor = CLASSIFICATION_WEIGHT[standard?.classification] || 1;
   const evidenceLevelFactor = EVIDENCE_LEVEL_WEIGHT[standardEntry.level] || 1;
   const dokFactor = DOK_WEIGHT[dok] || 0.9;
   const recency = getRecencyWeight(record.lastAttemptAt || record.recordedAt);
   const base = Number(metadata.evidenceWeight) || 0;
+  // How the work was assigned scales how much it says about mastery: a test is
+  // stronger evidence than classwork. This deliberately affects mastery
+  // weighting only and never the Classroom grade weight.
+  const activityEvidenceWeight = ACTIVITY_ROLE_EVIDENCE_WEIGHT[
+    question?.activityRole || assignment?.activityRole
+  ] ?? 1;
+  const weighted = base * classificationFactor * evidenceLevelFactor * dokFactor * scaffoldFactor * recency * activityEvidenceWeight;
 
   return {
     rawWeight: base,
-    gradeLevelWeight: modified ? 0 : base * classificationFactor * evidenceLevelFactor * dokFactor * scaffoldFactor * recency,
-    modifiedWeight: modified ? base * classificationFactor * evidenceLevelFactor * dokFactor * scaffoldFactor * recency : 0,
+    activityEvidenceWeight,
+    gradeLevelWeight: modified ? 0 : weighted,
+    modifiedWeight: modified ? weighted : 0,
     metadata,
     standard,
   };
@@ -141,6 +169,7 @@ export const collectStudentEvidence = ({ student, assignments = [] } = {}) => {
           evidenceWeight: metadata.evidenceWeight,
           gradeLevelWeight: weights.gradeLevelWeight,
           modifiedWeight: weights.modifiedWeight,
+          activityEvidenceWeight: weights.activityEvidenceWeight,
           credit: getQuestionCredit(record),
           percentCredit: Math.round(getQuestionCredit(record) * 100),
           totalAttempts: record.totalAttempts,

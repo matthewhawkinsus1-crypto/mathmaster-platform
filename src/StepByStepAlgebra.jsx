@@ -24,10 +24,23 @@ const OPERATIONS = [
   { id: 'divide', symbol: '÷', label: 'Divide by' },
 ];
 
+/**
+ * Returns `{ equation, error }` rather than throwing.
+ *
+ * parseEquationInput throws for anything it cannot read as a single linear
+ * equation, and this runs inside a render-time useMemo — so a blueprint with a
+ * malformed or missing equation used to take down the whole question screen
+ * with a blank page. A student cannot fix the blueprint, so the useful
+ * behaviour is to say so plainly and let them move on.
+ */
 const getInitialEquation = (question, record) => {
   const saved = record?.algebraState?.equation;
-  if (saved?.left && saved?.right) return saved;
-  return parseEquationInput(question);
+  if (saved?.left && saved?.right) return { equation: saved, error: null };
+  try {
+    return { equation: parseEquationInput(question), error: null };
+  } catch (error) {
+    return { equation: null, error: error?.message || 'This equation could not be read.' };
+  }
 };
 
 const isFactorOperation = (operation) => operation === 'multiply' || operation === 'divide';
@@ -67,7 +80,9 @@ export default function StepByStepAlgebra({
   draftKey = null,
 }) {
   const normalizedRecord = normalizeQuestionRecord(questionRecord);
-  const initialEquation = useMemo(() => getInitialEquation(question, normalizedRecord), [question]);
+  const initialParse = useMemo(() => getInitialEquation(question, normalizedRecord), [question]);
+  const initialEquation = initialParse.equation;
+  const parseError = initialParse.error;
   const localDraftKey = draftKey ? `${draftKey}:step-algebra` : null;
   const savedDraft = useMemo(() => readQuestionDraft(localDraftKey, null), [localDraftKey]);
   const [equation, setEquation] = useState(savedDraft?.equation || initialEquation);
@@ -550,6 +565,28 @@ export default function StepByStepAlgebra({
   };
 
   const armedOperationLabel = armedTile ? OPERATIONS.find((item) => item.id === armedTile.operation)?.label : null;
+
+  // Placed after every hook so hook order stays identical whether or not the
+  // blueprint parsed. A student can't repair the JSON, so this states what
+  // happened and points at the person who can.
+  if (!equation) {
+    return (
+      <section style={{ maxWidth: '760px', margin: '0 auto', padding: '26px', textAlign: 'left' }}>
+        <div style={{ padding: '22px 24px', borderRadius: '12px', background: 'var(--mm-warning-soft, #fef7e0)', border: '1px solid var(--mm-warning, #f9ab00)' }}>
+          <h3 style={{ margin: 0, color: 'var(--mm-warning-text, #7a4f00)' }}>This question could not be loaded</h3>
+          <p style={{ margin: '10px 0 0', color: 'var(--mm-ink, #202124)', lineHeight: 1.55 }}>
+            Its equation is missing or written in a form the step-by-step solver cannot read, so there is nothing here for you to solve.
+            Nothing you did caused this and your grade is not affected. Let your teacher know so they can fix the question.
+          </p>
+          {parseError && (
+            <p style={{ margin: '12px 0 0', fontSize: '12px', color: 'var(--mm-ink-muted, #5f6368)' }}>
+              Details for your teacher: {parseError}
+            </p>
+          )}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className={shake ? 'algebra-shake' : ''} style={{ maxWidth: '1120px', margin: '0 auto', padding: '10px 10px 24px', textAlign: 'left' }}>

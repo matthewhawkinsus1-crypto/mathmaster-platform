@@ -1,9 +1,30 @@
 import React from 'react';
 
+// Third copy of this guard (GraphDisplay and InteractiveGraphWorkspace have the
+// others). This one is shared by every Batch A-D tool, so an unguarded window
+// froze the tab in three different labs at once. A step of 0/NaN never
+// terminates, and a legitimate step across a huge window runs for billions of
+// iterations; both are reachable from authored question JSON.
+const MAX_TICKS = 200;
+
 const buildTicks = (min, max, step) => {
+  const low = Number(min);
+  const high = Number(max);
+  if (!Number.isFinite(low) || !Number.isFinite(high) || high <= low) return [];
+
+  let increment = Number(step);
+  if (!Number.isFinite(increment) || increment <= 0) increment = (high - low) / 10;
+  const span = high - low;
+  if (span / increment > MAX_TICKS) increment = span / MAX_TICKS;
+  if (!Number.isFinite(increment) || increment <= 0) return [];
+
   const ticks = [];
-  const first = Math.ceil(min / step) * step;
-  for (let value = first; value <= max + 1e-9; value += step) ticks.push(value);
+  const first = Math.ceil(low / increment) * increment;
+  if (!Number.isFinite(first)) return [];
+  for (let value = first; value <= high + 1e-9; value += increment) {
+    ticks.push(value);
+    if (ticks.length >= MAX_TICKS) break;
+  }
   return ticks;
 };
 

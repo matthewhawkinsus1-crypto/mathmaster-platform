@@ -37,10 +37,27 @@ const asRange = (value, fallback) =>
     : fallback;
 const round = (value, places = 8) => Number(value.toFixed(places));
 
+// Every retry loop in this file is bounded.
+//
+// These loops resample until they get an acceptable value, which never
+// terminates when the blueprint makes an acceptable value impossible — a
+// coefficientRange of [0,0] with a non-zero requirement, a single-element slope
+// list that must produce two different slopes, more blanks than table rows.
+// That is reachable by hand-editing assignment JSON, and the failure mode is a
+// hard-frozen browser tab for the student, so each loop gives up and falls back
+// to a usable value instead.
+const MAX_RESAMPLES = 200;
+
 const nonZeroInt = (random, range) => {
-  let result = 0;
-  while (result === 0) result = randomInt(random, range[0], range[1]);
-  return result;
+  const low = Number(range?.[0]);
+  const high = Number(range?.[1]);
+  for (let attempt = 0; attempt < MAX_RESAMPLES; attempt += 1) {
+    const result = randomInt(random, low, high);
+    if (result !== 0) return result;
+  }
+  // The range cannot produce a non-zero value; step just outside it rather
+  // than returning the zero the caller explicitly rejected.
+  return Number.isFinite(high) && high !== 0 ? high : (Number.isFinite(low) && low !== 0 ? low : 1);
 };
 
 const formatSignedTerm = (value) => `${value >= 0 ? '+' : '-'} ${Math.abs(value)}`;
@@ -151,7 +168,10 @@ const generateLinearSystem = (question, random) => {
   const y = randomInt(random, yRange[0], yRange[1]);
   const m1 = choose(random, slopes);
   let m2 = choose(random, slopes);
-  while (m2 === m1) m2 = choose(random, slopes);
+  for (let attempt = 0; attempt < MAX_RESAMPLES && m2 === m1; attempt += 1) m2 = choose(random, slopes);
+  // A one-slope list can never yield two distinct slopes; offsetting keeps the
+  // system solvable (parallel lines would have no unique intersection).
+  if (m2 === m1) m2 = m1 + 1;
   const b1 = y - m1 * x;
   const b2 = y - m2 * x;
   const equationsLatex = [lineLatex(m1, b1), lineLatex(m2, b2)];
@@ -206,7 +226,12 @@ const generateFunctionTable = (question, random) => {
   const xValues = Array.from({ length: rowCount }, (_, index) => xStart + index * xStep);
   const blankCount = Math.min(rowCount, Number(generator.blankCount || 3));
   const blankRows = new Set();
-  while (blankRows.size < blankCount) blankRows.add(randomInt(random, 0, rowCount - 1));
+  // blankCount is already clamped to rowCount above, but rowCount itself can be
+  // 0 or negative from a blueprint, which makes the target unreachable.
+  const targetBlanks = Math.max(0, Math.min(blankCount, rowCount));
+  for (let attempt = 0; blankRows.size < targetBlanks && attempt < MAX_RESAMPLES; attempt += 1) {
+    blankRows.add(randomInt(random, 0, rowCount - 1));
+  }
 
   const answers = {};
   const rows = xValues.map((x, rowIndex) => {
@@ -295,7 +320,12 @@ const generateLiteralLinear = (question, random) => {
   const variableSymbols = generator.variableSymbols || ['x', 'r', 'h', 't', 'n', 'p'];
   const dependent = choose(random, dependentSymbols);
   let solveFor = choose(random, variableSymbols);
-  while (solveFor === dependent.toLowerCase()) solveFor = choose(random, variableSymbols);
+  for (let attempt = 0; attempt < MAX_RESAMPLES && solveFor === dependent.toLowerCase(); attempt += 1) {
+    solveFor = choose(random, variableSymbols);
+  }
+  // Every candidate collides with the dependent variable; pick a symbol that
+  // cannot, so the literal equation still has two distinct variables.
+  if (solveFor === dependent.toLowerCase()) solveFor = dependent.toLowerCase() === 'x' ? 'y' : 'x';
   const coefficient = nonZeroInt(random, asRange(generator.coefficientRange, [2, 12]));
   const constant = nonZeroInt(random, asRange(generator.constantRange, [-15, 15]));
   const formulaLatex = `${dependent} = ${coefficient}${solveFor} ${formatSignedTerm(constant)}`;

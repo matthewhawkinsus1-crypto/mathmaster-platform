@@ -927,7 +927,7 @@ function App() {
     }
   };
 
-  const handleGradeSubmit = async (isCorrect, specificQuestionData, parts = [], supportUsage = null, responseKey = '') => {
+  const handleGradeSubmit = async (isCorrect, specificQuestionData, parts = [], supportUsage = null, responseKey = '', partialCreditPercent = null) => {
     if (!activeAssignmentId) return null;
 
     const applyAttempt = (record) =>
@@ -939,6 +939,7 @@ function App() {
         parts,
         supportUsage,
         responseKey,
+        partialCreditPercent,
       });
 
     if (isTeacherPreview) {

@@ -16,11 +16,34 @@ const getStep = (range) => {
   return 10;
 };
 
+// Axis labels stop being readable long before this many, so the cap is a
+// rendering decision as much as a safety one.
+const MAX_TICKS = 200;
+
 const buildTicks = (minimum, maximum, step) => {
+  const min = Number(minimum);
+  const max = Number(maximum);
+  let increment = Number(step);
+
+  // A non-finite or non-positive step never terminates the loop below, and a
+  // huge range with a small step generated hundreds of millions of ticks --
+  // enough to freeze the browser tab a student is working in. Both are
+  // reachable from hand-edited blueprint JSON, so both are clamped here rather
+  // than trusted from the caller.
+  if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return [];
+  if (!Number.isFinite(increment) || increment <= 0) increment = (max - min) / 10;
+  if (!Number.isFinite(increment) || increment <= 0) return [];
+
+  const span = max - min;
+  if (span / increment > MAX_TICKS) increment = span / MAX_TICKS;
+
   const ticks = [];
-  const first = Math.ceil(minimum / step) * step;
-  for (let value = first; value <= maximum + step * 0.001; value += step) {
+  const first = Math.ceil(min / increment) * increment;
+  if (!Number.isFinite(first)) return [];
+
+  for (let value = first; value <= max + increment * 0.001; value += increment) {
     ticks.push(Number(value.toFixed(8)));
+    if (ticks.length >= MAX_TICKS) break;
   }
   return ticks;
 };

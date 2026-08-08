@@ -1,6 +1,10 @@
 import { isPersonalizedBlueprint } from './problemGenerator.js';
 import { normalizeQuestionStandards } from './questionMetadata.js';
 import { getTexasStandard } from './texasStandards.js';
+// Capabilities rather than the component registry on purpose: this module is
+// imported by Node-side tests and tooling, and toolRegistry pulls in every
+// tool's React component.
+import { TOOL_CAPABILITIES } from './tools/toolCapabilities.js';
 
 export const DEFAULT_ASSIGNMENT_BLUEPRINT = `[
   {
@@ -729,6 +733,10 @@ export const validateAssignmentQuestions = (questions, options = {}) => {
     'functionInvestigation', 'graphAnalysis', 'stepAlgebra', 'literal',
     'system', 'table', 'orderedPair', 'multiAnswer', 'relationshipModel',
     'graphScenarioMatch', 'graphComparison', 'graphStory', 'contextInterpretation',
+    // Batch A-D interactive tools. Sourced from the registry so a newly
+    // registered tool is publishable and renderable together, and the two can
+    // never drift apart into "teacher can publish it, student cannot see it".
+    ...Object.keys(TOOL_CAPABILITIES),
   ]);
 
   questions.forEach((question, index) => {

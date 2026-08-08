@@ -24,6 +24,9 @@ import { generateQuestion } from './problemGenerator';
 import { buildSupportUsage, getStudentSupportPresentation } from './studentSupport';
 import { removeQuestionDraftFamily } from './questionDraftStorage';
 import { useToast } from './ui/Toast';
+import QuestionModuleBoundary from './QuestionModuleBoundary';
+import ToolQuestionAdapter from './ToolQuestionAdapter';
+import { getToolDefinition } from './tools/toolRegistry';
 import {
   getAttemptsRemaining,
   MAX_ATTEMPTS_PER_QUESTION,
@@ -159,6 +162,8 @@ export default function QuestionEngine({
         answerState.parts || [],
         { ...supportUsage, scaffoldUsed: Boolean(scaffoldComplete) },
         answerState.responseKey ?? '',
+        // Self-grading tools report one score rather than per-part results.
+        answerState.partialCreditPercent ?? null,
       );
       setFeedback(
         result || {
@@ -279,7 +284,23 @@ export default function QuestionEngine({
       case 'contextInterpretation':
         return <ContextInterpretation {...commonModuleProps} />;
       default:
-        return <div>Unknown question type: {processedQuestion.type}</div>;
+        // Batch A-D interactive tools resolve through the shared registry, so a
+        // new tool becomes student-usable by registering it rather than by
+        // editing this switch.
+        if (getToolDefinition(processedQuestion.type)) {
+          return <ToolQuestionAdapter {...commonModuleProps} />;
+        }
+        return (
+          <div style={{ padding: '22px 24px', margin: '0 auto', maxWidth: '640px', borderRadius: '12px', background: 'var(--mm-warning-soft, #fef7e0)', border: '1px solid var(--mm-warning, #f9ab00)', textAlign: 'left' }}>
+            <h3 style={{ margin: 0, color: 'var(--mm-warning-text, #7a4f00)' }}>This question could not be displayed</h3>
+            <p style={{ margin: '10px 0 0', lineHeight: 1.55 }}>
+              It uses a question type this version of MathMaster does not know how to show. Nothing you did caused this and your grade is not affected — let your teacher know.
+            </p>
+            <p style={{ margin: '10px 0 0', fontSize: '12px', color: 'var(--mm-ink-muted, #5f6368)' }}>
+              Details for your teacher: unsupported question type &ldquo;{String(processedQuestion.type)}&rdquo;.
+            </p>
+          </div>
+        );
     }
   };
 
@@ -353,7 +374,12 @@ export default function QuestionEngine({
       <div style={{ position: 'relative' }}>
         <fieldset disabled={locked || scaffoldRequired} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
           <div aria-disabled={locked || scaffoldRequired ? 'true' : undefined} inert={locked || scaffoldRequired ? '' : undefined} style={{ pointerEvents: locked || scaffoldRequired ? 'none' : 'auto', opacity: locked ? 0.72 : scaffoldRequired ? 0.5 : 1 }}>
-            {renderModule()}
+            <QuestionModuleBoundary
+              questionType={processedQuestion?.type}
+              resetKey={`${generationKey}|${record.variantIndex}`}
+            >
+              {renderModule()}
+            </QuestionModuleBoundary>
           </div>
         </fieldset>
 

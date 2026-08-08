@@ -15,11 +15,37 @@ export const emptyQuestionRecord = () => ({
   bestPartialCredit: 0,
   algebraState: null,
   partGrades: [],
-  supportUsage: { modified: false, accommodations: [], modifications: [], scaffoldUsed: false },
+  supportUsage: {
+    modified: false, accommodations: [], modifications: [],
+    scaffoldUsed: false, hintUsed: false, contextScaffoldUsed: false,
+    calculatorUsed: false, isMathematicallyIndependent: true,
+  },
 });
 
 const clampPercent = (value) =>
   Math.max(0, Math.min(100, Number.isFinite(Number(value)) ? Number(value) : 0));
+
+/**
+ * Separates *access* support from *mathematical* support on an attempt.
+ *
+ * A calculator or a context/word-problem scaffold changes how a student reaches
+ * the mathematics; it does not do the mathematics for them, so an attempt using
+ * them is still independent evidence of the skill. A hint or a step scaffold
+ * does supply mathematical reasoning, so it is not. `isMathematicallyIndependent`
+ * is what mastery weighting reads, which keeps an accommodation from silently
+ * depressing a student's mastery score the way a modification would.
+ */
+const deriveAssistanceFlags = (supportUsage = {}) => {
+  const scaffoldUsed = Boolean(supportUsage?.scaffoldUsed);
+  const hintUsed = Boolean(supportUsage?.hintUsed);
+  return {
+    scaffoldUsed,
+    hintUsed,
+    contextScaffoldUsed: Boolean(supportUsage?.contextScaffoldUsed),
+    calculatorUsed: Boolean(supportUsage?.calculatorUsed),
+    isMathematicallyIndependent: !scaffoldUsed && !hintUsed,
+  };
+};
 
 export const normalizeQuestionRecord = (record) => {
   if (!record) return emptyQuestionRecord();
@@ -70,7 +96,7 @@ export const normalizeQuestionRecord = (record) => {
       modified: Boolean(record.supportUsage?.modified),
       accommodations: Array.isArray(record.supportUsage?.accommodations) ? record.supportUsage.accommodations.slice(0, 20) : [],
       modifications: Array.isArray(record.supportUsage?.modifications) ? record.supportUsage.modifications.slice(0, 20) : [],
-      scaffoldUsed: Boolean(record.supportUsage?.scaffoldUsed),
+      ...deriveAssistanceFlags(record.supportUsage),
     },
   };
 };
@@ -173,7 +199,7 @@ export const recordQuestionStep = ({
       modified: Boolean(supportUsage.modified),
       accommodations: Array.isArray(supportUsage.accommodations) ? supportUsage.accommodations.slice(0, 20) : [],
       modifications: Array.isArray(supportUsage.modifications) ? supportUsage.modifications.slice(0, 20) : [],
-      scaffoldUsed: Boolean(supportUsage.scaffoldUsed),
+      ...deriveAssistanceFlags(supportUsage),
     } : current.supportUsage,
     lastAttemptAt: new Date().toISOString(),
   };
@@ -197,6 +223,7 @@ export const recordQuestionAttempt = ({
   parts = [],
   supportUsage = null,
   responseKey = '',
+  partialCreditPercent = null,
   maximumAttempts = MAX_ATTEMPTS_PER_QUESTION,
 }) => {
   const current = normalizeQuestionRecord(record);
@@ -246,7 +273,15 @@ export const recordQuestionAttempt = ({
   const attemptCount = Math.min(maximumAttempts, current.attemptCount + 1);
   const expired = !isCorrect && attemptCount >= maximumAttempts;
   const status = isCorrect ? 'correct' : expired ? 'expired' : 'attempted';
-  const partialCredit = isCorrect ? 100 : Math.max(current.partialCredit, earnedPartPercent);
+  // The Batch A-D tools grade themselves and report one score, so they can pass
+  // `partialCreditPercent` directly instead of synthesising fake response parts
+  // just to make the parts-based percentage come out right.
+  const toolReportedPercent = Number.isFinite(Number(partialCreditPercent))
+    ? clampPercent(partialCreditPercent)
+    : null;
+  const partialCredit = isCorrect
+    ? 100
+    : Math.max(current.partialCredit, toolReportedPercent ?? earnedPartPercent);
   const nextRecord = {
     ...current,
     status,
@@ -262,7 +297,7 @@ export const recordQuestionAttempt = ({
       modified: Boolean(supportUsage.modified),
       accommodations: Array.isArray(supportUsage.accommodations) ? supportUsage.accommodations.slice(0, 20) : [],
       modifications: Array.isArray(supportUsage.modifications) ? supportUsage.modifications.slice(0, 20) : [],
-      scaffoldUsed: Boolean(supportUsage.scaffoldUsed),
+      ...deriveAssistanceFlags(supportUsage),
     } : current.supportUsage,
     lastAttemptAt: new Date().toISOString(),
   };
