@@ -1,0 +1,236 @@
+[
+  {
+    "id": "linear-warmup",
+    "title": "Linear Relationships Warm-Up",
+    "type": "Warm-Up",
+    "assignmentType": "practice",
+    "course": "algebra1",
+    "teks": "A.3B",
+    "timeline": { "dueOffsetDays": -12, "lateOffsetDays": -10 },
+    "questions": [
+      { "questionId": "linear-warmup-q1", "type": "algebra", "a": 2, "b": 3, "c": 15, "prompt": "Solve 2x + 3 = 15.", "teks": ["A.3B"], "dok": 1 },
+      { "questionId": "linear-warmup-q2", "type": "algebra", "a": 4, "b": -5, "c": 19, "prompt": "Solve 4x - 5 = 19.", "teks": ["A.3B"], "dok": 1 },
+      { "questionId": "linear-warmup-q3", "type": "algebra", "a": 3, "b": 8, "c": 29, "prompt": "Solve 3x + 8 = 29.", "teks": ["A.3B"], "dok": 1 },
+      { "questionId": "linear-warmup-q4", "type": "algebra", "a": 5, "b": -2, "c": 38, "prompt": "Solve 5x - 2 = 38.", "teks": ["A.3B"], "dok": 1 },
+      { "questionId": "linear-warmup-q5", "type": "algebra", "a": 6, "b": 1, "c": 31, "prompt": "Solve 6x + 1 = 31.", "teks": ["A.3B"], "dok": 1 }
+    ]
+  },
+  {
+    "id": "equations-classwork",
+    "title": "Solving Equations Classwork",
+    "type": "Classwork",
+    "assignmentType": "practice",
+    "course": "algebra1",
+    "teks": "A.5A",
+    "timeline": { "dueOffsetDays": 2, "lateOffsetDays": 3 },
+    "questions": [
+      { "questionId": "equations-classwork-q1", "type": "algebra", "a": 3, "b": 4, "c": 40, "prompt": "Solve 3x + 4 = 40.", "teks": ["A.5A"], "dok": 1 },
+      { "questionId": "equations-classwork-q2", "type": "algebra", "a": 7, "b": -6, "c": 29, "prompt": "Solve 7x - 6 = 29.", "teks": ["A.5A"], "dok": 1 },
+      { "questionId": "equations-classwork-q3", "type": "algebra", "a": 4, "b": 9, "c": 45, "prompt": "Solve 4x + 9 = 45.", "teks": ["A.5A"], "dok": 1 },
+      { "questionId": "equations-classwork-q4", "type": "algebra", "a": 8, "b": 3, "c": 59, "prompt": "Solve 8x + 3 = 59.", "teks": ["A.5A"], "dok": 1 },
+      { "questionId": "equations-classwork-q5", "type": "algebra", "a": 5, "b": -11, "c": 14, "prompt": "Solve 5x - 11 = 14.", "teks": ["A.5A"], "dok": 1 }
+    ]
+  },
+  {
+    "id": "systems-dol",
+    "title": "Systems of Equations DOL",
+    "type": "DOL",
+    "assignmentType": "practice",
+    "course": "algebra1",
+    "teks": "A.5C",
+    "timeline": { "dueOffsetDays": -9, "lateOffsetDays": -8 },
+    "questions": [
+      { "questionId": "systems-dol-q1", "type": "literal", "formula": "y=x+2 and y=3x-4", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "The two equations form a system. Find the x-coordinate of the solution.", "teks": ["A.5C"], "dok": 2 },
+      { "questionId": "systems-dol-q2", "type": "literal", "formula": "y=2x+1 and y=-x+10", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "Find the x-coordinate where the two lines intersect.", "teks": ["A.5C"], "dok": 2 },
+      { "questionId": "systems-dol-q3", "type": "literal", "formula": "x+y=12 and y=x-2", "solveFor": "x", "acceptedAnswers": ["7"], "prompt": "Solve the system for x.", "teks": ["A.5C"], "dok": 2 },
+      { "questionId": "systems-dol-q4", "type": "literal", "formula": "2x+y=13 and y=1", "solveFor": "x", "acceptedAnswers": ["6"], "prompt": "Solve the system for x.", "teks": ["A.5C"], "dok": 2 },
+      { "questionId": "systems-dol-q5", "type": "literal", "formula": "y=4x-7 and y=x+2", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "Find the x-coordinate of the intersection.", "teks": ["A.5C"], "dok": 2 }
+    ]
+  },
+  {
+    "id": "exponents-adaptive",
+    "title": "Exponents Adaptive Practice",
+    "type": "Practice",
+    "assignmentType": "practice",
+    "course": "algebra1",
+    "teks": "A.11B",
+    "timeline": { "dueOffsetDays": 5, "lateOffsetDays": 6 },
+    "questions": [
+      { "questionId": "exponents-adaptive-q1", "type": "literal", "formula": "2^x=16", "solveFor": "x", "acceptedAnswers": ["4"], "prompt": "Find the exponent x.", "teks": ["A.11B"], "dok": 1 },
+      { "questionId": "exponents-adaptive-q2", "type": "literal", "formula": "3^x=27", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "Find the exponent x.", "teks": ["A.11B"], "dok": 1 },
+      { "questionId": "exponents-adaptive-q3", "type": "literal", "formula": "5^2*5^3=5^x", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Use the product rule to find x.", "teks": ["A.11B"], "dok": 2 },
+      { "questionId": "exponents-adaptive-q4", "type": "literal", "formula": "x^3*x^4=x^n", "solveFor": "n", "acceptedAnswers": ["7"], "prompt": "Use exponent rules to find n.", "teks": ["A.11B"], "dok": 2 },
+      { "questionId": "exponents-adaptive-q5", "type": "literal", "formula": "10^6/10^2=10^n", "solveFor": "n", "acceptedAnswers": ["4"], "prompt": "Use the quotient rule to find n.", "teks": ["A.11B"], "dok": 2 }
+    ]
+  },
+  {
+    "id": "phone-modeling-lab",
+    "title": "Cell Phone Plan Modeling Lab",
+    "type": "Modeling Lab",
+    "assignmentType": "practice",
+    "course": "algebra1",
+    "teks": "A.3C",
+    "dok": 4,
+    "timeline": { "dueOffsetDays": -7, "lateOffsetDays": -6 },
+    "questions": [
+      { "questionId": "phone-modeling-q1", "type": "literal", "formula": "C=25+5g", "solveFor": "C", "acceptedAnswers": ["45"], "prompt": "A plan costs $25 plus $5 per GB. What is the cost for 4 GB?", "teks": ["A.3C"], "dok": 2 },
+      { "questionId": "phone-modeling-q2", "type": "literal", "formula": "A=20+6g, B=32+3g", "solveFor": "g", "acceptedAnswers": ["4"], "prompt": "At how many GB do the two plans cost the same?", "teks": ["A.3C"], "dok": 3 },
+      { "questionId": "phone-modeling-q3", "type": "literal", "formula": "C=18+4g", "solveFor": "C", "acceptedAnswers": ["42"], "prompt": "Find the cost at 6 GB.", "teks": ["A.3C"], "dok": 2 },
+      { "questionId": "phone-modeling-q4", "type": "literal", "formula": "C=15+7g", "solveFor": "g", "acceptedAnswers": ["5"], "prompt": "A bill is $50. How many GB were used?", "teks": ["A.3C"], "dok": 3 },
+      { "questionId": "phone-modeling-q5", "type": "literal", "formula": "A=30+2g, B=18+5g", "solveFor": "g", "acceptedAnswers": ["4"], "prompt": "Find the break-even usage for the two plans.", "teks": ["A.3C"], "dok": 3 }
+    ]
+  },
+  {
+    "id": "systems-quiz",
+    "title": "Systems Quiz",
+    "type": "Quiz",
+    "assignmentType": "quiz",
+    "course": "algebra1",
+    "teks": "A.5C",
+    "timeline": { "dueOffsetDays": -5, "lateOffsetDays": -4 },
+    "questions": [
+      { "questionId": "systems-quiz-q1", "type": "literal", "formula": "y=x+5 and y=2x+1", "solveFor": "x", "acceptedAnswers": ["4"], "prompt": "Find the x-coordinate of the solution.", "teks": ["A.5C"], "dok": 2 },
+      { "questionId": "systems-quiz-q2", "type": "literal", "formula": "x+y=11 and y=x+1", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Solve the system for x.", "teks": ["A.5C"], "dok": 2 },
+      { "questionId": "systems-quiz-q3", "type": "literal", "formula": "y=5x-8 and y=2x+1", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "Find the x-coordinate of the intersection.", "teks": ["A.5C"], "dok": 2 },
+      { "questionId": "systems-quiz-q4", "type": "literal", "formula": "3x+y=14 and y=2", "solveFor": "x", "acceptedAnswers": ["4"], "prompt": "Solve the system for x.", "teks": ["A.5C"], "dok": 2 },
+      { "questionId": "systems-quiz-q5", "type": "literal", "formula": "y=-x+9 and y=x+1", "solveFor": "x", "acceptedAnswers": ["4"], "prompt": "Find the x-coordinate of the solution.", "teks": ["A.5C"], "dok": 2 }
+    ]
+  },
+  {
+    "id": "retention-check",
+    "title": "Retention Quick Check",
+    "type": "Retention",
+    "assignmentType": "practice",
+    "course": "algebra1",
+    "teks": "A.5A",
+    "timeline": { "dueOffsetDays": 1, "lateOffsetDays": 2 },
+    "questions": [
+      { "questionId": "retention-q1", "type": "algebra", "a": 4, "b": 2, "c": 26, "prompt": "Without notes, solve 4x + 2 = 26.", "teks": ["A.5A"], "dok": 1 },
+      { "questionId": "retention-q2", "type": "algebra", "a": 5, "b": -3, "c": 32, "prompt": "Without notes, solve 5x - 3 = 32.", "teks": ["A.5A"], "dok": 1 },
+      { "questionId": "retention-q3", "type": "algebra", "a": 9, "b": 4, "c": 58, "prompt": "Solve 9x + 4 = 58.", "teks": ["A.5A"], "dok": 1 },
+      { "questionId": "retention-q4", "type": "algebra", "a": 6, "b": -8, "c": 34, "prompt": "Solve 6x - 8 = 34.", "teks": ["A.5A"], "dok": 1 },
+      { "questionId": "retention-q5", "type": "algebra", "a": 7, "b": 5, "c": 40, "prompt": "Solve 7x + 5 = 40.", "teks": ["A.5A"], "dok": 1 }
+    ]
+  },
+  {
+    "id": "college-readiness",
+    "title": "College Readiness Quick Check",
+    "type": "CCMR",
+    "assignmentType": "practice",
+    "course": "algebra1",
+    "teks": "A.3B",
+    "ccmr": true,
+    "timeline": { "dueOffsetDays": -3, "lateOffsetDays": -2 },
+    "questions": [
+      { "questionId": "college-readiness-q1", "type": "literal", "formula": "y=18+4x", "solveFor": "x", "acceptedAnswers": ["8"], "prompt": "A fee model gives y=50. How many units x were used?", "teks": ["A.3B"], "dok": 2 },
+      { "questionId": "college-readiness-q2", "type": "literal", "formula": "d=60t", "solveFor": "t", "acceptedAnswers": ["3"], "prompt": "A car travels 180 miles at 60 mph. Find the time in hours.", "teks": ["A.3B"], "dok": 2 },
+      { "questionId": "college-readiness-q3", "type": "literal", "formula": "C=12+8n", "solveFor": "n", "acceptedAnswers": ["6"], "prompt": "A total cost is $60. How many items were purchased?", "teks": ["A.3B"], "dok": 2 },
+      { "questionId": "college-readiness-q4", "type": "literal", "formula": "P=40+15h", "solveFor": "h", "acceptedAnswers": ["4"], "prompt": "A paycheck is $100. How many hours h were worked after the base amount?", "teks": ["A.3B"], "dok": 3 },
+      { "questionId": "college-readiness-q5", "type": "literal", "formula": "y=3.5x+7", "solveFor": "x", "acceptedAnswers": ["6"], "prompt": "If y=28, find x.", "teks": ["A.3B"], "dok": 2 }
+    ]
+  },
+  {
+    "id": "honors-modeling",
+    "title": "Honors Modeling & Justification Extension",
+    "type": "Honors",
+    "assignmentType": "practice",
+    "course": "algebra1",
+    "courseLevelScope": "honors",
+    "teks": "A.5C",
+    "ccmr": true,
+    "dok": 3,
+    "timeline": { "dueOffsetDays": 4, "lateOffsetDays": 5 },
+    "questions": [
+      { "questionId": "honors-modeling-q1", "type": "literal", "formula": "A=12+4x, B=30+x", "solveFor": "x", "acceptedAnswers": ["6"], "prompt": "Find the break-even x-value and use it to compare the two models.", "teks": ["A.5C"], "dok": 3 },
+      { "questionId": "honors-modeling-q2", "type": "literal", "formula": "y=2x+9 and y=-x+24", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Find the intersection x-value for the competing models.", "teks": ["A.5C"], "dok": 3 },
+      { "questionId": "honors-modeling-q3", "type": "literal", "formula": "C=75+12m, D=120+7m", "solveFor": "m", "acceptedAnswers": ["9"], "prompt": "At what month m do the costs become equal?", "teks": ["A.5C"], "dok": 3 },
+      { "questionId": "honors-modeling-q4", "type": "literal", "formula": "y=4x-13 and y=x+8", "solveFor": "x", "acceptedAnswers": ["7"], "prompt": "Find the intersection x-value, then consider which representation made the solution most efficient.", "teks": ["A.5C"], "dok": 3 },
+      { "questionId": "honors-modeling-q5", "type": "literal", "formula": "P=22+6n, Q=10+8n", "solveFor": "n", "acceptedAnswers": ["6"], "prompt": "Find the break-even n-value for the two pricing models.", "teks": ["A.5C"], "dok": 3 }
+    ]
+  },
+  {
+    "id": "ccmr-practice",
+    "title": "SAT / ACT / TSIA2-Style CCMR Practice",
+    "type": "CCMR",
+    "assignmentType": "practice",
+    "course": "both",
+    "teks": "A.3B",
+    "ccmr": true,
+    "timeline": { "dueOffsetDays": 6, "lateOffsetDays": 7 },
+    "questions": [
+      { "questionId": "ccmr-practice-q1", "type": "literal", "formula": "y=2.5x+15", "solveFor": "x", "acceptedAnswers": ["14"], "prompt": "A model gives y=50. Find x.", "teks": ["A.3B"], "dok": 2 },
+      { "questionId": "ccmr-practice-q2", "type": "literal", "formula": "P=6n+18", "solveFor": "n", "acceptedAnswers": ["12"], "prompt": "A total is 90. Find n.", "teks": ["A.3B"], "dok": 2 },
+      { "questionId": "ccmr-practice-q3", "type": "literal", "formula": "d=55t", "solveFor": "t", "acceptedAnswers": ["4"], "prompt": "A trip is 220 miles at 55 mph. Find t.", "teks": ["A.3B"], "dok": 2 },
+      { "questionId": "ccmr-practice-q4", "type": "literal", "formula": "C=28+9h", "solveFor": "h", "acceptedAnswers": ["8"], "prompt": "A total cost is 100. Find h.", "teks": ["A.3B"], "dok": 2 },
+      { "questionId": "ccmr-practice-q5", "type": "literal", "formula": "y=1.2x+6", "solveFor": "x", "acceptedAnswers": ["20"], "prompt": "If y=30, find x.", "teks": ["A.3B"], "dok": 2 }
+    ]
+  },
+  {
+    "id": "a2-inverse-functions",
+    "title": "Algebra II Inverse Functions Investigation",
+    "type": "Classwork",
+    "assignmentType": "practice",
+    "course": "algebra2",
+    "teks": "A2.2C",
+    "timeline": { "dueOffsetDays": -8, "lateOffsetDays": -7 },
+    "questions": [
+      { "questionId": "a2-inverse-q1", "type": "literal", "formula": "f(x)=2x+3, f^-1(11)=?", "solveFor": "x", "acceptedAnswers": ["4"], "prompt": "Find the input whose f-value is 11.", "teks": ["A2.2C"], "dok": 2 },
+      { "questionId": "a2-inverse-q2", "type": "literal", "formula": "f(x)=5x-1, f^-1(24)=?", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Find the inverse output at 24.", "teks": ["A2.2C"], "dok": 2 },
+      { "questionId": "a2-inverse-q3", "type": "literal", "formula": "f(x)=3x+7, f^-1(28)=?", "solveFor": "x", "acceptedAnswers": ["7"], "prompt": "Find the inverse output at 28.", "teks": ["A2.2C"], "dok": 2 },
+      { "questionId": "a2-inverse-q4", "type": "literal", "formula": "f(x)=4x-6, f^-1(18)=?", "solveFor": "x", "acceptedAnswers": ["6"], "prompt": "Find the inverse output at 18.", "teks": ["A2.2C"], "dok": 2 },
+      { "questionId": "a2-inverse-q5", "type": "literal", "formula": "f(x)=7x+2, f^-1(37)=?", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Find the inverse output at 37.", "teks": ["A2.2C"], "dok": 2 }
+    ]
+  },
+  {
+    "id": "a2-linear-quadratic",
+    "title": "Linear–Quadratic Systems Lab",
+    "type": "Modeling Lab",
+    "assignmentType": "practice",
+    "course": "algebra2",
+    "teks": "A2.3C",
+    "dok": 3,
+    "timeline": { "dueOffsetDays": -4, "lateOffsetDays": -3 },
+    "questions": [
+      { "questionId": "a2-lq-q1", "type": "literal", "formula": "y=x^2 and y=4", "solveFor": "x", "acceptedAnswers": ["2", "-2"], "prompt": "Give one x-value where the graphs intersect.", "teks": ["A2.3C"], "dok": 2 },
+      { "questionId": "a2-lq-q2", "type": "literal", "formula": "y=x^2 and y=9", "solveFor": "x", "acceptedAnswers": ["3", "-3"], "prompt": "Give one x-value where the graphs intersect.", "teks": ["A2.3C"], "dok": 2 },
+      { "questionId": "a2-lq-q3", "type": "literal", "formula": "y=x^2-1 and y=8", "solveFor": "x", "acceptedAnswers": ["3", "-3"], "prompt": "Give one x-value where the graphs intersect.", "teks": ["A2.3C"], "dok": 2 },
+      { "questionId": "a2-lq-q4", "type": "literal", "formula": "y=x^2+2 and y=18", "solveFor": "x", "acceptedAnswers": ["4", "-4"], "prompt": "Give one x-value where the graphs intersect.", "teks": ["A2.3C"], "dok": 2 },
+      { "questionId": "a2-lq-q5", "type": "literal", "formula": "y=x^2-5 and y=20", "solveFor": "x", "acceptedAnswers": ["5", "-5"], "prompt": "Give one x-value where the graphs intersect.", "teks": ["A2.3C"], "dok": 2 }
+    ]
+  },
+  {
+    "id": "a2-exponential-log",
+    "title": "Exponential & Logarithmic Models",
+    "type": "Practice",
+    "assignmentType": "practice",
+    "course": "algebra2",
+    "teks": "A2.5B",
+    "timeline": { "dueOffsetDays": 3, "lateOffsetDays": 4 },
+    "questions": [
+      { "questionId": "a2-exp-q1", "type": "literal", "formula": "2^x=32", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Solve the exponential equation.", "teks": ["A2.5B"], "dok": 2 },
+      { "questionId": "a2-exp-q2", "type": "literal", "formula": "10^x=1000", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "Solve for x.", "teks": ["A2.5B"], "dok": 2 },
+      { "questionId": "a2-exp-q3", "type": "literal", "formula": "3^x=81", "solveFor": "x", "acceptedAnswers": ["4"], "prompt": "Solve the exponential equation.", "teks": ["A2.5B"], "dok": 2 },
+      { "questionId": "a2-exp-q4", "type": "literal", "formula": "log_2(64)=x", "solveFor": "x", "acceptedAnswers": ["6"], "prompt": "Evaluate the logarithm.", "teks": ["A2.5B"], "dok": 2 },
+      { "questionId": "a2-exp-q5", "type": "literal", "formula": "log_5(125)=x", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "Evaluate the logarithm.", "teks": ["A2.5B"], "dok": 2 }
+    ]
+  },
+  {
+    "id": "a2-honors-ccmr",
+    "title": "Algebra II Honors CCMR Extension",
+    "type": "Honors",
+    "assignmentType": "practice",
+    "course": "algebra2",
+    "courseLevelScope": "honors",
+    "teks": "A2.8C",
+    "ccmr": true,
+    "dok": 4,
+    "timeline": { "dueOffsetDays": 7, "lateOffsetDays": 8 },
+    "questions": [
+      { "questionId": "a2-honors-q1", "type": "literal", "formula": "P=120(1.05)^t, P=153.15", "solveFor": "t", "acceptedAnswers": ["5"], "prompt": "Find the integer time t for the growth model.", "teks": ["A2.8C"], "dok": 3 },
+      { "questionId": "a2-honors-q2", "type": "literal", "formula": "2^x=128", "solveFor": "x", "acceptedAnswers": ["7"], "prompt": "Solve and connect the result to logarithmic notation.", "teks": ["A2.8C"], "dok": 3 },
+      { "questionId": "a2-honors-q3", "type": "literal", "formula": "log_3(243)=x", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Evaluate the logarithm and identify its exponential equivalent.", "teks": ["A2.8C"], "dok": 3 },
+      { "questionId": "a2-honors-q4", "type": "literal", "formula": "A=500(1.1)^t, A=605", "solveFor": "t", "acceptedAnswers": ["2"], "prompt": "Find t for the model and interpret the result.", "teks": ["A2.8C"], "dok": 4 },
+      { "questionId": "a2-honors-q5", "type": "literal", "formula": "4^x=1024", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Solve the exponential equation and justify the exponent relationship.", "teks": ["A2.8C"], "dok": 3 }
+    ]
+  }
+]

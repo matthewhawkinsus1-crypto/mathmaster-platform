@@ -15,6 +15,7 @@
 
 const TAB_LABELS = {
   home: 'Home',
+  demo: 'Demo Experience',
   assignments: 'Assignments',
   library: 'Library',
   mathTools: 'Math Tools Lab',
@@ -26,11 +27,12 @@ const TAB_LABELS = {
   analytics: 'Analytics',
   exams: 'Secure Exams',
   classroom: 'Google Classroom',
-  access: 'Sign-in Access',
+  access: 'Student Access',
 };
 
 const TAB_ICONS = {
   home: '🏠',
+  demo: '▶️',
   assignments: '📄',
   library: '🗂️',
   mathTools: '🧪',
@@ -46,7 +48,7 @@ const TAB_ICONS = {
 };
 
 const TAB_GROUPS = [
-  { id: 'teach', label: 'Teach', tabs: ['home', 'assignments', 'library', 'mathTools'] },
+  { id: 'teach', label: 'Teach', tabs: ['home', 'demo', 'assignments', 'library', 'mathTools'] },
   { id: 'people', label: 'Classes', tabs: ['students', 'classesWorkspace', 'classes'] },
   { id: 'insight', label: 'Evidence', tabs: ['grades', 'standards', 'analytics', 'exams'] },
   { id: 'admin', label: 'Setup', tabs: ['classroom', 'access'] },

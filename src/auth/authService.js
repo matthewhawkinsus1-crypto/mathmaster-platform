@@ -169,6 +169,10 @@ export const teacherAdmin = {
     callable('resetStudentPasscode')({ studentId }).then((result) => result.data || {}),
   unlinkStudentAccount: (studentId) =>
     callable('unlinkStudentAccount')({ studentId }).then((result) => result.data || {}),
+  createStudentAccount: ({ studentId, displayName = '', classPeriod = 'Unassigned', teacherEmail = '' }) =>
+    callable('createStudentAccount')({ studentId, displayName, classPeriod, teacherEmail }).then((result) => result.data || {}),
+  assignStudentToTeacher: ({ studentId, teacherEmail = '', classPeriod = 'Unassigned' }) =>
+    callable('assignStudentToTeacher')({ studentId, teacherEmail, classPeriod }).then((result) => result.data || {}),
   setTeacherAccess: (email, active) =>
     callable('setTeacherAccess')({ email, active }).then((result) => result.data || {}),
   permanentlyDeleteStudent: (studentId, confirmation) =>

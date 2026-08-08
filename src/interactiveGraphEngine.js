@@ -4,7 +4,6 @@ import {
   getEffectiveDomain,
   getGraphKeyPoint,
   getSuggestedGraphPoints,
-  xIsInFunctionDomain,
 } from './functionGraphUtils.js';
 
 const round = (value, places = 6) => Number(Number(value).toFixed(places));

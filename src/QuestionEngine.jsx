@@ -103,7 +103,10 @@ export default function QuestionEngine({
   );
   const { confirm: confirmAction } = useToast();
   const missingToolDefinition = useMemo(
-    () => getToolDefinition(processedQuestion?.toolId || processedQuestion?.type),
+    // A malformed item can carry a toolId the registry doesn't know while its
+    // `type` names a real tool; fall through to `type` rather than showing the
+    // unsupported-question panel for a tool that exists.
+    () => getToolDefinition(processedQuestion?.toolId) || getToolDefinition(processedQuestion?.type),
     [processedQuestion],
   );
   const record = normalizeQuestionRecord(questionRecord);
@@ -419,12 +422,9 @@ export default function QuestionEngine({
       case 'contextInterpretation':
         return <ContextInterpretation {...commonModuleProps} />;
       default:
-        // Batch A-D interactive tools resolve through the shared registry, so a
-        // new tool becomes student-usable by registering it rather than by
-        // editing this switch.
-        if (getToolDefinition(processedQuestion.type)) {
-          return <ToolQuestionAdapter {...commonModuleProps} />;
-        }
+        // Batch A-D interactive tools never reach this switch: they resolve
+        // through the shared registry above, so a new tool becomes
+        // student-usable by registering it rather than by editing this switch.
         return (
           <div style={{ padding: '22px 24px', margin: '0 auto', maxWidth: '640px', borderRadius: '12px', background: 'var(--mm-warning-soft, #fef7e0)', border: '1px solid var(--mm-warning, #f9ab00)', textAlign: 'left' }}>
             <h3 style={{ margin: 0, color: 'var(--mm-warning-text, #7a4f00)' }}>This question could not be displayed</h3>

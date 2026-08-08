@@ -64,6 +64,13 @@ export const getAssignmentLifecycle = (assignment, nowValue = Date.now()) => {
     isOpen: status === 'onTime' || status === 'late',
     isLate: status === 'late',
     isClosed: status === 'closed',
+    // Once the final grading cutoff has passed, the assignment stays
+    // available as voluntary practice. Practice-only attempts must never be
+    // written back into grades, evidence, DOLs, activity analytics, or
+    // mastery. `isClosed` remains for backwards-compatible deadline checks;
+    // `isPracticeOnly` names the student-facing behavior.
+    isPracticeOnly: status === 'closed',
+    creditEligible: status === 'onTime' || status === 'late',
     isScheduled: status === 'scheduled',
   };
 };

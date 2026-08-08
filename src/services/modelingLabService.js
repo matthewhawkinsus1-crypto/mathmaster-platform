@@ -30,7 +30,7 @@ const mockEvaluation = ({ labDefinition, studentHypothesis, trialHistory, studen
 
 export const submitModelingLab = async ({ assignmentId, labDefinition, submission, submissionId = null, executionScope = 'student' }) => {
   const activeSubmissionId = submissionId || `labsub_${generateRuntimeUUID()}`;
-  if (executionScope === 'teacherPreview' || getExecutionMode() === EXECUTION_MODES.MOCK_LOCAL) {
+  if (['teacherPreview', 'postDuePractice', 'demo'].includes(executionScope) || getExecutionMode() === EXECUTION_MODES.MOCK_LOCAL) {
     return { success: true, submissionId: activeSubmissionId, evaluation: mockEvaluation({ labDefinition, ...submission }), preview: true };
   }
   if (!assignmentId || !labDefinition?.labId) throw new Error('Production modeling labs require assignmentId and labId.');
@@ -42,4 +42,3 @@ export const submitModelingLab = async ({ assignmentId, labDefinition, submissio
   });
   return response.data;
 };
-

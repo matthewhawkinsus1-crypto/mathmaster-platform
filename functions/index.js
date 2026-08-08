@@ -33,6 +33,7 @@ const mathPath = require("./lib/mathPath");
 const labEvaluation = require("./lib/labEvaluation");
 const secureExam = require("./lib/secureExam");
 const adminPolicy = require("./lib/admin");
+const rigorPolicy = require("./lib/rigorPolicy");
 
 initializeApp();
 
@@ -432,6 +433,16 @@ exports.studentSignIn = onCall(async (request) => {
     }
 
     classPeriod = joinCode.classPeriod || null;
+    // If an administrator/teacher already placed this ID on a roster, first-
+    // time setup must use that roster's class code. Knowing a code from a
+    // different period is not enough to claim a pre-created student account.
+    const rosterSnapshot = await db.collection("grades").select("classPeriod").get();
+    const existingRoster = rosterSnapshot.docs.find((entry) => entry.id.trim().toUpperCase() === key);
+    const assignedClassPeriod = existingRoster?.data()?.classPeriod || null;
+    if (assignedClassPeriod && assignedClassPeriod !== "Unassigned" && classPeriod !== assignedClassPeriod) {
+      await authLib.recordFailedAttempt(db, throttleKey);
+      throw new HttpsError("permission-denied", "That class code does not match the class assigned to this student ID.");
+    }
     await credentialRef.set({
       studentIdKey: key,
       ...authLib.hashPasscode(chosenPasscode),
@@ -597,7 +608,7 @@ exports.listSignInAccess = onCall(async (request) => {
   const [roster, credentials, directory, aliases, teachers] = await Promise.all([
     // Only these two fields — the rest of a grades document is the student's
     // entire attempt history and has no business in this payload.
-    db.collection("grades").select("classPeriod", "linkedEmail").get(),
+    db.collection("grades").select("classPeriod", "linkedEmail", "assignedTeacherEmail", "displayName").get(),
     db.collection(authLib.CREDENTIALS_COLLECTION).get(),
     db.collection(authLib.DIRECTORY_COLLECTION).get(),
     db.collection(authLib.ALIAS_COLLECTION).get(),
@@ -628,7 +639,9 @@ exports.listSignInAccess = onCall(async (request) => {
       const data = rosterDoc.data() || {};
       return {
         studentId: rosterDoc.id,
+        displayName: data.displayName || null,
         classPeriod: data.classPeriod || "Unassigned",
+        assignedTeacherEmail: data.assignedTeacherEmail || null,
         hasPasscode: Boolean(credential?.hash) && credential?.resetRequired !== true,
         resetRequired: credential?.resetRequired === true,
         linkedEmail: emailByStudent[rosterDoc.id] || data.linkedEmail || null,
@@ -659,6 +672,103 @@ exports.listSignInAccess = onCall(async (request) => {
     }) : [],
     bootstrapTeachers: isRootAdmin ? authLib.bootstrapTeacherEmails() : [],
   };
+});
+
+/** Root-admin action: create a roster/sign-in account shell for a new student. */
+exports.createStudentAccount = onCall(async (request) => {
+  const actor = requireRootAdmin(request);
+  const db = getFirestore();
+  let studentId;
+  let studentKey;
+  try {
+    studentId = authLib.normalizeStudentId(request.data?.studentId);
+    studentKey = authLib.studentIdKey(studentId);
+  } catch (error) {
+    throw translateAuthError(error);
+  }
+  if (studentId === "test_connection") {
+    throw new HttpsError("failed-precondition", "The connection-test ID is reserved.");
+  }
+
+  const displayName = String(request.data?.displayName || "").trim().slice(0, 120);
+  const classPeriod = String(request.data?.classPeriod || "Unassigned").trim().slice(0, 80) || "Unassigned";
+  let assignedTeacherEmail = null;
+  if (request.data?.teacherEmail) {
+    try {
+      assignedTeacherEmail = authLib.normalizeEmail(request.data.teacherEmail);
+    } catch (error) {
+      throw translateAuthError(error);
+    }
+    if (!(await isAuthorizedTeacher(db, assignedTeacherEmail))) {
+      throw new HttpsError("failed-precondition", "Assign the student to an active MathMaster teacher.");
+    }
+  }
+
+  const [aliasSnapshot, rosterSnapshot] = await Promise.all([
+    db.collection(authLib.ALIAS_COLLECTION).doc(studentKey).get(),
+    db.collection("grades").select().get(),
+  ]);
+  const caseInsensitiveExisting = rosterSnapshot.docs.find((entry) => entry.id.trim().toUpperCase() === studentKey);
+  if (aliasSnapshot.exists || caseInsensitiveExisting) {
+    throw new HttpsError("already-exists", "That student ID already exists in MathMaster.");
+  }
+
+  const rosterRef = db.collection("grades").doc(studentId);
+  await rosterRef.set({
+    displayName: displayName || null,
+    classPeriod,
+    assignedTeacherEmail,
+    profile: {},
+    gradesByAssignment: {},
+    assignmentActivity: {},
+    dolGradesByAssignment: {},
+    classworkGradesByAssignment: {},
+    supportUsageByAssignment: {},
+    createdAt: FieldValue.serverTimestamp(),
+    createdBy: actor.uid,
+  });
+  await db.collection(authLib.ALIAS_COLLECTION).doc(studentKey).set({
+    key: studentKey,
+    studentId,
+    createdAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  await writeAdminAudit(db, actor, "student_account_created", studentId, {
+    classPeriod,
+    assignedTeacherEmail,
+    displayName: displayName || null,
+  });
+  return { studentId, displayName: displayName || null, classPeriod, assignedTeacherEmail, signInSetupRequired: true };
+});
+
+/** Root-admin action: assign/reassign a student to a teacher and class period. */
+exports.assignStudentToTeacher = onCall(async (request) => {
+  const actor = requireRootAdmin(request);
+  const db = getFirestore();
+  let studentId;
+  try {
+    studentId = authLib.normalizeStudentId(request.data?.studentId);
+  } catch (error) {
+    throw translateAuthError(error);
+  }
+  const studentRef = db.collection("grades").doc(studentId);
+  const studentSnapshot = await studentRef.get();
+  if (!studentSnapshot.exists) throw new HttpsError("not-found", "That student account is not present in MathMaster.");
+
+  let assignedTeacherEmail = null;
+  if (request.data?.teacherEmail) {
+    try {
+      assignedTeacherEmail = authLib.normalizeEmail(request.data.teacherEmail);
+    } catch (error) {
+      throw translateAuthError(error);
+    }
+    if (!(await isAuthorizedTeacher(db, assignedTeacherEmail))) {
+      throw new HttpsError("failed-precondition", "The selected teacher is not active in MathMaster.");
+    }
+  }
+  const classPeriod = String(request.data?.classPeriod || studentSnapshot.data()?.classPeriod || "Unassigned").trim().slice(0, 80) || "Unassigned";
+  await studentRef.set({ assignedTeacherEmail, classPeriod, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  await writeAdminAudit(db, actor, "student_teacher_assignment_changed", studentId, { assignedTeacherEmail, classPeriod });
+  return { studentId, assignedTeacherEmail, classPeriod };
 });
 
 /** Root-admin action: grant or revoke an ordinary teacher's access. */
@@ -1720,10 +1830,13 @@ exports.issueNextQuestion = onCall(async (request) => {
     return { questionInstance: mathPath.buildSanitizedQuestion(session.currentQuestion, { questionInstanceId: session.currentQuestion.questionInstanceId, attemptsAllowed: session.currentQuestion.attemptsAllowed, attemptsUsed: session.currentQuestion.attemptsUsed }) };
   }
 
-  const bankSnapshot = await db.collection("pathQuestionBank")
-    .where("alignmentKeys", "array-contains", session.target.alignmentKey)
-    .limit(40)
-    .get();
+  const targetDisplayCode = mathPath.displayAlignmentKey(session.target.alignmentKey);
+  const [bankSnapshot, masterySnapshot, rosterSnapshot, courseSettingsSnapshot] = await Promise.all([
+    db.collection("pathQuestionBank").where("alignmentKeys", "array-contains", session.target.alignmentKey).limit(40).get(),
+    db.collection("studentMasteryProfiles").doc(studentId).get(),
+    db.collection("grades").doc(studentId).get(),
+    db.collection("settings").doc("courseProfiles").get(),
+  ]);
   const candidates = bankSnapshot.docs
     .map((questionDoc) => ({ id: questionDoc.id, ...questionDoc.data() }))
     .filter((question) => question.active !== false && mathPath.hasGradeableDefinition(question));
@@ -1731,8 +1844,13 @@ exports.issueNextQuestion = onCall(async (request) => {
     throw new HttpsError("failed-precondition", `No active secure question family is published for ${session.target.alignmentKey}.`);
   }
 
-  const index = Number(session.summary?.completedQuestions || 0) % candidates.length;
-  const authored = candidates[index];
+  const classPeriod = rosterSnapshot.data()?.classPeriod || "Unassigned";
+  const courseLevel = courseSettingsSnapshot.data()?.profiles?.[classPeriod]?.courseLevel || "standard";
+  const masteryProfile = masterySnapshot.data()?.profiles?.[targetDisplayCode] || {};
+  const adaptiveRigor = rigorPolicy.resolveAdaptiveRigor({ courseLevel, profile: masteryProfile });
+  const difficultyPool = rigorPolicy.nearestDifficultyCandidates(candidates, adaptiveRigor.preferredDifficultyBand);
+  const index = Number(session.summary?.completedQuestions || 0) % difficultyPool.length;
+  const authored = difficultyPool[index];
   const attemptsAllowed = session.sessionKind === "retentionProbe" ? 1 : 3;
   const questionInstanceId = mathPath.runtimeId("qi");
   const currentQuestion = {
@@ -1741,6 +1859,7 @@ exports.issueNextQuestion = onCall(async (request) => {
     alignmentKeys: [session.target.alignmentKey],
     attemptsAllowed,
     attemptsUsed: 0,
+    adaptiveRigor,
     privateGrading: mathPath.privateGradingDefinition(authored),
   };
 

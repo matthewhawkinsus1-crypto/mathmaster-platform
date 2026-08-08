@@ -403,7 +403,7 @@ export default function LoginScreen({ launchAssignment }) {
         <button type="button" className="mm-login__link" onClick={() => auth.signOut()}>
           Sign in as someone else
         </button>
-        <span className="mm-login__help">Teachers: ask the MathMaster administrator to authorize your email.</span>
+        <span className="mm-login__help">Teachers: ask an existing teacher to add your email in Access.</span>
       </div>
     </>
   );

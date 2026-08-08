@@ -37,12 +37,10 @@ import {
 } from './assignmentBlueprint';
 import { isPersonalizedBlueprint } from './problemGenerator';
 import {
-  buildPracticeTrackerKey,
   buildQuestionDraftKey,
-  readQuestionDraft,
+  clearResumeAction,
   readResumeAction,
   saveResumeAction,
-  writeQuestionDraft,
 } from './questionDraftStorage';
 import {
   CLASS_PERIODS,
@@ -82,9 +80,6 @@ import {
 } from './platform/policies/activityPolicies';
 import { SMART_VIEWS, matchesSmartView } from './assignmentSmartViews';
 import { assignmentFolderMatches, normalizeFolderPath, normalizeFolderPaths, renameFolderPath, titleOrFolderMatches } from './assignmentFolders';
-import LoginScreen from './LoginScreen.jsx';
-import { useAuth } from './auth/AuthProvider.jsx';
-import SignInAccess from './SignInAccess.jsx';
 import LessonPreflightModal from './components/teacher/LessonPreflightModal';
 import { normalizeLessonBundle } from './platform/schemas/BundleDefinition';
 import { normalizeLabDefinition } from './platform/labs/labDefinitionSchema.js';
@@ -94,8 +89,21 @@ import MyMathPathApp from './components/student/MyMathPathApp.jsx';
 import StudentSecureExamDashboard from './components/assessment/StudentSecureExamDashboard.jsx';
 import TeacherSecureExamDashboard from './components/assessment/TeacherSecureExamDashboard.jsx';
 import TeacherAnalyticsDashboard from './components/analytics/TeacherAnalyticsDashboard.jsx';
-import ShowcaseClassroomDashboard from './components/analytics/ShowcaseClassroomDashboard.jsx';
+import DemoExperience from './components/demo/DemoExperience.jsx';
+import StudentsRoster from './components/teacher/StudentsRoster.jsx';
+import ClassCourseSettings from './components/teacher/ClassCourseSettings.jsx';
+import SignInAccess from './SignInAccess.jsx';
+import {
+  buildHonorsEnrichmentQuestion,
+  defaultCourseProfiles,
+  inspectHonorsRigor,
+  normalizeCourseProfiles,
+  splitClassPeriodsByRigor,
+} from './platform/rigor/courseRigor.js';
+import LoginScreen from './LoginScreen.jsx';
+import { useAuth } from './auth/AuthProvider.jsx';
 
+const ROOT_ADMIN_EMAIL = 'matthew.hawkins@desotoisd.org';
 
 
 const createQuestionId = () => {
@@ -142,9 +150,6 @@ const createPracticeAssignmentTracker = (questions = [], frozenTracker = {}) => 
   return initialTracker;
 };
 
-const isAssignmentExpired = (assignment, now = Date.now()) =>
-  getAssignmentLifecycle(assignment, now).isClosed;
-
 const formatDueDate = (assignmentOrValue) => {
   if (assignmentOrValue && typeof assignmentOrValue === 'object') {
     return formatDateTime(assignmentOrValue.dueAt || assignmentOrValue.dueDate);
@@ -184,9 +189,7 @@ function App() {
   // application-level profile that the rest of this component reads: the
   // roster record, class period and inclusion supports that hang off whoever
   // the auth layer says is signed in.
-  const { status: authStatus, session, signOut } = auth;
   const { toastSuccess, toastError, toastInfo, toastWarning, confirm: confirmAction } = useToast();
-
   const [user, setUser] = useState(null);
   const [sessionHydrating, setSessionHydrating] = useState(false);
   const [sessionHydrationError, setSessionHydrationError] = useState(null);
@@ -207,12 +210,14 @@ function App() {
 
   const [activeView, setActiveView] = useState('dashboard');
   const [teacherTab, setTeacherTab] = useState('home');
+  const [teacherWorkspaceMode, setTeacherWorkspaceMode] = useState('teacher');
   const [homeNavigationPeriod, setHomeNavigationPeriod] = useState(null);
   const [assignments, setAssignments] = useState([]);
   const [allStudents, setAllStudents] = useState([]);
   const [activeAssignmentId, setActiveAssignmentId] = useState(null);
   const [tracker, setTracker] = useState({});
   const [practiceTracker, setPracticeTracker] = useState({});
+  const [practiceScratchpads, setPracticeScratchpads] = useState({});
   const [previewTracker, setPreviewTracker] = useState({});
   const [previewScratchpads, setPreviewScratchpads] = useState({});
   const [teacherScratchpadDialog, setTeacherScratchpadDialog] = useState(null);
@@ -221,6 +226,8 @@ function App() {
   const [resumeAction, setResumeAction] = useState(null);
   const [now, setNow] = useState(Date.now());
   const [classSchedule, setClassSchedule] = useState(DEFAULT_CLASS_SCHEDULE);
+  const [courseProfiles, setCourseProfiles] = useState(() => defaultCourseProfiles(CLASS_PERIODS));
+  const [courseProfilesSaving, setCourseProfilesSaving] = useState(false);
   const [assignmentActivity, setAssignmentActivity] = useState({});
   const [dolGradesByAssignment, setDolGradesByAssignment] = useState({});
   const [classworkGradesByAssignment, setClassworkGradesByAssignment] = useState({});
@@ -233,13 +240,11 @@ function App() {
   const [libraryNavigation, setLibraryNavigation] = useState(null);
   const [movingFolderAssignmentId, setMovingFolderAssignmentId] = useState(null);
   const [movingFolderValue, setMovingFolderValue] = useState('');
+  const [feedbackReleaseBusyId, setFeedbackReleaseBusyId] = useState(null);
+  const [studentDashboardMode, setStudentDashboardMode] = useState('assignments');
   const [assignmentSearch, setAssignmentSearch] = useState('');
   const [selectedAssignmentIds, setSelectedAssignmentIds] = useState(() => new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
-  const [studentSearch, setStudentSearch] = useState('');
-  const [studentSort, setStudentSort] = useState('id');
-  const [feedbackReleaseBusyId, setFeedbackReleaseBusyId] = useState(null);
-  const [studentDashboardMode, setStudentDashboardMode] = useState('assignments');
 
   const currentStudentMasteryProfile = useMemo(() => {
     if (user?.role !== 'student') return null;
@@ -386,6 +391,20 @@ function App() {
     }
   };
 
+  const fetchCourseProfiles = async () => {
+    try {
+      const snapshot = await getDoc(doc(db, 'settings', 'courseProfiles'));
+      const value = normalizeCourseProfiles(snapshot.exists() ? snapshot.data()?.profiles : {}, CLASS_PERIODS);
+      setCourseProfiles(value);
+      return value;
+    } catch (error) {
+      console.error('Could not load class course settings:', error);
+      const fallback = defaultCourseProfiles(CLASS_PERIODS);
+      setCourseProfiles(fallback);
+      return fallback;
+    }
+  };
+
   const fetchAssignmentFolders = async () => {
     try {
       const snapshot = await getDoc(doc(db, 'settings', 'assignmentFolders'));
@@ -409,6 +428,7 @@ function App() {
     setActiveAssignmentId(null);
     setActiveView('dashboard');
     setPracticeTracker({});
+    setPracticeScratchpads({});
     setPreviewTracker({});
   };
 
@@ -429,7 +449,7 @@ function App() {
         const fetchedAssignments = await fetchAssignments();
         if (cancelled) return;
         if (session.role === 'teacher') {
-          await Promise.all([fetchStudents(), fetchClassSchedule(), fetchAssignmentFolders()]);
+          await Promise.all([fetchStudents(), fetchClassSchedule(), fetchCourseProfiles(), fetchAssignmentFolders()]);
           if (cancelled) return;
           setUser({
             id: session.uid,
@@ -437,7 +457,7 @@ function App() {
             role: 'teacher',
             email: session.email,
             displayName: session.displayName,
-            accessLevel: session.accessLevel || 'teacher',
+            accessLevel: session.accessLevel,
             isRootAdmin: session.isRootAdmin === true,
           });
           setResumeAction(null);
@@ -452,6 +472,7 @@ function App() {
         if (!studentSnapshot.exists()) throw new Error('Your student record is not available. Ask your teacher to add you to the roster.');
         const studentData = studentSnapshot.data() || {};
         const studentProfile = normalizeStudentProfile(studentData.profile || studentData);
+        const loadedCourseProfiles = await fetchCourseProfiles();
         await fetchClassSchedule();
         if (cancelled) return;
         setUser({
@@ -461,7 +482,11 @@ function App() {
           email: session.email,
           displayName: session.displayName || studentId,
           classPeriod: studentData.classPeriod || 'Unassigned',
-          profile: studentProfile,
+          profile: {
+            ...studentProfile,
+            course: loadedCourseProfiles?.[studentData.classPeriod]?.course || 'algebra1',
+            courseLevel: loadedCourseProfiles?.[studentData.classPeriod]?.courseLevel || 'standard',
+          },
         });
         setTracker(studentData.gradesByAssignment || {});
         setAssignmentActivity(studentData.assignmentActivity || {});
@@ -490,9 +515,11 @@ function App() {
   const handleLogout = async () => {
     setUser(null);
     setActiveView('dashboard');
-    setTeacherTab('assignments');
+    setTeacherTab('home');
+    setTeacherWorkspaceMode('teacher');
     setActiveAssignmentId(null);
     setPracticeTracker({});
+    setPracticeScratchpads({});
     setPreviewTracker({});
     setPreviewScratchpads({});
     setTeacherScratchpadDialog(null);
@@ -556,6 +583,12 @@ function App() {
     if (user?.role !== 'student' || !assignmentId) return null;
     const assignment = assignments.find((item) => item.id === assignmentId);
     if (!assignment) return null;
+    if (getAssignmentLifecycle(assignment, Date.now()).isPracticeOnly) {
+      // Post-deadline practice is intentionally invisible to the gradebook,
+      // engagement analytics, mastery engine, and teacher reports.
+      pendingAssignmentSecondsRef.current = 0;
+      return null;
+    }
     const pendingSeconds = pendingAssignmentSecondsRef.current;
     if (pendingSeconds <= 0) return assignmentActivity[assignmentId] || null;
     pendingAssignmentSecondsRef.current = 0;
@@ -603,10 +636,9 @@ function App() {
     (assignment) => assignment.id === activeAssignmentId,
   );
   const activeLifecycle = getAssignmentLifecycle(activeAssignmentData, now);
-  const activeIsExpired = activeLifecycle.isClosed;
   const isTeacherPreview = user?.role === 'teacher' && activeView === 'teacherPreview';
   const isStudentAssignment = user?.role === 'student' && activeView === 'assignment';
-  const isPracticeMode = false;
+  const isPracticeMode = isStudentAssignment && activeLifecycle.isPracticeOnly;
   const activeSupportPresentation = getStudentSupportPresentation(user?.profile);
   const activeDOLState = getDOLState({ assignment: activeAssignmentData, schedule: classSchedule, classPeriod: user?.classPeriod, nowValue: now });
   const activeQuestionRole = resolveQuestionActivityRole({
@@ -614,11 +646,13 @@ function App() {
     assignment: activeAssignmentData,
     isDOL: activeDOLState.enabled && currentQuestionIndex === activeDOLState.questionIndex,
   });
-  const activeActivityPolicy = getEffectiveActivityPolicy(activeQuestionRole);
+  const activeActivityPolicy = getEffectiveActivityPolicy(isPracticeMode ? 'practice' : activeQuestionRole);
 
   const activeWorkingTracker = isTeacherPreview
     ? previewTracker
-    : tracker[activeAssignmentId] || {};
+    : isPracticeMode
+      ? practiceTracker[activeAssignmentId] || {}
+      : tracker[activeAssignmentId] || {};
 
   useEffect(() => {
     if (!activeAssignmentData?.questions?.length) return;
@@ -628,12 +662,12 @@ function App() {
   }, [activeAssignmentData, currentQuestionIndex]);
 
   useEffect(() => {
-    if (!isStudentAssignment || !activeAssignmentId) return undefined;
+    if (!isStudentAssignment || !activeAssignmentId || isPracticeMode) return undefined;
     const interval = window.setInterval(() => {
       flushAssignmentActivity(activeAssignmentId).catch((error) => console.error(error));
     }, 30000);
     return () => window.clearInterval(interval);
-  }, [isStudentAssignment, activeAssignmentId, assignmentActivity, tracker, classworkGradesByAssignment]);
+  }, [isStudentAssignment, activeAssignmentId, isPracticeMode, assignmentActivity, tracker, classworkGradesByAssignment]);
 
 
   useEffect(() => {
@@ -672,6 +706,11 @@ function App() {
     if (user?.role !== 'student' || activeView !== 'assignment' || !activeAssignmentId) return;
     const assignment = assignments.find((item) => item.id === activeAssignmentId);
     if (!assignment) return;
+    if (getAssignmentLifecycle(assignment, Date.now()).isPracticeOnly) {
+      clearResumeAction(user.id);
+      setResumeAction(null);
+      return;
+    }
     const action = {
       assignmentId: activeAssignmentId,
       assignmentTitle: assignment.title,
@@ -751,6 +790,11 @@ function App() {
       return;
     }
 
+    if (getAssignmentLifecycle(assignment, Date.now()).isPracticeOnly) {
+      setCurrentQuestionIndex(newIndex);
+      return;
+    }
+
     try {
       assignment = await getLiveAssignment(activeAssignmentId);
     } catch (error) {
@@ -763,12 +807,6 @@ function App() {
     }
 
     const flushedActivity = await flushAssignmentActivity(activeAssignmentId);
-    const lifecycle = getAssignmentLifecycle(assignment, Date.now());
-    if (lifecycle.isClosed) {
-      setCurrentQuestionIndex(newIndex);
-      return;
-    }
-
     const currentAssignmentGrades = tracker[activeAssignmentId] || {};
     const updatedTracker = {
       ...tracker,
@@ -830,7 +868,16 @@ function App() {
     pendingAssignmentSecondsRef.current = 0;
     setIsIdle(false);
 
-    if (!tracker[assignmentId]) {
+    if (lifecycle.isPracticeOnly) {
+      setPracticeTracker((current) => ({
+        ...current,
+        [assignmentId]: current[assignmentId] || createPracticeAssignmentTracker(
+          assignmentData.questions,
+          tracker[assignmentId] || {},
+        ),
+      }));
+      pendingAssignmentSecondsRef.current = 0;
+    } else if (!tracker[assignmentId]) {
       setTracker((current) => ({
         ...current,
         [assignmentId]: createEmptyAssignmentTracker(assignmentData.questions),
@@ -862,9 +909,16 @@ function App() {
       activeAssignmentId,
       currentQuestionIndex,
     );
+    const scratchpadAssignment = assignments.find(
+      (assignment) => assignment.id === activeAssignmentId,
+    );
 
     if (isTeacherPreview) {
       return previewScratchpads[scratchpadId] || null;
+    }
+
+    if (getAssignmentLifecycle(scratchpadAssignment, Date.now()).isPracticeOnly) {
+      return practiceScratchpads[scratchpadId] || null;
     }
 
     if (user?.role !== 'student') return null;
@@ -888,9 +942,12 @@ function App() {
     const scratchpadAssignment = assignments.find(
       (assignment) => assignment.id === activeAssignmentId,
     );
+    const practiceOnly = getAssignmentLifecycle(scratchpadAssignment, Date.now()).isPracticeOnly;
     const currentScratchpadTracker = isTeacherPreview
       ? previewTracker
-      : tracker[activeAssignmentId] || {};
+      : practiceOnly
+        ? practiceTracker[activeAssignmentId] || {}
+        : tracker[activeAssignmentId] || {};
     const compactRecord = {
       dataUrl,
       assignmentId: activeAssignmentId,
@@ -915,6 +972,11 @@ function App() {
         ...current,
         [scratchpadId]: compactRecord,
       }));
+      return;
+    }
+
+    if (practiceOnly) {
+      setPracticeScratchpads((current) => ({ ...current, [scratchpadId]: compactRecord }));
       return;
     }
 
@@ -993,6 +1055,21 @@ function App() {
 
     if (user?.role !== 'student') return null;
 
+    const localAssignment = assignments.find((item) => item.id === activeAssignmentId);
+    if (getAssignmentLifecycle(localAssignment, Date.now()).isPracticeOnly) {
+      const currentPractice = practiceTracker[activeAssignmentId]
+        || createPracticeAssignmentTracker(localAssignment?.questions || [], tracker[activeAssignmentId] || {});
+      const outcome = applyAttempt(currentPractice[currentQuestionIndex]);
+      setPracticeTracker((current) => ({
+        ...current,
+        [activeAssignmentId]: {
+          ...(current[activeAssignmentId] || currentPractice),
+          [currentQuestionIndex]: outcome.record,
+        },
+      }));
+      return outcome.result;
+    }
+
     let assignment;
     try {
       assignment = await getLiveAssignment(activeAssignmentId);
@@ -1004,11 +1081,6 @@ function App() {
     if (!assignment) {
       leaveUnavailableAssignment();
       return null;
-    }
-
-    const lifecycle = getAssignmentLifecycle(assignment, Date.now());
-    if (lifecycle.isClosed) {
-      return { isCorrect: false, status: 'closed', expired: true, remainingAttempts: 0, partialCredit: 0 };
     }
 
     const activityRecord = await flushAssignmentActivity(activeAssignmentId);
@@ -1129,6 +1201,20 @@ function App() {
     }
 
     if (user?.role !== 'student') return null;
+    const localAssignment = assignments.find((item) => item.id === activeAssignmentId);
+    if (getAssignmentLifecycle(localAssignment, Date.now()).isPracticeOnly) {
+      const currentPractice = practiceTracker[activeAssignmentId]
+        || createPracticeAssignmentTracker(localAssignment?.questions || [], tracker[activeAssignmentId] || {});
+      const outcome = applyStep(currentPractice[currentQuestionIndex]);
+      setPracticeTracker((current) => ({
+        ...current,
+        [activeAssignmentId]: {
+          ...(current[activeAssignmentId] || currentPractice),
+          [currentQuestionIndex]: outcome.record,
+        },
+      }));
+      return outcome.result;
+    }
     let assignment;
     try {
       assignment = await getLiveAssignment(activeAssignmentId);
@@ -1140,10 +1226,6 @@ function App() {
       leaveUnavailableAssignment();
       return null;
     }
-    if (getAssignmentLifecycle(assignment, Date.now()).isClosed) {
-      return { status: 'closed', remainingAttempts: 0, expired: true, partialCredit: 0 };
-    }
-
     const activityRecord = await flushAssignmentActivity(activeAssignmentId);
     const currentAssignmentGrades = tracker[activeAssignmentId] || {};
     const outcome = applyStep(currentAssignmentGrades[currentQuestionIndex]);
@@ -1206,6 +1288,20 @@ function App() {
     }
 
     if (user?.role !== 'student') return;
+    const localAssignment = assignments.find((item) => item.id === activeAssignmentId);
+    if (getAssignmentLifecycle(localAssignment, Date.now()).isPracticeOnly) {
+      const currentPractice = practiceTracker[activeAssignmentId]
+        || createPracticeAssignmentTracker(localAssignment?.questions || [], tracker[activeAssignmentId] || {});
+      const replacement = requestReplacementQuestion(currentPractice[currentQuestionIndex], options);
+      setPracticeTracker((current) => ({
+        ...current,
+        [activeAssignmentId]: {
+          ...(current[activeAssignmentId] || currentPractice),
+          [currentQuestionIndex]: replacement,
+        },
+      }));
+      return;
+    }
     let assignment;
     try {
       assignment = await getLiveAssignment(activeAssignmentId);
@@ -1217,8 +1313,6 @@ function App() {
       leaveUnavailableAssignment();
       return;
     }
-    if (getAssignmentLifecycle(assignment, Date.now()).isClosed) return;
-
     const currentAssignmentGrades = tracker[activeAssignmentId] || {};
     const replacement = requestReplacementQuestion(
       currentAssignmentGrades[currentQuestionIndex],
@@ -1509,16 +1603,18 @@ function App() {
           ? { minEngagementMinutes: 10, minimumQuestionCompletionPercent: 80 }
           : null;
 
-      if (packageMetadata?.assignmentKey && assignments.some((assignment) => assignment.assignmentKey === packageMetadata.assignmentKey)) {
+      if (packageMetadata?.assignmentKey && assignments.some((assignment) => (
+        assignment.assignmentKey === packageMetadata.assignmentKey
+        || String(assignment.assignmentKey || '').startsWith(`${packageMetadata.assignmentKey}:`)
+      ))) {
         throw new Error(`An assignment with assignmentKey "${packageMetadata.assignmentKey}" already exists. Change or remove assignment.assignmentKey if you intend to create a separate copy.`);
       }
 
-      const assignmentPayload = {
+      const assignmentPayloadBase = {
         title,
         dueAt: dueAt.toISOString(),
         lateDueAt: lateDueAt.toISOString(),
         dueDate: dueAt.toISOString(),
-        assignedClassPeriods,
         assignmentType,
         variantMode,
         releaseAt,
@@ -1529,9 +1625,7 @@ function App() {
           minutesBeforeEnd: dolMinutesBeforeEnd,
           questionIndex: dolQuestionIndex,
         },
-        questions: parsedQuestions,
         folder,
-        assignmentKey: packageMetadata?.assignmentKey || null,
         assignmentPackageSchemaVersion: parsed.isPackage ? parsed.schemaVersion : 1,
         assignmentTemplate: packageMetadata?.template || null,
         standards: packageMetadata?.standards || [],
@@ -1545,8 +1639,6 @@ function App() {
         createdAt: new Date(),
       };
 
-      assertFirestoreSafeAssignmentPayload(assignmentPayload);
-
       if (folder && !assignmentFolderPaths.includes(folder)) {
         await saveAssignmentFolderPaths([...assignmentFolderPaths, folder]);
       }
@@ -1554,23 +1646,102 @@ function App() {
       const bundleLabs = parsed.isBundle
         ? (parsed.bundleSource?.activities || []).filter((activity) => activity?.labDefinition || activity?.isModelingLab)
         : [];
-      if (bundleLabs.length) {
+      const privateLabsById = new Map(bundleLabs.map((activity) => {
+        const definition = normalizeLabDefinition(activity.labDefinition || activity, { includeEvaluation: true });
+        return [definition.labId, { definition, activity }];
+      }));
+
+      const destinationGroups = Object.values(assignedClassPeriods.reduce((groups, period) => {
+        const profile = courseProfiles?.[period] || { course: 'algebra1', courseLevel: 'standard' };
+        const course = profile.course || 'algebra1';
+        const courseLevel = profile.courseLevel === 'honors' ? 'honors' : 'standard';
+        const key = `${course}:${courseLevel}`;
+        if (!groups[key]) groups[key] = { key, course, courseLevel, periods: [] };
+        groups[key].periods.push(period);
+        return groups;
+      }, {}));
+      const sourceHonorsReport = inspectHonorsRigor(parsedQuestions, { allowNarrowCheckpoint: true });
+      const splitVariantGroupId = destinationGroups.length > 1 ? `rigor_${createQuestionId()}` : null;
+
+      const writeAssignmentVariant = async ({ destination, questions }) => {
         const assignmentRef = doc(collection(db, 'assignments'));
-        const batch = writeBatch(db);
-        batch.set(assignmentRef, assignmentPayload);
-        bundleLabs.forEach((activity) => {
-          const privateDefinition = normalizeLabDefinition(activity.labDefinition || activity, { includeEvaluation: true });
-          batch.set(doc(db, 'modelingLabDefinitions', privateDefinition.labId), {
-            ...privateDefinition,
+        const labSuffix = `${destination.course}-${destination.courseLevel}-${assignmentRef.id.slice(0, 8)}`;
+        const privateLabWrites = [];
+        const variantQuestions = questions.map((question) => {
+          if (question?.type !== 'modelingLab' || !question.labDefinition?.labId) return question;
+          const originalLabId = question.labDefinition.labId;
+          const privateSource = privateLabsById.get(originalLabId);
+          if (!privateSource) {
+            if (bundleLabs.length) throw new Error(`Modeling lab ${originalLabId} could not be matched to its private Bundle V3 definition.`);
+            return question;
+          }
+          const nextLabId = `${originalLabId}-${labSuffix}`;
+          if (privateSource) privateLabWrites.push({ nextLabId, ...privateSource });
+          return { ...question, labDefinition: { ...question.labDefinition, labId: nextLabId } };
+        });
+        const payload = {
+          ...assignmentPayloadBase,
+          assignedClassPeriods: destination.periods,
+          questions: variantQuestions,
+          courseProfile: { course: destination.course, courseLevel: destination.courseLevel },
+          rigorVariant: destination.courseLevel,
+          rigorVariantGroupId: splitVariantGroupId,
+          assignmentKey: packageMetadata?.assignmentKey
+            ? destinationGroups.length > 1 ? `${packageMetadata.assignmentKey}:${destination.course}:${destination.courseLevel}` : packageMetadata.assignmentKey
+            : null,
+          honorsContractVersion: destination.courseLevel === 'honors' ? 1 : null,
+          honorsContractScope: destination.courseLevel === 'honors' ? sourceHonorsReport.scope : null,
+        };
+        assertFirestoreSafeAssignmentPayload(payload);
+        if (privateLabWrites.length) {
+          const batch = writeBatch(db);
+          batch.set(assignmentRef, payload);
+          privateLabWrites.forEach(({ nextLabId, definition, activity }) => batch.set(doc(db, 'modelingLabDefinitions', nextLabId), {
+            ...definition,
+            labId: nextLabId,
             assignmentId: assignmentRef.id,
             activityId: activity.activityId || null,
             activityRole: activity.role || 'classwork',
             updatedAt: new Date(),
-          });
-        });
-        await batch.commit();
-      } else {
-        await addDoc(collection(db, 'assignments'), assignmentPayload);
+          }));
+          await batch.commit();
+        } else {
+          await setDoc(assignmentRef, payload);
+        }
+      };
+
+      const destinationVariants = destinationGroups.map((destination) => {
+        let destinationQuestions = parsedQuestions;
+        if (destination.courseLevel === 'honors') {
+          let enrichmentQuestion = null;
+          if (!sourceHonorsReport.isHonorsReady) {
+            if (!teacherReview?.honorsEnrichmentQuestion) {
+              throw new Error('This Honors destination does not yet meet the Honors rigor/CCMR contract. Return to preflight and choose Build Honors Enrichment.');
+            }
+            enrichmentQuestion = destination.course === courseProfiles?.[splitClassPeriodsByRigor(assignedClassPeriods, courseProfiles).honors[0]]?.course
+              ? teacherReview.honorsEnrichmentQuestion
+              : buildHonorsEnrichmentQuestion({ questions: parsedQuestions, course: destination.course });
+          }
+          destinationQuestions = normalizeAssignmentQuestions([
+            ...parsedQuestions,
+            ...(enrichmentQuestion ? [enrichmentQuestion] : []),
+          ]);
+          const finalHonorsReport = inspectHonorsRigor(destinationQuestions, { allowNarrowCheckpoint: true });
+          if (!finalHonorsReport.isHonorsReady) throw new Error(`Honors preflight is still missing: ${finalHonorsReport.missing.join(', ')}.`);
+          validateAssignmentQuestions(destinationQuestions, { variantMode, allowFixed: variantMode === 'shared' });
+        }
+        return { destination, questions: destinationQuestions };
+      });
+
+      for (const variant of destinationVariants) {
+        // Sequential writes keep the destination variants and their private lab
+        // definitions easy to audit. A normal assignment creates one group.
+        // eslint-disable-next-line no-await-in-loop
+        await writeAssignmentVariant(variant);
+      }
+
+      if (destinationGroups.length === 0) {
+        throw new Error('Select at least one class period before creating the assignment.');
       }
 
       if (variantMode !== newAssignmentVariantMode) setNewAssignmentVariantMode(variantMode);
@@ -1594,6 +1765,7 @@ function App() {
         `Published “${title}”`,
         `${sourceMessage} Assigned to ${assignedClassPeriods.length || 'all'} class period(s)${folder ? `\nFolder: ${folder}` : ''}.${repairMessage}`,
       );
+
     } catch (error) {
       setAssignmentPackagePreview({ error: error.message });
       toastError('Could not create assignment', error.message);
@@ -1654,12 +1826,12 @@ function App() {
 
   const handleReleaseAssignmentFeedback = async (assignment) => {
     if (!assignment?.id || !assignmentUsesTeacherReleasePolicy(assignment) || assignmentFeedbackWasReleased(assignment)) return;
-    const proceed = await confirmAction({
+    const proceedWithRelease = await confirmAction({
       title: `Release feedback for “${assignment.title}”?`,
-      message: 'Students will immediately see correctness, the solution review and their recorded grade for this assessment. Feedback a student has already viewed cannot be made private again.',
-      confirmLabel: 'Release feedback',
+      message: 'Students will immediately see Quiz/Test correctness, solution review, and recorded grades. This cannot make already-viewed feedback private again.',
+      confirmLabel: 'Release Feedback',
     });
-    if (!proceed) return;
+    if (!proceedWithRelease) return;
     setFeedbackReleaseBusyId(assignment.id);
     try {
       const releasedAt = new Date().toISOString();
@@ -1668,9 +1840,10 @@ function App() {
         feedbackReleasedAt: releasedAt,
         updatedAt: releasedAt,
       });
+      toastSuccess('Feedback released', `Students in ${assignment.title} can now see their results.`);
     } catch (error) {
       console.error(error);
-      toastError('Could not release feedback', error.message);
+      toastError('Could not release assessment feedback', error.message);
     } finally {
       setFeedbackReleaseBusyId(null);
     }
@@ -1745,6 +1918,28 @@ function App() {
     await setDoc(doc(db, 'settings', 'classSchedule'), normalized);
     setClassSchedule(normalized);
     toastSuccess('Schedule saved', 'DOL windows now use these period times.');
+  };
+
+  const handleUpdateCourseProfile = (period, patch) => {
+    setCourseProfiles((current) => normalizeCourseProfiles({
+      ...current,
+      [period]: { ...(current?.[period] || {}), ...patch },
+    }, CLASS_PERIODS));
+  };
+
+  const handleSaveCourseProfiles = async () => {
+    setCourseProfilesSaving(true);
+    try {
+      const normalized = normalizeCourseProfiles(courseProfiles, CLASS_PERIODS);
+      await setDoc(doc(db, 'settings', 'courseProfiles'), { profiles: normalized, updatedAt: new Date().toISOString() });
+      setCourseProfiles(normalized);
+      toastSuccess('Course settings saved', 'Honors preflight now follows these class designations.');
+    } catch (error) {
+      console.error(error);
+      toastError('Could not save course settings', error.message);
+    } finally {
+      setCourseProfilesSaving(false);
+    }
   };
 
   const saveAssignmentFolderPaths = async (paths) => {
@@ -2676,19 +2871,25 @@ function App() {
     const includedQuestionIndices = getIncludedQuestionIndices(questions);
     const lifecycle = getAssignmentLifecycle(assignment, now);
     const recordedTracker = tracker[activeAssignmentId] || {};
-    const workingTracker = preview ? previewTracker : recordedTracker;
+    const workingTracker = preview
+      ? previewTracker
+      : lifecycle.isPracticeOnly
+        ? practiceTracker[activeAssignmentId] || createPracticeAssignmentTracker(questions, recordedTracker)
+        : recordedTracker;
     const recordedGrade = calculateGrade(recordedTracker, assignment);
     const progress = calculatePracticeProgress(workingTracker, assignment);
     const dolState = getDOLState({ assignment, schedule: classSchedule, classPeriod: user?.classPeriod, nowValue: now });
     const currentRecord = normalizeQuestionRecord(workingTracker?.[currentQuestionIndex]);
-    const currentIsDOL = activeQuestionRole === 'dol' && dolState.enabled && currentQuestionIndex === dolState.questionIndex;
-    const assignmentFeedbackHeld = !preview && assignmentHasHeldTeacherFeedback(assignment);
-    const currentFeedbackReleased = assignmentFeedbackWasReleased(assignment)
+    const currentIsDOL = !lifecycle.isPracticeOnly && activeQuestionRole === 'dol' && dolState.enabled && currentQuestionIndex === dolState.questionIndex;
+    const assignmentFeedbackHeld = !preview && !lifecycle.isPracticeOnly && assignmentHasHeldTeacherFeedback(assignment);
+    const currentFeedbackReleased = lifecycle.isPracticeOnly || assignmentFeedbackWasReleased(assignment)
       || (activeActivityPolicy.feedback === 'afterAssignmentSubmit' && ['correct', 'expired'].includes(currentRecord.status));
+    const runtimeActivityRole = !preview && lifecycle.isPracticeOnly ? 'practice' : activeQuestionRole;
+    const runtimeActivityPolicy = getEffectiveActivityPolicy(runtimeActivityRole);
     const generationStudentKey = assignment.variantMode === 'shared'
       ? `shared-version:${assignment.id}`
       : preview ? 'teacher-preview' : user?.id || 'anonymous';
-    const draftSessionMode = preview ? 'preview' : lifecycle.isClosed ? 'closed-review' : lifecycle.isLate ? 'late' : 'graded';
+    const draftSessionMode = preview ? 'preview' : lifecycle.isPracticeOnly ? 'post-deadline-practice' : lifecycle.isLate ? 'late' : 'graded';
     const supportPresentation = preview ? getStudentSupportPresentation({}) : activeSupportPresentation;
     const replacementWarning = currentIsDOL && dolState.status === 'active'
       ? `Requesting another DOL question will erase this DOL attempt. You will have only ${formatRemainingTime(dolState.millisecondsRemaining)} remaining to submit the replacement.`
@@ -2704,8 +2905,8 @@ function App() {
       );
     }
 
-    const lifecycleBadge = lifecycle.isClosed
-      ? { label: 'Permanently closed', background: '#fce8e6', color: '#a50e0e' }
+    const lifecycleBadge = lifecycle.isPracticeOnly
+      ? { label: 'Practice only', background: '#f1f3f4', color: '#3c4043' }
       : lifecycle.isLate
         ? { label: 'Late — still open', background: '#fff4ce', color: '#7a4f00' }
         : lifecycle.isScheduled
@@ -2732,10 +2933,10 @@ function App() {
             </section>
           )}
 
-          {lifecycle.isClosed && !preview && (
+          {lifecycle.isPracticeOnly && !preview && (
             <section style={{ marginBottom: '16px', padding: '18px 22px', borderRadius: '13px', background: '#f1f3f4', border: '2px solid #5f6368', color: '#3c4043', textAlign: 'left' }}>
-              <strong style={{ display: 'block', fontSize: '20px' }}>Assignment permanently closed</strong>
-              <span>The final late deadline expired. Saved work and solution reviews remain available, but answers, graphs, scratchpads, Undo, and replacement questions are read-only.</span>
+              <strong style={{ display: 'block', fontSize: '20px' }}>Practice Mode — grading window ended</strong>
+              <span>Your recorded grade is frozen. You may keep practicing with feedback, but these attempts earn no credit and are not written to the teacher gradebook, mastery evidence, Math Path recommendations, or activity analytics. Practice state stays only in memory for this signed-in browser session and is never saved.</span>
             </section>
           )}
 
@@ -2776,7 +2977,7 @@ function App() {
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '22px' }}>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '12px', color: '#5f6368', textTransform: 'uppercase', fontWeight: 900 }}>{preview ? 'Preview progress' : lifecycle.isClosed ? 'Final recorded grade' : lifecycle.isLate ? 'Current late grade' : 'Current grade'}</div>
+                <div style={{ fontSize: '12px', color: '#5f6368', textTransform: 'uppercase', fontWeight: 900 }}>{preview ? 'Preview progress' : lifecycle.isPracticeOnly ? 'Frozen recorded grade' : lifecycle.isLate ? 'Current late grade' : 'Current grade'}</div>
                 <div style={{ fontSize: '22px', fontWeight: 900, color: assignmentFeedbackHeld ? '#174ea6' : recordedGrade >= 70 ? '#188038' : '#202124' }}>{preview ? `${progress.correct}/${progress.total}` : assignmentFeedbackHeld ? 'Awaiting teacher release' : `${recordedGrade}%`}</div>
               </div>
               {!preview && assignment.assignmentType === 'notesClasswork' && (
@@ -2795,7 +2996,7 @@ function App() {
               const isDOLQuestion = dolState.enabled && index === dolState.questionIndex;
               const cardRole = resolveQuestionActivityRole({ question, assignment, isDOL: isDOLQuestion });
               const cardPolicy = getEffectiveActivityPolicy(cardRole);
-              const cardFeedbackHeld = !preview && cardPolicy.feedback === 'teacherRelease' && !assignmentFeedbackWasReleased(assignment);
+              const cardFeedbackHeld = !preview && !lifecycle.isPracticeOnly && cardPolicy.feedback === 'teacherRelease' && !assignmentFeedbackWasReleased(assignment);
               const storedCardState = getQuestionCardState(workingTracker?.[index]);
               const cardState = cardFeedbackHeld && ['correct', 'expired'].includes(record.status)
                 ? { background: '#eef4ff', color: '#174ea6', label: 'Submitted · feedback held' }
@@ -2843,22 +3044,16 @@ function App() {
               onSaveScratchpad={handleSaveScratchpad}
               studentProfile={preview ? null : adaptiveStudentProfile || user?.profile}
               guidedMode={assignment.assignmentType === 'notesClasswork'}
-              assignmentLocked={!preview && lifecycle.isClosed}
+              assignmentLocked={false}
               dolMode={!preview && currentIsDOL && dolState.status === 'active'}
-              maximumAttempts={activeActivityPolicy.attempts}
-              activityRole={activeQuestionRole}
-              activityPolicy={activeActivityPolicy}
+              maximumAttempts={runtimeActivityPolicy.attempts}
+              activityRole={runtimeActivityRole}
+              activityPolicy={runtimeActivityPolicy}
               feedbackReleased={currentFeedbackReleased}
               replacementWarning={replacementWarning}
-              draftKey={buildQuestionDraftKey({
-                studentId: preview ? 'teacher-preview' : user?.id || 'anonymous',
-                assignmentId: activeAssignmentId,
-                questionIndex: currentQuestionIndex,
-                variantIndex: currentRecord.variantIndex,
-                sessionMode: draftSessionMode,
-              })}
+              draftKey={lifecycle.isPracticeOnly && !preview ? null : buildQuestionDraftKey({ studentId: preview ? 'teacher-preview' : user?.id || 'anonymous', assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex, variantIndex: currentRecord.variantIndex, sessionMode: draftSessionMode })}
               assignmentId={activeAssignmentId}
-              executionScope={preview ? 'teacherPreview' : 'student'}
+              executionScope={preview ? 'teacherPreview' : lifecycle.isPracticeOnly ? 'postDuePractice' : 'student'}
             />
           </main>
         </div>
@@ -2887,6 +3082,12 @@ function App() {
   }
 
   if (user.role === 'teacher') {
+    // This only controls discoverability. Privileged operations remain
+    // callable-only and re-check the immutable root identity + claims on the
+    // server. The email fallback prevents a stale token from hiding Admin Mode
+    // from the one account that needs to fix/deploy it.
+    const rootAdminUiEligible = user.isRootAdmin === true
+      || String(user.email || '').trim().toLowerCase() === ROOT_ADMIN_EMAIL;
     const today = new Date();
     const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     const todayOverride = classSchedule.modifiedSchedules?.[todayKey]?.periods || null;
@@ -2906,28 +3107,6 @@ function App() {
     const allVisibleSelected = visibleAssignmentIds.length > 0
       && visibleAssignmentIds.every((id) => selectedAssignmentIds.has(id));
 
-    const visibleStudents = allStudents
-      .filter((student) => {
-        const query = studentSearch.trim().toLowerCase();
-        if (!query) return true;
-        return String(student.id).toLowerCase().includes(query)
-          || String(student.classPeriod || '').toLowerCase().includes(query);
-      })
-      .slice()
-      .sort((a, b) => {
-        if (studentSort === 'period') {
-          // Unassigned students sort last rather than under "U".
-          const periodA = a.classPeriod || 'zzz';
-          const periodB = b.classPeriod || 'zzz';
-          if (periodA !== periodB) return periodA.localeCompare(periodB, undefined, { numeric: true });
-        }
-        if (studentSort === 'inclusion') {
-          const flagA = a.profile?.inclusionStatus ? 0 : 1;
-          const flagB = b.profile?.inclusionStatus ? 0 : 1;
-          if (flagA !== flagB) return flagA - flagB;
-        }
-        return String(a.id).localeCompare(String(b.id), undefined, { numeric: true });
-      });
     const supportOptions = {
       accommodations: [
         ['text-to-speech', 'Text to speech'],
@@ -2946,6 +3125,20 @@ function App() {
       ],
     };
 
+    if (teacherWorkspaceMode === 'administration' && rootAdminUiEligible) {
+      return (
+        <div style={{ fontFamily: '"Segoe UI", sans-serif', backgroundColor: '#f3f5f8', minHeight: '100vh', padding: '20px' }}>
+          <div style={{ maxWidth: 1260, margin: '0 auto', background: '#fff', borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,.06)', overflow: 'hidden' }}>
+            <header style={{ padding: '22px 28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap', borderBottom: '1px solid #e8eaed', background: '#202124', color: '#fff' }}>
+              <div><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.08em', color: '#c6dafc' }}>ROOT ADMINISTRATOR</div><h1 style={{ margin: '4px 0 0', fontSize: 25 }}>MathMaster Administration</h1><p style={{ margin: '4px 0 0', color: '#dadce0', fontSize: 13 }}>{user.email}</p></div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><div role="group" aria-label="Root administrator workspace" style={{ display: 'inline-flex', padding: 3, borderRadius: 9, background: '#3c4043', border: '1px solid #5f6368' }}><button type="button" aria-pressed="false" onClick={() => setTeacherWorkspaceMode('teacher')} style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: 'transparent', color: '#e8eaed', fontWeight: 900 }}>Teacher View</button><button type="button" aria-pressed="true" style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: '#fff', color: '#202124', fontWeight: 900 }}>Administration</button></div><button type="button" onClick={() => { setTeacherWorkspaceMode('teacher'); setTeacherTab('demo'); }} style={{ padding: '9px 13px', border: '1px solid #c7a9ea', borderRadius: 8, background: '#f8f0fc', color: '#6f2da8', fontWeight: 900 }}>Open Demo Experience</button><button onClick={handleLogout} style={{ padding: '9px 13px', background: 'transparent', color: '#f28b82', border: '1px solid #f28b82', borderRadius: 8, fontWeight: 900 }}>Log Out</button></div>
+            </header>
+            <main style={{ padding: 28 }}><SignInAccess signedInEmail={user.email} mode="admin" /></main>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div style={{ fontFamily: '"Segoe UI", sans-serif', backgroundColor: '#f8f9fa', minHeight: '100vh', padding: '20px' }}>
         {renderDeleteAssignmentDialog()}
@@ -2958,6 +3151,7 @@ function App() {
             lessonBundle={assignmentPreflight.lessonBundle}
             initialDraft={assignmentPreflight.initialDraft}
             classPeriods={CLASS_PERIODS}
+            courseProfiles={courseProfiles}
             sourceLabel={assignmentPreflight.sourceLabel}
             onClose={() => setAssignmentPreflight(null)}
             onConfirmPublish={confirmAssignmentPreflight}
@@ -2983,18 +3177,22 @@ function App() {
             }}
             collapsed={sidebarCollapsed}
             onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
-            isRootAdmin={user.isRootAdmin === true}
           />
           <div style={{ flex: 1, minWidth: 0 }}>
           <header style={{ padding: '28px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e8eaed', gap: '20px' }}>
             <div>
-              <h1 style={{ margin: 0, color: '#202124', fontSize: '25px' }}>{user.isRootAdmin ? 'Administrator Dashboard' : 'Instructor Dashboard'}</h1>
-              <p style={{ margin: '5px 0 0', color: '#5f6368' }}>{user.isRootAdmin ? 'Root administration, teacher access, student data controls, and the complete instructor workspace' : 'Assignments, eight class periods, DOL schedules, inclusion supports, and evidence reports'}</p>
+              <h1 style={{ margin: 0, color: '#202124', fontSize: '25px' }}>Instructor Dashboard</h1>
+              <p style={{ margin: '5px 0 0', color: '#5f6368' }}>Assignments, eight class periods, DOL schedules, inclusion supports, and evidence reports</p>
             </div>
-            <button onClick={handleLogout} style={{ padding: '8px 16px', background: '#fff', color: '#d93025', border: '1px solid #d93025', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Log Out</button>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {rootAdminUiEligible && <div role="group" aria-label="Root administrator workspace" style={{ display: 'inline-flex', padding: 3, borderRadius: 9, background: '#f1f3f4', border: '1px solid #dadce0' }}><button type="button" aria-pressed="true" style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: '#fff', color: '#174ea6', fontWeight: 900 }}>Teacher View</button><button type="button" aria-pressed="false" onClick={() => setTeacherWorkspaceMode('administration')} style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: 'transparent', color: '#3c4043', cursor: 'pointer', fontWeight: 900 }}>Administration</button></div>}
+              <button onClick={handleLogout} style={{ padding: '8px 16px', background: '#fff', color: '#d93025', border: '1px solid #d93025', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Log Out</button>
+            </div>
           </header>
 
           <div className="mm-dashboard-content" style={{ padding: '30px' }}>
+            {teacherTab === 'demo' && <DemoExperience />}
+
             {teacherTab === 'library' && (
               <AssignmentLibrary
                 assignments={assignments}
@@ -3222,7 +3420,7 @@ function App() {
                   const affectedStudents = allStudents.filter((student) => student.gradesByAssignment?.[assignment.id] !== undefined).length;
                   const isSelected = selectedAssignmentIds.has(assignment.id);
                   return (
-                    <article key={assignment.id} style={{ background: '#f8f9fa', padding: '18px', marginBottom: '12px', borderRadius: '10px', border: `1px solid ${isSelected ? 'var(--mm-primary)' : lifecycle.isLate ? '#f9ab00' : lifecycle.isClosed ? '#d93025' : '#e0e3e7'}`, boxShadow: isSelected ? '0 0 0 2px var(--mm-primary-soft)' : 'none' }}>
+                    <article key={assignment.id} style={{ background: '#f8f9fa', padding: '18px', marginBottom: '12px', borderRadius: '10px', border: `1px solid ${isSelected ? 'var(--mm-primary)' : lifecycle.isLate ? '#f9ab00' : lifecycle.isPracticeOnly ? '#5f6368' : '#e0e3e7'}`, boxShadow: isSelected ? '0 0 0 2px var(--mm-primary-soft)' : 'none' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '18px', flexWrap: 'wrap', alignItems: 'center' }}>
                         <input
                           type="checkbox"
@@ -3234,7 +3432,7 @@ function App() {
                         <div style={{ flex: '1 1 440px', textAlign: 'left' }}>
                           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                             <strong style={{ fontSize: '18px' }}>{assignment.title}</strong>
-                            <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: lifecycle.isClosed ? '#fce8e6' : lifecycle.isLate ? '#fff4ce' : '#e6f4ea', color: lifecycle.isClosed ? '#a50e0e' : lifecycle.isLate ? '#7a4f00' : '#137333' }}>{lifecycle.status.toUpperCase()}</span>
+                            <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: lifecycle.isPracticeOnly ? '#f1f3f4' : lifecycle.isLate ? '#fff4ce' : '#e6f4ea', color: lifecycle.isPracticeOnly ? '#3c4043' : lifecycle.isLate ? '#7a4f00' : '#137333' }}>{lifecycle.isPracticeOnly ? 'PRACTICE ONLY' : lifecycle.status.toUpperCase()}</span>
                             <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#e8f0fe', color: '#174ea6' }}>{assignment.assignmentType === 'notesClasswork' ? 'NOTES / CLASSWORK' : 'PRACTICE'}</span>
                             {assignment.variantMode === 'shared' && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#e6f4ea', color: '#137333' }}>SHARED VERSION</span>}
                             {assignment.archived && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#f1f3f4', color: '#5f6368' }}>ARCHIVED</span>}
@@ -3283,60 +3481,19 @@ function App() {
             )}
 
             {teacherTab === 'students' && (
-              <div>
-                <h2 style={{ marginTop: 0 }}>Students and Inclusion Supports</h2>
-                <p style={{ color: '#5f6368' }}>Inclusion accommodations change how a student learns. Modifications change question generation and are reported separately with a MOD indicator.</p>
-
-                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', margin: '18px 0' }}>
-                  <SearchField
-                    value={studentSearch}
-                    onChange={setStudentSearch}
-                    placeholder="Search by student ID or class period…"
-                    label="Search students"
-                    style={{ flex: '1 1 260px', maxWidth: '420px' }}
-                  />
-                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, color: 'var(--mm-ink-muted)' }}>
-                    Sort by
-                    <select value={studentSort} onChange={(event) => setStudentSort(event.target.value)} style={{ minHeight: '44px', padding: '0 10px', borderRadius: '7px', border: '1px solid var(--mm-border)' }}>
-                      <option value="id">Student ID</option>
-                      <option value="period">Class period</option>
-                      <option value="inclusion">Inclusion first</option>
-                    </select>
-                  </label>
-                  <span style={{ fontSize: '13px', color: 'var(--mm-ink-muted)', fontWeight: 700 }}>
-                    {visibleStudents.length} of {allStudents.length}
-                  </span>
-                </div>
-
-                {visibleStudents.length === 0 && (
-                  <EmptyState
-                    icon={allStudents.length ? '🔍' : '👥'}
-                    title={allStudents.length ? `No students match “${studentSearch}”` : 'No students yet'}
-                    message={allStudents.length
-                      ? 'Try a shorter search, such as just the class period number.'
-                      : 'Students appear here automatically the first time they sign in with their class join code.'}
-                    action={allStudents.length
-                      ? <button type="button" className="mm-btn mm-btn--secondary" onClick={() => setStudentSearch('')}>Clear search</button>
-                      : null}
-                  />
-                )}
-
-                {visibleStudents.map((student) => (
-                  <article key={student.id} style={{ marginBottom: '14px', padding: '18px', border: '1px solid #d8dde6', borderRadius: '10px', textAlign: 'left' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-                      <div><strong style={{ fontSize: '18px' }}>{student.id}</strong><div style={{ color: '#5f6368', marginTop: '4px' }}>{student.classPeriod || 'Unassigned'}</div>{(() => { const mastery = teacherMasteryProfilesByStudentId[student.id]; return <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '7px' }}><span style={{ padding: '3px 7px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6', fontSize: '10px', fontWeight: 900 }}>Estimated {mastery?.overall?.performance?.shortLabel || 'Insufficient'}</span><span style={{ padding: '3px 7px', borderRadius: '999px', background: '#f1f3f4', color: '#5f6368', fontSize: '10px', fontWeight: 900 }}>{mastery?.overall?.confidence || 'Low'} confidence</span><span style={{ padding: '3px 7px', borderRadius: '999px', background: '#e6f4ea', color: '#137333', fontSize: '10px', fontWeight: 900 }}>Recommended Band {mastery?.overall?.recommendedGeneratorBand || 3}</span></div>; })()}</div>
-                      <select value={student.classPeriod || 'Unassigned'} onChange={(event) => handleChangeClassPeriod(student.id, event.target.value)} style={{ padding: '9px', borderRadius: '6px', border: '1px solid #ccc' }}><option value="Unassigned">Unassigned</option>{CLASS_PERIODS.map((period) => <option key={period} value={period}>{period}</option>)}</select>
-                      <label style={{ padding: '9px 12px', borderRadius: '999px', background: student.profile?.inclusionStatus ? '#efe4ff' : '#f1f3f4', color: student.profile?.inclusionStatus ? '#6f2da8' : '#3c4043', fontWeight: 900 }}><input type="checkbox" checked={Boolean(student.profile?.inclusionStatus)} onChange={(event) => handleUpdateStudentProfile(student.id, { inclusionStatus: event.target.checked })} /> Inclusion</label>
-                      <button onClick={() => openIEPReport(student)} style={{ padding: '9px 13px', border: '1px solid #6f2da8', borderRadius: '7px', background: '#fff', color: '#6f2da8', fontWeight: 900, cursor: 'pointer' }}>Generate IEP Report</button>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', marginTop: '15px' }}>
-                      {Object.entries(supportOptions).map(([group, options]) => (
-                        <fieldset key={group} style={{ border: '1px solid #d8dde6', borderRadius: '8px', padding: '12px' }}><legend style={{ fontWeight: 900, textTransform: 'capitalize' }}>{group}</legend>{options.map(([value, label]) => <label key={value} style={{ display: 'block', margin: '8px 0' }}><input type="checkbox" checked={(student.profile?.[group] || []).includes(value)} onChange={() => toggleStudentSupport(student, group, value)} /> {label}</label>)}</fieldset>
-                      ))}
-                    </div>
-                  </article>
-                ))}
-              </div>
+              <StudentsRoster
+                students={allStudents}
+                classPeriods={CLASS_PERIODS}
+                courseProfiles={courseProfiles}
+                masteryProfilesByStudentId={teacherMasteryProfilesByStudentId}
+                supportOptions={supportOptions}
+                onChangeClassPeriod={handleChangeClassPeriod}
+                onUpdateStudentProfile={handleUpdateStudentProfile}
+                onToggleStudentSupport={toggleStudentSupport}
+                onGenerateIEPReport={openIEPReport}
+                isRootAdmin={rootAdminUiEligible}
+                onOpenAdministration={() => setTeacherWorkspaceMode('administration')}
+              />
             )}
 
             {teacherTab === 'home' && (
@@ -3364,6 +3521,7 @@ function App() {
               <div>
                 <h2 style={{ marginTop: 0 }}>Eight-Period Class Schedule</h2>
                 <p style={{ color: '#5f6368' }}>The DOL window opens during the configured final minutes of each period. A temporary schedule can override today without changing the normal schedule.</p>
+                <ClassCourseSettings classPeriods={CLASS_PERIODS} courseProfiles={courseProfiles} assignments={assignments} onChange={handleUpdateCourseProfile} onSave={handleSaveCourseProfiles} saving={courseProfilesSaving} />
                 <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr style={{ background: '#f8f9fa' }}><th style={{ padding: '11px', textAlign: 'left' }}>Period</th><th>Enabled</th><th>Start</th><th>End</th></tr></thead><tbody>{CLASS_PERIODS.map((period) => { const item = classSchedule.periods?.[period] || {}; return <tr key={period} style={{ borderBottom: '1px solid #e8eaed' }}><td style={{ padding: '11px', fontWeight: 'bold' }}>{period}</td><td style={{ textAlign: 'center' }}><input type="checkbox" checked={Boolean(item.enabled)} onChange={(event) => updateSchedulePeriod(period, 'enabled', event.target.checked)} /></td><td style={{ textAlign: 'center' }}><input type="time" value={item.start || ''} onChange={(event) => updateSchedulePeriod(period, 'start', event.target.value)} /></td><td style={{ textAlign: 'center' }}><input type="time" value={item.end || ''} onChange={(event) => updateSchedulePeriod(period, 'end', event.target.value)} /></td></tr>; })}</tbody></table></div>
                 <div style={{ marginTop: '18px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}><button onClick={handleSaveClassSchedule} style={{ padding: '10px 16px', border: 0, borderRadius: '7px', background: '#1a73e8', color: '#fff', fontWeight: 900 }}>Save Normal Schedule</button><button onClick={() => setClassSchedule((current) => ({ ...normalizeSchedule(current), modifiedSchedules: { ...normalizeSchedule(current).modifiedSchedules, [todayKey]: { periods: JSON.parse(JSON.stringify(normalizeSchedule(current).periods)) } } }))} style={{ padding: '10px 16px', border: '1px solid #f9ab00', borderRadius: '7px', background: '#fff4ce', color: '#5f4400', fontWeight: 900 }}>Create / Reset Today&apos;s Modified Schedule</button></div>
                 {todayOverride && <section style={{ marginTop: '28px', padding: '18px', background: '#fff8e1', border: '2px solid #f9ab00', borderRadius: '10px' }}><h3 style={{ marginTop: 0 }}>Temporary schedule for {todayKey}</h3><table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr><th style={{ textAlign: 'left' }}>Period</th><th>Enabled</th><th>Start</th><th>End</th></tr></thead><tbody>{CLASS_PERIODS.map((period) => { const item = todayOverride[period] || {}; return <tr key={period}><td style={{ padding: '8px', fontWeight: 'bold' }}>{period}</td><td style={{ textAlign: 'center' }}><input type="checkbox" checked={Boolean(item.enabled)} onChange={(event) => updateSchedulePeriod(period, 'enabled', event.target.checked, true)} /></td><td style={{ textAlign: 'center' }}><input type="time" value={item.start || ''} onChange={(event) => updateSchedulePeriod(period, 'start', event.target.value, true)} /></td><td style={{ textAlign: 'center' }}><input type="time" value={item.end || ''} onChange={(event) => updateSchedulePeriod(period, 'end', event.target.value, true)} /></td></tr>; })}</tbody></table><div style={{ marginTop: '14px', display: 'flex', gap: '10px' }}><button onClick={handleSaveClassSchedule} style={{ padding: '9px 14px', border: 0, borderRadius: '7px', background: '#188038', color: '#fff', fontWeight: 900 }}>Save Today&apos;s Schedule</button><button onClick={() => setClassSchedule((current) => { const next = normalizeSchedule(current); const modifiedSchedules = { ...next.modifiedSchedules }; delete modifiedSchedules[todayKey]; return { ...next, modifiedSchedules }; })} style={{ padding: '9px 14px', border: '1px solid #d93025', borderRadius: '7px', background: '#fff', color: '#d93025', fontWeight: 900 }}>Remove Today Override</button></div></section>}
@@ -3405,6 +3563,14 @@ function App() {
               <TexasStandardsDashboard allStudents={allStudents} assignments={assignments} />
             )}
 
+            {teacherTab === 'analytics' && (
+              <TeacherAnalyticsDashboard students={allStudents} masteryProfilesByStudentId={teacherMasteryProfilesByStudentId} />
+            )}
+
+            {teacherTab === 'exams' && (
+              <TeacherSecureExamDashboard students={allStudents} />
+            )}
+
             {teacherTab === 'mathTools' && (
               <div>
                 <h2 style={{ marginTop: 0 }}>Math Tools Lab</h2>
@@ -3416,22 +3582,11 @@ function App() {
               </div>
             )}
 
-            {teacherTab === 'analytics' && (
-              <div style={{ display: 'grid', gap: '34px' }}>
-                <TeacherAnalyticsDashboard students={allStudents} masteryProfilesByStudentId={teacherMasteryProfilesByStudentId} />
-                <ShowcaseClassroomDashboard />
-              </div>
-            )}
-
-            {teacherTab === 'exams' && (
-              <TeacherSecureExamDashboard students={allStudents} />
-            )}
+            {teacherTab === 'access' && <SignInAccess signedInEmail={user.email} />}
 
             {teacherTab === 'classroom' && <ClassroomSync assignments={assignments} />}
 
-            {teacherTab === 'access' && (
-              <SignInAccess signedInEmail={user.email} isRootAdmin={user.isRootAdmin === true} />
-            )}
+            {teacherTab === 'access' && <SignInAccess signedInEmail={user.email} mode="teacher" />}
           </div>
           </div>
         </div>
@@ -3464,8 +3619,9 @@ function App() {
     const visibleAssignments = assignments.filter((assignment) => assignmentIsForStudent(assignment, user.classPeriod));
     const canResumeAssignment = (assignment) => {
       const lifecycle = getAssignmentLifecycle(assignment, now);
+      if (lifecycle.isPracticeOnly) return false;
       const access = prerequisiteAccess({ assignment, classworkGradesByAssignment, nowValue: now });
-      return lifecycle.isClosed || (access.open && (!lifecycle.isScheduled || access.reason === 'prerequisiteMet'));
+      return access.open && (!lifecycle.isScheduled || access.reason === 'prerequisiteMet');
     };
     const savedResumeAssignment = visibleAssignments.find((assignment) => assignment.id === resumeAction?.assignmentId && canResumeAssignment(assignment));
     const fallbackResumeAssignment = visibleAssignments.find((assignment) => {
@@ -3529,7 +3685,7 @@ function App() {
     const completedEntries = assignmentEntries.filter((entry) => entry.bucket === 'completed');
 
     const renderAssignmentCard = ({ assignment, isAttempted, lifecycle, access, recordedGrade, activity, classwork, dol, disabled, feedbackHeld, questionsTotal, questionsDone }) => {
-      const statusStyle = lifecycle.isClosed ? { border: '#d93025', bg: '#fce8e6', color: '#a50e0e', label: 'Permanently closed' } : lifecycle.isLate ? { border: '#f9ab00', bg: '#fff4ce', color: '#7a4f00', label: 'Late' } : lifecycle.isScheduled ? { border: '#9aa0a6', bg: '#f1f3f4', color: '#3c4043', label: 'Scheduled' } : { border: '#d8dde6', bg: '#e6f4ea', color: '#137333', label: 'On time' };
+      const statusStyle = lifecycle.isPracticeOnly ? { border: '#5f6368', bg: '#f1f3f4', color: '#3c4043', label: 'Practice only' } : lifecycle.isLate ? { border: '#f9ab00', bg: '#fff4ce', color: '#7a4f00', label: 'Late' } : lifecycle.isScheduled ? { border: '#9aa0a6', bg: '#f1f3f4', color: '#3c4043', label: 'Scheduled' } : { border: '#d8dde6', bg: '#e6f4ea', color: '#137333', label: 'On time' };
       return (
         <article key={assignment.id} style={{ background: '#fff', padding: '21px 26px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', flexWrap: 'wrap', border: `2px solid ${statusStyle.border}` }}>
           <div style={{ textAlign: 'left', flex: '1 1 470px' }}>
@@ -3546,8 +3702,8 @@ function App() {
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>
-            {isAttempted && <div style={{ textAlign: 'right' }}><div style={{ fontSize: '11px', color: '#5f6368', textTransform: 'uppercase', fontWeight: 'bold' }}>{feedbackHeld ? 'Grade status' : lifecycle.isClosed ? 'Final grade' : 'Current grade'}</div><div style={{ fontSize: '19px', fontWeight: 900, color: feedbackHeld ? '#174ea6' : recordedGrade >= 70 ? '#188038' : '#202124' }}>{feedbackHeld ? 'Awaiting teacher release' : `${recordedGrade}%`}</div></div>}
-            <button disabled={disabled} onClick={() => startAssignment(assignment.id)} style={{ padding: '10px 20px', background: disabled ? '#dadce0' : lifecycle.isClosed ? '#5f6368' : lifecycle.isLate ? '#8a5a00' : '#1a73e8', color: '#fff', border: 'none', borderRadius: '8px', cursor: disabled ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>{lifecycle.isClosed ? 'Review' : lifecycle.isLate ? 'Continue Late Work' : disabled ? 'Locked' : isAttempted ? 'Continue' : 'Start'}</button>
+            {isAttempted && <div style={{ textAlign: 'right' }}><div style={{ fontSize: '11px', color: '#5f6368', textTransform: 'uppercase', fontWeight: 'bold' }}>{feedbackHeld && !lifecycle.isPracticeOnly ? 'Grade status' : lifecycle.isPracticeOnly ? 'Frozen grade' : 'Current grade'}</div><div style={{ fontSize: '19px', fontWeight: 900, color: feedbackHeld && !lifecycle.isPracticeOnly ? '#174ea6' : recordedGrade >= 70 ? '#188038' : '#202124' }}>{feedbackHeld && !lifecycle.isPracticeOnly ? 'Awaiting teacher release' : `${recordedGrade}%`}</div></div>}
+            <button disabled={disabled} onClick={() => startAssignment(assignment.id)} style={{ padding: '10px 20px', background: disabled ? '#dadce0' : lifecycle.isPracticeOnly ? '#5f6368' : lifecycle.isLate ? '#8a5a00' : '#1a73e8', color: '#fff', border: 'none', borderRadius: '8px', cursor: disabled ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>{lifecycle.isPracticeOnly ? 'Practice — No Credit' : lifecycle.isLate ? 'Continue Late Work' : disabled ? 'Locked' : isAttempted ? 'Continue' : 'Start'}</button>
           </div>
         </article>
       );

@@ -33,40 +33,6 @@ export const emptyQuestionRecord = () => ({
 const clampPercent = (value) =>
   Math.max(0, Math.min(100, Number.isFinite(Number(value)) ? Number(value) : 0));
 
-/**
- * Separates *access* support from *mathematical* support on an attempt.
- *
- * A calculator or a context/word-problem scaffold changes how a student reaches
- * the mathematics; it does not do the mathematics for them, so an attempt using
- * them is still independent evidence of the skill. A hint or a step scaffold
- * does supply mathematical reasoning, so it is not. `isMathematicallyIndependent`
- * is what mastery weighting reads, which keeps an accommodation from silently
- * depressing a student's mastery score the way a modification would.
- */
-const deriveAssistanceFlags = (supportUsage = {}) => {
-  // Supports that supply mathematical reasoning. Using any of these means the
-  // attempt is no longer independent evidence of the skill.
-  const hintUsed = Boolean(supportUsage?.hintUsed);
-  const teacherAssisted = Boolean(supportUsage?.teacherAssisted);
-  const scaffoldUsed = Boolean(supportUsage?.scaffoldUsed);
-  const remediationUsed = Boolean(supportUsage?.remediationUsed);
-  const workedExampleUsed = Boolean(supportUsage?.workedExampleUsed);
-
-  return {
-    hintUsed,
-    teacherAssisted,
-    scaffoldUsed,
-    remediationUsed,
-    workedExampleUsed,
-    // Access supports: they change how the student reaches the mathematics, not
-    // whether they did it, so they never clear independence.
-    contextScaffoldUsed: Boolean(supportUsage?.contextScaffoldUsed),
-    calculatorUsed: Boolean(supportUsage?.calculatorUsed),
-    isMathematicallyIndependent: supportUsage?.isMathematicallyIndependent !== false
-      && !hintUsed && !teacherAssisted && !scaffoldUsed && !remediationUsed && !workedExampleUsed,
-  };
-};
-
 export const normalizeQuestionRecord = (record) => {
   if (!record) return emptyQuestionRecord();
   if (typeof record === 'string') {
@@ -116,7 +82,19 @@ export const normalizeQuestionRecord = (record) => {
       modified: Boolean(record.supportUsage?.modified),
       accommodations: Array.isArray(record.supportUsage?.accommodations) ? record.supportUsage.accommodations.slice(0, 20) : [],
       modifications: Array.isArray(record.supportUsage?.modifications) ? record.supportUsage.modifications.slice(0, 20) : [],
-      ...deriveAssistanceFlags(record.supportUsage),
+      hintUsed: Boolean(record.supportUsage?.hintUsed),
+      teacherAssisted: Boolean(record.supportUsage?.teacherAssisted),
+      scaffoldUsed: Boolean(record.supportUsage?.scaffoldUsed),
+      contextScaffoldUsed: Boolean(record.supportUsage?.contextScaffoldUsed),
+      remediationUsed: Boolean(record.supportUsage?.remediationUsed),
+      workedExampleUsed: Boolean(record.supportUsage?.workedExampleUsed),
+      calculatorUsed: Boolean(record.supportUsage?.calculatorUsed),
+      isMathematicallyIndependent: record.supportUsage?.isMathematicallyIndependent !== false
+        && !record.supportUsage?.hintUsed
+        && !record.supportUsage?.teacherAssisted
+        && !record.supportUsage?.scaffoldUsed
+        && !record.supportUsage?.remediationUsed
+        && !record.supportUsage?.workedExampleUsed,
     },
   };
 };
@@ -219,7 +197,19 @@ export const recordQuestionStep = ({
       modified: Boolean(supportUsage.modified),
       accommodations: Array.isArray(supportUsage.accommodations) ? supportUsage.accommodations.slice(0, 20) : [],
       modifications: Array.isArray(supportUsage.modifications) ? supportUsage.modifications.slice(0, 20) : [],
-      ...deriveAssistanceFlags(supportUsage),
+      hintUsed: Boolean(supportUsage.hintUsed),
+      teacherAssisted: Boolean(supportUsage.teacherAssisted),
+      scaffoldUsed: Boolean(supportUsage.scaffoldUsed),
+      contextScaffoldUsed: Boolean(supportUsage.contextScaffoldUsed),
+      remediationUsed: Boolean(supportUsage.remediationUsed),
+      workedExampleUsed: Boolean(supportUsage.workedExampleUsed),
+      calculatorUsed: Boolean(supportUsage.calculatorUsed),
+      isMathematicallyIndependent: supportUsage.isMathematicallyIndependent !== false
+        && !supportUsage.hintUsed
+        && !supportUsage.teacherAssisted
+        && !supportUsage.scaffoldUsed
+        && !supportUsage.remediationUsed
+        && !supportUsage.workedExampleUsed,
     } : current.supportUsage,
     lastAttemptAt: new Date().toISOString(),
   };
@@ -312,7 +302,19 @@ export const recordQuestionAttempt = ({
       modified: Boolean(supportUsage.modified),
       accommodations: Array.isArray(supportUsage.accommodations) ? supportUsage.accommodations.slice(0, 20) : [],
       modifications: Array.isArray(supportUsage.modifications) ? supportUsage.modifications.slice(0, 20) : [],
-      ...deriveAssistanceFlags(supportUsage),
+      hintUsed: Boolean(supportUsage.hintUsed),
+      teacherAssisted: Boolean(supportUsage.teacherAssisted),
+      scaffoldUsed: Boolean(supportUsage.scaffoldUsed),
+      contextScaffoldUsed: Boolean(supportUsage.contextScaffoldUsed),
+      remediationUsed: Boolean(supportUsage.remediationUsed),
+      workedExampleUsed: Boolean(supportUsage.workedExampleUsed),
+      calculatorUsed: Boolean(supportUsage.calculatorUsed),
+      isMathematicallyIndependent: supportUsage.isMathematicallyIndependent !== false
+        && !supportUsage.hintUsed
+        && !supportUsage.teacherAssisted
+        && !supportUsage.scaffoldUsed
+        && !supportUsage.remediationUsed
+        && !supportUsage.workedExampleUsed,
     } : current.supportUsage,
     lastAttemptAt: new Date().toISOString(),
   };
