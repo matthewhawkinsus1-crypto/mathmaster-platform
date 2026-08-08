@@ -16,9 +16,17 @@ export const emptyQuestionRecord = () => ({
   algebraState: null,
   partGrades: [],
   supportUsage: {
-    modified: false, accommodations: [], modifications: [],
-    scaffoldUsed: false, hintUsed: false, contextScaffoldUsed: false,
-    calculatorUsed: false, isMathematicallyIndependent: true,
+    modified: false,
+    accommodations: [],
+    modifications: [],
+    hintUsed: false,
+    teacherAssisted: false,
+    scaffoldUsed: false,
+    contextScaffoldUsed: false,
+    remediationUsed: false,
+    workedExampleUsed: false,
+    calculatorUsed: false,
+    isMathematicallyIndependent: true,
   },
 });
 
@@ -36,14 +44,26 @@ const clampPercent = (value) =>
  * depressing a student's mastery score the way a modification would.
  */
 const deriveAssistanceFlags = (supportUsage = {}) => {
-  const scaffoldUsed = Boolean(supportUsage?.scaffoldUsed);
+  // Supports that supply mathematical reasoning. Using any of these means the
+  // attempt is no longer independent evidence of the skill.
   const hintUsed = Boolean(supportUsage?.hintUsed);
+  const teacherAssisted = Boolean(supportUsage?.teacherAssisted);
+  const scaffoldUsed = Boolean(supportUsage?.scaffoldUsed);
+  const remediationUsed = Boolean(supportUsage?.remediationUsed);
+  const workedExampleUsed = Boolean(supportUsage?.workedExampleUsed);
+
   return {
-    scaffoldUsed,
     hintUsed,
+    teacherAssisted,
+    scaffoldUsed,
+    remediationUsed,
+    workedExampleUsed,
+    // Access supports: they change how the student reaches the mathematics, not
+    // whether they did it, so they never clear independence.
     contextScaffoldUsed: Boolean(supportUsage?.contextScaffoldUsed),
     calculatorUsed: Boolean(supportUsage?.calculatorUsed),
-    isMathematicallyIndependent: !scaffoldUsed && !hintUsed,
+    isMathematicallyIndependent: supportUsage?.isMathematicallyIndependent !== false
+      && !hintUsed && !teacherAssisted && !scaffoldUsed && !remediationUsed && !workedExampleUsed,
   };
 };
 
@@ -270,18 +290,13 @@ export const recordQuestionAttempt = ({
   const earnedPartPercent = compactParts.length
     ? Math.min(90, Math.round((correctParts.length / compactParts.length) * 100))
     : 0;
+  const suppliedPartialPercent = partialCreditPercent === null || partialCreditPercent === undefined
+    ? 0
+    : Math.min(90, clampPercent(partialCreditPercent));
   const attemptCount = Math.min(maximumAttempts, current.attemptCount + 1);
   const expired = !isCorrect && attemptCount >= maximumAttempts;
   const status = isCorrect ? 'correct' : expired ? 'expired' : 'attempted';
-  // The Batch A-D tools grade themselves and report one score, so they can pass
-  // `partialCreditPercent` directly instead of synthesising fake response parts
-  // just to make the parts-based percentage come out right.
-  const toolReportedPercent = Number.isFinite(Number(partialCreditPercent))
-    ? clampPercent(partialCreditPercent)
-    : null;
-  const partialCredit = isCorrect
-    ? 100
-    : Math.max(current.partialCredit, toolReportedPercent ?? earnedPartPercent);
+  const partialCredit = isCorrect ? 100 : Math.max(current.partialCredit, earnedPartPercent, suppliedPartialPercent);
   const nextRecord = {
     ...current,
     status,

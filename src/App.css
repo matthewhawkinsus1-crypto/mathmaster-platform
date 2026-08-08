@@ -415,6 +415,20 @@
     white-space: nowrap;
   }
 
+  /* Groups lay out inline in the horizontal strip; their section headings
+     would otherwise stack and blow up the strip's height. */
+  .mm-dashboard-nav .mm-nav-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 0 !important;
+    flex: 0 0 auto;
+  }
+
+  .mm-dashboard-nav .mm-nav-group > div:first-child {
+    display: none;
+  }
+
   /* The collapse toggle is meaningless once the rail is horizontal. */
   .mm-dashboard-nav .mm-nav-collapse {
     display: none !important;

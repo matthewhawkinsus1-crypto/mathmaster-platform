@@ -1,10 +1,8 @@
 import { isPersonalizedBlueprint } from './problemGenerator.js';
 import { normalizeQuestionStandards } from './questionMetadata.js';
 import { getTexasStandard } from './texasStandards.js';
-// Capabilities rather than the component registry on purpose: this module is
-// imported by Node-side tests and tooling, and toolRegistry pulls in every
-// tool's React component.
-import { TOOL_CAPABILITIES } from './tools/toolCapabilities.js';
+import { MISSING_TOOL_IDS, validateToolQuestion } from './tools/toolSchemas.js';
+import { normalizeLabDefinition } from './platform/labs/labDefinitionSchema.js';
 
 export const DEFAULT_ASSIGNMENT_BLUEPRINT = `[
   {
@@ -181,13 +179,14 @@ variant at the same difficulty, and refreshing the page does not change it.
 
 Every new question must use either a generator or at least two variants.
 
-SHARED ATTEMPT POLICY
+CENTRAL ACTIVITY POLICY (PHASE 3A)
 
-Attempt rules are not repeated inside each question module. Every question uses the
-same shared policy: three attempts on the current generated problem. After the third
-miss, that problem expires and the student may request a new problem at the same
-difficulty. The assignment allows unlimited replacement problems until the due date.
-After the due date, the same workflow continues in Practice Mode without grade changes.
+Attempt rules are not repeated inside question modules. They come from the activity
+role. Warm-Up, Classwork, and Practice allow three attempts and replacement problems.
+DOL, Quiz, and Test allow one attempt, disable hints, and do not allow replacement
+problems. DOL feedback is held until the activity feedback window; Quiz/Test feedback
+waits for teacher release. Calculator access is resolved separately from the activity
+default, question design, assessment context, and documented student support plan.
 
 SUPPORTED PERSONALIZED GENERATORS
 
@@ -204,7 +203,7 @@ Step-by-step balance algebra:
 
 Use "mode": "exploratory" to allow balanced but unproductive moves without using
 an attempt. Rigorous mode rejects unproductive moves, shakes the workspace, and uses
-one of the question's three attempts. Operations appear on both sides immediately.
+one of the attempts permitted by the current activity role. Operations appear on both sides immediately.
 Students draw a strike-through line over the inverse pair, see a brief cancellation
 animation, and then the other side simplifies. The AST state and compact stepGrades
 array are stored in the shared question record, not inside a separate module schema.
@@ -564,15 +563,61 @@ export const parseAssignmentBlueprintText = (rawValue) => {
       throw new Error('Assignment JSON must be either a question array or an object containing a questions array.');
     }
 
-    if (!Array.isArray(parsed.questions)) {
-      throw new Error('Assignment Package JSON is missing the top-level "questions" array.');
+    const hasBundleActivities = Array.isArray(parsed.activities);
+    const bundledQuestions = hasBundleActivities
+      ? parsed.activities.flatMap((activity, activityIndex) => {
+          const activityRole = activity?.role || 'classwork';
+          const standardQuestions = Array.isArray(activity?.questions)
+            ? activity.questions.map((question) => ({
+                ...question,
+                activityRole: question?.activityRole || activityRole,
+              }))
+            : [];
+          if (!activity?.labDefinition && !activity?.isModelingLab) return standardQuestions;
+          const labSource = activity.labDefinition || activity;
+          const publicLab = normalizeLabDefinition(labSource);
+          return [...standardQuestions, {
+            type: 'modelingLab',
+            questionId: String(activity?.questionId || `${activity.activityId || `activity-${activityIndex + 1}`}-lab`),
+            familyId: `modelingLab:${labSource.labType || 'optimization'}`,
+            activityRole,
+            dok: Number(labSource.dokLevel || labSource.dok || 3),
+            teks: labSource.teksAlignments || labSource.teks || [],
+            prompt: labSource.guidingQuestion || labSource.title || 'Interactive mathematical modeling lab',
+            labDefinition: publicLab,
+          }];
+        })
+      : [];
+
+    if (!Array.isArray(parsed.questions) && !hasBundleActivities) {
+      throw new Error('Assignment Package JSON is missing a top-level "questions" array or Bundle V3 "activities" array.');
     }
 
+    // Bundle V3 is authoritative when activities are present. Some transition
+    // files also contain a legacy top-level questions mirror; using that mirror
+    // would make the student assignment differ from the pre-flight preview.
+    const questions = hasBundleActivities ? bundledQuestions : parsed.questions;
+    if (questions.length === 0) {
+      throw new Error('Assignment Package JSON contains no questions.');
+    }
+
+    const lessonMetadata = parsed.lessonMetadata && typeof parsed.lessonMetadata === 'object' && !Array.isArray(parsed.lessonMetadata)
+      ? parsed.lessonMetadata
+      : {};
+    const assignmentMetadata = parsed.assignment || parsed.metadata || (hasBundleActivities
+      ? {
+          title: lessonMetadata.title,
+          curriculum: lessonMetadata.course ? { course: lessonMetadata.course, topic: lessonMetadata.topic ?? null } : null,
+        }
+      : {});
+
     return {
-      questions: parsed.questions,
-      assignment: parsed.assignment || parsed.metadata || {},
+      questions,
+      assignment: assignmentMetadata,
       schemaVersion: Number(parsed.schemaVersion) || 2,
       isPackage: true,
+      isBundle: hasBundleActivities,
+      bundleSource: hasBundleActivities ? parsed : null,
       normalizedText: JSON.stringify(parsed, null, 2),
       repairs,
     };
@@ -715,13 +760,6 @@ export const assertFirestoreSafeAssignmentPayload = (value) => {
   return value;
 };
 
-// These belong to the graph point-builder used by functionInvestigation/analysisRequests
-// origin points, not to relationshipModel. RelationshipModel.jsx never reads them - it only
-// grades the origin explanation against origin.requiredConcepts (a free-text textarea). A
-// question authored with these fields but no requiredConcepts silently accepts any non-blank
-// answer as correct, since matchesConceptGroups treats a missing concept list as "ungraded".
-const RELATIONSHIP_MODEL_ORIGIN_FOREIGN_KEYS = ['target', 'responseMode', 'coordinates', 'applyResponseToGraph'];
-
 export const validateAssignmentQuestions = (questions, options = {}) => {
   if (!Array.isArray(questions) || questions.length === 0) {
     throw new Error('JSON must be a non-empty array of questions.');
@@ -733,16 +771,27 @@ export const validateAssignmentQuestions = (questions, options = {}) => {
     'functionInvestigation', 'graphAnalysis', 'stepAlgebra', 'literal',
     'system', 'table', 'orderedPair', 'multiAnswer', 'relationshipModel',
     'graphScenarioMatch', 'graphComparison', 'graphStory', 'contextInterpretation',
-    // Batch A-D interactive tools. Sourced from the registry so a newly
-    // registered tool is publishable and renderable together, and the two can
-    // never drift apart into "teacher can publish it, student cannot see it".
-    ...Object.keys(TOOL_CAPABILITIES),
+    'modelingLab',
+    ...MISSING_TOOL_IDS,
   ]);
 
   questions.forEach((question, index) => {
-    if (!question?.type) throw new Error(`Question ${index + 1} is missing a type.`);
-    if (!supportedTypes.has(question.type)) {
-      throw new Error(`Question ${index + 1} uses unsupported type ${question.type}.`);
+    const questionType = question?.toolId || question?.type;
+    if (!questionType) throw new Error(`Question ${index + 1} is missing a type/toolId.`);
+    if (!supportedTypes.has(questionType)) {
+      throw new Error(`Question ${index + 1} uses unsupported type ${questionType}.`);
+    }
+    if (MISSING_TOOL_IDS.includes(questionType)) {
+      const toolValidation = validateToolQuestion({ ...question, toolId: questionType });
+      if (!toolValidation.isValid) {
+        throw new Error(`Question ${index + 1} (${questionType}) is invalid: ${toolValidation.errors.join(' | ')}`);
+      }
+    }
+    if (questionType === 'modelingLab') {
+      if (!question.labDefinition || typeof question.labDefinition !== 'object') throw new Error(`Question ${index + 1} modelingLab is missing labDefinition.`);
+      const labDok = Number(question.labDefinition.dokLevel ?? question.dok ?? 3);
+      if (![3, 4].includes(labDok)) throw new Error(`Question ${index + 1} modelingLab DOK must be 3 or 4.`);
+      if (!Array.isArray(question.labDefinition.parameters) || question.labDefinition.parameters.length === 0) throw new Error(`Question ${index + 1} modelingLab requires at least one parameter.`);
     }
     const rawDok = question?.complexity?.level ?? question?.complexity?.dok ?? question?.standards?.dok ?? question?.dok;
     if (rawDok !== undefined && rawDok !== null && rawDok !== '' && (!Number.isInteger(Number(rawDok)) || Number(rawDok) < 1 || Number(rawDok) > 4)) {
@@ -765,14 +814,6 @@ export const validateAssignmentQuestions = (questions, options = {}) => {
           throw new Error(`Question ${index + 1} references TEKS ${entry.code}, which is not in a loaded Texas Math registry.`);
         }
       });
-    }
-    if (question.type === 'relationshipModel' && question.origin && typeof question.origin === 'object') {
-      const foreignKeys = RELATIONSHIP_MODEL_ORIGIN_FOREIGN_KEYS.filter((key) => key in question.origin);
-      if (foreignKeys.length > 0) {
-        throw new Error(
-          `Question ${index + 1} (relationshipModel) has origin.${foreignKeys.join(', origin.')}, which belongs to a different question type and has no effect here. relationshipModel grades the origin explanation using origin.requiredConcepts (a list of key words/phrases the student's answer must include), not a graph point builder. Remove ${foreignKeys.join(', ')} and add requiredConcepts.`,
-        );
-      }
     }
     if (!allowFixed && !isPersonalizedBlueprint(question)) {
       throw new Error(

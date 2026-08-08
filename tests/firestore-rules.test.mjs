@@ -48,11 +48,24 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(db, 'studentCredentials/S1042'), { hash: 'secret' });
   await setDoc(doc(db, 'classJoinCodes/K7M4QP'), { classPeriod: 'Period 1' });
   await setDoc(doc(db, 'teacherDirectory/t@school.org'), { active: true });
+  await setDoc(doc(db, 'adminAuditLog/audit-1'), { action: 'teacher_access_granted' });
   await setDoc(doc(db, 'authThrottle/student_S1042'), { failures: 1 });
   await setDoc(doc(db, 'studentDirectory/kid@school.org'), { studentId: 'S1042' });
+  await setDoc(doc(db, 'grades/S1042/evidenceEvents/ev_existing'), { eventKey: 'ev_existing', studentId: 'S1042', occurredAt: 1 });
+  await setDoc(doc(db, 'studentMasteryProfiles/S1042'), { profiles: { 'A.5A': { mastery: { status: 'Secure' } } } });
+  await setDoc(doc(db, 'studentRetentionSchedules/S1042'), { schedules: {} });
+  await setDoc(doc(db, 'pathQuestionBank/P1'), { alignmentKeys: ['texas:A.5A'], grading: { secret: true } });
+  await setDoc(doc(db, 'pathSessions/session-1'), { studentId: 'S1042', status: 'active' });
+  await setDoc(doc(db, 'modelingLabDefinitions/L1'), { labId: 'L1', evaluation: { targetValue: 9 } });
+  await setDoc(doc(db, 'modelingLabSubmissions/LS1'), { studentId: 'S1042' });
+  await setDoc(doc(db, 'examQuestionBank/E1'), { examTypes: ['digitalSAT'], responseFields: [{ id: 'x', expected: 4 }] });
+  await setDoc(doc(db, 'examSessions/exam-1'), { studentId: 'S1042', status: 'in_progress' });
+  await setDoc(doc(db, 'examSubmissions/examsub-1'), { studentId: 'S1042' });
+  await setDoc(doc(db, 'examIntegrityEvents/integrity-1'), { studentId: 'S1042', type: 'tab_switch' });
 });
 
 const teacher = testEnv.authenticatedContext('teacher-uid', { role: 'teacher' }).firestore();
+const rootAdmin = testEnv.authenticatedContext('root-admin-uid', { role: 'teacher', admin: true, rootAdmin: true }).firestore();
 const student = testEnv.authenticatedContext('student:S1042', { role: 'student', studentId: 'S1042' }).firestore();
 // Someone who signed in with Google but has no role claim yet.
 const roleless = testEnv.authenticatedContext('random-uid', {}).firestore();
@@ -70,6 +83,11 @@ await check('student CANNOT list the roster', assertFails(getDocs(collection(stu
 await check('student CANNOT delete own record', assertFails(deleteDoc(doc(student, 'grades/S1042'))));
 await check('student CANNOT delete own scratchpad', assertFails(deleteDoc(doc(student, 'grades/S1042/scratchpads/a__question_0'))));
 await check('teacher CAN delete a scratchpad', assertSucceeds(deleteDoc(doc(teacher, 'grades/S1042/scratchpads/a__question_0'))));
+await check('student reads own Phase 5C evidence', assertSucceeds(getDoc(doc(student, 'grades/S1042/evidenceEvents/ev_existing'))));
+await check('student appends own Phase 5C evidence', assertSucceeds(setDoc(doc(student, 'grades/S1042/evidenceEvents/ev_new'), { eventKey: 'ev_new', studentId: 'S1042', occurredAt: 2 })));
+await check('student CANNOT mutate existing Phase 5C evidence', assertFails(setDoc(doc(student, 'grades/S1042/evidenceEvents/ev_existing'), { eventKey: 'ev_existing', studentId: 'S1042', occurredAt: 999 }, { merge: true })));
+await check('student CANNOT forge another studentId into evidence', assertFails(setDoc(doc(student, 'grades/S1042/evidenceEvents/ev_forged'), { eventKey: 'ev_forged', studentId: 'S2000', occurredAt: 3 })));
+await check('student CANNOT delete Phase 5C evidence', assertFails(deleteDoc(doc(student, 'grades/S1042/evidenceEvents/ev_existing'))));
 
 // --- Shared classroom content ---------------------------------------------
 await check('student reads assignments', assertSucceeds(getDoc(doc(student, 'assignments/A1'))));
@@ -82,10 +100,30 @@ await check('student CANNOT write settings', assertFails(setDoc(doc(student, 'se
 await check('teacher lists the roster', assertSucceeds(getDocs(collection(teacher, 'grades'))));
 await check('teacher reads any student', assertSucceeds(getDoc(doc(teacher, 'grades/S2000'))));
 await check('teacher writes any student', assertSucceeds(setDoc(doc(teacher, 'grades/S2000'), { classPeriod: 'Period 3' }, { merge: true })));
+await check('teacher CANNOT directly delete a student record', assertFails(deleteDoc(doc(teacher, 'grades/S2000'))));
+await check('root admin CANNOT bypass audited callable with direct student deletion', assertFails(deleteDoc(doc(rootAdmin, 'grades/S2000'))));
 await check('teacher reads any scratchpad', assertSucceeds(getDoc(doc(teacher, 'grades/S1042/scratchpads/a__question_0'))));
 await check('teacher writes assignments', assertSucceeds(setDoc(doc(teacher, 'assignments/A2'), { title: 'Unit 2' })));
 await check('teacher writes settings', assertSucceeds(setDoc(doc(teacher, 'settings/assignmentFolders'), { paths: [] })));
 await check('teacher deletes assignments', assertSucceeds(deleteDoc(doc(teacher, 'assignments/A2'))));
+
+// --- Phase 5 derived state and secure production collections --------------
+await check('student reads own mastery projection', assertSucceeds(getDoc(doc(student, 'studentMasteryProfiles/S1042'))));
+await check('student reads own retention schedule', assertSucceeds(getDoc(doc(student, 'studentRetentionSchedules/S1042'))));
+await check('student CANNOT write mastery projection', assertFails(setDoc(doc(student, 'studentMasteryProfiles/S1042'), { profiles: {} }, { merge: true })));
+await check('student CANNOT write retention schedule', assertFails(setDoc(doc(student, 'studentRetentionSchedules/S1042'), { schedules: {} }, { merge: true })));
+await check('teacher reads secure path question bank', assertSucceeds(getDoc(doc(teacher, 'pathQuestionBank/P1'))));
+await check('student CANNOT read answer-bearing path question bank', assertFails(getDoc(doc(student, 'pathQuestionBank/P1'))));
+await check('student CANNOT read server-owned path session', assertFails(getDoc(doc(student, 'pathSessions/session-1'))));
+await check('teacher reads private modeling-lab definition', assertSucceeds(getDoc(doc(teacher, 'modelingLabDefinitions/L1'))));
+await check('student CANNOT read private modeling-lab definition', assertFails(getDoc(doc(student, 'modelingLabDefinitions/L1'))));
+await check('student CANNOT read modeling-lab submission marker', assertFails(getDoc(doc(student, 'modelingLabSubmissions/LS1'))));
+await check('teacher reads secure exam question bank', assertSucceeds(getDoc(doc(teacher, 'examQuestionBank/E1'))));
+await check('student CANNOT read secure exam question bank', assertFails(getDoc(doc(student, 'examQuestionBank/E1'))));
+await check('student CANNOT read server-owned exam session', assertFails(getDoc(doc(student, 'examSessions/exam-1'))));
+await check('teacher CANNOT bypass callable to read exam session', assertFails(getDoc(doc(teacher, 'examSessions/exam-1'))));
+await check('student CANNOT read secure exam submission marker', assertFails(getDoc(doc(student, 'examSubmissions/examsub-1'))));
+await check('student CANNOT read secure exam integrity log', assertFails(getDoc(doc(student, 'examIntegrityEvents/integrity-1'))));
 
 // --- Signed in but roleless (the pre-link state) ---------------------------
 await check('roleless CANNOT read a student record', assertFails(getDoc(doc(roleless, 'grades/S1042'))));
@@ -103,10 +141,12 @@ for (const [name, path] of [
   ['studentCredentials', 'studentCredentials/S1042'],
   ['classJoinCodes', 'classJoinCodes/K7M4QP'],
   ['teacherDirectory', 'teacherDirectory/t@school.org'],
+  ['adminAuditLog', 'adminAuditLog/audit-1'],
   ['authThrottle', 'authThrottle/student_S1042'],
   ['studentDirectory', 'studentDirectory/kid@school.org'],
 ]) {
   await check(`teacher CANNOT read ${name}`, assertFails(getDoc(doc(teacher, path))));
+  await check(`root admin CANNOT bypass callable to read ${name}`, assertFails(getDoc(doc(rootAdmin, path))));
   await check(`student CANNOT read ${name}`, assertFails(getDoc(doc(student, path))));
   await check(`student CANNOT write ${name}`, assertFails(setDoc(doc(student, path), { hack: true }, { merge: true })));
 }

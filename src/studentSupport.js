@@ -9,6 +9,7 @@ export const normalizeStudentProfile = (profile = {}) => {
     inclusionStatus: Boolean(safeProfile.inclusionStatus),
     accommodations: unique(safeProfile.accommodations),
     modifications: unique(safeProfile.modifications),
+    translationLanguage: String(safeProfile.translationLanguage || '').trim().toLowerCase() || null,
   };
 };
 
@@ -29,12 +30,13 @@ export const getStudentSupportPresentation = (profile) => {
     largeText: inclusion || normalized.accommodations.includes('large-text'),
     declutter: inclusion || normalized.accommodations.includes('declutter-ui'),
     textToSpeech: normalized.accommodations.includes('text-to-speech'),
+    translationLanguage: normalized.translationLanguage,
   };
 };
 
 export const applyStudentSupportToQuestion = (question, profile) => {
   const normalized = normalizeStudentProfile(profile);
-  if (!normalized.inclusionStatus && !normalized.accommodations.length && !normalized.modifications.length) {
+  if (!normalized.inclusionStatus && !normalized.accommodations.length && !normalized.modifications.length && !normalized.translationLanguage) {
     return { question, usage: { modified: false, accommodations: [], modifications: [] } };
   }
   const next = {
@@ -42,6 +44,16 @@ export const applyStudentSupportToQuestion = (question, profile) => {
     generator: question?.generator ? { ...question.generator } : question?.generator,
     supportPresentation: getStudentSupportPresentation(normalized),
   };
+  const translation = normalized.translationLanguage && normalized.translationLanguage !== 'en'
+    ? question?.translations?.[normalized.translationLanguage]
+    : null;
+  if (translation && typeof translation === 'object' && !Array.isArray(translation)) {
+    if (typeof translation.prompt === 'string') next.prompt = translation.prompt;
+    if (typeof translation.title === 'string') next.title = translation.title;
+    if (typeof translation.scenario === 'string' && next.context && typeof next.context === 'object') {
+      next.context = { ...next.context, scenario: translation.scenario };
+    }
+  }
   const usedAccommodations = [...normalized.accommodations];
   const usedModifications = [];
 

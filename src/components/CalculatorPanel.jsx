@@ -58,12 +58,12 @@ export const CalculatorPanel = ({
   const buttons = advanced ? [...scientificButtons, ...baseButtons] : baseButtons;
 
   return (
-    <div className="mathmaster-calculator-drawer" style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 9000 }}>
-      <button type="button" onClick={toggleDrawer} style={{ padding: '10px 16px', borderRadius: '24px', background: '#1a73e8', color: '#fff', border: 'none', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+    <div className={`mathmaster-calculator-drawer ${isOpen ? 'is-open' : ''}`} style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 9000 }}>
+      <button className="mathmaster-calculator-toggle" type="button" onClick={toggleDrawer} style={{ padding: '10px 16px', borderRadius: '24px', background: '#1a73e8', color: '#fff', border: 'none', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
         🧮 {policy.source === 'accommodation' ? 'Calculator (Support Plan)' : 'Calculator'}
       </button>
       {isOpen && (
-        <div style={{ position: 'absolute', bottom: '50px', right: 0, width: '300px', background: '#fff', borderRadius: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', border: '1px solid #dadce0', padding: '16px' }}>
+        <div className="mathmaster-calculator-panel" style={{ position: 'absolute', bottom: '50px', right: 0, width: '300px', background: '#fff', borderRadius: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', border: '1px solid #dadce0', padding: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', alignItems: 'center' }}>
             <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#3c4043' }}>{String(policy.mode).toUpperCase()} CALCULATOR</span>
             <button type="button" aria-label="Close calculator" onClick={() => setIsOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
@@ -76,7 +76,7 @@ export const CalculatorPanel = ({
             </form>
           ) : (
             <div>
-              <input aria-label="Calculator expression" value={display} onChange={(event) => setDisplay(event.target.value)} style={{ width: '100%', boxSizing: 'border-box', background: '#f1f3f4', padding: '12px', borderRadius: '6px', border: 0, textAlign: 'right', fontSize: '20px', fontFamily: 'monospace', marginBottom: '12px' }} />
+              <input inputMode="none" aria-label="Calculator expression" value={display} onChange={(event) => setDisplay(event.target.value)} style={{ width: '100%', boxSizing: 'border-box', background: '#f1f3f4', padding: '12px', borderRadius: '6px', border: 0, textAlign: 'right', fontSize: '20px', fontFamily: 'monospace', marginBottom: '12px' }} />
               {policy.mode === CALCULATOR_MODES.GRAPHING && <p style={{ margin: '-3px 0 10px', color: '#5f6368', fontSize: '11px' }}>Graph construction stays in the MathMaster graph workspace; this drawer supplies numeric/scientific calculations.</p>}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
                 {buttons.map((button) => (

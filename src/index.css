@@ -54,23 +54,16 @@ body {
   margin: 0;
 }
 
-/*
- * The app shell fills the viewport. It used to be pinned to the 1126px column
- * the Vite starter template shipped with, which clipped the teacher dashboard
- * on wide screens and put stray vertical rules down the sides of every page.
- */
 #root {
-  width: 100%;
-  margin: 0;
+  width: 1126px;
+  max-width: 100%;
+  margin: 0 auto;
   text-align: center;
+  border-inline: 1px solid var(--border);
   min-height: 100svh;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-}
-
-#root > * {
-  flex: 1 1 auto;
 }
 
 h1,

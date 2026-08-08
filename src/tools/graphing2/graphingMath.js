@@ -58,31 +58,19 @@ export const constructionEvidence = (points = [], target, tolerance = 0.12) => {
   }
 
   // CRIT-01: two coincident points do not define a line. Without this guard
-  // lineFromPoints returns a degenerate/NaN line that linesEquivalent could
-  // score as correct, awarding full credit for dropping one point twice.
+  // lineFromPoints returns a degenerate line that linesEquivalent could score
+  // as correct, awarding full credit for dropping one point twice.
   const [p1, p2] = points;
-  const isDuplicate = nearlyEqual(p1[0], p2[0], 1e-4) && nearlyEqual(p1[1], p2[1], 1e-4);
-  if (isDuplicate) {
+  if (nearlyEqual(p1[0], p2[0], 1e-4) && nearlyEqual(p1[1], p2[1], 1e-4)) {
     const singlePointOnLine = pointOnLine(target, p1, tolerance);
-    return {
-      studentLine: null,
-      pointChecks: [singlePointOnLine, false],
-      score: singlePointOnLine ? 0.25 : 0,
-      isCorrect: false,
-    };
+    return { studentLine: null, pointChecks: [singlePointOnLine, false], score: singlePointOnLine ? 0.25 : 0, isCorrect: false };
   }
 
   const studentLine = lineFromPoints(p1, p2);
   const pointChecks = points.slice(0, 2).map((point) => pointOnLine(target, point, tolerance));
-  const isValidLine = studentLine !== null;
-  const isCorrect = isValidLine && linesEquivalent(studentLine, target, tolerance);
-  // Partial credit keeps its original scale (points-on-line / 2). The supplied
-  // CRIT-01 patch also multiplied this by 0.5, which would have quietly halved
-  // the score of every partially-correct construction — a grading change well
-  // beyond the duplicate-point bug it was written to fix, and one the existing
-  // test suite explicitly pins.
-  const score = isCorrect ? 1 : (isValidLine ? pointChecks.filter(Boolean).length / 2 : 0);
-  return { studentLine, pointChecks, score, isCorrect };
+  const isCorrect = studentLine !== null && linesEquivalent(studentLine, target, tolerance);
+  // Partial-credit scale intentionally unchanged; see the batch D test.
+  return { studentLine, pointChecks, score: isCorrect ? 1 : pointChecks.filter(Boolean).length / 2, isCorrect };
 };
 
 export const formatLine = (line) => {

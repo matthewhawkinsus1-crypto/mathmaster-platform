@@ -1,10 +1,10 @@
 import React from 'react';
+import { clientPointToGraphCoordinate } from '../../utils/responsiveCoordinates.js';
 
-// Third copy of this guard (GraphDisplay and InteractiveGraphWorkspace have the
-// others). This one is shared by every Batch A-D tool, so an unguarded window
-// froze the tab in three different labs at once. A step of 0/NaN never
-// terminates, and a legitimate step across a huge window runs for billions of
-// iterations; both are reachable from authored question JSON.
+// Shared by every Batch A-D tool, so an unguarded window froze three labs at
+// once. A step of 0/NaN never terminates, and a legitimate step across a huge
+// window runs for billions of iterations; both are reachable from authored
+// question JSON. 200 ticks is past the point axis labels stay readable.
 const MAX_TICKS = 200;
 
 const buildTicks = (min, max, step) => {
@@ -66,16 +66,24 @@ export default function CoordinatePlane({
   const handleClick = (event) => {
     if (!onPlot) return;
     const rect = event.currentTarget.getBoundingClientRect();
-    const px = event.clientX - rect.left;
-    const py = event.clientY - rect.top;
-    const x = xMin + ((px - pad) / innerW) * (xMax - xMin);
-    const y = yMin + ((height - pad - py) / innerH) * (yMax - yMin);
-    if (x >= xMin && x <= xMax && y >= yMin && y <= yMax) onPlot([Math.round(x * 2) / 2, Math.round(y * 2) / 2]);
+    const point = clientPointToGraphCoordinate({
+      clientX: event.clientX,
+      clientY: event.clientY,
+      rect,
+      viewBoxWidth: width,
+      viewBoxHeight: height,
+      padding: pad,
+      xMin,
+      xMax,
+      yMin,
+      yMax,
+    });
+    if (point) onPlot([Math.round(point.x * 2) / 2, Math.round(point.y * 2) / 2]);
   };
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Coordinate plane" onClick={handleClick}
-      style={{ width: '100%', height: 'auto', border: '1px solid #d9e2f1', borderRadius: 12, background: '#fff', cursor: onPlot ? 'crosshair' : 'default' }}>
+    <svg className={onPlot ? 'mathmaster-responsive-canvas mathmaster-touch-surface' : 'mathmaster-responsive-canvas'} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet" role={onPlot ? 'application' : 'img'} aria-label="Coordinate plane" onClick={handleClick}
+      style={{ width: '100%', height: 'auto', maxWidth: '100%', maxHeight: '100%', border: '1px solid #d9e2f1', borderRadius: 12, background: '#fff', cursor: onPlot ? 'crosshair' : 'default', touchAction: onPlot ? 'none' : 'auto', userSelect: 'none' }}>
       <rect x={pad} y={pad} width={innerW} height={innerH} fill="#fff" />
       {xTicks.map((x) => <line key={`gx${x}`} x1={sx(x)} x2={sx(x)} y1={pad} y2={height - pad} stroke="#edf1f6" strokeWidth="1" />)}
       {yTicks.map((y) => <line key={`gy${y}`} x1={pad} x2={width - pad} y1={sy(y)} y2={sy(y)} stroke="#edf1f6" strokeWidth="1" />)}

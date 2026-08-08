@@ -206,10 +206,12 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph' }) {
       }}
     >
       <svg
+        className="mathmaster-responsive-canvas"
         viewBox={`0 0 ${DEFAULT_WIDTH} ${DEFAULT_HEIGHT}`}
+        preserveAspectRatio="xMidYMid meet"
         role="img"
         aria-label={graph.ariaLabel || title}
-        style={{ display: 'block', width: '100%', height: 'auto' }}
+        style={{ display: 'block', width: '100%', height: 'auto', maxWidth: '100%', maxHeight: '100%' }}
       >
         <title>{graph.ariaLabel || title}</title>
         <rect x={PADDING} y={PADDING} width={innerWidth} height={innerHeight} fill="#ffffff" stroke="#cfd4da" />

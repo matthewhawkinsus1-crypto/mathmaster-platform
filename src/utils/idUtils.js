@@ -32,6 +32,12 @@ export const generateStableUUID = (seed = '') => {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 };
 
+export const generateRuntimeUUID = () => {
+  if (typeof globalThis.crypto?.randomUUID === 'function') return globalThis.crypto.randomUUID();
+  const entropy = `${Date.now()}|${Math.random()}|${Math.random()}`;
+  return generateStableUUID(entropy);
+};
+
 export const generateStableId = (prefix, ...parts) => {
   const safePrefix = String(prefix || 'id').replace(/[^a-z0-9_-]/gi, '_');
   return `${safePrefix}_${generateStableUUID(parts.map((part) => String(part ?? '')).join('|'))}`;

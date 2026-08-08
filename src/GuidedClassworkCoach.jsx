@@ -24,7 +24,7 @@ const defaultSteps = (question) => {
   return ['Read the prompt and identify what must be entered.', 'Complete the current response field.', 'Check the response and revise any named incorrect part.'];
 };
 
-export default function GuidedClassworkCoach({ question, draftKey, enabled = false, oneStepReveal = false, disabled = false }) {
+export default function GuidedClassworkCoach({ question, draftKey, enabled = false, oneStepReveal = false, disabled = false, onAssistanceUsed }) {
   const steps = useMemo(() => (Array.isArray(question?.guidedSteps) && question.guidedSteps.length ? question.guidedSteps : defaultSteps(question)), [question]);
   const [stepIndex, setStepIndex] = useLocalDraftState(draftKey ? `${draftKey}:guided-step` : null, 0);
   if (!enabled || !steps.length) return null;
@@ -39,7 +39,7 @@ export default function GuidedClassworkCoach({ question, draftKey, enabled = fal
       </ol>
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
         <button type="button" disabled={disabled || safeIndex === 0} onClick={() => setStepIndex(Math.max(0, safeIndex - 1))} style={{ padding: '8px 12px', border: '1px solid #aac3e8', borderRadius: '8px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>Previous instruction</button>
-        <button type="button" disabled={disabled || safeIndex >= steps.length - 1} onClick={() => setStepIndex(Math.min(steps.length - 1, safeIndex + 1))} style={{ padding: '8px 12px', border: 'none', borderRadius: '8px', background: safeIndex >= steps.length - 1 ? '#dadce0' : '#1a73e8', color: '#fff', fontWeight: 'bold' }}>{safeIndex >= steps.length - 1 ? 'All instructions revealed' : 'I completed this step'}</button>
+        <button type="button" disabled={disabled || safeIndex >= steps.length - 1} onClick={() => { onAssistanceUsed?.('guided-step'); setStepIndex(Math.min(steps.length - 1, safeIndex + 1)); }} style={{ padding: '8px 12px', border: 'none', borderRadius: '8px', background: safeIndex >= steps.length - 1 ? '#dadce0' : '#1a73e8', color: '#fff', fontWeight: 'bold' }}>{safeIndex >= steps.length - 1 ? 'All instructions revealed' : 'I completed this step'}</button>
       </div>
     </aside>
   );

@@ -1,25 +1,65 @@
+/*
+ * Grouped navigation rail.
+ *
+ * The tab list grew to thirteen entries as Analytics, Secure Exams, the Math
+ * Tools Lab and Administration landed. A flat list that long stops being
+ * scannable — everything looks equally important and finding "Grades" means
+ * reading every label. Grouping into four labelled sections keeps each group
+ * to three or four items, which is a length the eye can take in at once.
+ *
+ * Icons are per-tab rather than the previous first-letter badge, because with
+ * thirteen entries several now collide (Classes/Class Schedule,
+ * Assignments/Analytics) and a letter badge stopped disambiguating anything —
+ * which mattered most in collapsed mode, where the badge is all you get.
+ */
+
 const TAB_LABELS = {
   home: 'Home',
   assignments: 'Assignments',
   library: 'Library',
+  mathTools: 'Math Tools Lab',
   students: 'Students',
   classesWorkspace: 'Classes',
   classes: 'Class Schedule',
   grades: 'Grades',
   standards: 'TEKS & Mastery',
-  mathTools: 'Math Tools Lab',
-  access: 'Sign-in Access',
+  analytics: 'Analytics',
+  exams: 'Secure Exams',
   classroom: 'Google Classroom',
+  access: 'Sign-in Access',
 };
 
-const TABS = ['home', 'assignments', 'library', 'students', 'classesWorkspace', 'classes', 'grades', 'standards', 'mathTools', 'access', 'classroom'];
+const TAB_ICONS = {
+  home: '🏠',
+  assignments: '📄',
+  library: '🗂️',
+  mathTools: '🧪',
+  students: '👥',
+  classesWorkspace: '🏫',
+  classes: '🕘',
+  grades: '📊',
+  standards: '🎯',
+  analytics: '📈',
+  exams: '🔒',
+  classroom: '🎓',
+  access: '🔑',
+};
+
+const TAB_GROUPS = [
+  { id: 'teach', label: 'Teach', tabs: ['home', 'assignments', 'library', 'mathTools'] },
+  { id: 'people', label: 'Classes', tabs: ['students', 'classesWorkspace', 'classes'] },
+  { id: 'insight', label: 'Evidence', tabs: ['grades', 'standards', 'analytics', 'exams'] },
+  { id: 'admin', label: 'Setup', tabs: ['classroom', 'access'] },
+];
 
 // Purely presentational, controlled navigation rail. Owns no data of its
 // own — `App.jsx` still owns `teacherTab`/`sidebarCollapsed` state and is
 // responsible for any side effects (like resetting the gradebook filter)
 // that should run when the active tab changes; this component only reports
 // which tab was clicked.
-export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onToggleCollapsed }) {
+export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onToggleCollapsed, isRootAdmin = false }) {
+  const labelFor = (tab) => (tab === 'access' && isRootAdmin ? 'Administration' : TAB_LABELS[tab]);
+
   return (
     <nav
       aria-label="Teacher dashboard navigation"
@@ -52,63 +92,85 @@ export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onTo
           background: '#fff',
           color: '#5f6368',
           cursor: 'pointer',
-          marginBottom: '14px',
+          marginBottom: '10px',
           fontWeight: 'bold',
         }}
       >
         {collapsed ? '»' : '«'}
       </button>
 
-      {TABS.map((tab) => {
-        const label = TAB_LABELS[tab];
-        const active = activeTab === tab;
-        return (
-          <button
-            type="button"
-            key={tab}
-            onClick={() => onSelectTab(tab)}
-            title={label}
-            aria-current={active ? 'page' : undefined}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              justifyContent: collapsed ? 'center' : 'flex-start',
-              width: '100%',
-              padding: collapsed ? '10px 0' : '10px 12px',
-              marginBottom: '4px',
-              border: 'none',
-              borderRadius: '9px',
-              background: active ? '#e8f0fe' : 'transparent',
-              color: active ? '#1a73e8' : '#3c4043',
-              cursor: 'pointer',
-              fontWeight: active ? 800 : 600,
-              fontSize: '14px',
-              textAlign: 'left',
-            }}
-          >
-            <span
-              aria-hidden="true"
+      {TAB_GROUPS.map((group, groupIndex) => (
+        <div key={group.id} className="mm-nav-group" style={{ marginBottom: '10px' }}>
+          {collapsed ? (
+            // A hairline keeps the grouping legible once labels are hidden.
+            groupIndex > 0 && <div aria-hidden="true" style={{ height: '1px', background: '#e1e3e6', margin: '8px 6px' }} />
+          ) : (
+            <div
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '26px',
-                height: '26px',
-                flex: '0 0 26px',
-                borderRadius: '999px',
-                background: active ? '#1a73e8' : '#e1e3e6',
-                color: active ? '#fff' : '#5f6368',
-                fontSize: '12px',
+                padding: '4px 12px',
+                fontSize: '10px',
                 fontWeight: 900,
+                letterSpacing: '0.09em',
+                textTransform: 'uppercase',
+                color: '#80868b',
               }}
             >
-              {label.charAt(0)}
-            </span>
-            {!collapsed && <span>{label}</span>}
-          </button>
-        );
-      })}
+              {group.label}
+            </div>
+          )}
+
+          {group.tabs.map((tab) => {
+            const label = labelFor(tab);
+            const active = activeTab === tab;
+            return (
+              <button
+                type="button"
+                key={tab}
+                onClick={() => onSelectTab(tab)}
+                title={label}
+                aria-current={active ? 'page' : undefined}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  justifyContent: collapsed ? 'center' : 'flex-start',
+                  width: '100%',
+                  minHeight: '40px',
+                  padding: collapsed ? '8px 0' : '8px 12px',
+                  marginBottom: '2px',
+                  border: 'none',
+                  borderRadius: '9px',
+                  background: active ? '#e8f0fe' : 'transparent',
+                  color: active ? '#1a73e8' : '#3c4043',
+                  cursor: 'pointer',
+                  fontWeight: active ? 800 : 600,
+                  fontSize: '14px',
+                  textAlign: 'left',
+                }}
+              >
+                <span
+                  aria-hidden="true"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '26px',
+                    height: '26px',
+                    flex: '0 0 26px',
+                    borderRadius: '999px',
+                    background: active ? '#1a73e8' : '#e1e3e6',
+                    fontSize: '13px',
+                    lineHeight: 1,
+                  }}
+                >
+                  {TAB_ICONS[tab] || '•'}
+                </span>
+                {!collapsed && <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>}
+              </button>
+            );
+          })}
+        </div>
+      ))}
     </nav>
   );
 }

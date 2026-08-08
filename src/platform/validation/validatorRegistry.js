@@ -5,6 +5,7 @@ const LEGACY_QUESTION_TYPES = new Set([
   'functionInvestigation', 'graphAnalysis', 'stepAlgebra', 'literal',
   'system', 'table', 'orderedPair', 'multiAnswer', 'relationshipModel',
   'graphScenarioMatch', 'graphComparison', 'graphStory', 'contextInterpretation',
+  'modelingLab',
 ]);
 const MISSING_TOOLS = new Set(MISSING_TOOL_IDS);
 

@@ -51,10 +51,9 @@ export const integerFactorPairForMonicQuadratic = (coefficients = []) => {
   if (values.length !== 3 || !nearlyEqual(values[0], 1)) return null;
   const [, b, c] = values;
   if (!Number.isInteger(b) || !Number.isInteger(c)) return null;
-  // Trial division over every integer up to |c| is unbounded in practice: a
-  // constant term of 1e12 is two trillion iterations, which freezes the tab.
-  // Classroom quadratics factor far below this, so anything larger is treated
-  // as "not factorable by inspection" rather than searched exhaustively.
+  // Trial division up to |c| is unbounded in practice: a constant term of 1e12
+  // is two trillion iterations, which freezes the tab. Classroom quadratics
+  // factor far below this cap; beyond it, "not factorable by inspection".
   const MAX_FACTOR_SEARCH = 10000;
   const limit = Math.abs(c);
   if (!Number.isFinite(limit) || limit > MAX_FACTOR_SEARCH) return null;

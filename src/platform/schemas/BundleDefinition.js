@@ -1,6 +1,7 @@
 import { ACTIVITY_ROLES, isActivityRole, normalizeActivityRole, toEnforcedActivityPolicy } from '../policies/activityPolicies.js';
 import { generateStableId, stableStringify } from '../../utils/idUtils.js';
 import { normalizeQuestionDefinition } from './QuestionDefinition.js';
+import { normalizeLabDefinition } from '../labs/labDefinitionSchema.js';
 
 export const CURRENT_BUNDLE_SCHEMA_VERSION = 3;
 
@@ -49,6 +50,9 @@ export const normalizeLessonBundle = (rawJson) => {
     }
     const activityId = String(activity.activityId || generateStableId('act', bundleId, activityIndex, role, activity.title || ''));
     const enforcedPolicy = toEnforcedActivityPolicy(role);
+    const labDefinition = activity.labDefinition || activity.isModelingLab
+      ? normalizeLabDefinition(activity.labDefinition || activity)
+      : null;
     const sourceQuestions = Array.isArray(activity.questions) ? activity.questions : [];
     const questions = sourceQuestions.map((question, questionIndex) => {
       const questionId = String(question?.questionId || question?.id || generateStableId('q', bundleId, activityId, questionIndex));
@@ -71,8 +75,10 @@ export const normalizeLessonBundle = (rawJson) => {
     return {
       activityId,
       role,
-      title: String(activity.title || titleForRole(role)),
+      title: String(activity.title || labDefinition?.title || titleForRole(role)),
       policy: { ...enforcedPolicy, grading: { ...enforcedPolicy.grading }, mastery: { ...enforcedPolicy.mastery } },
+      isModelingLab: Boolean(labDefinition),
+      labDefinition,
       questions,
     };
   });

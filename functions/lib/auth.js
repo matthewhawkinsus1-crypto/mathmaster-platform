@@ -11,6 +11,13 @@ const ALIAS_COLLECTION = "studentAliases";
 const TEACHER_COLLECTION = "teacherDirectory";
 const JOIN_CODE_COLLECTION = "classJoinCodes";
 const THROTTLE_COLLECTION = "authThrottle";
+const ADMIN_AUDIT_COLLECTION = "adminAuditLog";
+
+// MathMaster has one immutable root administrator. This identity is not
+// bootstrapped from an environment variable: removing INITIAL_TEACHER_EMAILS
+// after rollout must never strand the platform without an administrator.
+// Additional staff are granted the ordinary teacher role by this account.
+const ROOT_ADMIN_EMAIL = "matthew.hawkins@desotoisd.org";
 
 const STUDENT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{1,63}$/;
 const PASSCODE_PATTERN = /^\d{4,8}$/;
@@ -78,6 +85,14 @@ function normalizeEmail(value) {
     throw new AuthInputError("invalid-argument", "A valid email address is required.");
   }
   return cleaned;
+}
+
+function isRootAdminEmail(value) {
+  try {
+    return normalizeEmail(value) === ROOT_ADMIN_EMAIL;
+  } catch {
+    return false;
+  }
 }
 
 function normalizeJoinCode(value) {
@@ -187,11 +202,13 @@ function describeLockout(retryAfterMs) {
 module.exports = {
   AuthInputError,
   ALIAS_COLLECTION,
+  ADMIN_AUDIT_COLLECTION,
   CREDENTIALS_COLLECTION,
   DIRECTORY_COLLECTION,
   TEACHER_COLLECTION,
   JOIN_CODE_COLLECTION,
   THROTTLE_COLLECTION,
+  ROOT_ADMIN_EMAIL,
   LOCKOUT_MS,
   MAX_FAILED_ATTEMPTS,
   assertPasscodeShape,
@@ -201,6 +218,7 @@ module.exports = {
   describeLockout,
   generateJoinCode,
   hashPasscode,
+  isRootAdminEmail,
   normalizeEmail,
   normalizeJoinCode,
   normalizeStudentId,

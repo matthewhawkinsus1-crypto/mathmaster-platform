@@ -1,121 +1,115 @@
 rules_version = '2';
 
-// MathMaster access control.
-//
-// Every rule below reads the `role` and `studentId` custom claims. Those claims
-// are written only by Cloud Functions (`resolveSignedInRole`, `studentSignIn`,
-// `linkGoogleAccount`), never by a client, so a signed-in user cannot promote
-// themselves by editing a document.
-//
-// The rule of thumb: a student may read and write exactly their own record; a
-// teacher may read and write the class; nobody else may read anything.
 service cloud.firestore {
   match /databases/{database}/documents {
-
     function signedIn() {
       return request.auth != null;
     }
 
-    function isTeacher() {
+    function teacher() {
       return signedIn() && request.auth.token.role == 'teacher';
     }
 
-    function isStudent() {
-      return signedIn() && request.auth.token.role == 'student';
+    function rootAdmin() {
+      return teacher()
+        && request.auth.token.admin == true
+        && request.auth.token.rootAdmin == true;
     }
 
-    function ownsStudentRecord(studentId) {
-      return isStudent() && request.auth.token.studentId == studentId;
+    function ownsStudent(studentId) {
+      return signedIn()
+        && request.auth.token.role == 'student'
+        && request.auth.token.studentId == studentId;
     }
 
-    // A student's grades, attempt history, class period and inclusion profile.
+    // Student work: students can read/update only their own document. Teachers
+    // can manage the roster. Permanent account deletion is never a client
+    // permission — even the root administrator must use the audited server
+    // callable that removes the student's complete cross-collection footprint.
     match /grades/{studentId} {
-      allow read: if isTeacher() || ownsStudentRecord(studentId);
-      allow create, update: if isTeacher() || ownsStudentRecord(studentId);
-      allow delete: if isTeacher();
+      allow read: if teacher() || ownsStudent(studentId);
+      allow create, update: if teacher() || ownsStudent(studentId);
+      allow delete: if false;
 
-      // Handwritten scratchpad work, and anything else scoped to one student.
-      // Recursive so a future subcollection inherits the same ownership check
-      // instead of silently falling through to the deny-all rule at the bottom.
-      //
-      // Note that `{document=**}` also matches the parent `grades/{studentId}`
-      // document, and rules are a permissive union — so granting blanket
-      // `write` here would hand students back the delete on their own record
-      // that the rule above withholds. Deletes stay teacher-only on purpose:
-      // a student clearing their record would erase their grade history.
-      match /{document=**} {
-        allow read: if isTeacher() || ownsStudentRecord(studentId);
-        allow create, update: if isTeacher() || ownsStudentRecord(studentId);
-        allow delete: if isTeacher();
+      match /scratchpads/{scratchpadId} {
+        allow read: if teacher() || ownsStudent(studentId);
+        allow create, update: if teacher() || ownsStudent(studentId);
+        allow delete: if teacher();
+      }
+
+      // Phase 5C evidence is append-only from the student client. Production
+      // My Math Path writes through the Admin SDK and bypasses these rules.
+      match /evidenceEvents/{eventId} {
+        allow read: if teacher() || ownsStudent(studentId);
+        allow create: if ownsStudent(studentId)
+          && request.resource.data.studentId == studentId
+          && request.resource.data.eventKey == eventId;
+        allow update, delete: if false;
       }
     }
 
-    // Assignment definitions are shared classroom content: every signed-in user
-    // reads them, only a teacher authors them.
+    // Shared instructional content is readable after sign-in. Only teachers
+    // can mutate assignments, schedules, and the secure path question bank.
     match /assignments/{assignmentId} {
       allow read: if signedIn();
-      allow write: if isTeacher();
+      allow create, update, delete: if teacher();
     }
 
-    // Class schedule and assignment folders. Students read the schedule to know
-    // when a DOL window opens; only a teacher changes either.
     match /settings/{docId} {
       allow read: if signedIn();
-      allow write: if isTeacher();
+      allow create, update, delete: if teacher();
     }
 
-    // --- Server-only collections ---------------------------------------------
-    // Cloud Functions use the Admin SDK and bypass these rules entirely. Denying
-    // all client access is the point: PIN hashes, join codes and lockout
-    // counters are only ever compared server-side.
-
-    match /studentCredentials/{studentIdKey} {
-      allow read, write: if false;
+    match /pathQuestionBank/{questionId} {
+      allow read, create, update, delete: if teacher();
     }
 
-    match /studentDirectory/{email} {
-      allow read, write: if false;
+    // Phase 6A private modeling criteria are never student-readable. Teachers
+    // author them; grading reads them through the Admin SDK callable.
+    match /modelingLabDefinitions/{labId} {
+      allow read, create, update, delete: if teacher();
     }
 
-    match /studentAliases/{studentIdKey} {
-      allow read, write: if false;
+    // Phase 6C exam item answer keys are teacher-authored. Runtime sessions,
+    // responses, integrity logs, and submission markers are callable-only so
+    // a student cannot bypass the server state machine with a direct write.
+    match /examQuestionBank/{questionId} {
+      allow read, create, update, delete: if teacher();
     }
 
-    match /classJoinCodes/{code} {
-      allow read, write: if false;
+    // Students can read their derived Phase 5 state but cannot forge it.
+    match /studentMasteryProfiles/{studentId} {
+      allow read: if teacher() || ownsStudent(studentId);
+      allow write: if teacher();
     }
 
-    match /authThrottle/{throttleKey} {
-      allow read, write: if false;
+    match /studentRetentionSchedules/{studentId} {
+      allow read: if teacher() || ownsStudent(studentId);
+      allow write: if teacher();
     }
 
-    match /teacherDirectory/{email} {
-      allow read, write: if false;
-    }
-
-    // Google Classroom integration records are server-only.
-    match /teacherIntegrations/{docId} {
-      allow read, write: if false;
-    }
-
-    match /oauthStates/{stateId} {
-      allow read, write: if false;
-    }
-
-    // One document per MathMaster assignment + Classroom course publication.
-    match /classroomLinks/{publicationId} {
-      allow read, write: if false;
-    }
-
-    // One mapping per Classroom course + MathMaster student ID.
-    match /classroomRosterLinks/{rosterLinkId} {
-      allow read, write: if false;
-    }
-
-    // Server-side grade passback audit trail.
-    match /classroomGradeSyncs/{syncId} {
-      allow read, write: if false;
-    }
+    // Authentication internals, Classroom integration, My Math Path sessions,
+    // idempotency records, and mastery-application markers are server-only.
+    match /teacherIntegrations/{docId} { allow read, write: if false; }
+    match /oauthStates/{stateId} { allow read, write: if false; }
+    match /classroomLinks/{publicationId} { allow read, write: if false; }
+    match /classroomRosterLinks/{rosterLinkId} { allow read, write: if false; }
+    match /classroomGradeSyncs/{syncId} { allow read, write: if false; }
+    match /studentCredentials/{docId} { allow read, write: if false; }
+    match /studentAliases/{docId} { allow read, write: if false; }
+    match /studentDirectory/{docId} { allow read, write: if false; }
+    match /teacherDirectory/{docId} { allow read, write: if false; }
+    match /adminAuditLog/{docId} { allow read, write: if false; }
+    match /classJoinCodes/{docId} { allow read, write: if false; }
+    match /authThrottle/{docId} { allow read, write: if false; }
+    match /activePathLocks/{docId} { allow read, write: if false; }
+    match /pathSessions/{docId} { allow read, write: if false; }
+    match /pathSubmissions/{docId} { allow read, write: if false; }
+    match /masteryEvidenceApplications/{docId} { allow read, write: if false; }
+    match /modelingLabSubmissions/{docId} { allow read, write: if false; }
+    match /examSessions/{docId} { allow read, write: if false; }
+    match /examSubmissions/{docId} { allow read, write: if false; }
+    match /examIntegrityEvents/{docId} { allow read, write: if false; }
 
     match /{document=**} {
       allow read, write: if false;

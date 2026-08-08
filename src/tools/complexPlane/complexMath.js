@@ -55,11 +55,12 @@ export const complexPower = (value, exponent = 1) => {
   if (!Number.isInteger(n)) throw new Error('Complex powers in this lab require an integer exponent.');
   if (n === 0) return { re: 1, im: 0 };
 
-  // CRIT-03: 0 raised to a negative power is a division by zero. Returning NaN
-  // keeps the lab renderable instead of throwing mid-render.
+  // CRIT-03: 0 to a negative power is a division by zero. Returning NaN keeps
+  // the lab renderable instead of throwing mid-render.
   const zeroCheck = toComplex(value);
-  const isZero = nearlyEqual(zeroCheck.re, 0, 1e-9) && nearlyEqual(zeroCheck.im, 0, 1e-9);
-  if (isZero) return n < 0 ? { re: Number.NaN, im: Number.NaN } : { re: 0, im: 0 };
+  if (nearlyEqual(zeroCheck.re, 0, 1e-9) && nearlyEqual(zeroCheck.im, 0, 1e-9)) {
+    return n < 0 ? { re: Number.NaN, im: Number.NaN } : { re: 0, im: 0 };
+  }
 
   if (n < 0) return complexDivide({ re: 1, im: 0 }, complexPower(value, -n));
   let result = { re: 1, im: 0 };

@@ -88,6 +88,7 @@ export const MathMasterToolWrapper = ({
       feedbackReleased={feedbackReleased}
       assessmentContext={assessmentContext}
       teacherCalculatorChoice={teacherCalculatorChoice}
+      executionScope={executionScope}
       dolMode={role === 'dol'}
     />
   );

@@ -1,0 +1,41 @@
+MathMaster Phase 5A-5D Reconciled Validation Report
+Date: 2026-08-08
+
+BASELINE
+- MathMaster_FULL_PLATFORM_JSON_PREFLIGHT_MOBILE_FIXED_2026-08-08.zip
+- Preserved cumulative Phase 3A-3D, Batch A-D tools, JSON/preflight fixes, mobile fixes, assignments, DOL, grading, and Classroom behavior.
+
+IMPLEMENTED
+- Phase 5A interactive mastery wheel/dashboard integrated with the real TEKS/mastery source.
+- Phase 5B 14/30/60-day retention scheduler and true two-question Quick Check contract.
+- Phase 5C Student Practice History & Audit Evidence Timeline built from immutable evidence events.
+- Phase 5D authenticated production seam with sanitized question issuance, server grading, retry-safe submission idempotency, path sessions, evidence write, retention sync, and shadow-mastery projection.
+- Previously dormant updated Firebase authentication/login wired into the actual application entry point.
+- Firestore access rules reconciled to authenticated student/teacher roles and Phase 5 collections.
+
+CORRECTED INTEGRATION GAPS
+- TEKS short-code/canonical-key mismatch.
+- Phase 5A/5B state adapter did not reflect the actual legacy mastery engine.
+- Phase 5C canonical filtering and nested question metadata parsing.
+- Missing Phase 5C implementation.
+- 5B retention Quick Check launching the wrong session size.
+- 5D draft references to absent callables/player.
+- Deterministic stable UUID helper was unsuitable as a runtime submission id.
+- Retry path could otherwise create duplicate submissions/evidence.
+- Auth files existed but were not mounted by main/App and Firebase Auth was not exported.
+- Open legacy Firestore rules contradicted the secure-auth architecture.
+- Secure path answers are now kept out of student payloads.
+
+VALIDATION RESULTS
+- node --test tests/platform/*.test.mjs tests/tools/*.test.mjs : PASS, 111/111
+- Phase 5 focused cases included in that run: PASS, 11/11
+- npm run build : PASS
+- npm run lint : PASS (no errors; non-blocking legacy warnings remain)
+- Vite SSR compile, src/toolsLabMain.jsx : PASS
+- Vite SSR compile, src/components/teacher/LessonPreflightModal.jsx : PASS
+- node --check functions/index.js : PASS
+- node --check functions/lib/mathPath.js : PASS
+
+PRODUCTION ACTIVATION GUARD
+- Default VITE_MATHMASTER_EXECUTION_MODE is mockLocal.
+- Set firebaseProduction only after deploying this package's Functions + Firestore rules and publishing server-only pathQuestionBank content for the TEKS that should be live.

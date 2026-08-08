@@ -55,11 +55,8 @@ export const exponentialRegression = (points = []) => {
     .filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y) && y > 0);
   // HIGH-01: a log transform is only defined for y > 0, so non-positive points
   // are filtered rather than used to reject the whole dataset — one stray zero
-  // used to make an otherwise clean exponential set unfittable. `droppedPoints`
-  // is reported so a caller can tell the student the fit ignored some data
-  // instead of silently fitting a subset.
+  // used to make an otherwise clean exponential set unfittable.
   if (clean.length < 2) return null;
-  const droppedPoints = points.length - clean.length;
   const mx = mean(clean.map(([x]) => x));
   const ml = mean(clean.map(([, y]) => Math.log(y)));
   let numerator = 0;
@@ -70,7 +67,7 @@ export const exponentialRegression = (points = []) => {
   });
   if (Math.abs(denominator) < EPS) return null;
   const logBase = numerator / denominator;
-  return { a: Math.exp(ml - logBase * mx), base: Math.exp(logBase), droppedPoints };
+  return { a: Math.exp(ml - logBase * mx), base: Math.exp(logBase) };
 };
 
 export const modelMetrics = (points = [], predict) => {

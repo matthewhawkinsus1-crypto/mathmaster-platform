@@ -85,6 +85,7 @@ export default function GraphScenarioMatch({ question, onStateChange, onUndoStat
           return (
             <article
               key={scenario.id}
+              className="mathmaster-scenario-match-row"
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => { event.preventDefault(); if (draggedGraphId) assignGraph(scenario.id, draggedGraphId); setDraggedGraphId(''); }}
               style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(210px, 310px)', gap: '16px', padding: '18px', borderRadius: '12px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : draggedGraphId ? '#1a73e8' : '#d7dde7'}`, background: grade && !grade.isCorrect ? '#fff8f7' : '#fbfcfe' }}

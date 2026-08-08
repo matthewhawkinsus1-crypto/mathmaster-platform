@@ -41,8 +41,8 @@ export const standardEquationParts = ({ h = 0, k = 0, p = 1, orientation = 'vert
 export const geometryFromFocusDirectrix = ({ focus, directrix } = {}) => {
   if (!Array.isArray(focus) || focus.length !== 2 || !directrix?.kind || !Number.isFinite(Number(directrix.value))) return null;
   const [fx, fy] = focus.map(Number);
-  // MED-02: a focus of ['a', null] passed the Array/length check and produced a
-  // NaN vertex that rendered as an invisible parabola with no error.
+  // MED-02: a focus of ['a', null] passes the Array/length check and produces a
+  // NaN vertex that renders as an invisible parabola with no error.
   if (!Number.isFinite(fx) || !Number.isFinite(fy)) return null;
   const d = Number(directrix.value);
   if (directrix.kind === 'horizontal') {

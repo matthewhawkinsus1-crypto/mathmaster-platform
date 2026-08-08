@@ -15,10 +15,12 @@ Integration fixes completed
 - Activity-role policy now reaches the shared runtime and attempt recorder.
 - DOL, Quiz, and Test enforce one-attempt independent-assessment behavior.
 - Delayed and teacher-release feedback stays neutral until the configured release point.
+- Quiz/Test Classroom grade passback is held until the teacher releases feedback, then queued for sync.
 - Warm-Up keeps engagement grading separate from diagnostic accuracy.
-- Classroom composite grade weights are separate from mastery evidence weights.
+- Classroom composite grade weights use Classwork 40% / DOL 35% / Practice 25%, renormalize over active components, and stay separate from mastery evidence weights.
 - Hybrid/bundle publishing never silently drops Quiz or Test and keeps assessments separate.
-- Bundle V3 uses deterministic stable IDs and strips forbidden question-level policy overrides.
+- Bundle V3 uses deterministic stable IDs, normalizes QuestionDefinition v1, and strips forbidden question-level policy overrides.
+- Deep pre-flight validation blocks Publish and reports teacher-readable bundle/activity/question errors.
 - Calculator inheritance honors activity defaults, including Warm-Up calculator=none.
 - teacherChoice and assessment-context calculator policies are supported.
 - Calculator evaluation does not use JavaScript eval.
@@ -29,12 +31,15 @@ Integration fixes completed
 - Batch A-D tools can pass through the shared policy-aware attempt/mastery runtime.
 - Algebraic response equivalence is hardened against fixed numeric-probe spoofing.
 - Student Quiz/Test dashboard cards do not leak teacher-release grades before release.
+- Teacher Gradebook provides the one-way Quiz/Test feedback release action.
 
 Verification
 ------------
-Focused Phase 3 integration tests: 37 passed / 37 total
-Combined Phase 3 + Batch A-D tests: 93 passed / 93 total
+Combined Phase 3 + Classroom feedback + Batch A-D tests: 96 passed / 96 total
+Cloud Functions syntax check: PASS
 Production Vite build: PASS
+All-tool Lab SSR compile: PASS
+Lesson pre-flight sandbox SSR compile: PASS
 Oxlint: PASS (exit 0; warning-level legacy cleanup items remain, no lint errors)
 
 Build note

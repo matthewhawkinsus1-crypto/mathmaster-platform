@@ -4,6 +4,8 @@ import {
   normalizeQuestionInstructionalMetadata,
 } from './questionMetadata.js';
 import { getTexasStandard, TEXAS_PERFORMANCE_LEVELS } from './texasStandards.js';
+import { resolveDOLQuestionIndex } from './assignmentLifecycle.js';
+import { getEffectiveActivityPolicy, resolveQuestionActivityRole } from './platform/policies/activityPolicies.js';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const round = (value, places = 1) => Number(Number(value || 0).toFixed(places));
@@ -11,20 +13,6 @@ const round = (value, places = 1) => Number(Number(value || 0).toFixed(places));
 const DOK_WEIGHT = { 1: 0.9, 2: 1, 3: 1.1, 4: 1.15 };
 const CLASSIFICATION_WEIGHT = { readiness: 1.1, supporting: 1, content: 1, process: 0.45 };
 
-// How strongly each kind of activity counts as mastery evidence. A test is
-// independent, timed and unaided; a warm-up is a temperature check. Mastery
-// weighting only — the Classroom grade weight is a separate concern.
-const ACTIVITY_ROLE_EVIDENCE_WEIGHT = {
-  warmup: 0.5,
-  diagnostic: 0.6,
-  guidedPractice: 0.75,
-  classwork: 0.9,
-  homework: 0.95,
-  independentPractice: 1,
-  quiz: 1.2,
-  dol: 1.25,
-  test: 1.4,
-};
 const EVIDENCE_LEVEL_WEIGHT = {
   introduced: 0.25,
   practiced: 0.6,
@@ -43,6 +31,13 @@ const getRecencyWeight = (value) => {
   if (ageDays <= 180) return 0.85;
   return 0.75;
 };
+
+const usedMathematicalAssistance = (supportUsage = {}) => supportUsage.isMathematicallyIndependent === false
+  || Boolean(supportUsage.hintUsed)
+  || Boolean(supportUsage.teacherAssisted)
+  || Boolean(supportUsage.scaffoldUsed)
+  || Boolean(supportUsage.remediationUsed)
+  || Boolean(supportUsage.workedExampleUsed);
 
 const makeLevel = (key) => TEXAS_PERFORMANCE_LEVELS.find((item) => item.key === key) || null;
 
@@ -97,35 +92,33 @@ export const recommendGeneratorBand = ({ levelKey, score, confidence } = {}) => 
   return 3;
 };
 
-const resolveQuestionEvidenceWeight = ({ question, assignment, standardEntry, record }) => {
+const resolveQuestionEvidenceWeight = ({ question, assignment, standardEntry, record, questionIndex }) => {
   const metadata = normalizeQuestionInstructionalMetadata(question, assignment);
   const standard = getTexasStandard(standardEntry.code);
   const dok = metadata.complexity.level;
   const modified = Boolean(record.supportUsage?.modified);
-  // Only *mathematical* assistance discounts the evidence. A context/word-problem
-  // scaffold or a calculator changes how the student reached the maths, not
-  // whether they did it, so those must leave the weight untouched — discounting
-  // them would penalise a student for using an authorised accommodation.
-  const usedMathematicalHelp = Boolean(record.supportUsage?.scaffoldUsed) || Boolean(record.supportUsage?.hintUsed);
-  const scaffoldFactor = usedMathematicalHelp ? 0.85 : 1;
+  const scaffoldFactor = usedMathematicalAssistance(record.supportUsage) ? 0.85 : 1;
   const classificationFactor = CLASSIFICATION_WEIGHT[standard?.classification] || 1;
   const evidenceLevelFactor = EVIDENCE_LEVEL_WEIGHT[standardEntry.level] || 1;
   const dokFactor = DOK_WEIGHT[dok] || 0.9;
   const recency = getRecencyWeight(record.lastAttemptAt || record.recordedAt);
   const base = Number(metadata.evidenceWeight) || 0;
-  // How the work was assigned scales how much it says about mastery: a test is
-  // stronger evidence than classwork. This deliberately affects mastery
-  // weighting only and never the Classroom grade weight.
-  const activityEvidenceWeight = ACTIVITY_ROLE_EVIDENCE_WEIGHT[
-    question?.activityRole || assignment?.activityRole
-  ] ?? 1;
-  const weighted = base * classificationFactor * evidenceLevelFactor * dokFactor * scaffoldFactor * recency * activityEvidenceWeight;
+  const dolEnabled = assignment?.dol?.enabled ?? assignment?.assignmentType === 'practice';
+  const activityRole = resolveQuestionActivityRole({
+    question,
+    assignment,
+    isDOL: Boolean(dolEnabled && resolveDOLQuestionIndex(assignment) === questionIndex),
+  });
+  const activityPolicy = getEffectiveActivityPolicy(activityRole);
+  const activityEvidenceWeight = Math.max(0, Number(activityPolicy.mastery.evidenceWeight) || 0);
 
   return {
     rawWeight: base,
+    gradeLevelWeight: modified ? 0 : base * activityEvidenceWeight * classificationFactor * evidenceLevelFactor * dokFactor * scaffoldFactor * recency,
+    modifiedWeight: modified ? base * activityEvidenceWeight * classificationFactor * evidenceLevelFactor * dokFactor * scaffoldFactor * recency : 0,
+    activityRole,
     activityEvidenceWeight,
-    gradeLevelWeight: modified ? 0 : weighted,
-    modifiedWeight: modified ? weighted : 0,
+    activityEvidenceType: activityPolicy.mastery.evidenceType,
     metadata,
     standard,
   };
@@ -148,7 +141,7 @@ export const collectStudentEvidence = ({ student, assignments = [] } = {}) => {
       if (!primary.length) return;
 
       primary.forEach((standardEntry) => {
-        const weights = resolveQuestionEvidenceWeight({ question, assignment, standardEntry, record });
+        const weights = resolveQuestionEvidenceWeight({ question, assignment, standardEntry, record, questionIndex });
         evidence.push({
           studentId: student?.id || '',
           assignmentId: assignment.id,
@@ -167,6 +160,9 @@ export const collectStudentEvidence = ({ student, assignments = [] } = {}) => {
           generatorBand: metadata.difficulty.generatorBand,
           purpose: metadata.purpose,
           evidenceWeight: metadata.evidenceWeight,
+          activityRole: weights.activityRole,
+          activityEvidenceWeight: weights.activityEvidenceWeight,
+          activityEvidenceType: weights.activityEvidenceType,
           gradeLevelWeight: weights.gradeLevelWeight,
           modifiedWeight: weights.modifiedWeight,
           activityEvidenceWeight: weights.activityEvidenceWeight,
@@ -177,6 +173,13 @@ export const collectStudentEvidence = ({ student, assignments = [] } = {}) => {
           eventuallyCorrect: record.status === 'correct',
           modified: Boolean(record.supportUsage?.modified),
           scaffoldUsed: Boolean(record.supportUsage?.scaffoldUsed),
+          hintUsed: Boolean(record.supportUsage?.hintUsed),
+          teacherAssisted: Boolean(record.supportUsage?.teacherAssisted),
+          remediationUsed: Boolean(record.supportUsage?.remediationUsed),
+          workedExampleUsed: Boolean(record.supportUsage?.workedExampleUsed),
+          contextScaffoldUsed: Boolean(record.supportUsage?.contextScaffoldUsed),
+          calculatorUsed: Boolean(record.supportUsage?.calculatorUsed),
+          isMathematicallyIndependent: !usedMathematicalAssistance(record.supportUsage),
           accommodations: record.supportUsage?.accommodations || [],
           modifications: record.supportUsage?.modifications || [],
           lastAttemptAt: record.lastAttemptAt || null,

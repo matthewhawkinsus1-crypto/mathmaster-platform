@@ -456,7 +456,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
         {studentChoosesX && constructionEnabled && <span style={{ padding: '7px 12px', borderRadius: '999px', background: '#f3e8fd', color: '#681da8', fontWeight: 'bold' }}>Student chooses x-values</span>}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(195px, 235px) minmax(0, 760px)', gap: '16px', justifyContent: 'center', alignItems: 'start' }}>
+      <div className="mathmaster-function-workspace-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(195px, 235px) minmax(0, 760px)', gap: '16px', justifyContent: 'center', alignItems: 'start' }}>
         <aside style={{ border: '1px solid #dfe3e7', borderRadius: '12px', background: '#f8fbff', padding: '12px' }}>
           {stage === 'construct' ? (
             <>
@@ -507,7 +507,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
         </aside>
 
         <figure style={{ margin: 0, width: 'min(100%, 780px)', padding: '10px', border: '1px solid #dfe3e7', borderRadius: '12px', background: '#fff', boxSizing: 'border-box' }}>
-          <svg ref={svgRef} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="application" aria-label="Interactive function investigation coordinate plane"
+          <svg ref={svgRef} className="mathmaster-responsive-canvas mathmaster-touch-surface" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="xMidYMid meet" role="application" aria-label="Interactive function investigation coordinate plane"
             onClick={handleGridClick}
             onDragOver={(event) => { event.preventDefault(); const candidate = eventToGraphPoint(event); setDropCandidate(candidate); setHoverPoint(candidate); }}
             onDragLeave={() => setDropCandidate(null)}

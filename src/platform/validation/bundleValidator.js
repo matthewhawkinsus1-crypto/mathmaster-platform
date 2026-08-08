@@ -1,6 +1,7 @@
 import { isActivityRole, toEnforcedActivityPolicy } from '../policies/activityPolicies.js';
 import { CURRENT_BUNDLE_SCHEMA_VERSION } from '../schemas/BundleDefinition.js';
 import { validateQuestionDefinition } from './validatorRegistry.js';
+import { validateLabDefinition } from '../labs/labDefinitionSchema.js';
 
 const policiesMatch = (actual, expected) => (
   actual?.attemptsAllowed === expected.attemptsAllowed
@@ -40,6 +41,7 @@ export const validateLessonBundle = (normalizedBundle) => {
       role: activity?.role || null,
       title: activity?.title || '',
       questionCount: Array.isArray(activity?.questions) ? activity.questions.length : 0,
+      isModelingLab: activity?.isModelingLab === true,
       isValid: true,
       errors: [],
       warnings: [],
@@ -53,7 +55,14 @@ export const validateLessonBundle = (normalizedBundle) => {
       const expectedPolicy = toEnforcedActivityPolicy(activity.role);
       if (!policiesMatch(activity.policy, expectedPolicy)) actReport.errors.push('Activity policy does not match the central policy registry.');
     }
-    if (!Array.isArray(activity?.questions) || activity.questions.length === 0) actReport.errors.push('Activity contains no questions.');
+    const hasQuestions = Array.isArray(activity?.questions) && activity.questions.length > 0;
+    const hasLab = activity?.isModelingLab === true && activity?.labDefinition;
+    if (!hasQuestions && !hasLab) actReport.errors.push('Activity has no questions and no modeling lab.');
+    if (hasLab) {
+      const labValidation = validateLabDefinition(activity.labDefinition);
+      if (!labValidation.isValid) actReport.errors.push(`Modeling lab: ${labValidation.errors.join(' | ')}`);
+      if (labValidation.warnings.length) actReport.warnings.push(`Modeling lab: ${labValidation.warnings.join(' | ')}`);
+    }
 
     (activity?.questions || []).forEach((question, index) => {
       const validation = validateQuestionDefinition(question);
