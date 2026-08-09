@@ -255,8 +255,12 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
     useWhen: ['The process matters as much as the answer.'],
     doNotUseWhen: ['You only need the final value — use algebra.'],
     required: [requires('prompt', 'needs a prompt')],
-    optional: ['equationLatex', 'equation', 'generator'],
-    example: { type: 'stepAlgebra', prompt: 'Solve step by step.', equationLatex: '3x + 6 = 21' },
+    optional: ['equationLatex', 'equation', 'generator', 'workspaceDifficulty'],
+    notes: [
+      '`workspaceDifficulty` is 1-5: 1 Guided, 2 Supported, 3 Standard, 4 Independent, 5 Open. It sets how much the workspace helps, not how hard the equation is. Omit it for Standard.',
+      'The old `"mode": "rigorous" | "exploratory"` still loads and maps to 3 and 5, but do not author it.',
+    ],
+    example: { type: 'stepAlgebra', prompt: 'Solve step by step.', equationLatex: '3x + 6 = 21', workspaceDifficulty: 3 },
   },
 
   literal: {

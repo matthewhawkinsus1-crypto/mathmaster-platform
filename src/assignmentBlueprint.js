@@ -201,9 +201,12 @@ Step-by-step balance algebra:
   "constantRange": [-12, 12]
 }
 
-Use "mode": "exploratory" to allow balanced but unproductive moves without using
-an attempt. Rigorous mode rejects unproductive moves, shakes the workspace, and uses
-one of the attempts permitted by the current activity role. Operations appear on both sides immediately.
+Use "workspaceDifficulty": 1-5 to set how much the workspace helps (1 Guided, 5 Open).
+Balanced but inefficient moves are always allowed at every level: adding an unhelpful
+value to both sides is correct algebra by a longer road, and the workspace says so
+rather than rejecting it. At levels 3 and 4 such a move also uses one of the attempts
+permitted by the current activity role. Only a move that breaks equivalence — multiplying
+or dividing by zero — is refused. Operations appear on both sides immediately.
 Students draw a strike-through line over the inverse pair, see a brief cancellation
 animation, and then the other side simplifies. The AST state and compact stepGrades
 array are stored in the shared question record, not inside a separate module schema.

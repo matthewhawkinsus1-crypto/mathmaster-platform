@@ -234,6 +234,11 @@ export const applyBalancedOperation = ({ equationState, operation, operand: rawO
   const simplificationTargets = cancellationTargets.filter((target) => !target.canCancel);
   const targetBefore = isSolvedEquation(equationState);
   const targetAfter = isSolvedEquation(simplified);
+  // Reported so callers can tell PROGRESS (the equation got simpler) apart from
+  // EFFICIENCY (the move was the helpful one). A move can be valid, make the
+  // equation simpler, and still not be the move a teacher would have chosen.
+  const complexityBefore = nodeComplexity(equationState.left) + nodeComplexity(equationState.right);
+  const complexityAfter = nodeComplexity(simplified.left) + nodeComplexity(simplified.right);
   const productive = numericProductive(analysisBefore, operation, operand.numericValue) || targetAfter || cancellationTargets.some((target) => target.canCancel);
   const preservesSolution = operand.numericValue === 0 && ['multiply', 'divide'].includes(operation) ? false : true;
 
@@ -249,6 +254,8 @@ export const applyBalancedOperation = ({ equationState, operation, operand: rawO
     simplified,
     productive,
     preservesSolution,
+    complexityBefore,
+    complexityAfter,
     solved: isSolvedEquation(simplified),
     analysisBefore,
     analysisAfter,

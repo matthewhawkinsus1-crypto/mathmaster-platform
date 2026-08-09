@@ -107,7 +107,9 @@ const generateStepLinearEquation = (question, random) => {
     rightExpression,
     equation: `${leftExpression} = ${rightExpression}`,
     generatedAnswer: solution,
+    // Carried through for old content; the workspace reads workspaceDifficulty.
     mode: question.mode || generator.mode || 'rigorous',
+    workspaceDifficulty: question.workspaceDifficulty ?? generator.workspaceDifficulty ?? null,
     microQuestions:
       question.microQuestions ?? generator.microQuestions ?? true,
     allowModeToggle:

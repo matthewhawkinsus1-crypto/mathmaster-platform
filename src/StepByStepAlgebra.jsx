@@ -16,6 +16,9 @@ import {
   splitAdditiveTerms,
 } from './algebraAstEngine';
 import { getAttemptsRemaining, normalizeQuestionRecord } from './attemptPolicy';
+import {
+  evaluateMove, getSupportPolicy, resolveEquationAfterMove, resolveSupportLevel,
+} from './algebraSupportLevels';
 
 const OPERATIONS = [
   { id: 'add', symbol: '+', label: 'Add' },
@@ -86,7 +89,13 @@ export default function StepByStepAlgebra({
   const localDraftKey = draftKey ? `${draftKey}:step-algebra` : null;
   const savedDraft = useMemo(() => readQuestionDraft(localDraftKey, null), [localDraftKey]);
   const [equation, setEquation] = useState(savedDraft?.equation || initialEquation);
-  const [mode, setMode] = useState(savedDraft?.mode || question.mode || 'rigorous');
+  // One 1-5 support scale. `resolveSupportLevel` also reads the old
+  // rigorous/exploratory values, so saved drafts and old assignment JSON keep
+  // working without a migration pass.
+  const [supportLevel, setSupportLevel] = useState(
+    () => resolveSupportLevel({ workspaceDifficulty: savedDraft?.supportLevel ?? savedDraft?.mode ?? question.workspaceDifficulty ?? question.mode }),
+  );
+  const supportPolicy = getSupportPolicy(supportLevel);
   const [operand, setOperand] = useState(savedDraft?.operand || '2');
   const [pendingMove, setPendingMove] = useState(savedDraft?.pendingMove || null);
   const [crossedSides, setCrossedSides] = useState(savedDraft?.crossedSides || []);
@@ -102,7 +111,11 @@ export default function StepByStepAlgebra({
   const [armedTile, setArmedTile] = useState(null); // { operation, side }
   const [heldToken, setHeldToken] = useState(null); // { x, y, label }
   const [mirrorToken, setMirrorToken] = useState(null); // { x, y, label } | null
-  const [cancellationHintsEnabled, setCancellationHintsEnabled] = useState(true);
+  // Cues default to what the level says, and the student may still turn them
+  // off. A level 4/5 workspace starts quiet rather than starting loud.
+  const [cancellationHintsEnabled, setCancellationHintsEnabled] = useState(
+    () => getSupportPolicy(resolveSupportLevel({ workspaceDifficulty: question.workspaceDifficulty ?? question.mode })).showCancellationHints,
+  );
   const [factorZoneHint, setFactorZoneHint] = useState(null); // { side, position } | null
   const [manualSelection, setManualSelection] = useState(null); // { side, index } | null
   const prefillAppliedRef = useRef(false);
@@ -128,7 +141,7 @@ export default function StepByStepAlgebra({
     // change that had no saved draft — which is every fresh question after the
     // first — and the workspace rendered empty.
     setEquation(getInitialEquation(question, normalizeQuestionRecord(questionRecord)).equation);
-    setMode(question.mode || 'rigorous');
+    setSupportLevel(resolveSupportLevel({ workspaceDifficulty: question.workspaceDifficulty ?? question.mode }));
     setPendingMove(null);
     setCrossedSides([]);
     setSimplificationAnswers({});
@@ -155,14 +168,14 @@ export default function StepByStepAlgebra({
   useEffect(() => {
     writeQuestionDraft(localDraftKey, {
       equation,
-      mode,
+      supportLevel,
       operand,
       pendingMove,
       crossedSides,
       simplificationAnswers,
       promptAnswers,
     });
-  }, [localDraftKey, equation, mode, operand, pendingMove, crossedSides, simplificationAnswers, promptAnswers]);
+  }, [localDraftKey, equation, supportLevel, operand, pendingMove, crossedSides, simplificationAnswers, promptAnswers]);
 
   useEffect(() => {
     const solved = isSolvedEquation(equation);
@@ -221,7 +234,7 @@ export default function StepByStepAlgebra({
         stepGrade: {
           kind: accepted ? 'balanced-operation' : 'rejected-operation',
           label: describeOperation(move.operation, move.operandExpression),
-          mode,
+          supportLevel,
           productive: move.productive,
           accepted,
           earned,
@@ -232,7 +245,7 @@ export default function StepByStepAlgebra({
         },
         countsAttempt,
         statePatch: accepted ? {
-          algebraState: { equation: equationAfter, mode, stepNumber: Number(normalizedRecord.algebraState?.stepNumber || 0) + 1 },
+          algebraState: { equation: equationAfter, supportLevel, stepNumber: Number(normalizedRecord.algebraState?.stepNumber || 0) + 1 },
           questionDetails: `Current equation: ${equationToLatex(equationAfter)}`,
         } : { questionDetails: `Rejected move: ${describeOperation(move.operation, move.operandExpression)}` },
       });
@@ -244,9 +257,15 @@ export default function StepByStepAlgebra({
   const commitMove = async (move) => {
     setCancelAnimating(true);
     window.setTimeout(async () => {
-      const earned = move.productive ? 2 : mode === 'exploratory' ? 1 : 0;
+      const verdict = evaluateMove(move, supportLevel);
+      // Valid work earns something even when it was the long way round. Only an
+      // equivalence-breaking move earns nothing, and those never reach here.
+      const earned = verdict.efficient ? 2 : verdict.valid ? 1 : 0;
       await saveStep({ move, earned, possible: 2, countsAttempt: false, accepted: true, equationAfter: move.simplified });
-      setEquation(move.simplified);
+      // F4: above Guided, the side the student did not cancel keeps its
+      // operation visible — 21 - 6, not 15 — because doing that arithmetic for
+      // them removes the step the exercise is about.
+      setEquation(resolveEquationAfterMove(move, supportLevel, crossedSides));
       setPendingMove(null);
       setCrossedSides([]);
       setSimplificationAnswers({});
@@ -257,8 +276,10 @@ export default function StepByStepAlgebra({
         text: move.solved
           ? 'The cancellation is complete and the target form has been reached.'
           : move.productive
-            ? 'The marked terms canceled. The other side simplified automatically while the equation stayed balanced.'
-            : 'The equation stayed balanced, but the path became longer. Look for a cancellation on the next move.',
+            ? supportPolicy.autoSimplifyOppositeSide
+              ? 'The marked terms canceled. The other side simplified automatically while the equation stayed balanced.'
+              : 'The marked terms canceled. Now simplify the other side yourself.'
+            : verdict.message,
       });
     }, 620);
   };
@@ -288,14 +309,18 @@ export default function StepByStepAlgebra({
       return;
     }
 
-    if (mode === 'rigorous' && !move.productive) {
-      window.setTimeout(async () => {
-        triggerShake();
-        const result = await saveStep({ move, earned: 0, possible: 1, countsAttempt: true, accepted: false });
+    // F3. An inefficient move is NOT rejected. It is valid algebra by a longer
+    // road, so it is applied and described; at levels 3 and 4 it also costs an
+    // attempt, which is a pacing decision rather than a verdict on the maths.
+    const verdict = evaluateMove(move, supportLevel);
+    if (verdict.countsAttempt) {
+      const result = await saveStep({ move, earned: 1, possible: 2, countsAttempt: true, accepted: true });
+      if (result?.expired) {
         setPendingMove(null);
-        setMessage({ tone: 'error', text: result?.expired ? 'That was the third unproductive move. This version has expired.' : `The mirrored move was balanced, but it did not cancel or isolate anything. ${result?.remainingAttempts ?? getAttemptsRemaining(normalizedRecord, maximumAttempts)} rigorous attempts remain.` });
-      }, 850);
-      return;
+        setMessage({ tone: 'error', text: 'That used the final attempt on this version.' });
+        return;
+      }
+      setMessage({ tone: 'growth', text: `${verdict.message} ${result?.remainingAttempts ?? getAttemptsRemaining(normalizedRecord, maximumAttempts)} attempts remain at this level.` });
     }
 
     if (move.requiredCancellationSides.length === 0) {
@@ -310,9 +335,9 @@ export default function StepByStepAlgebra({
     const valid = pendingMove.requiredCancellationSides.includes(side);
     if (!valid) {
       triggerShake();
-      if (mode === 'rigorous') {
+      if (supportPolicy.inefficientMoveCostsAttempt) {
         const result = await saveStep({ move: pendingMove, earned: 0, possible: 1, countsAttempt: true, accepted: false });
-        setMessage({ tone: 'error', text: result?.expired ? 'The third invalid cancellation used the final attempt.' : `That side simplifies, but those items do not cancel. ${result?.remainingAttempts ?? getAttemptsRemaining(normalizedRecord, maximumAttempts)} rigorous attempts remain.` });
+        setMessage({ tone: 'error', text: result?.expired ? 'The third invalid cancellation used the final attempt.' : `That side simplifies, but those items do not cancel. ${result?.remainingAttempts ?? getAttemptsRemaining(normalizedRecord, maximumAttempts)} attempts remain.` });
         if (result?.expired) { setPendingMove(null); setManualSelection(null); }
       } else setMessage({ tone: 'growth', text: 'That is not the cancellation pair. Try drawing through the inverse pair on the other side.' });
       return;
@@ -364,7 +389,7 @@ export default function StepByStepAlgebra({
     const incorrect = targets.filter((target) => !expressionsEquivalent(simplificationAnswers[target.side], target.simplifiedExpression, equation.variable));
     if (incorrect.length) {
       triggerShake();
-      if (mode === 'rigorous') {
+      if (supportPolicy.inefficientMoveCostsAttempt) {
         const result = await saveStep({ move: pendingMove, earned: 0, possible: 1, countsAttempt: true, accepted: false });
         setMessage({ tone: 'error', text: result?.expired ? 'The third incorrect simplification used the final attempt.' : `Revise the ${incorrect.map((target) => target.label.toLowerCase()).join(' and ')} simplification. Algebraically equivalent forms are accepted.` });
       } else {
@@ -596,7 +621,7 @@ export default function StepByStepAlgebra({
     <section className={shake ? 'algebra-shake' : ''} style={{ maxWidth: '1120px', margin: '0 auto', padding: '10px 10px 24px', textAlign: 'left' }}>
       <QuestionPrompt>{question.prompt || 'Solve the equation by keeping both sides balanced.'}</QuestionPrompt>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '999px', background: mode === 'exploratory' ? '#e8f0fe' : '#f3e8fd', color: mode === 'exploratory' ? '#174ea6' : '#681da8', fontWeight: 'bold' }}>{mode === 'exploratory' ? 'Exploratory / Growth Mode' : 'Rigorous / Attempts Mode'}</div>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '999px', background: supportPolicy.level >= 4 ? '#e8f0fe' : '#f3e8fd', color: supportPolicy.level >= 4 ? '#174ea6' : '#681da8', fontWeight: 'bold' }}>{`Support ${supportPolicy.level} · ${supportPolicy.label}`}</div>
         <div style={{ padding: '8px 12px', borderRadius: '999px', background: '#e6f4ea', color: '#137333', fontWeight: 'bold' }}>{objectiveLabel}</div>
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', fontSize: '12px', fontWeight: 'bold', color: '#5f6368' }}>
           <input type="checkbox" checked={cancellationHintsEnabled} onChange={(event) => setCancellationHintsEnabled(event.target.checked)} style={{ width: '15px', height: '15px' }} />
@@ -705,7 +730,12 @@ export default function StepByStepAlgebra({
       {pendingMove?.assumption && <p style={{ color: '#8a5a00', fontWeight: 'bold' }}>Required assumption: <MathDisplay value={pendingMove.assumption} inline /></p>}
       {question.showHint !== false && suggestedMove && !solved && <details style={{ marginTop: '14px', color: '#5f6368' }}><summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Need a strategic hint?</summary><p style={{ margin: '8px 0 0' }}>Look for a move that cancels a term: {describeOperation(suggestedMove.operation, suggestedMove.operand)}.</p></details>}
       {message && <div role="status" style={{ marginTop: '16px', padding: '13px 15px', borderRadius: '10px', background: message.tone === 'success' ? '#e6f4ea' : message.tone === 'growth' ? '#fef7e0' : '#fce8e6', color: message.tone === 'success' ? '#137333' : message.tone === 'growth' ? '#8a5a00' : '#c5221f', fontWeight: 'bold' }}>{message.text}</div>}
-      {mode === 'rigorous' && <p style={{ color: '#5f6368', fontSize: '13px', marginTop: '12px' }}>Rigorous attempts remaining: <strong>{attemptsRemaining}</strong>. Unproductive operations and invalid cancellation marks use attempts.</p>}
+      <p style={{ color: '#5f6368', fontSize: '13px', marginTop: '12px' }}>
+        {supportPolicy.description}
+        {supportPolicy.inefficientMoveCostsAttempt
+          ? ` Attempts remaining: ${attemptsRemaining}. A longer route still counts as correct algebra, but it uses an attempt at this level.`
+          : ' A longer route is still correct algebra here and costs nothing.'}
+      </p>
 
       {heldToken && (
         <div aria-hidden="true" style={{ position: 'fixed', left: heldToken.x, top: heldToken.y, transform: 'translate(-50%, -50%)', zIndex: 40, pointerEvents: 'none', fontFamily: 'ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace', fontWeight: 800, fontSize: '22px', color: '#174ea6', background: '#e8f0fe', borderRadius: '12px', padding: '6px 12px', boxShadow: '0 12px 26px rgba(26,115,232,0.3)', whiteSpace: 'nowrap' }}>{heldToken.label}</div>
