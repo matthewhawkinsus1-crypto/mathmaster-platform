@@ -83,6 +83,10 @@ import {
 } from './platform/policies/activityPolicies';
 import { SMART_VIEWS, matchesSmartView } from './assignmentSmartViews';
 import { assignmentFolderMatches, normalizeFolderPath, normalizeFolderPaths, renameFolderPath, titleOrFolderMatches } from './assignmentFolders';
+import {
+  assertPublishable, buildDestinationGroups, destinationAssignmentKey,
+  isLibraryAssignment, resolveAssignmentDates, resolveCreationMode,
+} from './assignmentDestinations';
 import LessonPreflightModal from './components/teacher/LessonPreflightModal';
 import { normalizeLessonBundle } from './platform/schemas/BundleDefinition';
 import { normalizeLabDefinition } from './platform/labs/labDefinitionSchema.js';
@@ -1712,30 +1716,27 @@ function App() {
       const assignedClassPeriods = teacherReview
         ? [...(teacherReview.assignedClassPeriods || [])]
         : [...(packageMetadata?.assignedClassPeriods || CLASS_PERIODS)];
+      // A teacher-reviewed creation says exactly which classes it goes to,
+      // including none. Only the no-review path falls back to every period.
 
-      if (teacherReview && assignedClassPeriods.length === 0) {
-        throw new Error('Select at least one class period in the JSON pre-flight review.');
-      }
+      // Two paths from here, decided by one predicate: no classes means Save to
+      // Library, which needs a title and nothing else. Selecting a class turns
+      // it into Create & Assign, and the due date becomes required.
+      const creationMode = resolveCreationMode({ assignedClassPeriods });
 
       if (!title) {
         throw new Error('Assignment title is missing. Add a title in the preflight review before publishing.');
       }
-      if (!dueValue || !lateDueValue) {
-        throw new Error('A regular due date and a final late due date are both required. Set them in the preflight review before publishing.');
-      }
 
-      const dueAt = new Date(dueValue);
-      const lateDueAt = new Date(lateDueValue);
-      if (Number.isNaN(dueAt.getTime()) || Number.isNaN(lateDueAt.getTime()) || lateDueAt <= dueAt) {
-        throw new Error('The late due date must be later than the regular due date. ISO date-time strings with a timezone offset are recommended in Assignment Package JSON.');
-      }
-
-      let releaseAt = null;
-      if (releaseValue) {
-        const parsedRelease = new Date(releaseValue);
-        if (Number.isNaN(parsedRelease.getTime())) throw new Error('The assignment releaseAt value is not a valid date/time.');
-        releaseAt = parsedRelease.toISOString();
-      }
+      // Throws with the teacher-facing message when an assigned creation is
+      // missing its date, and returns nulls for a library save rather than
+      // inventing a due date nobody chose.
+      const { dueAt, lateDueAt, dueDate, releaseAt } = resolveAssignmentDates({
+        mode: creationMode,
+        dueValue,
+        lateDueValue,
+        releaseValue,
+      });
 
       if (variantMode === 'personalized' && parsed.questions.some((question) => !isPersonalizedBlueprint(question))) {
         setNewAssignmentJSON(parsed.normalizedText);
@@ -1800,9 +1801,9 @@ function App() {
 
       const assignmentPayloadBase = {
         title,
-        dueAt: dueAt.toISOString(),
-        lateDueAt: lateDueAt.toISOString(),
-        dueDate: dueAt.toISOString(),
+        dueAt,
+        lateDueAt,
+        dueDate,
         assignmentType,
         variantMode,
         releaseAt,
@@ -1839,15 +1840,10 @@ function App() {
         return [definition.labId, { definition, activity }];
       }));
 
-      const destinationGroups = Object.values(assignedClassPeriods.reduce((groups, period) => {
-        const profile = courseProfiles?.[period] || { course: 'algebra1', courseLevel: 'standard' };
-        const course = profile.course || 'algebra1';
-        const courseLevel = profile.courseLevel === 'honors' ? 'honors' : 'standard';
-        const key = `${course}:${courseLevel}`;
-        if (!groups[key]) groups[key] = { key, course, courseLevel, periods: [] };
-        groups[key].periods.push(period);
-        return groups;
-      }, {}));
+      // Extracted so assigning a library item later runs the same split rather
+      // than a second copy of it. A library save returns [] here, which is the
+      // correct answer: nobody has been given it, so there is nothing to split.
+      const destinationGroups = buildDestinationGroups({ assignedClassPeriods, courseProfiles });
       const sourceHonorsReport = inspectHonorsRigor(parsedQuestions, { allowNarrowCheckpoint: true });
       const splitVariantGroupId = destinationGroups.length > 1 ? `rigor_${createQuestionId()}` : null;
 
@@ -1874,9 +1870,11 @@ function App() {
           courseProfile: { course: destination.course, courseLevel: destination.courseLevel },
           rigorVariant: destination.courseLevel,
           rigorVariantGroupId: splitVariantGroupId,
-          assignmentKey: packageMetadata?.assignmentKey
-            ? destinationGroups.length > 1 ? `${packageMetadata.assignmentKey}:${destination.course}:${destination.courseLevel}` : packageMetadata.assignmentKey
-            : null,
+          assignmentKey: destinationAssignmentKey({
+            assignmentKey: packageMetadata?.assignmentKey,
+            destination,
+            destinationCount: destinationGroups.length,
+          }),
           honorsContractVersion: destination.courseLevel === 'honors' ? 1 : null,
           honorsContractScope: destination.courseLevel === 'honors' ? sourceHonorsReport.scope : null,
         };
@@ -1921,15 +1919,23 @@ function App() {
         return { destination, questions: destinationQuestions };
       });
 
-      for (const variant of destinationVariants) {
-        // Sequential writes keep the destination variants and their private lab
-        // definitions easy to audit. A normal assignment creates one group.
-        // eslint-disable-next-line no-await-in-loop
-        await writeAssignmentVariant(variant);
-      }
-
-      if (destinationGroups.length === 0) {
-        throw new Error('Select at least one class period before creating the assignment.');
+      if (creationMode === 'library') {
+        // ONE canonical document, deliberately without a course/rigor variant.
+        // Choosing a destination now would be guessing: the teacher has not said
+        // which classes get it, and materialising a Standard variant today would
+        // be wrong the moment they assign it to an Honors class. The split runs
+        // when the assignment is actually assigned, through the same helper.
+        await writeAssignmentVariant({
+          destination: { course: null, courseLevel: null, periods: [] },
+          questions: parsedQuestions,
+        });
+      } else {
+        for (const variant of destinationVariants) {
+          // Sequential writes keep the destination variants and their private lab
+          // definitions easy to audit. A normal assignment creates one group.
+          // eslint-disable-next-line no-await-in-loop
+          await writeAssignmentVariant(variant);
+        }
       }
 
       // The intake is stateless now — closing preflight and clearing the held
@@ -1942,8 +1948,10 @@ function App() {
         : '';
       const sourceMessage = parsed.isBundle ? 'Created from Lesson Bundle V3 JSON after teacher pre-flight review.' : parsed.isPackage ? 'Created from Assignment Package JSON.' : 'Created from legacy question-array JSON.';
       toastSuccess(
-        `Published “${title}”`,
-        `${sourceMessage} Assigned to ${assignedClassPeriods.length || 'all'} class period(s)${folder ? `\nFolder: ${folder}` : ''}.${repairMessage}`,
+        creationMode === 'library' ? `Saved “${title}” to the library` : `Published “${title}”`,
+        creationMode === 'library'
+          ? `${sourceMessage} Not assigned to any class yet, so it has no due date. Assign it when you are ready.${folder ? `\nFolder: ${folder}` : ''}${repairMessage}`
+          : `${sourceMessage} Assigned to ${assignedClassPeriods.length} class period(s)${folder ? `\nFolder: ${folder}` : ''}.${repairMessage}`,
       );
 
     } catch (error) {
@@ -3514,8 +3522,11 @@ function App() {
                             <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#e8f0fe', color: '#174ea6' }}>{assignment.assignmentType === 'notesClasswork' ? 'NOTES / CLASSWORK' : 'PRACTICE'}</span>
                             {assignment.variantMode === 'shared' && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#e6f4ea', color: '#137333' }}>SHARED VERSION</span>}
                             {assignment.archived && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#f1f3f4', color: '#5f6368' }}>ARCHIVED</span>}
+                            {/* A library item has no audience and no due date. Saying so
+                                plainly is the whole point of allowing it to exist. */}
+                            {isLibraryAssignment(assignment) && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#fef7e0', color: '#7a4f00' }}>NOT ASSIGNED</span>}
                           </div>
-                          <div style={{ marginTop: '7px', color: '#5f6368', fontSize: '13px', lineHeight: 1.55 }}>{getIncludedQuestionIndices(assignment).length} included question{getIncludedQuestionIndices(assignment).length === 1 ? '' : 's'}{(assignment.questions?.length || 0) !== getIncludedQuestionIndices(assignment).length ? ` · ${assignment.questions.length - getIncludedQuestionIndices(assignment).length} excluded` : ''} · Classes: {(assignment.assignedClassPeriods || CLASS_PERIODS).join(', ')}<br />Due {formatDueDate(assignment)} · Late close {formatLateDueDate(assignment)} · {affectedStudents} student record{affectedStudents === 1 ? '' : 's'}</div>
+                          <div style={{ marginTop: '7px', color: '#5f6368', fontSize: '13px', lineHeight: 1.55 }}>{getIncludedQuestionIndices(assignment).length} included question{getIncludedQuestionIndices(assignment).length === 1 ? '' : 's'}{(assignment.questions?.length || 0) !== getIncludedQuestionIndices(assignment).length ? ` · ${assignment.questions.length - getIncludedQuestionIndices(assignment).length} excluded` : ''} · {isLibraryAssignment(assignment) ? 'Not assigned to a class' : `Classes: ${(assignment.assignedClassPeriods || []).join(', ')}`}<br />{isLibraryAssignment(assignment) ? 'No due date yet' : `Due ${formatDueDate(assignment)} · Late close ${formatLateDueDate(assignment)}`} · {affectedStudents} student record{affectedStudents === 1 ? '' : 's'}</div>
                         </div>
                         <AssignmentCardMenu
                           ariaLabel={`More actions for ${assignment.title}`}

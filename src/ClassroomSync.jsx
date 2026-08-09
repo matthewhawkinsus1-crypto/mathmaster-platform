@@ -9,6 +9,7 @@ import {
   publishAssignmentToClassrooms,
   listPublishedAssignments,
 } from './classroomApi';
+import { assertPublishable, isLibraryAssignment } from './assignmentDestinations';
 
 const card = { background: '#fff', borderRadius: '12px', padding: '5px' };
 const label = { display: 'block', fontSize: '13px', fontWeight: 'bold', color: '#5f6368', marginBottom: '6px' };
@@ -186,6 +187,15 @@ export default function ClassroomSync({ assignments = [] }) {
       setError('Select a MathMaster assignment.');
       return;
     }
+    // An unassigned library item has no audience and no due date, so there is
+    // nothing coherent to post. Caught here rather than at the server so the
+    // teacher gets the reason instead of a failed publish.
+    try {
+      assertPublishable(assignments.find((assignment) => assignment.id === assignmentId));
+    } catch (guardError) {
+      setError(guardError.message);
+      return;
+    }
 
     setBusy(true);
     setError(null);
@@ -344,7 +354,11 @@ export default function ClassroomSync({ assignments = [] }) {
                   <select style={input} value={assignmentId} onChange={(event) => setAssignmentId(event.target.value)}>
                     <option value="">Select an assignment…</option>
                     {assignments.map((assignment) => (
-                      <option key={assignment.id} value={assignment.id}>{assignment.title}</option>
+                      // A library item is listed but marked, so a teacher sees
+                      // why it cannot be posted rather than wondering where it went.
+                      <option key={assignment.id} value={assignment.id}>
+                        {assignment.title}{isLibraryAssignment(assignment) ? ' — not assigned' : ''}
+                      </option>
                     ))}
                   </select>
                 </div>

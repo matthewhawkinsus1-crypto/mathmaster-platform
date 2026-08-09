@@ -10,6 +10,14 @@
 // instead of asking the teacher to go hunting.
 //
 // Kept free of React so the grouping and the readiness maths are testable.
+//
+// TWO ACTIONS, NOT ONE. Since the assignment library exists, this screen serves
+// both "save this for later" and "give this to a class today". They need
+// different things — the second needs a due date, the first needs nothing but a
+// title — so the blockers are conditional on which action the teacher is
+// actually taking, which is decided by whether any class is selected.
+
+import { CREATION_MODE_LABELS, resolveCreationMode } from '../../assignmentDestinations.js';
 
 export const PREFLIGHT_STEPS = Object.freeze([
   { id: 'details', label: 'Details', hint: 'Title, folder and dates' },
@@ -42,15 +50,22 @@ export const collectReviewBlockers = ({
   const draft = rawDraft && typeof rawDraft === 'object' && !Array.isArray(rawDraft) ? rawDraft : {};
   const blockers = [];
 
+  const assignedPeriods = Array.isArray(draft.assignedClassPeriods) ? draft.assignedClassPeriods : [];
+  // Saving to the library and assigning to students are different actions with
+  // different requirements. A title is the only thing both need.
+  const mode = resolveCreationMode({ assignedClassPeriods: assignedPeriods });
+
   if (!String(draft.title || '').trim()) {
     blockers.push(blocker('details', 'Give the assignment a title.'));
   }
-  if (!draft.dueAt) {
-    blockers.push(blocker('details', 'Set a regular due date.'));
+  // A due date matters only once somebody is going to receive it. Requiring one
+  // to save to the library forced teachers to invent a date and then remember
+  // to fix it, which is worse than having none.
+  if (mode === 'assign' && !draft.dueAt) {
+    blockers.push(blocker('details', 'Set a due date before assigning this to students.'));
   }
-  if (!draft.lateDueAt) {
-    blockers.push(blocker('details', 'Set a final late due date.'));
-  }
+  // The late window is optional now. Without one, work after the due date is
+  // practice rather than a second graded chance.
   if (draft.dueAt && draft.lateDueAt) {
     const due = parseDate(draft.dueAt);
     const late = parseDate(draft.lateDueAt);
@@ -68,10 +83,8 @@ export const collectReviewBlockers = ({
     }
   }
 
-  const assigned = Array.isArray(draft.assignedClassPeriods) ? draft.assignedClassPeriods : [];
-  if (classPeriods.length && assigned.length === 0) {
-    blockers.push(blocker('classes', 'Choose at least one class period.'));
-  }
+  // Selecting no class is no longer a blocker — it is the library path, and the
+  // Check step says so rather than the Classes step complaining about it.
   if (honorsSelected && honorsReport && !honorsReport.isHonorsReady) {
     blockers.push(blocker('classes', 'An Honors class is selected, so the missing rigor and CCMR elements have to be resolved first.'));
   }
@@ -128,4 +141,15 @@ export const blockersForStep = (readiness, stepId) => (
 export const stepIndex = (stepId) => {
   const index = PREFLIGHT_STEP_IDS.indexOf(stepId);
   return index === -1 ? 0 : index;
+};
+
+/**
+ * What the primary button says and what it will do, from the same predicate the
+ * blockers use. The label is the honest description of the action, so a teacher
+ * cannot press "Create & Assign" and get an unassigned library item.
+ */
+export const describePreflightAction = (draft) => {
+  const safeDraft = draft && typeof draft === 'object' && !Array.isArray(draft) ? draft : {};
+  const mode = resolveCreationMode({ assignedClassPeriods: safeDraft.assignedClassPeriods });
+  return { mode, ...CREATION_MODE_LABELS[mode] };
 };

@@ -22,12 +22,25 @@ test('a complete draft has nothing blocking it', () => {
 });
 
 test('every blocker names the step that can fix it', () => {
-  const blockers = collectReviewBlockers({ draft: {}, classPeriods: ['Period 1'] });
-  assert.ok(blockers.length >= 4);
-  assert.ok(blockers.every((entry) => PREFLIGHT_STEP_IDS.includes(entry.stepId)),
+  // An empty draft is now a LIBRARY save, so the only thing missing is a title.
+  // Selecting no class stopped being a blocker when saving unassigned became a
+  // supported action; it is the other path, not an error.
+  const library = collectReviewBlockers({ draft: {}, classPeriods: ['Period 1'] });
+  assert.deepEqual(messagesOf(library), ['Give the assignment a title.']);
+
+  // An assigning draft still has to satisfy several steps at once.
+  const assigning = collectReviewBlockers({
+    draft: { assignedClassPeriods: ['Period 1'], dolEnabled: true, dolMinutesBeforeEnd: 90 },
+    classPeriods: ['Period 1'],
+    honorsSelected: true,
+    honorsReport: { isHonorsReady: false },
+  });
+  assert.ok(assigning.length >= 3);
+  assert.ok(assigning.every((entry) => PREFLIGHT_STEP_IDS.includes(entry.stepId)),
     'a blocker with no step would be invisible on the phone layout');
-  assert.ok(blockers.some((entry) => entry.stepId === 'details'));
-  assert.ok(blockers.some((entry) => entry.stepId === 'classes'));
+  assert.ok(assigning.some((entry) => entry.stepId === 'details'));
+  assert.ok(assigning.some((entry) => entry.stepId === 'classes'));
+  assert.ok(assigning.some((entry) => entry.stepId === 'delivery'));
 });
 
 test('the late date must be after the due date', () => {
@@ -100,11 +113,18 @@ test('bundle validation errors land on the Check step', () => {
 
 test('readiness counts per step so a phone can badge the right one', () => {
   const readiness = summarizePreflightReadiness({
-    blockers: collectReviewBlockers({ draft: {}, classPeriods: ['Period 1'] }),
+    blockers: collectReviewBlockers({
+      draft: { assignedClassPeriods: ['Period 1'], dolEnabled: true, dolMinutesBeforeEnd: 90 },
+      classPeriods: ['Period 1'],
+      honorsSelected: true,
+      honorsReport: { isHonorsReady: false },
+    }),
     validationErrors: ['bundle problem'],
   });
-  assert.equal(readiness.countByStep.details, 3);
+  // title + due date
+  assert.equal(readiness.countByStep.details, 2);
   assert.equal(readiness.countByStep.classes, 1);
+  assert.equal(readiness.countByStep.delivery, 1);
   assert.equal(readiness.countByStep.check, 1);
   assert.equal(readiness.total, 5);
   assert.equal(readiness.firstBlockedStep, 'details', 'send the teacher to the earliest problem');

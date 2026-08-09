@@ -8,7 +8,7 @@ import { buildHonorsEnrichmentQuestion, inspectHonorsRigor, splitClassPeriodsByR
 import RepresentationAudit from './RepresentationAudit';
 import {
   PREFLIGHT_STEPS, blockersForStep, collectReviewBlockers,
-  stepIndex, summarizePreflightReadiness,
+  describePreflightAction, stepIndex, summarizePreflightReadiness,
 } from './preflightSteps';
 
 // Narrow enough that side-by-side panels stop working. Matches the breakpoint
@@ -209,6 +209,10 @@ export const LessonPreflightModal = ({
   }));
 
   const canCreate = readiness.canCreate && !busy;
+  // The button says which of the two actions it performs. A teacher who has
+  // selected no class is saving to the library, and the label should not
+  // promise them an assignment their students will receive.
+  const action = describePreflightAction(draft);
   const currentIndex = stepIndex(activeStep);
   const isLastStep = currentIndex === PREFLIGHT_STEPS.length - 1;
   // On a wide screen every step is on the page at once, so a per-step blocker
@@ -566,9 +570,15 @@ export const LessonPreflightModal = ({
                 }}
                 style={{ flex: isNarrow ? 2 : undefined, minHeight: isNarrow ? 48 : 44, padding: '10px 20px', border: 'none', borderRadius: 8, background: canCreate ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 800 }}
               >
-                {busy ? 'Creating…' : isNarrow ? 'Create' : 'Apply Review & Create Assignment'}
+                {busy ? 'Saving…' : isNarrow ? (action.mode === 'library' ? 'Save' : 'Assign') : action.action}
               </button>
             )}
+          </div>
+
+          {/* Why the button says what it says. Without this a teacher who
+              forgot to tick a class reads "Save to Library" as a bug. */}
+          <div style={{ marginTop: 8, color: '#5f6368', fontSize: 12, lineHeight: 1.5, textAlign: isNarrow ? 'center' : 'right' }}>
+            {action.hint}
           </div>
 
           {isNarrow && !canCreate && !busy && readiness.firstBlockedStep && readiness.firstBlockedStep !== activeStep && (
