@@ -1,5 +1,6 @@
 import { QUESTION_TYPE_CATALOG, getTypeEntry } from './questionTypeCatalog.js';
 import { inequalityMatchesIntervals } from '../../tools/intervalNumberLine/intervalMath.js';
+import { validateWorkflow } from '../workflow/questionWorkflow.js';
 
 // Recognising a type name is not validation. `{ type: 'graphAnalysis', prompt:
 // 'A graph falls from left to right until x = 2' }` used to pass because
@@ -132,6 +133,14 @@ export const validateQuestionSemantics = (question = {}, { label = 'Question' } 
       }
       custom.forEach((message) => errors.push(`${label} (${type}) ${message}.`));
     }
+  }
+
+  // A composed question's workflow. An unknown stage kind would otherwise
+  // render as nothing at all, and a stage reading from a later one would grade
+  // work the student has not done yet — both are silent in the JSON and loud
+  // for the student.
+  if (Array.isArray(question.workflow) && question.workflow.length) {
+    validateWorkflow(question.workflow, { label }).errors.forEach((message) => errors.push(message));
   }
 
   // An interval number line that disagrees with its own inequality.

@@ -1,0 +1,193 @@
+// Composing a question out of interaction primitives.
+//
+// A rich question is three separate things, and keeping them separate is the
+// point (see INTERACTION_COMPOSITION_ARCHITECTURE.md):
+//
+//   content   what mathematics exists      — scenario, equation, domain
+//   workflow  what the student is asked to do — an ordered list of stages
+//   grading   what counts as correct
+//
+// The failure this prevents is answers living in the fields that describe what
+// the student sees. When `answer` sits beside `prompt`, every renderer has to
+// remember not to show it, and one that forgets leaks the answer. Here the
+// renderer is given `content` and `workflow` and never sees `grading` at all.
+//
+// This module is pure: it normalises, validates and orders. It renders nothing.
+
+import { STAGE_OUTPUT, getStage, isKnownStageKind, resolveStageKind } from './interactionStages.js';
+
+const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
+
+/**
+ * A stage's id. Authors may name a stage so a later one can refer to it;
+ * otherwise the kind serves, which is what the short examples rely on.
+ */
+const stageId = (raw, index, usedIds) => {
+  const explicit = String(raw?.id || '').trim();
+  if (explicit) return explicit;
+  const kind = resolveStageKind(raw) || `stage${index + 1}`;
+  // `equationInput` is referred to as "equation" in authored JSON far more often
+  // than by its full kind, so both resolve.
+  const short = kind.replace(/Input$|Construction$|Diagram$|Plot$|Graph$/, '');
+  return usedIds.has(short) ? kind : short;
+};
+
+/**
+ * Normalise one stage entry. Unknown kinds survive normalisation carrying an
+ * `unknown` flag so validation can report them by name rather than dropping
+ * them silently — a stage that vanishes is worse than one that errors.
+ */
+export const normalizeStage = (raw, index, usedIds = new Set()) => {
+  const source = isObject(raw) ? raw : {};
+  const kind = resolveStageKind(source);
+  const definition = kind ? getStage(kind) : null;
+  const id = stageId(source, index, usedIds);
+
+  return {
+    ...source,
+    id,
+    kind: kind || String(source.kind || ''),
+    unknown: !definition,
+    produces: definition?.produces || null,
+    consumes: definition?.consumes || [],
+    // `source: { fromStage: "equation" }` — the stage is driven by the
+    // student's own earlier work rather than by the answer key.
+    sourceStageId: isObject(source.source) ? String(source.source.fromStage || '') || null : null,
+    aliasedFrom: kind && kind !== String(source.kind || '') ? String(source.kind) : null,
+  };
+};
+
+/**
+ * The whole workflow, normalised and in order.
+ */
+export const normalizeWorkflow = (workflow = []) => {
+  const list = Array.isArray(workflow) ? workflow : [];
+  const usedIds = new Set();
+  return list.map((raw, index) => {
+    const normalized = normalizeStage(raw, index, usedIds);
+    // Two stages of the same kind in one workflow — plot the points, then plot
+    // the transformed points — need distinct ids.
+    let id = normalized.id;
+    let suffix = 2;
+    while (usedIds.has(id)) { id = `${normalized.id}${suffix}`; suffix += 1; }
+    usedIds.add(id);
+    return { ...normalized, id, index };
+  });
+};
+
+/**
+ * Validate a composed workflow.
+ *
+ * Every failure here is one a student would otherwise meet as a blank panel or
+ * a stage that silently does nothing, so they are errors rather than warnings.
+ */
+export const validateWorkflow = (workflow = [], { label = 'Question' } = {}) => {
+  const stages = normalizeWorkflow(workflow);
+  const errors = [];
+
+  if (!stages.length) {
+    return { errors: [`${label} has an empty \`workflow\`. A composed question needs at least one stage.`], stages };
+  }
+
+  const byId = new Map(stages.map((entry) => [entry.id, entry]));
+
+  stages.forEach((entry) => {
+    if (entry.unknown) {
+      errors.push(
+        `${label} stage ${entry.index + 1} has kind "${entry.kind}", which is not a supported interaction. `
+        + 'Compose from the published stage list; new interactions cannot be invented in JSON.',
+      );
+      return;
+    }
+
+    if (!entry.sourceStageId) return;
+
+    const upstream = byId.get(entry.sourceStageId);
+    if (!upstream) {
+      errors.push(`${label} stage "${entry.id}" reads from "${entry.sourceStageId}", which is not a stage in this question.`);
+      return;
+    }
+    if (upstream.index >= entry.index) {
+      // Reading forwards would mean grading work the student has not done yet.
+      errors.push(`${label} stage "${entry.id}" reads from "${entry.sourceStageId}", which comes later in the workflow.`);
+      return;
+    }
+    if (upstream.produces && entry.consumes.length && !entry.consumes.includes(upstream.produces)) {
+      errors.push(
+        `${label} stage "${entry.id}" cannot be driven by "${entry.sourceStageId}": `
+        + `it accepts ${entry.consumes.join(', ')} but that stage produces ${upstream.produces}.`,
+      );
+    }
+  });
+
+  return { errors, stages };
+};
+
+/**
+ * What a stage should be built from at runtime.
+ *
+ * Returns the student's own upstream answer when the question asked for that,
+ * and the authored content otherwise. This is the difference between a
+ * workspace and a sequence of isolated questions: a student who writes
+ * f(x) = x + 2 fills their table from THAT, and MathMaster can then say their
+ * table is consistent with their function while their function does not model
+ * the situation — which no independent per-stage check can say.
+ */
+export const resolveStageInput = ({ stage: entry, responses = {}, content = {} }) => {
+  if (!entry) return { from: 'none', value: null };
+  if (!entry.sourceStageId) return { from: 'content', value: content };
+
+  const upstream = responses[entry.sourceStageId];
+  const hasResponse = upstream !== undefined && upstream !== null && upstream !== '';
+  return {
+    from: hasResponse ? 'student' : 'pending',
+    sourceStageId: entry.sourceStageId,
+    value: hasResponse ? upstream : null,
+    // A stage whose source is unanswered is not an error — it is simply not
+    // ready, and the runtime shows it as waiting rather than as broken.
+    ready: hasResponse,
+  };
+};
+
+/**
+ * Split a question into the three sections, accepting both the composed shape
+ * and the flat legacy shape.
+ *
+ * Backwards compatibility matters more here than tidiness: every existing
+ * assignment is flat, and a question that stops rendering because its JSON
+ * predates this layer is a regression a student meets.
+ */
+export const readComposedQuestion = (question = {}) => {
+  const source = isObject(question) ? question : {};
+  const composed = Array.isArray(source.workflow) && source.workflow.length > 0;
+
+  return {
+    composed,
+    content: isObject(source.content) ? source.content : source,
+    workflow: composed ? normalizeWorkflow(source.workflow) : [],
+    // Never handed to a renderer.
+    grading: isObject(source.grading) ? source.grading : null,
+  };
+};
+
+/**
+ * The stages a student still has to complete, for progress and partial credit.
+ */
+export const summarizeWorkflowProgress = (stages = [], responses = {}) => {
+  const total = stages.length;
+  const answered = stages.filter((entry) => {
+    const value = responses[entry.id];
+    return value !== undefined && value !== null && value !== '';
+  }).length;
+  return {
+    total,
+    answered,
+    remaining: total - answered,
+    complete: total > 0 && answered === total,
+    // Each stage is independently gradable, so partial credit is the norm
+    // rather than something bolted on.
+    fraction: total ? Number((answered / total).toFixed(4)) : 0,
+  };
+};
+
+export { STAGE_OUTPUT, isKnownStageKind };
