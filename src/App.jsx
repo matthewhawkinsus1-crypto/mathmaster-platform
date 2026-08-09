@@ -97,8 +97,10 @@ import StudentsRoster from './components/teacher/StudentsRoster.jsx';
 import ClassCourseSettings from './components/teacher/ClassCourseSettings.jsx';
 import PathSimulator from './components/teacher/PathSimulator.jsx';
 import PacingControls from './components/teacher/PacingControls.jsx';
+import RecommendedSkills from './components/student/RecommendedSkills.jsx';
 import {
-  fetchClassPacing, fetchSkillOverrides, saveClassPacing, saveSkillOverrides,
+  ROUTE_EVENTS, buildRouteEvent, fetchClassPacing, fetchSkillOverrides,
+  logRouteEvent, normalizePacingByClass, overridesForClass, saveClassPacing, saveSkillOverrides,
 } from './platform/path/pathStore.js';
 import SignInAccess from './SignInAccess.jsx';
 import {
@@ -370,6 +372,45 @@ function App() {
     } catch (error) {
       console.error('Could not load curriculum pacing:', error);
     }
+  };
+
+  // Inputs for the student's independent path. Students read pacing and
+  // overrides (settings/ is student-readable); they never write them.
+  const studentPacing = useMemo(() => {
+    if (user?.role !== 'student' || !user.classPeriod) return null;
+    // No entry means the teacher has not set a position for this class, and
+    // the panel stays hidden rather than recommending from a placeholder
+    // calendar nobody has confirmed.
+    return normalizePacingByClass(pacingByClass)[user.classPeriod] || null;
+  }, [user, pacingByClass]);
+
+  const studentRecord = useMemo(() => ({
+    id: user?.id,
+    gradesByAssignment: tracker,
+    supportUsageByAssignment,
+  }), [user, tracker, supportUsageByAssignment]);
+
+  const studentCourseId = courseProfiles?.[user?.classPeriod]?.course || 'algebra1';
+
+  const handleChooseSkill = (card) => {
+    if (!card?.skillId) return;
+    // Route history is best-effort and deliberately not awaited: a student
+    // must never wait on a log write to start working.
+    logRouteEvent({
+      studentId: user.id,
+      event: buildRouteEvent({
+        studentId: user.id,
+        event: ROUTE_EVENTS.CHOSEN,
+        selectedSkillId: card.skillId,
+        decisionType: card.slot,
+        reasons: [card.status].filter(Boolean),
+        context: { title: card.title, remediationTarget: card.remediationTarget || null },
+      }),
+    });
+    toastInfo(
+      card.slot === 'strengthen' ? 'Strengthening this skill' : 'Skill selected',
+      `${card.description || card.title}. Practice for this opens from My Math Path.`,
+    );
   };
 
   const handleSavePacing = async (next) => {
@@ -3790,6 +3831,17 @@ function App() {
               )}
             </>
           )}
+
+          {/* Below the assigned work, never above it: teacher assignments are
+              the classroom contract, this is the student's own time. */}
+          <RecommendedSkills
+            student={studentRecord}
+            assignments={assignments}
+            courseId={studentCourseId}
+            pacing={studentPacing}
+            teacherOverrides={overridesForClass(skillOverrides, user.classPeriod)}
+            onChooseSkill={handleChooseSkill}
+          />
         </div>
       </div>
     );
