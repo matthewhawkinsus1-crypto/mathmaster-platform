@@ -1,3 +1,5 @@
+import { validateAnalysisRequests } from '../../analysisRequestCatalog.js';
+
 // One description of every question type, used for two things at once: the
 // authoring contract an AI reads, and the semantic validation that rejects a
 // question the renderer could not usefully display.
@@ -156,6 +158,9 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
     useWhen: ['One graph should yield domain, range, intercepts and behaviour together.'],
     doNotUseWhen: ['You only need one feature — use graphAnalysis with a single request.'],
     required: [requires('functionSpec.type', 'needs `functionSpec.type`, for example { "type": "quadratic", "a": 1, "h": 2, "k": -3 }')],
+    // analysisRequests is optional here, but when supplied it goes through the
+    // same renderer as graphAnalysis and needs the same legal kinds.
+    validate: (question) => validateAnalysisRequests(question.analysisRequests),
     optional: ['analysisRequests', 'graph', 'pointTasks'],
     example: {
       type: 'functionInvestigation', prompt: 'Investigate this function.',
@@ -186,14 +191,9 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
         errors.push('`analysisRequests` must be a non-empty array');
         return errors;
       }
-      const kinds = ['domain', 'range', 'increasing', 'decreasing', 'constant', 'positive', 'negative', 'point'];
-      question.analysisRequests.forEach((request, index) => {
-        if (!isObject(request)) { errors.push(`analysisRequests[${index}] must be an object`); return; }
-        const kind = request.kind || 'point';
-        if (!kinds.includes(kind)) {
-          errors.push(`analysisRequests[${index}] has unknown kind "${request.kind}". Use one of: ${kinds.join(', ')}`);
-        }
-      });
+      // `point` on its own used to pass here, then rendered a click target with
+      // no locatable feature — an unanswerable question that validated cleanly.
+      errors.push(...validateAnalysisRequests(question.analysisRequests));
       return errors;
     },
     optional: ['graph', 'notation', 'showEquation', 'equationLatex'],

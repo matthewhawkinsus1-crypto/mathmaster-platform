@@ -3,6 +3,7 @@ import MathDisplay from './MathDisplay';
 import MathInput from './MathInput';
 import QuestionPrompt from './QuestionPrompt';
 import { FUNCTION_GRAPH_LABELS } from './functionGraphUtils';
+import { POINT_FEATURES } from './analysisRequestCatalog';
 import useUndoHistory from './useUndoHistory';
 import useLocalDraftState from './useLocalDraftState';
 import {
@@ -136,7 +137,12 @@ const normalizeAnalysisRequests = (question, spec, window, allowDefault) => {
       const notation = request.notation || 'interval';
       return { ...request, id, kind: request.kind, label: request.label || `${request.kind[0].toUpperCase()}${request.kind.slice(1)} interval(s)`, notation, acceptedAnswers: request.acceptedAnswers || getMonotonicAcceptedAnswers(spec, request.kind, notation) };
     }
-    const feature = request.feature || request.kind || 'vertex';
+    // An unrecognised kind used to land here and become a point task named
+    // after the kind — "point", "positive" — with no locatable feature, so the
+    // student saw an empty click target they could never satisfy. Fall back to
+    // the vertex, which every supported function has, rather than to nothing.
+    const requestedFeature = request.feature || request.kind;
+    const feature = POINT_FEATURES.includes(requestedFeature) ? requestedFeature : 'vertex';
     const expected = request.expected || getGraphFeaturePoints(spec, feature, window);
     return {
       ...request,

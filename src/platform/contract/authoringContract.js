@@ -8,6 +8,7 @@ import { TEXAS_STANDARDS_BY_COURSE, TEXAS_MATH_ACTIVE_COURSES } from '../../texa
 import { EXAM_DOMAIN_REGISTRY } from '../assessment/examDomainRegistry.js';
 import { QUESTION_TYPE_CATALOG, REPRESENTATIONS } from './questionTypeCatalog.js';
 import { TYPES_THAT_RENDER_A_TABLE } from './semanticValidation.js';
+import { ANALYSIS_NOTATIONS, NOTATION_ANALYSIS_KINDS, POINT_FEATURES } from '../../analysisRequestCatalog.js';
 import {
   ALIGNMENT_FRAMEWORK_IDS,
   ALIGNMENT_ROLES,
@@ -295,6 +296,35 @@ export const buildAuthoringContract = ({ generatedAt = new Date() } = {}) => {
     line('`responseType`, `generator`, `assessmentContext`, `context` (word-problem scenario).'),
   ]));
 
+  parts.push(section('Analysis requests on a graph', [
+    line('`graphAnalysis` and `functionInvestigation` ask their sub-questions through'),
+    line('`analysisRequests`. Each entry needs an `id` and a `kind`. These are the only'),
+    line('legal values — anything else is rejected, so do not invent one:'),
+    '',
+    line('**Answered by typing an interval or an inequality:**'),
+    ...NOTATION_ANALYSIS_KINDS.map((kind) => bullet(`\`"kind": "${kind}"\``)),
+    '',
+    line('Add `"notation"` to say how the answer is written:'),
+    ...ANALYSIS_NOTATIONS.map((notation) => bullet(`\`"${notation}"\``)),
+    '',
+    line('**Answered by clicking a point on the graph.** Use `"kind": "point"` *together'),
+    line('with* a `feature`. `"kind": "point"` on its own has no location to find, so the'),
+    line('student gets an empty click target:'),
+    ...POINT_FEATURES.map((feature) => bullet(`\`{ "id": "...", "kind": "point", "feature": "${feature}" }\``)),
+    '',
+    line('**Where a function is positive or negative** is `"kind": "positive"` and'),
+    line('`"kind": "negative"`. It is not a point feature — do not write `"kind": "point"`'),
+    line('for it.'),
+    '',
+    '```json',
+    '"analysisRequests": [',
+    '  { "id": "domain", "kind": "domain", "notation": "interval" },',
+    '  { "id": "pos", "kind": "positive", "notation": "interval" },',
+    '  { "id": "roots", "kind": "point", "feature": "xIntercepts" }',
+    ']',
+    '```',
+  ]));
+
   parts.push(section('Writing math inside prompts', [
     line('Prompts, labels and context are rendered as **plain text**. LaTeX is not'),
     line('typeset — a student would see the raw markup — and a backslash is not a legal'),
@@ -514,6 +544,8 @@ export const buildFixRequest = ({ rawJson = '', errors = [], warnings = [] } = {
     `- Never emit platform-owned fields: ${PLATFORM_OWNED_FIELDS.join(', ')}.`,
     '- Do not add dates, class periods or Honors designations; the teacher sets those.',
     '- No LaTeX in any string. Prompts render as plain text; write math in Unicode (≤, ≥, ∞, ×, π, √, ∪, ½).',
+    `- analysisRequests kinds: ${NOTATION_ANALYSIS_KINDS.join(', ')}, or "point" WITH a feature (${POINT_FEATURES.join(', ')}).`,
+    '- "positive" and "negative" are kinds in their own right. Never rewrite them as "point".',
     '',
     '## The JSON to fix',
     '```json',
