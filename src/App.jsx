@@ -28,14 +28,14 @@ import {
   requestReplacementQuestion,
 } from './attemptPolicy';
 import {
-  DEFAULT_ASSIGNMENT_BLUEPRINT,
-  MATH_BLUEPRINT_GUIDE,
   parseAssignmentBlueprintText,
   validateAssignmentQuestions,
   normalizeAssignmentPackageMetadata,
   assertFirestoreSafeAssignmentPayload,
 } from './assignmentBlueprint';
 import { isPersonalizedBlueprint } from './problemGenerator';
+import AssignmentIntake from './AssignmentIntake';
+import { validateAlignments } from './platform/contract/alignments';
 import {
   buildQuestionDraftKey,
   clearResumeAction,
@@ -284,27 +284,13 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingLaunchAssignmentId, user, assignments]);
 
-  const [newAssignmentTitle, setNewAssignmentTitle] = useState('');
-  const [newAssignmentDate, setNewAssignmentDate] = useState('');
-  const [newAssignmentLateDate, setNewAssignmentLateDate] = useState('');
-  const [newAssignmentClasses, setNewAssignmentClasses] = useState([...CLASS_PERIODS]);
-  const [newAssignmentType, setNewAssignmentType] = useState('practice');
-  const [newAssignmentVariantMode, setNewAssignmentVariantMode] = useState('personalized');
-  const [newAssignmentFolder, setNewAssignmentFolder] = useState('');
   const [fixedBlueprintConfirmation, setFixedBlueprintConfirmation] = useState(null);
-  const [newAssignmentReleaseAt, setNewAssignmentReleaseAt] = useState('');
-  const [newAssignmentPrerequisite, setNewAssignmentPrerequisite] = useState('');
-  const [newAssignmentDolEnabled, setNewAssignmentDolEnabled] = useState(true);
-  const [newAssignmentDolMinutes, setNewAssignmentDolMinutes] = useState(10);
-  const [newAssignmentDolQuestion, setNewAssignmentDolQuestion] = useState('');
-  const [newAssignmentJSON, setNewAssignmentJSON] = useState(
-    DEFAULT_ASSIGNMENT_BLUEPRINT,
-  );
-  const [assignmentPackagePreview, setAssignmentPackagePreview] = useState(null);
-  const [assignmentJsonFileName, setAssignmentJsonFileName] = useState('');
+  // Holds the normalized text of the JSON currently in preflight. Nothing edits
+  // it by hand any more; it exists so publishing can re-parse exactly what the
+  // teacher reviewed.
+  const [newAssignmentJSON, setNewAssignmentJSON] = useState('');
   const [assignmentPreflight, setAssignmentPreflight] = useState(null);
   const [assignmentPreflightBusy, setAssignmentPreflightBusy] = useState(false);
-  const [assignmentJsonDropActive, setAssignmentJsonDropActive] = useState(false);
 
   const [gradebookFilter, setGradebookFilter] = useState({
     classPeriod: '',
@@ -1347,25 +1333,36 @@ function App() {
     }
   };
 
-  const inspectAssignmentJson = (rawText = newAssignmentJSON) => {
+  // Reads authored JSON of any accepted vintage and reports what is wrong in
+  // terms an AI can act on, rather than throwing a single opaque message.
+  const readAssignmentJson = (rawText) => {
+    const errors = [];
+    const warnings = [];
+    let parsed = null;
     try {
-      const parsed = parseAssignmentBlueprintText(rawText);
-      const metadata = parsed.isPackage
-        ? normalizeAssignmentPackageMetadata(parsed.assignment, parsed.questions)
-        : null;
-      setNewAssignmentJSON(parsed.normalizedText);
-      setAssignmentPackagePreview({
-        isPackage: parsed.isPackage,
-        isBundle: parsed.isBundle === true,
-        questionCount: parsed.questions.length,
-        repairs: parsed.repairs,
-        metadata,
-      });
-      return { ...parsed, metadata };
+      parsed = parseAssignmentBlueprintText(rawText);
     } catch (error) {
-      setAssignmentPackagePreview({ error: error.message });
-      return null;
+      return { ok: false, errors: [error.message], warnings };
     }
+
+    try {
+      validateAssignmentQuestions(parsed.questions, { variantMode: parsed.assignment?.variantMode });
+    } catch (error) {
+      errors.push(error.message);
+    }
+
+    parsed.questions.forEach((question, index) => {
+      const result = validateAlignments(question, { label: `Question ${index + 1}` });
+      errors.push(...result.errors);
+      warnings.push(...result.warnings);
+    });
+
+    if (errors.length) return { ok: false, errors, warnings, parsed };
+
+    const metadata = parsed.isPackage
+      ? normalizeAssignmentPackageMetadata(parsed.assignment, parsed.questions)
+      : null;
+    return { ok: true, errors, warnings, parsed: { ...parsed, metadata } };
   };
 
   const buildPreflightBundle = (parsed, metadata) => {
@@ -1376,7 +1373,7 @@ function App() {
       const isDOL = Boolean(metadata?.dol?.enabled && Number(metadata?.dol?.questionIndex) === questionIndex);
       const role = resolveQuestionActivityRole({
         question,
-        assignment: { assignmentType: metadata?.assignmentType || newAssignmentType },
+        assignment: { assignmentType: metadata?.assignmentType || 'practice' },
         isDOL,
       });
       if (!activityGroups.has(role)) {
@@ -1391,7 +1388,7 @@ function App() {
 
     return normalizeLessonBundle({
       lessonMetadata: {
-        title: metadata?.title || newAssignmentTitle || 'Untitled Lesson',
+        title: metadata?.title || 'Untitled Lesson',
         course: metadata?.curriculum?.course || 'Unknown Course',
         topic: metadata?.curriculum?.topic || null,
       },
@@ -1399,30 +1396,26 @@ function App() {
     });
   };
 
-  const openAssignmentPreflight = (rawText = newAssignmentJSON, sourceName = assignmentJsonFileName) => {
-    const inspected = inspectAssignmentJson(rawText);
-    if (!inspected) return false;
+  // The teacher sets classes, dates, folder and publishing here — the JSON never
+  // carries them, so there are no manual fallbacks to merge any more.
+  const openAssignmentPreflight = (inspected, sourceName) => {
     try {
       const { metadata } = inspected;
       const lessonBundle = buildPreflightBundle(inspected, metadata);
       const dolQuestionFromRole = inspected.questions.findIndex((question) => (
-        resolveQuestionActivityRole({ question, assignment: { assignmentType: metadata?.assignmentType || newAssignmentType } }) === 'dol'
+        resolveQuestionActivityRole({ question, assignment: { assignmentType: metadata?.assignmentType || 'practice' } }) === 'dol'
       ));
-      const packageClassesWereProvided = Boolean(metadata?.provided?.classes);
-      const assignedClassPeriods = packageClassesWereProvided
-        ? [...(metadata.assignedClassPeriods || [])]
-        : [...newAssignmentClasses];
       const initialDraft = {
-        title: metadata?.provided?.title ? metadata.title : (metadata?.title || lessonBundle.lessonMetadata?.title || newAssignmentTitle),
-        folder: metadata?.provided?.folder ? (metadata.folder || '') : newAssignmentFolder,
-        dueAt: toDateTimeLocalInputValue(metadata?.provided?.dueAt ? metadata.dueAt : newAssignmentDate),
-        lateDueAt: toDateTimeLocalInputValue(metadata?.provided?.lateDueAt ? metadata.lateDueAt : newAssignmentLateDate),
-        releaseAt: toDateTimeLocalInputValue(metadata?.provided?.releaseAt ? metadata.releaseAt : newAssignmentReleaseAt),
-        assignmentType: metadata?.provided?.assignmentType ? metadata.assignmentType : newAssignmentType,
-        variantMode: metadata?.provided?.variantMode ? metadata.variantMode : (metadata?.variantMode || newAssignmentVariantMode),
-        assignedClassPeriods,
-        dolEnabled: metadata?.provided?.dol ? metadata.dol.enabled : (lessonBundle.activities.some((activity) => activity.role === 'dol') || newAssignmentDolEnabled),
-        dolMinutesBeforeEnd: metadata?.provided?.dol ? metadata.dol.minutesBeforeEnd : newAssignmentDolMinutes,
+        title: metadata?.title || lessonBundle.lessonMetadata?.title || '',
+        folder: metadata?.folder || '',
+        dueAt: toDateTimeLocalInputValue(metadata?.dueAt || ''),
+        lateDueAt: toDateTimeLocalInputValue(metadata?.lateDueAt || ''),
+        releaseAt: toDateTimeLocalInputValue(metadata?.releaseAt || ''),
+        assignmentType: metadata?.assignmentType || 'practice',
+        variantMode: metadata?.variantMode || 'personalized',
+        assignedClassPeriods: [...(metadata?.assignedClassPeriods || [])],
+        dolEnabled: metadata?.dol?.enabled ?? lessonBundle.activities.some((activity) => activity.role === 'dol'),
+        dolMinutesBeforeEnd: metadata?.dol?.minutesBeforeEnd ?? 10,
         dolQuestionIndex: Number.isInteger(metadata?.dol?.questionIndex)
           ? metadata.dol.questionIndex
           : dolQuestionFromRole >= 0 ? dolQuestionFromRole : null,
@@ -1437,44 +1430,25 @@ function App() {
       });
       return true;
     } catch (error) {
-      setAssignmentPackagePreview({ error: error.message });
-      return false;
+      return { error: error.message };
     }
   };
 
-  const loadAssignmentJsonFile = async (file) => {
-    if (!file) return;
-    try {
-      if (!/\.json$/i.test(file.name || '')) throw new Error('Drop or choose a .json file.');
-      if (file.size > 5 * 1024 * 1024) throw new Error('JSON files larger than 5 MB are not accepted in the browser editor.');
-      const text = await file.text();
-      setAssignmentJsonFileName(file.name);
-      setNewAssignmentJSON(text);
-      openAssignmentPreflight(text, file.name);
-    } catch (error) {
-      setAssignmentPackagePreview({ error: `Could not read ${file.name}: ${error.message}` });
+  // Single entry point for pasted, uploaded and dropped JSON.
+  const handleAssignmentJsonReady = async ({ text, sourceName }) => {
+    const result = readAssignmentJson(text);
+    if (!result.ok) return result;
+    setNewAssignmentJSON(result.parsed.normalizedText);
+    const opened = openAssignmentPreflight(result.parsed, sourceName);
+    if (opened !== true) {
+      return { ok: false, errors: [opened?.error || 'Could not build the preflight review from this JSON.'], warnings: result.warnings };
     }
+    return { ok: true, warnings: result.warnings };
   };
 
-  const handleAssignmentJsonFileUpload = async (event) => {
-    const file = event.target.files?.[0];
-    await loadAssignmentJsonFile(file);
-    event.target.value = '';
-  };
-
-  const handleAssignmentJsonDrop = async (event) => {
-    event.preventDefault();
-    setAssignmentJsonDropActive(false);
-    await loadAssignmentJsonFile(event.dataTransfer?.files?.[0]);
-  };
-
-  const handleAssignmentPreflightRequest = (event) => {
-    event?.preventDefault?.();
-    openAssignmentPreflight(newAssignmentJSON, assignmentJsonFileName);
-  };
 
   const resolvePackagePrerequisiteId = (metadata) => {
-    if (!metadata) return newAssignmentPrerequisite || null;
+    if (!metadata) return null;
     if (metadata.prerequisiteAssignmentId) return metadata.prerequisiteAssignmentId;
     if (metadata.prerequisiteTitle) {
       const match = assignments.find(
@@ -1485,7 +1459,7 @@ function App() {
       }
       return match.id;
     }
-    return metadata.provided?.prerequisite ? null : (newAssignmentPrerequisite || null);
+    return null;
   };
 
   const handleCreateAssignment = async (event, overrideVariantMode, teacherReview = null) => {
@@ -1497,34 +1471,26 @@ function App() {
         ? normalizeAssignmentPackageMetadata(parsed.assignment, parsed.questions)
         : null;
 
-      const title = String(teacherReview?.title ?? (packageMetadata?.provided?.title ? packageMetadata.title : newAssignmentTitle)).trim();
-      const dueValue = teacherReview ? teacherReview.dueAt : packageMetadata?.provided?.dueAt ? packageMetadata.dueAt : newAssignmentDate;
-      const lateDueValue = teacherReview ? teacherReview.lateDueAt : packageMetadata?.provided?.lateDueAt ? packageMetadata.lateDueAt : newAssignmentLateDate;
-      const releaseValue = teacherReview ? teacherReview.releaseAt : packageMetadata?.provided?.releaseAt ? packageMetadata.releaseAt : newAssignmentReleaseAt;
-      const assignmentType = teacherReview?.assignmentType || (packageMetadata?.provided?.assignmentType
-        ? packageMetadata.assignmentType
-        : newAssignmentType);
-      const requestedVariantMode = teacherReview?.variantMode || (packageMetadata?.provided?.variantMode
-        ? packageMetadata.variantMode
-        : parsed.isPackage
-          ? packageMetadata.variantMode
-          : newAssignmentVariantMode);
+      const title = String(teacherReview?.title ?? packageMetadata?.title ?? '').trim();
+      const dueValue = teacherReview ? teacherReview.dueAt : packageMetadata?.dueAt || '';
+      const lateDueValue = teacherReview ? teacherReview.lateDueAt : packageMetadata?.lateDueAt || '';
+      const releaseValue = teacherReview ? teacherReview.releaseAt : packageMetadata?.releaseAt || '';
+      const assignmentType = teacherReview?.assignmentType || packageMetadata?.assignmentType || 'practice';
+      const requestedVariantMode = teacherReview?.variantMode || packageMetadata?.variantMode || 'personalized';
       const variantMode = overrideVariantMode || requestedVariantMode;
       const assignedClassPeriods = teacherReview
         ? [...(teacherReview.assignedClassPeriods || [])]
-        : packageMetadata?.provided?.classes
-        ? packageMetadata.assignedClassPeriods
-        : newAssignmentClasses;
+        : [...(packageMetadata?.assignedClassPeriods || CLASS_PERIODS)];
 
       if (teacherReview && assignedClassPeriods.length === 0) {
         throw new Error('Select at least one class period in the JSON pre-flight review.');
       }
 
       if (!title) {
-        throw new Error('Assignment title is missing. Add assignment.title to the JSON package or enter it under Manual details.');
+        throw new Error('Assignment title is missing. Add a title in the preflight review before publishing.');
       }
       if (!dueValue || !lateDueValue) {
-        throw new Error('Regular due date and final late due date are required. Put assignment.dueAt and assignment.lateDueAt in the JSON package or enter them under Manual details.');
+        throw new Error('A regular due date and a final late due date are both required. Set them in the preflight review before publishing.');
       }
 
       const dueAt = new Date(dueValue);
@@ -1542,12 +1508,6 @@ function App() {
 
       if (variantMode === 'personalized' && parsed.questions.some((question) => !isPersonalizedBlueprint(question))) {
         setNewAssignmentJSON(parsed.normalizedText);
-        setAssignmentPackagePreview({
-          isPackage: parsed.isPackage,
-          questionCount: parsed.questions.length,
-          repairs: parsed.repairs,
-          metadata: packageMetadata,
-        });
         setFixedBlueprintConfirmation({
           repairs: parsed.repairs,
           teacherReview: teacherReview ? { ...teacherReview, variantMode: 'shared' } : null,
@@ -1561,8 +1521,8 @@ function App() {
 
       const prerequisiteAssignmentId = resolvePackagePrerequisiteId(packageMetadata);
       let dolQuestionIndex = null;
-      let dolEnabled = assignmentType === 'practice' && (teacherReview ? teacherReview.dolEnabled === true : newAssignmentDolEnabled);
-      let dolMinutesBeforeEnd = Math.max(1, Number(teacherReview ? teacherReview.dolMinutesBeforeEnd : newAssignmentDolMinutes) || 10);
+      let dolEnabled = assignmentType === 'practice' && (teacherReview ? teacherReview.dolEnabled === true : Boolean(packageMetadata?.dol?.enabled));
+      let dolMinutesBeforeEnd = Math.max(1, Number(teacherReview ? teacherReview.dolMinutesBeforeEnd : packageMetadata?.dol?.minutesBeforeEnd) || 10);
 
       if (teacherReview) {
         dolQuestionIndex = Number.isInteger(Number(teacherReview.dolQuestionIndex))
@@ -1580,9 +1540,8 @@ function App() {
           dolQuestionIndex = matchedIndex;
         }
       } else {
-        const dolQuestionNumber = Number(newAssignmentDolQuestion);
-        dolQuestionIndex = Number.isInteger(dolQuestionNumber) && dolQuestionNumber > 0
-          ? Math.min(parsedQuestions.length - 1, dolQuestionNumber - 1)
+        dolQuestionIndex = Number.isInteger(packageMetadata?.dol?.questionIndex)
+          ? packageMetadata.dol.questionIndex
           : null;
       }
 
@@ -1594,9 +1553,7 @@ function App() {
 
       const folder = teacherReview
         ? normalizeFolderPath(teacherReview.folder) || null
-        : packageMetadata?.provided?.folder
-        ? normalizeFolderPath(packageMetadata.folder)
-        : normalizeFolderPath(newAssignmentFolder) || null;
+        : normalizeFolderPath(packageMetadata?.folder) || null;
       const completionRule = packageMetadata?.provided?.completionRule
         ? packageMetadata.completionRule
         : assignmentType === 'notesClasswork'
@@ -1744,18 +1701,10 @@ function App() {
         throw new Error('Select at least one class period before creating the assignment.');
       }
 
-      if (variantMode !== newAssignmentVariantMode) setNewAssignmentVariantMode(variantMode);
-      setNewAssignmentTitle('');
-      setNewAssignmentDate('');
-      setNewAssignmentLateDate('');
-      setNewAssignmentReleaseAt('');
-      setNewAssignmentPrerequisite('');
-      setNewAssignmentDolQuestion('');
-      setNewAssignmentFolder('');
-      setAssignmentPackagePreview(null);
-      setAssignmentJsonFileName('');
+      // The intake is stateless now — closing preflight and clearing the held
+      // JSON is the whole reset.
       setAssignmentPreflight(null);
-      setNewAssignmentJSON(DEFAULT_ASSIGNMENT_BLUEPRINT);
+      setNewAssignmentJSON('');
       await fetchAssignments();
       const repairMessage = parsed.repairs.length
         ? `\n\nPaste formatting repaired automatically: ${parsed.repairs.join('; ')}.`
@@ -1767,7 +1716,6 @@ function App() {
       );
 
     } catch (error) {
-      setAssignmentPackagePreview({ error: error.message });
       toastError('Could not create assignment', error.message);
     }
   };
@@ -1775,7 +1723,6 @@ function App() {
   const confirmSwitchToSharedAndPublish = () => {
     const teacherReview = fixedBlueprintConfirmation?.teacherReview || null;
     setFixedBlueprintConfirmation(null);
-    setNewAssignmentVariantMode('shared');
     handleCreateAssignment(null, 'shared', teacherReview);
   };
 
@@ -3209,138 +3156,12 @@ function App() {
             {teacherTab === 'assignments' && (
               <div>
                 <h2 style={{ marginTop: 0 }}>Create and Assign</h2>
-                <form onSubmit={handleAssignmentPreflightRequest} style={{ marginBottom: '38px', background: '#f8f9fa', padding: '22px', borderRadius: '10px', border: '1px solid #e8eaed' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap', marginBottom: '16px' }}>
-                    <div style={{ textAlign: 'left', maxWidth: '760px' }}>
-                      <h3 style={{ margin: '0 0 5px', color: '#202124' }}>Assignment / Bundle JSON</h3>
-                      <p style={{ margin: 0, color: '#5f6368', lineHeight: 1.55, fontSize: '13px' }}>
-                        Drop, upload, or paste Assignment Package / Bundle V3 JSON. JSON supplies the starting plan; the teacher reviews and can override assignment details and class periods before anything is created.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div
-                    className="mathmaster-json-dropzone"
-                    onDragEnter={(event) => { event.preventDefault(); setAssignmentJsonDropActive(true); }}
-                    onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; setAssignmentJsonDropActive(true); }}
-                    onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setAssignmentJsonDropActive(false); }}
-                    onDrop={handleAssignmentJsonDrop}
-                    style={{ marginBottom: 14, padding: '18px', border: `2px dashed ${assignmentJsonDropActive ? '#1a73e8' : '#9fb8dd'}`, borderRadius: 11, background: assignmentJsonDropActive ? '#e8f0fe' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', textAlign: 'left', transition: 'background 120ms ease, border-color 120ms ease' }}
-                  >
-                    <div><strong style={{ color: '#174ea6' }}>↥ Drag &amp; drop a .json file here</strong><div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>The pre-flight review opens automatically after the file is read.</div></div>
-                    <label style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', padding: '0 15px', border: '1px solid #1a73e8', borderRadius: 8, background: '#fff', color: '#1a73e8', fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                      Browse .json
-                      <input type="file" accept="application/json,.json" onChange={handleAssignmentJsonFileUpload} style={{ display: 'none' }} />
-                    </label>
-                  </div>
-
-                  {assignmentJsonFileName && <div style={{ textAlign: 'left', margin: '0 0 10px', color: '#5f6368', fontSize: '12px' }}>Loaded file: <strong>{assignmentJsonFileName}</strong></div>}
-
-                  <textarea
-                    value={newAssignmentJSON}
-                    onChange={(event) => { setNewAssignmentJSON(event.target.value); setAssignmentPackagePreview(null); }}
-                    aria-label="Assignment Package JSON"
-                    style={{ width: '100%', height: '280px', padding: '12px', borderRadius: '8px', border: '1px solid #c7cdd6', fontFamily: 'monospace', boxSizing: 'border-box', lineHeight: 1.45, background: '#fff' }}
-                  />
-
-                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '12px' }}>
-                    <button type="button" onClick={() => inspectAssignmentJson()} style={{ padding: '9px 14px', border: '1px solid #1a73e8', borderRadius: '7px', background: '#fff', color: '#1a73e8', cursor: 'pointer', fontWeight: 'bold' }}>Read JSON Details</button>
-                    <button type="submit" style={{ padding: '10px 20px', background: '#1a73e8', color: '#fff', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: 'bold' }}>Preview &amp; Assign</button>
-                  </div>
-
-                  {assignmentPackagePreview?.error && (
-                    <div style={{ marginTop: '14px', padding: '12px 14px', borderRadius: '8px', background: '#fce8e6', border: '1px solid #f1a5a0', color: '#a50e0e', textAlign: 'left', fontSize: '13px' }}>
-                      <strong>JSON needs attention:</strong> {assignmentPackagePreview.error}
-                    </div>
-                  )}
-
-                  {assignmentPackagePreview && !assignmentPackagePreview.error && (
-                    <div style={{ marginTop: '14px', padding: '14px', borderRadius: '10px', background: assignmentPackagePreview.isPackage ? '#e6f4ea' : '#fff8e1', border: `1px solid ${assignmentPackagePreview.isPackage ? '#9bd2aa' : '#f0c761'}`, textAlign: 'left' }}>
-                      <div style={{ fontWeight: 900, color: assignmentPackagePreview.isPackage ? '#137333' : '#7a4f00', marginBottom: '8px' }}>
-                        {assignmentPackagePreview.isBundle ? 'Lesson Bundle V3 detected' : assignmentPackagePreview.isPackage ? 'Assignment Package detected' : 'Legacy question-array JSON detected'} · {assignmentPackagePreview.questionCount} question(s)
-                      </div>
-                      {assignmentPackagePreview.isPackage && assignmentPackagePreview.metadata && (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '8px 14px', color: '#3c4043', fontSize: '12px' }}>
-                          <span><strong>Title:</strong> {assignmentPackagePreview.metadata.title || 'Use manual fallback'}</span>
-                          <span><strong>Folder:</strong> {assignmentPackagePreview.metadata.folder || 'Uncategorized'}</span>
-                          <span><strong>Type:</strong> {assignmentPackagePreview.metadata.assignmentType === 'notesClasswork' ? 'Guided Notes / Classwork' : 'Practice / Homework'}</span>
-                          <span><strong>Versions:</strong> {assignmentPackagePreview.metadata.variantMode === 'shared' ? 'Shared exact version' : 'Personalized'}</span>
-                          <span><strong>Classes:</strong> {assignmentPackagePreview.metadata.provided?.classes ? (assignmentPackagePreview.metadata.assignedClassPeriods.join(', ') || 'All periods') : 'Use manual fallback'}</span>
-                          <span><strong>Due:</strong> {assignmentPackagePreview.metadata.dueAt || 'Use manual fallback'}</span>
-                          <span><strong>Late close:</strong> {assignmentPackagePreview.metadata.lateDueAt || 'Use manual fallback'}</span>
-                          <span><strong>DOL:</strong> {assignmentPackagePreview.metadata.dol?.enabled ? `Enabled · final ${assignmentPackagePreview.metadata.dol.minutesBeforeEnd} min` : 'Off'}</span>
-                        </div>
-                      )}
-                      {assignmentPackagePreview.repairs?.length > 0 && <div style={{ marginTop: '8px', fontSize: '11px', color: '#5f6368' }}>Paste repairs: {assignmentPackagePreview.repairs.join('; ')}</div>}
-                    </div>
-                  )}
-
-                  <details style={{ marginTop: '16px', border: '1px solid #dfe3e7', borderRadius: '8px', background: '#fff', textAlign: 'left' }}>
-                    <summary style={{ cursor: 'pointer', padding: '12px 14px', fontWeight: 'bold', color: '#3c4043' }}>Manual details and fallbacks (optional)</summary>
-                    <div style={{ padding: '0 14px 14px' }}>
-                      <p style={{ margin: '0 0 14px', color: '#5f6368', fontSize: '12px' }}>Use these as starting values for legacy JSON or omitted package fields. The pre-flight review is the final authority before creation.</p>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '15px', marginBottom: '18px' }}>
-                        <label style={{ fontWeight: 'bold' }}>Assignment title
-                          <input type="text" value={newAssignmentTitle} onChange={(event) => setNewAssignmentTitle(event.target.value)} placeholder="Optional when JSON has assignment.title" style={{ display: 'block', width: '100%', marginTop: '6px', padding: '10px', boxSizing: 'border-box', border: '1px solid #c9ced6', borderRadius: '6px' }} />
-                        </label>
-                        <label style={{ fontWeight: 'bold' }}>Library folder
-                          <input type="text" list="assignment-folder-options" value={newAssignmentFolder} onChange={(event) => setNewAssignmentFolder(event.target.value)} placeholder="Algebra I/Module 1/Topic 1" style={{ display: 'block', width: '100%', marginTop: '6px', padding: '10px', boxSizing: 'border-box', border: '1px solid #c9ced6', borderRadius: '6px' }} />
-                          <datalist id="assignment-folder-options">{assignmentFolderPaths.map((path) => <option key={path} value={path} />)}</datalist>
-                        </label>
-                        <label style={{ fontWeight: 'bold' }}>Regular due date and time
-                          <input type="datetime-local" value={newAssignmentDate} onChange={(event) => setNewAssignmentDate(event.target.value)} style={{ display: 'block', width: '100%', marginTop: '6px', padding: '10px', boxSizing: 'border-box', border: '1px solid #c9ced6', borderRadius: '6px' }} />
-                        </label>
-                        <label style={{ fontWeight: 'bold' }}>Final late due date and time
-                          <input type="datetime-local" value={newAssignmentLateDate} onChange={(event) => setNewAssignmentLateDate(event.target.value)} style={{ display: 'block', width: '100%', marginTop: '6px', padding: '10px', boxSizing: 'border-box', border: '1px solid #c9ced6', borderRadius: '6px' }} />
-                        </label>
-                        <label style={{ fontWeight: 'bold' }}>Assignment type
-                          <select value={newAssignmentType} onChange={(event) => setNewAssignmentType(event.target.value)} style={{ display: 'block', width: '100%', marginTop: '6px', padding: '10px', border: '1px solid #c9ced6', borderRadius: '6px' }}>
-                            <option value="practice">Practice / Homework with DOL</option>
-                            <option value="notesClasswork">Guided Notes / Classwork</option>
-                          </select>
-                        </label>
-                        <label style={{ fontWeight: 'bold' }}>Problem versions
-                          <select value={newAssignmentVariantMode} onChange={(event) => setNewAssignmentVariantMode(event.target.value)} style={{ display: 'block', width: '100%', marginTop: '6px', padding: '10px', border: '1px solid #c9ced6', borderRadius: '6px' }}>
-                            <option value="personalized">Different stable version per student</option>
-                            <option value="shared">Exact same version for every student</option>
-                          </select>
-                        </label>
-                        <label style={{ fontWeight: 'bold' }}>Automatic release time
-                          <input type="datetime-local" value={newAssignmentReleaseAt} onChange={(event) => setNewAssignmentReleaseAt(event.target.value)} style={{ display: 'block', width: '100%', marginTop: '6px', padding: '10px', boxSizing: 'border-box', border: '1px solid #c9ced6', borderRadius: '6px' }} />
-                        </label>
-                        {newAssignmentType === 'practice' && (
-                          <label style={{ fontWeight: 'bold' }}>Prerequisite notes/classwork
-                            <select value={newAssignmentPrerequisite} onChange={(event) => setNewAssignmentPrerequisite(event.target.value)} style={{ display: 'block', width: '100%', marginTop: '6px', padding: '10px', border: '1px solid #c9ced6', borderRadius: '6px' }}>
-                              <option value="">No prerequisite</option>
-                              {assignments.filter((assignment) => assignment.assignmentType === 'notesClasswork').map((assignment) => <option key={assignment.id} value={assignment.id}>{assignment.title}</option>)}
-                            </select>
-                          </label>
-                        )}
-                      </div>
-
-                      <fieldset style={{ margin: '0 0 18px', padding: '15px', border: '1px solid #d8dde6', borderRadius: '8px' }}>
-                        <legend style={{ fontWeight: 900 }}>Assign to class periods</legend>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                          {CLASS_PERIODS.map((period) => <label key={period} style={{ padding: '7px 10px', background: newAssignmentClasses.includes(period) ? '#e8f0fe' : '#fff', border: '1px solid #c5d5ef', borderRadius: '999px', fontWeight: 'bold' }}><input type="checkbox" checked={newAssignmentClasses.includes(period)} onChange={() => setNewAssignmentClasses((current) => current.includes(period) ? current.filter((item) => item !== period) : [...current, period])} /> {period}</label>)}
-                        </div>
-                      </fieldset>
-
-                      {newAssignmentType === 'practice' && (
-                        <fieldset style={{ margin: 0, padding: '15px', border: '1px solid #d8dde6', borderRadius: '8px' }}>
-                          <legend style={{ fontWeight: 900 }}>DOL configuration</legend>
-                          <label style={{ fontWeight: 'bold', marginRight: '18px' }}><input type="checkbox" checked={newAssignmentDolEnabled} onChange={(event) => setNewAssignmentDolEnabled(event.target.checked)} /> Enable DOL during final minutes</label>
-                          <label style={{ display: 'inline-block', fontWeight: 'bold', margin: '8px 18px 0 0' }}>Minutes before class ends <input type="number" min="1" max="30" value={newAssignmentDolMinutes} onChange={(event) => setNewAssignmentDolMinutes(event.target.value)} style={{ width: '70px', marginLeft: '6px', padding: '7px' }} /></label>
-                          <label style={{ display: 'inline-block', fontWeight: 'bold', marginTop: '8px' }}>DOL question number <input type="number" min="1" value={newAssignmentDolQuestion} onChange={(event) => setNewAssignmentDolQuestion(event.target.value)} placeholder="Auto" style={{ width: '80px', marginLeft: '6px', padding: '7px' }} /></label>
-                        </fieldset>
-                      )}
-                    </div>
-                  </details>
-
-                  <details style={{ marginTop: '12px', border: '1px solid #dfe3e7', borderRadius: '8px', background: '#fff', textAlign: 'left' }}>
-                    <summary style={{ cursor: 'pointer', padding: '12px 14px', fontWeight: 'bold', color: '#174ea6' }}>Assignment Package and question guide</summary>
-                    <pre style={{ margin: 0, padding: '0 14px 16px', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: '12px', lineHeight: 1.55, color: '#3c4043' }}>{MATH_BLUEPRINT_GUIDE}</pre>
-                  </details>
-                </form>
+                <AssignmentIntake
+                  onJsonReady={handleAssignmentJsonReady}
+                  toastSuccess={toastSuccess}
+                  toastError={toastError}
+                  toastInfo={toastInfo}
+                />
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px', flexWrap: 'wrap', marginTop: '30px', marginBottom: '14px' }}>
                   <h2 style={{ margin: 0 }}>

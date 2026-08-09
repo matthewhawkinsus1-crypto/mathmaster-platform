@@ -760,20 +760,26 @@ export const assertFirestoreSafeAssignmentPayload = (value) => {
   return value;
 };
 
+// The single list of what a question may be. The authoring contract shown to an
+// AI is generated from this, so a newly registered tool becomes authorable
+// without anyone editing a help document.
+export const CORE_QUESTION_TYPES = Object.freeze([
+  'algebra', 'fraction', 'numberLine', 'graphing', 'functionGraph',
+  'functionInvestigation', 'graphAnalysis', 'stepAlgebra', 'literal',
+  'system', 'table', 'orderedPair', 'multiAnswer', 'relationshipModel',
+  'graphScenarioMatch', 'graphComparison', 'graphStory', 'contextInterpretation',
+  'modelingLab',
+]);
+
+export const SUPPORTED_QUESTION_TYPES = Object.freeze([...CORE_QUESTION_TYPES, ...MISSING_TOOL_IDS]);
+
 export const validateAssignmentQuestions = (questions, options = {}) => {
   if (!Array.isArray(questions) || questions.length === 0) {
     throw new Error('JSON must be a non-empty array of questions.');
   }
 
   const allowFixed = options.allowFixed === true || options.variantMode === 'shared';
-  const supportedTypes = new Set([
-    'algebra', 'fraction', 'numberLine', 'graphing', 'functionGraph',
-    'functionInvestigation', 'graphAnalysis', 'stepAlgebra', 'literal',
-    'system', 'table', 'orderedPair', 'multiAnswer', 'relationshipModel',
-    'graphScenarioMatch', 'graphComparison', 'graphStory', 'contextInterpretation',
-    'modelingLab',
-    ...MISSING_TOOL_IDS,
-  ]);
+  const supportedTypes = new Set(SUPPORTED_QUESTION_TYPES);
 
   questions.forEach((question, index) => {
     const questionType = question?.toolId || question?.type;
