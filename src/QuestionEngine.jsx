@@ -15,6 +15,7 @@ import ScratchpadOverlay from './ScratchpadOverlay';
 import SolutionReview from './SolutionReview';
 import GuidedClassworkCoach from './GuidedClassworkCoach';
 import RelationshipModel from './RelationshipModel';
+import WorkflowRunner from './platform/workflow/WorkflowRunner';
 import GraphScenarioMatch from './GraphScenarioMatch';
 import GraphComparison from './GraphComparison';
 import GraphStory from './GraphStory';
@@ -226,7 +227,13 @@ export default function QuestionEngine({
           attemptCount: record.attemptCount + 1,
           remainingAttempts: Math.max(0, resolvedMaximumAttempts - record.attemptCount - 1),
           expired: !answerState.isCorrect && record.attemptCount + 1 >= resolvedMaximumAttempts,
-          incorrectParts: (answerState.parts || []).filter((part) => !part.isCorrect).map((part) => part.label),
+          // `graded: false` marks a part whose correctness this tool cannot
+          // judge — a table cell checked against the student's own function
+          // rather than an answer key. Listing it as incorrect would tell a
+          // student they got wrong something nobody here checked.
+          incorrectParts: (answerState.parts || [])
+            .filter((part) => part.graded !== false && !part.isCorrect)
+            .map((part) => part.label),
         },
       );
     } finally {
@@ -383,6 +390,21 @@ export default function QuestionEngine({
         </ToolRuntimeProvider>
       );
     }
+    // A composed question is defined by its workflow, not by its type name.
+    // Routing on the workflow first is what lets relationshipModel,
+    // relationMapping and anything else share one runtime instead of each
+    // growing its own staged variant.
+    if (Array.isArray(processedQuestion.workflow) && processedQuestion.workflow.length) {
+      return (
+        <WorkflowRunner
+          question={processedQuestion}
+          onStateChange={commonModuleProps.onStateChange}
+          disabled={commonModuleProps.disabled}
+          draftKey={draftKey}
+        />
+      );
+    }
+
     switch (processedQuestion.type) {
       case 'modelingLab':
         return <InteractiveModelingLabPlayer rawLabSpec={processedQuestion.labDefinition} assignmentId={assignmentId} executionScope={executionScope} supportUsage={supportUsage} disabled={commonModuleProps.disabled} onServerGraded={handleModelingLabGrade} />;

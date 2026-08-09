@@ -1,6 +1,6 @@
 import { QUESTION_TYPE_CATALOG, getTypeEntry } from './questionTypeCatalog.js';
 import { inequalityMatchesIntervals } from '../../tools/intervalNumberLine/intervalMath.js';
-import { validateWorkflow } from '../workflow/questionWorkflow.js';
+import { validateGrading, validateWorkflow } from '../workflow/questionWorkflow.js';
 
 // Recognising a type name is not validation. `{ type: 'graphAnalysis', prompt:
 // 'A graph falls from left to right until x = 2' }` used to pass because
@@ -141,6 +141,9 @@ export const validateQuestionSemantics = (question = {}, { label = 'Question' } 
   // for the student.
   if (Array.isArray(question.workflow) && question.workflow.length) {
     validateWorkflow(question.workflow, { label }).errors.forEach((message) => errors.push(message));
+    // A grading rule keyed to a stage that does not exist marks nothing and
+    // says nothing. Only Preflight can catch it.
+    validateGrading(question.workflow, question.grading, { label }).forEach((message) => errors.push(message));
   }
 
   // An interval number line that disagrees with its own inequality.

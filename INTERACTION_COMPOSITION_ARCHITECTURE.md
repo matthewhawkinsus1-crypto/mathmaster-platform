@@ -100,3 +100,51 @@ and an authoring AI still think in terms of "Function Modeling" and "Relation
 Representations". Underneath, each is a configuration of the same primitives,
 which is why a relation question can ask for a plot, a mapping diagram, both, or
 neither without three relation tools existing.
+
+## Grading rules
+
+`grading` is keyed by stage id, and every rule is one of a small set:
+
+| rule | means |
+|---|---|
+| `"f(x)=2x"` | compare with this answer |
+| `["[0,10]", "0 \\le x \\le 10"]` | any of these |
+| `{ "values": { "0:y": "0" } }` | a table with its own key, cell by cell |
+| `{ "consistentWith": "equation" }` | check against the student's own earlier answer |
+| `{ "manual": true }` | written work, reviewed by the teacher |
+| *(absent)* | not machine-marked |
+
+Two properties matter more than the list:
+
+**A stage that was not checked is never reported as wrong.** Written
+interpretation, and a table whose model cannot be evaluated, come back
+`graded: false`. `partialCreditPercent` is computed over the stages that *were*
+marked, so an unmarkable stage neither helps nor hurts.
+
+**One mistake is counted once.** With `consistentWith`, a student who writes
+`f(x) = x + 2` and then fills the table from *that* is marked wrong on the model
+and right on the table — 67%, not 0%. The alternative, grading every stage
+against the key, charges them for the same error four times.
+
+`equationInput` compares function definitions by their rule, so `f(x)=2x`,
+`y=2x` and `f(x)=x+x` are one answer. An equation the student *solved*
+(`x = 3`) keeps its left side, because which variable was isolated is part of
+that answer.
+
+## What exists now
+
+| file | role |
+|---|---|
+| `src/platform/workflow/interactionStages.js` | the whitelist: 15 primitives, each declaring `produces` / `consumes` |
+| `src/platform/workflow/questionWorkflow.js` | normalise, validate, resolve stage inputs, progress |
+| `src/platform/workflow/workflowGrading.js` | mark a composed question, stage by stage |
+| `src/platform/workflow/WorkflowRunner.jsx` | render it, delegating every stage to the component that already draws it |
+
+The runner draws no mathematics of its own. It owns stage order, the responses,
+and threading one stage's output into the next; a table stage renders
+`TableGrader`, a graph stage renders `InteractiveGraphWorkspace`.
+
+`TableGrader` gained `table.blanks` for this: a cell can now be **editable
+without being graded there**. Previously only a cell with an answer key was
+editable, which made a table built from the student's own function render as
+nothing at all.

@@ -19,6 +19,23 @@ import { STAGE_OUTPUT, getStage, isKnownStageKind, resolveStageKind } from './in
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
 
 /**
+ * Has the student actually put something here?
+ *
+ * Delegated components report their state as they mount, and an empty table
+ * arrives as `{}` rather than as nothing. Counting that as answered marked a
+ * freshly-opened question complete before the student had touched it, so an
+ * empty container is treated as no answer.
+ */
+export const hasStageResponse = (value) => {
+  if (value === undefined || value === null || value === '') return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === 'object') {
+    return Object.values(value).some((entry) => hasStageResponse(entry));
+  }
+  return true;
+};
+
+/**
  * A stage's id. Authors may name a stage so a later one can refer to it;
  * otherwise the kind serves, which is what the short examples rely on.
  */
@@ -138,7 +155,7 @@ export const resolveStageInput = ({ stage: entry, responses = {}, content = {} }
   if (!entry.sourceStageId) return { from: 'content', value: content };
 
   const upstream = responses[entry.sourceStageId];
-  const hasResponse = upstream !== undefined && upstream !== null && upstream !== '';
+  const hasResponse = hasStageResponse(upstream);
   return {
     from: hasResponse ? 'student' : 'pending',
     sourceStageId: entry.sourceStageId,
@@ -147,6 +164,43 @@ export const resolveStageInput = ({ stage: entry, responses = {}, content = {} }
     // ready, and the runtime shows it as waiting rather than as broken.
     ready: hasResponse,
   };
+};
+
+/**
+ * Validate the wiring between the workflow and its grading section.
+ *
+ * A grading rule keyed to a stage that does not exist is the worst kind of
+ * authoring mistake: nothing errors, nothing renders differently, and the stage
+ * is quietly never marked. Preflight is the only place it can be caught.
+ */
+export const validateGrading = (workflow = [], grading = null, { label = 'Question' } = {}) => {
+  if (!isObject(grading)) return [];
+  const stages = normalizeWorkflow(workflow);
+  const byId = new Map(stages.map((entry) => [entry.id, entry]));
+  const errors = [];
+
+  Object.entries(grading).forEach(([key, rule]) => {
+    const stage = byId.get(key);
+    if (!stage) {
+      errors.push(
+        `${label} grades "${key}", which is not a stage in this question. `
+        + `The stages are: ${stages.map((entry) => entry.id).join(', ') || 'none'}.`,
+      );
+      return;
+    }
+    if (!isObject(rule) || !rule.consistentWith) return;
+
+    const upstream = byId.get(rule.consistentWith);
+    if (!upstream) {
+      errors.push(`${label} stage "${key}" is graded against "${rule.consistentWith}", which is not a stage in this question.`);
+      return;
+    }
+    if (upstream.index >= stage.index) {
+      errors.push(`${label} stage "${key}" is graded against "${rule.consistentWith}", which the student answers later.`);
+    }
+  });
+
+  return errors;
 };
 
 /**
@@ -175,10 +229,7 @@ export const readComposedQuestion = (question = {}) => {
  */
 export const summarizeWorkflowProgress = (stages = [], responses = {}) => {
   const total = stages.length;
-  const answered = stages.filter((entry) => {
-    const value = responses[entry.id];
-    return value !== undefined && value !== null && value !== '';
-  }).length;
+  const answered = stages.filter((entry) => hasStageResponse(responses[entry.id])).length;
   return {
     total,
     answered,

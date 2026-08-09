@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { INTERACTION_STAGES, STAGE_KINDS, resolveStageKind } from '../../src/platform/workflow/interactionStages.js';
 import {
   normalizeWorkflow, readComposedQuestion, resolveStageInput,
-  summarizeWorkflowProgress, validateWorkflow,
+  summarizeWorkflowProgress, validateGrading, validateWorkflow,
 } from '../../src/platform/workflow/questionWorkflow.js';
 import { validateQuestionSemantics } from '../../src/platform/contract/semanticValidation.js';
 
@@ -194,4 +194,52 @@ test('Preflight leaves a valid composed question alone', () => {
 test('a question with no workflow is unaffected by this layer', () => {
   const question = { type: 'algebra', prompt: 'Solve for x.', equationLatex: '3x = 12' };
   assert.deepEqual(validateQuestionSemantics(question, { label: 'Q9' }).errors, []);
+});
+
+// --- Grading wiring ---------------------------------------------------------
+
+test('a grading rule keyed to a stage that does not exist is refused', () => {
+  const errors = validateGrading(
+    [{ kind: 'equationInput' }, { kind: 'classification', choices: ['a', 'b'] }],
+    { equation: 'f(x)=2x', tabel: { values: {} } },
+    { label: 'Q' },
+  );
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /grades "tabel"/);
+  assert.match(errors[0], /equation, classification/);
+});
+
+test('grading a stage against work the student has not done yet is refused', () => {
+  const errors = validateGrading(
+    [{ kind: 'tableInput' }, { kind: 'equationInput' }],
+    { table: { consistentWith: 'equation' } },
+    { label: 'Q' },
+  );
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /answers later/);
+});
+
+test('a correctly wired grading section passes', () => {
+  assert.deepEqual(
+    validateGrading(
+      [{ kind: 'equationInput' }, { kind: 'tableInput', source: { fromStage: 'equation' } }],
+      { equation: 'f(x)=2x', table: { consistentWith: 'equation' } },
+    ),
+    [],
+  );
+});
+
+test('Preflight reports a misspelled grading key', () => {
+  const question = {
+    type: 'relationshipModel',
+    prompt: 'Model the situation.',
+    scenario: 'A shower head releases 1.8 gallons per minute.',
+    quantities: [{ id: 'time', label: 'Minutes' }, { id: 'volume', label: 'Gallons' }],
+    correctIndependentId: 'time',
+    correctDependentId: 'volume',
+    workflow: [{ kind: 'equationInput' }],
+    grading: { equasion: 'f(x)=1.8x' },
+  };
+  const { errors } = validateQuestionSemantics(question, { label: 'Q10' });
+  assert.ok(errors.some((message) => /equasion/.test(message)));
 });

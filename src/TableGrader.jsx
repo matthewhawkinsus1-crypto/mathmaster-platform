@@ -6,7 +6,11 @@ import { resolveLabelFormat } from './labelFormat';
 import { compareMathAnswer } from './answerUtils';
 import useUndoHistory from './useUndoHistory';
 
-export default function TableGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
+// `compact` is for a table embedded in a larger question, where the step
+// already carries its own heading and directions. Repeating "Function Table"
+// and "Complete all missing values" inside one step of a workflow reads as a
+// second question rather than a part of this one.
+export default function TableGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey, compact = false }) {
   const { prompt, ruleLatex, showRule = false } = question;
   // A `= {}` default only fires for undefined, so an explicit `"table": null`
   // in a blueprint slipped straight through and threw on `.columns`.
@@ -15,34 +19,58 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
     : {};
   const columns = Array.isArray(table.columns) ? table.columns : [];
   const rows = Array.isArray(table.rows) ? table.rows : [];
-  const answers = table.answers || {};
-  const answerKeys = useMemo(() => Object.keys(answers), [answers]);
+  const answers = useMemo(() => table.answers || {}, [table.answers]);
+  // A cell can be editable without being graded here. When a student fills a
+  // table from the function THEY wrote, there is no key at this level: whether
+  // 5 belongs in that row depends on their function, which this component never
+  // sees. So `answers` means "editable and graded here" and `blanks` means
+  // "editable, graded elsewhere". Without the second, a keyless table renders no
+  // input cells at all and the student has nothing to fill in.
+  const blanks = useMemo(
+    () => (Array.isArray(table.blanks) ? table.blanks.map((key) => String(key)) : []),
+    [table.blanks],
+  );
+  const editableKeys = useMemo(() => {
+    const seen = new Set();
+    return [...Object.keys(answers), ...blanks].filter((key) => {
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [answers, blanks]);
   const history = useUndoHistory({}, 60, draftKey ? `${draftKey}:table` : null);
   const studentAnswers = history.value;
 
-  const parts = answerKeys.map((key) => {
+  const parts = editableKeys.map((key) => {
     const response = String(studentAnswers[key] ?? '');
+    const graded = Object.prototype.hasOwnProperty.call(answers, key);
     return {
       id: key,
       label: `Table blank ${key}`,
+      graded,
       isComplete: response.trim() !== '',
-      isCorrect: response.trim() !== '' && compareMathAnswer(response, answers[key]),
+      isCorrect: graded && response.trim() !== '' && compareMathAnswer(response, answers[key]),
       response,
     };
   });
+  const gradedParts = parts.filter((part) => part.graded);
   const isComplete = parts.length > 0 && parts.every((part) => part.isComplete);
-  const isCorrect = isComplete && parts.every((part) => part.isCorrect);
+  // Correctness is claimed only for the cells this component holds a key for.
+  // A table with no keys reports itself complete and stays silent about correct,
+  // rather than reporting a filled-in table as wrong.
+  const isCorrect = isComplete && gradedParts.length > 0 && gradedParts.every((part) => part.isCorrect);
 
   useEffect(() => {
-    const responseDetails = answerKeys.map((key) => `${key}=${studentAnswers[key] ?? ''}`).join(', ');
+    const responseDetails = editableKeys.map((key) => `${key}=${studentAnswers[key] ?? ''}`).join(', ');
     onStateChange({
       isComplete,
       isCorrect,
+      gradedHere: gradedParts.length > 0,
       responseKey: JSON.stringify(studentAnswers),
       questionDetails: `${prompt || 'Complete the table.'}${ruleLatex ? ` Rule: ${ruleLatex}.` : ''} Responses: ${responseDetails}`,
       parts,
     });
-  }, [studentAnswers, answerKeys, prompt, ruleLatex, isComplete, isCorrect, onStateChange]);
+  }, [studentAnswers, editableKeys, prompt, ruleLatex, isComplete, isCorrect, onStateChange]);
 
   useEffect(() => {
     onUndoStateChange?.({ canUndo: history.canUndo, onUndo: history.undo, label: 'Undo the last table entry' });
@@ -54,8 +82,10 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
 
   return (
     <div>
-      <h2 style={{ color: '#202124', marginTop: 0 }}>Function Table</h2>
-      <QuestionPrompt>{prompt || 'Complete all missing values in the table.'}</QuestionPrompt>
+      {!compact && <h2 style={{ color: '#202124', marginTop: 0 }}>Function Table</h2>}
+      {(prompt || !compact) && (
+        <QuestionPrompt>{prompt || 'Complete all missing values in the table.'}</QuestionPrompt>
+      )}
       {showRule && ruleLatex && (
         <div style={{ margin: '22px auto', padding: '14px 20px', width: 'fit-content', background: '#f8f9fa', borderRadius: '10px', color: '#1a73e8', fontSize: '25px', fontWeight: 'bold' }}>
           <MathDisplay value={ruleLatex} format="ascii-math" />
@@ -72,7 +102,8 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
               <tr key={`row-${rowIndex}`}>
                 {columns.map((column) => {
                   const answerKey = `${rowIndex}:${column.key}`;
-                  const isBlank = Object.prototype.hasOwnProperty.call(answers, answerKey);
+                  const isBlank = Object.prototype.hasOwnProperty.call(answers, answerKey)
+                    || blanks.includes(answerKey);
                   const grade = gradeFor(answerKey);
                   return (
                     <td key={answerKey} style={{ padding: '12px 20px', border: '1px solid #cfd4da', textAlign: 'center', fontSize: '19px' }}>
@@ -87,7 +118,11 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
           </tbody>
         </table>
       </div>
-      <p style={{ fontSize: '13px', color: '#80868b', marginTop: '14px' }}>Incorrect blanks are outlined after submission so you can focus only on those entries.</p>
+      <p style={{ fontSize: '13px', color: '#80868b', marginTop: '14px' }}>
+        {gradedParts.length > 0
+          ? 'Incorrect blanks are outlined after submission so you can focus only on those entries.'
+          : 'These values are checked against the function you wrote, not against a fixed answer key.'}
+      </p>
     </div>
   );
 }
