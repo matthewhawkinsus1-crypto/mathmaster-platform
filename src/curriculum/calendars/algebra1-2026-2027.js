@@ -19,26 +19,20 @@
 // together. Honors differs by adaptive policy — acceleration radius, difficulty,
 // extension — never by different dates.
 
+import { schoolYearNonInstructionalRanges } from './schoolYear2026-2027.js';
+
 export const ALGEBRA1_2026_2027 = {
   calendarId: 'alg1-2026-27',
   courseIds: ['algebra1', 'algebra1-honors'],
   label: 'Algebra I / Algebra I Honors — 2026-27 (tentative)',
   firstInstructionalDay: '2026-08-10',
-  lastInstructionalDay: '2027-05-29',
+  lastInstructionalDay: '2027-05-21',
 
-  // Days the calendar shows as non-instructional. These matter because the
-  // early-open rule counts instructional days: Thanksgiving week must not spend
-  // five of them. Entries marked `derived` come from a gap the supplied dates
-  // themselves imply (instruction stops on one date and resumes on a later
-  // one) rather than from a named holiday in the brief.
-  nonInstructionalRanges: [
-    { start: '2026-09-07', end: '2026-09-07', label: 'Labor Day' },
-    { start: '2026-10-12', end: '2026-10-16', label: 'Fall break', derived: true },
-    { start: '2026-11-23', end: '2026-11-27', label: 'Thanksgiving break' },
-    { start: '2026-12-21', end: '2027-01-05', label: 'Winter break' },
-    { start: '2027-02-15', end: '2027-02-15', label: 'Presidents Day' },
-    { start: '2027-03-15', end: '2027-03-19', label: 'Spring break', derived: true },
-  ],
+  // Closures come from the shared district calendar, not from this file. Both
+  // courses run on the same school year, and keeping two lists meant keeping
+  // two lists correct — which they were not: MLK Day, Good Friday and seven
+  // professional-development days were missing from both.
+  nonInstructionalRanges: schoolYearNonInstructionalRanges(),
 
   windows: [
     // --- Module 1: Searching for Patterns -----------------------------------

@@ -105,6 +105,25 @@ export const subtractInstructionalDays = (from, days, nonInstructional) => {
   return new Date(cursor);
 };
 
+/**
+ * Step forward N instructional days. The mirror of subtractInstructionalDays,
+ * needed wherever the question is "when does this finish" rather than "when
+ * does this open".
+ */
+export const addInstructionalDays = (from, days, nonInstructional) => {
+  const start = toDate(from);
+  if (!start) return null;
+  let remaining = Math.max(0, Math.floor(Number(days) || 0));
+  let cursor = start.getTime();
+  let guard = 400;
+  while (remaining > 0 && guard > 0) {
+    cursor += DAY_MS;
+    guard -= 1;
+    if (isInstructionalDay(new Date(cursor), nonInstructional)) remaining -= 1;
+  }
+  return new Date(cursor);
+};
+
 export const countInstructionalDaysBetween = (from, to, nonInstructional) => {
   const start = toDate(from);
   const end = toDate(to);
@@ -321,3 +340,7 @@ export const calendarPacingProvider = ({ calendar, skillCurriculumLinks = {}, no
     },
   };
 };
+
+// The brief's vocabulary, kept as an alias rather than a rename so nothing
+// already calling the longer name has to change.
+export const instructionalDaysBetween = countInstructionalDaysBetween;

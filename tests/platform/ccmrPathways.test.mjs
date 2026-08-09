@@ -61,20 +61,41 @@ const studentWith = (assignment) => ({
 // 9A — the audit, and the honesty rules it enforces
 // ---------------------------------------------------------------------------
 
-test('the coverage audit reports gaps instead of filling them', () => {
+test('every course now has crosswalk coverage, and the audit clears the UI gate', () => {
   const audit = runCcmrCoverageAudit();
   assert.equal(audit.totals.skills, 237);
-  // Grades 6-8 and Algebra II genuinely have no crosswalk. The audit must say
-  // so rather than inventing one.
-  ['grade6', 'grade7', 'grade8', 'algebra2'].forEach((courseId) => {
+  ['grade6', 'grade7', 'grade8', 'algebra1', 'algebra2'].forEach((courseId) => {
     const course = audit.courses.find((entry) => entry.courseId === courseId);
-    assert.equal(course.coveredSkillCount, 0, `${courseId} should report zero coverage`);
-    assert.ok(audit.findings.some((finding) => finding.code === 'course_has_no_alignment' && finding.courseId === courseId));
+    assert.ok(course.coveredSkillCount > 0, `${courseId} must have coverage now that the crosswalk is authored`);
   });
-  assert.equal(audit.readyForStudentUi, false, 'the audit must block a launch claim while whole courses are uncovered');
-  // A map that claims every skill is flagged for review, not trusted.
-  assert.ok(audit.findings.some((finding) => finding.code === 'framework_claims_every_skill'));
+  assert.equal(audit.readyForStudentUi, true, 'no course is left uncovered');
+  assert.ok(!audit.findings.some((finding) => finding.code === 'course_has_no_alignment'));
+  // The exclusions stay flagged: the mechanism is approved, the code list is not.
   assert.ok(audit.findings.some((finding) => finding.code === 'authored_scope_exclusion'));
+});
+
+test('the crosswalk says no where the mathematics says no', () => {
+  const audit = runCcmrCoverageAudit();
+  // Consumer-finance standards are not mathematics content on any of the four.
+  ['6.14D', '7.13C', '8.12F'].forEach((code) => {
+    assert.equal(Object.keys(getSkillCrosswalk(code).frameworks).length, 0, `${code} must map to nothing`);
+  });
+  // No framework claims every standard in every course.
+  const overclaiming = audit.courses.flatMap((course) => ASSESSMENT_FRAMEWORKS
+    .filter((framework) => {
+      const counts = course.byFramework[framework];
+      return counts.crosswalk + counts.directCapable === course.skillCount;
+    })
+    .map((framework) => `${course.courseId}/${framework}`));
+  assert.ok(!overclaiming.includes('grade6/asvab'), 'the ASVAB must not claim all of grade 6');
+  assert.ok(!overclaiming.includes('algebra2/asvab'), 'the ASVAB must not claim all of Algebra II');
+});
+
+test('a standard may map to several domains of the same framework', () => {
+  // The constant of proportionality is SAT Algebra and SAT Problem-Solving and
+  // Data Analysis at the same time, and the crosswalk must be able to say so.
+  const sat = getSkillCrosswalk('7.4C').frameworks.digitalSAT;
+  assert.deepEqual(sat.domainIds, ['algebra', 'problemSolvingData']);
 });
 
 // Test 2 — no fake alignment
@@ -91,7 +112,8 @@ test('Test 2 — a skill outside a framework\'s scope offers no pathway', () => 
   });
   const asvab = options.pathways.find((entry) => entry.framework === 'asvab');
   assert.equal(asvab.available, false);
-  assert.deepEqual(asvab.reasonCodes, [CCMR_REASON.NO_ALIGNMENT]);
+  assert.ok(asvab.reasonCodes.includes(CCMR_REASON.NO_ALIGNMENT));
+  assert.ok(asvab.reasonCodes.includes(CCMR_REASON.NO_ASVAB_ALIGNMENT));
   assert.ok(!options.availablePathways.some((entry) => entry.framework === 'asvab'));
 });
 

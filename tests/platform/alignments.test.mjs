@@ -52,8 +52,18 @@ const find = (list, framework) => list.filter((entry) => entry.framework === fra
 
   const direct = getDirectEvidenceAlignments(ordinary);
   assert.ok(direct.every((entry) => entry.framework === 'teks'), 'only the TEKS alignment counts as direct evidence');
-  assert.ok(find(out, 'act').length && find(out, 'tsia2').length && find(out, 'asvab').length,
-    'all four exam frameworks get a crosswalk');
+  assert.ok(find(out, 'act').length && find(out, 'tsia2').length,
+    'the frameworks this standard is aligned to get a crosswalk');
+  // A.2A is domain and range of linear functions expressed with inequalities,
+  // which the ASVAB does not test. The crosswalk is now authored per standard,
+  // so an item about it must NOT claim ASVAB overlap.
+  assert.equal(find(out, 'asvab').length, 0, 'no crosswalk is derived where none was authored');
+
+  // A standard that genuinely is on all four still gets all four.
+  const everywhere = normalizeQuestionAlignments({ alignments: [{ framework: 'teks', code: 'A.5A', role: 'primary' }] });
+  ['digitalSAT', 'act', 'tsia2', 'asvab'].forEach((framework) => {
+    assert.equal(find(everywhere, framework).length, 1, `solving linear equations is ${framework} content`);
+  });
 }
 
 // --- declaring the item as SAT-style promotes that framework to direct ----

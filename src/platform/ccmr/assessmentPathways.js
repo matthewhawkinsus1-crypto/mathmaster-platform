@@ -47,6 +47,10 @@ export const CCMR_REASON = Object.freeze({
   CONTEXT_BELOW_CORE: 'assessment-context-performance-lower-than-core',
   NOT_PRACTISED: 'not-yet-practiced',
   NO_ALIGNMENT: 'no-meaningful-alignment',
+  // The ASVAB gets its own code because its exclusions are the ones under
+  // review, and a teacher reading a reason list needs to see which "no" came
+  // from the scope decision rather than from an absent mapping.
+  NO_ASVAB_ALIGNMENT: 'no-meaningful-asvab-alignment',
   BEYOND_PACING: 'beyond-course-pacing',
   HIGH_RELEVANCE: 'high-relevance-to-selected-framework',
 });
@@ -119,7 +123,9 @@ export const classifyAssessmentSkill = ({
       status: READINESS.NOT_AVAILABLE,
       available: false,
       score: 0,
-      reasons: [CCMR_REASON.NO_ALIGNMENT],
+      reasons: framework === 'asvab'
+        ? [CCMR_REASON.NO_ALIGNMENT, CCMR_REASON.NO_ASVAB_ALIGNMENT]
+        : [CCMR_REASON.NO_ALIGNMENT],
       coreMastery,
       proficiency: null,
       practised: false,

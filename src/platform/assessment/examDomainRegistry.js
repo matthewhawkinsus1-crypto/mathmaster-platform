@@ -1,4 +1,5 @@
 import { toDisplayCode } from '../../utils/teksUtils.js';
+import { TEKS_EXAM_CROSSWALK, getExamDomainIds } from './teksExamCrosswalk.js';
 
 export const EXAM_TYPES = Object.freeze({
   DIGITAL_SAT: 'digitalSAT',
@@ -37,28 +38,40 @@ export const EXAM_DOMAIN_REGISTRY = Object.freeze({
   ]),
 });
 
-const sectionNumber = (code) => Number(String(code).match(/^A\.(\d+)/)?.[1]);
-
 const mappingFor = (examType, domainId) => {
   const domain = (EXAM_DOMAIN_REGISTRY[examType] || []).find((entry) => entry.id === domainId);
   return domain ? { domainId, weight: domain.weight } : null;
 };
 
+/**
+ * Exam domains for a TEKS code, from the authored crosswalk.
+ *
+ * This used to derive the answer from the code's section number, which is why
+ * it returned nothing for grades 6-8 and Algebra II (the pattern only matched
+ * `A.n`) and returned all four frameworks for every Algebra I standard. It now
+ * reads a table authored per standard from that standard's own description.
+ *
+ * The return shape is unchanged — `{ [framework]: { domainId, weight } }` — so
+ * existing callers keep working. `domainIds` is added alongside for the cases
+ * where a standard genuinely belongs to more than one domain of the same exam.
+ */
 export const mapTEKSToExamDomains = (teksCode) => {
   const code = toDisplayCode(teksCode);
-  const section = sectionNumber(code);
-  if (!Number.isFinite(section)) return {};
+  const authored = TEKS_EXAM_CROSSWALK[code];
+  if (!authored) return {};
 
-  const satDomain = section === 4 ? 'problemSolvingData' : [2, 3, 5].includes(section) ? 'algebra' : [6, 7, 8, 9, 10, 11, 12].includes(section) ? 'advancedMath' : null;
-  const actDomain = [2, 3, 5, 6, 7, 8, 9, 10, 11, 12].includes(section) ? 'preparingHigherMath' : section === 4 ? 'essentialSkills' : null;
-  const tsiaDomain = section === 4 ? 'probabilisticStatistical' : [2, 3].includes(section) ? 'quantitativeReasoning' : [5, 6, 7, 8, 9, 10, 11, 12].includes(section) ? 'algebraicReasoning' : null;
-  const asvabDomain = section === 4 ? 'arithmeticReasoning' : [2, 3, 5, 6, 7, 8, 9, 10, 11, 12].includes(section) ? 'mathematicsKnowledge' : null;
-  return {
-    ...(satDomain ? { [EXAM_TYPES.DIGITAL_SAT]: mappingFor(EXAM_TYPES.DIGITAL_SAT, satDomain) } : {}),
-    ...(actDomain ? { [EXAM_TYPES.ACT]: mappingFor(EXAM_TYPES.ACT, actDomain) } : {}),
-    ...(tsiaDomain ? { [EXAM_TYPES.TSIA2]: mappingFor(EXAM_TYPES.TSIA2, tsiaDomain) } : {}),
-    ...(asvabDomain ? { [EXAM_TYPES.ASVAB]: mappingFor(EXAM_TYPES.ASVAB, asvabDomain) } : {}),
-  };
+  const result = {};
+  Object.values(EXAM_TYPES).forEach((examType) => {
+    // Validated here, not in the crosswalk: the registry owns which domain ids
+    // exist, so an authored typo is dropped rather than propagated.
+    const known = new Set((EXAM_DOMAIN_REGISTRY[examType] || []).map((domain) => domain.id));
+    const domainIds = getExamDomainIds(code, examType).filter((id) => known.has(id));
+    if (!domainIds.length) return;
+    const primary = mappingFor(examType, domainIds[0]);
+    if (!primary) return;
+    result[examType] = { ...primary, domainIds };
+  });
+  return result;
 };
 
 export const getExamDomains = (examType) => EXAM_DOMAIN_REGISTRY[examType] || [];

@@ -1,10 +1,7 @@
 // Which assessments a mathematical skill legitimately appears on.
 //
-// WHAT WAS ALREADY HERE, AND WHAT THE 9A AUDIT FOUND.
-// `examDomainRegistry.mapTEKSToExamDomains` already maps TEKS to exam domains,
-// and Batch 9 was asked to consume it rather than invent a new mapping. It is
-// consumed here. But it cannot be consumed uncritically, because running it
-// across the registry produces this:
+// HOW THIS GOT HERE. The 9A audit ran the platform's existing crosswalk across
+// the whole registry and found it was not usable as an eligibility source:
 //
 //   grade 6    0 of 52 standards mapped to any framework
 //   grade 7    0 of 43
@@ -12,29 +9,26 @@
 //   Algebra I  49 of 49 mapped to ALL FOUR frameworks
 //   Algebra II 0 of 48
 //
-// Both halves of that are problems. The zeroes are a coverage gap — the
-// function's code pattern only matches `A.n`, so Algebra II and the middle
-// grades fall through silently. The 49-of-49 is the opposite failure: a
-// twelve-line strand heuristic asserting 196 alignment claims, including that
-// the ASVAB tests exponential regression and correlation coefficients. It does
-// not.
+// Both halves came from the same cause — it read the TEKS section number rather
+// than the mathematics. The pattern only matched `A.n`, so four courses fell
+// through silently; and within Algebra I it never said no, including about the
+// ASVAB testing exponential regression, which it does not.
 //
-// The brief's rule is unambiguous — "Missing legitimate alignment is
-// acceptable. Fake alignment is not" — so this module keeps the heuristic but
-// stops treating its output as fact:
+// That table has since been replaced by an authored one (teksExamCrosswalk.js),
+// written per standard from the standard's own description. This module is the
+// eligibility layer over it: it resolves a skill to its frameworks, records
+// where each claim came from, and refuses to offer a pathway it cannot justify.
 //
-//   derivation: 'heuristic'  came from the strand pattern. Usable, unverified.
-//   derivation: 'authored'   a human wrote it down and can be held to it.
+//   derivation: 'authored'  a human wrote this row and can be held to it.
+//   alignmentType 'crosswalk' vs 'direct' — the mathematics overlaps the exam,
+//   versus somebody actually wrote an item in that exam's style.
 //
-// and adds a scope layer, because the cheapest correct fix for an over-broad
-// map is not to re-derive it — it is to say where the exam does not go.
-//
-// NOTHING HERE INVENTS A NEW MAPPING. The exclusions below narrow an existing
-// claim; they never manufacture one. Every skill without a heuristic entry
-// stays without one, and shows up in the audit as a gap for a human to fill.
+// NOTHING HERE INVENTS A MAPPING. A skill the crosswalk does not cover gets no
+// pathway and appears in the audit as a gap for a human to fill.
 
 import { getTexasStandard, normalizeTeksCode } from '../../texasStandards.js';
 import { EXAM_DOMAIN_REGISTRY, EXAM_TYPES, mapTEKSToExamDomains } from '../assessment/examDomainRegistry.js';
+import { ASVAB_EXCLUDED_TEKS_CODES } from '../assessment/teksExamCrosswalk.js';
 import { teksCodeFromSkillId, teksSkillId } from '../path/skillGraph.js';
 
 export const ASSESSMENT_FRAMEWORKS = Object.freeze([
@@ -65,44 +59,25 @@ export const FRAMEWORK_LABELS = Object.freeze({
 });
 
 // ---------------------------------------------------------------------------
-// Scope corrections — authored, small, and flagged for review.
+// Scope exclusions.
 // ---------------------------------------------------------------------------
 //
-// NEEDS TEACHER REVIEW. This is the only authored curriculum judgment in Batch
-// 9, and it exists because the heuristic claims every Algebra I standard is
-// ASVAB content. The ASVAB's two mathematics sections are Arithmetic Reasoning
-// (word problems over arithmetic, ratio, percent) and Mathematics Knowledge
-// (number properties, basic algebra, geometry). Regression with technology,
-// correlation coefficients, exponential modelling, parent-function
-// transformations and interval-notation domain and range are not on it.
+// The ASVAB exclusion MECHANISM is approved: a standard with no meaningful
+// relationship to Arithmetic Reasoning or Mathematics Knowledge is excluded
+// rather than given a fabricated mapping. The specific CODES are still pending
+// a teacher's review, so they are surfaced as a list rather than left implicit
+// in the table.
 //
-// Listed as exclusions rather than as a rewritten map so the underlying source
-// stays the source, and so a teacher who disagrees deletes a line rather than
-// reverse-engineering a heuristic.
+// The list is derived from the authored crosswalk rather than maintained
+// beside it, so the two cannot disagree: removing an ASVAB entry from a row
+// adds that code here automatically.
 export const FRAMEWORK_SCOPE_EXCLUSIONS = Object.freeze({
   [EXAM_TYPES.ASVAB]: Object.freeze({
     needsReview: true,
-    note: 'ASVAB mathematics is Arithmetic Reasoning and Mathematics Knowledge. These Algebra I standards fall outside both.',
-    codes: Object.freeze([
-      // Statistics and regression with technology.
-      'A.4A', 'A.4B', 'A.4C', 'A.8B', 'A.9E',
-      // Exponential functions as a function family.
-      'A.9A', 'A.9B', 'A.9C', 'A.9D',
-      // Sequences in function form.
-      'A.12C', 'A.12D',
-      // Parent-function transformation analysis.
-      'A.3E', 'A.7C',
-      // Domain and range as represented with inequalities/interval notation.
-      'A.2A', 'A.6A',
-    ]),
+    note: 'ASVAB mathematics is Arithmetic Reasoning (applied arithmetic, ratio, percent, averages, rate/time/distance) and Mathematics Knowledge (number properties, basic algebra, factoring, exponents, basic geometry). These standards fall outside both.',
+    codes: ASVAB_EXCLUDED_TEKS_CODES,
   }),
 });
-
-const exclusionFor = (framework, code) => {
-  const entry = FRAMEWORK_SCOPE_EXCLUSIONS[framework];
-  if (!entry) return null;
-  return entry.codes.includes(code) ? entry : null;
-};
 
 /**
  * Frameworks a single skill is crosswalked to, with the provenance of each
@@ -119,17 +94,16 @@ export const getSkillCrosswalk = (skillIdOrCode) => {
   ASSESSMENT_FRAMEWORKS.forEach((framework) => {
     const entry = mapped[framework];
     if (!entry) return;
-    const excluded = exclusionFor(framework, code);
-    if (excluded) return;
     const domain = (EXAM_DOMAIN_REGISTRY[framework] || []).find((item) => item.id === entry.domainId);
     frameworks[framework] = {
       framework,
       domainId: entry.domainId,
       domainTitle: domain?.title || entry.domainId,
       weight: entry.weight,
+      domainIds: entry.domainIds || [entry.domainId],
       alignmentType: ALIGNMENT_TYPE.CROSSWALK,
-      // Said plainly so nothing downstream can mistake this for verified data.
-      derivation: DERIVATION.HEURISTIC,
+      // Authored per standard in teksExamCrosswalk.js, not pattern-matched.
+      derivation: DERIVATION.AUTHORED,
     };
   });
 
@@ -179,15 +153,14 @@ export const resolveAlignment = ({ skillId, framework, directIndex = null }) => 
   if (!crosswalk && !isDirectCapable) return null;
 
   // A directly authored item is its own justification: if somebody wrote an SAT
-  // item for this skill, the skill is on the SAT regardless of what a strand
-  // heuristic thinks.
+  // item for this skill, the skill is on the SAT whatever the crosswalk says.
   return {
     framework,
     domainId: crosswalk?.domainId || null,
     domainTitle: crosswalk?.domainTitle || null,
     weight: crosswalk?.weight ?? null,
     alignmentType: isDirectCapable ? ALIGNMENT_TYPE.DIRECT : ALIGNMENT_TYPE.CROSSWALK,
-    derivation: isDirectCapable ? DERIVATION.AUTHORED : (crosswalk?.derivation || DERIVATION.HEURISTIC),
+    derivation: crosswalk?.derivation || DERIVATION.AUTHORED,
     directCapable: isDirectCapable,
   };
 };
