@@ -28,6 +28,7 @@ export default function AlgebraTermRow({
         return (
           <span
             key={index}
+            data-term-index={index}
             ref={(el) => registerTermRef?.(index, el)}
             className={index === justInsertedIndex ? 'algebra-term-pop' : ''}
             onClick={onTermClick ? () => onTermClick(index) : undefined}

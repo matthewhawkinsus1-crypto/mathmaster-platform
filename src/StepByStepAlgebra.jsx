@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
+import {
+  appendStrokePoint, createStroke, evaluateStroke, strokeToPath,
+} from './strokeGeometry';
 import MathDisplay from './MathDisplay';
 import MathInput from './MathInput';
 import QuestionPrompt from './QuestionPrompt';
@@ -123,7 +126,10 @@ export default function StepByStepAlgebra({
   const [crossedSides, setCrossedSides] = useState(savedDraft?.crossedSides || []);
   const [simplificationAnswers, setSimplificationAnswers] = useState(savedDraft?.simplificationAnswers || {});
   const [promptAnswers, setPromptAnswers] = useState(savedDraft?.promptAnswers || {});
-  const [strikeStart, setStrikeStart] = useState(null);
+  // The whole drawn path, in coordinates local to the strike box, so the live
+  // ink and the term rectangles share one space.
+  const [stroke, setStroke] = useState(null); // { side, points: [{x,y}] } | null
+  const strokeBoxRef = useRef(null);
   const [message, setMessage] = useState(null);
   const [dragOverSide, setDragOverSide] = useState(null);
   const [mirrorOrigin, setMirrorOrigin] = useState(null);
@@ -352,8 +358,86 @@ export default function StepByStepAlgebra({
     }
   };
 
-  const strikeSide = async (side, distance) => {
-    if (!pendingMove || cancelAnimating || distance < 44) return;
+  // --- Freehand cancellation -----------------------------------------------
+  // Pointer Events throughout, so mouse, touch and stylus are one code path,
+  // and pointer capture so a stroke that wanders outside the box keeps
+  // reporting rather than silently ending.
+  const localPoint = (event, element) => {
+    const box = element?.getBoundingClientRect();
+    if (!box) return null;
+    return { x: event.clientX - box.left, y: event.clientY - box.top };
+  };
+
+  const beginStroke = (side, event) => {
+    if (!pendingMove || cancelAnimating || disabled) return;
+    const element = event.currentTarget;
+    strokeBoxRef.current = element;
+    element.setPointerCapture?.(event.pointerId);
+    const point = localPoint(event, element);
+    if (point) setStroke({ side, points: createStroke(point) });
+  };
+
+  const extendStroke = (event) => {
+    if (!stroke) return;
+    const point = localPoint(event, strokeBoxRef.current);
+    if (!point) return;
+    setStroke((current) => {
+      if (!current) return current;
+      const next = appendStrokePoint(current.points, point);
+      return next === current.points ? current : { ...current, points: next };
+    });
+  };
+
+  // The rectangles the stroke is tested against, read from the DOM at the
+  // moment the stroke ends so a reflow mid-gesture cannot leave them stale.
+  const collectTermRects = () => {
+    const element = strokeBoxRef.current;
+    if (!element) return [];
+    const box = element.getBoundingClientRect();
+    return Array.from(element.querySelectorAll('[data-term-index]')).map((node) => {
+      const rect = node.getBoundingClientRect();
+      return {
+        index: Number(node.getAttribute('data-term-index')),
+        rect: {
+          left: rect.left - box.left,
+          right: rect.right - box.left,
+          top: rect.top - box.top,
+          bottom: rect.bottom - box.top,
+        },
+      };
+    });
+  };
+
+  const finishStroke = async (side, expectedPair) => {
+    const current = stroke;
+    setStroke(null);
+    if (!current || current.side !== side) return;
+
+    const verdict = evaluateStroke({
+      points: current.points,
+      termRects: collectTermRects(),
+      expectedPair: Array.isArray(expectedPair) && expectedPair.length ? expectedPair : null,
+    });
+
+    // A tap is somebody trying to select a term, not a failed cancellation, so
+    // it costs nothing and says nothing.
+    if (verdict.tooShort) return;
+
+    if (!verdict.matched) {
+      triggerShake();
+      setMessage({
+        tone: 'growth',
+        text: verdict.reason === 'missed'
+          ? 'That line did not pass through any terms. Draw through the pair that cancels.'
+          : 'Those terms do not cancel each other. Look for the pair that adds to zero, or the factor that divides out.',
+      });
+      return;
+    }
+    await strikeSide(side);
+  };
+
+  const strikeSide = async (side) => {
+    if (!pendingMove || cancelAnimating) return;
     const valid = pendingMove.requiredCancellationSides.includes(side);
     if (!valid) {
       triggerShake();
@@ -687,8 +771,21 @@ export default function StepByStepAlgebra({
                 {renderSide(side)}
                 {pendingMove && <div className={`algebra-mirror-chip ${mirrorOrigin !== side ? 'algebra-mirror-arrive' : ''}`}>{pendingMove.operationLabel} {pendingMove.operandExpression}</div>}
                 {pendingMove && target && (
-                  <div onPointerDown={target.canCancel ? (event) => setStrikeStart({ side, x: event.clientX, y: event.clientY }) : undefined} onPointerUp={target.canCancel ? (event) => { const start = strikeStart; setStrikeStart(null); if (start?.side === side) strikeSide(side, Math.hypot(event.clientX - start.x, event.clientY - start.y)); } : undefined} style={{ position: 'relative', width: 'min(92%, 360px)', marginTop: '12px', padding: '13px', borderRadius: '10px', border: target.canCancel ? '2px dashed #f9ab00' : '1px solid #d9e2f1', background: target.canCancel ? '#fff9e6' : '#f8f9fa', textAlign: 'center', touchAction: 'none', cursor: target.canCancel ? 'crosshair' : 'default', userSelect: 'none' }}>
+                  <div
+                    onPointerDown={target.canCancel ? (event) => beginStroke(side, event) : undefined}
+                    onPointerMove={target.canCancel ? extendStroke : undefined}
+                    onPointerUp={target.canCancel ? () => finishStroke(side, candidatePairIndices) : undefined}
+                    onPointerCancel={target.canCancel ? () => setStroke(null) : undefined}
+                    style={{ position: 'relative', width: 'min(92%, 360px)', marginTop: '12px', padding: '13px', borderRadius: '10px', border: target.canCancel ? '2px dashed #f9ab00' : '1px solid #d9e2f1', background: target.canCancel ? '#fff9e6' : '#f8f9fa', textAlign: 'center', touchAction: 'none', cursor: target.canCancel ? 'crosshair' : 'default', userSelect: 'none' }}>
                     <div style={{ fontSize: '11px', color: '#5f6368', fontWeight: 'bold', marginBottom: '5px' }}>{target.canCancel ? 'Draw through the zero pair or identity pair' : 'Simplify this side in the response field below'}</div>
+                    {/* The line as it is being drawn. Ink is feedback: a
+                        student needs to see what they actually drew, not
+                        discover afterwards that it missed. */}
+                    {stroke?.side === side && stroke.points.length > 1 && (
+                      <svg aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 3, overflow: 'visible' }}>
+                        <path d={strokeToPath(stroke.points)} fill="none" stroke="#a50e0e" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.85" />
+                      </svg>
+                    )}
                     {targetTerms ? (
                       <AlgebraTermRow
                         terms={targetTerms}
