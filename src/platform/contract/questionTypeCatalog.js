@@ -36,6 +36,7 @@ const requires = (path, message) => ({ path, message });
 export const QUESTION_TYPE_CATALOG = Object.freeze({
   algebra: {
     label: 'Equation solving',
+    studentAction: "Types an answer, or works the equation step by step.",
     representation: REPRESENTATIONS.SYMBOLIC,
     purpose: 'Solve a one- or multi-step equation for a single value.',
     useWhen: ['The student computes a numeric answer to an equation.'],
@@ -50,6 +51,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
 
   fraction: {
     label: 'Fraction answer',
+    studentAction: "Types a fraction answer.",
     representation: REPRESENTATIONS.SYMBOLIC,
     purpose: 'Answer with a fraction in lowest terms.',
     useWhen: ['The expected answer is a fraction rather than a decimal.'],
@@ -61,6 +63,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
 
   numberLine: {
     label: 'Number line selection',
+    studentAction: "Chooses among number-line pictures.",
     representation: REPRESENTATIONS.NUMBER_LINE,
     purpose: 'Choose the number line that matches a statement, or read a value off one.',
     useWhen: ['The student picks between number-line pictures.'],
@@ -78,6 +81,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
 
   intervalNumberLine: {
     label: 'Interval number line',
+    studentAction: "CONSTRUCTS the shading — places endpoints and rays on the line, and writes the notation.",
     representation: REPRESENTATIONS.NUMBER_LINE,
     purpose: 'Move between an inequality, its interval notation and its number-line picture.',
     useWhen: [
@@ -145,6 +149,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
 
   graphing: {
     label: 'Read a displayed graph',
+    studentAction: "Reads a graph that is already drawn and answers about it.",
     representation: REPRESENTATIONS.GRAPH,
     purpose: 'Show a rendered graph and ask a question about it.',
     useWhen: ['The source material shows a graph the student must read.'],
@@ -166,6 +171,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
 
   functionGraph: {
     label: 'Construct a graph',
+    studentAction: "CONSTRUCTS a graph — plots points, places endpoint markers, draws the shape.",
     representation: REPRESENTATIONS.GRAPH,
     purpose: 'The student plots points and draws the curve of a given function.',
     useWhen: ['The task is to graph a function, including on a restricted domain.'],
@@ -181,6 +187,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
 
   functionInvestigation: {
     label: 'Investigate a function graph',
+    studentAction: "Manipulates parameters and reports what changes.",
     representation: REPRESENTATIONS.GRAPH,
     purpose: 'Construct or examine a graph and report several of its features at once.',
     useWhen: ['One graph should yield domain, range, intercepts and behaviour together.'],
@@ -199,6 +206,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
 
   graphAnalysis: {
     label: 'Analyse a displayed graph',
+    studentAction: "Reads a graph that is already drawn and states intervals, features or domain and range. Does NOT draw it.",
     representation: REPRESENTATIONS.GRAPH,
     purpose: 'Render a real graph and ask for domain, range, increasing/decreasing/constant intervals, where the function is positive or negative, or named features.',
     useWhen: [
@@ -241,6 +249,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
 
   stepAlgebra: {
     label: 'Step-by-step solving',
+    studentAction: "Performs balanced operations on an equation, one step at a time.",
     representation: REPRESENTATIONS.SYMBOLIC,
     purpose: 'The student performs each solving step and the platform records the work.',
     useWhen: ['The process matters as much as the answer.'],
@@ -252,6 +261,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
 
   literal: {
     label: 'Literal equation',
+    studentAction: "Rearranges a formula for a named variable.",
     representation: REPRESENTATIONS.SYMBOLIC,
     purpose: 'Rearrange a formula to isolate a named variable.',
     useWhen: ['The answer is an expression, not a number.'],
@@ -263,6 +273,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
 
   system: {
     label: 'System of equations',
+    studentAction: "Solves a system and types the solution.",
     representation: REPRESENTATIONS.SYMBOLIC,
     purpose: 'Solve a system and give the solution pair.',
     useWhen: ['Two equations must be solved together.'],
@@ -280,6 +291,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
 
   table: {
     label: 'Table completion',
+    studentAction: "EDITS table cells — fills in the missing values.",
     representation: REPRESENTATIONS.TABLE,
     purpose: 'The student fills blank cells in a table of values.',
     useWhen: ['The source shows a table the student completes or reads.'],
@@ -323,6 +335,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
 
   orderedPair: {
     label: 'Ordered pair',
+    studentAction: "Types coordinates.",
     representation: REPRESENTATIONS.ORDERED_PAIRS,
     purpose: 'Answer with a coordinate pair.',
     useWhen: ['The expected answer is a point.'],
@@ -334,6 +347,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
 
   multiAnswer: {
     label: 'Several answers in one question',
+    studentAction: "Types several short answers. It is a response form, NOT a construction workspace.",
     representation: REPRESENTATIONS.SYMBOLIC,
     purpose: 'Collect several labelled responses to one stimulus.',
     useWhen: ['One graph, table or scenario should produce several answers.'],
@@ -367,6 +381,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
 
   relationshipModel: {
     label: 'Model a relationship',
+    studentAction: "Works from a context toward the mathematics: names the quantities, and — where the stages are configured — writes the equation, fills the table, builds the graph, and states reasonable domain and range.",
     representation: REPRESENTATIONS.INTERACTIVE,
     purpose: 'From a scenario, decide which quantity is independent and which is dependent, and how they are related.',
     useWhen: ['The lesson is about identifying variables and relationship type in a real context.'],
@@ -400,6 +415,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
 
   graphScenarioMatch: {
     label: 'Match graphs to scenarios',
+    studentAction: "Matches scenarios to graphs by dragging.",
     representation: REPRESENTATIONS.GRAPH,
     purpose: 'Drag each scenario onto the graph that tells its story.',
     useWhen: ['Several situations must be matched to several graphs.'],
@@ -427,6 +443,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
 
   graphComparison: {
     label: 'Compare graphs',
+    studentAction: "Compares two graphs and answers about the difference.",
     representation: REPRESENTATIONS.GRAPH,
     purpose: 'Show two or more graphs side by side and ask what differs.',
     useWhen: ['The point is the comparison between graphs.'],
@@ -448,6 +465,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
 
   graphStory: {
     label: 'Write a graph story',
+    studentAction: "Reads a graph as a narrative and answers in order.",
     representation: REPRESENTATIONS.GRAPH,
     purpose: 'The student writes a situation that a given graph could describe.',
     useWhen: ['The skill is explaining a graph in words.'],
@@ -462,6 +480,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
 
   contextInterpretation: {
     label: 'Interpret a point in context',
+    studentAction: "Interprets a value or feature in context.",
     representation: REPRESENTATIONS.GRAPH,
     purpose: 'Given a scenario and its graph, say what one specific point means in the situation.',
     useWhen: ['The student must explain the meaning of a coordinate in a real context.'],
@@ -493,6 +512,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
 
   relationMapping: {
     label: 'Mapping diagram',
+    studentAction: "Works with a relation that is already given: builds the mapping arrows, and — where asked — plots the pairs, states domain and range, and decides whether it is a function.",
     representation: REPRESENTATIONS.MAPPING,
     purpose: 'Represent a relation as a mapping diagram: domain values on the left, range values on the right, arrows between them.',
     useWhen: [
@@ -522,6 +542,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
 
   modelingLab: {
     label: 'Modeling lab',
+    studentAction: "Works through a multi-stage modelling investigation.",
     representation: REPRESENTATIONS.INTERACTIVE,
     purpose: 'An open modelling task where the student manipulates parameters and predicts outcomes.',
     useWhen: ['The task is DOK 3 or 4 open modelling.'],

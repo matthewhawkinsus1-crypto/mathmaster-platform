@@ -128,6 +128,11 @@ const typeRecipeSection = () => {
       lines.push(line('**Use when:**'));
       entry.useWhen.forEach((useCase) => lines.push(bullet(useCase)));
     }
+    if (entry.studentAction) {
+      // Answers the question the catalogue used to leave out: not "what
+      // representation is this" but "what does the student physically do".
+      lines.push(line(`**The student:** ${entry.studentAction}`));
+    }
     if (entry.doNotUseWhen?.length) {
       lines.push(line('**Do not use when:**'));
       entry.doNotUseWhen.forEach((useCase) => lines.push(bullet(useCase)));
@@ -200,30 +205,108 @@ const fidelitySection = () => section('Source representation fidelity', [
   line('Writing around the check by removing the word "graph" from the prompt is worse'),
   line('than failing it — the student still cannot see what they are being asked about.'),
   '',
-  line('**Showing a table without asking the student to fill it in.** A word problem that'),
-  line('displays data and asks something else about it — the reasonable domain, whether the'),
-  line('relationship is discrete — keeps the table as a read-only display. Add the same'),
-  line('`table` object with `columns` and `rows`, and simply leave `table.answers` out:'),
+  line('**Showing a table the student only reads.** Use this shape ONLY when the source'),
+  line('genuinely asks nothing but interpretation — the data is given, and the question is'),
+  line('about what it means. Include the `table` object with `columns` and `rows`, and'),
+  line('leave `table.answers` out so it renders read-only:'),
   '',
   '```json',
   '{',
   '  "type": "multiAnswer",',
-  '  "prompt": "Use the table to describe the reasonable domain and range.",',
-  '  "context": "A club sells chocolate bars for $2 each.",',
+  '  "prompt": "The table lists a city\'s recorded rainfall. Describe the trend and name the wettest month.",',
   '  "table": {',
-  '    "columns": [{ "key": "bars", "label": "Bars sold" }, { "key": "money", "label": "Money collected" }],',
-  '    "rows": [{ "bars": 0, "money": 0 }, { "bars": 1, "money": 2 }, { "bars": 2, "money": 4 }]',
+  '    "columns": [{ "key": "month", "label": "Month" }, { "key": "rain", "label": "Rainfall (cm)" }],',
+  '    "rows": [{ "month": "May", "rain": 12 }, { "month": "June", "rain": 9 }, { "month": "July", "rain": 4 }]',
   '  },',
   '  "answerFields": [',
-  '    { "id": "domain", "label": "Reasonable domain", "answer": "whole numbers 0, 1, 2, ..." },',
-  '    { "id": "range", "label": "Reasonable range", "answer": "0, 2, 4, ..." }',
+  '    { "id": "trend", "label": "Trend", "answer": "decreasing" },',
+  '    { "id": "wettest", "label": "Wettest month", "answer": "May" }',
   '  ]',
   '}',
   '```',
   '',
+  line('**Do not reach for this shape when the source asked for more.** If the source says'),
+  line('write the function, complete the table, graph it, and classify the relationship,'),
+  line('then a table with two text boxes has deleted three of the four things the student'),
+  line('was supposed to do. Use `relationshipModel` with the stages the source calls for.'),
+  '',
   line(`Only these types display a \`table\`: ${[...TYPES_THAT_RENDER_A_TABLE].join(', ')}.`),
   line('On any other type the field is ignored and the student sees nothing, so a prompt'),
   line('that refers to a table on one of those types is rejected.'),
+]);
+
+const taskFidelitySection = () => section('Source task fidelity', [
+  line('Representation fidelity is about what the student LOOKS AT. This rule is about'),
+  line('what the student DOES, and it is violated more often.'),
+  '',
+  line('**Preserve every important mathematical action in the source task, not just its'),
+  line('topic or its representation.** If the source asks students to write a function,'),
+  line('complete a table, construct a graph, determine domain and range, and classify the'),
+  line('relationship, the generated assignment must assess those actions. Do not delete'),
+  line('task verbs because a narrower MathMaster tool is easier to author.'),
+  '',
+  line('**How to apply it.**'),
+  bullet('Inventory the source verbs before authoring. Write, graph, complete, plot, determine, classify, explain, compare.'),
+  bullet('Map every verb you selected to a student action in the generated question.'),
+  bullet('If one type cannot carry all the actions, split the task across two tightly related questions rather than silently dropping actions.'),
+  bullet('A verb you drop is a skill the assignment no longer assesses. That is a content decision, not a formatting one.'),
+  '',
+  line('**The reductions to watch for.** Each produces valid JSON and a poorer assignment'),
+  line('than the source it came from:'),
+  '',
+  bullet('`multiAnswer` where the student was supposed to BUILD something. It is a response form; typing "discrete" is not constructing a graph.'),
+  bullet('`relationshipModel` reduced to naming the independent and dependent variables when the source also asked for the equation, the graph and the reasonable domain.'),
+  bullet('`table` alone where the source also asked for the graph of those same values.'),
+  bullet('`relationMapping` without `"plot"` where the source showed both a coordinate graph and a mapping diagram.'),
+  bullet('`graphAnalysis` where the source asked the student to DRAW the graph — that is `functionGraph`.'),
+  '',
+  line('**Worked example.** A source task reads: "A group sells bars for $2 each. Write a'),
+  line('function for the money collected, complete the table, graph it, state the reasonable'),
+  line('domain and range, and say whether it is discrete or continuous."'),
+  '',
+  line('That is six verbs. An item that shows a table and asks two text questions has kept'),
+  line('one. No single type carries all six today, so apply the rule above and SPLIT the'),
+  line('task — each question keeps a real student action, and none of the six is lost:'),
+  '',
+  '```json',
+  '[',
+  '  {',
+  '    "type": "relationshipModel",',
+  '    "prompt": "A group sells bars for $2 each. Identify the quantities and the relationship.",',
+  '    "scenario": "A group sells bars for $2 each. The money collected depends on the number sold.",',
+  '    "quantities": [',
+  '      { "id": "bars", "label": "Bars sold (x)" },',
+  '      { "id": "money", "label": "Money collected f(x)" }',
+  '    ],',
+  '    "correctIndependentId": "bars",',
+  '    "correctDependentId": "money"',
+  '  },',
+  '  {',
+  '    "type": "table",',
+  '    "prompt": "Complete the table of values for f(x) = 2x.",',
+  '    "table": {',
+  '      "columns": [{ "key": "x", "label": "Bars sold" }, { "key": "y", "label": "Money ($)" }],',
+  '      "rows": [{ "x": 0, "y": null }, { "x": 1, "y": null }, { "x": 2, "y": null }],',
+  '      "answers": { "0:y": 0, "1:y": 2, "2:y": 4 }',
+  '    }',
+  '  },',
+  '  {',
+  '    "type": "functionGraph",',
+  '    "prompt": "Graph f(x) = 2x for the bars that can actually be sold.",',
+  '    "functionSpec": { "type": "linear", "m": 2, "b": 0, "domain": { "min": 0 } },',
+  '    "graph": { "xMin": -1, "xMax": 8, "yMin": -2, "yMax": 16 }',
+  '  }',
+  ']',
+  '```',
+  '',
+  line('Three questions, six verbs kept, every one of them something the student does.'),
+  line('That is the trade the rule asks for: more questions, never fewer actions.'),
+  '',
+  line('**Choosing a graph for an analysis question.** When the target is identifying BOTH'),
+  line('increasing and decreasing intervals, choose a function that visibly does both. A'),
+  line('parent cubic is increasing everywhere, so asking for its decreasing intervals has'),
+  line('an empty answer — answerable, but it teaches nothing and reads as a trick. Ask for'),
+  line('an empty interval only when the lesson specifically intends that idea.'),
 ]);
 
 const planningSection = () => section('Plan before you generate', [
@@ -377,6 +460,10 @@ export const buildAuthoringContract = ({ generatedAt = new Date() } = {}) => {
   ]));
 
   parts.push(fidelitySection());
+  // Representation fidelity is about what the student looks at; task fidelity is
+  // about what they do. The second is violated more often, so it sits directly
+  // after the first rather than further down.
+  parts.push(taskFidelitySection());
   parts.push(planningSection());
   parts.push(typeRecipeSection());
   parts.push(toolSection());
