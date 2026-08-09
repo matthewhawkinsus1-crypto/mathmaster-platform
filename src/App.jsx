@@ -95,6 +95,7 @@ import TeacherAnalyticsDashboard from './components/analytics/TeacherAnalyticsDa
 import DemoExperience from './components/demo/DemoExperience.jsx';
 import StudentsRoster from './components/teacher/StudentsRoster.jsx';
 import ClassCourseSettings from './components/teacher/ClassCourseSettings.jsx';
+import PathSimulator from './components/teacher/PathSimulator.jsx';
 import SignInAccess from './SignInAccess.jsx';
 import {
   buildHonorsEnrichmentQuestion,
@@ -3258,6 +3259,19 @@ function App() {
 
           <div className="mm-dashboard-content" style={{ padding: '30px' }}>
             {teacherTab === 'demo' && <DemoExperience />}
+
+            {teacherTab === 'simulator' && (
+              <PathSimulator
+                assignments={assignments}
+                teacherId={user?.id || 'teacher'}
+                onCopyText={(text) => {
+                  // Clipboard access can be blocked; a window the teacher can
+                  // select from beats silently losing the package.
+                  const preview = window.open('', '_blank');
+                  if (preview) { preview.document.write(`<pre>${text.replace(/</g, '&lt;')}</pre>`); preview.document.close(); }
+                }}
+              />
+            )}
 
             {teacherTab === 'library' && (
               <AssignmentLibrary

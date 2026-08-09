@@ -68,6 +68,27 @@ export const normalizeQuestionStandards = (questionOrStandards = {}) => {
   const question = questionOrStandards && typeof questionOrStandards === 'object' && !Array.isArray(questionOrStandards)
     ? questionOrStandards
     : {};
+  // V4 authoring emits a framework-neutral `alignments` list instead of the
+  // TEKS-shaped `standards` object. Without this branch every V4 question is
+  // invisible to the mastery engine: it renders and grades, but contributes no
+  // evidence, so mastery never moves and adaptive routing never fires.
+  if (!question.standards && !question.teks && Array.isArray(question.alignments)) {
+    const byRole = (role, level) => normalizeStandardList(
+      question.alignments
+        .filter((entry) => entry
+          && String(entry.framework || 'teks') === 'teks'
+          && String(entry.role || 'primary') === role
+          && entry.code)
+        .map((entry) => entry.code),
+      level,
+    );
+    return {
+      primary: byRole('primary', 'assessed'),
+      secondary: byRole('secondary', 'practiced'),
+      prerequisite: byRole('prerequisite', 'prerequisite'),
+    };
+  }
+
   const raw = question.standards ?? question;
 
   if (Array.isArray(raw)) {
