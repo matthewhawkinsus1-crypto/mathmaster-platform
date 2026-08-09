@@ -13,6 +13,8 @@ import FunctionInvestigation2 from './functionInvestigation2/FunctionInvestigati
 import Graphing2 from './graphing2/Graphing2';
 import StepAlgebra2 from './stepAlgebra2/StepAlgebra2';
 import SolutionReview2 from './solutionReview2/SolutionReview2';
+import IntervalNumberLine from './intervalNumberLine/IntervalNumberLine';
+import RelationMapping from './relationMapping/RelationMapping';
 import { getToolCapabilities } from './toolCapabilities';
 import { TOOL_CATALOG } from './toolCatalog';
 
@@ -34,6 +36,8 @@ const TOOL_COMPONENTS = {
   graphing2: Graphing2,
   stepAlgebra2: StepAlgebra2,
   solutionReview2: SolutionReview2,
+  intervalNumberLine: IntervalNumberLine,
+  relationMapping: RelationMapping,
 };
 
 export const TOOL_REGISTRY = Object.fromEntries(

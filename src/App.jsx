@@ -36,6 +36,7 @@ import {
 import { isPersonalizedBlueprint } from './problemGenerator';
 import AssignmentIntake from './AssignmentIntake';
 import { validateAlignments } from './platform/contract/alignments';
+import { validateQuestionsSemantics } from './platform/contract/semanticValidation';
 import {
   buildQuestionDraftKey,
   clearResumeAction,
@@ -1357,6 +1358,11 @@ function App() {
       warnings.push(...result.warnings);
     });
 
+    // A recognized type is not enough: the renderer has to be able to show it.
+    const semantic = validateQuestionsSemantics(parsed.questions);
+    errors.push(...semantic.errors);
+    warnings.push(...semantic.warnings);
+
     if (errors.length) return { ok: false, errors, warnings, parsed };
 
     const metadata = parsed.isPackage
@@ -1426,6 +1432,8 @@ function App() {
       setAssignmentPreflight({
         lessonBundle,
         initialDraft,
+        questions: inspected.questions,
+        authoringWarnings: inspected.authoringWarnings || [],
         sourceLabel: `${sourceName || 'Pasted JSON'} · ${inspected.isBundle ? 'Bundle V3' : inspected.isPackage ? `Package V${inspected.schemaVersion}` : 'Legacy array'}`,
       });
       return true;
@@ -1439,7 +1447,7 @@ function App() {
     const result = readAssignmentJson(text);
     if (!result.ok) return result;
     setNewAssignmentJSON(result.parsed.normalizedText);
-    const opened = openAssignmentPreflight(result.parsed, sourceName);
+    const opened = openAssignmentPreflight({ ...result.parsed, authoringWarnings: result.warnings }, sourceName);
     if (opened !== true) {
       return { ok: false, errors: [opened?.error || 'Could not build the preflight review from this JSON.'], warnings: result.warnings };
     }
@@ -3100,6 +3108,8 @@ function App() {
             classPeriods={CLASS_PERIODS}
             courseProfiles={courseProfiles}
             sourceLabel={assignmentPreflight.sourceLabel}
+            sourceQuestions={assignmentPreflight.questions}
+            authoringWarnings={assignmentPreflight.authoringWarnings}
             onClose={() => setAssignmentPreflight(null)}
             onConfirmPublish={confirmAssignmentPreflight}
             busy={assignmentPreflightBusy}

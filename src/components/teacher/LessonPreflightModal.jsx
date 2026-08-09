@@ -5,6 +5,7 @@ import { PUBLICATION_STRATEGIES, planClassroomPublication } from '../../platform
 import { validateLessonBundle } from '../../platform/validation/bundleValidator';
 import InteractiveModelingLabPlayer from '../labs/InteractiveModelingLabPlayer.jsx';
 import { buildHonorsEnrichmentQuestion, inspectHonorsRigor, splitClassPeriodsByRigor } from '../../platform/rigor/courseRigor.js';
+import RepresentationAudit from './RepresentationAudit';
 
 const tabButtonStyle = (active) => ({
   padding: '14px 18px',
@@ -65,6 +66,8 @@ export const LessonPreflightModal = ({
   classPeriods = [],
   courseProfiles = {},
   sourceLabel = '',
+  sourceQuestions = [],
+  authoringWarnings = [],
   onClose,
   onConfirmPublish,
   busy = false,
@@ -190,6 +193,8 @@ export const LessonPreflightModal = ({
 
         {activeTab === 'assignment' && (
           <div style={{ padding: '20px', overflowY: 'auto', flex: 1, textAlign: 'left' }}>
+            <RepresentationAudit questions={sourceQuestions} warnings={authoringWarnings} />
+
             <div style={{ padding: '12px 14px', marginBottom: 16, background: '#e8f0fe', color: '#174ea6', border: '1px solid #aecbfa', borderRadius: 9, fontSize: 13 }}>
               <strong>Nothing is published from JSON automatically.</strong> Review and change these settings now. The values on this screen override the file when you create the assignment.
             </div>

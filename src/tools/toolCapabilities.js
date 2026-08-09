@@ -16,4 +16,7 @@ export const TOOL_CAPABILITIES = {
   solutionReview2: { supportsAttempts: false, supportsSolutionReview: true, supportsCalculator: false, supportsScaffolds: false, supportsModifiedContent: false, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: false },
 };
 
+TOOL_CAPABILITIES.intervalNumberLine = { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: false, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true };
+TOOL_CAPABILITIES.relationMapping = { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: false, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true };
+
 export const getToolCapabilities = (toolId) => TOOL_CAPABILITIES[toolId] || {};

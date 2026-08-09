@@ -18,6 +18,8 @@ export const TOOL_CATALOG = Object.freeze({
   graphing2: { label: 'Graphing', courses: ['Algebra I'] },
   stepAlgebra2: { label: 'Solving Equations Step by Step', courses: ['Algebra I', 'Algebra II'] },
   solutionReview2: { label: 'Solution Review', courses: ['Shared'] },
+  intervalNumberLine: { label: 'Number Line and Intervals', courses: ['Algebra I', 'Algebra II'] },
+  relationMapping: { label: 'Mapping Diagram', courses: ['Algebra I'] },
 });
 
 export const TOOL_CATALOG_IDS = Object.freeze(Object.keys(TOOL_CATALOG));

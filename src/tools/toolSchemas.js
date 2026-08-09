@@ -2,6 +2,7 @@ const TOOL_IDS = new Set([
   'dataModelingLab','inverseCompositionLab','systemsWorkspace','parabolaGeometryLab','polynomialWorkshop',
   'signSolutionAnalyzer','sequenceExplorer','complexPlaneLab','exponentialLogBridge','transformationsLab',
   'representationMatch','functionInvestigation2','graphing2','stepAlgebra2','solutionReview2',
+  'intervalNumberLine','relationMapping',
 ]);
 
 const isPositiveInteger = (value) => Number.isInteger(Number(value)) && Number(value) >= 1;

@@ -6,6 +6,7 @@ import { CALCULATOR_MODES } from '../policies/calculatorPolicy.js';
 import { DOK_LEVELS, INSTRUCTIONAL_LEVELS } from '../../questionMetadata.js';
 import { TEXAS_STANDARDS_BY_COURSE, TEXAS_MATH_ACTIVE_COURSES } from '../../texasStandards.js';
 import { EXAM_DOMAIN_REGISTRY } from '../assessment/examDomainRegistry.js';
+import { QUESTION_TYPE_CATALOG, REPRESENTATIONS } from './questionTypeCatalog.js';
 import {
   ALIGNMENT_FRAMEWORK_IDS,
   ALIGNMENT_ROLES,
@@ -105,6 +106,107 @@ const activityRoleSection = () => section('Activity roles', Object.values(ACTIVI
   line('attempts, hint and feedback policy attached to each role — do not restate them.'),
 ]));
 
+
+// The catalogue is what stops the contract from listing type names without
+// teaching how to build one. Every entry renders as a recipe: what it is for,
+// when to reach for it, when not to, what it needs, and a working example.
+const typeRecipeSection = () => {
+  const lines = [
+    line('Each type below is a different student experience, not a different label on a'),
+    line('text box. Read "Do not use when" as carefully as "Use when" — most authoring'),
+    line('mistakes are a type used for something it does not render.'),
+    '',
+  ];
+
+  Object.entries(QUESTION_TYPE_CATALOG).forEach(([type, entry]) => {
+    lines.push(line(`### \`${type}\` — ${entry.label}`));
+    lines.push(line(`**Purpose.** ${entry.purpose}`));
+    lines.push(line(`**Student sees.** ${entry.representation}`));
+    if (entry.useWhen?.length) {
+      lines.push(line('**Use when:**'));
+      entry.useWhen.forEach((useCase) => lines.push(bullet(useCase)));
+    }
+    if (entry.doNotUseWhen?.length) {
+      lines.push(line('**Do not use when:**'));
+      entry.doNotUseWhen.forEach((useCase) => lines.push(bullet(useCase)));
+    }
+    const required = (entry.required || []).map((requirement) => requirement.path);
+    lines.push(line(`**Required fields:** ${required.length ? required.map((field) => `\`${field}\``).join(', ') : '`type`, `prompt`'}`));
+    if (entry.optional?.length) {
+      lines.push(line(`**Optional fields:** ${entry.optional.map((field) => `\`${field}\``).join(', ')}`));
+    }
+    lines.push(line('**Example:**'));
+    lines.push('```json');
+    lines.push(JSON.stringify(entry.example, null, 2));
+    lines.push('```');
+    lines.push('');
+  });
+
+  return section('How to build each question type', lines);
+};
+
+const fidelitySection = () => section('Source representation fidelity', [
+  line('**This is the most important rule in this document.**'),
+  '',
+  line('When you are given instructional material — a lesson, a slide deck, a worksheet —'),
+  line('preserve the mathematical representation being taught. The representation *is*'),
+  line('part of the skill. Reading a graph and reading a sentence about a graph are'),
+  line('different abilities, and only one of them is what the lesson is teaching.'),
+  '',
+  bullet('A source graph must become an actual MathMaster graph.'),
+  bullet('A source table must become a table.'),
+  bullet('A number-line task must use a number-line representation.'),
+  bullet('A mapping diagram must become a `relationMapping` question.'),
+  bullet('Ordered pairs stay ordered pairs when that representation is the point.'),
+  bullet('A visual relation must not become a verbal description to make authoring easier.'),
+  bullet('Never replace "analyse the displayed graph" with prose describing what the graph does.'),
+  bullet('Use a prose description of a graph only when interpreting a verbal situation is itself the intended skill.'),
+  bullet('When MathMaster has an interactive tool that fits the source task, prefer it over a generic response question.'),
+  '',
+  line('**The specific mistake to avoid.** If you find yourself writing a prompt like'),
+  line('"A graph falls from left to right until x = 2, then rises" — stop. That is a graph'),
+  line('you were supposed to draw. Build it:'),
+  '',
+  '```json',
+  '{',
+  '  "type": "graphAnalysis",',
+  '  "prompt": "Use the graph to answer each part.",',
+  '  "functionSpec": { "type": "quadratic", "a": 1, "h": 2, "k": -3 },',
+  '  "analysisRequests": [',
+  '    { "id": "inc", "kind": "increasing", "notation": "interval" },',
+  '    { "id": "dec", "kind": "decreasing", "notation": "interval" }',
+  '  ]',
+  '}',
+  '```',
+  '',
+  line('MathMaster rejects a question whose prompt mentions "the graph", "the table",'),
+  line('"the number line" or "the diagram" when the question carries no such structure.'),
+  line('Writing around the check by removing the word "graph" from the prompt is worse'),
+  line('than failing it — the student still cannot see what they are being asked about.'),
+]);
+
+const planningSection = () => section('Plan before you generate', [
+  line('Before writing any JSON, work through this silently. Do not include it in your'),
+  line('output — the output is still one JSON object and nothing else.'),
+  '',
+  line('**1. What does the source teach?** List the mathematical content: interval and'),
+  line('inequality notation, domain and range, increasing/decreasing, positive/negative,'),
+  line('relations, discrete versus continuous, contextual domain and range, and so on.'),
+  '',
+  line('**2. What representations does the source use?** Count them: number lines,'),
+  line('coordinate graphs, piecewise graphs, smooth curves, ordered pairs, tables,'),
+  line('mapping diagrams, equations, real-world contexts.'),
+  '',
+  line('**3. Match the mix.** The finished assignment must reflect the representation mix'),
+  line('of the source. A graph-heavy source must produce a graph-heavy assignment. If the'),
+  line('source teaches domain and range with twenty graphs, an assignment with zero'),
+  line('rendered graphs is wrong however well its JSON validates.'),
+  '',
+  line('**4. Prefer fewer, richer questions.** One graph carrying four sub-answers through'),
+  line('`analysisRequests` or `multiAnswer` beats four separate prose questions about the'),
+  line('same graph. Aim for 10-12 substantial questions rather than 20 thin ones.'),
+]);
+
 /**
  * The complete AI-facing authoring contract, generated from the live registries
  * rather than maintained by hand. Paste the result into any AI assistant and it
@@ -174,6 +276,9 @@ export const buildAuthoringContract = ({ generatedAt = new Date() } = {}) => {
     line(`All ${SUPPORTED_QUESTION_TYPES.length} accepted values for "type" are listed here and in the tool section below.`),
   ]));
 
+  parts.push(fidelitySection());
+  parts.push(planningSection());
+  parts.push(typeRecipeSection());
   parts.push(toolSection());
 
   parts.push(activityRoleSection());
