@@ -121,3 +121,108 @@ export const notationMatches = (studentText, expectedIntervals) => {
 };
 
 export const INTERVAL_ASK_STAGES = Object.freeze(['graph', 'interval', 'inequality']);
+
+// ---------------------------------------------------------------------------
+// Reading an inequality back, so a wrong `intervals` array can be caught.
+// ---------------------------------------------------------------------------
+//
+// WHY. A generated item wrote `x ≤ -4 or x > 2` in `inequalityText` and then
+// encoded the intervals as [-8, -4] and [2, 8] — the number line's own viewport
+// bounds used as if they were mathematical endpoints. Both rays became finite
+// segments, so a student who correctly shaded to infinity would have been
+// marked wrong, and one who stopped at ±8 would have been marked right.
+//
+// Nothing in the interval math was at fault: it already reads null, '-inf' and
+// 'inf' as unbounded. The failure was that no check compared the sentence the
+// author wrote against the data they wrote beside it. This parser exists to
+// make that comparison possible.
+//
+// It is deliberately narrow. It handles the forms a one-variable inequality
+// actually takes and returns null for anything else, because a parser that
+// guesses would produce false validation failures on items that are fine.
+
+const RELATION = /(<=|>=|≤|≥|<|>)/;
+const NUMBER = String.raw`-?\d+(?:\.\d+)?`;
+
+const closedFor = (operator) => operator === '<=' || operator === '≤' || operator === '>=' || operator === '≥';
+const isLess = (operator) => operator === '<' || operator === '<=' || operator === '≤';
+
+const cleanClause = (text) => String(text || '')
+  .replace(/\s+/g, ' ')
+  .replace(/−/g, '-')
+  .trim();
+
+/**
+ * One clause: `x < 5`, `-3 ≤ x`, or a double inequality `-3 ≤ x < 5`.
+ * Returns an interval in the same shape the tool uses, or null.
+ */
+export const parseInequalityClause = (text, variable = 'x') => {
+  const clause = cleanClause(text);
+  if (!clause) return null;
+  const variablePattern = variable.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  // Double inequality: a < x < b
+  const double = clause.match(new RegExp(
+    `^(${NUMBER})\\s*${RELATION.source}\\s*${variablePattern}\\s*${RELATION.source}\\s*(${NUMBER})$`,
+  ));
+  if (double) {
+    const [, lower, lowerOp, upperOp, upper] = double;
+    // Both relations must point the same way, or the clause is not an interval.
+    if (isLess(lowerOp) !== isLess(upperOp)) return null;
+    const ascending = isLess(lowerOp);
+    return ascending
+      ? { min: Number(lower), max: Number(upper), minClosed: closedFor(lowerOp), maxClosed: closedFor(upperOp) }
+      : { min: Number(upper), max: Number(lower), minClosed: closedFor(upperOp), maxClosed: closedFor(lowerOp) };
+  }
+
+  // Variable on the left: x < a
+  const left = clause.match(new RegExp(`^${variablePattern}\\s*${RELATION.source}\\s*(${NUMBER})$`));
+  if (left) {
+    const [, operator, value] = left;
+    return isLess(operator)
+      ? { min: null, max: Number(value), minClosed: false, maxClosed: closedFor(operator) }
+      : { min: Number(value), max: null, minClosed: closedFor(operator), maxClosed: false };
+  }
+
+  // Variable on the right: a < x
+  const right = clause.match(new RegExp(`^(${NUMBER})\\s*${RELATION.source}\\s*${variablePattern}$`));
+  if (right) {
+    const [, value, operator] = right;
+    return isLess(operator)
+      ? { min: Number(value), max: null, minClosed: closedFor(operator), maxClosed: false }
+      : { min: null, max: Number(value), minClosed: false, maxClosed: closedFor(operator) };
+  }
+
+  return null;
+};
+
+/**
+ * A whole inequality sentence, including two clauses joined by `or`.
+ * Returns normalized intervals, or null when any clause is unreadable — null
+ * means "cannot check", never "wrong".
+ */
+export const parseInequalityText = (text, variable = 'x') => {
+  const source = cleanClause(text);
+  if (!source) return null;
+  const clauses = source.split(/\s+or\s+/i);
+  const parsed = clauses.map((clause) => parseInequalityClause(clause, variable));
+  if (parsed.some((entry) => entry === null)) return null;
+  return normalizeIntervals(parsed);
+};
+
+/**
+ * Does the authored `intervals` array say the same thing as `inequalityText`?
+ * Returns { checked, matches, expected, actual } so a caller can distinguish
+ * "disagrees" from "could not be read".
+ */
+export const inequalityMatchesIntervals = (inequalityText, intervals, variable = 'x') => {
+  const expected = parseInequalityText(inequalityText, variable);
+  if (!expected) return { checked: false, matches: true, expected: null, actual: null };
+  const actual = normalizeIntervals(intervals);
+  return {
+    checked: true,
+    matches: sameIntervals(expected, actual),
+    expected: intervalsToNotation(expected),
+    actual: intervalsToNotation(actual),
+  };
+};

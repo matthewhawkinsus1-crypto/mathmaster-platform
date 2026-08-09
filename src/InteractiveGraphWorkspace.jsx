@@ -131,11 +131,26 @@ const normalizeAnalysisRequests = (question, spec, window, allowDefault) => {
         ...request, id, kind: request.kind, notation,
         label: request.label || `Interval(s) where the function is ${request.kind}`,
         acceptedAnswers: request.acceptedAnswers || getSignAcceptedAnswers(spec, request.kind, notation),
+        // See below: offered on every interval question, not only the empty ones.
+        allowsEmptyAnswer: true,
       };
     }
     if (['increasing', 'decreasing', 'constant'].includes(request.kind)) {
       const notation = request.notation || 'interval';
-      return { ...request, id, kind: request.kind, label: request.label || `${request.kind[0].toUpperCase()}${request.kind.slice(1)} interval(s)`, notation, acceptedAnswers: request.acceptedAnswers || getMonotonicAcceptedAnswers(spec, request.kind, notation) };
+      return {
+        ...request, id, kind: request.kind, notation,
+        label: request.label || `${request.kind[0].toUpperCase()}${request.kind.slice(1)} interval(s)`,
+        acceptedAnswers: request.acceptedAnswers || getMonotonicAcceptedAnswers(spec, request.kind, notation),
+        // "Does not exist" used to appear only on `constant` requests, so a
+        // student asked for the decreasing intervals of y = x³ — which are
+        // empty — had no way to say so and had to guess at typing "none".
+        //
+        // It is now offered on EVERY interval question rather than only on the
+        // ones whose answer is empty. Showing it only where it applies would
+        // announce the answer: the button's presence would be the answer. A
+        // control that is always there carries no information.
+        allowsEmptyAnswer: true,
+      };
     }
     // An unrecognised kind used to land here and become a point task named
     // after the kind — "point", "positive" — with no locatable feature, so the
@@ -514,7 +529,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
                     {part.responseMode !== 'input' && <div style={{ marginTop: '5px', fontSize: '12px', color: '#5f6368' }}>{noneSelected ? 'Marked: does not exist' : `${selected.length}/${part.expected.length || 1} selected`}</div>}
                     {part.allowNone && part.responseMode !== 'input' && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, noneSelections: { ...current.noneSelections, [part.id]: !current.noneSelections[part.id] }, selections: { ...current.selections, [part.id]: [] } }))} style={{ marginTop: '7px', padding: '6px 9px', borderRadius: '7px', border: '1px solid #c5d5ef', background: noneSelected ? '#e8f0fe' : '#fff', color: '#174ea6', fontWeight: 'bold' }}>Does not exist</button>}
                     {part.responseMode !== 'click' && <div style={{ marginTop: '8px' }}><MathInput value={analysis.typedPoints[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, typedPoints: { ...current.typedPoints, [part.id]: value } }))} placeholder={part.expected.length > 1 ? '(x₁, y₁), (x₂, y₂)' : '(x, y) or DNE'} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} /></div>}
-                  </> : <div style={{ marginTop: '8px' }}>{part.kind === 'constant' && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: 'does not exist' } }))} style={{ marginBottom: '7px', padding: '6px 9px', borderRadius: '7px', border: '1px solid #c5d5ef', background: String(analysis.answers[part.id] || '').toLowerCase().includes('exist') ? '#e8f0fe' : '#fff', color: '#174ea6', fontWeight: 'bold' }}>Does not exist</button>}<MathInput value={analysis.answers[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: value } }))} toolProfile={part.notation === 'inequality' ? 'inequality' : 'interval'} placeholder={part.notation} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} /></div>}
+                  </> : <div style={{ marginTop: '8px' }}>{part.allowsEmptyAnswer && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: 'does not exist' } }))} style={{ marginBottom: '7px', padding: '6px 9px', borderRadius: '7px', border: '1px solid #c5d5ef', background: String(analysis.answers[part.id] || '').toLowerCase().includes('exist') ? '#e8f0fe' : '#fff', color: '#174ea6', fontWeight: 'bold' }}>Does not exist</button>}<MathInput value={analysis.answers[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: value } }))} toolProfile={part.notation === 'inequality' ? 'inequality' : 'interval'} placeholder={part.notation} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} /></div>}
                 </div>;
               })}
             </>

@@ -33,7 +33,7 @@ const OPERATIONS = [
  * with a blank page. A student cannot fix the blueprint, so the useful
  * behaviour is to say so plainly and let them move on.
  */
-const getInitialEquation = (question, record) => {
+export const getInitialEquation = (question, record) => {
   const saved = record?.algebraState?.equation;
   if (saved?.left && saved?.right) return { equation: saved, error: null };
   try {
@@ -123,7 +123,11 @@ export default function StepByStepAlgebra({
 
   useEffect(() => {
     if (savedDraft) return;
-    setEquation(getInitialEquation(question, normalizeQuestionRecord(questionRecord)));
+    // getInitialEquation returns { equation, error }, not an equation. Putting
+    // the wrapper into state left `equation.left` undefined on every question
+    // change that had no saved draft — which is every fresh question after the
+    // first — and the workspace rendered empty.
+    setEquation(getInitialEquation(question, normalizeQuestionRecord(questionRecord)).equation);
     setMode(question.mode || 'rigorous');
     setPendingMove(null);
     setCrossedSides([]);

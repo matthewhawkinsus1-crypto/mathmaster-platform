@@ -1,4 +1,5 @@
 import { QUESTION_TYPE_CATALOG, getTypeEntry } from './questionTypeCatalog.js';
+import { inequalityMatchesIntervals } from '../../tools/intervalNumberLine/intervalMath.js';
 
 // Recognising a type name is not validation. `{ type: 'graphAnalysis', prompt:
 // 'A graph falls from left to right until x = 2' }` used to pass because
@@ -130,6 +131,24 @@ export const validateQuestionSemantics = (question = {}, { label = 'Question' } 
         custom = [`could not be checked (${error.message})`];
       }
       custom.forEach((message) => errors.push(`${label} (${type}) ${message}.`));
+    }
+  }
+
+  // An interval number line that disagrees with its own inequality.
+  //
+  // This is the one validation here that catches a WRONG ANSWER rather than an
+  // unrenderable question, which makes it the most important of them: a finite
+  // interval standing in for a ray marks a correct student wrong and an
+  // incorrect student right, and nothing else in Preflight would notice.
+  if (String(type) === 'intervalNumberLine' && has(question.inequalityText) && nonEmptyArray(question.intervals)) {
+    const check = inequalityMatchesIntervals(question.inequalityText, question.intervals, question.variable || 'x');
+    if (check.checked && !check.matches) {
+      errors.push(
+        `${label} (intervalNumberLine) says "${question.inequalityText}", which is ${check.expected}, `
+        + `but its \`intervals\` encode ${check.actual}. `
+        + 'The number line\'s `min` and `max` are the viewport only — use `null` for an unbounded end '
+        + 'so a ray reaches infinity instead of stopping at the edge of the picture.',
+      );
     }
   }
 

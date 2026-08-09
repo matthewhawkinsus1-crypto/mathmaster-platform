@@ -19,7 +19,10 @@ export const TOOL_CATALOG = Object.freeze({
   stepAlgebra2: { label: 'Solving Equations Step by Step', courses: ['Algebra I', 'Algebra II'] },
   solutionReview2: { label: 'Solution Review', courses: ['Shared'] },
   intervalNumberLine: { label: 'Number Line and Intervals', courses: ['Algebra I', 'Algebra II'] },
-  relationMapping: { label: 'Mapping Diagram', courses: ['Algebra I'] },
+  // Algebra II uses mapping diagrams too — A2.7I and the Module 1 relations work
+  // both call for one — and listing Algebra I alone made the tool look
+  // unavailable to an Algebra II author.
+  relationMapping: { label: 'Mapping Diagram', courses: ['Algebra I', 'Algebra II'] },
 });
 
 export const TOOL_CATALOG_IDS = Object.freeze(Object.keys(TOOL_CATALOG));

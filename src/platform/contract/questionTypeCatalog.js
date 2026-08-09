@@ -106,10 +106,38 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
       return errors;
     },
     optional: ['prompt', 'min', 'max', 'step', 'ask', 'inequalityText'],
+    // THE ONE MISTAKE THIS TYPE INVITES.
+    // `min` and `max` on the QUESTION are the number line's viewport — how much
+    // of the line the student can see. `min` and `max` inside an INTERVAL are
+    // mathematical endpoints. They are different things, and using the viewport
+    // bounds as endpoints turns a ray into a segment: an item that wrote
+    // `x ≤ -4 or x > 2` and then encoded [-8, -4] and [2, 8] would have marked
+    // a correct student wrong and an incorrect one right.
+    //
+    // Use `null` for an unbounded end. Preflight now compares `inequalityText`
+    // with `intervals` and rejects the mismatch.
+    notes: [
+      'Question-level `min`/`max` are display bounds only. They never define an answer.',
+      'An unbounded end is `null` (or "-inf"/"inf"), never the edge of the viewport.',
+      'Infinity is never included, so an infinite end always takes a round bracket.',
+    ],
     example: {
       type: 'intervalNumberLine',
       prompt: 'Graph -3 ≤ x < 5, then write it in interval notation.',
+      inequalityText: '-3 ≤ x < 5',
       intervals: [{ min: -3, max: 5, minClosed: true, maxClosed: false }],
+      ask: ['graph', 'interval'],
+      min: -8, max: 8,
+    },
+    // A second example, because the ray/union case is the one that goes wrong.
+    unboundedExample: {
+      type: 'intervalNumberLine',
+      prompt: 'Graph x ≤ -4 or x > 2, then write the compound inequality in interval notation.',
+      inequalityText: 'x ≤ -4 or x > 2',
+      intervals: [
+        { min: null, max: -4, minClosed: false, maxClosed: true },
+        { min: 2, max: null, minClosed: false, maxClosed: false },
+      ],
       ask: ['graph', 'interval'],
       min: -8, max: 8,
     },

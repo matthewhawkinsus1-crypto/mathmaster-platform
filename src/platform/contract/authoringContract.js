@@ -137,10 +137,24 @@ const typeRecipeSection = () => {
     if (entry.optional?.length) {
       lines.push(line(`**Optional fields:** ${entry.optional.map((field) => `\`${field}\``).join(', ')}`));
     }
+    // Type-specific warnings, emitted before the example so the reader meets
+    // the trap before they meet the pattern they will copy.
+    if (entry.notes?.length) {
+      lines.push(line('**Watch out:**'));
+      entry.notes.forEach((note) => lines.push(bullet(note)));
+    }
     lines.push(line('**Example:**'));
     lines.push('```json');
     lines.push(JSON.stringify(entry.example, null, 2));
     lines.push('```');
+    // A second example only where one exists, for the case the first cannot
+    // show — the unbounded ray/union that the interval type keeps getting wrong.
+    if (entry.unboundedExample) {
+      lines.push(line('**Example — rays and unions (unbounded ends are `null`):**'));
+      lines.push('```json');
+      lines.push(JSON.stringify(entry.unboundedExample, null, 2));
+      lines.push('```');
+    }
     lines.push('');
   });
 
