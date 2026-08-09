@@ -32,6 +32,13 @@ const find = (result, skillId) => Object.values(result)
   .flat()
   .find((row) => row.skillId === skillId) || null;
 
+// Locking is now the exclusive job of HARD edges (see prerequisiteStrength.js),
+// so the fixtures for the locking cases have to start from one. Picking the
+// first skill with *any* prerequisite would now pick a soft vertical link,
+// which correctly does not lock and would be testing the opposite claim.
+const gatedSkill = graph.find((skill) => skill.prerequisites.some((entry) => entry.strength === 'hard'));
+const gatingPrerequisite = gatedSkill.prerequisites.find((entry) => entry.strength === 'hard');
+
 test('the graph is a graph, not a numbered list', () => {
   assert.ok(graph.length > 10, `expected a real Algebra I graph, got ${graph.length}`);
   assert.ok(idsWithPrereqs.length > 0, 'at least some skills must carry real prerequisite edges');
@@ -54,8 +61,8 @@ test('Case 1 — several qualifying skills are all offered, not just one', () =>
 
 // --- Case 2: localized weakness --------------------------------------------
 test('Case 2 — a weakness locks only what depends on it', () => {
-  const dependent = idsWithPrereqs[0];
-  const weakPrereq = dependent.prerequisites[0].skillId;
+  const dependent = gatedSkill;
+  const weakPrereq = gatingPrerequisite.skillId;
   const unrelated = graph.find((skill) => skill.skillId !== dependent.skillId
     && !skill.prerequisites.some((p) => p.skillId === weakPrereq));
 
@@ -75,8 +82,8 @@ test('Case 2 — a weakness locks only what depends on it', () => {
 });
 
 test('a moderate gap routes to remediation rather than locking', () => {
-  const dependent = idsWithPrereqs[0];
-  const prereq = dependent.prerequisites[0];
+  const dependent = gatedSkill;
+  const prereq = gatingPrerequisite;
   const result = getStudentPathOptions({
     courseId: COURSE,
     masteryBySkill: { [prereq.skillId]: { mastery: prereq.minimumMastery - 0.1, attempts: 8 } },
@@ -164,8 +171,8 @@ test('Case 6 — a teacher can open future content, but not lower the maths bar'
 });
 
 test('a teacher override never overrides a severe prerequisite gap by default', () => {
-  const dependent = idsWithPrereqs[0];
-  const weak = dependent.prerequisites[0].skillId;
+  const dependent = gatedSkill;
+  const weak = gatingPrerequisite.skillId;
   const result = getStudentPathOptions({
     courseId: COURSE,
     masteryBySkill: { [weak]: { mastery: 0.1, attempts: 10 } },

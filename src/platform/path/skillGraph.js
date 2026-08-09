@@ -23,7 +23,12 @@ import {
   getTexasVerticalAlignment,
   normalizeTeksCode,
 } from '../../texasStandards.js';
-import { getWithinCourseDependents, getWithinCoursePrerequisites } from './coursePrerequisites.js';
+import {
+  getVerticalStrength,
+  getWithinCourseDependents,
+  getWithinCoursePrerequisites,
+} from './coursePrerequisites.js';
+import { STRENGTH, canLock, minimumMasteryFor, normalizeStrength } from './prerequisiteStrength.js';
 
 export const TEKS_SKILL_PREFIX = 'teks:';
 
@@ -36,14 +41,22 @@ export const teksCodeFromSkillId = (skillId) => (
 // How much of a prerequisite a student needs before the dependent skill is
 // mathematically reachable. Expressed on the same 0-1 scale the mastery store
 // uses so nothing has to convert between percentages and fractions.
-export const DEFAULT_REQUIRED_MASTERY = 0.7;
-export const DEFAULT_SUPPORTIVE_MASTERY = 0.6;
+export const DEFAULT_REQUIRED_MASTERY = minimumMasteryFor(STRENGTH.HARD);
+export const DEFAULT_SUPPORTIVE_MASTERY = minimumMasteryFor(STRENGTH.SOFT);
 
-const prerequisite = (skillId, { required = true, minimumMastery } = {}) => ({
-  skillId,
-  required,
-  minimumMastery: minimumMastery ?? (required ? DEFAULT_REQUIRED_MASTERY : DEFAULT_SUPPORTIVE_MASTERY),
-});
+// `required` is derived, never authored: it means "this edge may lock", which
+// is true of hard edges and of nothing else. Keeping it on the object lets
+// older callers keep asking the boolean question without being able to create a
+// locking edge by accident.
+const prerequisite = (skillId, { strength = STRENGTH.HARD, minimumMastery } = {}) => {
+  const resolved = normalizeStrength(strength);
+  return {
+    skillId,
+    strength: resolved,
+    required: resolved === STRENGTH.HARD,
+    minimumMastery: minimumMastery ?? minimumMasteryFor(resolved),
+  };
+};
 
 /**
  * Build the graph for a course. Process standards (the "mathematical process"
@@ -74,10 +87,16 @@ export const buildSkillGraphForCourse = (courseId) => {
         // prior-COURSE links; coursePrerequisites.js supplies the within-course
         // ones the registry has never carried, without which the graph is flat
         // inside a course and no Algebra I skill can gate another.
+        //
+        // The registry's links are a relatedness map, not a gating map, so they
+        // arrive SOFT unless the vertical audit has explicitly promoted one.
+        // Otherwise a single weak grade-8 standard closes half of Algebra I.
         prerequisites: [
-          ...alignment.prior.map((prior) => prerequisite(teksSkillId(prior.code))),
+          ...alignment.prior.map((prior) => prerequisite(teksSkillId(prior.code), {
+            strength: getVerticalStrength(prior.code, standard.code),
+          })),
           ...getWithinCoursePrerequisites(standard.courseId, standard.code)
-            .map((entry) => prerequisite(teksSkillId(entry.code), { required: entry.required })),
+            .map((entry) => prerequisite(teksSkillId(entry.code), { strength: entry.strength })),
         ],
         // Kept so acceleration can look forward without re-deriving it.
         leadsTo: [
@@ -115,6 +134,27 @@ export const resolveSkillAnywhere = (skillId) => {
   const [skill] = getSkillGraph(standard.courseId).filter((item) => item.skillId === skillId);
   return skill || null;
 };
+
+/**
+ * The prerequisites that can actually close a door, in the order they are
+ * authored. Every "why is this locked?" answer starts here.
+ */
+export const hardPrerequisitesOf = (skill) => (skill?.prerequisites || [])
+  .filter((entry) => canLock(entry.strength));
+
+export const prerequisitesByStrength = (skill, strength) => (skill?.prerequisites || [])
+  .filter((entry) => entry.strength === strength);
+
+/**
+ * Skills inside a course that name `skillId` as a prerequisite. Used to answer
+ * what a remediation excursion actually affects — and, just as importantly,
+ * what it does not.
+ */
+export const getDependentSkills = (courseId, skillId, { strength = null } = {}) => (
+  getSkillGraph(courseId).filter((skill) => (skill.prerequisites || []).some((entry) => (
+    entry.skillId === skillId && (!strength || entry.strength === strength)
+  )))
+);
 
 export const describeSkill = (skillId) => {
   const code = teksCodeFromSkillId(skillId);

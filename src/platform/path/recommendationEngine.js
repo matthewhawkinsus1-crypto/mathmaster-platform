@@ -18,6 +18,7 @@
 
 import { getSkillGraph, describeSkill, resolveSkillAnywhere } from './skillGraph.js';
 import { TIMING, classifySkillTiming, normalizeClassPacing, resolveCoursePolicy } from './curriculumPacing.js';
+import { STRENGTH, STRENGTH_WEIGHT, canLock } from './prerequisiteStrength.js';
 
 export const STATUS = Object.freeze({
   REQUIRED: 'required',
@@ -50,6 +51,12 @@ export const REASON = Object.freeze({
   AVOIDED: 'repeatedly_passed_over',
   INSUFFICIENT_EVIDENCE: 'insufficient_evidence',
   PROVISIONAL_PACING: 'pacing_is_provisional',
+  // A soft prerequisite is short. This is worth saying out loud — it is the
+  // difference between "you cannot do this yet" and "this will be harder than
+  // it needs to be, and here is what would make it easier" — but it never
+  // changes the status.
+  SOFT_PREREQ_GAP: 'supporting_skill_would_help',
+  SCAFFOLDING_SUGGESTED: 'scaffolding_suggested',
 });
 
 // Mastery below this on a required prerequisite is a severe gap: the skill is
@@ -62,16 +69,23 @@ export const CONFIDENT_ATTEMPTS = 6;
 
 const clamp01 = (value) => Math.max(0, Math.min(1, Number(value) || 0));
 
-// Average evidence strength across a skill's required prerequisites: high
-// mastery from two questions should not unlock acceleration the way high
-// mastery from thirty does.
+// Weighted evidence strength across a skill's prerequisites: high mastery from
+// two questions should not unlock acceleration the way high mastery from thirty
+// does. Weighted the same way readiness is, so a course whose edges are mostly
+// soft — which, after the vertical audit, is most of them — can still reach
+// acceleration on real evidence.
 const evidenceStrengthFor = (masteryBySkill, prerequisites = []) => {
-  const required = (prerequisites || []).filter((entry) => entry.required);
-  const values = required
-    .map((entry) => masteryFor(masteryBySkill, entry.skillId)?.evidenceStrength)
-    .filter((value) => value != null);
-  if (!values.length) return 0;
-  return values.reduce((total, value) => total + value, 0) / values.length;
+  let weighted = 0;
+  let weight = 0;
+  (prerequisites || []).forEach((entry) => {
+    const entryWeight = STRENGTH_WEIGHT[entry.strength] ?? 0;
+    if (!entryWeight) return;
+    const state = masteryFor(masteryBySkill, entry.skillId);
+    if (!state) return;
+    weighted += state.evidenceStrength * entryWeight;
+    weight += entryWeight;
+  });
+  return weight ? weighted / weight : 0;
 };
 
 const masteryFor = (masteryBySkill, skillId) => {
@@ -89,14 +103,21 @@ const masteryFor = (masteryBySkill, skillId) => {
 /**
  * Stage 3 — mathematical readiness, evaluated per skill against its own
  * prerequisites. Never against "everything numbered before it".
+ *
+ * Only HARD edges reach `unmetPrerequisites` and `severeGaps`, and those are
+ * the only two lists the classifier is allowed to lock on. Soft shortfalls come
+ * back separately so a screen can offer scaffolding without a door closing, and
+ * reinforcement links come back as relevance, which is all they ever were.
  */
 export const evaluatePrerequisites = (skill, masteryBySkill) => {
-  const required = (skill.prerequisites || []).filter((entry) => entry.required);
-  const supportive = (skill.prerequisites || []).filter((entry) => !entry.required);
+  const entries = skill.prerequisites || [];
+  const gating = entries.filter((entry) => canLock(entry.strength));
+  const supportive = entries.filter((entry) => entry.strength === STRENGTH.SOFT);
+  const reinforcement = entries.filter((entry) => entry.strength === STRENGTH.REINFORCEMENT);
 
   const unmet = [];
   const severe = [];
-  required.forEach((entry) => {
+  gating.forEach((entry) => {
     const state = masteryFor(masteryBySkill, entry.skillId);
     const mastery = state?.mastery ?? 0;
     // No evidence at all is not a gap. A student who has never touched a
@@ -112,15 +133,36 @@ export const evaluatePrerequisites = (skill, masteryBySkill) => {
     return state && state.mastery < entry.minimumMastery;
   }).map((entry) => entry.skillId);
 
-  const scored = required.map((entry) => masteryFor(masteryBySkill, entry.skillId)?.mastery ?? null).filter((value) => value != null);
-  const readiness = scored.length ? scored.reduce((total, value) => total + value, 0) / scored.length : 1;
+  const relatedSkills = reinforcement.map((entry) => entry.skillId);
+
+  // Readiness is a weighted mean, not a plain average: a soft edge counts
+  // towards how prepared the student is without being able to outvote the hard
+  // ones. Edges with no evidence are omitted rather than scored as zero.
+  let weighted = 0;
+  let weight = 0;
+  [...gating, ...supportive].forEach((entry) => {
+    const state = masteryFor(masteryBySkill, entry.skillId);
+    if (!state) return;
+    const entryWeight = STRENGTH_WEIGHT[entry.strength] ?? 0;
+    if (!entryWeight) return;
+    weighted += state.mastery * entryWeight;
+    weight += entryWeight;
+  });
+  const readiness = weight ? weighted / weight : 1;
+
+  const gatingEvidence = gating.some((entry) => masteryFor(masteryBySkill, entry.skillId));
 
   return {
     readiness: clamp01(readiness),
     unmetPrerequisites: unmet,
     severeGaps: severe,
     supportiveShortfall,
-    hasEvidence: scored.length > 0,
+    relatedSkills,
+    // Scaffolding is the soft edge's job: the skill stays open, and the student
+    // is offered the support that would make it go better.
+    scaffoldingSuggested: supportiveShortfall.length > 0,
+    hasEvidence: weight > 0,
+    hasGatingEvidence: gatingEvidence,
   };
 };
 
@@ -133,7 +175,7 @@ const overrideFor = (overrides, skillId) => (Array.isArray(overrides) ? override
  * The scoring model. Every term is separate and signed so a teacher-facing
  * explanation can name the ones that actually moved the number.
  */
-export const scoreSkill = ({ readiness, timing, teacherPriority, assignmentRelevance, mastery, recentAccuracy, avoidanceCount, extensionReady }) => {
+export const scoreSkill = ({ readiness, timing, teacherPriority, assignmentRelevance, mastery, recentAccuracy, avoidanceCount, extensionReady, softShortfall = 0 }) => {
   const terms = {
     prerequisiteReadiness: readiness * 0.30,
     curriculumTiming: timing === TIMING.CURRENT ? 0.30
@@ -146,6 +188,9 @@ export const scoreSkill = ({ readiness, timing, teacherPriority, assignmentRelev
     // Path balance: pressure grows with how long a valid, current skill has
     // been passed over, but never all at once.
     pathBalance: Math.min(0.18, Math.max(0, Number(avoidanceCount) || 0) * 0.06),
+    // A soft prerequisite gap costs ranking and nothing else. It is deliberately
+    // small: it should move a skill down the list, not out of reach.
+    softPrerequisiteGap: softShortfall > 0 ? -0.08 : 0,
     excessiveAdvancementPenalty: timing === TIMING.FUTURE ? -0.35 : 0,
     // A skill already mastered should not crowd out unlearned material.
     masteredPenalty: mastery != null && mastery >= MASTERED_THRESHOLD ? -0.4 : 0,
@@ -217,6 +262,13 @@ export const getStudentPathOptions = ({
     else if (prereq.hasEvidence) reasons.push(REASON.PREREQS_MASTERED);
     else reasons.push(REASON.INSUFFICIENT_EVIDENCE);
 
+    // Reported alongside the gating reason, never instead of it — a soft gap
+    // and a hard gap are different facts and a student may have both.
+    if (prereq.supportiveShortfall.length) {
+      reasons.push(REASON.SOFT_PREREQ_GAP);
+      reasons.push(REASON.SCAFFOLDING_SUGGESTED);
+    }
+
     if (assignmentSet.has(skill.skillId)) reasons.push(REASON.ASSIGNMENT_RELEVANCE);
     if (requiredSet.has(skill.skillId)) reasons.push(REASON.REQUIRED_ASSIGNMENT);
     if (state?.recentAccuracy != null && state.recentAccuracy < LOW_ACCURACY_THRESHOLD) reasons.push(REASON.LOW_RECENT_ACCURACY);
@@ -245,6 +297,7 @@ export const getStudentPathOptions = ({
       recentAccuracy: state?.recentAccuracy ?? null,
       avoidanceCount,
       extensionReady,
+      softShortfall: prereq.supportiveShortfall.length,
     });
 
     // Stage 11 — final classification. Order matters: required work outranks
@@ -290,6 +343,11 @@ export const getStudentPathOptions = ({
       accelerationDistance: Math.max(0, timingInfo.distance),
       teacherPriority,
       unmetPrerequisites: [...prereq.severeGaps, ...prereq.unmetPrerequisites],
+      // Soft gaps travel separately so a screen can offer help without a screen
+      // elsewhere reading them as a reason to close the skill.
+      supportingSkillGaps: prereq.supportiveShortfall,
+      scaffoldingSuggested: prereq.scaffoldingSuggested,
+      relatedSkills: prereq.relatedSkills,
       // The remediation target: the weakest required prerequisite, so a caller
       // never has to guess where to send the student.
       remediationTarget: prereq.severeGaps[0] || prereq.unmetPrerequisites[0] || null,

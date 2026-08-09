@@ -7,6 +7,11 @@ import {
   applySimulationOutcome, buildDebugPackage, createSimulatedLearner,
   evaluateSimulation, explainRouting, forceSkillState, isRoutingMismatch,
 } from '../../platform/simulation/simulatedLearner';
+import { buildMasteryBySkillForStudent } from '../../platform/path/masteryAdapter';
+import { getSkillGraph, teksSkillId } from '../../platform/path/skillGraph';
+import { staticMapProvider } from '../../platform/path/curriculumPacing';
+import { explainLock, listPrerequisiteChoices, simulateInstantMastery } from '../../platform/path/graphInspection';
+import { REMEDIATION_ACTION, describeBranchImpact, planRemediation } from '../../platform/path/remediationPlan';
 
 // Teacher Path Simulator.
 //
@@ -32,6 +37,21 @@ const input = {
   border: '1px solid #c9ced6', borderRadius: 8, boxSizing: 'border-box', background: '#fff', color: '#202124',
 };
 
+const STRENGTH_COLOR = { hard: '#a50e0e', soft: '#7a4f00', reinforcement: '#5f6368' };
+const STRENGTH_LABEL = { hard: 'Required', soft: 'Helpful', reinforcement: 'Related' };
+
+const REMEDIATION_LABEL = {
+  [REMEDIATION_ACTION.RETEACH_IN_PLACE]: 'Reteach this skill',
+  [REMEDIATION_ACTION.DIAGNOSE]: 'Check the prerequisite first',
+  [REMEDIATION_ACTION.DESCEND]: 'Drop back to the prerequisite',
+  [REMEDIATION_ACTION.NONE]: 'Nothing to route',
+};
+
+const pill = (color) => ({
+  display: 'inline-block', padding: '1px 8px', borderRadius: 999, fontSize: 11,
+  fontWeight: 900, color, border: `1px solid ${color}33`, background: `${color}14`,
+});
+
 const DECISION_COLOR = {
   Remediation: '#a50e0e',
   'Acceleration available': '#137333',
@@ -55,6 +75,8 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
   const [feedback, setFeedback] = useState('');
   const [showDeveloperDetails, setShowDeveloperDetails] = useState(false);
   const [showInspector, setShowInspector] = useState(false);
+  const [inspectSkillId, setInspectSkillId] = useState('');
+  const [whatIfSkillId, setWhatIfSkillId] = useState('');
   const [copied, setCopied] = useState('');
 
   const assignment = runnableAssignments.find((item) => item.id === assignmentId) || null;
@@ -82,6 +104,56 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
   ), [evaluated, question]);
 
   const mismatch = explanation ? isRoutingMismatch(expectedRoute, explanation) : false;
+
+  // --- Graph inspection ----------------------------------------------------
+  // These questions are about readiness, not pacing, so the inspector uses a
+  // deliberately neutral calendar: an empty window map leaves every skill in
+  // the current window. Otherwise "why is this locked?" would sometimes answer
+  // "because it is March", which is true but is not what was being asked.
+  const inspectionCourseId = getTexasStandard(teksCodes[0])?.courseId || 'algebra1';
+  const courseSkills = useMemo(() => getSkillGraph(inspectionCourseId), [inspectionCourseId]);
+  const defaultSkillId = teksCodes[0] ? teksSkillId(teksCodes[0]) : (courseSkills[0]?.skillId || '');
+  const activeSkillId = courseSkills.some((skill) => skill.skillId === inspectSkillId)
+    ? inspectSkillId
+    : defaultSkillId;
+
+  const masteryBySkill = useMemo(() => (
+    session ? buildMasteryBySkillForStudent({ student: session.learner, assignments: simulationAssignments }) : {}
+  ), [session, simulationAssignments]);
+
+  const lockExplanation = useMemo(() => (
+    activeSkillId ? explainLock({ courseId: inspectionCourseId, skillId: activeSkillId, masteryBySkill }) : null
+  ), [inspectionCourseId, activeSkillId, masteryBySkill]);
+
+  const prerequisiteChoices = useMemo(() => (
+    activeSkillId ? listPrerequisiteChoices({ courseId: inspectionCourseId, skillId: activeSkillId }) : []
+  ), [inspectionCourseId, activeSkillId]);
+
+  // A prerequisite chosen for one skill is meaningless for another, so the
+  // selection is validated against the current list rather than remembered.
+  const activeWhatIfId = prerequisiteChoices.some((entry) => entry.skillId === whatIfSkillId) ? whatIfSkillId : '';
+
+  const whatIf = useMemo(() => {
+    if (!activeSkillId || !activeWhatIfId) return null;
+    return simulateInstantMastery({
+      pathInput: {
+        courseId: inspectionCourseId,
+        masteryBySkill,
+        pacing: { currentWindow: 1, windowCount: 1 },
+        pacingProvider: staticMapProvider({ windowMap: {}, windowCount: 1 }),
+      },
+      skillId: activeSkillId,
+      prerequisiteSkillId: activeWhatIfId,
+    });
+  }, [inspectionCourseId, activeSkillId, activeWhatIfId, masteryBySkill]);
+
+  const remediation = useMemo(() => (
+    activeSkillId ? planRemediation({ courseId: inspectionCourseId, skillId: activeSkillId, masteryBySkill }) : null
+  ), [inspectionCourseId, activeSkillId, masteryBySkill]);
+
+  const branchImpact = useMemo(() => (
+    activeSkillId ? describeBranchImpact({ courseId: inspectionCourseId, skillId: activeSkillId }) : null
+  ), [inspectionCourseId, activeSkillId]);
 
   const runOutcome = (outcomeId) => {
     if (!session || !assignment) return;
@@ -264,7 +336,89 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
           )}
 
           <div style={panel}>
-            <h3 style={heading}>5. Path history</h3>
+            <h3 style={heading}>5. Graph inspection</h3>
+            <p style={{ color: '#5f6368', fontSize: 12, margin: '0 0 12px', lineHeight: 1.55 }}>
+              What is actually holding a skill closed, and what would open it. Only <strong>required</strong>{' '}
+              prerequisites can lock — helpful and related ones change ranking and support, never access.
+              Pacing is held neutral here so the answer is about readiness alone.
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
+              <label style={{ fontWeight: 800, fontSize: 13 }}>Skill
+                <select value={activeSkillId} onChange={(event) => { setInspectSkillId(event.target.value); setWhatIfSkillId(''); }} style={input}>
+                  {courseSkills.map((skill) => (
+                    <option key={skill.skillId} value={skill.skillId}>{skill.skillId.replace('teks:', '')} — {String(skill.title || '').slice(0, 70)}</option>
+                  ))}
+                </select>
+              </label>
+              <label style={{ fontWeight: 800, fontSize: 13 }}>What if this were instantly mastered?
+                <select value={activeWhatIfId} onChange={(event) => setWhatIfSkillId(event.target.value)} style={input}>
+                  <option value="">Choose a prerequisite…</option>
+                  {prerequisiteChoices.map((entry) => (
+                    <option key={entry.skillId} value={entry.skillId}>
+                      {STRENGTH_LABEL[entry.strength] || entry.strength} · {entry.label.slice(0, 70)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            {whatIf && (
+              <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 8, fontWeight: 800, fontSize: 13, lineHeight: 1.5, background: whatIf.opened ? '#e6f4ea' : '#f1f3f4', color: whatIf.opened ? '#137333' : '#3c4043' }}>
+                {whatIf.summary}
+              </div>
+            )}
+
+            {lockExplanation && (
+              <div style={{ marginTop: 14 }}>
+                <p style={{ margin: '0 0 8px', fontWeight: 800, fontSize: 13 }}>Why is this locked?</p>
+                <p style={{ margin: '0 0 10px', color: '#3c4043', fontSize: 13, lineHeight: 1.55 }}>{lockExplanation.summary}</p>
+                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.65 }}>
+                  {lockExplanation.blocking.map((entry) => (
+                    <li key={entry.skillId}>
+                      <span style={pill(STRENGTH_COLOR.hard)}>Blocking</span>{' '}
+                      {entry.label} — at {Math.round((entry.mastery ?? 0) * 100)}%, needs {Math.round(entry.minimumMastery * 100)}%
+                    </li>
+                  ))}
+                  {lockExplanation.helpful.map((entry) => (
+                    <li key={entry.skillId}>
+                      <span style={pill(STRENGTH_COLOR.soft)}>{STRENGTH_LABEL.soft}</span>{' '}
+                      {entry.label}
+                      {entry.mastery != null ? ` — at ${Math.round(entry.mastery * 100)}%` : ' — no evidence yet'}
+                    </li>
+                  ))}
+                  {lockExplanation.related.map((entry) => (
+                    <li key={entry.skillId}>
+                      <span style={pill(STRENGTH_COLOR.reinforcement)}>{STRENGTH_LABEL.reinforcement}</span> {entry.label}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {remediation && (
+              <div style={{ marginTop: 16 }}>
+                <p style={{ margin: '0 0 8px', fontWeight: 800, fontSize: 13 }}>
+                  If this student struggled here: {REMEDIATION_LABEL[remediation.action] || remediation.action}
+                </p>
+                <p style={{ margin: 0, color: '#3c4043', fontSize: 13, lineHeight: 1.55 }}>
+                  {remediation.explanation}
+                  {remediation.target ? ` Target: ${remediation.target.label}.` : ''}
+                </p>
+              </div>
+            )}
+
+            {branchImpact && (
+              <p style={{ margin: '14px 0 0', color: '#5f6368', fontSize: 12, lineHeight: 1.55 }}>
+                Remediating this skill would hold back {branchImpact.blockedSkillIds.length} of{' '}
+                {branchImpact.blockedSkillIds.length + branchImpact.unrelatedSkillIds.length} other skills in this course.
+                The other {branchImpact.unrelatedSkillIds.length} stay open — a student in remediation keeps working elsewhere.
+              </p>
+            )}
+          </div>
+
+          <div style={panel}>
+            <h3 style={heading}>6. Path history</h3>
             <ol style={{ margin: 0, paddingLeft: 20, fontSize: 14, lineHeight: 1.65 }}>
               {session.timeline.map((entry) => (
                 <li key={entry.id}>
@@ -275,7 +429,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
           </div>
 
           <div style={panel}>
-            <h3 style={heading}>6. Inspector &amp; feedback</h3>
+            <h3 style={heading}>7. Inspector &amp; feedback</h3>
             <button type="button" onClick={() => setShowInspector((current) => !current)} style={smallButton}>
               {showInspector ? '▾' : '▸'} Inspect question
             </button>
