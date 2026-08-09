@@ -41,9 +41,82 @@ export const parseEquationInput = (question = {}) => {
   return { left: parts[0].trim(), right: parts[1].trim(), variable: objective.variable, objective };
 };
 
-const cleanImplicitMultiplicationLatex = (latex) => latex
-  .replace(/([0-9}])\s*\\cdot\s*(?=[a-zA-Z\\])/g, '$1')
-  .replace(/([a-zA-Z}])\s*\\cdot\s*(?=\\left\s*\()/g, '$1');
+// --- Traditional multiplication notation -------------------------------------
+//
+// mathjs writes products with \cdot. Mathematics does not: it writes a factor
+// against a parenthesis, or two symbols side by side. A student who reads
+// `\left(x+1\right)\cdot5` in the workspace and `5(x+1)` everywhere else is
+// being taught a notation they will have to unlearn, so every \cdot is
+// rewritten here rather than being patched at each call site.
+//
+// The four shapes, and what each becomes:
+//   A · (group)   →  A(group)          juxtaposition
+//   (group) · B   →  B(group)          the scalar moves in front
+//   2 · x  /  x·y →  2x  /  xy         juxtaposition
+//   anything else →  A(B)              parenthesised, never a dot
+
+const GROUP_OPEN = '\\left(';
+const GROUP_CLOSE = '\\right)';
+
+// Walk back from the `\right)` at `endIndex` to its matching `\left(`.
+const matchingGroupStart = (text, endIndex) => {
+  let depth = 0;
+  let index = endIndex;
+  while (index >= 0) {
+    if (text.startsWith(GROUP_CLOSE, index)) { depth += 1; index -= 1; continue; }
+    if (text.startsWith(GROUP_OPEN, index)) {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+    index -= 1;
+  }
+  return -1;
+};
+
+const SIMPLE_OPERAND = /^(?:\d+(?:\.\d+)?|[a-zA-Z]|\\[a-zA-Z]+)$/;
+
+const cleanImplicitMultiplicationLatex = (latex) => {
+  let text = String(latex);
+  let guard = 40;
+
+  while (text.includes('\\cdot') && guard > 0) {
+    guard -= 1;
+    const at = text.indexOf('\\cdot');
+    const before = text.slice(0, at).replace(/\s+$/, '');
+    const after = text.slice(at + '\\cdot'.length).replace(/^\s+/, '');
+
+    // A · (group) — simply juxtapose.
+    if (after.startsWith(GROUP_OPEN)) { text = `${before}${after}`; continue; }
+
+    // (group) · B — the scalar belongs in front of the group.
+    if (before.endsWith(GROUP_CLOSE)) {
+      const groupStart = matchingGroupStart(before, before.length - GROUP_CLOSE.length);
+      const operandMatch = after.match(/^(\d+(?:\.\d+)?|[a-zA-Z]|\\[a-zA-Z]+)/);
+      if (groupStart >= 0 && operandMatch) {
+        const prefix = before.slice(0, groupStart);
+        const group = before.slice(groupStart);
+        text = `${prefix}${operandMatch[1]}${group}${after.slice(operandMatch[1].length)}`;
+        continue;
+      }
+    }
+
+    // Two simple operands sit side by side, unless both are numbers — `23` is
+    // not two times three, so that one is parenthesised instead.
+    const leftOperand = before.match(/(\d+(?:\.\d+)?|[a-zA-Z]|\\[a-zA-Z]+)$/);
+    const rightOperand = after.match(/^(\d+(?:\.\d+)?|[a-zA-Z]|\\[a-zA-Z]+)/);
+    const bothNumeric = leftOperand && rightOperand
+      && /^\d/.test(leftOperand[1]) && /^\d/.test(rightOperand[1]);
+    if (leftOperand && rightOperand && SIMPLE_OPERAND.test(rightOperand[1]) && !bothNumeric) {
+      text = `${before}${after}`;
+      continue;
+    }
+
+    // Anything else becomes a factor against a parenthesis. Never a dot.
+    text = `${before}${GROUP_OPEN}${after}${GROUP_CLOSE}`;
+  }
+
+  return text;
+};
 
 export const simplifyExpression = (expression) => simplify(parse(String(expression))).toString({ parenthesis: 'auto', implicit: 'hide' });
 export const expressionToLatex = (expression) => cleanImplicitMultiplicationLatex(parse(String(expression)).toTex({ parenthesis: 'keep', implicit: 'hide' }));
@@ -264,6 +337,31 @@ export const applyBalancedOperation = ({ equationState, operation, operand: rawO
     simplificationTargets,
     improvedObjective: !targetBefore && targetAfter,
   };
+};
+
+/**
+ * How an operation looks INSIDE the mathematical work, as opposed to on the
+ * button that triggers it.
+ *
+ * The rail may show × and ÷ — they are action icons, and a student reaching for
+ * "divide" looks for ÷. But the moment the operation enters the equation it has
+ * to be written the way mathematics is written: a factor with parentheses, and
+ * a horizontal bar. `3 × (x + 2)` and `15 ÷ 3` are not wrong so much as foreign;
+ * no textbook, board or exam writes them that way, and a student who learns the
+ * workspace's notation learns something they then have to unlearn.
+ *
+ * Returned as a descriptor rather than a string because a fraction is not a
+ * line of text — the caller stacks it.
+ */
+export const describeOperationToken = (operation, operandExpression) => {
+  const operand = String(operandExpression ?? '').trim() || '?';
+  if (operation === 'add') return { kind: 'inline', text: `+ ${operand}`, operand };
+  if (operation === 'subtract') return { kind: 'inline', text: `− ${operand}`, operand };
+  // A factor sits in front of a parenthesis: 3( ), never 3 × ( ).
+  if (operation === 'multiply') return { kind: 'factor', text: `${operand}(\u2009)`, operand };
+  // A quotient is a bar with the divisor beneath it, never a ÷ sign.
+  if (operation === 'divide') return { kind: 'fraction', text: `\u2015 / ${operand}`, operand };
+  return { kind: 'inline', text: operand, operand };
 };
 
 export const describeOperation = (operation, operandExpression) => `${OPERATION_LABELS[operation] || operation} ${operandExpression} on both sides`;

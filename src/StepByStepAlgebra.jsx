@@ -9,6 +9,7 @@ import {
   describeOperation,
   equationToLatex,
   expressionToLatex,
+  describeOperationToken,
   getSuggestedMove,
   isSolvedEquation,
   expressionsEquivalent,
@@ -71,6 +72,27 @@ const findCancellingPairIndices = (terms, targetExpression, variable) => {
   }
   return null;
 };
+
+/**
+ * The chip a student drags. A fraction is stacked with a real horizontal rule
+ * rather than written with a slash, because that is what a fraction looks like.
+ */
+function OperationChip({ token }) {
+  if (!token) return null;
+  if (token.kind === 'fraction') {
+    return (
+      <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.05 }}>
+        <span style={{ minWidth: '18px', height: '11px' }} />
+        <span style={{ width: '100%', minWidth: '22px', height: '2px', background: 'currentColor' }} />
+        <span>{token.operand}</span>
+      </span>
+    );
+  }
+  if (token.kind === 'factor') {
+    return <span>{token.operand}<span style={{ opacity: 0.55 }}>(&thinsp;)</span></span>;
+  }
+  return <span>{token.text}</span>;
+}
 
 export default function StepByStepAlgebra({
   question,
@@ -490,7 +512,9 @@ export default function StepByStepAlgebra({
   const beginPointerDrag = (operation, event) => {
     if (disabled || savingStep || pendingMove) return;
     event.currentTarget.setPointerCapture?.(event.pointerId);
-    const label = `${OPERATIONS.find((item) => item.id === operation)?.symbol ?? ''} ${operand}`.trim();
+    // Traditional notation the moment it enters the work. The rail keeps × and
+    // ÷ as action icons; the chip that flies into the equation does not.
+    const label = describeOperationToken(operation, operand);
     dragRef.current = { operation, label, pointerId: event.pointerId };
     setHeldToken({ x: event.clientX, y: event.clientY, label });
     setMirrorToken(null);
@@ -738,10 +762,10 @@ export default function StepByStepAlgebra({
       </p>
 
       {heldToken && (
-        <div aria-hidden="true" style={{ position: 'fixed', left: heldToken.x, top: heldToken.y, transform: 'translate(-50%, -50%)', zIndex: 40, pointerEvents: 'none', fontFamily: 'ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace', fontWeight: 800, fontSize: '22px', color: '#174ea6', background: '#e8f0fe', borderRadius: '12px', padding: '6px 12px', boxShadow: '0 12px 26px rgba(26,115,232,0.3)', whiteSpace: 'nowrap' }}>{heldToken.label}</div>
+        <div aria-hidden="true" style={{ position: 'fixed', left: heldToken.x, top: heldToken.y, transform: 'translate(-50%, -50%)', zIndex: 40, pointerEvents: 'none', fontFamily: 'ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace', fontWeight: 800, fontSize: '22px', color: '#174ea6', background: '#e8f0fe', borderRadius: '12px', padding: '6px 12px', boxShadow: '0 12px 26px rgba(26,115,232,0.3)', whiteSpace: 'nowrap' }}><OperationChip token={heldToken.label} /></div>
       )}
       {mirrorToken && (
-        <div aria-hidden="true" className="algebra-mirror-chip" style={{ position: 'fixed', left: mirrorToken.x, top: mirrorToken.y, transform: 'translate(-50%, -50%)', zIndex: 40, pointerEvents: 'none', fontFamily: 'ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace', fontWeight: 800, fontSize: '22px', color: '#174ea6', background: 'rgba(232,240,254,0.7)', border: '1px dashed #1a73e8', borderRadius: '12px', padding: '6px 12px', whiteSpace: 'nowrap' }}>{mirrorToken.label}</div>
+        <div aria-hidden="true" className="algebra-mirror-chip" style={{ position: 'fixed', left: mirrorToken.x, top: mirrorToken.y, transform: 'translate(-50%, -50%)', zIndex: 40, pointerEvents: 'none', fontFamily: 'ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace', fontWeight: 800, fontSize: '22px', color: '#174ea6', background: 'rgba(232,240,254,0.7)', border: '1px dashed #1a73e8', borderRadius: '12px', padding: '6px 12px', whiteSpace: 'nowrap' }}><OperationChip token={mirrorToken.label} /></div>
       )}
     </section>
   );
