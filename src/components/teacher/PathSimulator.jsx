@@ -12,6 +12,11 @@ import { getSkillGraph, teksSkillId } from '../../platform/path/skillGraph';
 import { staticMapProvider } from '../../platform/path/curriculumPacing';
 import { explainLock, listPrerequisiteChoices, simulateInstantMastery } from '../../platform/path/graphInspection';
 import { REMEDIATION_ACTION, describeBranchImpact, planRemediation } from '../../platform/path/remediationPlan';
+import { getStudentPathOptions } from '../../platform/path/recommendationEngine';
+import { buildAssessmentEvidence, withSimulatedEvidence } from '../../platform/ccmr/assessmentEvidence';
+import { getDirectAlignmentIndex } from '../../platform/ccmr/assessmentCrosswalk';
+import { normalizeAssessmentContext, normalizeQuestionAlignments } from '../../platform/contract/alignments';
+import AssessmentSkillInspector from './AssessmentSkillInspector';
 
 // Teacher Path Simulator.
 //
@@ -154,6 +159,41 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
   const branchImpact = useMemo(() => (
     activeSkillId ? describeBranchImpact({ courseId: inspectionCourseId, skillId: activeSkillId }) : null
   ), [inspectionCourseId, activeSkillId]);
+
+  // --- CCMR simulation -----------------------------------------------------
+  // Assessment-context evidence is a separate map from core mastery, so the
+  // simulator overlays synthetic framework evidence on top of whatever the
+  // simulated learner has actually done. Core mastery is untouched by it —
+  // which is the property the teacher is here to check.
+  const [ccmrOverrides, setCcmrOverrides] = useState({});
+
+  const ccmrPathOptions = useMemo(() => getStudentPathOptions({
+    courseId: inspectionCourseId,
+    masteryBySkill,
+    pacing: { currentWindow: 1, windowCount: 1 },
+    pacingProvider: staticMapProvider({ windowMap: {}, windowCount: 1 }),
+  }), [inspectionCourseId, masteryBySkill]);
+
+  const directIndex = useMemo(() => getDirectAlignmentIndex(simulationAssignments, {
+    normalizeAlignments: (question) => normalizeQuestionAlignments(question, { includeCrosswalks: false }),
+    normalizeContext: normalizeAssessmentContext,
+  }), [simulationAssignments]);
+
+  const assessmentEvidence = useMemo(() => {
+    const base = session
+      ? buildAssessmentEvidence({ student: session.learner, assignments: simulationAssignments })
+      : {};
+    return Object.values(ccmrOverrides).reduce((current, override) => (
+      override.proficiency == null ? current : withSimulatedEvidence(current, override)
+    ), base);
+  }, [session, simulationAssignments, ccmrOverrides]);
+
+  const simulateAssessment = ({ skillId, framework, proficiency }) => {
+    setCcmrOverrides((current) => ({
+      ...current,
+      [`${skillId}:${framework}`]: { skillId, framework, proficiency },
+    }));
+  };
 
   const runOutcome = (outcomeId) => {
     if (!session || !assignment) return;
@@ -418,7 +458,23 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
           </div>
 
           <div style={panel}>
-            <h3 style={heading}>6. Path history</h3>
+            <h3 style={heading}>6. CCMR pathways</h3>
+            <p style={{ color: '#5f6368', fontSize: 12, margin: '0 0 12px', lineHeight: 1.55 }}>
+              The same skill seen through each assessment. Set a framework proficiency to check the
+              routing — core mastery is a separate record and will not move, which is how a
+              <strong> transfer gap</strong> (strong course performance, weak assessment format) becomes visible.
+            </p>
+            <AssessmentSkillInspector
+              skillId={activeSkillId}
+              pathOptions={ccmrPathOptions}
+              assessmentEvidence={assessmentEvidence}
+              directIndex={directIndex}
+              onSimulate={simulateAssessment}
+            />
+          </div>
+
+          <div style={panel}>
+            <h3 style={heading}>7. Path history</h3>
             <ol style={{ margin: 0, paddingLeft: 20, fontSize: 14, lineHeight: 1.65 }}>
               {session.timeline.map((entry) => (
                 <li key={entry.id}>
@@ -429,7 +485,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
           </div>
 
           <div style={panel}>
-            <h3 style={heading}>7. Inspector &amp; feedback</h3>
+            <h3 style={heading}>8. Inspector &amp; feedback</h3>
             <button type="button" onClick={() => setShowInspector((current) => !current)} style={smallButton}>
               {showInspector ? '▾' : '▸'} Inspect question
             </button>
