@@ -140,11 +140,11 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
     purpose: 'The student plots points and draws the curve of a given function.',
     useWhen: ['The task is to graph a function, including on a restricted domain.'],
     doNotUseWhen: ['The graph is given and the student only reads it — use `graphing` or `graphAnalysis`.'],
-    required: [requires('functionSpec.type', 'needs `functionSpec.type`, for example { "type": "line", "m": 2, "b": -3 }')],
+    required: [requires('functionSpec.type', 'needs `functionSpec.type`, for example { "type": "linear", "m": 2, "b": -3 } or { "type": "quadratic", "a": 1, "h": 2, "k": -3 }')],
     optional: ['graph', 'pointTasks', 'endpointRequirements', 'studentChoosesX', 'includeUndefinedChecks'],
     example: {
       type: 'functionGraph', prompt: 'Graph y = 2x - 3 for x ≥ -3, then state the range.',
-      functionSpec: { type: 'line', m: 2, b: -3, domain: { min: -3 } },
+      functionSpec: { type: 'linear', m: 2, b: -3, domain: { min: -3 } },
       graph: { xMin: -8, xMax: 8, yMin: -10, yMax: 10 },
     },
   },
@@ -167,7 +167,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
   graphAnalysis: {
     label: 'Analyse a displayed graph',
     representation: REPRESENTATIONS.GRAPH,
-    purpose: 'Render a real graph and ask for domain, range, increasing/decreasing/constant intervals, or named features.',
+    purpose: 'Render a real graph and ask for domain, range, increasing/decreasing/constant intervals, where the function is positive or negative, or named features.',
     useWhen: [
       'The source shows a graph and asks for domain and range.',
       'The source asks where a graph is increasing, decreasing, positive or negative.',
@@ -186,7 +186,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
         errors.push('`analysisRequests` must be a non-empty array');
         return errors;
       }
-      const kinds = ['domain', 'range', 'increasing', 'decreasing', 'constant', 'point'];
+      const kinds = ['domain', 'range', 'increasing', 'decreasing', 'constant', 'positive', 'negative', 'point'];
       question.analysisRequests.forEach((request, index) => {
         if (!isObject(request)) { errors.push(`analysisRequests[${index}] must be an object`); return; }
         const kind = request.kind || 'point';
@@ -256,16 +256,40 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
     purpose: 'The student fills blank cells in a table of values.',
     useWhen: ['The source shows a table the student completes or reads.'],
     doNotUseWhen: ['You would describe the table in prose instead of supplying it.'],
-    required: [requires('table', 'needs a `table` object with headers and rows')],
+    required: [
+      requires('table.columns', 'needs `table.columns`, an array of { key, label }'),
+      requires('table.rows', 'needs `table.rows`, an array of objects keyed by column key'),
+      requires('table.answers', 'needs `table.answers`, keyed "rowIndex:columnKey" — these are the blanks'),
+    ],
     validate: (question) => {
-      if (!isObject(question.table)) return ['`table` must be an object with `headers` and `rows`'];
-      if (!nonEmptyArray(question.table.rows)) return ['`table.rows` must be a non-empty array'];
-      return [];
+      const errors = [];
+      const table = question.table;
+      if (!nonEmptyArray(table.columns)) errors.push('`table.columns` must be a non-empty array of { key, label }');
+      if (!nonEmptyArray(table.rows)) errors.push('`table.rows` must be a non-empty array');
+      const answers = table.answers;
+      if (!isObject(answers) || !Object.keys(answers).length) {
+        errors.push('`table.answers` must have at least one blank, keyed "rowIndex:columnKey" such as "0:y"');
+        return errors;
+      }
+      const keys = (table.columns || []).map((column) => column?.key);
+      Object.keys(answers).forEach((key) => {
+        const [rowIndex, columnKey] = String(key).split(':');
+        if (!/^\d+$/.test(rowIndex) || !keys.includes(columnKey)) {
+          errors.push(`\`table.answers\` key "${key}" must be "rowIndex:columnKey" using a key from table.columns (${keys.join(', ')})`);
+        } else if (Number(rowIndex) >= (table.rows || []).length) {
+          errors.push(`\`table.answers\` key "${key}" points past the end of table.rows`);
+        }
+      });
+      return errors;
     },
-    optional: ['answer', 'functionSpec'],
+    optional: ['functionSpec'],
     example: {
       type: 'table', prompt: 'Complete the table for y = 2x + 1.',
-      table: { headers: ['x', 'y'], rows: [[-1, -1], [0, null], [1, 3], [2, null]] },
+      table: {
+        columns: [{ key: 'x', label: 'x' }, { key: 'y', label: 'y' }],
+        rows: [{ x: -1, y: -1 }, { x: 0, y: null }, { x: 1, y: 3 }, { x: 2, y: null }],
+        answers: { '1:y': 1, '3:y': 5 },
+      },
     },
   },
 
@@ -286,25 +310,27 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
     purpose: 'Collect several labelled responses to one stimulus.',
     useWhen: ['One graph, table or scenario should produce several answers.'],
     doNotUseWhen: ['There is only one thing to answer.'],
-    required: [requires('fields', 'needs a `fields` array of labelled answer boxes')],
+    required: [requires('answerFields', 'needs an `answerFields` array — note the name, `fields` is not read')],
     validate: (question) => {
-      if (!nonEmptyArray(question.fields)) {
-        return ['`fields` must be a non-empty array, for example [{ "id": "domain", "label": "Domain", "answer": "[-3, 5)" }]'];
+      if (!nonEmptyArray(question.answerFields)) {
+        return ['`answerFields` must be a non-empty array, for example [{ "id": "domain", "label": "Domain", "answer": "[-3, 5)" }]'];
       }
       const errors = [];
-      question.fields.forEach((field, index) => {
-        if (!isObject(field)) { errors.push(`fields[${index}] must be an object`); return; }
-        if (!has(field.id)) errors.push(`fields[${index}] needs an id`);
-        if (!has(field.label)) errors.push(`fields[${index}] needs a label`);
-        if (!has(field.answer)) errors.push(`fields[${index}] needs an expected answer`);
+      question.answerFields.forEach((field, index) => {
+        if (!isObject(field)) { errors.push(`answerFields[${index}] must be an object`); return; }
+        if (!has(field.id)) errors.push(`answerFields[${index}] needs an id`);
+        if (!has(field.label)) errors.push(`answerFields[${index}] needs a label`);
+        if (!has(field.answer) && !nonEmptyArray(field.acceptedAnswers)) {
+          errors.push(`answerFields[${index}] needs an \`answer\` or an \`acceptedAnswers\` array`);
+        }
       });
       return errors;
     },
-    optional: ['mathDisplay', 'graph', 'table'],
+    optional: ['mathDisplay', 'graph', 'visual'],
     example: {
       type: 'multiAnswer', prompt: 'Use the graph to complete each part.',
       graph: { functions: [{ type: 'quadratic', a: 1, h: 0, k: -4 }], xMin: -6, xMax: 6, yMin: -6, yMax: 6 },
-      fields: [
+      answerFields: [
         { id: 'domain', label: 'Domain', answer: '(-∞, ∞)' },
         { id: 'range', label: 'Range', answer: '[-4, ∞)' },
       ],

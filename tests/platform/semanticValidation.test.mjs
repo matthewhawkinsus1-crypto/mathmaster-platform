@@ -24,11 +24,38 @@ const warningsFor = (question) => validateQuestionSemantics(question).warnings;
 
 // --- multiAnswer with no answer fields --------------------------------------
 {
-  assert.ok(errorsFor({ type: 'multiAnswer', prompt: 'Answer each part.' }).some((e) => /fields/.test(e)));
-  const badFields = { type: 'multiAnswer', prompt: 'x', fields: [{ id: 'a' }] };
+  assert.ok(errorsFor({ type: 'multiAnswer', prompt: 'Answer each part.' }).some((e) => /answerFields/.test(e)));
+
+  // The renderer reads `answerFields`; `fields` is silently ignored, which is
+  // exactly how a question shipped with no answer boxes at all.
+  const wrongKey = errorsFor({ type: 'multiAnswer', prompt: 'x', fields: [{ id: 'a', label: 'A', answer: '1' }] });
+  assert.ok(wrongKey.some((e) => /answerFields/.test(e)), '`fields` is rejected in favour of `answerFields`');
+
+  const badFields = { type: 'multiAnswer', prompt: 'x', answerFields: [{ id: 'a' }] };
   const errors = errorsFor(badFields);
   assert.ok(errors.some((e) => /needs a label/.test(e)));
-  assert.ok(errors.some((e) => /needs an expected answer/.test(e)));
+  assert.ok(errors.some((e) => /needs an .?answer/.test(e)));
+}
+
+// --- table must use the shape the renderer keys blanks from ------------------
+{
+  // headers + array rows renders an empty table with no inputs at all.
+  const headerShape = { type: 'table', prompt: 'Complete it.', table: { headers: ['x', 'y'], rows: [[-2, null]] } };
+  const errors = errorsFor(headerShape);
+  assert.ok(errors.some((e) => /table\.columns/.test(e)), 'headers shape is rejected');
+  assert.ok(errors.some((e) => /table\.answers/.test(e)), 'missing answers is reported');
+
+  const badKey = {
+    type: 'table', prompt: 'x',
+    table: { columns: [{ key: 'x', label: 'x' }], rows: [{ x: 1 }], answers: { 'nope': 1 } },
+  };
+  assert.ok(errorsFor(badKey).some((e) => /rowIndex:columnKey/.test(e)), 'a malformed blank key is reported');
+
+  const outOfRange = {
+    type: 'table', prompt: 'x',
+    table: { columns: [{ key: 'y', label: 'y' }], rows: [{ y: 1 }], answers: { '9:y': 1 } },
+  };
+  assert.ok(errorsFor(outOfRange).some((e) => /past the end/.test(e)), 'a blank past the last row is reported');
 }
 
 // --- relationshipModel without its quantities -------------------------------
@@ -61,9 +88,17 @@ const warningsFor = (question) => validateQuestionSemantics(question).warnings;
     'the same prompt passes when the graph is supplied',
   );
   assert.deepEqual(
-    errorsFor({ type: 'table', prompt: 'Complete the table shown.', table: { headers: ['x', 'y'], rows: [[1, 2]] } }),
+    errorsFor({
+      type: 'table',
+      prompt: 'Complete the table shown.',
+      table: {
+        columns: [{ key: 'x', label: 'x' }, { key: 'y', label: 'y' }],
+        rows: [{ x: 1, y: null }],
+        answers: { '0:y': 2 },
+      },
+    }),
     [],
-    'the table prompt passes when the table is supplied',
+    'the table prompt passes when a renderable table is supplied',
   );
 }
 

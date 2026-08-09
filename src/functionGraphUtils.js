@@ -79,6 +79,13 @@ export const evaluateGraphFunction = (spec, x) => {
   const k = Number(spec.k ?? 0);
   const base = Number(spec.base ?? 2);
 
+  // A line is the most common function in these courses and was the one family
+  // the spec evaluator did not implement, so any authored line graphed blank.
+  if (type === 'linear' || type === 'line') {
+    const slope = Number(spec.m ?? spec.a ?? 1);
+    const intercept = spec.b !== undefined ? Number(spec.b) : k;
+    return slope * (x - h) + intercept;
+  }
   if (type === 'absolute') return a * Math.abs(x - h) + k;
   if (type === 'quadratic') return a * (x - h) ** 2 + k;
   if (type === 'squareRoot') return a * Math.sqrt(x - h) + k;

@@ -22,6 +22,7 @@ import {
   roughSketchMatchesGraph,
   sampleVisibleFunctionPaths,
   setAnswerMatches,
+  getSignAcceptedAnswers,
 } from './interactiveGraphEngine';
 
 const WIDTH = 760;
@@ -122,6 +123,14 @@ const normalizeAnalysisRequests = (question, spec, window, allowDefault) => {
     if (['domain', 'range'].includes(request.kind)) {
       const notation = request.notation || 'interval';
       return { ...request, id, kind: request.kind, label: request.label || `${request.kind === 'domain' ? 'Domain' : 'Range'} in ${notation} notation`, notation, acceptedAnswers: request.acceptedAnswers || getDomainRangeAcceptedAnswers(spec, request.kind, notation) };
+    }
+    if (['positive', 'negative'].includes(request.kind)) {
+      const notation = request.notation || 'interval';
+      return {
+        ...request, id, kind: request.kind, notation,
+        label: request.label || `Interval(s) where the function is ${request.kind}`,
+        acceptedAnswers: request.acceptedAnswers || getSignAcceptedAnswers(spec, request.kind, notation),
+      };
     }
     if (['increasing', 'decreasing', 'constant'].includes(request.kind)) {
       const notation = request.notation || 'interval';

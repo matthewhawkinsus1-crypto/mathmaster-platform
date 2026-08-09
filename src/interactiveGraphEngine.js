@@ -276,8 +276,13 @@ const cleanSetAnswer = (value) => String(value ?? '')
   .replace(/\s+/g, '');
 
 const formatNumber = (value) => Number.isInteger(Number(value)) ? String(Number(value)) : String(round(value, 5));
-const intervalEndpoint = (value) => Number.isFinite(value) ? formatNumber(value) : value < 0 ? '-inf' : 'inf';
-const intervalString = (min, max, minInclusive, maxInclusive) => `${minInclusive ? '[' : '('}${intervalEndpoint(min)},${intervalEndpoint(max)}${maxInclusive ? ']' : ')'}`;
+const intervalEndpoint = (value) => Number.isFinite(value) ? formatNumber(value) : Number(value) < 0 ? '-inf' : 'inf';
+// Infinity is never reached, so it never takes a square bracket. Without this
+// an unbounded domain was accepted only as "[-inf,inf]" and a student writing
+// the correct (-∞, ∞) was marked wrong.
+const intervalString = (min, max, minInclusive, maxInclusive) => (
+  `${minInclusive && Number.isFinite(min) ? '[' : '('}${intervalEndpoint(min)},${intervalEndpoint(max)}${maxInclusive && Number.isFinite(max) ? ']' : ')'}`
+);
 
 const domainIntervals = (spec) => {
   const domain = getEffectiveDomain(spec);
@@ -375,6 +380,84 @@ const intersectInterval = (min, max, domain) => ({
   minInclusive: min < domain.min ? domain.minInclusive : false,
   maxInclusive: max > domain.max ? domain.maxInclusive : false,
 });
+
+// Where a function sits above or below the x-axis. The lesson teaches
+// positive/negative intervals alongside increasing/decreasing, so an authored
+// graphAnalysis can request them the same way.
+//
+// Zeros are found numerically rather than per family: bisecting a sign change
+// works for every family the grapher supports, including the restricted domains
+// and rational branches that closed-form root formulas would each need special
+// handling for.
+const SIGN_SAMPLES = 900;
+const SIGN_EPSILON = 1e-7;
+
+const bisectZero = (spec, low, high) => {
+  let a = low;
+  let b = high;
+  let fa = evaluateGraphFunction(spec, a);
+  for (let i = 0; i < 60; i += 1) {
+    const mid = (a + b) / 2;
+    const fm = evaluateGraphFunction(spec, mid);
+    if (!Number.isFinite(fm)) return null;
+    if (Math.abs(fm) < SIGN_EPSILON || (b - a) < 1e-9) return round(mid, 6);
+    if ((fa < 0) === (fm < 0)) { a = mid; fa = fm; } else { b = mid; }
+  }
+  return round((a + b) / 2, 6);
+};
+
+export const getSignAcceptedAnswers = (spec, kind, notation = 'interval') => {
+  if (notation !== 'interval') return [];
+  const wantPositive = kind === 'positive';
+  const parts = [];
+
+  domainIntervals(spec).forEach((piece) => {
+    // Sampling needs a finite window; unbounded ends are probed far enough out
+    // that any remaining sign change would be off the classroom graph anyway.
+    const low = Number.isFinite(piece.min) ? piece.min : -60;
+    const high = Number.isFinite(piece.max) ? piece.max : 60;
+    if (!(high > low)) return;
+
+    const cuts = [];
+    let previousX = low + (high - low) * 1e-6;
+    let previousY = evaluateGraphFunction(spec, previousX);
+    for (let i = 1; i <= SIGN_SAMPLES; i += 1) {
+      const x = low + ((high - low) * i) / SIGN_SAMPLES;
+      const y = evaluateGraphFunction(spec, x);
+      if (Number.isFinite(previousY) && Number.isFinite(y) && (previousY < 0) !== (y < 0)) {
+        const zero = bisectZero(spec, previousX, x);
+        if (zero != null) cuts.push(zero);
+      }
+      previousX = x;
+      previousY = y;
+    }
+
+    const bounds = [piece.min, ...cuts, piece.max];
+    for (let i = 0; i < bounds.length - 1; i += 1) {
+      const segMin = bounds[i];
+      const segMax = bounds[i + 1];
+      const sampleLow = Number.isFinite(segMin) ? segMin : Math.min(segMax - 1, low);
+      const sampleHigh = Number.isFinite(segMax) ? segMax : Math.max(segMin + 1, high);
+      if (!(sampleHigh > sampleLow)) continue;
+      const probe = evaluateGraphFunction(spec, (sampleLow + sampleHigh) / 2);
+      if (!Number.isFinite(probe) || Math.abs(probe) < SIGN_EPSILON) continue;
+      if ((probe > 0) !== wantPositive) continue;
+      parts.push({
+        min: segMin,
+        max: segMax,
+        // A zero is never part of "positive" or "negative"; a domain endpoint
+        // keeps whatever inclusivity the domain gave it.
+        minInclusive: i === 0 ? piece.minInclusive === true : false,
+        maxInclusive: i === bounds.length - 2 ? piece.maxInclusive === true : false,
+      });
+    }
+  });
+
+  if (!parts.length) return ['none', 'doesnotexist', 'emptyset', '∅'];
+  const domainAware = parts.map((part) => intervalString(part.min, part.max, part.minInclusive, part.maxInclusive)).join('u');
+  const openConvention = parts.map((part) => intervalString(part.min, part.max, false, false)).join('u');
+  return [...new Set([domainAware, openConvention])];
+};
 
 export const getMonotonicAcceptedAnswers = (spec, kind, notation = 'interval') => {
   if (notation !== 'interval') return [];
