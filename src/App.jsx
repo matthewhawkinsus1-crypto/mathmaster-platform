@@ -96,6 +96,10 @@ import DemoExperience from './components/demo/DemoExperience.jsx';
 import StudentsRoster from './components/teacher/StudentsRoster.jsx';
 import ClassCourseSettings from './components/teacher/ClassCourseSettings.jsx';
 import PathSimulator from './components/teacher/PathSimulator.jsx';
+import PacingControls from './components/teacher/PacingControls.jsx';
+import {
+  fetchClassPacing, fetchSkillOverrides, saveClassPacing, saveSkillOverrides,
+} from './platform/path/pathStore.js';
 import SignInAccess from './SignInAccess.jsx';
 import {
   buildHonorsEnrichmentQuestion,
@@ -221,6 +225,11 @@ function App() {
   // Live presence for the teacher home grid, keyed by student id. Never stored
   // alongside grades and never read outside the live view.
   const [presenceById, setPresenceById] = useState({});
+  // Curriculum pacing and per-class skill overrides. Teacher-owned inputs to
+  // the adaptive path engine; no student screen reads them yet.
+  const [pacingByClass, setPacingByClass] = useState({});
+  const [skillOverrides, setSkillOverrides] = useState([]);
+  const [pacingBusy, setPacingBusy] = useState(false);
   const [activeAssignmentId, setActiveAssignmentId] = useState(null);
   const [tracker, setTracker] = useState({});
   const [practiceTracker, setPracticeTracker] = useState({});
@@ -351,6 +360,44 @@ function App() {
     return unsubscribe;
   }, [user]);
 
+  // Pacing and overrides are advisory: a failure here must not stop a teacher
+  // signing in, so it degrades to defaults rather than rejecting the login.
+  const fetchPathSettings = async () => {
+    try {
+      const [pacing, overrides] = await Promise.all([fetchClassPacing(), fetchSkillOverrides()]);
+      setPacingByClass(pacing);
+      setSkillOverrides(overrides);
+    } catch (error) {
+      console.error('Could not load curriculum pacing:', error);
+    }
+  };
+
+  const handleSavePacing = async (next) => {
+    setPacingByClass(next);
+    setPacingBusy(true);
+    try {
+      await saveClassPacing(next);
+    } catch (error) {
+      toastError('Pacing not saved', 'The change is showing locally but did not reach the server.');
+      console.error(error);
+    } finally {
+      setPacingBusy(false);
+    }
+  };
+
+  const handleSaveOverrides = async (next) => {
+    setSkillOverrides(next);
+    setPacingBusy(true);
+    try {
+      await saveSkillOverrides(next);
+    } catch (error) {
+      toastError('Override not saved', 'The change is showing locally but did not reach the server.');
+      console.error(error);
+    } finally {
+      setPacingBusy(false);
+    }
+  };
+
   const fetchAssignments = async () => {
     const querySnapshot = await getDocs(collection(db, 'assignments'));
     const fetchedAssignments = [];
@@ -446,7 +493,7 @@ function App() {
         const fetchedAssignments = await fetchAssignments();
         if (cancelled) return;
         if (session.role === 'teacher') {
-          await Promise.all([fetchStudents(), fetchClassSchedule(), fetchCourseProfiles(), fetchAssignmentFolders()]);
+          await Promise.all([fetchStudents(), fetchClassSchedule(), fetchCourseProfiles(), fetchAssignmentFolders(), fetchPathSettings()]);
           if (cancelled) return;
           setUser({
             id: session.uid,
@@ -3259,6 +3306,17 @@ function App() {
 
           <div className="mm-dashboard-content" style={{ padding: '30px' }}>
             {teacherTab === 'demo' && <DemoExperience />}
+
+            {teacherTab === 'pacing' && (
+              <PacingControls
+                courseId="algebra1"
+                pacingByClass={pacingByClass}
+                overrides={skillOverrides}
+                onSavePacing={handleSavePacing}
+                onSaveOverrides={handleSaveOverrides}
+                busy={pacingBusy}
+              />
+            )}
 
             {teacherTab === 'simulator' && (
               <PathSimulator

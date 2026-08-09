@@ -23,6 +23,7 @@ const TAB_LABELS = {
   students: 'Students',
   classesWorkspace: 'Classes',
   classes: 'Class Schedule',
+  pacing: 'Curriculum Pacing',
   grades: 'Grades',
   standards: 'TEKS & Mastery',
   analytics: 'Analytics',
@@ -41,6 +42,7 @@ const TAB_ICONS = {
   students: '👥',
   classesWorkspace: '🏫',
   classes: '🕘',
+  pacing: '📐',
   grades: '📊',
   standards: '🎯',
   analytics: '📈',
@@ -51,7 +53,7 @@ const TAB_ICONS = {
 
 const TAB_GROUPS = [
   { id: 'teach', label: 'Teach', tabs: ['home', 'demo', 'assignments', 'library', 'mathTools', 'simulator'] },
-  { id: 'people', label: 'Classes', tabs: ['students', 'classesWorkspace', 'classes'] },
+  { id: 'people', label: 'Classes', tabs: ['students', 'classesWorkspace', 'classes', 'pacing'] },
   { id: 'insight', label: 'Evidence', tabs: ['grades', 'standards', 'analytics', 'exams'] },
   { id: 'admin', label: 'Setup', tabs: ['classroom', 'access'] },
 ];
