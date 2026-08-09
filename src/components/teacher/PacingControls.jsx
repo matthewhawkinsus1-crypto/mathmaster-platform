@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { CLASS_PERIODS } from '../../assignmentLifecycle';
 import { getSkillGraph, describeSkill } from '../../platform/path/skillGraph';
-import { sequenceProvider } from '../../platform/path/curriculumPacing';
-import { getStudentPathOptions, explainForStudent } from '../../platform/path/recommendationEngine';
+import { explainForStudent } from '../../platform/path/recommendationEngine';
+import { buildStudentPathOptions, resolvePacingProvider } from '../../platform/path/studentPathOptions';
+import { describeToday, loadCalendar } from '../../platform/path/curriculumCalendar';
 import {
   OVERRIDE_ACTIONS, getPacingForClass, overridesForClass, removeOverride, upsertOverride,
 } from '../../platform/path/pathStore';
@@ -55,6 +56,7 @@ const PREVIEW_ORDER = ['required', 'remediation', 'priority', 'recommended', 'av
 
 export default function PacingControls({
   courseId = 'algebra1',
+  nowValue = Date.now(),
   pacingByClass = {},
   overrides = [],
   onSavePacing,
@@ -73,16 +75,27 @@ export default function PacingControls({
     [classOverrides],
   );
 
-  // Provisional until real Bluebonnet or district pacing data is loaded; the
-  // banner below says so rather than letting the spread look authoritative.
-  const provider = useMemo(() => sequenceProvider({ skills, windowCount: pacing.windowCount }), [skills, pacing.windowCount]);
+  // The same resolver the student path uses, so this preview cannot be built
+  // on a different provider from the one students actually get.
+  const provider = useMemo(
+    () => resolvePacingProvider({ courseId, skills, pacing, nowValue }),
+    [courseId, skills, pacing, nowValue],
+  );
+  const isProvisional = provider.isProvisional !== false;
+  const calendarToday = useMemo(
+    () => (provider.loaded ? describeToday(provider.loaded, nowValue) : null),
+    [provider, nowValue],
+  );
 
-  const preview = useMemo(() => getStudentPathOptions({
+  const preview = useMemo(() => buildStudentPathOptions({
+    student: { id: 'preview', gradesByAssignment: {} },
+    assignments: [],
     courseId,
     pacing,
-    pacingProvider: provider,
     teacherOverrides: classOverrides,
-  }), [courseId, pacing, provider, classOverrides]);
+    nowValue,
+  }) || { recommended: [], available: [], confidence: { level: 'low', message: '' } },
+  [courseId, pacing, classOverrides, nowValue]);
 
   const setPacingField = (field, value) => {
     onSavePacing?.({
@@ -120,12 +133,23 @@ export default function PacingControls({
           review, current, or too far ahead — it never decides whether a student is
           mathematically ready, which comes from prerequisites and mastery.
         </p>
-        <div style={{ padding: '10px 12px', borderRadius: 8, background: '#fef7e0', color: '#7a4f00', fontSize: 13, lineHeight: 1.5, marginBottom: 14 }}>
-          <strong>Provisional pacing.</strong> No Bluebonnet or district scope-and-sequence has been
-          loaded, so windows are spread evenly across the course as a placeholder. Positions you set
-          here are real; the skill-to-window map underneath is not, and every recommendation built
-          from it is flagged as provisional.
-        </div>
+        {isProvisional ? (
+          <div style={{ padding: '10px 12px', borderRadius: 8, background: '#fef7e0', color: '#7a4f00', fontSize: 13, lineHeight: 1.5, marginBottom: 14 }}>
+            <strong>Provisional pacing.</strong> No district scope-and-sequence is loaded for this
+            course, so windows are spread evenly as a placeholder. Positions you set here are real;
+            the skill-to-window map underneath is not.
+          </div>
+        ) : (
+          <div style={{ padding: '10px 12px', borderRadius: 8, background: '#e6f4ea', color: '#137333', fontSize: 13, lineHeight: 1.5, marginBottom: 14 }}>
+            <strong>2026-27 district calendar is active.</strong>
+            {calendarToday?.current?.length
+              ? ` Today your classes are on ${calendarToday.current.filter((w) => w.curriculumType === 'module' || w.curriculumType === 'review').map((w) => w.title).join(', ') || 'scheduled work'}.`
+              : ' No instructional window is scheduled for today.'}
+            {calendarToday?.upcoming?.length
+              ? ` Opening early: ${calendarToday.upcoming.map((w) => w.title).join(', ')}.`
+              : ''}
+          </div>
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14 }}>
           <label style={{ fontWeight: 800 }}>Class period
@@ -149,7 +173,7 @@ export default function PacingControls({
           </label>
         </div>
 
-        <div style={{ marginTop: 16 }}>
+        {isProvisional && <div style={{ marginTop: 16 }}>
           <div style={{ fontWeight: 800, marginBottom: 8 }}>
             Current position — window {pacing.currentWindow} of {pacing.windowCount}
           </div>
@@ -169,7 +193,14 @@ export default function PacingControls({
             Moving the position changes what MathMaster recommends. It never erases mastery
             history — a class that falls behind keeps everything its students have shown.
           </p>
-        </div>
+        </div>}
+        {!isProvisional && (
+          <p style={{ ...note, margin: '14px 0 0' }}>
+            Position comes from the district calendar and today&apos;s date, so there is no window to
+            set by hand. Use the overrides below to open, delay or prioritise individual skills for
+            this class.
+          </p>
+        )}
       </div>
 
       <div style={panel}>

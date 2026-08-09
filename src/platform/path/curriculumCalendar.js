@@ -190,9 +190,14 @@ export const getCurriculumTiming = (loaded, curriculumId, nowValue = Date.now())
     recommendationMode: best.window.recommendationMode,
     window: best.window,
     windowCount: windows.length,
-    // Instructional days until it opens, for "your class reaches this in N days".
+    // Both counts, because they answer different questions. Students think in
+    // calendar days ("next week"); the engine's early-open arithmetic runs on
+    // instructional days, and a teacher debugging pacing needs to see both.
     instructionalDaysUntilStart: best.timing === CALENDAR_TIMING.UPCOMING || best.timing === CALENDAR_TIMING.FUTURE
       ? countInstructionalDaysBetween(today, best.window.startDate, loaded.nonInstructional)
+      : 0,
+    calendarDaysUntilStart: best.timing === CALENDAR_TIMING.UPCOMING || best.timing === CALENDAR_TIMING.FUTURE
+      ? Math.max(0, Math.round((best.window.startDate - today) / DAY_MS))
       : 0,
     approximate: Boolean(best.window.approximate),
   };

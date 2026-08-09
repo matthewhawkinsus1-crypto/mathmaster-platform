@@ -30,6 +30,8 @@ const toCard = (row, slot) => (row ? {
   mastery: row.mastery,
   score: row.score,
   pacingIsProvisional: row.pacingIsProvisional,
+  calendarTiming: row.calendarTiming || null,
+  calendarDaysUntilStart: row.calendarDaysUntilStart ?? 0,
   remediationTarget: row.remediationTarget || null,
 } : null);
 

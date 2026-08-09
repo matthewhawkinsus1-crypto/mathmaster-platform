@@ -51,11 +51,14 @@ export const ALGEBRA1_2026_2027 = {
       start: '2026-08-10', end: '2026-09-10',
       earlyOpenInstructionalDays: 0,
     },
-    { id: 'alg1.m1.t1.intro', parentId: 'alg1.m1', curriculumType: 'lesson', curriculumId: 'alg1.module1.topic1.intro', title: 'Topic 1 Intro Lesson', start: '2026-08-10', end: '2026-08-11' },
+    // Topic-level node spanning its lessons: the crosswalk maps skills to
+    // topics, while the calendar also carries the lesson detail it was given.
+    { id: 'alg1.m1.t1', parentId: 'alg1.m1', curriculumType: 'topic', curriculumId: 'alg1.m1.t1', title: 'Topic 1', start: '2026-08-10', end: '2026-08-21', earlyOpenInstructionalDays: 0 },
+    { id: 'alg1.m1.t1.l0', parentId: 'alg1.m1', curriculumType: 'lesson', curriculumId: 'alg1.module1.topic1.intro', title: 'Topic 1 Intro Lesson', start: '2026-08-10', end: '2026-08-11' },
     { id: 'alg1.m1.t1.l1', parentId: 'alg1.m1', curriculumType: 'lesson', curriculumId: 'alg1.module1.topic1.lesson1', title: 'Topic 1 Lesson 1', start: '2026-08-12', end: '2026-08-13' },
     { id: 'alg1.m1.t1.l23', parentId: 'alg1.m1', curriculumType: 'lesson', curriculumId: 'alg1.module1.topic1.lesson2-3', title: 'Topic 1 Lessons 2-3', start: '2026-08-14', end: '2026-08-19' },
     { id: 'alg1.m1.t1.l4', parentId: 'alg1.m1', curriculumType: 'lesson', curriculumId: 'alg1.module1.topic1.lesson4', title: 'Topic 1 Lesson 4', start: '2026-08-20', end: '2026-08-21' },
-    { id: 'alg1.m1.t2', parentId: 'alg1.m1', curriculumType: 'topic', curriculumId: 'alg1.module1.topic2', title: 'Topic 2 Lessons 1-3', start: '2026-08-24', end: '2026-09-02' },
+    { id: 'alg1.m1.t2', parentId: 'alg1.m1', curriculumType: 'topic', curriculumId: 'alg1.m1.t2', title: 'Topic 2 Lessons 1-3', start: '2026-08-24', end: '2026-09-02' },
     { id: 'alg1.m1.assess', parentId: 'alg1.m1', curriculumType: 'assessment', curriculumId: 'alg1.module1.assessment', title: 'Module 1 Assessment', start: '2026-09-09', end: '2026-09-10' },
 
     // --- Module 2: Exploring Constant Rate of Change ------------------------
@@ -66,9 +69,9 @@ export const ALGEBRA1_2026_2027 = {
       title: 'Module 2: Exploring Constant Rate of Change',
       start: '2026-09-03', end: '2026-10-30',
     },
-    { id: 'alg1.m2.t1', parentId: 'alg1.m2', curriculumType: 'topic', curriculumId: 'alg1.module2.topic1', title: 'Topic 1', start: '2026-09-03', end: '2026-09-29' },
+    { id: 'alg1.m2.t1', parentId: 'alg1.m2', curriculumType: 'topic', curriculumId: 'alg1.m2.t1', title: 'Topic 1', start: '2026-09-03', end: '2026-09-29' },
     { id: 'alg1.m2.assess1', parentId: 'alg1.m2', curriculumType: 'assessment', curriculumId: 'alg1.module2.assessment1', title: 'Module 2 Assessment', start: '2026-09-30', end: '2026-10-01' },
-    { id: 'alg1.m2.t2', parentId: 'alg1.m2', curriculumType: 'topic', curriculumId: 'alg1.module2.topic2', title: 'Topic 2', start: '2026-10-05', end: '2026-10-27' },
+    { id: 'alg1.m2.t2', parentId: 'alg1.m2', curriculumType: 'topic', curriculumId: 'alg1.m2.t2', title: 'Topic 2', start: '2026-10-05', end: '2026-10-27' },
     { id: 'alg1.m2.assess2', parentId: 'alg1.m2', curriculumType: 'assessment', curriculumId: 'alg1.module2.assessment2', title: 'Module 2 Assessment', start: '2026-10-28', end: '2026-10-30' },
 
     // --- Module 3: Modeling Linear Equations and Inequalities ---------------
@@ -79,8 +82,8 @@ export const ALGEBRA1_2026_2027 = {
       title: 'Module 3: Modeling Linear Equations and Inequalities',
       start: '2026-11-02', end: '2026-12-18',
     },
-    { id: 'alg1.m3.t1', parentId: 'alg1.m3', curriculumType: 'topic', curriculumId: 'alg1.module3.topic1', title: 'Topic 1', start: '2026-11-02', end: '2026-11-20' },
-    { id: 'alg1.m3.t2', parentId: 'alg1.m3', curriculumType: 'topic', curriculumId: 'alg1.module3.topic2', title: 'Topic 2', start: '2026-11-30', end: '2026-12-14' },
+    { id: 'alg1.m3.t1', parentId: 'alg1.m3', curriculumType: 'topic', curriculumId: 'alg1.m3.t1', title: 'Topic 1', start: '2026-11-02', end: '2026-11-20' },
+    { id: 'alg1.m3.t2', parentId: 'alg1.m3', curriculumType: 'topic', curriculumId: 'alg1.m3.t2', title: 'Topic 2', start: '2026-11-30', end: '2026-12-14' },
     { id: 'alg1.m13.assess', parentId: 'alg1.m3', curriculumType: 'assessment', curriculumId: 'alg1.modules1-3.assessment', title: 'Modules 1-3 Assessment', start: '2026-12-15', end: '2026-12-18' },
 
     // --- Module 4: Investigating Growth and Decay ---------------------------
@@ -93,9 +96,9 @@ export const ALGEBRA1_2026_2027 = {
       title: 'Module 4: Investigating Growth and Decay',
       start: '2027-01-06', end: '2027-02-19',
     },
-    { id: 'alg1.m4.t1', parentId: 'alg1.m4', curriculumType: 'topic', curriculumId: 'alg1.module4.topic1', title: 'Topic 1', start: '2027-01-06', end: '2027-01-19' },
+    { id: 'alg1.m4.t1', parentId: 'alg1.m4', curriculumType: 'topic', curriculumId: 'alg1.m4.t1', title: 'Topic 1', start: '2027-01-06', end: '2027-01-19' },
     { id: 'alg1.m4.assess', parentId: 'alg1.m4', curriculumType: 'assessment', curriculumId: 'alg1.module4.assessment', title: 'Module 4 Assessment', start: '2027-01-20', end: '2027-01-22' },
-    { id: 'alg1.m4.t2', parentId: 'alg1.m4', curriculumType: 'topic', curriculumId: 'alg1.module4.topic2', title: 'Topic 2', start: '2027-01-25', end: '2027-02-19' },
+    { id: 'alg1.m4.t2', parentId: 'alg1.m4', curriculumType: 'topic', curriculumId: 'alg1.m4.t2', title: 'Topic 2', start: '2027-01-25', end: '2027-02-19' },
 
     // --- Module 5: Maximizing and Minimizing --------------------------------
     {
@@ -106,8 +109,8 @@ export const ALGEBRA1_2026_2027 = {
       start: '2027-02-22', end: '2027-03-12',
       approximate: true,
     },
-    { id: 'alg1.m5.t1', parentId: 'alg1.m5', curriculumType: 'topic', curriculumId: 'alg1.module5.topic1', title: 'Topic 1', start: '2027-02-22', end: '2027-02-26' },
-    { id: 'alg1.m5.t2', parentId: 'alg1.m5', curriculumType: 'topic', curriculumId: 'alg1.module5.topic2', title: 'Topic 2', start: '2027-03-01', end: '2027-03-08' },
+    { id: 'alg1.m5.t1', parentId: 'alg1.m5', curriculumType: 'topic', curriculumId: 'alg1.m5.t1', title: 'Topic 1', start: '2027-02-22', end: '2027-02-26' },
+    { id: 'alg1.m5.t2', parentId: 'alg1.m5', curriculumType: 'topic', curriculumId: 'alg1.m5.t2', title: 'Topic 2', start: '2027-03-01', end: '2027-03-08' },
     { id: 'alg1.m5.assess', parentId: 'alg1.m5', curriculumType: 'assessment', curriculumId: 'alg1.module5.assessment', title: 'Module 5 Assessment', start: '2027-03-10', end: '2027-03-12' },
 
     // --- STAAR review -------------------------------------------------------

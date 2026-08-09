@@ -278,6 +278,12 @@ export const getStudentPathOptions = ({
       curriculumTiming: timing,
       curriculumWindow: timingInfo.window,
       pacingIsProvisional: timingInfo.isProvisional,
+      // Real-calendar extras, absent under the provisional provider.
+      calendarTiming: timingInfo.calendarTiming || null,
+      recommendationMode: timingInfo.recommendationMode || 'normal',
+      instructionalDaysUntilStart: timingInfo.instructionalDaysUntilStart ?? 0,
+      calendarDaysUntilStart: timingInfo.calendarDaysUntilStart ?? 0,
+      curriculumTitle: timingInfo.window?.title || null,
       accelerationDistance: Math.max(0, timingInfo.distance),
       teacherPriority,
       unmetPrerequisites: [...prereq.severeGaps, ...prereq.unmetPrerequisites],
@@ -338,10 +344,20 @@ export const explainForStudent = (row) => {
   if (row.status === STATUS.REMEDIATION) return 'Strengthening this will help with a skill you recently found difficult.';
   if (row.status === STATUS.EXTENSION) return "Challenge available because you've mastered what comes before it.";
   if (row.status === STATUS.LOCKED) return 'This needs an earlier skill first.';
-  if (row.status === STATUS.FUTURE) return 'Your class has not reached this yet.';
+  if (row.status === STATUS.FUTURE) return 'This skill is not in your learning window yet.';
   if (row.reasons.includes(REASON.TEACHER_PRIORITY)) return 'Your teacher marked this as a priority.';
-  if (row.reasons.includes(REASON.ALIGNED_CURRENT)) return 'This matches what your class is learning.';
-  if (row.reasons.includes(REASON.REVIEW_WINDOW)) return 'Review from earlier in the course.';
+
+  // With a real calendar the countdown is the most useful thing to say, and it
+  // comes from the provider rather than being written into a screen. Students
+  // see calendar days because that is how they think about "next week"; the
+  // engine keeps instructional days for its own arithmetic.
+  if (row.calendarTiming === 'upcoming') {
+    const days = Math.max(0, Number(row.calendarDaysUntilStart) || 0);
+    if (days > 0) return `You're ready early — your class reaches this in ${days} day${days === 1 ? '' : 's'}.`;
+    return "You're ready early — your class reaches this shortly.";
+  }
+  if (row.reasons.includes(REASON.ALIGNED_CURRENT)) return 'Your class is working on this now.';
+  if (row.reasons.includes(REASON.REVIEW_WINDOW)) return 'Your class has already covered this. Strengthening it is worthwhile.';
   return 'This is a good option right now.';
 };
 

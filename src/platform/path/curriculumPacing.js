@@ -114,6 +114,23 @@ export const classifySkillTiming = ({ skillId, provider, pacing }) => {
     };
   }
 
+  // A calendar-backed provider has already decided the timing from real dates,
+  // so there is no window arithmetic to do. Honour its answer rather than
+  // trying to reverse it into a window number.
+  if (entry.engineTiming) {
+    return {
+      timing: entry.engineTiming,
+      calendarTiming: entry.calendarTiming || entry.engineTiming,
+      recommendationMode: entry.recommendationMode || 'normal',
+      window: entry.window || null,
+      distance: 0,
+      instructionalDaysUntilStart: entry.instructionalDaysUntilStart ?? 0,
+      calendarDaysUntilStart: entry.calendarDaysUntilStart ?? 0,
+      isProvisional: false,
+      unmapped: false,
+    };
+  }
+
   const distance = entry.window - settings.currentWindow;
   const timing = distance < 0
     ? TIMING.REVIEW

@@ -6,10 +6,56 @@
 // adaptive brief forbids (§42), so the assembly lives here and both callers
 // pass the same result around.
 
-import { getSkillGraph } from './skillGraph.js';
+import { getSkillGraph, teksSkillId } from './skillGraph.js';
 import { sequenceProvider } from './curriculumPacing.js';
+import { calendarPacingProvider, toEngineTiming } from './curriculumCalendar.js';
+import { buildSkillCurriculumLinks } from '../curriculum/algebra1CurriculumCrosswalk.js';
+import ALGEBRA1_2026_2027 from '../../curriculum/calendars/algebra1-2026-2027.js';
 import { getStudentPathOptions } from './recommendationEngine.js';
 import { buildMasteryBySkillForStudent, collectAssignmentSkillIds } from './masteryAdapter.js';
+
+// Courses with a real district calendar and a skill crosswalk. Anything not
+// listed falls back to the provisional even spread, and says so.
+const CALENDAR_COURSES = {
+  algebra1: { calendar: ALGEBRA1_2026_2027, links: () => buildSkillCurriculumLinks(teksSkillId) },
+  'algebra1-honors': { calendar: ALGEBRA1_2026_2027, links: () => buildSkillCurriculumLinks(teksSkillId) },
+};
+
+/**
+ * The pacing provider for a course: the real calendar where one exists, the
+ * provisional spread otherwise. Returned through one function so the student
+ * panel, My Math Path, the pacing screen and the simulator cannot end up on
+ * different providers.
+ */
+export const resolvePacingProvider = ({ courseId, skills, pacing, nowValue = Date.now() }) => {
+  const configured = CALENDAR_COURSES[courseId];
+  if (configured) {
+    const provider = calendarPacingProvider({
+      calendar: configured.calendar,
+      skillCurriculumLinks: configured.links(),
+      nowValue,
+    });
+    // The engine speaks in review/current/ahead/future; the calendar speaks in
+    // review/current/upcoming/future. Translate at the boundary rather than
+    // teaching the engine a second vocabulary.
+    return {
+      ...provider,
+      getSkillWindow: (skillId) => {
+        const state = provider.getSkillTiming(skillId);
+        if (state.unmapped) return null;
+        return {
+          engineTiming: toEngineTiming(state.timing),
+          calendarTiming: state.timing,
+          recommendationMode: state.recommendationMode,
+          instructionalDaysUntilStart: state.instructionalDaysUntilStart ?? 0,
+          calendarDaysUntilStart: state.calendarDaysUntilStart ?? 0,
+          window: state.window,
+        };
+      },
+    };
+  }
+  return sequenceProvider({ skills, windowCount: pacing?.windowCount });
+};
 
 export const buildStudentPathOptions = ({
   student,
@@ -18,6 +64,7 @@ export const buildStudentPathOptions = ({
   pacing = null,
   teacherOverrides = [],
   requiredSkillIds = [],
+  nowValue = Date.now(),
 } = {}) => {
   // No pacing means the teacher has not said where the class is, and the
   // engine's timing dimension would be guessing. Callers treat null as
@@ -31,11 +78,12 @@ export const buildStudentPathOptions = ({
   const safeStudent = student && typeof student === 'object' ? student : {};
 
   const skills = getSkillGraph(courseId);
+  const pacingProvider = resolvePacingProvider({ courseId, skills, pacing, nowValue });
   return getStudentPathOptions({
     courseId,
     masteryBySkill: buildMasteryBySkillForStudent({ student: safeStudent, assignments: safeAssignments }),
     pacing,
-    pacingProvider: sequenceProvider({ skills, windowCount: pacing.windowCount }),
+    pacingProvider,
     teacherOverrides,
     requiredSkillIds,
     assignmentSkillIds: collectAssignmentSkillIds(safeAssignments),
