@@ -108,6 +108,69 @@ const warningsFor = (question) => validateQuestionSemantics(question).warnings;
   assert.ok(warnings.some((w) => /describes a graph in words rather than showing one/.test(w)));
 }
 
+// --- a table only counts when the type actually draws one -------------------
+{
+  // multiAnswer shares QuestionVisual, so a display table really appears.
+  assert.deepEqual(
+    errorsFor({
+      type: 'multiAnswer',
+      prompt: 'Use the table below to state the reasonable domain.',
+      table: { columns: [{ key: 'x', label: 'x' }], rows: [{ x: 0 }] },
+      answerFields: [{ id: 'domain', label: 'Domain', answer: 'x ≥ 0' }],
+    }),
+    [],
+    'a table on multiAnswer satisfies the promise',
+  );
+
+  // graphAnalysis ignores `table` entirely — the student would see nothing.
+  assert.ok(
+    errorsFor({
+      type: 'graphAnalysis',
+      prompt: 'Use the table below to state the domain.',
+      table: { columns: [{ key: 'x', label: 'x' }], rows: [{ x: 0 }] },
+      functionSpec: { type: 'line', m: 1, b: 0 },
+      analysisRequests: [{ id: 'domain', kind: 'domain', notation: 'interval' }],
+    }).some((e) => /refers to a table/.test(e)),
+    'a table on a type that never renders one is rejected',
+  );
+}
+
+// --- LaTeX and the control characters it decays into ------------------------
+{
+  // Prompts render as plain text, so LaTeX reaches the student as raw markup.
+  assert.ok(warningsFor({ type: 'algebra', prompt: 'Simplify \\frac{1}{2} + \\frac{1}{3}.' })
+    .some((w) => /contains LaTeX/.test(w)), 'a LaTeX command in a prompt is warned about');
+
+  assert.ok(warningsFor({ type: 'algebra', prompt: 'Solve $2x + 3 = 11$.' })
+    .some((w) => /contains LaTeX/.test(w)), 'a dollar-delimited expression is warned about');
+
+  // LaTeX anywhere a student can read it, not only in the prompt.
+  assert.ok(warningsFor({
+    type: 'multiAnswer', prompt: 'Answer both parts.',
+    answerFields: [{ id: 'a', label: 'Value of \\theta', answer: '30' }],
+  }).some((w) => /contains LaTeX/.test(w)), 'LaTeX in an answer field label is warned about');
+
+  // "\frac" parses as formfeed + "rac": the text is already missing characters.
+  assert.ok(errorsFor({ type: 'algebra', prompt: 'Simplify \f rac12.' })
+    .some((e) => /invisible control character/.test(e)), 'a decayed LaTeX escape is a blocking error');
+
+  // Unicode math — what the contract asks for — is clean.
+  assert.deepEqual(
+    warningsFor({ type: 'algebra', prompt: 'Solve -3 ≤ x < 5 and write ½ × π as a decimal.' })
+      .filter((w) => /contains LaTeX/.test(w)),
+    [],
+    'Unicode math produces no LaTeX warning',
+  );
+
+  // A lone backslash or a Windows path is not a LaTeX command.
+  assert.deepEqual(
+    warningsFor({ type: 'algebra', prompt: 'The set difference A \\ B.' })
+      .filter((w) => /contains LaTeX/.test(w)),
+    [],
+    'a lone backslash is not flagged',
+  );
+}
+
 // --- well-formed examples from the catalogue all validate -------------------
 {
   Object.entries(QUESTION_TYPE_CATALOG).forEach(([type, entry]) => {

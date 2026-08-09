@@ -14,6 +14,16 @@ const has = (value) => value !== undefined && value !== null && value !== '';
 // Phrases that promise the student something to look at. If the prompt makes
 // the promise and the question carries no such structure, the item is broken no
 // matter how well-formed its JSON is.
+// A `table` on a question is only visible to the student if that type's
+// renderer draws one. `TableGrader` builds a fillable table, and the graders
+// that share `QuestionVisual` show a read-only one; every other type ignores
+// the field entirely, so promising a table there is the same broken question as
+// promising a graph with no graph.
+export const TYPES_THAT_RENDER_A_TABLE = new Set([
+  'table', 'algebra', 'fraction', 'literal', 'system', 'orderedPair', 'multiAnswer',
+  'numberLine', 'graphing',
+]);
+
 const VISUAL_PROMISES = [
   {
     id: 'graph',
@@ -28,8 +38,9 @@ const VISUAL_PROMISES = [
     id: 'table',
     pattern: /\b(the|this|each|following)\s+table\b|\btable\s+(below|above|shown)\b/i,
     label: 'a table',
-    satisfied: (question) => isObject(question.table) && nonEmptyArray(question.table.rows),
-    remedy: 'Add a `table` object with headers and rows, or reword the prompt.',
+    satisfied: (question) => isObject(question.table) && nonEmptyArray(question.table.rows)
+      && TYPES_THAT_RENDER_A_TABLE.has(String(question.toolId || question.type)),
+    remedy: `Add a \`table\` object with \`columns\` and \`rows\`, and use a type that displays one (${[...TYPES_THAT_RENDER_A_TABLE].join(', ')}), or reword the prompt.`,
   },
   {
     id: 'numberLine',
@@ -48,6 +59,44 @@ const VISUAL_PROMISES = [
     remedy: 'Use `relationMapping` with a `pairs` array, or supply the diagram the prompt refers to.',
   },
 ];
+
+// Every string a student could read, gathered so LaTeX in a label or an answer
+// is caught as readily as LaTeX in the prompt.
+const collectStrings = (value, out = [], depth = 0) => {
+  if (depth > 6) return out;
+  if (typeof value === 'string') out.push(value);
+  else if (Array.isArray(value)) value.forEach((item) => collectStrings(item, out, depth + 1));
+  else if (isObject(value)) Object.values(value).forEach((item) => collectStrings(item, out, depth + 1));
+  return out;
+};
+
+// Formfeed, backspace and vertical tab. None of these can be typed on purpose;
+// they are what is left after "\frac" or "\bar" is parsed as a JSON escape, so
+// the surrounding text has already lost characters.
+const CONTROL_CHARACTERS = /[\f\b\v\0]/;
+
+// A backslash followed by letters, "$…$" and "\(…\)" are all LaTeX. Prompts
+// render as plain text, so the student would see the markup itself.
+const LATEX_COMMAND = /\\[a-zA-Z]{2,}/;
+const LATEX_DELIMITER = /(\$[^$\n]{1,80}\$|\\\(|\\\[)/;
+
+const checkPlainTextMath = (question, label, errors, warnings) => {
+  const strings = collectStrings(question);
+
+  if (strings.some((text) => CONTROL_CHARACTERS.test(text))) {
+    errors.push(
+      `${label} contains an invisible control character, which is what a LaTeX command such as \\frac or \\bar turns into when JSON parses it. The text is already corrupted — rewrite it in plain Unicode math (≤, ≥, ∞, ×, √, ½).`,
+    );
+  }
+
+  const latex = strings.find((text) => LATEX_COMMAND.test(text) || LATEX_DELIMITER.test(text));
+  if (latex) {
+    const sample = (latex.match(LATEX_COMMAND) || latex.match(LATEX_DELIMITER) || [''])[0];
+    warnings.push(
+      `${label} contains LaTeX (${sample}). MathMaster renders prompts as plain text, so the student would see the markup. Write the math in Unicode instead: ≤ ≥ ≠ ∞ × ÷ ± π √ ∪ ½ x².`,
+    );
+  }
+};
 
 /**
  * Semantic validation for one question. Returns blocking errors and advisory
@@ -106,6 +155,8 @@ export const validateQuestionSemantics = (question = {}, { label = 'Question' } 
       `${label} describes a graph in words rather than showing one. If the source material displays a graph, build it with graphAnalysis or functionGraph instead.`,
     );
   }
+
+  checkPlainTextMath(question, label, errors, warnings);
 
   return { errors, warnings };
 };

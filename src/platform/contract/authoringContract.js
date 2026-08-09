@@ -7,6 +7,7 @@ import { DOK_LEVELS, INSTRUCTIONAL_LEVELS } from '../../questionMetadata.js';
 import { TEXAS_STANDARDS_BY_COURSE, TEXAS_MATH_ACTIVE_COURSES } from '../../texasStandards.js';
 import { EXAM_DOMAIN_REGISTRY } from '../assessment/examDomainRegistry.js';
 import { QUESTION_TYPE_CATALOG, REPRESENTATIONS } from './questionTypeCatalog.js';
+import { TYPES_THAT_RENDER_A_TABLE } from './semanticValidation.js';
 import {
   ALIGNMENT_FRAMEWORK_IDS,
   ALIGNMENT_ROLES,
@@ -183,6 +184,31 @@ const fidelitySection = () => section('Source representation fidelity', [
   line('"the number line" or "the diagram" when the question carries no such structure.'),
   line('Writing around the check by removing the word "graph" from the prompt is worse'),
   line('than failing it — the student still cannot see what they are being asked about.'),
+  '',
+  line('**Showing a table without asking the student to fill it in.** A word problem that'),
+  line('displays data and asks something else about it — the reasonable domain, whether the'),
+  line('relationship is discrete — keeps the table as a read-only display. Add the same'),
+  line('`table` object with `columns` and `rows`, and simply leave `table.answers` out:'),
+  '',
+  '```json',
+  '{',
+  '  "type": "multiAnswer",',
+  '  "prompt": "Use the table to describe the reasonable domain and range.",',
+  '  "context": "A club sells chocolate bars for $2 each.",',
+  '  "table": {',
+  '    "columns": [{ "key": "bars", "label": "Bars sold" }, { "key": "money", "label": "Money collected" }],',
+  '    "rows": [{ "bars": 0, "money": 0 }, { "bars": 1, "money": 2 }, { "bars": 2, "money": 4 }]',
+  '  },',
+  '  "answerFields": [',
+  '    { "id": "domain", "label": "Reasonable domain", "answer": "whole numbers 0, 1, 2, ..." },',
+  '    { "id": "range", "label": "Reasonable range", "answer": "0, 2, 4, ..." }',
+  '  ]',
+  '}',
+  '```',
+  '',
+  line(`Only these types display a \`table\`: ${[...TYPES_THAT_RENDER_A_TABLE].join(', ')}.`),
+  line('On any other type the field is ignored and the student sees nothing, so a prompt'),
+  line('that refers to a table on one of those types is rejected.'),
 ]);
 
 const planningSection = () => section('Plan before you generate', [
@@ -267,6 +293,36 @@ export const buildAuthoringContract = ({ generatedAt = new Date() } = {}) => {
     line('entry with `role: "primary"`.'),
     line('**Optional:** `activityRole`, `dok`, `difficultyBand`, `calculator`,'),
     line('`responseType`, `generator`, `assessmentContext`, `context` (word-problem scenario).'),
+  ]));
+
+  parts.push(section('Writing math inside prompts', [
+    line('Prompts, labels and context are rendered as **plain text**. LaTeX is not'),
+    line('typeset — a student would see the raw markup — and a backslash is not a legal'),
+    line('JSON escape, so LaTeX also breaks the file. `\\frac` is the worst case: it'),
+    line('parses without complaint because `\\f` means formfeed, silently replacing the'),
+    line('fraction with an invisible control character.'),
+    '',
+    line('**Never write LaTeX.** No `\\frac`, `\\le`, `\\text{}`, `\\times`, `$…$`,'),
+    line('`\\(…\\)`, `\\begin{}`. Write the mathematics in Unicode instead:'),
+    ...[
+      ['\\le / \\leq', '≤'],
+      ['\\ge / \\geq', '≥'],
+      ['\\neq', '≠'],
+      ['\\infty', '∞'],
+      ['\\times', '×'],
+      ['\\div', '÷'],
+      ['\\pm', '±'],
+      ['\\pi', 'π'],
+      ['\\theta', 'θ'],
+      ['\\sqrt{x}', '√x'],
+      ['\\cup', '∪'],
+      ['\\frac{1}{2}', '1/2  (or ½)'],
+      ['x^2', 'x²  (or x^2 — the caret is fine)'],
+      ['\\{1, 2, 3\\}', '{1, 2, 3}'],
+    ].map(([latex, unicode]) => bullet(`\`${latex}\` → \`${unicode}\``)),
+    '',
+    line('The only backslash that ever belongs in this JSON is `\\n` for a line break'),
+    line('and `\\"` for a quotation mark inside a string.'),
   ]));
 
   parts.push(section('Question and tool types', [
@@ -420,6 +476,7 @@ export const buildAuthoringContract = ({ generatedAt = new Date() } = {}) => {
     bullet('Return exactly one JSON object.'),
     bullet('No markdown fence, no commentary, no trailing text.'),
     bullet('Use straight quotes and valid JSON — no comments, no trailing commas.'),
+    bullet('No LaTeX anywhere. Write math in Unicode (≤, ≥, ∞, ×, π, √, ∪, ½).'),
     bullet('Every question needs a type, a prompt and a primary alignment.'),
     bullet('If you are unsure whether a field exists, leave it out rather than inventing it.'),
   ]));
@@ -456,6 +513,7 @@ export const buildFixRequest = ({ rawJson = '', errors = [], warnings = [] } = {
     '- Generator ranges are inclusive [min, max] with min <= max.',
     `- Never emit platform-owned fields: ${PLATFORM_OWNED_FIELDS.join(', ')}.`,
     '- Do not add dates, class periods or Honors designations; the teacher sets those.',
+    '- No LaTeX in any string. Prompts render as plain text; write math in Unicode (≤, ≥, ∞, ×, π, √, ∪, ½).',
     '',
     '## The JSON to fix',
     '```json',

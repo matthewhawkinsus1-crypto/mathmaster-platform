@@ -532,6 +532,82 @@ const describeJsonParseError = (error, source) => {
   return `${error.message} (line ${line}, column ${column}).`;
 };
 
+
+// AI assistants routinely write LaTeX inside JSON strings — "\le", "\text{or}",
+// "\{", "\frac" — and a lone backslash is not a legal JSON escape. Two failure
+// modes result: "\le" throws a syntax error, and "\frac" silently parses,
+// because \f is the formfeed escape, corrupting the string into a control
+// character followed by "rac". Both are fixed the same way: escape any
+// backslash that is not already starting a valid JSON escape.
+const VALID_JSON_ESCAPES = new Set(['"', '\\', '/', 'b', 'f', 'n', 'r', 't', 'u']);
+
+// \f, \b and \t are legal JSON escapes — formfeed, backspace, tab — that are
+// also the opening of common LaTeX commands, so those three letters are the
+// only genuinely ambiguous ones. Guessing from "a letter follows" is too blunt:
+// it would mangle the legitimate tab in "two\tafter". Instead the whole command
+// name is matched, since a LaTeX command ends at the first non-letter.
+// \n and \r are not ambiguous in practice and are always left alone: a real
+// line break inside a prompt is common, and \neq / \rightarrow are rare enough
+// that breaking line breaks to catch them would be a bad trade.
+const AMBIGUOUS_LATEX_COMMANDS = new Set([
+  // f
+  'frac', 'floor', 'forall', 'fbox', 'fill',
+  // b
+  'begin', 'bar', 'binom', 'bmod', 'boxed', 'bullet', 'bigcup', 'bigcap',
+  'bigcirc', 'bold', 'boldsymbol', 'brace', 'bracket', 'because', 'bmatrix',
+  // t
+  'text', 'textbf', 'textit', 'textrm', 'times', 'theta', 'to', 'triangle',
+  'tan', 'tfrac', 'top', 'tilde', 'therefore', 'tbinom',
+]);
+
+const startsAmbiguousLatexCommand = (text, backslashIndex) => {
+  const next = text[backslashIndex + 1];
+  if (next !== 'f' && next !== 'b' && next !== 't') return false;
+  const command = (text.slice(backslashIndex + 1).match(/^[a-zA-Z]+/) || [''])[0];
+  return AMBIGUOUS_LATEX_COMMANDS.has(command.toLowerCase());
+};
+
+// Only touches the inside of string literals, so structural characters are safe.
+const escapeStrayBackslashesInStrings = (text, repairs) => {
+  let out = '';
+  let inString = false;
+  let fixed = 0;
+
+  for (let i = 0; i < text.length; i += 1) {
+    const character = text[i];
+
+    if (!inString) {
+      if (character === '"') inString = true;
+      out += character;
+      continue;
+    }
+
+    if (character === '"') { inString = false; out += character; continue; }
+
+    if (character !== '\\') { out += character; continue; }
+
+    const next = text[i + 1];
+    // A real \uXXXX needs four hex digits; anything else claiming to be one is
+    // a LaTeX command such as \underline.
+    const isUnicodeEscape = next === 'u' && /^[0-9a-fA-F]{4}$/.test(text.slice(i + 2, i + 6));
+    const isValid = next !== undefined && VALID_JSON_ESCAPES.has(next) && (next !== 'u' || isUnicodeEscape);
+
+    if (isValid && !startsAmbiguousLatexCommand(text, i)) {
+      out += character + next;
+      i += 1;
+      continue;
+    }
+
+    out += '\\\\';
+    fixed += 1;
+  }
+
+  if (fixed) {
+    repairs.push(`escaped ${fixed} LaTeX backslash${fixed === 1 ? '' : 'es'} inside strings`);
+  }
+  return out;
+};
+
 export const parseAssignmentBlueprintText = (rawValue) => {
   const repairs = [];
   let normalizedText = String(rawValue ?? '')
@@ -545,6 +621,10 @@ export const parseAssignmentBlueprintText = (rawValue) => {
   normalizedText = stripOuterCodeFence(normalizedText, repairs);
   normalizedText = extractJsonPayload(normalizedText, repairs);
   normalizedText = replacePythonLiteralsOutsideStrings(normalizedText, repairs);
+
+  // Runs whether or not the text parses: "\le" throws, but "\frac" parses into
+  // a formfeed and silently corrupts the prompt, so both need the same pass.
+  normalizedText = escapeStrayBackslashesInStrings(normalizedText, repairs);
 
   try {
     const parsed = JSON.parse(normalizedText);

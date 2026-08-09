@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import MathDisplay from './MathDisplay';
 import QuestionPrompt from './QuestionPrompt';
 import QuestionVisual from './QuestionVisual';
+import { resolveLabelFormat } from './labelFormat';
 import { compareMathAnswer } from './answerUtils';
 import useUndoHistory from './useUndoHistory';
 
@@ -60,10 +61,12 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
           <MathDisplay value={ruleLatex} format="ascii-math" />
         </div>
       )}
-      <QuestionVisual question={question} />
+      {/* The fillable table below is built from question.table, so the shared
+          read-only rendering of the same field would duplicate it. */}
+      <QuestionVisual question={question} includeTable={false} />
       <div style={{ overflowX: 'auto', marginTop: '22px' }}>
         <table style={{ margin: '0 auto', borderCollapse: 'collapse', minWidth: '320px', background: '#fff' }}>
-          <thead><tr>{columns.map((column) => <th key={column.key} style={{ padding: '12px 24px', border: '1px solid #cfd4da', background: '#e8f0fe', fontSize: '20px' }}><MathDisplay value={column.label || column.key} inline /></th>)}</tr></thead>
+          <thead><tr>{columns.map((column) => <th key={column.key} style={{ padding: '12px 24px', border: '1px solid #cfd4da', background: '#e8f0fe', fontSize: '20px' }}>{(() => { const text = column.label || column.key; const format = resolveLabelFormat(text); return format ? <MathDisplay value={text} format={format} inline /> : text; })()}</th>)}</tr></thead>
           <tbody>
             {rows.map((row, rowIndex) => (
               <tr key={`row-${rowIndex}`}>

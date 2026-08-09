@@ -4,6 +4,7 @@ import MathDisplay from './MathDisplay';
 import QuestionPrompt from './QuestionPrompt';
 import QuestionVisual from './QuestionVisual';
 import { matchesAnyAnswer } from './answerUtils';
+import { resolveLabelFormat } from './labelFormat';
 import useUndoHistory from './useUndoHistory';
 
 export default function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
@@ -51,7 +52,14 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
           return (
             <div key={field.id} style={{ padding: '16px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : '#dfe3e7'}`, borderRadius: '10px', background: grade && !grade.isCorrect ? '#fff8f7' : '#fbfcfe' }}>
               <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', color: '#3c4043' }}>
-                <MathDisplay value={field.label || field.id} format={field.labelLatex ? 'latex' : 'ascii-math'} inline />
+                {(() => {
+                  const text = field.label || field.id;
+                  const format = resolveLabelFormat(text, { latexFlag: field.labelLatex, explicitFormat: field.labelFormat });
+                  // An English label goes through the math typesetter as
+                  // juxtaposed variables — "Discrete or continuous?" comes out
+                  // as "Discrete ∨ continuous?" — so it stays plain text.
+                  return format ? <MathDisplay value={text} format={format} inline /> : text;
+                })()}
               </label>
               <MathInput value={answers[field.id] || ''} onChange={(value) => history.setValue((current) => ({ ...current, [field.id]: value }))} placeholder={field.placeholder || 'answer'} ariaLabel={field.label || field.id} toolProfile={field.toolProfile || 'basic'} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
             </div>
