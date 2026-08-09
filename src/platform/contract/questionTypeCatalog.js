@@ -407,7 +407,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
       if (!ids.includes(question.correctDependentId)) errors.push('`correctDependentId` must match one of the quantity ids');
       return errors;
     },
-    optional: ['relationshipType', 'requireRelationshipType', 'graph', 'axisSetup'],
+    optional: ['relationshipType', 'requireRelationshipType', 'graph', 'axisSetup', 'recipe', 'workflow', 'grading'],
     example: {
       type: 'relationshipModel',
       prompt: 'Identify the variables in this situation.',
@@ -535,7 +535,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
       });
       return errors;
     },
-    optional: ['prompt', 'ask', 'domainLabel', 'rangeLabel'],
+    optional: ['prompt', 'ask', 'domainLabel', 'rangeLabel', 'recipe', 'workflow', 'grading'],
     example: {
       type: 'relationMapping',
       prompt: 'Build the mapping diagram for this relation, then state its domain and range.',

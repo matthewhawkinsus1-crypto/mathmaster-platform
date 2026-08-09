@@ -148,3 +148,45 @@ and threading one stage's output into the next; a table stage renders
 without being graded there**. Previously only a cell with an answer key was
 editable, which made a table built from the student's own function render as
 nothing at all.
+
+## Recipes: the middle level
+
+`src/platform/workflow/questionRecipes.js` holds the two recipes the public
+types expand into.
+
+```json
+{
+  "type": "relationMapping",
+  "pairs": [[-2, 3], [1, 2], [3, -1], [-4, -3]],
+  "recipe": { "name": "relationRepresentations", "ask": ["mapping", "domain", "range", "isFunction"] }
+}
+```
+
+`ask` is the parameter, and it is the same `ask` the existing tools already
+took — lifted out of the tool so every recipe shares it. Drop `mapping`, add
+`plot`, and the same question becomes a plotting question with no new component
+and no new type. A question may still write its `workflow` out stage by stage;
+an explicit workflow always wins, because naming the stages is the more specific
+instruction.
+
+Recipes derive only the grading that already follows from the question's own
+fields — the roles from `correctIndependentId` / `correctDependentId`, a
+relation's domain, range and functionhood from its `pairs`, the table from
+`consistentWith: "equation"` whenever an equation stage exists. Nothing is
+invented: a domain the author never stated stays unmarked rather than being
+guessed at. Anything hand-written in `grading` overrides what was derived.
+
+A composed question routes to the runner **before** the tool registry, so a
+`relationMapping` question that composes stages is a composition, while the same
+type without one is still the standalone tool. Both live side by side; neither
+is a rewrite of the other.
+
+## Where this does not reach yet
+
+- The graph stages delegate to `InteractiveGraphWorkspace` in construct mode,
+  and a graph is not yet marked against the student's own table the way the
+  table is marked against their own equation. `consistentWith` is written for
+  numeric table cells only.
+- `numberLine` and `mappingDiagram` self-grade and report when the student
+  presses the tool's own check button, so those stages register on that press
+  rather than continuously as the student works.

@@ -1,6 +1,6 @@
 import { QUESTION_TYPE_CATALOG, getTypeEntry } from './questionTypeCatalog.js';
 import { inequalityMatchesIntervals } from '../../tools/intervalNumberLine/intervalMath.js';
-import { validateGrading, validateWorkflow } from '../workflow/questionWorkflow.js';
+import { readComposedQuestion, validateGrading, validateWorkflow } from '../workflow/questionWorkflow.js';
 
 // Recognising a type name is not validation. `{ type: 'graphAnalysis', prompt:
 // 'A graph falls from left to right until x = 2' }` used to pass because
@@ -139,11 +139,13 @@ export const validateQuestionSemantics = (question = {}, { label = 'Question' } 
   // render as nothing at all, and a stage reading from a later one would grade
   // work the student has not done yet — both are silent in the JSON and loud
   // for the student.
-  if (Array.isArray(question.workflow) && question.workflow.length) {
-    validateWorkflow(question.workflow, { label }).errors.forEach((message) => errors.push(message));
+  const composed = readComposedQuestion(question);
+  composed.recipeErrors.forEach((message) => errors.push(message));
+  if (composed.composed) {
+    validateWorkflow(composed.workflow, { label }).errors.forEach((message) => errors.push(message));
     // A grading rule keyed to a stage that does not exist marks nothing and
     // says nothing. Only Preflight can catch it.
-    validateGrading(question.workflow, question.grading, { label }).forEach((message) => errors.push(message));
+    validateGrading(composed.workflow, composed.grading, { label }).forEach((message) => errors.push(message));
   }
 
   // An interval number line that disagrees with its own inequality.

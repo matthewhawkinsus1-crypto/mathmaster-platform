@@ -23,6 +23,7 @@ import { isAlgebraicallyEquivalent } from '../../grading/equivalence.js';
 import { hasStageResponse } from './questionWorkflow.js';
 
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
+const list = (value) => (Array.isArray(value) ? value : []);
 
 // Stages whose answers are mathematical expressions rather than labels, and so
 // deserve equivalence rather than string comparison: 2x and x+x are one answer.
@@ -155,6 +156,51 @@ const gradeRoles = (response, rule) => {
   };
 };
 
+/**
+ * A listed set: the domain of a relation is `{-4, -2, 1, 3}` however it is
+ * punctuated, and in any order. Braces, spaces and ordering are notation, not
+ * mathematics, so none of them decides the mark.
+ */
+export const parseSetAnswer = (value) => String(value ?? '')
+  .replace(/[{}]/g, '')
+  .replace(/[−–—]/g, '-')
+  .split(',')
+  .map((entry) => entry.trim())
+  .filter((entry) => entry !== '');
+
+const gradeSet = (response, expected) => {
+  const student = parseSetAnswer(response).map((entry) => normalizeMathAnswer(entry));
+  const key = expected.map((entry) => normalizeMathAnswer(entry));
+  const studentSet = new Set(student);
+  const keySet = new Set(key);
+  const isCorrect = studentSet.size === keySet.size && [...keySet].every((entry) => studentSet.has(entry));
+  return {
+    graded: true,
+    isCorrect,
+    detail: isCorrect
+      ? 'Every value is listed once.'
+      : 'That is not the set of values in this relation — list each one once.',
+  };
+};
+
+/**
+ * The arrows of a mapping diagram, compared as a set of pairs. Which arrow was
+ * drawn first is not mathematics.
+ */
+const gradePairs = (response, expected) => {
+  const key = (pair) => `${Number(pair?.[0])}->${Number(pair?.[1])}`;
+  const student = new Set(list(response).map(key));
+  const wanted = new Set(list(expected).map(key));
+  const isCorrect = student.size === wanted.size && [...wanted].every((pair) => student.has(pair));
+  return {
+    graded: true,
+    isCorrect,
+    detail: isCorrect
+      ? 'Every value is joined to the one it maps to.'
+      : 'The arrows do not match the relation — check which value each one is joined to.',
+  };
+};
+
 const gradeTableValues = (response, values) => {
   const answer = isObject(response) ? response : {};
   const keys = Object.keys(values);
@@ -207,6 +253,8 @@ export const gradeStage = ({ stage, rule, responses = {} }) => {
     };
   }
 
+  if (isObject(rule) && Array.isArray(rule.pairs)) return { ...base, ...gradePairs(response, rule.pairs) };
+  if (isObject(rule) && Array.isArray(rule.set)) return { ...base, ...gradeSet(response, rule.set) };
   if (isObject(rule) && rule.values) return { ...base, ...gradeTableValues(response, rule.values) };
   if (stage.kind === 'quantityRoles' && isObject(rule)) return { ...base, ...gradeRoles(response, rule) };
 

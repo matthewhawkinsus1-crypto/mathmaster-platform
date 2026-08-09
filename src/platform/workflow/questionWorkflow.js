@@ -15,6 +15,7 @@
 // This module is pure: it normalises, validates and orders. It renders nothing.
 
 import { STAGE_OUTPUT, getStage, isKnownStageKind, resolveStageKind } from './interactionStages.js';
+import { expandRecipe } from './questionRecipes.js';
 
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
 
@@ -211,16 +212,45 @@ export const validateGrading = (workflow = [], grading = null, { label = 'Questi
  * assignment is flat, and a question that stops rendering because its JSON
  * predates this layer is a regression a student meets.
  */
+// Fields that hold an answer. When a composed question has no `content`
+// section, the question itself stands in for one — and these must not travel
+// with it, or the renderer is handed the answer key it was designed never to
+// see. Preflight can catch a leaked answer in the JSON; it cannot catch one
+// this module passes along.
+const ANSWER_FIELDS = [
+  'grading', 'correctEquation', 'correctIndependentId', 'correctDependentId',
+  'correctDomain', 'correctRange', 'tableAnswers', 'answers', 'continuity',
+];
+
+const contentWithoutAnswers = (source) => {
+  const content = { ...source };
+  ANSWER_FIELDS.forEach((field) => { delete content[field]; });
+  return content;
+};
+
 export const readComposedQuestion = (question = {}) => {
   const source = isObject(question) ? question : {};
-  const composed = Array.isArray(source.workflow) && source.workflow.length > 0;
+  const explicit = Array.isArray(source.workflow) && source.workflow.length > 0;
+  // A named recipe is expanded here, so a recipe question and a hand-composed
+  // one are the same thing everywhere downstream: one runtime, one validator,
+  // one grader. An explicit workflow always wins — naming the stages is the
+  // more specific instruction.
+  const expanded = explicit ? null : expandRecipe(source);
+  const workflow = explicit ? source.workflow : (expanded?.workflow || []);
+  const composed = workflow.length > 0;
 
   return {
     composed,
-    content: isObject(source.content) ? source.content : source,
-    workflow: composed ? normalizeWorkflow(source.workflow) : [],
+    recipe: expanded?.recipe || null,
+    recipeErrors: expanded?.errors || [],
+    content: isObject(source.content)
+      ? source.content
+      : (composed ? contentWithoutAnswers(source) : source),
+    workflow: composed ? normalizeWorkflow(workflow) : [],
     // Never handed to a renderer.
-    grading: isObject(source.grading) ? source.grading : null,
+    grading: explicit
+      ? (isObject(source.grading) ? source.grading : null)
+      : (expanded?.grading || null),
   };
 };
 

@@ -16,6 +16,7 @@ import SolutionReview from './SolutionReview';
 import GuidedClassworkCoach from './GuidedClassworkCoach';
 import RelationshipModel from './RelationshipModel';
 import WorkflowRunner from './platform/workflow/WorkflowRunner';
+import { readComposedQuestion } from './platform/workflow/questionWorkflow';
 import GraphScenarioMatch from './GraphScenarioMatch';
 import GraphComparison from './GraphComparison';
 import GraphStory from './GraphStory';
@@ -103,12 +104,22 @@ export default function QuestionEngine({
     [question, generationKey, studentProfile],
   );
   const { confirm: confirmAction } = useToast();
+  // A composed question is defined by its workflow, not by its type name.
+  const isComposed = useMemo(
+    () => readComposedQuestion(processedQuestion).composed,
+    [processedQuestion],
+  );
   const missingToolDefinition = useMemo(
     // A malformed item can carry a toolId the registry doesn't know while its
     // `type` names a real tool; fall through to `type` rather than showing the
     // unsupported-question panel for a tool that exists.
-    () => getToolDefinition(processedQuestion?.toolId) || getToolDefinition(processedQuestion?.type),
-    [processedQuestion],
+    // A composed question never routes to the registry, and must not be treated
+    // as a self-submitting tool either — it is submitted here like every other
+    // question, so the tool lookup is skipped entirely.
+    () => (isComposed
+      ? null
+      : getToolDefinition(processedQuestion?.toolId) || getToolDefinition(processedQuestion?.type)),
+    [processedQuestion, isComposed],
   );
   const record = normalizeQuestionRecord(questionRecord);
   const [answerState, setAnswerState] = useState(EMPTY_ANSWER_STATE);
@@ -382,19 +393,13 @@ export default function QuestionEngine({
 
   const renderModule = () => {
     if (!processedQuestion) return null;
-    if (missingToolDefinition) {
-      const Tool = missingToolDefinition.component;
-      return (
-        <ToolRuntimeProvider showImmediateFeedback={showOutcomeFeedback}>
-          <Tool questionData={processedQuestion} onAction={handleMissingToolAction} />
-        </ToolRuntimeProvider>
-      );
-    }
-    // A composed question is defined by its workflow, not by its type name.
-    // Routing on the workflow first is what lets relationshipModel,
-    // relationMapping and anything else share one runtime instead of each
-    // growing its own staged variant.
-    if (Array.isArray(processedQuestion.workflow) && processedQuestion.workflow.length) {
+    // A composed question is defined by its workflow, not by its type name, and
+    // that beats every other route including the tool registry: a
+    // relationMapping question that composes stages is a composition, while the
+    // same type without one is still the standalone tool. A recipe expands into
+    // a workflow, so `recipe: { ask: [...] }` and a hand-written workflow reach
+    // the same runtime.
+    if (isComposed) {
       return (
         <WorkflowRunner
           question={processedQuestion}
@@ -402,6 +407,15 @@ export default function QuestionEngine({
           disabled={commonModuleProps.disabled}
           draftKey={draftKey}
         />
+      );
+    }
+
+    if (missingToolDefinition) {
+      const Tool = missingToolDefinition.component;
+      return (
+        <ToolRuntimeProvider showImmediateFeedback={showOutcomeFeedback}>
+          <Tool questionData={processedQuestion} onAction={handleMissingToolAction} />
+        </ToolRuntimeProvider>
       );
     }
 

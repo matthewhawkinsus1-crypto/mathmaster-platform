@@ -126,11 +126,22 @@ const readDelegateResponse = {
       return {};
     }
   },
-  numberLine: (payload) => payload?.intervals ?? payload?.value ?? payload,
-  mappingDiagram: (payload) => payload?.pairs ?? payload?.value ?? payload,
+  // The two newer tools report through `onAction('ATTEMPT_SUBMITTED', payload)`
+  // and put the student's work in `payload.response`. They self-grade, so what
+  // matters here is the response, not their verdict.
+  numberLine: (payload) => payload?.response?.intervals ?? payload?.response ?? null,
+  mappingDiagram: (payload) => payload?.response?.arrows ?? payload?.response ?? null,
   coordinatePlot: (payload) => payload?.placements ?? payload?.points ?? payload?.responseKey ?? null,
   functionGraph: (payload) => payload?.placements ?? payload?.points ?? payload?.responseKey ?? null,
   algebraWorkspace: (payload) => payload?.responseKey ?? payload?.equation ?? null,
+};
+
+// The newer tools speak `onAction(actionType, payload)` rather than reporting
+// state continuously. Passing the stage's setter straight in as `onAction`
+// hands it the action NAME as its first argument, so the stage records the
+// string "ATTEMPT_SUBMITTED" and never the student's work.
+const toolAction = (onChange) => (actionType, payload) => {
+  if (actionType === 'ATTEMPT_SUBMITTED') onChange(payload);
 };
 
 // Stages that delegate to an existing component. Each adapter builds the
@@ -179,7 +190,7 @@ const DELEGATES = {
   numberLine: ({ stage, onChange }) => (
     <IntervalNumberLine
       questionData={{ min: stage.min, max: stage.max, step: stage.step, ask: stage.ask || ['graph'] }}
-      onAction={onChange}
+      onAction={toolAction(onChange)}
     />
   ),
   mappingDiagram: ({ stage, content, onChange }) => (
@@ -190,7 +201,7 @@ const DELEGATES = {
         domainLabel: stage.domainLabel,
         rangeLabel: stage.rangeLabel,
       }}
-      onAction={onChange}
+      onAction={toolAction(onChange)}
     />
   ),
   coordinatePlot: ({ stage, content, onChange, draftKey }) => (
