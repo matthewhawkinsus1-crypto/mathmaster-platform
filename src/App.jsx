@@ -59,6 +59,8 @@ import {
   getIncludedQuestionIndices,
   questionIsIncluded,
 } from './assignmentLifecycle';
+import { HEARTBEAT_INTERVAL_MS, buildLiveStatus, encodeQuestionStates } from './livePresence';
+import { getQuestionRepresentation } from './platform/contract/questionTypeCatalog';
 import {
   buildIEPReportHtml,
   buildSupportUsage,
@@ -215,6 +217,9 @@ function App() {
   const [homeNavigationPeriod, setHomeNavigationPeriod] = useState(null);
   const [assignments, setAssignments] = useState([]);
   const [allStudents, setAllStudents] = useState([]);
+  // Live presence for the teacher home grid, keyed by student id. Never stored
+  // alongside grades and never read outside the live view.
+  const [presenceById, setPresenceById] = useState({});
   const [activeAssignmentId, setActiveAssignmentId] = useState(null);
   const [tracker, setTracker] = useState({});
   const [practiceTracker, setPracticeTracker] = useState({});
@@ -311,9 +316,13 @@ function App() {
 
   const [isIdle, setIsIdle] = useState(false);
   const lastActivityRef = useRef(Date.now());
+  // When the currently open assignment was started, for the live class grid.
+  const liveStartedAtRef = useRef({ assignmentId: null, at: Date.now() });
   const activeTimeRef = useRef(0);
   const pendingAssignmentSecondsRef = useRef(0);
   const lastDOLStatusRef = useRef({});
+  // One "your exit ticket just opened" toast per assignment per period.
+  const dolOpenAnnouncedRef = useRef({});
 
   useEffect(() => {
     const clock = window.setInterval(() => setNow(Date.now()), 30000);
@@ -656,6 +665,106 @@ function App() {
     return () => window.clearInterval(interval);
   }, [isStudentAssignment, activeAssignmentId, isPracticeMode, assignmentActivity, tracker, classworkGradesByAssignment]);
 
+
+  // Live class monitoring. The student's client publishes a tiny snapshot of
+  // where it is — assignment, question, per-question progress — onto its own
+  // grades document, which teachers can already read. No new collection, no
+  // rules change, no stored history: the field is overwritten each heartbeat
+  // and cleared when the student leaves the assignment.
+  useEffect(() => {
+    if (user?.role !== 'student' || !user.id) return undefined;
+
+    // A dedicated presence document rather than a field on the grades doc:
+    // teachers stream this collection continuously, and a grades document
+    // carries a student's whole history, so putting a 20-second heartbeat on
+    // it would re-send all of that to every watching teacher each time.
+    const presenceRef = doc(db, 'presence', user.id);
+    const clearLiveStatus = () => {
+      deleteDoc(presenceRef).catch(() => { /* sign-out races are not worth reporting */ });
+    };
+
+    if (!isStudentAssignment || !activeAssignmentId || !activeAssignmentData) {
+      clearLiveStatus();
+      return undefined;
+    }
+
+    if (liveStartedAtRef.current.assignmentId !== activeAssignmentId) {
+      liveStartedAtRef.current = { assignmentId: activeAssignmentId, at: Date.now() };
+    }
+
+    const publish = () => {
+      const included = getIncludedQuestionIndices(activeAssignmentData);
+      const question = activeAssignmentData.questions?.[currentQuestionIndex];
+      const record = normalizeQuestionRecord(activeWorkingTracker?.[currentQuestionIndex]);
+      const payload = buildLiveStatus({
+        assignmentId: activeAssignmentId,
+        assignmentTitle: activeAssignmentData.title,
+        activityRole: activeQuestionRole,
+        questionIndex: Math.max(0, included.indexOf(currentQuestionIndex)),
+        questionCount: included.length,
+        questionLabel: String(question?.prompt || '').slice(0, 80),
+        representation: getQuestionRepresentation(question),
+        questionStates: encodeQuestionStates(activeWorkingTracker, included),
+        currentAttempts: record.attemptCount,
+        // The idle timer already tracks real interaction — mouse, keys,
+        // clicks — so the live grid and the time-on-task accounting agree
+        // about what "working" means.
+        lastInteractionAt: lastActivityRef.current,
+        startedAt: liveStartedAtRef.current.at,
+      });
+      setDoc(presenceRef, {
+        studentId: user.id,
+        name: user.name || user.id,
+        classPeriod: user.classPeriod || '',
+        ...payload,
+      }).catch(() => { /* a missed heartbeat self-heals on the next one */ });
+    };
+
+    publish();
+    const interval = window.setInterval(publish, HEARTBEAT_INTERVAL_MS);
+    return () => {
+      window.clearInterval(interval);
+      clearLiveStatus();
+    };
+  }, [
+    user, isStudentAssignment, activeAssignmentId, activeAssignmentData,
+    currentQuestionIndex, activeWorkingTracker, activeQuestionRole,
+  ]);
+
+  // Teachers stream presence only while the live grid is on screen, so a
+  // teacher sitting on Grades or Analytics is not paying for a listener.
+  useEffect(() => {
+    if (user?.role !== 'teacher' || teacherTab !== 'home') return undefined;
+    return onSnapshot(
+      collection(db, 'presence'),
+      (snapshot) => {
+        setPresenceById(Object.fromEntries(snapshot.docs.map((presenceDoc) => [
+          presenceDoc.id,
+          presenceDoc.data(),
+        ])));
+      },
+      (error) => console.error('Live class update failed:', error),
+    );
+  }, [user, teacherTab]);
+
+  // The DOL banner already appears once the window opens, but a student heads
+  // down at their work never sees it change. Announce the transition once.
+  useEffect(() => {
+    if (user?.role !== 'student' || !isStudentAssignment) return;
+    const key = `${activeAssignmentId}:opened`;
+    if (activeDOLState.status !== 'active') {
+      if (dolOpenAnnouncedRef.current[key] && activeDOLState.status === 'ended') {
+        delete dolOpenAnnouncedRef.current[key];
+      }
+      return;
+    }
+    if (dolOpenAnnouncedRef.current[key]) return;
+    dolOpenAnnouncedRef.current[key] = true;
+    toastInfo(
+      'Your exit ticket is open',
+      `Question ${activeDOLState.questionIndex + 1} is the DOL. You get one attempt and it closes when the period ends.`,
+    );
+  }, [activeDOLState.status, activeDOLState.questionIndex, activeAssignmentId, isStudentAssignment, user, toastInfo]);
 
   useEffect(() => {
     if (user?.role !== 'student' || !user.classPeriod) return;
@@ -3333,7 +3442,12 @@ function App() {
                 assignments={assignments}
                 classSchedule={classSchedule}
                 nowValue={now}
+                presenceById={presenceById}
                 onSelectPeriod={handleGoToClassFromHome}
+                onOpenStudent={(studentId) => {
+                  const student = allStudents.find((entry) => entry.id === studentId);
+                  if (student) handleViewClassGradebook(student.classPeriod || '', student);
+                }}
               />
             )}
 

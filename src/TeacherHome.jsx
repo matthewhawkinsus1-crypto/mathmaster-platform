@@ -4,6 +4,7 @@ import {
   getAssignmentLifecycle,
   getPeriodWindow,
 } from './assignmentLifecycle';
+import LiveClassMonitor from './components/teacher/LiveClassMonitor';
 
 const formatClock = (date) => date instanceof Date ? date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '';
 
@@ -17,7 +18,7 @@ const greetingFor = (date) => {
 // Landing tab for teachers: today's classes at a glance, so a period's
 // status and roster are one click away instead of hunting through the
 // class-period dropdown on Grades or scrolling the full Classes grid.
-export default function TeacherHome({ allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), onSelectPeriod }) {
+export default function TeacherHome({ allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onSelectPeriod, onOpenStudent }) {
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
 
   const todaysClasses = CLASS_PERIODS
@@ -32,6 +33,18 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
     })
     .filter(Boolean)
     .sort((a, b) => a.window.start.getTime() - b.window.start.getTime());
+
+  // The period happening right now, so the live grid opens on the class in
+  // front of the teacher instead of on every student in the building.
+  const periodInSession = todaysClasses.find((entry) => entry.isNow)?.period || 'all';
+
+  // The roster is the source of truth for who is in the class; presence only
+  // says what they are doing right now. Joining here means a student with no
+  // presence document still appears, as "Not started".
+  const monitoredStudents = allStudents.map((student) => ({
+    ...student,
+    liveStatus: presenceById[student.id] || null,
+  }));
 
   const totalOpen = assignments.filter((assignment) => getAssignmentLifecycle(assignment, nowValue).isOpen).length;
   const totalStudents = allStudents.length;
@@ -57,6 +70,17 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
           <div style={{ fontSize: '22px', fontWeight: 900 }}>{totalStudents}</div>
         </div>
       </div>
+
+      {/* Live tiles sit above the day's schedule: during a period this is the
+          thing the teacher is actually looking at. */}
+      <LiveClassMonitor
+        students={monitoredStudents}
+        assignments={assignments.filter((assignment) => getAssignmentLifecycle(assignment, nowValue).isOpen)}
+        classPeriods={CLASS_PERIODS}
+        initialClassPeriod={periodInSession}
+        nowValue={nowValue}
+        onOpenStudent={onOpenStudent}
+      />
 
       <h3 style={{ margin: '0 0 10px' }}>Today&apos;s Classes</h3>
       {todaysClasses.length === 0 ? (
