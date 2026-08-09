@@ -35,6 +35,9 @@ export const listGoogleCourses = call("listGoogleCourses");
 export const listClassroomStudents = call("listClassroomStudents");
 export const linkStudentToClassroom = call("linkStudentToClassroom");
 export const publishAssignmentToClassrooms = call("publishAssignmentToClassrooms");
+// Deliberately a separate callable from publishing. Publishing creates a post;
+// this changes the one students are already looking at.
+export const updateAssignmentClassroomPublications = call("updateAssignmentClassroomPublications");
 export const publishAssignmentToClassroom = call("publishAssignmentToClassroom");
 export const listPublishedAssignments = call("listPublishedAssignments");
 export const getAssignmentByLaunchId = call("getAssignmentByLaunchId");

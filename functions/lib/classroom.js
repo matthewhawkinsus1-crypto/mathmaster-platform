@@ -193,6 +193,54 @@ async function createCourseWork(
   return res.data;
 }
 
+/**
+ * Change an existing CourseWork item in place.
+ *
+ * This is deliberately not "publish again". Publishing creates; a teacher who
+ * moves a due date wants the post students are already looking at to change,
+ * not a second post beside it. Google patches only what the updateMask names,
+ * so the mask is built from the fields actually supplied.
+ *
+ * Two details that are easy to get wrong:
+ *   - dueDate and dueTime are separate fields and Classroom treats a date with
+ *     no time as invalid, so both are always sent together.
+ *   - a courseWork associated with a grading period loses that association if
+ *     the patch omits it while naming it in the mask, so gradingPeriodId is
+ *     carried through only when the caller supplies one.
+ */
+async function patchCourseWork(
+  classroom,
+  { courseId, courseWorkId, dueDate, gradingPeriodId }
+) {
+  const requestBody = {};
+  const mask = [];
+
+  if (dueDate !== undefined) {
+    const dueParts = classroomDueParts(dueDate);
+    requestBody.dueDate = dueParts.dueDate;
+    requestBody.dueTime = dueParts.dueTime;
+    mask.push("dueDate", "dueTime");
+  }
+
+  if (gradingPeriodId) {
+    requestBody.gradingPeriodId = gradingPeriodId;
+    mask.push("gradingPeriodId");
+  }
+
+  if (!mask.length) {
+    throw new Error("patchCourseWork was called with nothing to change.");
+  }
+
+  const res = await classroom.courses.courseWork.patch({
+    courseId,
+    id: courseWorkId,
+    updateMask: mask.join(","),
+    requestBody,
+  });
+
+  return res.data;
+}
+
 async function getCourseWork(classroom, courseId, courseWorkId) {
   const res = await classroom.courses.courseWork.get({
     courseId,
@@ -270,6 +318,7 @@ module.exports = {
   listCourses,
   listStudents,
   createCourseWork,
+  patchCourseWork,
   getCourseWork,
   findCourseWorkByPublicationMarker,
   findSubmissionForStudent,

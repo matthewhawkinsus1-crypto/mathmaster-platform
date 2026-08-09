@@ -7,9 +7,11 @@ import {
   listClassroomStudents,
   linkStudentToClassroom,
   publishAssignmentToClassrooms,
+  updateAssignmentClassroomPublications,
   listPublishedAssignments,
 } from './classroomApi';
 import { assertPublishable, isLibraryAssignment } from './assignmentDestinations';
+import { SYNC_STATUS, summarizeAssignmentSync } from './classroomSyncState';
 
 const card = { background: '#fff', borderRadius: '12px', padding: '5px' };
 const label = { display: 'block', fontSize: '13px', fontWeight: 'bold', color: '#5f6368', marginBottom: '6px' };
@@ -52,6 +54,8 @@ export default function ClassroomSync({ assignments = [] }) {
   const [materials, setMaterials] = useState([{ title: '', url: '' }]);
   const [links, setLinks] = useState([]);
   const [publishResults, setPublishResults] = useState([]);
+  const [updateResults, setUpdateResults] = useState([]);
+  const [updatingAssignmentId, setUpdatingAssignmentId] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [diagnostics, setDiagnostics] = useState(null);
@@ -176,6 +180,31 @@ export default function ClassroomSync({ assignments = [] }) {
         ? previous.filter((id) => id !== value)
         : [...previous, value]
     ));
+  };
+
+  // Every assignment that has been published, with whether Google is still
+  // showing the current due date. Derived, never stored — see classroomSyncState.
+  const syncByAssignment = useMemo(() => assignments
+    .map((assignment) => ({ assignment, sync: summarizeAssignmentSync(assignment, links) }))
+    .filter((entry) => entry.sync.publishedCount > 0), [assignments, links]);
+
+  const handleUpdateClassroom = async (assignment, courseIds = null) => {
+    setUpdatingAssignmentId(assignment.id);
+    setError(null);
+    setUpdateResults([]);
+    try {
+      const response = await updateAssignmentClassroomPublications({
+        assignmentId: assignment.id,
+        ...(courseIds ? { courseIds } : {}),
+      });
+      const payload = response?.data || response || {};
+      setUpdateResults(payload.results || []);
+      await refreshPublications();
+    } catch (updateError) {
+      setError(updateError.message || 'Could not update Google Classroom.');
+    } finally {
+      setUpdatingAssignmentId(null);
+    }
   };
 
   const handlePublish = async () => {
@@ -421,6 +450,63 @@ export default function ClassroomSync({ assignments = [] }) {
                 <span style={{ color: statusColor(result.status), fontWeight: 'bold' }}>
                   {result.status}{result.error ? ` — ${result.error}` : ''}
                 </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {syncByAssignment.length > 0 && (
+        <div style={{ marginTop: '25px' }}>
+          <h3 style={{ fontSize: '15px', color: '#202124' }}>Google Classroom sync</h3>
+          <p style={{ color: '#5f6368', fontSize: '12px', margin: '0 0 10px', lineHeight: 1.55 }}>
+            Changing a due date in MathMaster saves immediately but never touches Classroom on its own.
+            When a post is behind, update it here.
+          </p>
+          <div style={{ display: 'grid', gap: '10px' }}>
+            {syncByAssignment.map(({ assignment, sync }) => (
+              <div key={assignment.id} style={{ border: `1px solid ${sync.needsUpdate ? '#f9ab00' : '#e0e3e7'}`, borderRadius: '10px', padding: '12px 14px', background: sync.needsUpdate ? '#fffdf5' : '#fff' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <div style={{ flex: '1 1 260px' }}>
+                    <strong style={{ fontSize: '14px' }}>{assignment.title}</strong>
+                    <div style={{ color: sync.needsUpdate ? '#7a4f00' : '#5f6368', fontSize: '12px', marginTop: '3px' }}>{sync.message}</div>
+                  </div>
+                  {sync.needsUpdate && (
+                    <button
+                      style={{ ...primaryButton, minHeight: 40 }}
+                      onClick={() => handleUpdateClassroom(assignment)}
+                      disabled={updatingAssignmentId === assignment.id}
+                    >
+                      {updatingAssignmentId === assignment.id ? 'Updating…' : `Update ${sync.staleCount} Google Classroom post${sync.staleCount === 1 ? '' : 's'}`}
+                    </button>
+                  )}
+                </div>
+                <div style={{ marginTop: '9px', display: 'grid', gap: '5px' }}>
+                  {sync.courses.map((entry) => {
+                    const result = updateResults.find((item) => String(item.courseId) === String(entry.courseId));
+                    const failed = result?.status === 'failed';
+                    return (
+                      <div key={entry.courseId} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', fontSize: '12px', flexWrap: 'wrap' }}>
+                        <span style={{ color: '#3c4043' }}>{entry.courseName}</span>
+                        <span style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 'bold', color: failed ? '#a50e0e' : entry.status === SYNC_STATUS.DUE_DATE_CHANGED ? '#7a4f00' : entry.status === SYNC_STATUS.FAILED ? '#a50e0e' : '#137333' }}>
+                            {failed ? `Update failed — ${result.error}` : result?.status === 'updated' ? 'Updated' : entry.label}
+                          </span>
+                          {/* Retry one course without re-patching the ones that worked. */}
+                          {failed && (
+                            <button
+                              style={{ ...secondaryButton, padding: '4px 9px', minHeight: 30 }}
+                              onClick={() => handleUpdateClassroom(assignment, [entry.courseId])}
+                              disabled={updatingAssignmentId === assignment.id}
+                            >
+                              Retry
+                            </button>
+                          )}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             ))}
           </div>

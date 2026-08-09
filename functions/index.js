@@ -1378,6 +1378,12 @@ async function publishOneCourse({
       classroomUrl: courseWork.alternateLink || null,
       launchUrl,
       publishedAt: FieldValue.serverTimestamp(),
+      // What was actually sent to Google. Staleness is derived by comparing
+      // this with the assignment's current dueAt, so a fresh publish has to
+      // record it or the post reads as out of date the moment it is created.
+      syncedDueAt: serializableDate(dueAtValue),
+      lastSyncedAt: FieldValue.serverTimestamp(),
+      syncStatus: "in-sync",
       error: FieldValue.delete(),
     });
 
@@ -1485,6 +1491,149 @@ exports.publishAssignmentToClassrooms = onCall(
   { secrets: GOOGLE_AND_LINK_SECRETS },
   publishAssignmentBatch
 );
+
+// --- Updating already-published posts ---------------------------------------
+//
+// Publishing and updating are different operations and must stay different
+// callables. `publishOneCourse` returns "already-published" the moment a link
+// carries a courseworkId, which is correct for publishing and useless for a
+// teacher who has moved the due date: the post students see would never change.
+//
+// This path patches the existing CourseWork in place, one course at a time, and
+// records what was actually sent so staleness stays a comparison rather than a
+// flag. A failure on one course leaves the others updated and retryable.
+
+async function updateAssignmentClassroomPublications(request) {
+  await requireTeacher(request);
+
+  const { assignmentId, courseIds } = request.data || {};
+  if (!assignmentId) {
+    throw new HttpsError("invalid-argument", "assignmentId is required.");
+  }
+
+  const db = getFirestore();
+  const assignmentSnap = await db.doc(`assignments/${assignmentId}`).get();
+  if (!assignmentSnap.exists) {
+    throw new HttpsError("not-found", "That assignment no longer exists.");
+  }
+  const assignment = assignmentSnap.data();
+
+  const dueAtValue = assignment.dueAt || assignment.dueDate || null;
+  const dueDate = toDate(dueAtValue);
+  if (!dueDate) {
+    // Nothing coherent to send. An unassigned library item has no due date at
+    // all, and Classroom cannot represent "whenever".
+    throw new HttpsError(
+      "failed-precondition",
+      "This assignment has no due date. Set one in MathMaster before updating Google Classroom."
+    );
+  }
+
+  const linkSnap = await db
+    .collection("classroomLinks")
+    .where("assignmentId", "==", String(assignmentId))
+    .get();
+
+  const requested = Array.isArray(courseIds) && courseIds.length
+    ? new Set(courseIds.map(String))
+    : null;
+
+  const publications = linkSnap.docs
+    .map((doc) => ({ ref: doc.ref, data: doc.data() }))
+    .filter((entry) => entry.data.status === "published" && entry.data.courseworkId)
+    .filter((entry) => !requested || requested.has(String(entry.data.courseId)));
+
+  if (!publications.length) {
+    return { assignmentId: String(assignmentId), results: [], summary: { updated: 0, failed: 0, skipped: 0 } };
+  }
+
+  const classroom = await classroomLib.getClassroomClient();
+  const results = [];
+
+  for (const { ref, data } of publications) {
+    const courseId = String(data.courseId);
+    try {
+      // Read the live item first so an association we must preserve — a grading
+      // period, in particular — is carried into the patch rather than cleared
+      // by omission.
+      let existing = null;
+      try {
+        existing = await classroomLib.getCourseWork(classroom, courseId, data.courseworkId);
+      } catch {
+        existing = null;
+      }
+      if (!existing) {
+        throw new Error(
+          "That Classroom post no longer exists. Publish the assignment again to recreate it."
+        );
+      }
+
+      const updated = await classroomLib.patchCourseWork(classroom, {
+        courseId,
+        courseWorkId: data.courseworkId,
+        dueDate,
+        gradingPeriodId: existing.gradingPeriodId || null,
+      });
+
+      // Written only after Google confirmed, so a failed patch leaves the
+      // record honestly stale rather than claiming a sync that never happened.
+      await ref.set(
+        {
+          syncedDueAt: serializableDate(dueAtValue),
+          lastSyncedAt: FieldValue.serverTimestamp(),
+          syncStatus: "in-sync",
+          syncError: FieldValue.delete(),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      results.push({
+        courseId,
+        courseName: data.courseName || courseId,
+        status: "updated",
+        courseworkId: updated.id || data.courseworkId,
+        classroomUrl: updated.alternateLink || data.classroomUrl || null,
+      });
+    } catch (err) {
+      logger.error(
+        `Failed to update Classroom due date for assignment ${assignmentId} course ${courseId}`,
+        err
+      );
+      await ref.set(
+        {
+          syncStatus: "stale",
+          syncError: String(err.message || err),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+      results.push({
+        courseId,
+        courseName: data.courseName || courseId,
+        status: "failed",
+        error: String(err.message || err),
+      });
+    }
+  }
+
+  return {
+    assignmentId: String(assignmentId),
+    results,
+    summary: {
+      updated: results.filter((item) => item.status === "updated").length,
+      failed: results.filter((item) => item.status === "failed").length,
+      skipped: 0,
+    },
+  };
+}
+
+exports.updateAssignmentClassroomPublications = onCall(
+  { secrets: GOOGLE_AND_LINK_SECRETS },
+  updateAssignmentClassroomPublications
+);
+
+
 
 // Backward-compatible one-course callable used by older frontends.
 exports.publishAssignmentToClassroom = onCall(
