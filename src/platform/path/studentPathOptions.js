@@ -11,6 +11,8 @@ import { sequenceProvider } from './curriculumPacing.js';
 import { calendarPacingProvider, toEngineTiming } from './curriculumCalendar.js';
 import { buildSkillCurriculumLinks } from '../curriculum/algebra1CurriculumCrosswalk.js';
 import ALGEBRA1_2026_2027 from '../../curriculum/calendars/algebra1-2026-2027.js';
+import { buildAlgebraIISkillCurriculumLinks } from '../curriculum/algebra2CurriculumCrosswalk.js';
+import ALGEBRA2_HONORS_2026_2027 from '../../curriculum/calendars/algebra2Honors-2026-2027.js';
 import { getStudentPathOptions } from './recommendationEngine.js';
 import { buildMasteryBySkillForStudent, collectAssignmentSkillIds } from './masteryAdapter.js';
 
@@ -19,6 +21,8 @@ import { buildMasteryBySkillForStudent, collectAssignmentSkillIds } from './mast
 const CALENDAR_COURSES = {
   algebra1: { calendar: ALGEBRA1_2026_2027, links: () => buildSkillCurriculumLinks(teksSkillId) },
   'algebra1-honors': { calendar: ALGEBRA1_2026_2027, links: () => buildSkillCurriculumLinks(teksSkillId) },
+  algebra2: { calendar: ALGEBRA2_HONORS_2026_2027, links: () => buildAlgebraIISkillCurriculumLinks(teksSkillId) },
+  'algebra2-honors': { calendar: ALGEBRA2_HONORS_2026_2027, links: () => buildAlgebraIISkillCurriculumLinks(teksSkillId) },
 };
 
 /**
@@ -49,6 +53,10 @@ export const resolvePacingProvider = ({ courseId, skills, pacing, nowValue = Dat
           recommendationMode: state.recommendationMode,
           instructionalDaysUntilStart: state.instructionalDaysUntilStart ?? 0,
           calendarDaysUntilStart: state.calendarDaysUntilStart ?? 0,
+          reinforcementStatus: state.reinforcementStatus || null,
+          calendarDaysUntilReinforcement: state.calendarDaysUntilReinforcement ?? 0,
+          unscheduled: Boolean(state.unscheduled),
+          embedded: Boolean(state.embedded),
           window: state.window,
         };
       },

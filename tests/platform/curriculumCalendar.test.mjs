@@ -99,7 +99,7 @@ test('post-EOC Algebra II content stops being far-future on the calendar date', 
 
 // --- multi-window nodes ------------------------------------------------------
 test('a curriculum node with two windows is current in either of them', () => {
-  const id = 'alg2.module3';
+  const id = 'alg2.m3';
   assert.equal(getCurriculumTiming(alg2h, id, on('2026-10-26')).windowCount, 2);
   assert.equal(timingOn(alg2h, id, '2026-10-26'), CALENDAR_TIMING.CURRENT, 'first window');
   assert.equal(timingOn(alg2h, id, '2027-01-15'), CALENDAR_TIMING.CURRENT, 'second window');
@@ -108,16 +108,16 @@ test('a curriculum node with two windows is current in either of them', () => {
 test('between two windows the node stays available for review rather than reverting to future', () => {
   // Module 3 ran in October and runs again in January. In December a student
   // who needs it should be able to review it, not be told it has not happened.
-  assert.equal(timingOn(alg2h, 'alg2.module3', '2026-12-05'), CALENDAR_TIMING.REVIEW);
+  assert.equal(timingOn(alg2h, 'alg2.m3', '2026-12-05'), CALENDAR_TIMING.REVIEW);
 });
 
 test('Algebra II exponentials are calendar-gated rather than available all year', () => {
   // The point of section 21: "the topic exists in the course" cannot mean
   // "available in August".
-  assert.equal(timingOn(alg2h, 'alg2.module5', '2026-09-01'), CALENDAR_TIMING.FUTURE);
-  assert.equal(timingOn(alg2h, 'alg2.module5', '2026-12-05'), CALENDAR_TIMING.CURRENT);
-  assert.equal(timingOn(alg2h, 'alg2.module5', '2027-01-15'), CALENDAR_TIMING.REVIEW);
-  assert.equal(timingOn(alg2h, 'alg2.module5', '2027-04-01'), CALENDAR_TIMING.CURRENT, 'second window');
+  assert.equal(timingOn(alg2h, 'alg2.m5', '2026-09-01'), CALENDAR_TIMING.FUTURE);
+  assert.equal(timingOn(alg2h, 'alg2.m5', '2026-12-05'), CALENDAR_TIMING.CURRENT);
+  assert.equal(timingOn(alg2h, 'alg2.m5', '2027-01-15'), CALENDAR_TIMING.REVIEW);
+  assert.equal(timingOn(alg2h, 'alg2.m5', '2027-04-01'), CALENDAR_TIMING.CURRENT, 'second window');
 });
 
 test('unit 4 is split by fall break and both halves are current', () => {
@@ -170,9 +170,11 @@ test('an unmapped curriculum node is treated as current, never withheld', () => 
 test('both calendars load and every window has a usable start', () => {
   for (const [name, loaded] of [['algebra1', alg1], ['algebra2Honors', alg2h]]) {
     assert.ok(loaded.windows.length > 5, `${name} has windows`);
-    assert.ok(loaded.windows.every((window) => window.startDate instanceof Date), `${name} dates parse`);
-    assert.ok(loaded.windows.every((window) => window.endDate >= window.startDate), `${name} ranges are ordered`);
-    assert.ok(loaded.windows.every((window) => window.earlyOpenDate <= window.startDate), `${name} opens early or on time`);
+    // Embedded nodes have no dates by design — they are taught throughout.
+    const dated = loaded.windows.filter((window) => !window.embedded);
+    assert.ok(dated.every((window) => window.startDate instanceof Date), `${name} dates parse`);
+    assert.ok(dated.every((window) => window.endDate >= window.startDate), `${name} ranges are ordered`);
+    assert.ok(dated.every((window) => window.earlyOpenDate <= window.startDate), `${name} opens early or on time`);
   }
 });
 

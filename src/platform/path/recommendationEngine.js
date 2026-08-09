@@ -283,6 +283,9 @@ export const getStudentPathOptions = ({
       recommendationMode: timingInfo.recommendationMode || 'normal',
       instructionalDaysUntilStart: timingInfo.instructionalDaysUntilStart ?? 0,
       calendarDaysUntilStart: timingInfo.calendarDaysUntilStart ?? 0,
+      reinforcementStatus: timingInfo.reinforcementStatus || null,
+      calendarDaysUntilReinforcement: timingInfo.calendarDaysUntilReinforcement ?? 0,
+      unscheduled: Boolean(timingInfo.unscheduled),
       curriculumTitle: timingInfo.window?.title || null,
       accelerationDistance: Math.max(0, timingInfo.distance),
       teacherPriority,
@@ -357,6 +360,13 @@ export const explainForStudent = (row) => {
     return "You're ready early — your class reaches this shortly.";
   }
   if (row.reasons.includes(REASON.ALIGNED_CURRENT)) return 'Your class is working on this now.';
+  if (row.reinforcementStatus) {
+    const days = Math.max(0, Number(row.calendarDaysUntilReinforcement) || 0);
+    return days > 0
+      ? `You've worked on this before. Your class revisits it in ${days} day${days === 1 ? '' : 's'}.`
+      : "You've worked on this before. Your class revisits it shortly.";
+  }
+  if (row.unscheduled) return 'Your class has not scheduled this yet, but you can work on it.';
   if (row.reasons.includes(REASON.REVIEW_WINDOW)) return 'Your class has already covered this. Strengthening it is worthwhile.';
   return 'This is a good option right now.';
 };

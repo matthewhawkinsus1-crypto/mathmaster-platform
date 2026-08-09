@@ -126,6 +126,10 @@ export const classifySkillTiming = ({ skillId, provider, pacing }) => {
       distance: 0,
       instructionalDaysUntilStart: entry.instructionalDaysUntilStart ?? 0,
       calendarDaysUntilStart: entry.calendarDaysUntilStart ?? 0,
+      reinforcementStatus: entry.reinforcementStatus || null,
+      calendarDaysUntilReinforcement: entry.calendarDaysUntilReinforcement ?? 0,
+      unscheduled: Boolean(entry.unscheduled),
+      embedded: Boolean(entry.embedded),
       isProvisional: false,
       unmapped: false,
     };

@@ -25,7 +25,16 @@ export const CALENDAR_TIMING = Object.freeze({
   UPCOMING: 'upcoming',
   CURRENT: 'current',
   REVIEW: 'review',
+  // The source names a curriculum node but gives it no first-teach window —
+  // Algebra II Module 2 is named as the quadratic module and reviewed in April,
+  // yet never scheduled. That is a gap in the data, not a decision to withhold,
+  // so it is its own state rather than being disguised as FUTURE.
+  UNSCHEDULED: 'unscheduled',
 });
+
+// A node with no window because it is taught throughout rather than in a block
+// — data modelling spans linear, quadratic and exponential work by design.
+export const EMBEDDED_SCOPE = 'embedded';
 
 export const RECOMMENDATION_MODE = Object.freeze({
   NORMAL: 'normal',
@@ -108,6 +117,9 @@ export const countInstructionalDaysBetween = (from, to, nonInstructional) => {
 };
 
 const normalizeWindow = (window, calendar, nonInstructional) => {
+  if (window?.embedded) {
+    return { ...window, embedded: true, startDate: null, endDate: null, recommendationMode: window.recommendationMode || RECOMMENDATION_MODE.NORMAL };
+  }
   const start = toDate(window?.start);
   const end = toDate(window?.end) || start;
   if (!start) return null;
@@ -149,17 +161,6 @@ const classifyOne = (window, today) => {
   return CALENDAR_TIMING.REVIEW;
 };
 
-// When a node has several windows, the most permissive state wins: a module
-// being taught now is current even if an earlier window of it has closed, and
-// one already taught stays available for review even while a later window is
-// still in the future.
-const TIMING_RANK = {
-  [CALENDAR_TIMING.CURRENT]: 0,
-  [CALENDAR_TIMING.UPCOMING]: 1,
-  [CALENDAR_TIMING.REVIEW]: 2,
-  [CALENDAR_TIMING.FUTURE]: 3,
-};
-
 /**
  * The state of one curriculum node today, across all of its windows.
  */
@@ -178,13 +179,71 @@ export const getCurriculumTiming = (loaded, curriculumId, nowValue = Date.now())
     };
   }
 
-  const evaluated = windows
-    .map((window) => ({ window, timing: classifyOne(window, today) }))
-    .sort((a, b) => TIMING_RANK[a.timing] - TIMING_RANK[b.timing]
-      || a.window.startDate - b.window.startDate);
+  // Embedded nodes are always in scope; there is no date to compare against.
+  if (windows.some((window) => window.embedded)) {
+    return {
+      timing: CALENDAR_TIMING.CURRENT,
+      unmapped: false,
+      embedded: true,
+      recommendationMode: RECOMMENDATION_MODE.NORMAL,
+      window: windows[0],
+      windowCount: windows.length,
+      instructionalDaysUntilStart: 0,
+      calendarDaysUntilStart: 0,
+    };
+  }
 
-  const best = evaluated[0];
+  const evaluated = windows.map((window) => ({ window, timing: classifyOne(window, today) }));
+  const firstOf = (timing) => evaluated
+    .filter((entry) => entry.timing === timing)
+    .sort((a, b) => a.window.startDate - b.window.startDate)[0];
+
+  // Priority is deliberately not a simple rank. Being taught right now wins;
+  // then ALREADY HAVING BEEN TAUGHT wins over a window that has not started —
+  // because a student who learned logarithms in December must keep that access
+  // when the calendar returns to them in March. Ranking upcoming above review
+  // would quietly downgrade a revisit into a not-yet, which is the one thing a
+  // repeating calendar must never do.
+  const best = firstOf(CALENDAR_TIMING.CURRENT)
+    || firstOf(CALENDAR_TIMING.REVIEW)
+    || firstOf(CALENDAR_TIMING.UPCOMING)
+    || firstOf(CALENDAR_TIMING.FUTURE);
+
+  // A node whose only window is a review block was never scheduled to be
+  // taught. Before that review arrives the honest answer is "unscheduled",
+  // never "future" — a teacher has to place it, and until they do the engine
+  // must neither recommend it on a calendar basis nor hard-lock it.
+  const everTaught = windows.some((window) => window.recommendationMode !== RECOMMENDATION_MODE.REVIEW);
+  if (!everTaught && best.timing !== CALENDAR_TIMING.CURRENT) {
+    return {
+      timing: CALENDAR_TIMING.UNSCHEDULED,
+      unmapped: false,
+      unscheduled: true,
+      recommendationMode: RECOMMENDATION_MODE.NORMAL,
+      window: best.window,
+      windowCount: windows.length,
+      instructionalDaysUntilStart: 0,
+      calendarDaysUntilStart: 0,
+    };
+  }
+
+  // The revisit. When a node has already been taught and the calendar returns
+  // to it later, the student keeps their access — the state stays REVIEW — but
+  // the upcoming window is reported separately so a card can say "your class
+  // revisits this in N days". A revisit must never relock what was opened.
+  const laterWindow = [firstOf(CALENDAR_TIMING.UPCOMING), firstOf(CALENDAR_TIMING.FUTURE)]
+    .filter(Boolean)
+    .sort((a, b) => a.window.startDate - b.window.startDate)[0];
+  const reinforcement = best.timing === CALENDAR_TIMING.REVIEW && laterWindow
+    ? {
+      reinforcementStatus: laterWindow.timing,
+      reinforcementStart: toDayKey(laterWindow.window.startDate),
+      calendarDaysUntilReinforcement: Math.max(0, Math.round((laterWindow.window.startDate - today) / DAY_MS)),
+      instructionalDaysUntilReinforcement: countInstructionalDaysBetween(today, laterWindow.window.startDate, loaded.nonInstructional),
+    }
+    : {};
   return {
+    ...reinforcement,
     timing: best.timing,
     unmapped: false,
     recommendationMode: best.window.recommendationMode,
@@ -230,6 +289,9 @@ export const describeToday = (loaded, nowValue = Date.now()) => {
 // place keeps a single source of truth rather than two parallel enums:
 // UPCOMING is the calendar's name for what the engine calls AHEAD.
 export const toEngineTiming = (calendarTiming) => ({
+  // Unscheduled behaves like review: reachable, and never promoted by pacing.
+  // Mapping it to FUTURE would hard-lock content over a source-data gap.
+  [CALENDAR_TIMING.UNSCHEDULED]: TIMING.REVIEW,
   [CALENDAR_TIMING.CURRENT]: TIMING.CURRENT,
   [CALENDAR_TIMING.UPCOMING]: TIMING.AHEAD,
   [CALENDAR_TIMING.REVIEW]: TIMING.REVIEW,
