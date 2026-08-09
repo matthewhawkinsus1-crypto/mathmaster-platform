@@ -1,8 +1,6 @@
 import { useMemo, useState } from 'react';
-import { getStudentPathOptions } from '../../platform/path/recommendationEngine';
-import { sequenceProvider } from '../../platform/path/curriculumPacing';
-import { getSkillGraph, describeSkill } from '../../platform/path/skillGraph';
-import { buildMasteryBySkillForStudent, collectAssignmentSkillIds } from '../../platform/path/masteryAdapter';
+import { describeSkill } from '../../platform/path/skillGraph';
+import { buildStudentPathOptions } from '../../platform/path/studentPathOptions';
 import { curateStudentPanel, resolveChoiceState } from '../../platform/path/studentPanel';
 
 // "Recommended for You" — the student's independent path.
@@ -57,30 +55,20 @@ export default function RecommendedSkills({
   assignments = [],
   courseId = 'algebra1',
   pacing = null,
+  pathOptions = null,
   teacherOverrides = [],
   requiredSkillIds = [],
   onChooseSkill,
 }) {
   const [showAll, setShowAll] = useState(false);
 
-  const skills = useMemo(() => getSkillGraph(courseId), [courseId]);
-  const provider = useMemo(
-    () => sequenceProvider({ skills, windowCount: pacing?.windowCount }),
-    [skills, pacing?.windowCount],
-  );
-
-  const options = useMemo(() => {
-    if (!pacing) return null;
-    return getStudentPathOptions({
-      courseId,
-      masteryBySkill: buildMasteryBySkillForStudent({ student, assignments }),
-      pacing,
-      pacingProvider: provider,
-      teacherOverrides,
-      requiredSkillIds,
-      assignmentSkillIds: collectAssignmentSkillIds(assignments),
-    });
-  }, [courseId, student, assignments, pacing, provider, teacherOverrides, requiredSkillIds]);
+  // Prefer the options the caller already evaluated: My Math Path uses the
+  // same object, and two evaluations could drift apart between renders.
+  const options = useMemo(() => (
+    pathOptions || buildStudentPathOptions({
+      student, assignments, courseId, pacing, teacherOverrides, requiredSkillIds,
+    })
+  ), [pathOptions, student, assignments, courseId, pacing, teacherOverrides, requiredSkillIds]);
 
   const panel = useMemo(() => (options ? curateStudentPanel(options) : null), [options]);
 

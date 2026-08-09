@@ -98,6 +98,8 @@ import ClassCourseSettings from './components/teacher/ClassCourseSettings.jsx';
 import PathSimulator from './components/teacher/PathSimulator.jsx';
 import PacingControls from './components/teacher/PacingControls.jsx';
 import RecommendedSkills from './components/student/RecommendedSkills.jsx';
+import { teksCodeFromSkillId } from './platform/path/skillGraph.js';
+import { buildStudentPathOptions } from './platform/path/studentPathOptions.js';
 import {
   ROUTE_EVENTS, buildRouteEvent, fetchClassPacing, fetchSkillOverrides,
   logRouteEvent, normalizePacingByClass, overridesForClass, saveClassPacing, saveSkillOverrides,
@@ -232,6 +234,9 @@ function App() {
   const [pacingByClass, setPacingByClass] = useState({});
   const [skillOverrides, setSkillOverrides] = useState([]);
   const [pacingBusy, setPacingBusy] = useState(false);
+  // The skill a student picked from Recommended for You, consumed once by
+  // My Math Path and cleared when they come back.
+  const [pathLaunchTeks, setPathLaunchTeks] = useState(null);
   const [activeAssignmentId, setActiveAssignmentId] = useState(null);
   const [tracker, setTracker] = useState({});
   const [practiceTracker, setPracticeTracker] = useState({});
@@ -392,6 +397,20 @@ function App() {
 
   const studentCourseId = courseProfiles?.[user?.classPeriod]?.course || 'algebra1';
 
+  // Evaluated once and shared, so Recommended for You and My Math Path cannot
+  // disagree about what this student should do next.
+  const studentPathOptions = useMemo(() => (
+    studentPacing
+      ? buildStudentPathOptions({
+        student: studentRecord,
+        assignments,
+        courseId: studentCourseId,
+        pacing: studentPacing,
+        teacherOverrides: overridesForClass(skillOverrides, user?.classPeriod),
+      })
+      : null
+  ), [studentRecord, assignments, studentCourseId, studentPacing, skillOverrides, user]);
+
   const handleChooseSkill = (card) => {
     if (!card?.skillId) return;
     // Route history is best-effort and deliberately not awaited: a student
@@ -407,10 +426,16 @@ function App() {
         context: { title: card.title, remediationTarget: card.remediationTarget || null },
       }),
     });
-    toastInfo(
-      card.slot === 'strengthen' ? 'Strengthening this skill' : 'Skill selected',
-      `${card.description || card.title}. Practice for this opens from My Math Path.`,
-    );
+    // Open practice on the chosen skill rather than announcing it. A student
+    // who picks a skill and is then left on the dashboard to find it again has
+    // not really been given a choice.
+    const code = teksCodeFromSkillId(card.skillId);
+    if (!code) {
+      toastInfo('Not available yet', 'Practice for this skill is not set up yet.');
+      return;
+    }
+    setPathLaunchTeks(code);
+    setStudentDashboardMode('mathPath');
   };
 
   const handleSavePacing = async (next) => {
@@ -3660,7 +3685,9 @@ function App() {
           studentName={user.displayName || user.id}
           studentProfile={adaptiveStudentProfile || user.profile}
           assignments={assignments}
-          onExit={() => setStudentDashboardMode('assignments')}
+          launchTeksCode={pathLaunchTeks}
+          pathOptions={studentPathOptions}
+          onExit={() => { setPathLaunchTeks(null); setStudentDashboardMode('assignments'); }}
         />
       );
     }
@@ -3839,7 +3866,7 @@ function App() {
             assignments={assignments}
             courseId={studentCourseId}
             pacing={studentPacing}
-            teacherOverrides={overridesForClass(skillOverrides, user.classPeriod)}
+            pathOptions={studentPathOptions}
             onChooseSkill={handleChooseSkill}
           />
         </div>

@@ -257,8 +257,12 @@ export const getStudentPathOptions = ({
     else if (override?.action === 'hide') status = STATUS.LOCKED;
     else if (timing === TIMING.FUTURE) status = STATUS.FUTURE;
     else if (prereq.unmetPrerequisites.length) status = STATUS.REMEDIATION;
-    else if (timing === TIMING.AHEAD) status = extensionReady ? STATUS.EXTENSION : STATUS.AVAILABLE;
+    // Teacher intent is checked BEFORE pacing here. A teacher who unlocks a
+    // future skill and says "recommend this" has made a deliberate decision;
+    // letting it fall into the generic available pile — where it scored below
+    // ordinary current content — silently discarded that decision.
     else if (teacherPriority || avoidanceCount >= 3) status = STATUS.PRIORITY;
+    else if (timing === TIMING.AHEAD) status = extensionReady ? STATUS.EXTENSION : STATUS.AVAILABLE;
     else if (timing === TIMING.CURRENT && score >= 0.55) status = STATUS.RECOMMENDED;
     else status = STATUS.AVAILABLE;
 

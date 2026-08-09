@@ -1,12 +1,20 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MyMathPathDashboard from './MyMathPathDashboard.jsx';
 import MyMathPathProductionContainer from './MyMathPathProductionContainer.jsx';
 import StudentPracticeHistory from './StudentPracticeHistory.jsx';
 import { fetchStudentMasteryState } from '../../services/masteryStateService.js';
 import { fetchStudentEvidenceEvents } from '../../platform/history/evidencePersistence.js';
 import { toCanonicalKey, toDisplayCode } from '../../utils/teksUtils.js';
+import { curateStudentPanel } from '../../platform/path/studentPanel.js';
+import { teksCodeFromSkillId } from '../../platform/path/skillGraph.js';
 
-const chooseRecommendedTeks = (profiles = {}) => {
+// The mastery-status priority list this used to be was a second, competing
+// idea of what to recommend, sitting beside the path engine and able to
+// disagree with it. Two answers to the same question is the divergence the
+// adaptive brief warns about, so the engine is asked first and this remains
+// only as the fallback for when it has nothing to say — no pacing set, or a
+// course with no graph.
+const chooseFallbackTeks = (profiles = {}) => {
   const priority = ['Needs Attention', 'Developing', 'Not Enough Evidence', 'Secure', 'Mastered'];
   const entries = Object.entries(profiles);
   for (const status of priority) {
@@ -16,7 +24,22 @@ const chooseRecommendedTeks = (profiles = {}) => {
   return 'A.5A';
 };
 
-export const MyMathPathApp = ({ studentId, studentName, studentProfile = null, assignments = null, onExit = null }) => {
+const chooseRecommendedTeks = ({ profiles, pathOptions }) => {
+  const panel = pathOptions ? curateStudentPanel(pathOptions) : null;
+  const engineChoice = panel?.best?.skillId || panel?.strengthen?.skillId || null;
+  const code = engineChoice ? teksCodeFromSkillId(engineChoice) : null;
+  return code || chooseFallbackTeks(profiles);
+};
+
+export const MyMathPathApp = ({
+  studentId, studentName, studentProfile = null, assignments = null,
+  // A skill chosen from Recommended for You. Opening straight into practice on
+  // it is the whole point of the panel — otherwise a student picks a skill and
+  // is dropped on a mastery map to find it again.
+  launchTeksCode = null,
+  pathOptions = null,
+  onExit = null,
+}) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sessionConfig, setSessionConfig] = useState(null);
   const [masteryData, setMasteryData] = useState({ masteryProfilesByTEKS: {}, retentionSchedulesByTEKS: {} });
@@ -41,7 +64,10 @@ export const MyMathPathApp = ({ studentId, studentName, studentProfile = null, a
 
   useEffect(() => { loadState(); }, [loadState]);
 
-  const recommendedTeks = useMemo(() => chooseRecommendedTeks(masteryData.masteryProfilesByTEKS), [masteryData.masteryProfilesByTEKS]);
+  const recommendedTeks = useMemo(
+    () => chooseRecommendedTeks({ profiles: masteryData.masteryProfilesByTEKS, pathOptions }),
+    [masteryData.masteryProfilesByTEKS, pathOptions],
+  );
   const availableTeks = useMemo(() => Object.keys(masteryData.masteryProfilesByTEKS).map(toDisplayCode), [masteryData.masteryProfilesByTEKS]);
 
   const startSession = (teksCode, options = {}) => {
@@ -52,6 +78,15 @@ export const MyMathPathApp = ({ studentId, studentName, studentProfile = null, a
     });
     setActiveTab('session');
   };
+
+  // Launch once per target. Without the ref a return to the dashboard would
+  // immediately bounce the student back into the session they just left.
+  const launchedRef = useRef(null);
+  useEffect(() => {
+    if (!launchTeksCode || launchedRef.current === launchTeksCode) return;
+    launchedRef.current = launchTeksCode;
+    startSession(launchTeksCode);
+  }, [launchTeksCode]);
 
   const returnToDashboard = () => {
     setSessionConfig(null);
