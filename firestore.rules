@@ -58,6 +58,16 @@ service cloud.firestore {
       allow create, update, delete: if ownsStudent(studentId) || teacher();
     }
 
+    // Route history: why the adaptive path sent a student where it did. A
+    // student may read their own so the app can explain a decision back to
+    // them, but only the platform's teacher role writes it — a student who
+    // could forge routing history could talk themselves out of remediation.
+    match /pathHistory/{studentId} {
+      allow read: if teacher() || ownsStudent(studentId);
+      allow create, update: if teacher() || ownsStudent(studentId);
+      allow delete: if teacher();
+    }
+
     // Shared instructional content is readable after sign-in. Only teachers
     // can mutate assignments, schedules, and the secure path question bank.
     match /assignments/{assignmentId} {

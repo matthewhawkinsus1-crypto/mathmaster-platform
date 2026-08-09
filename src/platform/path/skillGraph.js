@@ -23,6 +23,7 @@ import {
   getTexasVerticalAlignment,
   normalizeTeksCode,
 } from '../../texasStandards.js';
+import { getWithinCourseDependents, getWithinCoursePrerequisites } from './coursePrerequisites.js';
 
 export const TEKS_SKILL_PREFIX = 'teks:';
 
@@ -69,10 +70,20 @@ export const buildSkillGraphForCourse = (courseId) => {
           // rather than being duplicated into the graph.
           sat: [], act: [], asvab: [],
         },
-        // Prior-course standards are genuine mathematical dependencies.
-        prerequisites: alignment.prior.map((prior) => prerequisite(teksSkillId(prior.code))),
+        // Two sources, both real dependencies. The TEKS registry supplies
+        // prior-COURSE links; coursePrerequisites.js supplies the within-course
+        // ones the registry has never carried, without which the graph is flat
+        // inside a course and no Algebra I skill can gate another.
+        prerequisites: [
+          ...alignment.prior.map((prior) => prerequisite(teksSkillId(prior.code))),
+          ...getWithinCoursePrerequisites(standard.courseId, standard.code)
+            .map((entry) => prerequisite(teksSkillId(entry.code), { required: entry.required })),
+        ],
         // Kept so acceleration can look forward without re-deriving it.
-        leadsTo: alignment.next.map((next) => teksSkillId(next.code)),
+        leadsTo: [
+          ...alignment.next.map((next) => teksSkillId(next.code)),
+          ...getWithinCourseDependents(standard.courseId, standard.code).map(teksSkillId),
+        ],
         adaptivePolicy: {
           previewAllowed: false,
           accelerationAllowed: true,
