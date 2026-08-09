@@ -101,6 +101,12 @@ export const getSkillCrosswalk = (skillIdOrCode) => {
       domainTitle: domain?.title || entry.domainId,
       weight: entry.weight,
       domainIds: entry.domainIds || [entry.domainId],
+      // 'full' or 'partial'. A partial crosswalk still opens the pathway — the
+      // student can legitimately practise this skill in that format — but it
+      // constrains which aspects of the standard an item may use.
+      coverage: entry.coverage || 'full',
+      allowedAspects: entry.allowedAspects || [],
+      excludedAspects: entry.excludedAspects || [],
       alignmentType: ALIGNMENT_TYPE.CROSSWALK,
       // Authored per standard in teksExamCrosswalk.js, not pattern-matched.
       derivation: DERIVATION.AUTHORED,
@@ -159,6 +165,9 @@ export const resolveAlignment = ({ skillId, framework, directIndex = null }) => 
     domainId: crosswalk?.domainId || null,
     domainTitle: crosswalk?.domainTitle || null,
     weight: crosswalk?.weight ?? null,
+    coverage: crosswalk?.coverage || 'full',
+    allowedAspects: crosswalk?.allowedAspects || [],
+    excludedAspects: crosswalk?.excludedAspects || [],
     alignmentType: isDirectCapable ? ALIGNMENT_TYPE.DIRECT : ALIGNMENT_TYPE.CROSSWALK,
     derivation: crosswalk?.derivation || DERIVATION.AUTHORED,
     directCapable: isDirectCapable,

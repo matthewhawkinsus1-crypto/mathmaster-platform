@@ -12,6 +12,7 @@
 import { ALL_TEXAS_MATH_STANDARDS } from '../src/texasStandards.js';
 import { runCcmrCoverageAudit } from '../src/platform/ccmr/ccmrCoverageAudit.js';
 import { ASSESSMENT_FRAMEWORKS, FRAMEWORK_LABELS, FRAMEWORK_SCOPE_EXCLUSIONS } from '../src/platform/ccmr/assessmentCrosswalk.js';
+import { asvabExclusionReason } from '../src/platform/assessment/teksExamCrosswalk.js';
 import { getSkillGraph, hardPrerequisitesOf, teksCodeFromSkillId } from '../src/platform/path/skillGraph.js';
 import { listCourseEdges } from '../src/platform/path/coursePrerequisites.js';
 import { validateAllGraphs } from '../src/platform/path/graphValidation.js';
@@ -36,8 +37,9 @@ rule();
 coverage.courses.forEach((course) => {
   const cells = ASSESSMENT_FRAMEWORKS.map((framework) => {
     const counts = course.byFramework[framework];
-    const mapped = counts.crosswalk + counts.directCapable;
-    return pad(`${mapped}/${course.skillCount}`, 14);
+    const full = counts.crosswalk + counts.directCapable;
+    const label = counts.partial ? `${full}+${counts.partial}p/${course.skillCount}` : `${full}/${course.skillCount}`;
+    return pad(label, 14);
   });
   console.log(pad(course.courseId, 11) + pad(course.skillCount, 8) + cells.join(''));
 });
@@ -66,17 +68,55 @@ if (!coverage.readyForStudentUi) {
   console.log('RESULT: coverage audit clears student CCMR branching.');
 }
 
+// The ASVAB column, broken out: full / partial / excluded, with a reason for
+// every exclusion. This is the artifact the exclusion review is done against.
 console.log('');
-console.log(`ASVAB exclusions PENDING REVIEW (${FRAMEWORK_SCOPE_EXCLUSIONS.asvab.codes.length} codes):`);
-const excludedByCourse = new Map();
+rule('─');
+console.log('ASVAB detail — mapped fully, mapped partially, excluded');
+rule('─');
+console.log(pad('course', 11) + pad('full', 8) + pad('partial', 9) + pad('excluded', 10) + 'skills');
+coverage.courses.forEach((course) => {
+  const counts = course.byFramework.asvab;
+  console.log(
+    pad(course.courseId, 11)
+    + pad(counts.crosswalk + counts.directCapable, 8)
+    + pad(counts.partial, 9)
+    + pad(counts.none, 10)
+    + course.skillCount,
+  );
+});
+
+console.log('');
+console.log('Partially mapped — the allowed slice of a broader standard:');
+coverage.courses.forEach((course) => {
+  course.rows
+    .filter((row) => row.frameworks.asvab.coverage === 'partial')
+    .forEach((row) => {
+      console.log(`  ${pad(row.code, 8)} ${row.frameworks.asvab.allowedAspects.join('; ')}`);
+    });
+});
+
+console.log('');
+const notAssessedAnywhere = uncovered.length;
+console.log(`Excluded from the ASVAB, with reason (${FRAMEWORK_SCOPE_EXCLUSIONS.asvab.codes.length} codes) — PENDING REVIEW:`);
+console.log(`  (the "excluded" column above also counts the ${notAssessedAnywhere} standards mapped to no assessment at all,`);
+console.log('   which are not ASVAB scope decisions and are listed separately further up)');
+const excludedByReason = new Map();
 FRAMEWORK_SCOPE_EXCLUSIONS.asvab.codes.forEach((code) => {
-  const courseId = ALL_TEXAS_MATH_STANDARDS.find((standard) => standard.code === code)?.courseId || 'unknown';
-  if (!excludedByCourse.has(courseId)) excludedByCourse.set(courseId, []);
-  excludedByCourse.get(courseId).push(code);
+  const { key, reason } = asvabExclusionReason(code);
+  const bucket = key || 'unexplained';
+  if (!excludedByReason.has(bucket)) excludedByReason.set(bucket, { reason, codes: [] });
+  excludedByReason.get(bucket).codes.push(code);
 });
-[...excludedByCourse.entries()].forEach(([courseId, codes]) => {
-  console.log(`  ${pad(courseId, 11)} ${codes.join(', ')}`);
-});
+[...excludedByReason.entries()]
+  .sort((a, b) => b[1].codes.length - a[1].codes.length)
+  .forEach(([key, entry]) => {
+    console.log('');
+    console.log(`  ${key} (${entry.codes.length})`);
+    console.log(`    ${entry.reason}`);
+    console.log(`    ${entry.codes.join(', ')}`);
+    if (key === 'unexplained') failures += 1;
+  });
 
 // ---------------------------------------------------------------------------
 heading('AUDIT 2 — prerequisite graph');

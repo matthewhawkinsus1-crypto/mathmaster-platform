@@ -17,18 +17,24 @@ import {
   ASSESSMENT_FRAMEWORKS, DERIVATION, FRAMEWORK_LABELS,
   FRAMEWORK_SCOPE_EXCLUSIONS, getSkillCrosswalk, resolveAlignment,
 } from './assessmentCrosswalk.js';
+import { asvabExclusionReason } from '../assessment/teksExamCrosswalk.js';
 
 export const AUDITED_COURSE_IDS = Object.freeze(['grade6', 'grade7', 'grade8', 'algebra1', 'algebra2']);
 
 export const COVERAGE = Object.freeze({
   NONE: 'none',
   CROSSWALK: 'crosswalk',
+  // The standard is broader than the slice this assessment can reach, so only
+  // some of it is in scope. Still a real pathway, reported separately so the
+  // headline number is not inflated by half-claims.
+  PARTIAL: 'partial',
   DIRECT_CAPABLE: 'direct-capable',
 });
 
 const coverageFor = (alignment) => {
   if (!alignment) return COVERAGE.NONE;
-  return alignment.directCapable ? COVERAGE.DIRECT_CAPABLE : COVERAGE.CROSSWALK;
+  if (alignment.directCapable) return COVERAGE.DIRECT_CAPABLE;
+  return alignment.coverage === 'partial' ? COVERAGE.PARTIAL : COVERAGE.CROSSWALK;
 };
 
 /**
@@ -47,6 +53,9 @@ export const auditSkillCoverage = ({ courseId, directIndex = null } = {}) => {
         coverage: coverageFor(alignment),
         derivation: alignment?.derivation || null,
         domainTitle: alignment?.domainTitle || null,
+        allowedAspects: alignment?.allowedAspects || [],
+        excludedAspects: alignment?.excludedAspects || [],
+        exclusionReason: alignment ? null : asvabExclusionReason(crosswalk.code),
         // An exclusion is a deliberate "this is out of scope", which reads very
         // differently from "nobody has mapped it yet".
         excludedByScope: !crosswalk.frameworks[framework]
@@ -70,10 +79,11 @@ export const summarizeCourseCoverage = ({ courseId, directIndex = null } = {}) =
   const rows = auditSkillCoverage({ courseId, directIndex });
   const byFramework = {};
   ASSESSMENT_FRAMEWORKS.forEach((framework) => {
-    const counts = { none: 0, crosswalk: 0, directCapable: 0, excludedByScope: 0 };
+    const counts = { none: 0, crosswalk: 0, partial: 0, directCapable: 0, excludedByScope: 0 };
     rows.forEach((row) => {
       const cell = row.frameworks[framework];
       if (cell.coverage === COVERAGE.DIRECT_CAPABLE) counts.directCapable += 1;
+      else if (cell.coverage === COVERAGE.PARTIAL) counts.partial += 1;
       else if (cell.coverage === COVERAGE.CROSSWALK) counts.crosswalk += 1;
       else counts.none += 1;
       if (cell.excludedByScope) counts.excludedByScope += 1;
@@ -116,7 +126,7 @@ export const runCcmrCoverageAudit = ({ directIndex = null } = {}) => {
   courses.forEach((course) => {
     ASSESSMENT_FRAMEWORKS.forEach((framework) => {
       const counts = course.byFramework[framework];
-      const claimed = counts.crosswalk + counts.directCapable;
+      const claimed = counts.crosswalk + counts.partial + counts.directCapable;
       if (course.skillCount >= 10 && claimed === course.skillCount) {
         findings.push({
           severity: 'review',

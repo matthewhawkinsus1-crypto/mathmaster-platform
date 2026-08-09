@@ -54,10 +54,13 @@ const find = (list, framework) => list.filter((entry) => entry.framework === fra
   assert.ok(direct.every((entry) => entry.framework === 'teks'), 'only the TEKS alignment counts as direct evidence');
   assert.ok(find(out, 'act').length && find(out, 'tsia2').length,
     'the frameworks this standard is aligned to get a crosswalk');
-  // A.2A is domain and range of linear functions expressed with inequalities,
-  // which the ASVAB does not test. The crosswalk is now authored per standard,
-  // so an item about it must NOT claim ASVAB overlap.
-  assert.equal(find(out, 'asvab').length, 0, 'no crosswalk is derived where none was authored');
+
+  // The crosswalk is authored per standard, so an item about a standard the
+  // exam does not reach must NOT claim overlap with it. A.9E is writing an
+  // exponential regression with technology; the ASVAB allows no calculator.
+  const regression = normalizeQuestionAlignments({ alignments: [{ framework: 'teks', code: 'A.9E', role: 'primary' }] });
+  assert.equal(find(regression, 'asvab').length, 0, 'no crosswalk is derived where none was authored');
+  assert.ok(find(regression, 'digitalSAT').length, 'the frameworks that do reach it still get one');
 
   // A standard that genuinely is on all four still gets all four.
   const everywhere = normalizeQuestionAlignments({ alignments: [{ framework: 'teks', code: 'A.5A', role: 'primary' }] });

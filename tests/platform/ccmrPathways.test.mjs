@@ -8,6 +8,7 @@ import {
   ASSESSMENT_FRAMEWORKS, FRAMEWORK_SCOPE_EXCLUSIONS,
   getDirectAlignmentIndex, getSkillCrosswalk, resolveAlignment,
 } from '../../src/platform/ccmr/assessmentCrosswalk.js';
+import { asvabExclusionReason } from '../../src/platform/assessment/teksExamCrosswalk.js';
 import { runCcmrCoverageAudit } from '../../src/platform/ccmr/ccmrCoverageAudit.js';
 import {
   EVIDENCE_BASIS, buildAssessmentEvidence, getEvidence, hasPractised, withSimulatedEvidence,
@@ -393,5 +394,78 @@ test('no CCMR skill id is ever minted — pathways reuse canonical skills', () =
   all.forEach((item) => {
     assert.ok(item.skillId.startsWith('teks:'), `${item.skillId} is not a canonical skill id`);
     assert.ok(!item.skillId.includes('sat.') && !item.skillId.includes('act.'));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Partial ASVAB coverage — a TEKS broader than the slice the exam can reach
+// ---------------------------------------------------------------------------
+
+test('a broad standard can be partially in scope rather than all-or-nothing', () => {
+  // A.7A is graphing and analysing quadratics. Zeros, intercepts, the vertex
+  // and the axis of symmetry are conventional Mathematics Knowledge; the
+  // transformation analysis in the same standard is not. Excluding the whole
+  // standard would have been wrong about half of it.
+  const asvab = getSkillCrosswalk('A.7A').frameworks.asvab;
+  assert.ok(asvab, 'A.7A must no longer be excluded outright');
+  assert.equal(asvab.coverage, 'partial');
+  assert.ok(asvab.allowedAspects.includes('vertex'));
+  assert.ok(asvab.excludedAspects.includes('advanced transformation analysis'));
+  assert.equal(asvab.domainId, 'mathematicsKnowledge');
+});
+
+test('a partial alignment still opens the pathway', () => {
+  const options = getAssessmentPathOptions({
+    skillId: teksSkillId('A.7A'),
+    pathOptions: pathFor({ [teksSkillId('A.7A')]: evidenceEntry(0.9) }),
+  });
+  const asvab = options.pathways.find((entry) => entry.framework === 'asvab');
+  assert.equal(asvab.available, true, 'partial coverage is real coverage');
+  assert.ok(!asvab.reasonCodes.includes(CCMR_REASON.NO_ASVAB_ALIGNMENT));
+});
+
+test('full coverage is still distinguishable from partial', () => {
+  // Solving quadratic equations is squarely Mathematics Knowledge, whole.
+  assert.equal(getSkillCrosswalk('A2.4F').frameworks.asvab.coverage, 'full');
+  assert.equal(getSkillCrosswalk('A.7A').frameworks.asvab.coverage, 'partial');
+});
+
+test('the codes kept excluded on review stay excluded', () => {
+  ['A.3D', 'A.3G', 'A.3H', 'A.6B', 'A.6C'].forEach((code) => {
+    assert.equal(getSkillCrosswalk(code).frameworks.asvab, undefined, `${code} must stay excluded`);
+  });
+});
+
+test('Algebra II is no longer excluded down to three standards', () => {
+  const audit = runCcmrCoverageAudit();
+  const algebra2 = audit.courses.find((course) => course.courseId === 'algebra2');
+  const asvab = algebra2.byFramework.asvab;
+  const mapped = asvab.crosswalk + asvab.partial + asvab.directCapable;
+  assert.ok(mapped >= 12, `expected meaningful ASVAB coverage in Algebra II, got ${mapped}`);
+  // Factoring, polynomial division, radicals and ordinary equation solving.
+  ['A2.7D', 'A2.7E', 'A2.7C', 'A2.7F', 'A2.7H', 'A2.6E', 'A2.6I'].forEach((code) => {
+    assert.ok(getSkillCrosswalk(code).frameworks.asvab, `${code} should have an ASVAB slice`);
+  });
+  // But the advanced function-family work stays out.
+  ['A2.2B', 'A2.5C', 'A2.5D', 'A2.6K', 'A2.8B'].forEach((code) => {
+    assert.equal(getSkillCrosswalk(code).frameworks.asvab, undefined, `${code} must stay excluded`);
+  });
+});
+
+test('every ASVAB exclusion carries a reason', () => {
+  const unexplained = FRAMEWORK_SCOPE_EXCLUSIONS.asvab.codes
+    .filter((code) => !asvabExclusionReason(code).key);
+  assert.deepEqual(unexplained, [], 'an exclusion without a recorded reason cannot be reviewed');
+});
+
+test('the exclusion list is derived, so it cannot drift from the table', () => {
+  const derived = FRAMEWORK_SCOPE_EXCLUSIONS.asvab.codes;
+  derived.forEach((code) => {
+    assert.equal(getSkillCrosswalk(code).frameworks.asvab, undefined,
+      `${code} is listed as excluded but the table still maps it`);
+  });
+  // And nothing mapped is on the list.
+  ['A.5A', 'A2.4F', 'A.7A'].forEach((code) => {
+    assert.ok(!derived.includes(code), `${code} is mapped and must not appear in the exclusion list`);
   });
 });

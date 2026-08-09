@@ -1,5 +1,5 @@
 import { toDisplayCode } from '../../utils/teksUtils.js';
-import { TEKS_EXAM_CROSSWALK, getExamDomainIds } from './teksExamCrosswalk.js';
+import { TEKS_EXAM_CROSSWALK, getExamDomainIds, getFrameworkAspects, getFrameworkCoverage } from './teksExamCrosswalk.js';
 
 export const EXAM_TYPES = Object.freeze({
   DIGITAL_SAT: 'digitalSAT',
@@ -69,7 +69,15 @@ export const mapTEKSToExamDomains = (teksCode) => {
     if (!domainIds.length) return;
     const primary = mappingFor(examType, domainIds[0]);
     if (!primary) return;
-    result[examType] = { ...primary, domainIds };
+    // Coverage travels with the mapping: a partial entry means the standard is
+    // broader than the slice this exam can reach, and question generation must
+    // stay inside `allowedAspects`.
+    result[examType] = {
+      ...primary,
+      domainIds,
+      coverage: getFrameworkCoverage(code, examType),
+      ...getFrameworkAspects(code, examType),
+    };
   });
   return result;
 };
