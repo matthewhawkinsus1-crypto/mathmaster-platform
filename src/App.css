@@ -583,3 +583,16 @@
     animation: none !important;
   }
 }
+
+/* The simulator puts the student experience beside the teacher's controls.
+   Below tablet width there is no room for both, so the controls drop under
+   the student view rather than squeezing it. */
+@media (max-width: 1100px) {
+  .mm-simulator-split {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .mm-simulator-split > aside {
+    position: static !important;
+  }
+}

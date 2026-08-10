@@ -17,13 +17,30 @@ import { buildAssessmentEvidence, withSimulatedEvidence } from '../../platform/c
 import { getDirectAlignmentIndex } from '../../platform/ccmr/assessmentCrosswalk';
 import { normalizeAssessmentContext, normalizeQuestionAlignments } from '../../platform/contract/alignments';
 import AssessmentSkillInspector from './AssessmentSkillInspector';
+import SimulatedStudentExperience from './SimulatedStudentExperience';
+import {
+  createSlot, describeSimulatedDate, duplicateSlot, removeSlot, renameSlot, resolveSimulatedNow,
+  restoreSnapshot, rewindTo, saveSnapshot, setSimulatedDate, simulatedDateInputValue, updateSlot,
+  DEFAULT_SLOT_NAMES,
+} from '../../platform/simulation/simulationSlots';
 
 // Teacher Path Simulator.
 //
-// Student View is the real QuestionEngine — the same component a student gets,
-// not a copy of it. Everything else on this screen is teacher-only tooling
-// arranged around it, and every control feeds the real mastery and routing
-// engines rather than editing the display.
+// The teacher sees what the student sees. The main surface is the student's own
+// dashboard, Path and CCMR screens — the same components, not copies —
+// rendered from an isolated synthetic learner, with teacher controls beside
+// them. Every control feeds the real mastery, routing and calendar engines
+// rather than editing the display.
+//
+// The question bench is still here, one click away: choosing an assignment and
+// a question and running it through the real QuestionEngine is the right tool
+// for checking a single item, and it is not the right tool for checking what a
+// student's path does over a term.
+//
+// Two clocks, deliberately. The student simulation runs on a date the teacher
+// sets, so real pacing and the real calendar apply. The graph inspector holds
+// pacing NEUTRAL, because "what mathematically blocks this skill?" must not be
+// answered with "because it is March".
 
 const FEEDBACK_CATEGORIES = [
   'Question quality', 'Math error', 'Answer/scoring problem', 'Graph/tool problem',
@@ -74,7 +91,23 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
   const [assignmentId, setAssignmentId] = useState(() => runnableAssignments[0]?.id || '');
   const [questionIndex, setQuestionIndex] = useState(0);
   const [profileId, setProfileId] = useState('fresh');
-  const [session, setSession] = useState(null);
+  const [mode, setMode] = useState('experience');
+  const [slots, setSlots] = useState(() => [createSlot({ name: DEFAULT_SLOT_NAMES[0] })]);
+  const [activeSlotId, setActiveSlotId] = useState(() => null);
+  const [snapshotLabel, setSnapshotLabel] = useState('');
+  const [slotNotice, setSlotNotice] = useState('');
+
+  const activeSlot = slots.find((slot) => slot.id === activeSlotId) || slots[0];
+  // Every existing control below still speaks in terms of one `session`. Slots
+  // are a container around that, so nothing had to be rewritten to gain them.
+  const session = activeSlot?.session || null;
+  const setSession = (updater) => {
+    setSlots((current) => current.map((slot) => (slot.id !== activeSlot.id ? slot : {
+      ...slot,
+      session: typeof updater === 'function' ? updater(slot.session) : updater,
+    })));
+  };
+  const simulatedNow = resolveSimulatedNow(activeSlot);
   const [expectedRoute, setExpectedRoute] = useState('');
   const [feedbackCategory, setFeedbackCategory] = useState(FEEDBACK_CATEGORIES[0]);
   const [feedback, setFeedback] = useState('');
@@ -195,6 +228,53 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
     }));
   };
 
+  // --- Slots, snapshots and the simulated clock ----------------------------
+  const notify = (message) => {
+    setSlotNotice(message);
+    window.setTimeout(() => setSlotNotice(''), 4000);
+  };
+
+  const addSlot = () => {
+    const next = createSlot({ name: DEFAULT_SLOT_NAMES[slots.length] || `Custom ${slots.length - 2}` });
+    setSlots((current) => [...current, next]);
+    setActiveSlotId(next.id);
+  };
+
+  const takeSnapshot = () => {
+    if (!session) return;
+    setSlots((current) => current.map((slot) => (
+      slot.id === activeSlot.id ? saveSnapshot(slot, { label: snapshotLabel, ccmrOverrides }) : slot
+    )));
+    setSnapshotLabel('');
+    notify('Snapshot saved.');
+  };
+
+  const restore = (snapshotId) => {
+    const result = restoreSnapshot(activeSlot, snapshotId);
+    if (!result.restored) return;
+    setSlots((current) => current.map((slot) => (slot.id === activeSlot.id ? result.slot : slot)));
+    setCcmrOverrides(result.ccmrOverrides || {});
+    notify('Restored. The routing should now be exactly what it was.');
+  };
+
+  const rewind = (eventId) => {
+    const result = rewindTo(activeSlot, eventId);
+    if (!result.restored) {
+      notify(result.reason === 'no-snapshot'
+        ? 'Nothing to rewind to — save a snapshot before the step you want to come back to.'
+        : 'That point is no longer on the timeline.');
+      return;
+    }
+    setSlots((current) => current.map((slot) => (slot.id === activeSlot.id ? result.slot : slot)));
+    setCcmrOverrides(result.ccmrOverrides || {});
+    notify(`Rewound to "${result.snapshotLabel}".`);
+  };
+
+  // The simulated student runs on the REAL calendar at the teacher's chosen
+  // date. Pacing here is only the acceleration window; the calendar decides
+  // what is current, which is what makes moving the date meaningful.
+  const simulationPacing = useMemo(() => ({ windowIndex: 0, windowCount: 6, accelerationRadius: 1 }), []);
+
   const runOutcome = (outcomeId) => {
     if (!session || !assignment) return;
     if (outcomeId === 'forceSkillMastery' || outcomeId === 'forceSkillFailure') {
@@ -278,6 +358,160 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
         </span>
       </div>
 
+      <div role="group" aria-label="Simulator mode" style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        {[['experience', 'Student experience'], ['bench', 'Question bench']].map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setMode(id)}
+            aria-pressed={mode === id}
+            style={{
+              minHeight: 44, padding: '9px 16px', borderRadius: 999, cursor: 'pointer',
+              border: `1px solid ${mode === id ? '#1a73e8' : '#c5d5ef'}`,
+              background: mode === id ? '#e8f0fe' : '#fff',
+              color: mode === id ? '#174ea6' : '#3c4043', fontWeight: 900, fontSize: 14,
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {slotNotice && (
+        <div role="status" style={{ padding: '10px 14px', marginBottom: 12, borderRadius: 8, background: '#e8f0fe', color: '#174ea6', fontWeight: 800, fontSize: 13 }}>
+          {slotNotice}
+        </div>
+      )}
+
+      {mode === 'experience' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(260px, 320px)', gap: 16, alignItems: 'start' }} className="mm-simulator-split">
+          <div style={{ ...panel, minWidth: 0 }}>
+            {session ? (
+              <SimulatedStudentExperience
+                learner={session.learner}
+                assignments={simulationAssignments}
+                courseId={inspectionCourseId}
+                pacing={simulationPacing}
+                nowValue={simulatedNow}
+                assessmentEvidence={assessmentEvidence}
+                directIndex={directIndex}
+                onStartAssignment={(id, index) => {
+                  // Opening work from the simulated dashboard drops the teacher
+                  // into the question bench on that exact question, which is
+                  // where the outcome controls act.
+                  setAssignmentId(id);
+                  setQuestionIndex(Number(index) || 0);
+                  setMode('bench');
+                }}
+              />
+            ) : (
+              <div style={{ textAlign: 'left' }}>
+                <h3 style={heading}>Start as a fresh student</h3>
+                <p style={{ color: '#5f6368', fontSize: 14, lineHeight: 1.6, margin: '0 0 14px' }}>
+                  This shows the student&apos;s own dashboard, Path and CCMR screens for an isolated
+                  simulated learner. Everything you do to them here stays here.
+                </p>
+                <button type="button" onClick={() => startSession()} style={{ ...smallButton, background: '#1a73e8', color: '#fff', border: 0, minHeight: 44 }}>
+                  Start as fresh student
+                </button>
+              </div>
+            )}
+          </div>
+
+          <aside style={{ ...panel, position: 'sticky', top: 12 }}>
+            <h3 style={heading}>Teacher controls</h3>
+
+            <label style={{ fontWeight: 800, fontSize: 13, display: 'block' }}>Simulation
+              <select value={activeSlot.id} onChange={(event) => setActiveSlotId(event.target.value)} style={input}>
+                {slots.map((slot) => <option key={slot.id} value={slot.id}>{slot.name}</option>)}
+              </select>
+            </label>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '8px 0 14px' }}>
+              <button type="button" onClick={addSlot} style={smallButton}>New</button>
+              <button type="button" onClick={() => { const copied = duplicateSlot(slots, activeSlot.id); setSlots(copied); setActiveSlotId(copied[copied.indexOf(copied.find((slot) => slot.name.endsWith('(copy)')))]?.id || activeSlot.id); }} style={smallButton}>Duplicate</button>
+              <button type="button" onClick={() => { const name = window.prompt('Rename this simulation', activeSlot.name); if (name) setSlots((current) => renameSlot(current, activeSlot.id, name)); }} style={smallButton}>Rename</button>
+              <button type="button" onClick={() => { const next = removeSlot(slots, activeSlot.id); setSlots(next); setActiveSlotId(next[0].id); }} style={smallButton}>Delete</button>
+            </div>
+
+            <label style={{ fontWeight: 800, fontSize: 13, display: 'block' }}>Starting state
+              <select value={profileId} onChange={(event) => startSession(event.target.value)} style={input}>
+                {STARTING_PROFILES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+              </select>
+            </label>
+
+            <label style={{ fontWeight: 800, fontSize: 13, display: 'block', marginTop: 12 }}>Simulated date
+              <input
+                type="date"
+                value={simulatedDateInputValue(activeSlot)}
+                onChange={(event) => setSlots((current) => updateSlot(current, activeSlot.id, setSimulatedDate(activeSlot, event.target.value)))}
+                style={input}
+              />
+            </label>
+            <p style={{ margin: '6px 0 14px', fontSize: 12, color: '#5f6368', lineHeight: 1.5 }}>
+              {describeSimulatedDate(activeSlot)}. The real calendar applies at this date, so what is
+              current, upcoming and open all move with it. Nothing about your classes changes.
+            </p>
+
+            {session && (
+              <>
+                <p style={{ margin: '0 0 6px', fontWeight: 800, fontSize: 13 }}>Force an outcome</p>
+                <p style={{ margin: '0 0 8px', fontSize: 12, color: '#5f6368', lineHeight: 1.5 }}>
+                  Applied to {assignment?.title || 'the selected assignment'}, question {questionIndex + 1}
+                  {teksCodes.length ? ` · ${teksCodes.join(', ')}` : ''}.
+                </p>
+                {!teksCodes.length && (
+                  // Forcing a skill state needs a skill. Without this the two
+                  // skill buttons would appear to work and change nothing.
+                  <p style={{ margin: '0 0 8px', padding: '8px 10px', borderRadius: 8, background: '#fef7e0', color: '#7a4f00', fontSize: 12, lineHeight: 1.5 }}>
+                    This question has no TEKS alignment, so forcing a skill state has nothing to act on.
+                    Pick a question in the bench that is aligned.
+                  </p>
+                )}
+                <div style={{ display: 'grid', gap: 6, marginBottom: 14 }}>
+                  {OUTCOME_CONTROLS.map((control) => (
+                    <button
+                      key={control.id}
+                      type="button"
+                      onClick={() => runOutcome(control.id)}
+                      title={control.hint}
+                      disabled={!teksCodes.length && control.id.startsWith('forceSkill')}
+                      style={{ ...smallButton, textAlign: 'left', opacity: !teksCodes.length && control.id.startsWith('forceSkill') ? 0.5 : 1 }}
+                    >
+                      {control.label}
+                    </button>
+                  ))}
+                </div>
+
+                <p style={{ margin: '0 0 6px', fontWeight: 800, fontSize: 13 }}>Snapshots</p>
+                <input
+                  value={snapshotLabel}
+                  onChange={(event) => setSnapshotLabel(event.target.value)}
+                  placeholder="e.g. Systems — before Q4"
+                  style={input}
+                />
+                <button type="button" onClick={takeSnapshot} style={{ ...smallButton, marginTop: 6, width: '100%' }}>Save snapshot</button>
+                <ul style={{ listStyle: 'none', margin: '10px 0 0', padding: 0, display: 'grid', gap: 6 }}>
+                  {(activeSlot.snapshots || []).map((snapshot) => (
+                    <li key={snapshot.id} style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', fontSize: 12 }}>
+                      <span style={{ flex: '1 1 120px', minWidth: 0 }}>{snapshot.label}</span>
+                      <button type="button" onClick={() => restore(snapshot.id)} style={{ ...smallButton, minHeight: 34, padding: '4px 9px' }}>Restore</button>
+                    </li>
+                  ))}
+                  {!(activeSlot.snapshots || []).length && (
+                    <li style={{ fontSize: 12, color: '#5f6368' }}>None yet. Save one before a branch you want to come back to.</li>
+                  )}
+                </ul>
+
+                <button type="button" onClick={() => setMode('bench')} style={{ ...smallButton, marginTop: 14, width: '100%' }}>
+                  Open the question bench
+                </button>
+              </>
+            )}
+          </aside>
+        </div>
+      )}
+
+      {mode === 'bench' && (
       <div style={panel}>
         <h3 style={heading}>1. Choose what to simulate</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 14 }}>
@@ -310,13 +544,15 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
             {session ? 'Restart simulation' : 'Start simulation'}
           </button>
           {session && <button type="button" onClick={() => setSession(null)} style={{ ...smallButton, minHeight: 44 }}>Reset simulated student</button>}
+          <button type="button" onClick={() => setMode('experience')} style={{ ...smallButton, minHeight: 44 }}>Back to the student experience</button>
         </div>
       </div>
+      )}
 
-      {session && (
+      {mode === 'bench' && session && (
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 0 }}>
           <div style={panel}>
-            <h3 style={heading}>2. Student View</h3>
+            <h3 style={heading}>2. One question, in the real renderer</h3>
             <p style={{ color: '#5f6368', fontSize: 12, margin: '0 0 12px' }}>
               This is the student question renderer itself, not a teacher copy of it.
             </p>
@@ -477,8 +713,14 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
             <h3 style={heading}>7. Path history</h3>
             <ol style={{ margin: 0, paddingLeft: 20, fontSize: 14, lineHeight: 1.65 }}>
               {session.timeline.map((entry) => (
-                <li key={entry.id}>
+                <li key={entry.id} style={{ marginBottom: 4 }}>
                   <strong>{entry.label}</strong> — {entry.detail}
+                  {/* Evidence is recorded by the real attempt policy and cannot
+                      be un-recorded, so rewinding restores the nearest snapshot
+                      at or before this point and says so. */}
+                  <button type="button" onClick={() => rewind(entry.id)} style={{ ...smallButton, marginLeft: 8, minHeight: 30, padding: '2px 8px', fontSize: 11 }}>
+                    Rewind to here
+                  </button>
                 </li>
               ))}
             </ol>

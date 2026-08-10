@@ -69,6 +69,10 @@ export const MyMathPathExperience = ({
   // simulating the copy.
   masteryData = { masteryProfilesByTEKS: {}, retentionSchedulesByTEKS: {} },
   evidenceEvents = [],
+  // The Teacher Path Simulator forces assessment evidence directly — "what
+  // does this student's SAT wheel look like at 45%?" — so it supplies the
+  // whole context rather than having one derived from a synthetic document.
+  assessmentContextOverride = null,
   loading = false,
   error = null,
   historyError = null,
@@ -90,12 +94,12 @@ export const MyMathPathExperience = ({
   // CCMR. The components have existed since Batch 9; what was missing was any
   // route a student could take to reach them, and the evidence to fill them.
   const [goals, setGoals] = useState(() => readCcmrGoals(studentId));
-  const assessmentContext = useMemo(() => buildStudentAssessmentContext({
+  const assessmentContext = useMemo(() => (assessmentContextOverride || buildStudentAssessmentContext({
     student: studentRecord,
     assignments,
     goals,
     teacherPriorities: teacherAssessmentPriorities,
-  }), [studentRecord, assignments, goals, teacherAssessmentPriorities]);
+  })), [assessmentContextOverride, studentRecord, assignments, goals, teacherAssessmentPriorities]);
   const changeGoals = useCallback((next) => {
     setGoals(next);
     writeCcmrGoals(studentId, next);
