@@ -234,7 +234,8 @@ function App() {
   // alongside grades and never read outside the live view.
   const [presenceById, setPresenceById] = useState({});
   // Curriculum pacing and per-class skill overrides. Teacher-owned inputs to
-  // the adaptive path engine; no student screen reads them yet.
+  // the adaptive path engine, read by the student's Path, Recommended for You
+  // and CCMR — a change here changes what a student is offered.
   const [pacingByClass, setPacingByClass] = useState({});
   const [skillOverrides, setSkillOverrides] = useState([]);
   const [pacingBusy, setPacingBusy] = useState(false);
@@ -3383,7 +3384,7 @@ function App() {
 
             {teacherTab === 'pacing' && (
               <PacingControls
-                courseId="algebra1"
+                courseProfiles={courseProfiles}
                 pacingByClass={pacingByClass}
                 overrides={skillOverrides}
                 onSavePacing={handleSavePacing}

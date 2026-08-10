@@ -14,10 +14,15 @@ import {
 // teacher says where their class actually is, every skill is treated as
 // current and the adaptive path can only reason about prerequisites.
 //
-// It is teacher-only and cannot affect a student yet — no student screen reads
-// the recommendation engine. The preview at the bottom is deliberately the
-// engine's real output rather than a mock, so what a teacher sets here is what
-// they will see happen when the student panel lands.
+// What is set here reaches students directly: Recommended for You and the
+// student Path are both built from this pacing, so a position set on this
+// screen changes what a student is offered on their next visit. The preview at
+// the bottom is the engine's real output rather than a mock, so it is the same
+// answer the student will get.
+//
+// The course follows the CLASS. A teacher with an Algebra I period and an
+// Algebra II Honors period must not be shown one course's skill graph for both,
+// so the course is resolved from the selected class rather than fixed here.
 
 const panel = { border: '1px solid #dadce0', borderRadius: 12, background: '#fff', padding: 16, marginBottom: 16 };
 const heading = { margin: '0 0 4px', fontSize: 15, fontWeight: 900, color: '#174ea6' };
@@ -55,7 +60,11 @@ const STATUS_STYLE = {
 const PREVIEW_ORDER = ['required', 'remediation', 'priority', 'recommended', 'available', 'extension', 'future', 'locked'];
 
 export default function PacingControls({
-  courseId = 'algebra1',
+  // The fallback for a class with no course set, not a global setting.
+  courseId: fallbackCourseId = 'algebra1',
+  // period -> { course, courseLabel, ... }, exactly as the teacher's class
+  // settings store it.
+  courseProfiles = {},
   nowValue = Date.now(),
   pacingByClass = {},
   overrides = [],
@@ -64,6 +73,8 @@ export default function PacingControls({
   busy = false,
 }) {
   const [classId, setClassId] = useState(CLASS_PERIODS[0] || 'Period 1');
+  const classProfile = courseProfiles?.[classId] || null;
+  const courseId = classProfile?.course || fallbackCourseId;
   const [skillFilter, setSkillFilter] = useState('');
   const [previewOpen, setPreviewOpen] = useState(false);
 
@@ -154,8 +165,18 @@ export default function PacingControls({
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14 }}>
           <label style={{ fontWeight: 800 }}>Class period
             <select value={classId} onChange={(event) => setClassId(event.target.value)} style={{ ...control, width: '100%', marginTop: 6 }}>
-              {CLASS_PERIODS.map((period) => <option key={period} value={period}>{period}</option>)}
+              {CLASS_PERIODS.map((period) => {
+                const label = courseProfiles?.[period]?.courseLabel;
+                return <option key={period} value={period}>{label ? `${period} · ${label}` : period}</option>;
+              })}
             </select>
+            {/* Named, because everything below it — the skill list, the
+                calendar, the preview — is this course's and not the other's. */}
+            <span style={{ display: 'block', marginTop: 6, fontSize: 12, fontWeight: 700, color: '#5f6368' }}>
+              {classProfile?.courseLabel
+                ? `Pacing, skills and preview below are ${classProfile.courseLabel}.`
+                : 'No course set for this class, so Algebra I is assumed.'}
+            </span>
           </label>
           <label style={{ fontWeight: 800 }}>Windows in the course
             <input
@@ -258,8 +279,8 @@ export default function PacingControls({
         <h3 style={heading}>What a student in {classId} would be offered</h3>
         <p style={note}>
           The real recommendation engine, run against this pacing and these overrides for a student
-          with no history yet. Nothing here is shown to students — no student screen reads the path
-          engine yet — so this is a safe way to see what your settings do.
+          with no history yet. This is the same answer a student in {classId} gets on their own
+          Path and in Recommended for You, so what you set here is what they will be offered.
         </p>
         <button
           type="button"
