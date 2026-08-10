@@ -3699,6 +3699,7 @@ function App() {
           launchTeksCode={pathLaunchTeks}
           pathOptions={studentPathOptions}
           courseId={studentCourseId}
+          studentRecord={studentRecord}
           onExit={() => { setPathLaunchTeks(null); setStudentDashboardMode('assignments'); }}
         />
       );

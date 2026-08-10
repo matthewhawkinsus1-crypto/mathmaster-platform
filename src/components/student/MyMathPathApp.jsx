@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MyMathPathDashboard from './MyMathPathDashboard.jsx';
+import StudentLearningPath from './StudentLearningPath.jsx';
+import CCMRHub from './CCMRHub.jsx';
 import MyMathPathProductionContainer from './MyMathPathProductionContainer.jsx';
 import StudentPracticeHistory from './StudentPracticeHistory.jsx';
 import { fetchStudentMasteryState } from '../../services/masteryStateService.js';
@@ -8,6 +10,9 @@ import { toCanonicalKey, toDisplayCode } from '../../utils/teksUtils.js';
 import { curateStudentPanel } from '../../platform/path/studentPanel.js';
 import { teksCodeFromSkillId } from '../../platform/path/skillGraph.js';
 import { DEFAULT_MASTERY_COURSE_ID, getWheelTeksForCourse } from '../../platform/mastery/strandConfig.js';
+import {
+  buildStudentAssessmentContext, readCcmrGoals, writeCcmrGoals,
+} from '../../platform/ccmr/studentAssessmentContext.js';
 
 // The mastery-status priority list this used to be was a second, competing
 // idea of what to recommend, sitting beside the path engine and able to
@@ -29,6 +34,13 @@ const chooseFallbackTeks = (profiles = {}, courseId = DEFAULT_MASTERY_COURSE_ID)
   return null;
 };
 
+const TABS = [
+  ['path', 'Path'],
+  ['dashboard', 'Mastery Overview'],
+  ['ccmr', 'CCMR'],
+  ['history', 'Practice History'],
+];
+
 const chooseRecommendedTeks = ({ profiles, pathOptions, courseId }) => {
   const panel = pathOptions ? curateStudentPanel(pathOptions) : null;
   const engineChoice = panel?.best?.skillId || panel?.strengthen?.skillId || null;
@@ -46,9 +58,16 @@ export const MyMathPathApp = ({
   // The course this student is enrolled in. It drives the mastery wheel and
   // every fallback, so an Algebra II student never meets Algebra I content.
   courseId = DEFAULT_MASTERY_COURSE_ID,
+  // What the student's own record says, so CCMR evidence is read from the same
+  // facts the course path is built from.
+  studentRecord = null,
+  teacherAssessmentPriorities = [],
   onExit = null,
 }) => {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  // The path is the default view. The mastery wheel is an overview of what has
+  // been learned; the path is what to do next, which is the question a student
+  // arrives with.
+  const [activeTab, setActiveTab] = useState('path');
   const [sessionConfig, setSessionConfig] = useState(null);
   const [masteryData, setMasteryData] = useState({ masteryProfilesByTEKS: {}, retentionSchedulesByTEKS: {} });
   const [evidenceEvents, setEvidenceEvents] = useState([]);
@@ -78,6 +97,20 @@ export const MyMathPathApp = ({
   );
   const availableTeks = useMemo(() => Object.keys(masteryData.masteryProfilesByTEKS).map(toDisplayCode), [masteryData.masteryProfilesByTEKS]);
 
+  // CCMR. The components have existed since Batch 9; what was missing was any
+  // route a student could take to reach them, and the evidence to fill them.
+  const [goals, setGoals] = useState(() => readCcmrGoals(studentId));
+  const assessmentContext = useMemo(() => buildStudentAssessmentContext({
+    student: studentRecord,
+    assignments,
+    goals,
+    teacherPriorities: teacherAssessmentPriorities,
+  }), [studentRecord, assignments, goals, teacherAssessmentPriorities]);
+  const changeGoals = useCallback((next) => {
+    setGoals(next);
+    writeCcmrGoals(studentId, next);
+  }, [studentId]);
+
   const startSession = (teksCode, options = {}) => {
     setSessionConfig({
       targetAlignmentKey: toCanonicalKey(teksCode),
@@ -98,7 +131,7 @@ export const MyMathPathApp = ({
 
   const returnToDashboard = () => {
     setSessionConfig(null);
-    setActiveTab('dashboard');
+    setActiveTab('path');
     loadState();
   };
 
@@ -110,13 +143,38 @@ export const MyMathPathApp = ({
         <header style={{ minHeight: '60px', padding: '0 20px', borderBottom: '1px solid #dadce0', background: '#fff', display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span aria-hidden="true">📐</span><strong>My Math Path</strong></div>
           <nav aria-label="My Math Path navigation" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            {['dashboard', 'history'].map((tab) => <button key={tab} type="button" onClick={() => setActiveTab(tab)} style={{ padding: '19px 8px 16px', border: 0, borderBottom: `3px solid ${activeTab === tab ? '#1a73e8' : 'transparent'}`, background: 'transparent', color: activeTab === tab ? '#174ea6' : '#5f6368', fontWeight: 900, cursor: 'pointer' }}>{tab === 'dashboard' ? 'Mastery Map' : 'Practice History'}</button>)}
+            {TABS.map(([tab, label]) => <button key={tab} type="button" onClick={() => setActiveTab(tab)} style={{ padding: '19px 8px 16px', border: 0, borderBottom: `3px solid ${activeTab === tab ? '#1a73e8' : 'transparent'}`, background: 'transparent', color: activeTab === tab ? '#174ea6' : '#5f6368', fontWeight: 900, cursor: 'pointer' }}>{label}</button>)}
             {onExit && <button type="button" onClick={onExit} style={{ marginLeft: '6px', padding: '8px 11px', border: '1px solid #bdc1c6', borderRadius: '7px', background: '#fff', color: '#3c4043', fontWeight: 800, cursor: 'pointer' }}>Assignments</button>}
           </nav>
         </header>
       )}
 
       {error && <div role="alert" style={{ maxWidth: '940px', margin: '16px auto', padding: '12px 14px', borderRadius: '8px', background: '#fce8e6', color: '#a50e0e' }}>{error}</div>}
+      {activeTab === 'path' && (
+        <StudentLearningPath
+          pathOptions={pathOptions}
+          onChooseSkill={(card) => { const code = teksCodeFromSkillId(card.skillId); if (code) startSession(code); }}
+          assessmentContext={assessmentContext}
+          onPracticeAs={({ skillId, framework }) => {
+            const code = teksCodeFromSkillId(skillId);
+            if (code) startSession(code, { framework });
+          }}
+        />
+      )}
+      {activeTab === 'ccmr' && (
+        <div style={{ maxWidth: '940px', margin: '0 auto', padding: '20px 16px 40px' }}>
+          <CCMRHub
+            pathOptions={pathOptions}
+            assessmentEvidence={assessmentContext.assessmentEvidence}
+            directIndex={assessmentContext.directIndex}
+            goals={assessmentContext.goals}
+            teacherPriorities={assessmentContext.teacherPriorities}
+            onChangeGoals={changeGoals}
+            onPractise={(item) => { const code = teksCodeFromSkillId(item.skillId); if (code) startSession(code, { framework: item.framework }); }}
+            onReturnToCourse={() => setActiveTab('path')}
+          />
+        </div>
+      )}
       {activeTab === 'dashboard' && <MyMathPathDashboard studentName={studentName || studentId || 'Student'} masteryProfilesByTEKS={masteryData.masteryProfilesByTEKS} retentionSchedulesByTEKS={masteryData.retentionSchedulesByTEKS} recommendedTeks={recommendedTeks} courseId={courseId} onStartSession={startSession} />}
       {activeTab === 'history' && <StudentPracticeHistory evidenceEvents={evidenceEvents} availableTeks={availableTeks} loading={loading} error={historyError} />}
       {activeTab === 'session' && sessionConfig && <MyMathPathProductionContainer {...sessionConfig} studentProfile={studentProfile} onReturnToDashboard={returnToDashboard} onSessionComplete={() => loadState()} />}
