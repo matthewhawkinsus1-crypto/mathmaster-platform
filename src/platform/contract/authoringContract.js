@@ -452,6 +452,21 @@ export const buildAuthoringContract = ({ generatedAt = new Date() } = {}) => {
     line('and `\\"` for a quotation mark inside a string.'),
   ]));
 
+  parts.push(section('Static graph objects — do not guess the function schema', [
+    line('Read-only graphs (`graph`, and each `graphs[].graph` inside graphScenarioMatch or graphComparison) use the shared `GraphDisplay` contract.'),
+    line('For `graphScenarioMatch` and `graphComparison`, every choice MUST be shaped as `{ "id": "g1", "graph": { ... } }`. Functions placed directly beside `id` are ignored by the renderer and are rejected in Preflight.'),
+    line('A scenario carries its wording in `description` (with an optional `title`). Text written under any other key renders as an empty card.'),
+    '',
+    line('A quadratic may be written in either of these TWO forms. Choose one form and never mix them:'),
+    bullet('Standard form: `{ "type": "quadratic", "a": -1, "b": 8, "c": 0 }` means y = ax² + bx + c.'),
+    bullet('Vertex form: `{ "type": "quadratic", "a": -1, "h": 4, "k": 16 }` means y = a(x - h)² + k.'),
+    line('Vertex form is especially useful when the maximum/minimum must be placed deliberately. Standard form remains supported for older content.'),
+    '',
+    line('Before outputting any graph, evaluate the function at the visible x-boundaries and check every defining feature (vertex, endpoint, intercept or starting value) against `yMin`/`yMax`. For graph-matching and graph-comparison cards, the intended curve must fit in the viewport. If y = 2·2^x and xMax = 7, then y(7) = 256; a yMax of 140 is therefore invalid unless clipping is deliberately enabled.'),
+    line('Do not use negative x-values for a real-world axis such as elapsed time unless the context explicitly permits negative time.'),
+    line('If the context is countable only in whole units (tickets, packs, people), use plotted `points` rather than a continuous line when discreteness matters instructionally.'),
+  ]));
+
   parts.push(section('Question and tool types', [
     line('Core types:'),
     ...CORE_QUESTION_TYPES.map((type) => bullet(type)),

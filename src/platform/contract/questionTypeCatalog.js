@@ -434,13 +434,34 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
       if (!nonEmptyArray(question.graphs)) errors.push('`graphs` must be a non-empty array');
       if (!nonEmptyArray(question.scenarios)) errors.push('`scenarios` must be a non-empty array');
       if (!has(question.correctMatches)) errors.push('`correctMatches` is required');
+      if (nonEmptyArray(question.graphs)) {
+        question.graphs.forEach((item, index) => {
+          if (!has(item?.id)) errors.push(`graphs[${index}] needs an id`);
+          if (!isObject(item?.graph)) errors.push(`graphs[${index}] needs a nested \`graph\` object; put functions/bounds inside graphs[${index}].graph`);
+        });
+      }
+      // The renderer reads `description` (and an optional `title`). A scenario
+      // written under any other key — `text` was the shape this catalogue's own
+      // example used to show — renders as an empty card the student cannot
+      // match, which looks like a styling bug rather than a content one.
+      if (nonEmptyArray(question.scenarios)) {
+        question.scenarios.forEach((scenario, index) => {
+          if (!has(scenario?.id)) errors.push(`scenarios[${index}] needs an id`);
+          if (!has(scenario?.description) && !has(scenario?.title)) {
+            errors.push(`scenarios[${index}] needs \`description\` (the wording the student reads); the renderer ignores other keys`);
+          }
+        });
+      }
       return errors;
     },
     optional: [],
     example: {
       type: 'graphScenarioMatch', prompt: 'Match each story to its graph.',
-      graphs: [{ id: 'g1', functions: [{ type: 'line', m: 2, b: 0 }] }, { id: 'g2', functions: [{ type: 'line', m: -2, b: 8 }] }],
-      scenarios: [{ id: 's1', text: 'Water fills steadily.' }, { id: 's2', text: 'Water drains steadily.' }],
+      graphs: [
+        { id: 'g1', graph: { xMin: 0, xMax: 4, yMin: 0, yMax: 8, functions: [{ type: 'line', m: 2, b: 0 }] } },
+        { id: 'g2', graph: { xMin: 0, xMax: 4, yMin: 0, yMax: 8, functions: [{ type: 'line', m: -2, b: 8 }] } },
+      ],
+      scenarios: [{ id: 's1', description: 'Water fills steadily.' }, { id: 's2', description: 'Water drains steadily.' }],
       correctMatches: { s1: 'g1', s2: 'g2' },
     },
   },
@@ -457,12 +478,21 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
       const errors = [];
       if (!nonEmptyArray(question.graphs)) errors.push('`graphs` must be a non-empty array');
       if (!nonEmptyArray(question.fields)) errors.push('`fields` must be a non-empty array');
+      if (nonEmptyArray(question.graphs)) {
+        question.graphs.forEach((item, index) => {
+          if (!has(item?.id)) errors.push(`graphs[${index}] needs an id`);
+          if (!isObject(item?.graph)) errors.push(`graphs[${index}] needs a nested \`graph\` object; put functions/bounds inside graphs[${index}].graph`);
+        });
+      }
       return errors;
     },
     optional: [],
     example: {
       type: 'graphComparison', prompt: 'Compare the two lines.',
-      graphs: [{ id: 'a', functions: [{ type: 'line', m: 2, b: 0 }] }, { id: 'b', functions: [{ type: 'line', m: 2, b: 3 }] }],
+      graphs: [
+        { id: 'a', graph: { xMin: 0, xMax: 4, yMin: 0, yMax: 12, functions: [{ type: 'line', m: 2, b: 0 }] } },
+        { id: 'b', graph: { xMin: 0, xMax: 4, yMin: 0, yMax: 12, functions: [{ type: 'line', m: 2, b: 3 }] } },
+      ],
       fields: [{ id: 'diff', label: 'What changed?', answer: 'the y-intercept' }],
     },
   },

@@ -1,6 +1,7 @@
 import { QUESTION_TYPE_CATALOG, getTypeEntry } from './questionTypeCatalog.js';
 import { inequalityMatchesIntervals } from '../../tools/intervalNumberLine/intervalMath.js';
 import { readComposedQuestion, validateGrading, validateWorkflow } from '../workflow/questionWorkflow.js';
+import { auditStaticGraphViewport } from '../../graphSpecUtils.js';
 
 // Recognising a type name is not validation. `{ type: 'graphAnalysis', prompt:
 // 'A graph falls from left to right until x = 2' }` used to pass because
@@ -81,6 +82,75 @@ const CONTROL_CHARACTERS = /[\f\b\v\0]/;
 // render as plain text, so the student would see the markup itself.
 const LATEX_COMMAND = /\\[a-zA-Z]{2,}/;
 const LATEX_DELIMITER = /(\$[^$\n]{1,80}\$|\\\(|\\\[)/;
+
+
+const auditQuestionGraphs = (question, type, label, errors, warnings) => {
+  const auditOne = (graph, graphLabel, strictBoundaryVisibility = false) => {
+    if (!isObject(graph)) return;
+    const result = auditStaticGraphViewport(graph, { label: graphLabel, strictBoundaryVisibility });
+    result.errors.forEach((message) => errors.push(message));
+    result.warnings.forEach((message) => warnings.push(message));
+  };
+
+  if (isObject(question.graph)) {
+    const graphHasOwnDrawing = nonEmptyArray(question.graph.functions) || nonEmptyArray(question.graph.points)
+      || nonEmptyArray(question.graph.segments) || isObject(question.graph.line)
+      || has(question.graph.m) || has(question.graph.b);
+    // Not every `graph` object is a GraphDisplay card. functionGraph and
+    // graphAnalysis take their curve from `functionSpec`, and an interactive
+    // tool — systemsWorkspace and the rest of the registry — draws its own
+    // picture from `inequalities`, `system` or `pairs` and uses `graph` for
+    // nothing but the viewport. Auditing those as static cards reported a
+    // correct question as having "no drawable function", which is the same
+    // mistake in reverse: judging JSON against a renderer it never reaches.
+    const drawsItsOwnPicture = has(question.toolId)
+      || has(get(question, 'functionSpec.type'))
+      || nonEmptyArray(question.inequalities)
+      || isObject(question.system)
+      || nonEmptyArray(question.pairs);
+    if (graphHasOwnDrawing || !drawsItsOwnPicture) {
+      auditOne(question.graph, `${label}.graph`, false);
+    }
+  }
+
+  if (nonEmptyArray(question.graphs)) {
+    const graphIds = new Set();
+    question.graphs.forEach((item, index) => {
+      const itemLabel = `${label}.graphs[${index}]`;
+      if (!isObject(item)) {
+        errors.push(`${itemLabel} must be an object.`);
+        return;
+      }
+      const id = String(item.id || '').trim();
+      if (id) {
+        if (graphIds.has(id)) errors.push(`${label} repeats graph id "${id}"; graph ids must be unique.`);
+        graphIds.add(id);
+      }
+      if (!isObject(item.graph)) {
+        if (type === 'graphScenarioMatch' || type === 'graphComparison') {
+          errors.push(`${itemLabel} has no nested \`graph\` object. The renderer ignores \`functions\` placed directly on the choice item.`);
+        }
+        return;
+      }
+      auditOne(item.graph, `${itemLabel}.graph`, type === 'graphScenarioMatch' || type === 'graphComparison');
+    });
+
+    if (type === 'graphScenarioMatch' && isObject(question.correctMatches)) {
+      const scenarioIds = new Set((Array.isArray(question.scenarios) ? question.scenarios : []).map((scenario) => String(scenario?.id || '').trim()).filter(Boolean));
+      const usedTargets = new Set();
+      scenarioIds.forEach((scenarioId) => {
+        const target = String(question.correctMatches[scenarioId] || '').trim();
+        if (!target) errors.push(`${label} correctMatches is missing scenario "${scenarioId}".`);
+        else if (!graphIds.has(target)) errors.push(`${label} correctMatches maps scenario "${scenarioId}" to unknown graph "${target}".`);
+        else if (usedTargets.has(target)) errors.push(`${label} maps more than one scenario to graph "${target}", but the student UI only allows each graph to be assigned once.`);
+        else usedTargets.add(target);
+      });
+      Object.keys(question.correctMatches).forEach((scenarioId) => {
+        if (!scenarioIds.has(scenarioId)) errors.push(`${label} correctMatches contains unknown scenario "${scenarioId}".`);
+      });
+    }
+  }
+};
 
 const checkPlainTextMath = (question, label, errors, warnings) => {
   const strings = collectStrings(question);
@@ -189,6 +259,7 @@ export const validateQuestionSemantics = (question = {}, { label = 'Question' } 
     );
   }
 
+  auditQuestionGraphs(question, String(type || ''), label, errors, warnings);
   checkPlainTextMath(question, label, errors, warnings);
 
   return { errors, warnings };

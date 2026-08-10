@@ -1,4 +1,5 @@
 import QuestionPrompt from './QuestionPrompt';
+import { evaluateStaticGraphFunction } from './graphSpecUtils';
 
 const DEFAULT_WIDTH = 620;
 const DEFAULT_HEIGHT = 430;
@@ -61,45 +62,13 @@ const normalizeFunctionList = (graph) => {
   return functions;
 };
 
-const evaluateFunction = (spec, x) => {
-  const type = spec.type || spec.kind || 'line';
-  const domain = spec.domain || spec.restrictedDomain || {};
-  if (Number.isFinite(Number(domain.min))) {
-    const minimum = Number(domain.min);
-    if (x < minimum || (domain.minInclusive === false && Math.abs(x - minimum) < 1e-8)) return Number.NaN;
-  }
-  if (Number.isFinite(Number(domain.max))) {
-    const maximum = Number(domain.max);
-    if (x > maximum || (domain.maxInclusive === false && Math.abs(x - maximum) < 1e-8)) return Number.NaN;
-  }
-
-  if (type === 'line') return Number(spec.m ?? 1) * x + Number(spec.b ?? 0);
-  if (type === 'quadratic') return Number(spec.a ?? 1) * x * x + Number(spec.b ?? 0) * x + Number(spec.c ?? 0);
-  if (type === 'absolute') return Number(spec.a ?? 1) * Math.abs(x - Number(spec.h ?? 0)) + Number(spec.k ?? 0);
-  if (type === 'squareRoot') {
-    const radicand = x - Number(spec.h ?? 0);
-    if (radicand < 0) return Number.NaN;
-    return Number(spec.a ?? 1) * Math.sqrt(radicand) + Number(spec.k ?? 0);
-  }
-  if (type === 'cubic') return Number(spec.a ?? 1) * (x - Number(spec.h ?? 0)) ** 3 + Number(spec.k ?? 0);
-  if (type === 'cubeRoot') return Number(spec.a ?? 1) * Math.cbrt(x - Number(spec.h ?? 0)) + Number(spec.k ?? 0);
-  if (type === 'logarithmic') {
-    const argument = x - Number(spec.h ?? 0);
-    const base = Number(spec.base ?? 2);
-    if (argument <= 0 || base <= 0 || base === 1) return Number.NaN;
-    return Number(spec.a ?? 1) * (Math.log(argument) / Math.log(base)) + Number(spec.k ?? 0);
-  }
-  if (type === 'exponential') {
-    return Number(spec.a ?? 1) * Number(spec.base ?? 2) ** (x - Number(spec.h ?? 0)) + Number(spec.k ?? 0);
-  }
-  if (type === 'reciprocal' || type === 'rational') {
-    const denominator = x - Number(spec.h ?? 0);
-    if (Math.abs(denominator) < 0.0001) return Number.NaN;
-    return Number(spec.a ?? 1) / denominator + Number(spec.k ?? 0);
-  }
-
-  return Number.NaN;
-};
+// The one evaluator, shared with the authoring guardrails so that what
+// Preflight measures is exactly what this component will draw. It also reads a
+// quadratic in BOTH published forms — `a,b,c` and `a,h,k` — which this file
+// used not to: a vertex-form parabola was silently drawn as y = ax², so an
+// authored arch peaking at (4, 16) rendered as a curve falling off the bottom
+// of its own viewport.
+const evaluateFunction = evaluateStaticGraphFunction;
 
 const buildFunctionPaths = (spec, xMin, xMax, yMin, yMax, toScreenX, toScreenY) => {
   const sampleCount = 500;

@@ -309,6 +309,19 @@ Supported graph functions: line, quadratic, absolute, squareRoot, cubic, cubeRoo
 logarithmic, exponential, reciprocal, and rational. Structured numeric graph fields
 are used instead of executable code.
 
+STATIC GRAPH RULES
+
+For quadratic functions in a read-only graph, choose exactly one parameterization:
+- standard form: { "type": "quadratic", "a": -1, "b": 8, "c": 0 } for y = ax^2 + bx + c
+- vertex form: { "type": "quadratic", "a": -1, "h": 4, "k": 16 } for y = a(x - h)^2 + k
+Do not mix b/c with h/k in the same quadratic.
+
+For graphScenarioMatch and graphComparison, each entry is { "id": "g1", "graph": { ... } };
+functions and bounds belong inside the nested graph object. Before returning JSON, evaluate each
+function at xMin/xMax and verify the intended curve and defining feature fit inside yMin/yMax.
+Real-world elapsed-time graphs should not include negative time unless the context explicitly allows it.
+Countable whole-item situations should use plotted points rather than a continuous line when discreteness matters.
+
 SHARED SCRATCHPAD AND UNDO
 
 Every question automatically includes a full-screen native canvas scratchpad. Student

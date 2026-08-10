@@ -171,6 +171,72 @@ const warningsFor = (question) => validateQuestionSemantics(question).warnings;
   );
 }
 
+// --- static graph contracts match the actual renderer -----------------------
+{
+  const brokenNestedShape = {
+    type: 'graphScenarioMatch', prompt: 'Match them.',
+    scenarios: [{ id: 's1', description: 'Steady growth.' }],
+    graphs: [{ id: 'g1', functions: [{ type: 'line', m: 1, b: 0 }] }],
+    correctMatches: { s1: 'g1' },
+  };
+  assert.ok(errorsFor(brokenNestedShape).some((e) => /nested .*graph.* object/i.test(e)),
+    'graphScenarioMatch rejects functions placed outside the nested graph object');
+
+  const vertexQuadratic = {
+    type: 'graphScenarioMatch', prompt: 'Match them.',
+    scenarios: [{ id: 'shot', description: 'An object rises and falls.' }],
+    graphs: [{ id: 'g1', graph: { xMin: 0, xMax: 8, yMin: 0, yMax: 20, functions: [{ type: 'quadratic', a: -1, h: 4, k: 16 }] } }],
+    correctMatches: { shot: 'g1' },
+  };
+  assert.deepEqual(errorsFor(vertexQuadratic), [], 'vertex-form static quadratics are valid and visible');
+
+  const clipped = {
+    type: 'graphScenarioMatch', prompt: 'Match them.',
+    scenarios: [{ id: 'shares', description: 'Shares double.' }],
+    graphs: [{ id: 'g1', graph: { xMin: 0, xMax: 7, yMin: 0, yMax: 140, functions: [{ type: 'exponential', a: 2, base: 2, h: 0, k: 0 }] } }],
+    correctMatches: { shares: 'g1' },
+  };
+  assert.ok(errorsFor(clipped).some((e) => /clipped by its viewport/.test(e)),
+    'graph matching rejects a curve whose finite boundary value is outside the visible range');
+}
+
+// --- a `graph` object is not always a GraphDisplay card ---------------------
+{
+  // systemsWorkspace draws its own picture from `inequalities` and uses `graph`
+  // for nothing but the viewport. Auditing it as a static card reported a
+  // perfectly good question as having "no drawable function" — the same mistake
+  // as the quadratic bug in reverse: judging JSON against a renderer it never
+  // reaches.
+  const toolQuestion = {
+    toolId: 'systemsWorkspace',
+    mode: 'inequalities',
+    inequalities: [{ m: 1, b: 1, relation: '>=' }, { m: -0.5, b: 6, relation: '<=' }],
+    testPoint: { x: 2, y: 4 },
+    graph: { xMin: -4, xMax: 8, yMin: -2, yMax: 10 },
+  };
+  assert.ok(!errorsFor(toolQuestion).some((e) => /no drawable function/.test(e)),
+    'a tool question whose graph carries only bounds is not a static graph card');
+
+  // But a card that really does render GraphDisplay and gives it nothing is a
+  // blank grid the student cannot read.
+  const emptyCard = { type: 'graphAnalysis', prompt: 'Describe the graph.', graph: { xMin: 0, xMax: 5, yMin: 0, yMax: 5 } };
+  assert.ok(errorsFor(emptyCard).some((e) => /no drawable function/.test(e)),
+    'an empty static graph card is still reported');
+}
+
+// --- a scenario the renderer cannot show is not a scenario ------------------
+{
+  const wrongKey = {
+    type: 'graphScenarioMatch', prompt: 'Match them.',
+    scenarios: [{ id: 's1', text: 'Water fills steadily.' }],
+    graphs: [{ id: 'g1', graph: { xMin: 0, xMax: 4, yMin: 0, yMax: 8, functions: [{ type: 'line', m: 2, b: 0 }] } }],
+    correctMatches: { s1: 'g1' },
+  };
+  // GraphScenarioMatch reads `description`; anything else renders an empty card.
+  assert.ok(errorsFor(wrongKey).some((e) => /description/.test(e)),
+    'scenario wording under an unread key is rejected');
+}
+
 // --- well-formed examples from the catalogue all validate -------------------
 {
   Object.entries(QUESTION_TYPE_CATALOG).forEach(([type, entry]) => {

@@ -164,4 +164,11 @@ Exact LaTeX requires doubled backslashes in JSON:
 }
 ```
 
-Supported function types are `line`, `quadratic`, `absolute`, `squareRoot`, `exponential`, and `reciprocal`.
+Supported static graph function types include `line`, `quadratic`, `absolute`, `squareRoot`, `cubic`, `cubeRoot`, `logarithmic`, `exponential`, `reciprocal`, and `rational`.
+
+For a static `quadratic`, use exactly one of these forms:
+
+- Standard form: `{ "type": "quadratic", "a": -1, "b": 8, "c": 0 }` for `y = ax^2 + bx + c`.
+- Vertex form: `{ "type": "quadratic", "a": -1, "h": 4, "k": 16 }` for `y = a(x - h)^2 + k`.
+
+Do not mix `b`/`c` and `h`/`k` in one quadratic. For `graphScenarioMatch` and `graphComparison`, put the graph inside each choice as `{ "id": "g1", "graph": { ... } }`. Before publishing, verify the function values and defining features fit inside the authored `xMin`/`xMax`/`yMin`/`yMax` viewport.
