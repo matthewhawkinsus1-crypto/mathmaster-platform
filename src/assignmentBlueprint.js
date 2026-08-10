@@ -611,6 +611,27 @@ const escapeStrayBackslashesInStrings = (text, repairs) => {
   return out;
 };
 
+// Firestore does not allow an array to contain another array directly. The
+// original relationMapping authoring example used pairs such as [[-2, 3],
+// [1, 2]], which meant an AI could follow the MathMaster contract exactly and
+// still produce an assignment that failed only when the teacher clicked Save.
+// Accept that legacy input, repair it at intake, and store {x, y} objects.
+const normalizeQuestionStorageShapes = (questions, repairs = []) => (Array.isArray(questions) ? questions : []).map((question, index) => {
+  if (!question || typeof question !== 'object' || Array.isArray(question)) return question;
+  const type = question.toolId || question.type;
+  if (type !== 'relationMapping' || !Array.isArray(question.pairs)) return question;
+
+  let converted = 0;
+  const pairs = question.pairs.map((pair) => {
+    if (!Array.isArray(pair) || pair.length !== 2) return pair;
+    converted += 1;
+    return { x: pair[0], y: pair[1] };
+  });
+  if (!converted) return question;
+  repairs.push(`converted Question ${index + 1} relationMapping [x, y] pairs to Firestore-safe {x, y} objects`);
+  return { ...question, pairs };
+});
+
 export const parseAssignmentBlueprintText = (rawValue) => {
   const repairs = [];
   let normalizedText = String(rawValue ?? '')
@@ -632,12 +653,13 @@ export const parseAssignmentBlueprintText = (rawValue) => {
   try {
     const parsed = JSON.parse(normalizedText);
     if (Array.isArray(parsed)) {
+      const questions = normalizeQuestionStorageShapes(parsed, repairs);
       return {
-        questions: parsed,
+        questions,
         assignment: null,
         schemaVersion: 1,
         isPackage: false,
-        normalizedText: JSON.stringify(parsed, null, 2),
+        normalizedText: JSON.stringify(questions, null, 2),
         repairs,
       };
     }
@@ -679,7 +701,7 @@ export const parseAssignmentBlueprintText = (rawValue) => {
     // Bundle V3 is authoritative when activities are present. Some transition
     // files also contain a legacy top-level questions mirror; using that mirror
     // would make the student assignment differ from the pre-flight preview.
-    const questions = hasBundleActivities ? bundledQuestions : parsed.questions;
+    const questions = normalizeQuestionStorageShapes(hasBundleActivities ? bundledQuestions : parsed.questions, repairs);
     if (questions.length === 0) {
       throw new Error('Assignment Package JSON contains no questions.');
     }
@@ -701,7 +723,7 @@ export const parseAssignmentBlueprintText = (rawValue) => {
       isPackage: true,
       isBundle: hasBundleActivities,
       bundleSource: hasBundleActivities ? parsed : null,
-      normalizedText: JSON.stringify(parsed, null, 2),
+      normalizedText: JSON.stringify(hasBundleActivities ? parsed : { ...parsed, questions }, null, 2),
       repairs,
     };
   } catch (error) {

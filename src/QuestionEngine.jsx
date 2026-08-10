@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import GraphLine from './GraphLine';
 import EquationGrader from './EquationGrader';
 import NumberLine from './NumberLine';
@@ -43,6 +43,7 @@ import {
   MAX_ATTEMPTS_PER_QUESTION,
   normalizeQuestionRecord,
 } from './attemptPolicy';
+import { stableStringify } from './utils/idUtils';
 
 const EMPTY_ANSWER_STATE = {
   isComplete: false,
@@ -67,6 +68,22 @@ const MULTIPART_TYPES = new Set([
   'contextInterpretation',
   'modelingLab',
 ]);
+
+// Firestore listeners and several teacher-authoring screens legitimately
+// rebuild plain question objects even when the question itself has not
+// changed. Tool workspaces reset when their `question` prop changes identity,
+// so passing those fresh-but-equivalent objects through QuestionEngine used to
+// erase whatever the teacher/student was typing or plotting.
+//
+// Keep the previous object identity while its CONTENT is the same. A real edit,
+// variant change, or profile change still produces a new stable value and
+// therefore still resets the workspace exactly once, as intended.
+const useDeepStableValue = (value) => {
+  const signature = stableStringify(value ?? null);
+  const ref = useRef({ signature, value });
+  if (ref.current.signature !== signature) ref.current = { signature, value };
+  return ref.current.value;
+};
 
 const speakText = (text) => {
   if (typeof window === 'undefined' || !window.speechSynthesis || !text) return;
@@ -107,9 +124,11 @@ export default function QuestionEngine({
   const resolvedActivityPolicy = activityPolicy || getEffectiveActivityPolicy(activityRole);
   const resolvedMaximumAttempts = Math.max(1, Number(maximumAttempts ?? resolvedActivityPolicy?.attempts ?? MAX_ATTEMPTS_PER_QUESTION) || MAX_ATTEMPTS_PER_QUESTION);
   const showOutcomeFeedback = resolvedActivityPolicy?.feedback === 'immediate' || feedbackReleased === true;
+  const stableQuestion = useDeepStableValue(question);
+  const stableStudentProfile = useDeepStableValue(studentProfile);
   const processedQuestion = useMemo(
-    () => normalizeContextualQuestion(generateQuestion(question, generationKey, studentProfile)),
-    [question, generationKey, studentProfile],
+    () => normalizeContextualQuestion(generateQuestion(stableQuestion, generationKey, stableStudentProfile)),
+    [stableQuestion, generationKey, stableStudentProfile],
   );
   const { confirm: confirmAction } = useToast();
   // Built once per question, not once per render. StepByStepAlgebra resets its
@@ -156,12 +175,12 @@ export default function QuestionEngine({
   const [hintUsed, setHintUsed] = useState(false);
 
   const supportPresentation = useMemo(
-    () => processedQuestion?.supportPresentation || getStudentSupportPresentation(studentProfile),
-    [processedQuestion, studentProfile],
+    () => processedQuestion?.supportPresentation || getStudentSupportPresentation(stableStudentProfile),
+    [processedQuestion, stableStudentProfile],
   );
   const supportUsage = useMemo(
-    () => buildSupportUsage(studentProfile, question),
-    [studentProfile, question],
+    () => buildSupportUsage(stableStudentProfile, stableQuestion),
+    [stableStudentProfile, stableQuestion],
   );
 
   useEffect(() => {

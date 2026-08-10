@@ -3273,7 +3273,6 @@ function App() {
                   }}
                 >
                   <div style={{ fontSize: '14px', fontWeight: 'bold' }}>Question {visiblePosition + 1}</div>
-                  <div style={{ fontSize: '12px', marginTop: '4px', textTransform: 'capitalize' }}>{question.type}</div>
                   {isDOLQuestion && <div style={{ marginTop: '5px', padding: '3px 7px', borderRadius: '999px', background: '#f3e8fd', color: '#681da8', fontSize: '10px', fontWeight: 900 }}>{dolUnavailable ? 'DOL opens later' : 'DOL'}</div>}
                   <div style={{ fontSize: '12px', marginTop: '7px', fontWeight: 'bold' }}>{dolUnavailable ? 'Locked until DOL window' : cardState.label}</div>
                   {record.totalAttempts > 0 && <div style={{ fontSize: '11px', marginTop: '3px', opacity: 0.85 }}>{record.totalAttempts} total attempt{record.totalAttempts === 1 ? '' : 's'}</div>}

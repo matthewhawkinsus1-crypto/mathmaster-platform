@@ -37,6 +37,33 @@ const MARKER_SNAP_PIXELS = 82;
 // which hard-freezes the tab the student is working in.
 const MAX_TICKS = 200;
 
+const positiveStep = (value, fallback) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : fallback;
+};
+
+const snap = (value, step) => Number((Math.round(value / step) * step).toFixed(6));
+
+const snapError = (point, step) => {
+  if (!Array.isArray(point) || point.length !== 2) return 0;
+  const dx = Number(point[0]) - snap(Number(point[0]), step);
+  const dy = Number(point[1]) - snap(Number(point[1]), step);
+  return Math.hypot(dx, dy);
+};
+
+// Never let the authored/display grid make a required point unreachable. Start
+// with the requested snap and halve it only when a fixed expected point cannot
+// land close enough to receive credit. Dynamic-x tasks get quarter-unit input
+// by default, which keeps any resulting point within the graph grader's 0.22
+// minimum location tolerance without forcing tiny visible grid squares.
+const resolveReachableSnapStep = (requestedStep, tasks = []) => {
+  let step = positiveStep(requestedStep, 0.5);
+  if (tasks.some((task) => task?.studentChoosesX)) step = Math.min(step, 0.25);
+  const expectedPoints = tasks.map((task) => task?.expected).filter(Array.isArray);
+  while (step > 0.01 && expectedPoints.some((point) => snapError(point, step) > 0.2)) step /= 2;
+  return Math.max(0.01, step);
+};
+
 const buildTicks = (minimum, maximum, step) => {
   const min = Number(minimum);
   const max = Number(maximum);
@@ -58,7 +85,6 @@ const buildTicks = (minimum, maximum, step) => {
   return ticks;
 };
 
-const snap = (value, step) => Number((Math.round(value / step) * step).toFixed(6));
 const pointLabel = ([x, y]) => `(${x}, ${y})`;
 const taskPlacementLabel = (placement) => placement === 'undefined' ? 'Undefined' : Array.isArray(placement) ? pointLabel(placement) : 'Not placed';
 const markerLabels = { arrow: 'Arrow', open: 'Open Circle', closed: 'Closed Circle' };
@@ -203,7 +229,6 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
   const functionSpec = question.functionSpec || {};
   const graph = question.graph || {};
   const requestedShowCoordinates = question.showCoordinates ?? graph.showCoordinates ?? true;
-  const snapStep = Number(graph.snapStep ?? 0.5);
   const studentChoosesX = Boolean(question.studentChoosesX || question.chooseXValues);
   const constructionEnabled = mode !== 'analysis';
   const tasks = useMemo(() => constructionEnabled ? (question.pointTasks || buildInteractivePointTasks(functionSpec, { points: question.graphAnswer?.suggestedPoints, includeUndefinedChecks: question.includeUndefinedChecks, undefinedCount: question.undefinedCount, studentChoosesX })) : [], [question, functionSpec, studentChoosesX, constructionEnabled]);
@@ -211,8 +236,15 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
   const xGridStep = Math.max(0.000001, Number(window.xStep ?? 1));
   const yGridStep = Math.max(0.000001, Number(window.yStep ?? 1));
   const skipCounting = xGridStep > 1 || yGridStep > 1;
-  const xSnapStep = skipCounting && xGridStep > 1 ? xGridStep / 2 : xGridStep;
-  const ySnapStep = skipCounting && yGridStep > 1 ? yGridStep / 2 : yGridStep;
+  // Grid spacing is a DISPLAY choice, not an answer-input restriction. The old
+  // code snapped to xStep/yStep, so a normal grid with step 1 made points such
+  // as (1, 1.5) literally impossible to place even though the graph engine's
+  // own default snapStep is 0.5. Honor the construction snap independently and
+  // allow an author to make either axis finer when a task needs it.
+  const requestedSnapStep = positiveStep(graph.snapStep ?? window.snapStep, 0.5);
+  const snapStep = useMemo(() => resolveReachableSnapStep(requestedSnapStep, tasks), [requestedSnapStep, tasks]);
+  const xSnapStep = Math.min(xGridStep, snapStep, positiveStep(graph.xSnapStep ?? window.xSnapStep, snapStep));
+  const ySnapStep = Math.min(yGridStep, snapStep, positiveStep(graph.ySnapStep ?? window.ySnapStep, snapStep));
   const showCoordinates = skipCounting ? true : requestedShowCoordinates;
   const visiblePaths = useMemo(() => sampleVisibleFunctionPaths(functionSpec, window), [functionSpec, window]);
   const endpointRequirements = useMemo(() => constructionEnabled ? (question.endpointRequirements || getDefaultEndpointRequirements(functionSpec, visiblePaths, { ...question, graph: window })) : getDefaultEndpointRequirements(functionSpec, visiblePaths, { ...question, graph: window }), [question, functionSpec, visiblePaths, window, constructionEnabled]);

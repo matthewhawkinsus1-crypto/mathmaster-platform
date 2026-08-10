@@ -527,11 +527,13 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
     required: [requires('pairs', 'needs a `pairs` array of the relation')],
     validate: (question) => {
       if (!nonEmptyArray(question.pairs)) {
-        return ['`pairs` must be a non-empty array of [x, y] pairs, for example [[-2, 3], [1, 2]]'];
+        return ['`pairs` must be a non-empty array of { "x": ..., "y": ... } pair objects'];
       }
       const errors = [];
       question.pairs.forEach((pair, index) => {
-        if (!Array.isArray(pair) || pair.length !== 2) errors.push(`pairs[${index}] must be a two-element [x, y] array`);
+        const legacyArray = Array.isArray(pair) && pair.length === 2;
+        const safeObject = isObject(pair) && has(pair.x) && has(pair.y);
+        if (!legacyArray && !safeObject) errors.push(`pairs[${index}] must be an { "x": value, "y": value } object`);
       });
       return errors;
     },
@@ -539,7 +541,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
     example: {
       type: 'relationMapping',
       prompt: 'Build the mapping diagram for this relation, then state its domain and range.',
-      pairs: [[-2, 3], [1, 2], [3, -1], [-4, -3]],
+      pairs: [{ x: -2, y: 3 }, { x: 1, y: 2 }, { x: 3, y: -1 }, { x: -4, y: -3 }],
       ask: ['mapping', 'domain', 'range', 'isFunction'],
     },
   },

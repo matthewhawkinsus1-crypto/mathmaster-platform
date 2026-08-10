@@ -44,6 +44,12 @@ const VIEWS = [
 export default function SimulatedStudentExperience({
   learner,
   assignments = [],
+  // The student-facing assignment list can be intentionally narrow in the
+  // simulator (for example, the one assignment selected in Question Bench),
+  // but My Math Path needs the full authored pool. Keeping those sources
+  // separate prevents a prerequisite from appearing "unavailable" merely
+  // because it lives in a different assignment.
+  pathQuestionAssignments = null,
   courseId = 'algebra1',
   classPeriod = 'Period 1',
   pacing = null,
@@ -65,11 +71,12 @@ export default function SimulatedStudentExperience({
 
   const evidenceRef = useRef(onSimulatedEvidence);
   evidenceRef.current = onSimulatedEvidence;
+  const pathQuestionSource = pathQuestionAssignments || assignments;
 
   // One runtime per learner. The student's own container calls it exactly as
   // it calls the live service, so nothing below this line knows the difference.
   const runtime = useMemo(() => createTeacherPathRuntime({
-    assignments,
+    assignments: pathQuestionSource,
     courseId,
     learner,
     onChange: ({ learner: nextLearner, sessionAssignment }) => {
@@ -79,7 +86,7 @@ export default function SimulatedStudentExperience({
       ]);
       evidenceRef.current?.({ learner: nextLearner, sessionAssignment });
     },
-  }), [assignments, courseId, learner]);
+  }), [pathQuestionSource, courseId, learner]);
 
   useEffect(() => { setSessionAssignments([]); }, [runtime]);
 

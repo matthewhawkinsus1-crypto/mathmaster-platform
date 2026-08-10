@@ -1,6 +1,7 @@
 const round = (value, places = 6) => Number(Number(value).toFixed(places));
 
 export const FUNCTION_GRAPH_TYPES = [
+  'linear',
   'absolute',
   'quadratic',
   'squareRoot',
@@ -12,6 +13,7 @@ export const FUNCTION_GRAPH_TYPES = [
 ];
 
 export const FUNCTION_GRAPH_LABELS = {
+  linear: 'Linear',
   absolute: 'Absolute Value',
   quadratic: 'Quadratic',
   squareRoot: 'Square Root',
@@ -104,6 +106,10 @@ export const getGraphKeyPoint = (spec) => {
   const h = Number(spec.h ?? 0);
   const k = Number(spec.k ?? 0);
   const a = Number(spec.a ?? 1);
+  if (spec.type === 'linear' || spec.type === 'line') {
+    const intercept = spec.b !== undefined ? Number(spec.b) : k;
+    return [h, intercept];
+  }
   if (spec.type === 'logarithmic') return [h + 1, k];
   if (spec.type === 'exponential') return [h, k + a];
   return [h, k];
@@ -190,6 +196,12 @@ export const formatGraphEquationLatex = (spec) => {
   const shiftedX = termWithShift('x', h);
   const prefix = coefficientPrefix(a);
   let expression = 'y=f(x)';
+  if (spec.type === 'linear' || spec.type === 'line') {
+    const slope = Number(spec.m ?? spec.a ?? 1);
+    const intercept = spec.b !== undefined ? Number(spec.b) : k;
+    const linearPrefix = coefficientPrefix(slope);
+    expression = `y=${appendK(`${linearPrefix}${shiftedX}`, intercept)}`;
+  }
   if (spec.type === 'absolute') expression = `y=${appendK(`${prefix}\\left|${shiftedX}\\right|`, k)}`;
   if (spec.type === 'quadratic') expression = `y=${appendK(`${prefix}\\left(${shiftedX}\\right)^2`, k)}`;
   if (spec.type === 'squareRoot') expression = `y=${appendK(`${prefix}\\sqrt{${shiftedX}}`, k)}`;

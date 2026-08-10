@@ -394,6 +394,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
               <SimulatedStudentExperience
                 learner={session.learner}
                 assignments={simulationAssignments}
+                pathQuestionAssignments={assignments}
                 courseId={inspectionCourseId}
                 pacing={simulationPacing}
                 nowValue={simulatedNow}

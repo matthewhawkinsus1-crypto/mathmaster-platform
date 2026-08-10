@@ -26,6 +26,14 @@ const sameSet = (left, right) => {
   return a.length === b.length && a.every((value, index) => Math.abs(value - b[index]) < 1e-9);
 };
 
+const normalizePair = (pair) => {
+  const rawX = Array.isArray(pair) ? pair[0] : pair?.x;
+  const rawY = Array.isArray(pair) ? pair[1] : pair?.y;
+  const x = Number(rawX);
+  const y = Number(rawY);
+  return Number.isFinite(x) && Number.isFinite(y) ? [x, y] : null;
+};
+
 // A relation is a function when no domain value is sent to two different range
 // values — which is exactly what a mapping diagram makes visible.
 const relationIsFunction = (pairs) => {
@@ -38,8 +46,8 @@ const relationIsFunction = (pairs) => {
 
 export default function RelationMapping({ questionData = {}, onAction }) {
   const pairs = useMemo(() => (Array.isArray(questionData.pairs) ? questionData.pairs : [])
-    .filter((pair) => Array.isArray(pair) && pair.length === 2 && pair.every((value) => Number.isFinite(Number(value))))
-    .map((pair) => [Number(pair[0]), Number(pair[1])]), [questionData.pairs]);
+    .map(normalizePair)
+    .filter(Boolean), [questionData.pairs]);
 
   const domainValues = useMemo(() => uniqueSorted(pairs.map(([x]) => x)), [pairs]);
   const rangeValues = useMemo(() => uniqueSorted(pairs.map(([, y]) => y)), [pairs]);

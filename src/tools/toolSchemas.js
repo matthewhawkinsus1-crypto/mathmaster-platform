@@ -251,6 +251,14 @@ export const validateToolQuestion = (question = {}) => {
       if (!['vertical','horizontal'].includes(question.orientation) || !Number.isFinite(Number(question.value))) errors.push('verticalHorizontal mode requires vertical/horizontal orientation and a finite value.');
     }
   }
+  if (toolId === 'relationMapping') {
+    if (!Array.isArray(question.pairs) || question.pairs.length < 1) errors.push('relationMapping requires at least one pair.');
+    else question.pairs.forEach((pair, index) => {
+      const x = Array.isArray(pair) ? pair[0] : pair?.x;
+      const y = Array.isArray(pair) ? pair[1] : pair?.y;
+      if (!Number.isFinite(Number(x)) || !Number.isFinite(Number(y))) errors.push(`relationMapping pair ${index + 1} must have finite x and y values.`);
+    });
+  }
   if (toolId === 'stepAlgebra2' && Number(question.equation?.a ?? 1) === 0) errors.push('stepAlgebra2 linear coefficient a cannot be 0.');
 
   return { isValid: errors.length === 0, errors, warnings };
