@@ -14,6 +14,9 @@ export const MyMathPathDashboard = ({
   // to say; saying nothing is the honest answer.
   recommendedTeks = null,
   courseId = DEFAULT_MASTERY_COURSE_ID,
+  pathOptions = null,
+  assessmentContext = null,
+  onPracticeAs = null,
   onStartSession,
 }) => {
   const [selectedTeks, setSelectedTeks] = useState(null);
@@ -61,7 +64,17 @@ export const MyMathPathDashboard = ({
         </div>
       </div>
 
-      {selectedTeks && <SkillDetailCardModal teksCode={selectedTeks} masteryProfile={masteryProfilesByTEKS[selectedTeks]} onClose={() => setSelectedTeks(null)} onStartPractice={(code, options) => { setSelectedTeks(null); onStartSession?.(code, options); }} />}
+      {selectedTeks && (
+        <SkillDetailCardModal
+          teksCode={selectedTeks}
+          masteryProfile={masteryProfilesByTEKS[selectedTeks]}
+          pathOptions={pathOptions}
+          assessmentContext={assessmentContext}
+          onPracticeAs={onPracticeAs}
+          onClose={() => setSelectedTeks(null)}
+          onStartPractice={(code, options) => { setSelectedTeks(null); onStartSession?.(code, options); }}
+        />
+      )}
     </section>
   );
 };

@@ -4,6 +4,7 @@ import {
   explainAssessmentRecommendation, getAssessmentRecommendations,
 } from '../../platform/ccmr/assessmentPathways';
 import { getAssessmentProfile } from '../../platform/ccmr/assessmentProfiles';
+import CCMRReadinessWheel from './CCMRReadinessWheel.jsx';
 
 // 9F — College, Career & Military Readiness.
 //
@@ -101,6 +102,9 @@ export default function CCMRHub({
   onReturnToCourse,
 }) {
   const [framework, setFramework] = useState(null);
+  // Which part of the test the student is looking at. The wheel is a way in to
+  // the skill lists below, not a second place where recommendations live.
+  const [domainId, setDomainId] = useState(null);
 
   const byFramework = useMemo(() => {
     const result = {};
@@ -117,6 +121,9 @@ export default function CCMRHub({
   // aligned to the ASVAB, there is no ASVAB pathway for them today.
   const offered = ASSESSMENT_FRAMEWORKS.filter((id) => byFramework[id].summary.readySkills > 0);
   const active = framework && offered.includes(framework) ? byFramework[framework] : null;
+  const activeDomainTitle = domainId
+    ? (active?.profile?.domains || []).find((entry) => entry.id === domainId)?.title || 'this part of the test'
+    : null;
 
   const toggleGoal = (id) => {
     const next = goals.includes(id) ? goals.filter((entry) => entry !== id) : [...goals, id];
@@ -175,7 +182,7 @@ export default function CCMRHub({
               framework={id}
               summary={byFramework[id].summary}
               active={framework === id}
-              onSelect={setFramework}
+              onSelect={(next) => { setFramework(next); setDomainId(null); }}
             />
           ))}
         </div>
@@ -188,7 +195,7 @@ export default function CCMRHub({
             {/* §17 — never trapped in one pathway. */}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {offered.filter((id) => id !== framework).map((id) => (
-                <button key={id} type="button" onClick={() => setFramework(id)} style={{ padding: '6px 11px', borderRadius: 8, border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 800, fontSize: 12, cursor: 'pointer', minHeight: 36 }}>
+                <button key={id} type="button" onClick={() => { setFramework(id); setDomainId(null); }} style={{ padding: '6px 11px', borderRadius: 8, border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 800, fontSize: 12, cursor: 'pointer', minHeight: 36 }}>
                   Switch to {FRAMEWORK_LABELS[id]}
                 </button>
               ))}
@@ -207,16 +214,49 @@ export default function CCMRHub({
             </p>
           )}
 
-          {BUCKET_TITLES.map(([bucket, title]) => (
-            active[bucket].length ? (
+          {/* The wheel: this assessment's own reporting domains, coloured by
+              how well the student is TRANSFERRING into this format. Clicking
+              one filters the same lists below rather than opening a second,
+              parallel set of recommendations. */}
+          <div style={{ marginBottom: 18 }}>
+            <CCMRReadinessWheel
+              recommendations={active}
+              selectedDomainId={domainId}
+              onSelectDomain={(next) => setDomainId((current) => (current === next ? null : next))}
+            />
+          </div>
+
+          {domainId && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+              <span style={{ fontSize: 12, color: '#3c4043', fontWeight: 800 }}>
+                Showing {activeDomainTitle} only
+              </span>
+              <button type="button" onClick={() => setDomainId(null)} style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid #c9ced6', background: '#fff', color: '#3c4043', fontWeight: 800, fontSize: 12, cursor: 'pointer', minHeight: 34 }}>
+                Show every part of the test
+              </button>
+            </div>
+          )}
+
+          {BUCKET_TITLES.map(([bucket, title]) => {
+            const items = domainId
+              ? active[bucket].filter((item) => item.domainId === domainId)
+              : active[bucket];
+            return items.length ? (
               <div key={bucket} style={{ marginBottom: 14 }}>
                 <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.4, color: '#5f6368' }}>{title}</p>
-                {active[bucket].map((item) => (
+                {items.map((item) => (
                   <SkillRow key={item.skillId} item={item} onPractise={onPractise} />
                 ))}
               </div>
-            ) : null
-          ))}
+            ) : null;
+          })}
+
+          {domainId && !BUCKET_TITLES.some(([bucket]) => active[bucket].some((item) => item.domainId === domainId)) && (
+            <p style={{ margin: 0, color: '#5f6368', fontSize: 13, lineHeight: 1.6 }}>
+              Nothing in {activeDomainTitle} is matched to your skills yet. It will fill in as your class moves
+              through the year.
+            </p>
+          )}
         </div>
       )}
     </section>

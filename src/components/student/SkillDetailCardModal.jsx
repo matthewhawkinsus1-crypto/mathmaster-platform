@@ -1,7 +1,20 @@
 import React from 'react';
 import { getStrandForTEKS, MASTERY_STATUS_COLORS } from '../../platform/mastery/strandConfig.js';
+import { teksSkillId } from '../../platform/path/skillGraph.js';
+import PracticeAsMenu from './PracticeAsMenu.jsx';
 
-export const SkillDetailCardModal = ({ teksCode, masteryProfile, onClose, onStartPractice }) => {
+export const SkillDetailCardModal = ({
+  teksCode,
+  masteryProfile,
+  onClose,
+  onStartPractice,
+  // Present only where the CCMR context has been loaded. The menu shows
+  // nothing at all where no legitimate assessment alignment exists, so a
+  // skill the SAT does not test simply has no extra buttons.
+  pathOptions = null,
+  assessmentContext = null,
+  onPracticeAs = null,
+}) => {
   if (!teksCode) return null;
   const strand = getStrandForTEKS(teksCode);
   const mastery = masteryProfile?.mastery || { estimate: null, status: 'Not Enough Evidence', confidence: 'Low' };
@@ -27,6 +40,17 @@ export const SkillDetailCardModal = ({ teksCode, masteryProfile, onClose, onStar
           <div><strong>Confidence:</strong> {mastery.confidence || 'Low'}</div>
         </div>
         <button type="button" onClick={() => onStartPractice?.(teksCode, { sessionKind: 'practice', requiredQuestions: 5 })} style={{ width: '100%', padding: '12px 16px', border: 0, borderRadius: '8px', background: '#1a73e8', color: '#fff', fontSize: '15px', fontWeight: 900, cursor: 'pointer' }}>Start Quick Practice · 5 questions</button>
+        {assessmentContext && onPracticeAs && (
+          <PracticeAsMenu
+            skillId={teksSkillId(teksCode)}
+            pathOptions={pathOptions}
+            assessmentEvidence={assessmentContext.assessmentEvidence}
+            directIndex={assessmentContext.directIndex}
+            goals={assessmentContext.goals}
+            teacherPriorities={assessmentContext.teacherPriorities}
+            onChoose={(choice) => { onClose?.(); onPracticeAs(choice); }}
+          />
+        )}
       </section>
     </div>
   );
