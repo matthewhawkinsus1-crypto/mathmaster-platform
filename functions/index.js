@@ -1976,7 +1976,7 @@ exports.issueNextQuestion = onCall(async (request) => {
   const session = sessionSnapshot.data();
   if (session.status !== "active") throw new HttpsError("failed-precondition", "This My Math Path session is already complete.");
   if (session.currentQuestion) {
-    return { questionInstance: mathPath.buildSanitizedQuestion(session.currentQuestion, { questionInstanceId: session.currentQuestion.questionInstanceId, attemptsAllowed: session.currentQuestion.attemptsAllowed, attemptsUsed: session.currentQuestion.attemptsUsed }) };
+    return { questionInstance: mathPath.buildSanitizedQuestion(session.currentQuestion, { questionInstanceId: session.currentQuestion.questionInstanceId, attemptsAllowed: session.currentQuestion.attemptsAllowed, attemptsUsed: session.currentQuestion.attemptsUsed, toolPayload: mathPath.storedToolPayload(session.currentQuestion) }) };
   }
 
   const targetDisplayCode = mathPath.displayAlignmentKey(session.target.alignmentKey);
@@ -1986,11 +1986,19 @@ exports.issueNextQuestion = onCall(async (request) => {
     db.collection("grades").doc(studentId).get(),
     db.collection("settings").doc("courseProfiles").get(),
   ]);
-  const candidates = bankSnapshot.docs
+  // Every candidate is screened by the Path Tool Contract before it can be
+  // chosen. A question whose tool has no server grader is skipped here rather
+  // than issued in a weaker form.
+  const plans = await Promise.all(bankSnapshot.docs
     .map((questionDoc) => ({ id: questionDoc.id, ...questionDoc.data() }))
-    .filter((question) => question.active !== false && mathPath.hasGradeableDefinition(question));
+    .filter((question) => question.active !== false)
+    .map(async (question) => ({ question, plan: await mathPath.buildIssuePlan(question) })));
+  const issuable = plans.filter((entry) => entry.plan.issuable);
+  const candidates = issuable.map((entry) => entry.question);
+  const planByQuestionId = new Map(issuable.map((entry) => [entry.question.id, entry.plan]));
   if (!candidates.length) {
-    throw new HttpsError("failed-precondition", `No active secure question family is published for ${session.target.alignmentKey}.`);
+    const skipped = plans.length ? ` ${plans.length} question(s) were skipped: ${[...new Set(plans.map((entry) => entry.plan.reason))].join(", ")}.` : "";
+    throw new HttpsError("failed-precondition", `No active secure question family is published for ${session.target.alignmentKey}.${skipped}`);
   }
 
   const classPeriod = rosterSnapshot.data()?.classPeriod || "Unassigned";
@@ -2000,16 +2008,19 @@ exports.issueNextQuestion = onCall(async (request) => {
   const difficultyPool = rigorPolicy.nearestDifficultyCandidates(candidates, adaptiveRigor.preferredDifficultyBand);
   const index = Number(session.summary?.completedQuestions || 0) % difficultyPool.length;
   const authored = difficultyPool[index];
+  const issuePlan = planByQuestionId.get(authored.id);
   const attemptsAllowed = session.sessionKind === "retentionProbe" ? 1 : 3;
   const questionInstanceId = mathPath.runtimeId("qi");
   const currentQuestion = {
-    ...mathPath.buildSanitizedQuestion(authored, { questionInstanceId, attemptsAllowed, attemptsUsed: 0 }),
+    // The public half — the authentic tool, by allowlist — plus the private
+    // grading definition, which lives only in this session document.
+    ...mathPath.buildSanitizedQuestion(authored, { questionInstanceId, attemptsAllowed, attemptsUsed: 0, toolPayload: issuePlan.toolPayload }),
     bankQuestionId: authored.id,
     alignmentKeys: [session.target.alignmentKey],
     attemptsAllowed,
     attemptsUsed: 0,
     adaptiveRigor,
-    privateGrading: mathPath.privateGradingDefinition(authored),
+    privateGrading: issuePlan.privateGrading,
   };
 
   const issuedQuestion = await db.runTransaction(async (transaction) => {
@@ -2021,7 +2032,7 @@ exports.issueNextQuestion = onCall(async (request) => {
     return currentQuestion;
   });
 
-  return { questionInstance: mathPath.buildSanitizedQuestion(issuedQuestion, { questionInstanceId: issuedQuestion.questionInstanceId, attemptsAllowed: issuedQuestion.attemptsAllowed, attemptsUsed: issuedQuestion.attemptsUsed }) };
+  return { questionInstance: mathPath.buildSanitizedQuestion(issuedQuestion, { questionInstanceId: issuedQuestion.questionInstanceId, attemptsAllowed: issuedQuestion.attemptsAllowed, attemptsUsed: issuedQuestion.attemptsUsed, toolPayload: mathPath.storedToolPayload(issuedQuestion) }) };
 });
 
 /**
@@ -2040,6 +2051,9 @@ exports.submitPathResponse = onCall(async (request) => {
   const db = getFirestore();
   const sessionRef = db.collection("pathSessions").doc(sessionId);
   const submissionRef = db.collection("pathSubmissions").doc(mathPath.opaqueId("submission", sessionId, submissionId));
+  // Load the tool contract before the transaction opens, so a cold dynamic
+  // import is never paid for inside it.
+  await mathPath.pathToolContracts();
 
   const transactionResult = await db.runTransaction(async (transaction) => {
     const [sessionSnapshot, submissionSnapshot] = await Promise.all([
@@ -2053,7 +2067,19 @@ exports.submitPathResponse = onCall(async (request) => {
     const currentQuestion = session.currentQuestion;
     if (currentQuestion.questionInstanceId !== questionInstanceId) throw new HttpsError("failed-precondition", "That question is no longer the active question.");
 
-    const gradingCore = mathPath.gradeResponse(currentQuestion.privateGrading, request.data?.responsePayload || {});
+    // The grader is chosen from the question the SERVER stored, never from a
+    // tool id the browser supplies, and nothing the browser claims about
+    // correctness is read.
+    const gradingResult = await mathPath.gradePathToolResponse(currentQuestion.privateGrading, request.data?.responsePayload || {});
+    if (gradingResult.rejected) {
+      // Not "wrong" — unusable. It does not consume an attempt and it does not
+      // become evidence.
+      if (gradingResult.reason === "no_server_grader_for_this_tool") {
+        throw new HttpsError("failed-precondition", "This question cannot be graded on the server, so it cannot be scored.");
+      }
+      throw new HttpsError("invalid-argument", gradingResult.detail || "That response was not in the shape this question expects.");
+    }
+    const gradingCore = { isCorrect: gradingResult.isCorrect, score: gradingResult.score, parts: gradingResult.parts || [] };
     const attemptNumber = Number(currentQuestion.attemptsUsed || 0) + 1;
     const attemptsRemaining = Math.max(0, Number(currentQuestion.attemptsAllowed || 1) - attemptNumber);
     const questionFinalized = gradingCore.isCorrect || attemptsRemaining === 0;

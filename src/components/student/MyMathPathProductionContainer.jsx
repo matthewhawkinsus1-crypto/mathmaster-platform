@@ -95,8 +95,19 @@ export const MyMathPathProductionContainer = ({
       } else {
         setCurrentQuestion(null);
       }
+      // The server's verdict, in the shape QuestionEngine renders feedback
+      // from. Under secure grading this is the only verdict that exists.
+      return {
+        isCorrect: Boolean(result.grading?.isCorrect),
+        status: result.grading?.isCorrect ? 'correct' : result.grading?.questionFinalized ? 'expired' : 'attempted',
+        attemptCount: Number(result.grading?.attemptNumber || 0),
+        remainingAttempts: Number(result.grading?.attemptsRemaining || 0),
+        expired: !result.grading?.isCorrect && Boolean(result.grading?.questionFinalized),
+        partGrades: result.grading?.parts || [],
+      };
     } catch (caught) {
       setSubmissionError(`Submission was not confirmed. Check your connection and retry; MathMaster will reuse the same submission ID. ${caught.message || ''}`.trim());
+      return null;
     } finally {
       setSubmitting(false);
     }

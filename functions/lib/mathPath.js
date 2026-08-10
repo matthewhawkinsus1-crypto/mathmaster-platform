@@ -2,6 +2,16 @@ const crypto = require('crypto');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+// The Path Tool Contract is one file, shared with the browser and the Teacher
+// Path Simulator, so the public allowlist and the server grader can never drift
+// apart. It is ESM and this module is CommonJS, so it is loaded once, lazily,
+// through a dynamic import — every caller here is already async.
+let contractModule = null;
+async function pathToolContracts() {
+  if (!contractModule) contractModule = await import('../shared/pathToolContracts.mjs');
+  return contractModule;
+}
+
 function canonicalAlignmentKey(value) {
   const raw = String(value || '').trim();
   if (!raw) return '';
@@ -61,8 +71,21 @@ function sanitizeContext(context) {
   };
 }
 
-function buildSanitizedQuestion(question, { questionInstanceId, attemptsAllowed, attemptsUsed = 0 } = {}) {
+// `toolPayload` comes from buildPublicToolPayload, which the caller awaits.
+// Passing it in rather than fetching it here keeps this function synchronous
+// for the many call sites that do not need a tool.
+function buildSanitizedQuestion(question, { questionInstanceId, attemptsAllowed, attemptsUsed = 0, toolPayload = null } = {}) {
   return {
+    // The authentic tool, by allowlist, or nothing at all. A question whose
+    // tool has no contract is not issued — it is never downgraded into the
+    // generic fields below, because that would silently turn a graphing
+    // question into "type your answer".
+    ...(toolPayload ? {
+      pathToolId: toolPayload.pathToolId,
+      serverGradingVersion: toolPayload.serverGradingVersion,
+      responseShape: toolPayload.responseShape,
+      tool: toolPayload.tool,
+    } : {}),
     questionInstanceId,
     familyId: String(question.familyId || question.questionType || 'path-question'),
     familyVersion: Number(question.familyVersion) || 1,
@@ -109,6 +132,54 @@ function hasGradeableDefinition(question) {
   return grading.fields.length > 0 && grading.fields.every((field) => field.expected !== undefined || field.accepted?.length);
 }
 
+// The tool payload as it was stored on the session, so re-sanitizing an
+// already-issued question produces the same public payload it produced when it
+// was first issued.
+function storedToolPayload(question) {
+  if (!question?.pathToolId) return null;
+  return {
+    pathToolId: question.pathToolId,
+    serverGradingVersion: question.serverGradingVersion || 1,
+    responseShape: question.responseShape || null,
+    tool: question.tool || {},
+  };
+}
+
+/**
+ * Decide whether a bank question may be issued on a path, and with what.
+ *
+ * Fail closed: a question that names a tool this server cannot grade is not
+ * issued at all. It is never downgraded into the generic response fields, which
+ * would quietly turn a graphing question into "type your answer" and hand the
+ * verdict back to the browser.
+ *
+ * A question that names no tool is the original field-graded kind, and is still
+ * issued on the original grader.
+ */
+async function buildIssuePlan(question) {
+  const contracts = await pathToolContracts();
+  const toolId = contracts.resolvePathToolId(question);
+  if (toolId) {
+    const toolPayload = contracts.buildPublicToolPayload(question);
+    // Named a supported tool but carries no answer to grade against.
+    if (!toolPayload) return { issuable: false, reason: 'tool_has_no_gradable_answer', toolPayload: null, privateGrading: null };
+    return {
+      issuable: true,
+      reason: null,
+      toolPayload,
+      privateGrading: contracts.buildPrivateToolGrading(question),
+    };
+  }
+  const declaredTool = String(question?.pathToolId || question?.toolId || question?.type || '').trim();
+  if (declaredTool) {
+    return { issuable: false, reason: 'no_server_grader_for_this_tool', toolPayload: null, privateGrading: null };
+  }
+  if (!hasGradeableDefinition(question)) {
+    return { issuable: false, reason: 'no_gradable_definition', toolPayload: null, privateGrading: null };
+  }
+  return { issuable: true, reason: null, toolPayload: null, privateGrading: privateGradingDefinition(question) };
+}
+
 function valuesEquivalent(actual, field) {
   const candidates = field.accepted?.length ? field.accepted : [field.expected];
   return candidates.some((expected) => {
@@ -121,6 +192,27 @@ function valuesEquivalent(actual, field) {
     const right = String(expected ?? '').trim();
     return field.caseSensitive ? left === right : left.toLowerCase() === right.toLowerCase();
   });
+}
+
+/**
+ * Grade a path response.
+ *
+ * The grader is chosen from `grading.pathToolId`, which came out of the session
+ * document the server wrote when it issued the question. Nothing the browser
+ * sends selects a grader, and nothing the browser claims about correctness is
+ * read: `responsePayload.isCorrect` is not consulted anywhere below.
+ */
+async function gradePathToolResponse(grading, responsePayload = {}) {
+  const contracts = await pathToolContracts();
+  if (grading?.pathToolId) {
+    return contracts.gradePathResponse({
+      privateGrading: grading,
+      raw: responsePayload?.raw && typeof responsePayload.raw === 'object' ? responsePayload.raw : responsePayload,
+    });
+  }
+  // No tool on this question: the original field grader still applies.
+  const result = gradeResponse(grading, responsePayload);
+  return { ...result, parts: result.fieldResults, rejected: false, reason: null };
 }
 
 function gradeResponse(grading, responsePayload = {}) {
@@ -167,7 +259,11 @@ function nextRetentionDue(now, successfulCheckCount) {
 }
 
 module.exports = {
+  buildIssuePlan,
   buildSanitizedQuestion,
+  gradePathToolResponse,
+  storedToolPayload,
+  pathToolContracts,
   canonicalAlignmentKey,
   displayAlignmentKey,
   gradeResponse,

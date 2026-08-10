@@ -12,12 +12,21 @@
 // from (the teacher's own authored assignments instead of the published
 // Firestore bank) and where grading happens.
 //
-// GRADING, SAID PLAINLY. In production the server grades, because a student
-// must not hold the answer key. Here the teacher already owns the content, no
-// student data exists, and the whole point is to run the authentic renderer —
-// so the canonical QuestionEngine grades in the page and reports the result.
-// That is a deliberate difference between the two runtimes, not an oversight.
+// GRADING, SAID PLAINLY. This runtime uses the same Path Tool Contract the
+// server uses. A question whose tool has a contract is issued as a public tool
+// payload with the answer stripped, and graded here by `gradePathResponse` —
+// the same function, the same rules, the same verdict a student would get. What
+// the renderer thinks is not consulted.
+//
+// A question whose tool has no contract yet is still shown, because a teacher
+// simulating their own content should see all of it, but it is issued
+// canonically and marked by the renderer. Those two cases are distinguishable
+// in the instance itself (`pathToolId` present or not) so nobody has to guess
+// which kind of verdict they are looking at.
 
+import {
+  buildPrivateToolGrading, buildPublicToolPayload, gradePathResponse,
+} from '../../../functions/shared/pathToolContracts.mjs';
 import { getQuestionPrimaryTeksCodes } from '../../questionMetadata.js';
 import { teksSkillId, teksCodeFromSkillId, describeSkill } from '../path/skillGraph.js';
 import { buildMasteryBySkillForStudent } from '../path/masteryAdapter.js';
@@ -140,12 +149,21 @@ export const createTeacherPathRuntime = ({
       return null;
     }
     const questionInstanceId = uid('qi');
+    // The secure payload if this tool has a contract, and nothing at all if it
+    // does not — the same allowlist the server applies.
+    const toolPayload = buildPublicToolPayload(chosen.question);
     const instance = {
       questionInstanceId,
-      // The canonical, complete question. The player renders it through the
-      // ordinary QuestionEngine, so a systems question is the systems
-      // workspace and a graphing question is the graphing tool.
-      canonicalQuestion: chosen.question,
+      ...(toolPayload ? {
+        pathToolId: toolPayload.pathToolId,
+        serverGradingVersion: toolPayload.serverGradingVersion,
+        responseShape: toolPayload.responseShape,
+        tool: toolPayload.tool,
+      } : {
+        // No contract for this tool: the complete question, rendered through the
+        // ordinary QuestionEngine and marked locally.
+        canonicalQuestion: chosen.question,
+      }),
       skillId,
       teksCode: chosen.teksCode,
       alignmentKey: toCanonicalKey(chosen.teksCode),
@@ -156,6 +174,10 @@ export const createTeacherPathRuntime = ({
       sourceAssignmentId: chosen.sourceAssignmentId,
       sourceQuestionIndex: chosen.sourceQuestionIndex,
     };
+    // The grading definition stays here, alongside the session, exactly as the
+    // server keeps it in `session.currentQuestion`. It is never part of the
+    // instance handed to the renderer.
+    session.privateGrading = toolPayload ? buildPrivateToolGrading(chosen.question) : null;
     session.issued.push({ ...instance, question: chosen.question });
     session.currentQuestion = instance;
     session.currentSkillId = skillId;
@@ -168,7 +190,7 @@ export const createTeacherPathRuntime = ({
     const outcome = recordQuestionAttempt({
       record: assignmentGrades[index] ?? null,
       isCorrect,
-      questionDetails: String(instance.canonicalQuestion?.prompt || '').slice(0, 160),
+      questionDetails: String(instance.canonicalQuestion?.prompt || instance.tool?.prompt || '').slice(0, 160),
       supportUsage,
     });
     assignmentGrades[index] = outcome.record;
@@ -220,10 +242,11 @@ export const createTeacherPathRuntime = ({
   };
 
   /**
-   * One finalized attempt.
+   * One attempt.
    *
-   * `isCorrect` is the canonical renderer's verdict — see the note at the top of
-   * this file about why grading is local here and server-side in production.
+   * For a contract-graded question the verdict is computed here from the
+   * student's raw work and the private definition. `isCorrect` in the arguments
+   * is only read for a canonical question, which has no contract to grade it.
    */
   const submitStudentResponse = async ({ sessionId, questionInstanceId, isCorrect, supportUsage = {}, responsePayload = null }) => {
     const session = sessions.get(sessionId);
@@ -231,6 +254,27 @@ export const createTeacherPathRuntime = ({
       throw new Error('That simulated question is no longer active.');
     }
     const instance = session.currentQuestion;
+
+    let graded = null;
+    if (instance.pathToolId) {
+      graded = gradePathResponse({
+        privateGrading: session.privateGrading,
+        raw: responsePayload?.raw && typeof responsePayload.raw === 'object' ? responsePayload.raw : responsePayload,
+      });
+      if (graded.rejected) {
+        // Not marked wrong — not marked at all. The attempt does not count.
+        return {
+          success: false,
+          rejected: true,
+          reason: graded.reason,
+          grading: { isCorrect: false, attemptNumber: instance.attemptsUsed || 0, attemptsRemaining: instance.attemptsAllowed - (instance.attemptsUsed || 0), questionFinalized: false, rejected: true, reason: graded.reason },
+          session: publicSession(session),
+          needsNextQuestion: false,
+        };
+      }
+      isCorrect = graded.isCorrect;
+    }
+
     recordEvidence(session, instance, isCorrect === true, supportUsage);
 
     instance.attemptsUsed = (instance.attemptsUsed || 0) + 1;
@@ -241,7 +285,7 @@ export const createTeacherPathRuntime = ({
       publish(session);
       return {
         success: true,
-        grading: { isCorrect: false, attemptNumber: instance.attemptsUsed, attemptsRemaining: instance.attemptsAllowed - instance.attemptsUsed, questionFinalized: false },
+        grading: { isCorrect: false, score: graded?.score ?? 0, parts: graded?.parts || [], attemptNumber: instance.attemptsUsed, attemptsRemaining: instance.attemptsAllowed - instance.attemptsUsed, questionFinalized: false },
         session: publicSession(session),
         needsNextQuestion: false,
       };
@@ -303,11 +347,12 @@ export const createTeacherPathRuntime = ({
     }
 
     session.currentQuestion = null;
+    session.privateGrading = null;
     publish(session);
 
     return {
       success: true,
-      grading: { isCorrect: isCorrect === true, attemptNumber: instance.attemptsUsed, attemptsRemaining: 0, questionFinalized: true },
+      grading: { isCorrect: isCorrect === true, score: graded?.score ?? (isCorrect ? 1 : 0), parts: graded?.parts || [], attemptNumber: instance.attemptsUsed, attemptsRemaining: 0, questionFinalized: true },
       session: publicSession(session),
       decision,
       needsNextQuestion: session.status === 'active',

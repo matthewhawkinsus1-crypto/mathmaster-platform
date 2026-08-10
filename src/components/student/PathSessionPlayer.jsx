@@ -4,18 +4,24 @@ import ProblemUnderstandingPanel from '../ProblemUnderstandingPanel.jsx';
 import QuestionEngine from '../../QuestionEngine.jsx';
 import { getEffectiveActivityPolicy } from '../../platform/policies/activityPolicies.js';
 import { resolveCalculatorPolicy } from '../../platform/policies/calculatorPolicy.js';
+import { questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
 
-// Two ways a path question can arrive.
+// Three ways a path question can arrive, in order of preference.
 //
-// CANONICAL — the instance carries a whole authored question, so it renders
-// through the ordinary QuestionEngine and a systems question is the systems
-// workspace, a graphing question is the graphing tool, and a relation question
-// is the mapping diagram. This is what a path question should be.
+// SECURE TOOL — the instance carries `pathToolId` and a `tool` payload built by
+// the Path Tool Contract. The real MathMaster tool renders from it, and the
+// verdict comes back from the server: a systems question is the systems
+// workspace, a graphing question is the graphing tool, a relation question is
+// the mapping diagram, and none of them holds the answer. This is what a path
+// question is now.
 //
-// FIELDS ONLY — the instance carries `responseFields` and nothing else, which
-// is what the secure server currently sends. It renders as labelled inputs,
-// because that is genuinely all the payload describes. Preserving this path
-// means the production route keeps working while the payload catches up.
+// CANONICAL — the instance carries a whole authored question. The simulator
+// still uses this for questions whose tool has no contract yet, and grading
+// there is local by construction.
+//
+// FIELDS ONLY — `responseFields` and nothing else, the shape a legacy bank
+// question issues. It renders as labelled inputs because that is genuinely all
+// the payload describes.
 //
 // The distinction is the payload's, not a setting: whatever the session issues
 // is what gets rendered.
@@ -32,9 +38,21 @@ export const PathSessionPlayer = ({ session, questionInstance, lastGradingResult
     studentSupportProfile: studentProfile,
   }), [questionInstance, activityPolicy, studentProfile]);
 
+  // Keyed on the question instance, not on the payload object: the container
+  // replaces `questionInstance` after every attempt to update the attempt
+  // count, and rebuilding the question object each time would reset the tool
+  // and throw away the student's work between attempts.
+  const secureQuestion = useMemo(
+    () => questionFromToolPayload(questionInstance),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [questionInstance?.questionInstanceId, questionInstance?.pathToolId],
+  );
+
   if (!questionInstance) return <div style={{ padding: '50px', textAlign: 'center', color: '#5f6368' }}>Preparing the next question…</div>;
 
-  const canonical = questionInstance.canonicalQuestion || null;
+  // A secure payload wins over a canonical one: if the server built a tool
+  // payload it also kept the grading definition, and the verdict is its own.
+  const canonical = secureQuestion || questionInstance.canonicalQuestion || null;
   if (canonical) {
     return (
       <main style={{ maxWidth: '860px', margin: '0 auto', padding: '20px 16px 50px' }}>
@@ -66,6 +84,15 @@ export const PathSessionPlayer = ({ session, questionInstance, lastGradingResult
           maximumAttempts={questionInstance.attemptsAllowed}
           activityRole={questionInstance.activityRole || 'practice'}
           draftKey={`path-${questionInstance.questionInstanceId}`}
+          // With a secure payload the engine collects raw work and the server
+          // decides; `onGrade` is not used at all on that route.
+          serverGrading={secureQuestion ? {
+            pathToolId: questionInstance.pathToolId,
+            submit: async (rawWork, supportUsage, meta) => onSubmitAnswer?.(
+              { raw: rawWork, responseKey: meta?.responseKey || '' },
+              { ...supportUsage, calculatorUsed: supportUsage?.calculatorUsed ?? calculatorUsed },
+            ),
+          } : null}
           onGrade={async (isCorrect, questionDetails, parts, supportUsage) => {
             // Everything the engine observed about assistance travels with the
             // result, so the player never has to assert that a student worked

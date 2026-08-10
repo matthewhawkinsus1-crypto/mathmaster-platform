@@ -33,6 +33,7 @@ import { normalizeContextualQuestion } from './platform/context/wordProblemLayer
 import { getEffectiveActivityPolicy } from './platform/policies/activityPolicies';
 import { resolveCalculatorPolicy } from './platform/policies/calculatorPolicy';
 import { getToolDefinition } from './tools/toolRegistry';
+import { buildRawPathResponse } from './platform/path/pathToolResponses';
 import { ToolRuntimeProvider } from './tools/shared/ToolRuntimeContext';
 import InteractiveModelingLabPlayer from './components/labs/InteractiveModelingLabPlayer.jsx';
 import { useToast } from './ui/Toast';
@@ -96,6 +97,12 @@ export default function QuestionEngine({
   teacherCalculatorChoice = null,
   assignmentId = null,
   executionScope = 'student',
+  // Secure server grading. When present, this question's verdict belongs to the
+  // server: the engine collects the student's raw work, sends it, and displays
+  // what comes back. Nothing the tools compute about correctness is reported as
+  // the result, and the tools are told not to show a verdict of their own.
+  //   { pathToolId, submit(rawWork, supportUsage, meta) -> feedback }
+  serverGrading = null,
 }) {
   const resolvedActivityPolicy = activityPolicy || getEffectiveActivityPolicy(activityRole);
   const resolvedMaximumAttempts = Math.max(1, Number(maximumAttempts ?? resolvedActivityPolicy?.attempts ?? MAX_ATTEMPTS_PER_QUESTION) || MAX_ATTEMPTS_PER_QUESTION);
@@ -223,8 +230,38 @@ export default function QuestionEngine({
     isMathematicallyIndependent: !hintUsed && !scaffoldComplete,
   });
 
+  // The one place a server-graded attempt is sent. Returns the server's
+  // feedback, or a refusal — never a locally computed verdict.
+  const submitToServer = async (rawWork, meta = {}) => {
+    if (!rawWork) {
+      return {
+        isCorrect: false,
+        status: 'attempted',
+        attemptCount: record.attemptCount,
+        remainingAttempts,
+        blocked: true,
+        message: 'This question cannot be scored securely, so it was not submitted. Tell your teacher.',
+      };
+    }
+    return (await serverGrading.submit(rawWork, attemptSupportUsage(), meta)) || null;
+  };
+
   const performSubmit = async () => {
     if (!answerState.isComplete || submitting || locked) return;
+    if (serverGrading) {
+      setSubmitting(true);
+      setUnchangedConfirmOpen(false);
+      setLastSubmittedResponseKey(answerState.responseKey ?? '');
+      try {
+        setFeedback(await submitToServer(
+          buildRawPathResponse({ pathToolId: serverGrading.pathToolId, answerState }),
+          { responseKey: answerState.responseKey ?? '', questionDetails: answerState.questionDetails },
+        ));
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
     setSubmitting(true);
     setUnchangedConfirmOpen(false);
     setLastSubmittedResponseKey(answerState.responseKey ?? '');
@@ -279,6 +316,18 @@ export default function QuestionEngine({
       return;
     }
     if (type !== 'ATTEMPT_SUBMITTED' || submitting || locked) return;
+    if (serverGrading) {
+      // The registry tools already hand back the student's work in the shape
+      // the contract grades. `payload.isCorrect` and `payload.score` are the
+      // tool's own opinion and are not read here.
+      setSubmitting(true);
+      try {
+        setFeedback(await submitToServer(payload?.response, { responseKey: JSON.stringify(payload?.response ?? {}) }));
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
     setSubmitting(true);
     try {
       const rawParts = payload?.metadata?.parts;
@@ -422,7 +471,10 @@ export default function QuestionEngine({
     if (missingToolDefinition) {
       const Tool = missingToolDefinition.component;
       return (
-        <ToolRuntimeProvider showImmediateFeedback={showOutcomeFeedback}>
+        // Under server grading the tool must not render a verdict: it has no
+        // answer key in its payload, so its own check would report "not yet"
+        // for correct work. The server's result is shown below instead.
+        <ToolRuntimeProvider showImmediateFeedback={showOutcomeFeedback && !serverGrading}>
           <Tool questionData={processedQuestion} onAction={handleMissingToolAction} />
         </ToolRuntimeProvider>
       );
@@ -679,7 +731,15 @@ export default function QuestionEngine({
         <p style={{ marginTop: '10px', color: '#5f6368', fontWeight: 'bold' }}>You may submit the same response again. No answer change is required.</p>
       )}
 
-      {feedback && showOutcomeFeedback && (
+      {/* A question the server cannot grade is not quietly marked wrong: the
+          student is told it was not submitted, which is what happened. */}
+      {feedback?.blocked && (
+        <div role="alert" style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', background: '#fef7e0', border: '1px solid #f9ab00', color: '#7a4f00', fontSize: '15px', fontWeight: 'bold' }}>
+          {feedback.message}
+        </div>
+      )}
+
+      {feedback && !feedback.blocked && showOutcomeFeedback && (
         <div style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', backgroundColor: feedback.isCorrect ? '#e6f4ea' : '#fce8e6', color: feedback.isCorrect ? '#137333' : '#c5221f', fontSize: '16px', fontWeight: 'bold' }}>
           {feedback.isCorrect
             ? 'Correct! This question is complete.'
