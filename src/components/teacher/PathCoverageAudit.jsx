@@ -40,6 +40,7 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
   const [error, setError] = useState(null);
   const [onlyGaps, setOnlyGaps] = useState(false);
   const [seed, setSeed] = useState(null);
+  const [seedPhase, setSeedPhase] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -136,7 +137,10 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
               const parsed = JSON.parse(await file.text());
               const items = Array.isArray(parsed) ? parsed : (parsed.items || parsed.questions || []);
               if (!items.length) throw new Error('That file contains no question documents.');
-              setSeed(await seedPathQuestionBank(items));
+              setSeed(await seedPathQuestionBank(items, {
+                onProgress: ({ phase, chunk, chunks }) => setSeedPhase(`${phase === 'validating' ? 'Validating' : 'Importing'} ${chunk} of ${chunks}…`),
+              }));
+              setSeedPhase(null);
             } catch (caught) {
               setError(caught.message || 'Could not import that seed file.');
             } finally {
@@ -147,22 +151,40 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
           disabled={busy}
           style={{ fontSize: 14 }}
         />
+        {seedPhase && <p style={{ marginTop: 12, color: '#174ea6', fontWeight: 700 }}>{seedPhase}</p>}
         {seed && (
           <div style={{ marginTop: 14, fontSize: 13, lineHeight: 1.7 }}>
-            <div>Received: <strong>{seed.received}</strong></div>
-            <div>Stored: <strong style={{ color: seed.accepted ? '#137333' : '#a50e0e' }}>{seed.accepted}</strong></div>
+            <div>Documents in the file: <strong>{seed.received / (seed.imported ? 2 : 1)}</strong></div>
+            <div>Stored: <strong style={{ color: seed.imported ? '#137333' : '#a50e0e' }}>{seed.imported ? seed.accepted : 0}</strong></div>
             <div>Standards supplied: <strong>{seed.standards.length}</strong></div>
+            {!seed.imported && (
+              <p style={{ margin: '10px 0 0', fontWeight: 900, color: '#a50e0e' }}>
+                Nothing was written. {seed.rejected.length} document{seed.rejected.length === 1 ? '' : 's'} would not have been
+                issuable in production, and a partly-imported bank is worse than an empty one. Fix these and import again.
+              </p>
+            )}
             {seed.rejected.length > 0 && (
-              <details style={{ marginTop: 8 }}>
+              <details style={{ marginTop: 8 }} open>
                 <summary style={{ cursor: 'pointer', fontWeight: 800, color: '#a50e0e' }}>{seed.rejected.length} rejected</summary>
-                <ul style={{ margin: '8px 0 0', color: '#3c4043' }}>
-                  {seed.rejected.slice(0, 40).map((entry, position) => (
-                    <li key={`${entry.id}-${position}`}>{entry.id || '(no id)'} — {String(entry.reason).replace(/_/g, ' ')}</li>
-                  ))}
-                </ul>
+                <table style={{ marginTop: 8, borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead><tr style={{ textAlign: 'left', background: '#f1f3f4' }}>
+                    <th style={{ padding: 6 }}>Question ID</th><th style={{ padding: 6 }}>Family</th>
+                    <th style={{ padding: 6 }}>Standard</th><th style={{ padding: 6 }}>Reason</th>
+                  </tr></thead>
+                  <tbody>
+                    {seed.rejected.slice(0, 60).map((entry, position) => (
+                      <tr key={`${entry.id}-${position}`} style={{ borderBottom: '1px solid #e8eaed' }}>
+                        <td style={{ padding: 6 }}>{entry.id || '(no id)'}</td>
+                        <td style={{ padding: 6 }}>{entry.familyId || '—'}</td>
+                        <td style={{ padding: 6 }}>{(entry.standards || []).join(', ') || '—'}</td>
+                        <td style={{ padding: 6, color: '#a50e0e' }}>{String(entry.reason).replace(/_/g, ' ')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </details>
             )}
-            <p style={{ margin: '10px 0 0', color: '#5f6368' }}>Recompute coverage above to see the new counts.</p>
+            {seed.imported && <p style={{ margin: '10px 0 0', color: '#5f6368' }}>Now recompute coverage above — it rereads the bank from Firestore rather than trusting this import.</p>}
           </div>
         )}
       </section>

@@ -49,19 +49,39 @@ export const rebuildPathCoverage = async (courses = ['algebra1', 'algebra2']) =>
  * uses before anything is written, and the call is idempotent on each item's
  * own id, so a partial import is simply re-run.
  */
-export const seedPathQuestionBank = async (items, { dryRun = false, chunkSize = 400 } = {}) => {
+export const seedPathQuestionBank = async (items, { chunkSize = 400, onProgress = null } = {}) => {
   const call = httpsCallable(functions, 'seedPathQuestionBank');
-  const totals = { received: 0, accepted: 0, rejected: [], standards: new Set() };
-  for (let index = 0; index < items.length; index += chunkSize) {
-    // eslint-disable-next-line no-await-in-loop
-    const result = await call({ items: items.slice(index, index + chunkSize), dryRun });
-    const data = result.data || {};
-    totals.received += data.received || 0;
-    totals.accepted += data.accepted || 0;
-    totals.rejected.push(...(data.rejected || []));
-    (data.standards || []).forEach((code) => totals.standards.add(code));
+  const chunks = [];
+  for (let index = 0; index < items.length; index += chunkSize) chunks.push(items.slice(index, index + chunkSize));
+
+  const runPass = async (dryRun) => {
+    const totals = { received: 0, accepted: 0, wouldAccept: 0, rejected: [], standards: new Set() };
+    for (let index = 0; index < chunks.length; index += 1) {
+      onProgress?.({ phase: dryRun ? 'validating' : 'importing', chunk: index + 1, chunks: chunks.length });
+      // eslint-disable-next-line no-await-in-loop
+      const data = (await call({ items: chunks[index], dryRun })).data || {};
+      totals.received += data.received || 0;
+      totals.accepted += data.accepted || 0;
+      totals.wouldAccept += data.wouldAccept || 0;
+      totals.rejected.push(...(data.rejected || []));
+      (data.standards || []).forEach((code) => totals.standards.add(code));
+    }
+    return { ...totals, standards: [...totals.standards].sort() };
+  };
+
+  // TWO PASSES, and the first one writes nothing. A package large enough to
+  // need chunking cannot be atomic in a single call, so atomicity is enforced
+  // at the PACKAGE level instead: every document is validated first, and the
+  // write pass only starts if the whole package came back clean. A partially
+  // imported bank would report some standards ready and others not, with no way
+  // to tell whether that reflects the content or a half-finished import.
+  const validation = await runPass(true);
+  if (validation.rejected.length) {
+    return { imported: false, phase: 'validation', ...validation };
   }
-  return { ...totals, standards: [...totals.standards].sort(), dryRun };
+
+  const written = await runPass(false);
+  return { imported: written.rejected.length === 0, phase: 'import', ...written };
 };
 
 /**

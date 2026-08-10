@@ -12,6 +12,14 @@ async function pathToolContracts() {
   return contractModule;
 }
 
+// The legacy field-graded branch, shared with the coverage index and the
+// promotion gate so all three mean the same thing by "gradeable".
+let legacyModule = null;
+async function legacyFieldGrading() {
+  if (!legacyModule) legacyModule = await import('../shared/legacyFieldGrading.mjs');
+  return legacyModule;
+}
+
 function canonicalAlignmentKey(value) {
   const raw = String(value || '').trim();
   if (!raw) return '';
@@ -170,11 +178,16 @@ async function buildIssuePlan(question) {
       privateGrading: contracts.buildPrivateToolGrading(question),
     };
   }
-  const declaredTool = String(question?.pathToolId || question?.toolId || question?.type || '').trim();
+  // A question that NAMES a tool this server cannot grade fails closed. Note
+  // `questionType` is deliberately not consulted: "response" is the generic
+  // question category, not a tool, and reading it as one would reject every
+  // legacy field-graded question in the bank.
+  const legacy = await legacyFieldGrading();
+  const declaredTool = legacy.declaredToolId(question);
   if (declaredTool) {
     return { issuable: false, reason: 'no_server_grader_for_this_tool', toolPayload: null, privateGrading: null };
   }
-  if (!hasGradeableDefinition(question)) {
+  if (!legacy.hasFieldGradableDefinition(question)) {
     return { issuable: false, reason: 'no_gradable_definition', toolPayload: null, privateGrading: null };
   }
   return { issuable: true, reason: null, toolPayload: null, privateGrading: privateGradingDefinition(question) };

@@ -1219,15 +1219,40 @@ exports.seedPathQuestionBank = onCall(async (request) => {
   const rejected = [];
   for (const item of items) {
     const id = String(item?.id || "").trim();
-    if (!id) { rejected.push({ id: null, reason: "missing_id" }); continue; }
+    // Every rejection names the document well enough to find and fix it.
+    const describe = (reason) => ({
+      id: id || null,
+      familyId: item?.familyId || null,
+      standards: (Array.isArray(item?.alignmentKeys) ? item.alignmentKeys : []).map((key) => String(key).replace(/^texas:/i, "").toUpperCase()),
+      reason,
+    });
+    if (!id) { rejected.push(describe("missing_id")); continue; }
+    // The exact production check. The gate must not be stricter than the
+    // runtime, or content production would happily issue is refused here.
     // eslint-disable-next-line no-await-in-loop
     const plan = await mathPath.buildIssuePlan(item);
-    if (!plan.issuable) { rejected.push({ id, reason: plan.reason }); continue; }
+    if (!plan.issuable) { rejected.push(describe(plan.reason)); continue; }
     if (!Array.isArray(item.alignmentKeys) || item.alignmentKeys.length === 0) {
-      rejected.push({ id, reason: "no_alignment_keys" });
+      rejected.push(describe("no_alignment_keys"));
       continue;
     }
     accepted.push({ ...item, id, active: item.active !== false });
+  }
+
+  // ALL OR NOTHING. A partially imported bank is the worst outcome: coverage
+  // would report some standards ready and others not, and nobody could tell
+  // whether that reflects the content or a half-finished import. So a single
+  // failure writes nothing and reports everything.
+  if (rejected.length) {
+    return {
+      dryRun,
+      imported: false,
+      received: items.length,
+      accepted: 0,
+      wouldAccept: accepted.length,
+      rejected,
+      standards: [],
+    };
   }
 
   if (!dryRun && accepted.length) {
@@ -1253,8 +1278,10 @@ exports.seedPathQuestionBank = onCall(async (request) => {
 
   return {
     dryRun,
+    imported: !dryRun,
     received: items.length,
     accepted: accepted.length,
+    wouldAccept: accepted.length,
     rejected,
     // The standards this import supplies content for, so the caller can check
     // them against the coverage target without a second round trip.

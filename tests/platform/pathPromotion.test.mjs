@@ -79,9 +79,82 @@ test('an unrun schema check is reported as unverified, never as passed', () => {
 test('the public payload is checked for answer leakage before anything is stored', () => {
   const evaluation = evaluatePromotion(GOOD);
   assert.equal(verdict(evaluation, 'noAnswerLeak').passed, true);
-  // And the check is real: it walks the payload the browser would receive.
-  const leaky = evaluatePromotion({ ...GOOD, type: 'transformationsLab' });
-  assert.equal(verdict(leaky, 'noAnswerLeak').passed, false);
+  // The check walks the payload the browser would receive, and the allowlist is
+  // what keeps it clean: the answer never appears in it.
+  assert.ok(!JSON.stringify(evaluation.preview || {}).includes('"4"'));
+});
+
+// --- The legacy field-graded branch, which the starter bank uses ------------------
+
+// Exactly the shape of the seed documents: no type, no toolId, no pathToolId,
+// questionType "response", and expected answers on the response fields.
+const LEGACY_SEED = {
+  id: 'seed-A.5A-foundation',
+  questionType: 'response',
+  familyId: 'A.5A-foundation',
+  familyVersion: 1,
+  prompt: 'Solve 2x + 5 = 13 for x.',
+  responseFields: [{ id: 'x', label: 'x =', inputProfile: 'number', expected: 4 }],
+  alignmentKeys: ['texas:A.5A'],
+  difficultyBand: 2,
+  dok: 1,
+  active: true,
+};
+
+test('a legacy field-graded question is promotable without any tool contract', () => {
+  const evaluation = evaluatePromotion(LEGACY_SEED);
+  assert.equal(evaluation.canPromote, true, JSON.stringify(evaluation.blocking));
+  assert.equal(evaluation.toolId, null, 'it declares no tool, and that is fine');
+  assert.equal(verdict(evaluation, 'serverGradeable').passed, true);
+  assert.equal(verdict(evaluation, 'gradingData').passed, true);
+  assert.deepEqual(evaluation.standards, ['A.5A']);
+});
+
+test('questionType "response" is not read as a tool declaration', () => {
+  // Reading questionType as a tool would demand a contract for a tool called
+  // "response" and reject every seed document in the bank.
+  assert.equal(evaluatePromotion(LEGACY_SEED).canPromote, true);
+  assert.equal(evaluatePromotion({ ...LEGACY_SEED, questionType: 'anythingAtAll' }).canPromote, true);
+});
+
+test('a field-graded question with no expected answer is still refused', () => {
+  const noAnswer = { ...LEGACY_SEED, responseFields: [{ id: 'x', label: 'x =' }] };
+  const evaluation = evaluatePromotion(noAnswer);
+  assert.equal(evaluation.canPromote, false);
+  assert.equal(verdict(evaluation, 'gradingData').passed, false);
+});
+
+test('declaring a tool with no contract still fails closed, and says which check', () => {
+  const evaluation = evaluatePromotion({ ...LEGACY_SEED, type: 'transformationsLab' });
+  assert.equal(evaluation.canPromote, false);
+  assert.equal(verdict(evaluation, 'serverGradeable').passed, false);
+  assert.match(verdict(evaluation, 'serverGradeable').detail, /transformationsLab/);
+  // It must NOT drop through to field grading just because it has
+  // responseFields — that is how a graphing question becomes a text box.
+  assert.equal(verdict(evaluation, 'gradingData').passed, false);
+});
+
+test('the promotion gate is never stricter than production buildIssuePlan', async () => {
+  // The gate and the runtime have to agree, or content that production would
+  // happily issue is rejected at the door — or worse, the reverse.
+  const { default: mathPath } = await import('../../functions/lib/mathPath.js');
+  const cases = [
+    ['tool-backed', GOOD],
+    ['legacy field-graded', LEGACY_SEED],
+    ['legacy, no answer', { ...LEGACY_SEED, responseFields: [{ id: 'x', label: 'x =' }] }],
+    ['declares unknown tool', { ...LEGACY_SEED, type: 'transformationsLab' }],
+    ['declares unknown tool with answer', { ...GOOD, type: 'transformationsLab' }],
+    ['no fields at all', { ...LEGACY_SEED, responseFields: [] }],
+  ];
+  for (const [label, question] of cases) {
+    // eslint-disable-next-line no-await-in-loop
+    const plan = await mathPath.buildIssuePlan(question);
+    const gate = evaluatePromotion(question);
+    assert.equal(
+      gate.canPromote, plan.issuable,
+      `${label}: gate says ${gate.canPromote}, production says ${plan.issuable} (${plan.reason})`,
+    );
+  }
 });
 
 // --- Variants are reported, not required -----------------------------------------------
