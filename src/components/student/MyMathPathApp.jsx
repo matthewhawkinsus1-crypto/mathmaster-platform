@@ -73,6 +73,10 @@ export const MyMathPathExperience = ({
   // does this student's SAT wheel look like at 45%?" — so it supplies the
   // whole context rather than having one derived from a synthetic document.
   assessmentContextOverride = null,
+  // Injected by the Teacher Path Simulator so a practice session runs against
+  // the synthetic learner. Absent for a real student, who gets the live
+  // secure service.
+  sessionProvider = null,
   loading = false,
   error = null,
   historyError = null,
@@ -171,7 +175,7 @@ export const MyMathPathExperience = ({
       )}
       {activeTab === 'dashboard' && <MyMathPathDashboard studentName={studentName || studentId || 'Student'} masteryProfilesByTEKS={masteryData.masteryProfilesByTEKS} retentionSchedulesByTEKS={masteryData.retentionSchedulesByTEKS} recommendedTeks={recommendedTeks} courseId={courseId} pathOptions={pathOptions} assessmentContext={assessmentContext} onPracticeAs={({ skillId, framework }) => { const code = teksCodeFromSkillId(skillId); if (code) startSession(code, { framework }); }} onStartSession={startSession} />}
       {activeTab === 'history' && <StudentPracticeHistory evidenceEvents={evidenceEvents} availableTeks={availableTeks} loading={loading} error={historyError} />}
-      {activeTab === 'session' && sessionConfig && <MyMathPathProductionContainer {...sessionConfig} studentProfile={studentProfile} onReturnToDashboard={returnToDashboard} onSessionComplete={() => onReload?.()} />}
+      {activeTab === 'session' && sessionConfig && <MyMathPathProductionContainer {...sessionConfig} studentProfile={studentProfile} sessionProvider={sessionProvider} onReturnToDashboard={returnToDashboard} onSessionComplete={() => onReload?.()} />}
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import StudentDashboardView from '../student/StudentDashboardView.jsx';
 import { MyMathPathExperience } from '../student/MyMathPathApp.jsx';
 import { buildStudentDashboardModel } from '../../studentDashboardModel.js';
@@ -11,6 +11,7 @@ import {
 } from '../../assignmentLifecycle';
 import { getQuestionCredit, normalizeQuestionRecord } from '../../attemptPolicy';
 import { matchesSmartView } from '../../assignmentSmartViews.js';
+import { createTeacherPathRuntime } from '../../platform/simulation/teacherPathRuntime.js';
 
 // The same arithmetic App.jsx uses for a real student's recorded grade. It is
 // three lines and lives on App's closure there; duplicating those three lines
@@ -52,27 +53,61 @@ export default function SimulatedStudentExperience({
   directIndex = null,
   onStartAssignment = null,
   onChooseSkill = null,
+  // Evidence the simulated student produces by actually answering questions,
+  // handed back so the slot's learner — and therefore the Path, the wheel and
+  // the recommendation panel — moves with it.
+  onSimulatedEvidence = null,
 }) {
   const [view, setView] = useState('assignments');
+  // Work done inside a path session lives here until the parent takes it,
+  // which is what makes the Path visibly react to a real answer.
+  const [sessionAssignments, setSessionAssignments] = useState([]);
+
+  const evidenceRef = useRef(onSimulatedEvidence);
+  evidenceRef.current = onSimulatedEvidence;
+
+  // One runtime per learner. The student's own container calls it exactly as
+  // it calls the live service, so nothing below this line knows the difference.
+  const runtime = useMemo(() => createTeacherPathRuntime({
+    assignments,
+    courseId,
+    learner,
+    onChange: ({ learner: nextLearner, sessionAssignment }) => {
+      setSessionAssignments((current) => [
+        ...current.filter((entry) => entry.id !== sessionAssignment.id),
+        sessionAssignment,
+      ]);
+      evidenceRef.current?.({ learner: nextLearner, sessionAssignment });
+    },
+  }), [assignments, courseId, learner]);
+
+  useEffect(() => { setSessionAssignments([]); }, [runtime]);
+
+  // Everything the engines read: the teacher's assignments plus whatever the
+  // simulated student has done in a path session.
+  const allAssignments = useMemo(
+    () => [...assignments, ...sessionAssignments],
+    [assignments, sessionAssignments],
+  );
 
   // The real engines, over the synthetic document. No mocks anywhere in here.
   const pathOptions = useMemo(() => (pacing ? buildStudentPathOptions({
     student: learner,
-    assignments,
+    assignments: allAssignments,
     courseId,
     pacing,
     teacherOverrides,
     nowValue,
-  }) : null), [learner, assignments, courseId, pacing, teacherOverrides, nowValue]);
+  }) : null), [learner, allAssignments, courseId, pacing, teacherOverrides, nowValue]);
 
   const masteryData = useMemo(() => {
-    const legacyProfile = buildStudentMasteryProfile({ student: learner, assignments });
-    const evidenceRows = collectStudentEvidence({ student: learner, assignments });
+    const legacyProfile = buildStudentMasteryProfile({ student: learner, assignments: allAssignments });
+    const evidenceRows = collectStudentEvidence({ student: learner, assignments: allAssignments });
     return {
       masteryProfilesByTEKS: adaptLegacyMasteryToPhase5({ legacyProfile, evidenceRows, retentionSchedulesByTEKS: {} }),
       retentionSchedulesByTEKS: {},
     };
-  }, [learner, assignments]);
+  }, [learner, allAssignments]);
 
   const dashboard = useMemo(() => buildStudentDashboardModel({
     assignments,
@@ -157,6 +192,7 @@ export default function SimulatedStudentExperience({
           courseId={courseId}
           studentRecord={learner}
           masteryData={masteryData}
+          sessionProvider={runtime}
           evidenceEvents={[]}
           loading={false}
           assessmentContextOverride={assessmentContext}

@@ -1,8 +1,24 @@
 import React, { useMemo, useState } from 'react';
 import CalculatorPanel from '../CalculatorPanel.jsx';
 import ProblemUnderstandingPanel from '../ProblemUnderstandingPanel.jsx';
+import QuestionEngine from '../../QuestionEngine.jsx';
 import { getEffectiveActivityPolicy } from '../../platform/policies/activityPolicies.js';
 import { resolveCalculatorPolicy } from '../../platform/policies/calculatorPolicy.js';
+
+// Two ways a path question can arrive.
+//
+// CANONICAL — the instance carries a whole authored question, so it renders
+// through the ordinary QuestionEngine and a systems question is the systems
+// workspace, a graphing question is the graphing tool, and a relation question
+// is the mapping diagram. This is what a path question should be.
+//
+// FIELDS ONLY — the instance carries `responseFields` and nothing else, which
+// is what the secure server currently sends. It renders as labelled inputs,
+// because that is genuinely all the payload describes. Preserving this path
+// means the production route keeps working while the payload catches up.
+//
+// The distinction is the payload's, not a setting: whatever the session issues
+// is what gets rendered.
 
 export const PathSessionPlayer = ({ session, questionInstance, lastGradingResult, isSubmitting, studentProfile, onSubmitAnswer }) => {
   const [responses, setResponses] = useState({});
@@ -17,6 +33,55 @@ export const PathSessionPlayer = ({ session, questionInstance, lastGradingResult
   }), [questionInstance, activityPolicy, studentProfile]);
 
   if (!questionInstance) return <div style={{ padding: '50px', textAlign: 'center', color: '#5f6368' }}>Preparing the next question…</div>;
+
+  const canonical = questionInstance.canonicalQuestion || null;
+  if (canonical) {
+    return (
+      <main style={{ maxWidth: '860px', margin: '0 auto', padding: '20px 16px 50px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '12px', color: '#5f6368', fontSize: '12px' }}>
+          <strong style={{ color: '#174ea6' }}>
+            {session?.sessionKind === 'retentionProbe' ? 'Retention Quick Check' : 'My Math Path'} · {questionInstance.teksCode || session?.target?.alignmentKey}
+          </strong>
+          <span>{session?.summary?.completedQuestions || 0} of {session?.requiredQuestions || 5} complete</span>
+        </div>
+
+        {/* Why this question, in the student's terms. A path that cannot say
+            why it moved is indistinguishable from a random one. */}
+        {session?.lastDecision?.explanation && (
+          <p style={{ margin: '0 0 12px', padding: '10px 12px', borderRadius: 8, background: '#e8f0fe', color: '#174ea6', fontSize: 13, lineHeight: 1.5, textAlign: 'left' }}>
+            {session.lastDecision.explanation}
+          </p>
+        )}
+
+        <QuestionEngine
+          question={canonical}
+          // The session owns the attempt count, so the renderer is told where
+          // the student actually is. Passing null gave the student unlimited
+          // attempts on screen while the session finalized underneath them.
+          questionRecord={{
+            status: questionInstance.attemptsUsed > 0 ? 'attempted' : 'unattempted',
+            attemptCount: questionInstance.attemptsUsed || 0,
+          }}
+          studentProfile={studentProfile}
+          maximumAttempts={questionInstance.attemptsAllowed}
+          activityRole={questionInstance.activityRole || 'practice'}
+          draftKey={`path-${questionInstance.questionInstanceId}`}
+          onGrade={async (isCorrect, questionDetails, parts, supportUsage) => {
+            // Everything the engine observed about assistance travels with the
+            // result, so the player never has to assert that a student worked
+            // independently.
+            await onSubmitAnswer?.(
+              { responses: parts, questionDetails },
+              { ...supportUsage, calculatorUsed: supportUsage?.calculatorUsed ?? calculatorUsed },
+              { isCorrect },
+            );
+            return null;
+          }}
+        />
+      </main>
+    );
+  }
+
   const fields = questionInstance.responseFields?.length
     ? questionInstance.responseFields
     : [{ id: 'answer', label: 'Answer', inputProfile: 'text' }];
@@ -40,12 +105,15 @@ export const PathSessionPlayer = ({ session, questionInstance, lastGradingResult
       {
         calculatorUsed,
         contextScaffoldUsed,
+        // This renderer offers no hints, scaffolds or worked examples, so it
+        // reports what it actually observed rather than asserting the student
+        // worked unaided.
         hintUsed: false,
         teacherAssisted: false,
-        scaffoldUsed: false,
+        scaffoldUsed: contextScaffoldUsed,
         remediationUsed: false,
         workedExampleUsed: false,
-        isMathematicallyIndependent: true,
+        isMathematicallyIndependent: !contextScaffoldUsed,
       },
     );
   };

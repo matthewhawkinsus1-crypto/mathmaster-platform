@@ -275,6 +275,10 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
   // what is current, which is what makes moving the date meaningful.
   const simulationPacing = useMemo(() => ({ windowIndex: 0, windowCount: 6, accelerationRadius: 1 }), []);
 
+  // What the simulated learner has already done on the bench question, so a
+  // second attempt is a second attempt rather than a fresh start.
+  const benchRecord = session?.learner?.gradesByAssignment?.[assignmentId]?.[questionIndex] || null;
+
   const runOutcome = (outcomeId) => {
     if (!session || !assignment) return;
     if (outcomeId === 'forceSkillMastery' || outcomeId === 'forceSkillFailure') {
@@ -395,6 +399,28 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                 nowValue={simulatedNow}
                 assessmentEvidence={assessmentEvidence}
                 directIndex={directIndex}
+                onChooseSkill={(card) => {
+                  // The dashboard's Recommended for You cards are real doors
+                  // here too: choosing one opens My Math Path on that skill,
+                  // exactly as it does for a student.
+                  setSlotNotice(`Opening My Math Path on ${card?.title || 'that skill'}.`);
+                  window.setTimeout(() => setSlotNotice(''), 3000);
+                }}
+                onSimulatedEvidence={({ learner: nextLearner, sessionAssignment }) => {
+                  // Real answers become real evidence on the synthetic learner,
+                  // so the Path the teacher returns to has actually moved.
+                  setSlots((current) => current.map((slot) => (slot.id !== activeSlot.id ? slot : {
+                    ...slot,
+                    session: {
+                      ...slot.session,
+                      learner: nextLearner,
+                      extraAssignments: [
+                        ...(slot.session?.extraAssignments || []).filter((entry) => entry.id !== sessionAssignment.id),
+                        sessionAssignment,
+                      ],
+                    },
+                  })));
+                }}
                 onStartAssignment={(id, index) => {
                   // Opening work from the simulated dashboard drops the teacher
                   // into the question bench on that exact question, which is
@@ -556,8 +582,42 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
             <p style={{ color: '#5f6368', fontSize: 12, margin: '0 0 12px' }}>
               This is the student question renderer itself, not a teacher copy of it.
             </p>
+            <p style={{ color: '#5f6368', fontSize: 12, margin: '0 0 12px' }}>
+              Answer it as a student would. Submitting records a real attempt against the simulated
+              learner through the attempt policy — the force controls below are shortcuts for the
+              same thing, not a different thing.
+            </p>
             {question
-              ? <QuestionEngine question={question} onStateChange={() => {}} feedback={null} draftKey={`simulator-${assignment.id}-${questionIndex}`} />
+              ? (
+                <QuestionEngine
+                  question={question}
+                  questionRecord={benchRecord}
+                  maximumAttempts={3}
+                  draftKey={`simulator-${assignment.id}-${questionIndex}`}
+                  feedback={null}
+                  onGrade={async (isCorrect, questionDetails, parts, supportUsage) => {
+                    // The teacher's own answer is evidence. Previously this was
+                    // discarded and only the force buttons moved the learner.
+                    const applied = applySimulationOutcome({
+                      learner: session.learner,
+                      assignmentId: assignment.id,
+                      questionIndex,
+                      outcomeId: isCorrect ? 'correct' : 'incorrect',
+                      questionDetails: String(questionDetails || '').slice(0, 160),
+                    });
+                    setSession((current) => ({
+                      ...current,
+                      learner: applied.learner,
+                      timeline: [...current.timeline, {
+                        ...applied.event,
+                        label: isCorrect ? 'Answered correctly' : 'Answered incorrectly',
+                        detail: `${applied.event.detail} Support: ${supportUsage?.hintUsed ? 'hint used' : 'independent'}.`,
+                      }],
+                    }));
+                    return null;
+                  }}
+                />
+              )
               : <p>No question selected.</p>}
           </div>
 

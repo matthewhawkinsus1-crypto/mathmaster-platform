@@ -1,16 +1,27 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { fetchNextSanitizedQuestion, startOrResumePathSession, submitStudentResponse } from '../../services/pathSessionService.js';
+import * as liveSessionService from '../../services/pathSessionService.js';
 import { generateRuntimeUUID } from '../../utils/idUtils.js';
 import PathSessionPlayer from './PathSessionPlayer.jsx';
 
+// The session runtime is injected.
+//
+// A real student gets the live service, which calls the secure server. The
+// Teacher Path Simulator supplies its own runtime over a synthetic learner —
+// it cannot use the student callables, because those require an authenticated
+// student claim and weakening that check to let a teacher impersonate a student
+// would be a real security hole. One container, two runtimes, no second copy of
+// the session UI.
 export const MyMathPathProductionContainer = ({
   targetAlignmentKey,
   sessionKind = 'practice',
   requiredQuestions = 5,
   studentProfile,
+  sessionProvider = null,
   onReturnToDashboard,
   onSessionComplete,
 }) => {
+  const provider = sessionProvider || liveSessionService;
+  const { startOrResumePathSession, fetchNextSanitizedQuestion, submitStudentResponse } = provider;
   const [session, setSession] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -50,7 +61,7 @@ export const MyMathPathProductionContainer = ({
     onSessionComplete?.(session);
   }, [session, onSessionComplete]);
 
-  const handleSubmitAnswer = async (responsePayload, supportUsage = {}) => {
+  const handleSubmitAnswer = async (responsePayload, supportUsage = {}, grade = null) => {
     if (!session || !currentQuestion || submitting) return;
     setSubmitting(true);
     setSubmissionError(null);
@@ -65,6 +76,10 @@ export const MyMathPathProductionContainer = ({
         submissionId: pendingSubmissionRef.current.submissionId,
         responsePayload,
         supportUsage,
+        // Only the canonical renderer supplies this, and only a runtime that
+        // already holds the answer key accepts it. The secure server ignores
+        // it and grades for itself.
+        ...(grade ? { isCorrect: grade.isCorrect } : {}),
       });
       pendingSubmissionRef.current = null;
       setLastGradingResult(result.grading);
@@ -74,7 +89,9 @@ export const MyMathPathProductionContainer = ({
         setCurrentQuestion(next.questionInstance);
         setLastGradingResult(null);
       } else if (result.session.status === 'active') {
-        setCurrentQuestion((current) => current ? { ...current, attemptsUsed: result.grading?.attemptNumber ?? current.attemptsUsed } : current);
+        setCurrentQuestion((current) => (current
+          ? { ...current, attemptsUsed: result.grading?.attemptNumber ?? current.attemptsUsed }
+          : current));
       } else {
         setCurrentQuestion(null);
       }
