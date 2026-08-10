@@ -1135,6 +1135,68 @@ function coverageCourseIdFor(alignmentKey) {
   return /^(texas:)?A2\./i.test(String(alignmentKey || "").trim()) ? "algebra2" : "algebra1";
 }
 
+let promotionModule = null;
+async function pathPromotion() {
+  if (!promotionModule) promotionModule = await import("./shared/pathPromotion.mjs");
+  return promotionModule;
+}
+
+/**
+ * Promote an authored assignment question into the secure Path bank.
+ *
+ * The two banks stay distinct on purpose. Writing an assignment does not make
+ * its questions trusted mastery content; a person has to say so, and the server
+ * has to agree. The question is read from the assignment SERVER-SIDE — the
+ * caller nominates which one, and never supplies its contents — so a browser
+ * cannot promote a question that was never authored, or edit one on the way in.
+ */
+exports.promoteQuestionToPathBank = onCall(async (request) => {
+  await requireTeacher(request);
+  const db = getFirestore();
+  const promotion = await pathPromotion();
+
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  const questionIndex = Number(request.data?.questionIndex);
+  if (!assignmentId || !Number.isInteger(questionIndex) || questionIndex < 0) {
+    throw new HttpsError("invalid-argument", "assignmentId and questionIndex are required.");
+  }
+
+  const assignmentSnapshot = await db.collection("assignments").doc(assignmentId).get();
+  if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment no longer exists.");
+  const question = (assignmentSnapshot.data()?.questions || [])[questionIndex];
+  if (!question) throw new HttpsError("not-found", "That question is not in the assignment.");
+
+  const evaluation = promotion.evaluatePromotion(question, { schemaResult: request.data?.schemaResult || null });
+  if (!evaluation.canPromote) {
+    throw new HttpsError("failed-precondition", evaluation.blocking.map((entry) => entry.detail || entry.label).join(" "), {
+      reason: "promotion-blocked",
+      checks: evaluation.checks,
+    });
+  }
+
+  const record = promotion.buildPathBankRecord(question, {
+    promotedBy: callerEmail(request),
+    sourceAssignmentId: assignmentId,
+    sourceQuestionIndex: questionIndex,
+  });
+  const bankId = promotion.pathBankIdFor({ sourceAssignmentId: assignmentId, sourceQuestionIndex: questionIndex });
+  await db.collection("pathQuestionBank").doc(bankId).set(record, { merge: true });
+
+  return { bankId, standards: evaluation.standards, toolId: evaluation.toolId, checks: evaluation.checks };
+});
+
+/** Remove a promoted question from the Path bank without touching the assignment. */
+exports.withdrawQuestionFromPathBank = onCall(async (request) => {
+  await requireTeacher(request);
+  const db = getFirestore();
+  const bankId = String(request.data?.bankId || "").trim();
+  if (!bankId) throw new HttpsError("invalid-argument", "bankId is required.");
+  // Deactivated rather than deleted: an evidence event already recorded against
+  // it should still be able to name the question a student answered.
+  await db.collection("pathQuestionBank").doc(bankId).set({ active: false, withdrawnAt: Date.now() }, { merge: true });
+  return { bankId, active: false };
+});
+
 /**
  * Recompute the coverage index for one or more courses.
  *

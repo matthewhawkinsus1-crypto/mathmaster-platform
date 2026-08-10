@@ -30,6 +30,16 @@ export const PATH_MARK = Object.freeze({
   [STATUS.LOCKED]: { symbol: '🔒', label: 'Needs support first', tone: '#5f6368' },
 });
 
+// A skill MathMaster does not have practice content for yet.
+//
+// Shown rather than hidden, deliberately: a student seeing the shape of the
+// course is worth something, and half a wheel reading "Coming soon" is how an
+// administrator discovers a content problem the same day rather than in March.
+// It is not a door, and it never shows the student a bank error.
+export const CONTENT_PENDING_MARK = Object.freeze({
+  symbol: '◌', label: 'Coming soon', tone: '#7a4f00',
+});
+
 const mark = (status) => PATH_MARK[status] || { symbol: '●', label: 'Available', tone: '#5f6368' };
 
 const list = (value) => (Array.isArray(value) ? value : []);
@@ -48,7 +58,7 @@ export const explainLock = (row) => {
   return `Strengthen ${described.shortLabel || target} first — this skill builds on it.`;
 };
 
-const toNode = (row, extra = {}) => {
+const toPathNode = (row, extra = {}) => {
   if (!row) return null;
   const described = describeSkill(row.skillId);
   return {
@@ -78,6 +88,27 @@ const toNode = (row, extra = {}) => {
   };
 };
 
+/**
+ * Overlay content availability onto a node.
+ *
+ * Availability is a separate axis from where the student is in the course: a
+ * skill can be recommended, unlocked and still have nothing to practise. So it
+ * is applied after the pedagogy rather than mixed into it, and it can only ever
+ * close a door — it never opens one that prerequisites had locked.
+ */
+const withCoverage = (node, isCovered) => {
+  if (typeof isCovered !== 'function' || isCovered(node.skillId)) return node;
+  return {
+    ...node,
+    selectable: false,
+    contentPending: true,
+    symbol: CONTENT_PENDING_MARK.symbol,
+    statusLabel: CONTENT_PENDING_MARK.label,
+    tone: CONTENT_PENDING_MARK.tone,
+    reason: 'Practice for this skill is being prepared. Your teacher can see when it is ready.',
+  };
+};
+
 // Ready early, but the class has not arrived. Selectable, and shown under
 // "coming up" rather than as a headline recommendation — being ahead is not the
 // same as being told this is the best use of the next twenty minutes.
@@ -94,10 +125,11 @@ export const DEFAULT_LIMITS = Object.freeze({
  * there is nothing to draw, so the caller can say why rather than render an
  * empty diagram.
  */
-export const buildPathMap = (options, { limits = {} } = {}) => {
+export const buildPathMap = (options, { limits = {}, isCovered = null } = {}) => {
   if (!options || typeof options !== 'object') return null;
   const cap = { ...DEFAULT_LIMITS, ...limits };
   const rows = (key) => list(options[key]);
+  const toNode = (row, extra) => withCoverage(toPathNode(row, extra), isCovered);
 
   // Required work outranks everything and suspends free choice, so it leads.
   const focus = [...rows('required'), ...rows('priority'), ...rows('recommended')]

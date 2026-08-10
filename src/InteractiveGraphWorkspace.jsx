@@ -51,17 +51,49 @@ const snapError = (point, step) => {
   return Math.hypot(dx, dy);
 };
 
-// Never let the authored/display grid make a required point unreachable. Start
-// with the requested snap and halve it only when a fixed expected point cannot
-// land close enough to receive credit. Dynamic-x tasks get quarter-unit input
-// by default, which keeps any resulting point within the graph grader's 0.22
-// minimum location tolerance without forcing tiny visible grid squares.
-const resolveReachableSnapStep = (requestedStep, tasks = []) => {
+// The interface must never make a valid authored function impossible to graph
+// — and must not make an easy one fiddly either. The rule is: the coarsest snap
+// that still lets the mathematics be answered.
+//
+//   1. An author's explicit snapStep is respected...
+//   2. ...unless a required point could not land close enough for credit, in
+//      which case it is halved only as far as necessary.
+//   3. When the student picks their own x-values and nothing is required,
+//      quarter units. Not tenths: on a Chromebook trackpad, tenths turn a
+//      two-second placement into a fight.
+//   4. Being continuous is not a reason to refine. Only unreachable points are.
+//   5. If the function itself makes quarter units useless — f(x) = x/3 lands on
+//      no quarter at all — refine for THAT question until enough of the visible
+//      curve is actually plottable.
+//   6. And stop at a step a hand can still hit.
+//
+// The visible grid is a separate decision, made below: the graph does not draw
+// every subdivision it will accept.
+const MIN_USABLE_SNAP = 0.05;
+const REACHABLE_SAMPLE_TARGET = 4;
+
+const resolveReachableSnapStep = (requestedStep, tasks = [], curveSamples = []) => {
+  const authored = Number(requestedStep);
+  const authorWasExplicit = Number.isFinite(authored) && authored > 0;
   let step = positiveStep(requestedStep, 0.5);
-  if (tasks.some((task) => task?.studentChoosesX)) step = Math.min(step, 0.25);
+
+  const chooses = tasks.some((task) => task?.studentChoosesX);
+  if (chooses && !authorWasExplicit) step = Math.min(step, 0.25);
+
+  // Rule 2: a fixed required point must be reachable, whatever the author said.
   const expectedPoints = tasks.map((task) => task?.expected).filter(Array.isArray);
-  while (step > 0.01 && expectedPoints.some((point) => snapError(point, step) > 0.2)) step /= 2;
-  return Math.max(0.01, step);
+  while (step > MIN_USABLE_SNAP && expectedPoints.some((point) => snapError(point, step) > 0.2)) step /= 2;
+
+  // Rule 5: with no fixed points, the student still needs somewhere to put one.
+  // A curve that misses every gridline at this step is unplottable in practice.
+  if (chooses && expectedPoints.length === 0 && curveSamples.length) {
+    const reachable = (candidate) => curveSamples.filter((point) => snapError(point, candidate) <= 0.2).length;
+    while (step > MIN_USABLE_SNAP && reachable(step) < Math.min(REACHABLE_SAMPLE_TARGET, curveSamples.length)) {
+      step /= 2;
+    }
+  }
+
+  return Math.max(MIN_USABLE_SNAP, step);
 };
 
 const buildTicks = (minimum, maximum, step) => {
@@ -241,12 +273,20 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
   // as (1, 1.5) literally impossible to place even though the graph engine's
   // own default snapStep is 0.5. Honor the construction snap independently and
   // allow an author to make either axis finer when a task needs it.
-  const requestedSnapStep = positiveStep(graph.snapStep ?? window.snapStep, 0.5);
-  const snapStep = useMemo(() => resolveReachableSnapStep(requestedSnapStep, tasks), [requestedSnapStep, tasks]);
+  const requestedSnapStep = graph.snapStep ?? window.snapStep;
+  const visiblePaths = useMemo(() => sampleVisibleFunctionPaths(functionSpec, window), [functionSpec, window]);
+  // Rule 5 needs to know where the curve actually is, so the samples are taken
+  // before the snap is resolved rather than after.
+  const curveSamples = useMemo(() => visiblePaths.flat(), [visiblePaths]);
+  const snapStep = useMemo(
+    () => resolveReachableSnapStep(requestedSnapStep, tasks, curveSamples),
+    [requestedSnapStep, tasks, curveSamples],
+  );
+  // The visible grid and the accepted precision are separate: the graph may
+  // accept a quarter without drawing quarter lines everywhere.
   const xSnapStep = Math.min(xGridStep, snapStep, positiveStep(graph.xSnapStep ?? window.xSnapStep, snapStep));
   const ySnapStep = Math.min(yGridStep, snapStep, positiveStep(graph.ySnapStep ?? window.ySnapStep, snapStep));
   const showCoordinates = skipCounting ? true : requestedShowCoordinates;
-  const visiblePaths = useMemo(() => sampleVisibleFunctionPaths(functionSpec, window), [functionSpec, window]);
   const endpointRequirements = useMemo(() => constructionEnabled ? (question.endpointRequirements || getDefaultEndpointRequirements(functionSpec, visiblePaths, { ...question, graph: window })) : getDefaultEndpointRequirements(functionSpec, visiblePaths, { ...question, graph: window }), [question, functionSpec, visiblePaths, window, constructionEnabled]);
   const analysisParts = useMemo(() => normalizeAnalysisRequests(question, functionSpec, window, mode === 'analysis'), [question, functionSpec, window, mode]);
   const analysisEnabled = mode === 'analysis' || analysisParts.length > 0;

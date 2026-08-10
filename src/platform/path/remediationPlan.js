@@ -37,6 +37,10 @@ export const REMEDIATION_ACTION = Object.freeze({
   RETEACH_IN_PLACE: 'reteach_in_place',
   DIAGNOSE: 'diagnose_prerequisite',
   DESCEND: 'descend_to_prerequisite',
+  // The mathematics says descend, and there is nowhere with content to descend
+  // to. Distinct from RETEACH_IN_PLACE, which means the prerequisites were
+  // fine: this one means we could not check them, and somebody should know.
+  NO_COVERED_ROUTE: 'no_covered_route',
 });
 
 // Three levels is already a long way down — Algebra II → Algebra I → grade 8.
@@ -192,6 +196,119 @@ export const planRemediation = ({
  * downstream of the gap — the ones that legitimately wait — and confirms
  * everything else stays open.
  */
+/**
+ * The same plan, but never routing somewhere MathMaster cannot teach.
+ *
+ * The engine picks a target from the mathematics. This asks one more question
+ * of that answer: is there actually a question we can put in front of the
+ * student when they arrive? If not, the route is rejected AND a replacement is
+ * looked for — but only inside the origin's own prerequisite closure, walking
+ * outward by graph distance. That constraint is the whole point. A covered
+ * skill three edges down the chain that A.5C genuinely depends on is a real
+ * remediation; the nearest covered skill in the course is not, and substituting
+ * one would be exactly the "pretend another TEKS is equivalent" failure this
+ * work exists to prevent.
+ *
+ * When nothing in the closure is covered, the plan says so rather than routing
+ * into an error. The student stays where they are with support, and the gap is
+ * named for the coverage audit.
+ */
+export const planCoveredRemediation = ({
+  courseId,
+  skillId,
+  masteryBySkill = {},
+  maxDepth = MAX_DESCENT_DEPTH,
+  isCovered = null,
+} = {}) => {
+  const plan = planRemediation({ courseId, skillId, masteryBySkill, maxDepth });
+
+  // No coverage information, or a plan that does not send the student anywhere,
+  // is returned untouched.
+  if (typeof isCovered !== 'function') return { ...plan, coverageChecked: false };
+  const routes = plan.action === REMEDIATION_ACTION.DESCEND || plan.action === REMEDIATION_ACTION.DIAGNOSE;
+  if (!routes) return { ...plan, coverageChecked: true, coverageAdjusted: false, coverageSkipped: [] };
+  if (plan.targetSkillId && isCovered(plan.targetSkillId)) {
+    return { ...plan, coverageChecked: true, coverageAdjusted: false, coverageSkipped: [] };
+  }
+
+  const skipped = plan.targetSkillId ? [plan.targetSkillId] : [];
+  const replacement = nearestCoveredPrerequisite({
+    courseId,
+    fromSkillId: plan.originSkillId || skillId,
+    masteryBySkill,
+    isCovered,
+    exclude: new Set(skipped),
+    maxDepth,
+  });
+
+  if (!replacement) {
+    return {
+      ...plan,
+      action: REMEDIATION_ACTION.NO_COVERED_ROUTE,
+      targetSkillId: null,
+      target: null,
+      coverageChecked: true,
+      coverageAdjusted: true,
+      coverageSkipped: skipped,
+      reason: 'no_covered_prerequisite',
+      explanation: 'The evidence points at a prerequisite, but MathMaster has no practice content for it or for anything it depends on, so the student stays on this skill with support while the gap is reported.',
+    };
+  }
+
+  return {
+    ...plan,
+    // The action follows the evidence at the REPLACEMENT, not the original: a
+    // skill nobody has evidence for is a check, not a unit of remediation.
+    action: replacement.evidence === 'unknown' ? REMEDIATION_ACTION.DIAGNOSE : REMEDIATION_ACTION.DESCEND,
+    targetSkillId: replacement.skillId,
+    target: describeSkill(replacement.skillId),
+    coverageChecked: true,
+    coverageAdjusted: true,
+    coverageSkipped: [...skipped, ...replacement.skipped],
+    reason: 'nearest_covered_prerequisite',
+    explanation: `${plan.explanation} The nearest prerequisite with practice content is used instead of one that has none.`,
+  };
+};
+
+/**
+ * Breadth-first through the prerequisite closure, nearest first.
+ *
+ * Only edges the origin actually depends on are followed, so every candidate is
+ * a genuine prerequisite rather than a topic that merely looks similar.
+ */
+const nearestCoveredPrerequisite = ({ courseId, fromSkillId, masteryBySkill, isCovered, exclude, maxDepth }) => {
+  const origin = skillFor(courseId, fromSkillId);
+  if (!origin) return null;
+
+  const seen = new Set([origin.skillId]);
+  const skipped = [];
+  let frontier = [origin];
+
+  for (let depth = 0; depth < maxDepth && frontier.length; depth += 1) {
+    const next = [];
+    for (const skill of frontier) {
+      const evidence = classifyPrerequisiteEvidence(skill, masteryBySkill);
+      // Weak first, then unknown: a known gap outranks an unchecked one.
+      const candidates = [
+        ...evidence.weak.map((entry) => ({ ...entry, evidence: 'weak' })),
+        ...evidence.unknown.map((entry) => ({ ...entry, evidence: 'unknown' })),
+      ];
+      for (const candidate of candidates) {
+        if (seen.has(candidate.skillId)) continue;
+        seen.add(candidate.skillId);
+        if (!exclude.has(candidate.skillId) && isCovered(candidate.skillId)) {
+          return { skillId: candidate.skillId, evidence: candidate.evidence, skipped };
+        }
+        if (!exclude.has(candidate.skillId)) skipped.push(candidate.skillId);
+        const resolved = skillFor(courseId, candidate.skillId);
+        if (resolved) next.push(resolved);
+      }
+    }
+    frontier = next;
+  }
+  return null;
+};
+
 export const describeBranchImpact = ({ courseId, skillId, masteryBySkill = {} } = {}) => {
   const graph = getSkillGraph(courseId);
   const blocked = new Set();

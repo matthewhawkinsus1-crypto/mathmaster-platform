@@ -234,6 +234,33 @@ test('systems: the intersection and the classification are both checked', () => 
   assert.equal(grade('system', { x: 1, y: 3, classification: 'no solution' }).isCorrect, false);
 });
 
+test('a relation stored the Firestore-safe way grades identically to the legacy way', () => {
+  // Firestore cannot nest an array in an array, so relations are stored as
+  // {x, y}. Reading only pair[0] produced NaN domains for every stored
+  // question and threw on the isFunction check — the tool rendered, and the
+  // server could not grade a single response.
+  const objectPairs = {
+    type: 'relationMapping',
+    prompt: 'Build the mapping diagram.',
+    pairs: [{ x: -2, y: 3 }, { x: 1, y: 2 }, { x: 3, y: -1 }],
+    ask: ['mapping', 'domain', 'range', 'isFunction'],
+  };
+  assert.equal(isPathEligible(objectPairs), true);
+
+  const work = { arrows: [[-2, 3], [1, 2], [3, -1]], domain: [-2, 1, 3], range: [3, 2, -1], isFunction: 'yes' };
+  const fromObjects = gradePathResponse({ privateGrading: buildPrivateToolGrading(objectPairs), raw: work });
+  const fromArrays = gradePathResponse({
+    privateGrading: buildPrivateToolGrading({ ...objectPairs, pairs: [[-2, 3], [1, 2], [3, -1]] }),
+    raw: work,
+  });
+  assert.equal(fromObjects.isCorrect, true, JSON.stringify(fromObjects.parts));
+  assert.deepEqual(fromObjects.parts, fromArrays.parts, 'the storage shape must not change the verdict');
+
+  // And a student answering in the object shape is graded the same way.
+  const objectWork = { ...work, arrows: [{ x: -2, y: 3 }, { x: 1, y: 2 }, { x: 3, y: -1 }] };
+  assert.equal(gradePathResponse({ privateGrading: buildPrivateToolGrading(objectPairs), raw: objectWork }).isCorrect, true);
+});
+
 test('relations: arrows, sets and functionhood, each on its own', () => {
   const right = { arrows: [[1, 2], [-2, 3], [3, -1]], domain: [-2, 1, 3], range: [3, 2, -1], isFunction: 'yes' };
   const result = grade('relationMapping', right);

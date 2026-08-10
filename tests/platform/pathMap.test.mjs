@@ -158,3 +158,32 @@ test('statusForSkill finds a skill wherever the engine put it', () => {
   assert.equal(statusForSkill(options, 'texas:NOPE'), null);
   assert.equal(statusForSkill(null, 'x'), null);
 });
+
+// --- Content availability is shown, not hidden ------------------------------------
+
+test('a skill with no practice content is visible, marked, and not a door', () => {
+  const map = buildPathMap(optionsFor(), { isCovered: () => false });
+  const nodes = [...map.focus, ...map.branches, ...map.comingUp, ...map.needsSupport, ...map.challenge];
+  assert.ok(nodes.length > 0, 'the map still draws the course');
+  nodes.forEach((node) => {
+    assert.equal(node.selectable, false, `${node.skillId} must not be clickable`);
+    assert.equal(node.contentPending, true);
+    assert.equal(node.statusLabel, 'Coming soon', 'students see plain words, never a bank error');
+    assert.match(node.reason, /being prepared/);
+  });
+});
+
+test('coverage can only close a door, never open one', () => {
+  // Everything covered: the map is exactly what the pedagogy said.
+  const covered = buildPathMap(optionsFor(), { isCovered: () => true });
+  const plain = buildPathMap(optionsFor());
+  assert.deepEqual(
+    covered.focus.map((node) => [node.skillId, node.selectable]),
+    plain.focus.map((node) => [node.skillId, node.selectable]),
+  );
+  covered.focus.forEach((node) => assert.equal(node.contentPending, undefined));
+});
+
+test('with no coverage information the map is unchanged, so existing callers keep working', () => {
+  assert.deepEqual(buildPathMap(optionsFor()), buildPathMap(optionsFor(), { isCovered: null }));
+});

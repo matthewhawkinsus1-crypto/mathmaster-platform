@@ -87,14 +87,14 @@ export const sameSet = (left = [], right = [], tolerance = 1e-6) => {
 };
 
 export const samePairs = (left = [], right = [], tolerance = 1e-6) => {
-  const key = (pair) => `${asNumber(pair?.[0] ?? pair?.x)}|${asNumber(pair?.[1] ?? pair?.y)}`;
-  const a = [...left];
-  const b = [...right];
+  // Both sides are normalized first, so a student's [x, y] arrows compare
+  // correctly against a stored relation of {x, y} objects and vice versa.
+  const a = left.map(orderedPairOf).filter(Boolean);
+  const b = right.map(orderedPairOf).filter(Boolean);
   if (a.length !== b.length) return false;
   return b.every((wanted) => {
-    const index = a.findIndex((candidate) => key(candidate) === key(wanted)
-      || (sameNumber(candidate?.[0] ?? candidate?.x, wanted?.[0] ?? wanted?.x, tolerance)
-        && sameNumber(candidate?.[1] ?? candidate?.y, wanted?.[1] ?? wanted?.y, tolerance)));
+    const index = a.findIndex((candidate) => sameNumber(candidate[0], wanted[0], tolerance)
+      && sameNumber(candidate[1], wanted[1], tolerance));
     if (index < 0) return false;
     a.splice(index, 1);
     return true;
@@ -103,6 +103,18 @@ export const samePairs = (left = [], right = [], tolerance = 1e-6) => {
 
 const list = (value) => (Array.isArray(value) ? value : []);
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+/**
+ * One ordered pair, from either storage shape.
+ *
+ * Firestore forbids an array directly inside an array, so relations are stored
+ * as `{x, y}`; older authored content used `[x, y]`. Both mean the same pair.
+ */
+export const orderedPairOf = (pair) => {
+  const x = Number(Array.isArray(pair) ? pair[0] : pair?.x);
+  const y = Number(Array.isArray(pair) ? pair[1] : pair?.y);
+  return Number.isFinite(x) && Number.isFinite(y) ? [x, y] : null;
+};
 
 /** Copy only the named fields, and only when they are actually present. */
 export const pick = (source, fields) => {
@@ -246,9 +258,13 @@ const CONTRACTS = {
       'prompt', 'pairs', 'domainLabel', 'rangeLabel', 'ask', 'context',
     ]),
     buildPrivateGradingDefinition: (question) => {
-      const pairs = list(question.pairs);
-      const xs = [...new Set(pairs.map((pair) => Number(pair?.[0])))];
-      const ys = [...new Set(pairs.map((pair) => Number(pair?.[1])))];
+      // Firestore cannot nest an array inside an array, so a relation is stored
+      // as {x, y} objects. Older content used [x, y]. Both are the same
+      // relation, and the grader must not care which one it was given — reading
+      // only `pair[0]` silently produced NaN domains for every stored question.
+      const pairs = list(question.pairs).map(orderedPairOf).filter(Boolean);
+      const xs = [...new Set(pairs.map((pair) => pair[0]))];
+      const ys = [...new Set(pairs.map((pair) => pair[1]))];
       const seen = new Map();
       const isFunction = pairs.every(([x, y]) => {
         if (!seen.has(x)) { seen.set(x, y); return true; }
