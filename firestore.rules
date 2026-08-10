@@ -22,13 +22,31 @@ service cloud.firestore {
         && request.auth.token.studentId == studentId;
     }
 
-    // Student work: students can read/update only their own document. Teachers
-    // can manage the roster. Permanent account deletion is never a client
-    // permission — even the root administrator must use the audited server
-    // callable that removes the student's complete cross-collection footprint.
+    // A teacher's roster is the students in the classes they are teacher of
+    // record for. `assignedTeacherEmail` is written onto the student by the
+    // admin callables whenever their class or its teacher changes, and is read
+    // here rather than following classId into the classes collection: a rule
+    // that called get() per document would break any roster over ten students.
+    //
+    // A student with no class has no assignedTeacherEmail and so belongs to no
+    // teacher — only the root administrator can see them, which is what makes
+    // unplaced students findable and resolvable.
+    function teachesStudent() {
+      return teacher()
+        && resource.data.assignedTeacherEmail == request.auth.token.email;
+    }
+
+    // Student work: students read/update only their own document; a teacher
+    // only their own students; the root administrator the school. Permanent
+    // account deletion is never a client permission — even the root
+    // administrator must use the audited server callable that removes the
+    // student's complete cross-collection footprint.
     match /grades/{studentId} {
-      allow read: if teacher() || ownsStudent(studentId);
-      allow create, update: if teacher() || ownsStudent(studentId);
+      allow read: if rootAdmin() || ownsStudent(studentId) || teachesStudent();
+      allow update: if rootAdmin() || ownsStudent(studentId) || teachesStudent();
+      // Creation stays open to any teacher: a roster row may be written before
+      // the student has been placed in a class, and it carries no work yet.
+      allow create: if teacher() || ownsStudent(studentId);
       allow delete: if false;
 
       match /scratchpads/{scratchpadId} {
@@ -78,6 +96,15 @@ service cloud.firestore {
     match /settings/{docId} {
       allow read: if signedIn();
       allow create, update, delete: if teacher();
+    }
+
+    // Classes are the authoritative record of who teaches what course to whom,
+    // so every screen may read them but only the audited admin callables may
+    // write them. A teacher who could edit this collection could hand
+    // themselves another teacher's roster.
+    match /classes/{classId} {
+      allow read: if signedIn();
+      allow create, update, delete: if false;
     }
 
     match /pathQuestionBank/{questionId} {

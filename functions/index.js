@@ -144,18 +144,28 @@ async function requireTeacher(request) {
   return request.auth.uid;
 }
 
-function requireRootAdmin(request) {
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "Sign in before making this administrative change.");
-  }
+// The role predicates are pure and shared so the negative cases — a teacher
+// carrying forged admin claims, a student asserting a role — are tested
+// directly rather than inferred. See tests/platform/rolePolicy.test.mjs.
+let rolePolicyModule = null;
+async function rolePolicy() {
+  if (!rolePolicyModule) rolePolicyModule = await import("./shared/rolePolicy.mjs");
+  return rolePolicyModule;
+}
+
+async function requireRootAdmin(request) {
   const email = callerEmail(request);
-  const token = request.auth.token || {};
-  if (
-    token.role !== "teacher"
-    || token.rootAdmin !== true
-    || token.admin !== true
-    || !authLib.isRootAdminEmail(email)
-  ) {
+  // `callerEmail` reads the verified token; the predicate re-reads it from the
+  // same place rather than trusting a value threaded through, so there is one
+  // decision point and one definition of who the administrator is.
+  const auth = request.auth ? { ...request.auth, token: { ...(request.auth.token || {}), email } } : null;
+  const decision = (await rolePolicy()).authorizeRootAdmin(auth, {
+    rootAdminEmail: authLib.ROOT_ADMIN_EMAIL,
+  });
+  if (!decision.allowed) {
+    if (decision.reason === "unauthenticated") {
+      throw new HttpsError("unauthenticated", "Sign in before making this administrative change.");
+    }
     throw new HttpsError("permission-denied", "This action is restricted to the MathMaster root administrator.");
   }
   return { uid: request.auth.uid, email };
@@ -183,6 +193,27 @@ async function isAuthorizedTeacher(db, email) {
 
 async function assignClaims(uid, claims) {
   await getAuth().setCustomUserClaims(uid, claims);
+}
+
+// The class model is ESM and shared with the browser, so there is exactly one
+// definition of what a class is. Loaded lazily, like the path tool contracts.
+let classModelModule = null;
+async function classModel() {
+  if (!classModelModule) classModelModule = await import("./shared/classModel.mjs");
+  return classModelModule;
+}
+
+const CLASS_COLLECTION = "classes";
+
+/** Every class, as plain objects. Small collection, read whole. */
+async function loadClasses(db) {
+  const snapshot = await db.collection(CLASS_COLLECTION).get();
+  return snapshot.docs.map((classDoc) => ({ classId: classDoc.id, ...classDoc.data() }));
+}
+
+function translateClassError(error) {
+  if (error?.name === "ClassInputError") return new HttpsError("invalid-argument", error.message);
+  return error;
 }
 
 async function writeAdminAudit(db, actor, action, target, details = {}) {
@@ -463,6 +494,16 @@ exports.studentSignIn = onCall(async (request) => {
 
   await authLib.clearThrottle(db, throttleKey);
   const studentId = await resolveCanonicalStudentId(db, key, typedId);
+
+  // A deactivated account stops working here, at the point instructional access
+  // is granted. Checking it only in the UI would leave the account usable to
+  // anyone who kept a session or called the API directly.
+  const model = await classModel();
+  const existingRecord = await db.collection("grades").doc(studentId).get();
+  if (existingRecord.exists && existingRecord.data()?.status === model.ACCOUNT_STATUS.DISABLED) {
+    throw new HttpsError("permission-denied", "This MathMaster account is deactivated. Ask your teacher or campus administrator to reactivate it.");
+  }
+
   const record = await ensureStudentRecord(db, studentId, { classPeriod });
 
   // One Firebase user per student ID, so grades survive across devices.
@@ -605,15 +646,17 @@ exports.listSignInAccess = onCall(async (request) => {
   const isRootAdmin = request.auth?.token?.rootAdmin === true
     && authLib.isRootAdminEmail(callerEmail(request));
 
-  const [roster, credentials, directory, aliases, teachers] = await Promise.all([
-    // Only these two fields — the rest of a grades document is the student's
+  const [roster, credentials, directory, aliases, teachers, classes] = await Promise.all([
+    // Only these fields — the rest of a grades document is the student's
     // entire attempt history and has no business in this payload.
-    db.collection("grades").select("classPeriod", "linkedEmail", "assignedTeacherEmail", "displayName").get(),
+    db.collection("grades").select("classPeriod", "classId", "status", "linkedEmail", "assignedTeacherEmail", "displayName").get(),
     db.collection(authLib.CREDENTIALS_COLLECTION).get(),
     db.collection(authLib.DIRECTORY_COLLECTION).get(),
     db.collection(authLib.ALIAS_COLLECTION).get(),
     db.collection(authLib.TEACHER_COLLECTION).get(),
+    loadClasses(db),
   ]);
+  const model = await classModel();
 
   const canonicalByKey = {};
   aliases.docs.forEach((aliasDoc) => {
@@ -640,7 +683,9 @@ exports.listSignInAccess = onCall(async (request) => {
       return {
         studentId: rosterDoc.id,
         displayName: data.displayName || null,
+        classId: data.classId || null,
         classPeriod: data.classPeriod || "Unassigned",
+        status: data.status === model.ACCOUNT_STATUS.DISABLED ? model.ACCOUNT_STATUS.DISABLED : model.ACCOUNT_STATUS.ACTIVE,
         assignedTeacherEmail: data.assignedTeacherEmail || null,
         hasPasscode: Boolean(credential?.hash) && credential?.resetRequired !== true,
         resetRequired: credential?.resetRequired === true,
@@ -651,6 +696,9 @@ exports.listSignInAccess = onCall(async (request) => {
 
   return {
     students,
+    // The classes every roster row refers to, so no screen has to guess what a
+    // classId means or fetch them separately.
+    classes: classes.sort((a, b) => String(a.period || "").localeCompare(String(b.period || ""))),
     authority: {
       accessLevel: isRootAdmin ? "rootAdmin" : "teacher",
       isRootAdmin,
@@ -676,7 +724,7 @@ exports.listSignInAccess = onCall(async (request) => {
 
 /** Root-admin action: create a roster/sign-in account shell for a new student. */
 exports.createStudentAccount = onCall(async (request) => {
-  const actor = requireRootAdmin(request);
+  const actor = await requireRootAdmin(request);
   const db = getFirestore();
   let studentId;
   let studentKey;
@@ -691,9 +739,28 @@ exports.createStudentAccount = onCall(async (request) => {
   }
 
   const displayName = String(request.data?.displayName || "").trim().slice(0, 120);
-  const classPeriod = String(request.data?.classPeriod || "Unassigned").trim().slice(0, 80) || "Unassigned";
-  let assignedTeacherEmail = null;
-  if (request.data?.teacherEmail) {
+  const model = await classModel();
+
+  // A new student is placed by CLASS. The class carries the period and the
+  // teacher, so an administrator picks one thing and the three stay consistent.
+  let classRecord = null;
+  const requestedClassId = String(request.data?.classId || "").trim();
+  if (requestedClassId) {
+    const classSnapshot = await db.collection(CLASS_COLLECTION).doc(requestedClassId).get();
+    if (!classSnapshot.exists) throw new HttpsError("not-found", "That class no longer exists.");
+    classRecord = { classId: requestedClassId, ...classSnapshot.data() };
+    if (classRecord.status === model.CLASS_STATUS.ARCHIVED) {
+      throw new HttpsError("failed-precondition", "That class is archived. Choose an active class for a new student.");
+    }
+  }
+  const membership = model.membershipFieldsFor(classRecord);
+  // Legacy callers may still pass a bare period; honoured only with no class.
+  const classPeriod = classRecord
+    ? membership.classPeriod
+    : String(request.data?.classPeriod || model.UNASSIGNED_PERIOD).trim().slice(0, 80) || model.UNASSIGNED_PERIOD;
+
+  let assignedTeacherEmail = classRecord?.teacherOfRecord || null;
+  if (!classRecord && request.data?.teacherEmail) {
     try {
       assignedTeacherEmail = authLib.normalizeEmail(request.data.teacherEmail);
     } catch (error) {
@@ -716,7 +783,9 @@ exports.createStudentAccount = onCall(async (request) => {
   const rosterRef = db.collection("grades").doc(studentId);
   await rosterRef.set({
     displayName: displayName || null,
+    classId: membership.classId,
     classPeriod,
+    status: model.ACCOUNT_STATUS.ACTIVE,
     assignedTeacherEmail,
     profile: {},
     gradesByAssignment: {},
@@ -733,16 +802,17 @@ exports.createStudentAccount = onCall(async (request) => {
     createdAt: FieldValue.serverTimestamp(),
   }, { merge: true });
   await writeAdminAudit(db, actor, "student_account_created", studentId, {
+    classId: membership.classId,
     classPeriod,
     assignedTeacherEmail,
     displayName: displayName || null,
   });
-  return { studentId, displayName: displayName || null, classPeriod, assignedTeacherEmail, signInSetupRequired: true };
+  return { studentId, displayName: displayName || null, classId: membership.classId, classPeriod, assignedTeacherEmail, signInSetupRequired: true };
 });
 
 /** Root-admin action: assign/reassign a student to a teacher and class period. */
 exports.assignStudentToTeacher = onCall(async (request) => {
-  const actor = requireRootAdmin(request);
+  const actor = await requireRootAdmin(request);
   const db = getFirestore();
   let studentId;
   try {
@@ -771,9 +841,282 @@ exports.assignStudentToTeacher = onCall(async (request) => {
   return { studentId, assignedTeacherEmail, classPeriod };
 });
 
+// --- Classes ------------------------------------------------------------------
+//
+// A class is the authoritative source for who teaches it, what course it is,
+// and which students are in it. Everything below enforces that; no client may
+// write the collection directly (see firestore.rules).
+
+/** Every class. Teachers need this to know their own; admins to manage all. */
+exports.listClasses = onCall(async (request) => {
+  await requireTeacher(request);
+  const db = getFirestore();
+  const classes = await loadClasses(db);
+  return {
+    classes: classes.sort((a, b) => String(a.period || "").localeCompare(String(b.period || ""))
+      || String(a.name || "").localeCompare(String(b.name || ""))),
+  };
+});
+
+/** Root-admin action: create a class, or edit one. */
+exports.saveClass = onCall(async (request) => {
+  const actor = await requireRootAdmin(request);
+  const db = getFirestore();
+  const model = await classModel();
+  const classId = String(request.data?.classId || "").trim().slice(0, 120);
+
+  const ref = classId ? db.collection(CLASS_COLLECTION).doc(classId) : db.collection(CLASS_COLLECTION).doc();
+  const existingSnapshot = classId ? await ref.get() : null;
+  if (classId && !existingSnapshot.exists) throw new HttpsError("not-found", "That class no longer exists.");
+  const existing = existingSnapshot?.data() || null;
+
+  let record;
+  try {
+    record = model.normalizeClassInput(request.data || {}, { existing });
+  } catch (error) {
+    throw translateClassError(error);
+  }
+
+  // A class may only be handed to a teacher who can actually sign in, or the
+  // roster it owns becomes invisible to everyone.
+  if (record.teacherOfRecord && !(await isAuthorizedTeacher(db, record.teacherOfRecord))) {
+    throw new HttpsError("failed-precondition", `${record.teacherOfRecord} is not an active MathMaster teacher. Add them under Teachers first.`);
+  }
+
+  const isNew = !existingSnapshot?.exists;
+  await ref.set({
+    ...record,
+    ...(isNew ? { createdAt: FieldValue.serverTimestamp(), createdBy: actor.uid } : {}),
+    updatedAt: FieldValue.serverTimestamp(),
+    updatedBy: actor.uid,
+  }, { merge: true });
+
+  // A class stamps its period and its teacher onto every student in it. Those
+  // copies are what the roster query and the security rule read, so a change
+  // here has to reach them in the same operation or the two disagree — which is
+  // exactly the "admin says one thing, teacher sees another" failure.
+  let rostersUpdated = 0;
+  const periodChanged = !isNew && existing?.period !== record.period;
+  const teacherChanged = !isNew && (existing?.teacherOfRecord || null) !== record.teacherOfRecord;
+  if (periodChanged || teacherChanged) {
+    const members = await db.collection("grades").where("classId", "==", ref.id).get();
+    const batch = db.batch();
+    members.docs.forEach((member) => {
+      batch.set(member.ref, {
+        classPeriod: record.period,
+        assignedTeacherEmail: record.teacherOfRecord,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    });
+    if (members.size) await batch.commit();
+    rostersUpdated = members.size;
+  }
+
+  await writeAdminAudit(db, actor, isNew ? "class_created" : "class_updated", ref.id, { ...record, rostersUpdated });
+  return { classId: ref.id, ...record, rostersUpdated };
+});
+
+/**
+ * Root-admin action: archive a class, or delete an empty one.
+ *
+ * Deleting a class that still has students would orphan their membership
+ * silently, so it is refused with the count and the archive alternative.
+ * Archiving keeps the record and every relationship it explains.
+ */
+exports.setClassStatus = onCall(async (request) => {
+  const actor = await requireRootAdmin(request);
+  const db = getFirestore();
+  const model = await classModel();
+  const classId = String(request.data?.classId || "").trim();
+  const action = String(request.data?.action || "archive").trim();
+  if (!classId) throw new HttpsError("invalid-argument", "classId is required.");
+
+  const ref = db.collection(CLASS_COLLECTION).doc(classId);
+  const snapshot = await ref.get();
+  if (!snapshot.exists) throw new HttpsError("not-found", "That class no longer exists.");
+
+  const members = await db.collection("grades").where("classId", "==", classId).select("displayName").get();
+
+  if (action === "delete") {
+    if (members.size) {
+      throw new HttpsError(
+        "failed-precondition",
+        `${members.size} student${members.size === 1 ? " is" : "s are"} still in this class. Move them to another class first, or archive this one instead — archiving keeps the record and the history.`,
+      );
+    }
+    await ref.delete();
+    await writeAdminAudit(db, actor, "class_deleted", classId, { name: snapshot.data()?.name || null });
+    return { classId, deleted: true, memberCount: 0 };
+  }
+
+  const status = action === "restore" ? model.CLASS_STATUS.ACTIVE : model.CLASS_STATUS.ARCHIVED;
+  await ref.set({ status, updatedAt: FieldValue.serverTimestamp(), updatedBy: actor.uid }, { merge: true });
+  await writeAdminAudit(db, actor, status === model.CLASS_STATUS.ARCHIVED ? "class_archived" : "class_restored", classId, { memberCount: members.size });
+  return { classId, status, memberCount: members.size };
+});
+
+/**
+ * Root-admin action: one-time creation of a class per existing period.
+ *
+ * Every student already carries `classPeriod`, so this is what turns the old
+ * eight-string world into real memberships without anyone retyping a roster.
+ * Safe to run twice: a period that already has a class is left alone.
+ */
+exports.migrateClassesFromPeriods = onCall(async (request) => {
+  const actor = await requireRootAdmin(request);
+  const db = getFirestore();
+  const model = await classModel();
+
+  const [existingClasses, profileSnapshot] = await Promise.all([
+    loadClasses(db),
+    db.collection("settings").doc("courseProfiles").get(),
+  ]);
+  const created = model.buildMigrationClasses({
+    courseProfiles: profileSnapshot.data()?.profiles || {},
+    existingClasses,
+  });
+
+  const batch = db.batch();
+  created.forEach((record) => {
+    batch.set(db.collection(CLASS_COLLECTION).doc(record.classId), {
+      ...record,
+      createdAt: FieldValue.serverTimestamp(),
+      createdBy: actor.uid,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
+  if (created.length) await batch.commit();
+
+  // Then place every student who has a period but no class into the class that
+  // now represents that period.
+  const classesByPeriod = new Map([...existingClasses, ...created].map((entry) => [entry.period, entry]));
+  const roster = await db.collection("grades").select("classPeriod", "classId").get();
+  let placed = 0;
+  let unplaced = 0;
+  const placement = db.batch();
+  roster.docs.forEach((studentDoc) => {
+    if (studentDoc.id === "test_connection") return;
+    const data = studentDoc.data() || {};
+    if (data.classId) return;
+    const target = classesByPeriod.get(data.classPeriod);
+    if (!target) { unplaced += 1; return; }
+    placement.set(studentDoc.ref, { ...model.membershipFieldsFor(target), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    placed += 1;
+  });
+  if (placed) await placement.commit();
+
+  await writeAdminAudit(db, actor, "classes_migrated_from_periods", "classes", { classesCreated: created.length, studentsPlaced: placed, studentsUnplaced: unplaced });
+  return { classesCreated: created.length, studentsPlaced: placed, studentsUnplaced: unplaced };
+});
+
+/**
+ * Root-admin action: put a student in a class, move them, or take them out.
+ *
+ * This is the roster operation. It never touches the account and never touches
+ * a grade — `classId: null` means "not in a class right now", which is a
+ * schedule fact, not a disciplinary one.
+ */
+exports.setStudentClass = onCall(async (request) => {
+  const actor = await requireRootAdmin(request);
+  const db = getFirestore();
+  const model = await classModel();
+  let studentId;
+  try {
+    studentId = authLib.normalizeStudentId(request.data?.studentId);
+  } catch (error) {
+    throw translateAuthError(error);
+  }
+
+  const studentRef = db.collection("grades").doc(studentId);
+  const studentSnapshot = await studentRef.get();
+  if (!studentSnapshot.exists) throw new HttpsError("not-found", "That student account is not present in MathMaster.");
+
+  const classId = String(request.data?.classId || "").trim();
+  let classRecord = null;
+  if (classId) {
+    const classSnapshot = await db.collection(CLASS_COLLECTION).doc(classId).get();
+    if (!classSnapshot.exists) throw new HttpsError("not-found", "That class no longer exists.");
+    classRecord = { classId, ...classSnapshot.data() };
+    if (classRecord.status === model.CLASS_STATUS.ARCHIVED) {
+      throw new HttpsError("failed-precondition", "That class is archived. Restore it first, or choose an active class.");
+    }
+  }
+
+  const previous = studentSnapshot.data() || {};
+  await studentRef.set({
+    ...model.membershipFieldsFor(classRecord),
+    // The teacher of record follows the class, so the two can never disagree.
+    assignedTeacherEmail: classRecord?.teacherOfRecord || null,
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  await writeAdminAudit(db, actor, classRecord ? "student_class_assigned" : "student_removed_from_class", studentId, {
+    fromClassId: previous.classId || null,
+    toClassId: classRecord?.classId || null,
+    classPeriod: classRecord?.period || model.UNASSIGNED_PERIOD,
+    teacherOfRecord: classRecord?.teacherOfRecord || null,
+  });
+  return {
+    studentId,
+    classId: classRecord?.classId || null,
+    classPeriod: classRecord?.period || model.UNASSIGNED_PERIOD,
+    assignedTeacherEmail: classRecord?.teacherOfRecord || null,
+  };
+});
+
+/**
+ * Root-admin action: deactivate a student account, or bring it back.
+ *
+ * Deliberately NOT deletion and NOT a roster change. The account stops working;
+ * the roster entry, the grades and the evidence are all left exactly as they
+ * are, and the same call reverses it.
+ */
+exports.setStudentAccountStatus = onCall(async (request) => {
+  const actor = await requireRootAdmin(request);
+  const db = getFirestore();
+  const model = await classModel();
+  let studentId;
+  try {
+    studentId = authLib.normalizeStudentId(request.data?.studentId);
+  } catch (error) {
+    throw translateAuthError(error);
+  }
+  const active = request.data?.active !== false;
+
+  const studentRef = db.collection("grades").doc(studentId);
+  const studentSnapshot = await studentRef.get();
+  if (!studentSnapshot.exists) throw new HttpsError("not-found", "That student account is not present in MathMaster.");
+
+  // A disabled account must stop working NOW, not when its token happens to
+  // expire, so the linked Firebase user is disabled and its sessions revoked.
+  const directory = await db.collection(authLib.DIRECTORY_COLLECTION).where("studentId", "==", studentId).limit(5).get();
+  const uids = [
+    ...new Set(directory.docs.map((entry) => entry.data()?.uid).filter(Boolean)),
+  ];
+  for (const uid of uids) {
+    // eslint-disable-next-line no-await-in-loop
+    await getAuth().updateUser(uid, { disabled: !active }).catch(() => {});
+    if (!active) {
+      // eslint-disable-next-line no-await-in-loop
+      await getAuth().revokeRefreshTokens(uid).catch(() => {});
+    }
+  }
+
+  await studentRef.set({
+    status: active ? model.ACCOUNT_STATUS.ACTIVE : model.ACCOUNT_STATUS.DISABLED,
+    deactivatedAt: active ? null : FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  await writeAdminAudit(db, actor, active ? "student_account_reactivated" : "student_account_deactivated", studentId, {
+    sessionsRevoked: active ? 0 : uids.length,
+  });
+  return { studentId, status: active ? model.ACCOUNT_STATUS.ACTIVE : model.ACCOUNT_STATUS.DISABLED, sessionsRevoked: active ? 0 : uids.length };
+});
+
 /** Root-admin action: grant or revoke an ordinary teacher's access. */
 exports.setTeacherAccess = onCall(async (request) => {
-  const actor = requireRootAdmin(request);
+  const actor = await requireRootAdmin(request);
   const db = getFirestore();
 
   let email;
@@ -842,7 +1185,7 @@ async function recursiveDeleteQuery(db, query, deleted, label) {
 
 /** Root-admin view of recent privileged account-management actions. */
 exports.listAdminAuditLog = onCall(async (request) => {
-  requireRootAdmin(request);
+  await requireRootAdmin(request);
   const limit = Math.max(1, Math.min(100, Number(request.data?.limit) || 40));
   const snapshot = await getFirestore()
     .collection(authLib.ADMIN_AUDIT_COLLECTION)
@@ -873,7 +1216,7 @@ exports.listAdminAuditLog = onCall(async (request) => {
  * identity, assessment, practice, evidence, or Classroom-link data.
  */
 exports.permanentlyDeleteStudent = onCall(async (request) => {
-  const actor = requireRootAdmin(request);
+  const actor = await requireRootAdmin(request);
   const db = getFirestore();
 
   let studentId;

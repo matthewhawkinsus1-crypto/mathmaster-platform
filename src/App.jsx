@@ -9,8 +9,10 @@ import {
   getDoc,
   getDocs,
   onSnapshot,
+  query,
   setDoc,
   updateDoc,
+  where,
   writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -111,6 +113,8 @@ import {
   logRouteEvent, normalizePacingByClass, overridesForClass, saveClassPacing, saveSkillOverrides,
 } from './platform/path/pathStore.js';
 import SignInAccess from './SignInAccess.jsx';
+import ClassesAdmin from './components/admin/ClassesAdmin.jsx';
+import { resolveStudentCourseContext } from '../functions/shared/classModel.mjs';
 import {
   buildHonorsEnrichmentQuestion,
   defaultCourseProfiles,
@@ -229,6 +233,12 @@ function App() {
   const [activeView, setActiveView] = useState('dashboard');
   const [teacherTab, setTeacherTab] = useState('home');
   const [teacherWorkspaceMode, setTeacherWorkspaceMode] = useState('teacher');
+  const [adminTab, setAdminTab] = useState('classes');
+  const [classes, setClasses] = useState([]);
+  // Who is looking, and at which classes. Read by fetchStudents, which runs
+  // during sign-in before `user` state exists.
+  const viewerRef = useRef({ email: null, isRootAdmin: false });
+  const classesRef = useRef([]);
   const [homeNavigationPeriod, setHomeNavigationPeriod] = useState(null);
   const [assignments, setAssignments] = useState([]);
   const [allStudents, setAllStudents] = useState([]);
@@ -402,7 +412,9 @@ function App() {
     supportUsageByAssignment,
   }), [user, tracker, supportUsageByAssignment]);
 
-  const studentCourseId = courseProfiles?.[user?.classPeriod]?.course || 'algebra1';
+  // Resolved at sign-in from the student's class, so every surface below reads
+  // the same course the Path and the recommendation engine read.
+  const studentCourseId = user?.profile?.course || 'algebra1';
 
   // Evaluated once and shared, so Recommended for You and My Math Path cannot
   // disagree about what this student should do next.
@@ -482,16 +494,48 @@ function App() {
     return fetchedAssignments;
   };
 
+  /**
+   * The students this signed-in user may see.
+   *
+   * A teacher's roster is the students in the classes they are teacher of
+   * record for — not the whole school. The scope is applied here, once, so
+   * every teacher surface downstream (gradebook, standards, analytics, exams,
+   * Path inspection) inherits it rather than each re-deriving it and
+   * disagreeing. The root administrator sees everyone.
+   */
   const fetchStudents = async () => {
-    const querySnapshot = await getDocs(collection(db, 'grades'));
-    const studentData = [];
-    querySnapshot.forEach((studentDoc) => {
-      if (studentDoc.id !== 'test_connection') {
-        studentData.push({ id: studentDoc.id, ...studentDoc.data(), profile: normalizeStudentProfile(studentDoc.data()?.profile || studentDoc.data()) });
-      }
-    });
+    const viewer = viewerRef.current;
+    const readAll = viewer.isRootAdmin || !viewer.email;
+
+    const collect = (querySnapshot) => querySnapshot.docs
+      .filter((studentDoc) => studentDoc.id !== 'test_connection')
+      .map((studentDoc) => ({ id: studentDoc.id, ...studentDoc.data(), profile: normalizeStudentProfile(studentDoc.data()?.profile || studentDoc.data()) }));
+
+    // The query is constrained to this teacher, deliberately matching the
+    // security rule exactly. Filtering after an unconstrained read would look
+    // identical on screen while leaving the whole school readable to anyone
+    // with a console open.
+    const studentData = collect(await getDocs(readAll
+      ? collection(db, 'grades')
+      : query(collection(db, 'grades'), where('assignedTeacherEmail', '==', viewer.email))));
     setAllStudents(studentData);
     return studentData;
+  };
+
+  // Classes are the authoritative record of course, rigor and teacher of
+  // record. Read-only from the client: only the audited admin callables write
+  // them.
+  const fetchClasses = async () => {
+    try {
+      const snapshot = await getDocs(collection(db, 'classes'));
+      const value = snapshot.docs.map((classDoc) => ({ classId: classDoc.id, ...classDoc.data() }));
+      setClasses(value);
+      classesRef.current = value;
+      return value;
+    } catch (error) {
+      console.error('Could not load classes:', error);
+      return [];
+    }
   };
 
   const fetchClassSchedule = async () => {
@@ -566,6 +610,11 @@ function App() {
         const fetchedAssignments = await fetchAssignments();
         if (cancelled) return;
         if (session.role === 'teacher') {
+          // Identity and classes first: the roster fetch is scoped by them, so
+          // asking for students before they are known would read the school.
+          viewerRef.current = { email: session.email || null, isRootAdmin: session.isRootAdmin === true };
+          classesRef.current = await fetchClasses();
+          if (cancelled) return;
           await Promise.all([fetchStudents(), fetchClassSchedule(), fetchCourseProfiles(), fetchAssignmentFolders(), fetchPathSettings()]);
           if (cancelled) return;
           setUser({
@@ -591,18 +640,31 @@ function App() {
         const studentProfile = normalizeStudentProfile(studentData.profile || studentData);
         const loadedCourseProfiles = await fetchCourseProfiles();
         await fetchClassSchedule();
+        // The student's class is what decides their course and rigor. The
+        // period-keyed profile is only a fallback for a student nobody has
+        // placed in a class yet — it cannot answer the question once two
+        // classes share a period.
+        const loadedClasses = await fetchClasses();
         if (cancelled) return;
+        const courseContext = resolveStudentCourseContext({
+          student: studentData,
+          classesById: Object.fromEntries(loadedClasses.map((entry) => [entry.classId, entry])),
+          courseProfiles: loadedCourseProfiles,
+        });
         setUser({
           id: studentId,
           uid: session.uid,
           role: 'student',
           email: session.email,
           displayName: session.displayName || studentId,
-          classPeriod: studentData.classPeriod || 'Unassigned',
+          classId: studentData.classId || null,
+          className: courseContext.className,
+          classPeriod: courseContext.classPeriod,
+          teacherOfRecord: courseContext.teacherOfRecord,
           profile: {
             ...studentProfile,
-            course: loadedCourseProfiles?.[studentData.classPeriod]?.course || 'algebra1',
-            courseLevel: loadedCourseProfiles?.[studentData.classPeriod]?.courseLevel || 'standard',
+            course: courseContext.courseId,
+            courseLevel: courseContext.courseLevel,
           },
         });
         setTracker(studentData.gradesByAssignment || {});
@@ -3322,7 +3384,25 @@ function App() {
               <div><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.08em', color: '#c6dafc' }}>ROOT ADMINISTRATOR</div><h1 style={{ margin: '4px 0 0', fontSize: 25 }}>MathMaster Administration</h1><p style={{ margin: '4px 0 0', color: '#dadce0', fontSize: 13 }}>{user.email}</p></div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><div role="group" aria-label="Root administrator workspace" style={{ display: 'inline-flex', padding: 3, borderRadius: 9, background: '#3c4043', border: '1px solid #5f6368' }}><button type="button" aria-pressed="false" onClick={() => setTeacherWorkspaceMode('teacher')} style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: 'transparent', color: '#e8eaed', fontWeight: 900 }}>Teacher View</button><button type="button" aria-pressed="true" style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: '#fff', color: '#202124', fontWeight: 900 }}>Administration</button></div><button type="button" onClick={() => { setTeacherWorkspaceMode('teacher'); setTeacherTab('demo'); }} style={{ padding: '9px 13px', border: '1px solid #c7a9ea', borderRadius: 8, background: '#f8f0fc', color: '#6f2da8', fontWeight: 900 }}>Open Demo Experience</button><button onClick={handleLogout} style={{ padding: '9px 13px', background: 'transparent', color: '#f28b82', border: '1px solid #f28b82', borderRadius: 8, fontWeight: 900 }}>Log Out</button></div>
             </header>
-            <main style={{ padding: 28 }}><SignInAccess signedInEmail={user.email} mode="admin" /></main>
+            <div role="tablist" aria-label="Administration sections" style={{ display: 'flex', gap: 8, padding: '14px 28px 0', flexWrap: 'wrap' }}>
+              {[['classes', 'Classes & rosters'], ['accounts', 'Accounts & sign-in']].map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={adminTab === id}
+                  onClick={() => setAdminTab(id)}
+                  style={{ minHeight: 40, padding: '8px 16px', borderRadius: '9px 9px 0 0', cursor: 'pointer', border: '1px solid #dadce0', borderBottom: 0, background: adminTab === id ? '#fff' : '#f1f3f4', color: adminTab === id ? '#174ea6' : '#3c4043', fontWeight: 900, fontSize: 14 }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <main style={{ padding: 28 }}>
+              {adminTab === 'classes'
+                ? <ClassesAdmin />
+                : <SignInAccess signedInEmail={user.email} mode="admin" />}
+            </main>
           </div>
         </div>
       );

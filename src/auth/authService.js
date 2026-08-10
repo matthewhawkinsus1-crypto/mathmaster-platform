@@ -169,12 +169,26 @@ export const teacherAdmin = {
     callable('resetStudentPasscode')({ studentId }).then((result) => result.data || {}),
   unlinkStudentAccount: (studentId) =>
     callable('unlinkStudentAccount')({ studentId }).then((result) => result.data || {}),
-  createStudentAccount: ({ studentId, displayName = '', classPeriod = 'Unassigned', teacherEmail = '' }) =>
-    callable('createStudentAccount')({ studentId, displayName, classPeriod, teacherEmail }).then((result) => result.data || {}),
+  createStudentAccount: ({ studentId, displayName = '', classId = '', classPeriod = 'Unassigned', teacherEmail = '' }) =>
+    callable('createStudentAccount')({ studentId, displayName, classId, classPeriod, teacherEmail }).then((result) => result.data || {}),
   assignStudentToTeacher: ({ studentId, teacherEmail = '', classPeriod = 'Unassigned' }) =>
     callable('assignStudentToTeacher')({ studentId, teacherEmail, classPeriod }).then((result) => result.data || {}),
   setTeacherAccess: (email, active) =>
     callable('setTeacherAccess')({ email, active }).then((result) => result.data || {}),
+
+  // Classes, rosters, and the three different things "remove" can mean.
+  listClasses: () => callable('listClasses')().then((result) => result.data || {}),
+  saveClass: (record) => callable('saveClass')(record).then((result) => result.data || {}),
+  setClassStatus: (classId, action) =>
+    callable('setClassStatus')({ classId, action }).then((result) => result.data || {}),
+  migrateClassesFromPeriods: () =>
+    callable('migrateClassesFromPeriods')().then((result) => result.data || {}),
+  /** Put a student in a class, move them, or take them out (classId: null). */
+  setStudentClass: ({ studentId, classId }) =>
+    callable('setStudentClass')({ studentId, classId: classId || '' }).then((result) => result.data || {}),
+  /** Deactivate or reactivate an account. Never touches grades or evidence. */
+  setStudentAccountStatus: ({ studentId, active }) =>
+    callable('setStudentAccountStatus')({ studentId, active }).then((result) => result.data || {}),
   permanentlyDeleteStudent: (studentId, confirmation) =>
     callable('permanentlyDeleteStudent')({ studentId, confirmation }).then((result) => result.data || {}),
   listAdminAuditLog: (limit = 40) =>
