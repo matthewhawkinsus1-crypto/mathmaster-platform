@@ -83,3 +83,23 @@ test('symbolic operands keep traditional notation', () => {
   assert.match(move.unsimplifiedLatex.left, /^\\frac\{/);
   assert.equal(describeOperationToken('divide', 'w').operand, 'w');
 });
+
+test('a question authored with equationLatex builds the workspace', () => {
+  // The authoring catalogue lists `equationLatex` as a stepAlgebra field and its
+  // own example uses it — but nothing translated it into what this parser reads,
+  // so the balance came up null and the student got "This question could not be
+  // displayed" on a question that was correctly authored.
+  const state = parseEquationInput({ equationLatex: '3x - 6 = 9', variable: 'x' });
+  assert.equal(state.left, '3x - 6');
+  assert.equal(state.right, '9');
+  assert.equal(state.variable, 'x');
+
+  // It is converted rather than read raw, so LaTeX structure survives.
+  const fraction = parseEquationInput({ equationLatex: '\\frac{x}{2} = 5' });
+  assert.equal(fraction.right, '5');
+  assert.ok(!fraction.left.includes('\\frac'), `LaTeX left unconverted: ${fraction.left}`);
+
+  // An explicit `equation` still wins, and no equation at all still throws.
+  assert.equal(parseEquationInput({ equation: 'x = 1', equationLatex: 'y = 2' }).left, 'x');
+  assert.throws(() => parseEquationInput({ prompt: 'Solve.' }));
+});

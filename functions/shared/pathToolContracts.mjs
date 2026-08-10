@@ -42,11 +42,24 @@
 
 const UNICODE_MINUS = /[−–—]/g;
 
+// One symbol, several spellings. The student's math input hands back LaTeX
+// (`\infty`, `\cup`, `\le`), the authored key is usually typed in unicode
+// (`∞`, `∪`, `≤`), and they mean the same thing. The tool has always compared
+// them this way; the server did not, so a correct `(-\infty, \infty)` was
+// marked wrong against an accepted `(-∞, ∞)`. Kept in step with
+// `cleanSetAnswer` in src/interactiveGraphEngine.js, and a test asserts it.
 export const normalizeAnswer = (value) => String(value ?? '')
   .trim()
   .replace(UNICODE_MINUS, '-')
   .replace(/\\left|\\right/g, '')
   .replace(/\\cdot|\\times/g, '*')
+  .replace(/\\infty|∞/g, 'inf')
+  .replace(/\\cup|∪/g, 'u')
+  .replace(/\\cap|∩/g, 'n')
+  .replace(/\\leq?|≤/g, '<=')
+  .replace(/\\geq?|≥/g, '>=')
+  .replace(/\\neq?|≠/g, '!=')
+  .replace(/\\,/g, '')
   .replace(/\s+/g, '')
   .toLowerCase();
 
@@ -114,6 +127,121 @@ export const orderedPairOf = (pair) => {
   const x = Number(Array.isArray(pair) ? pair[0] : pair?.x);
   const y = Number(Array.isArray(pair) ? pair[1] : pair?.y);
   return Number.isFinite(x) && Number.isFinite(y) ? [x, y] : null;
+};
+
+// --- Intervals ------------------------------------------------------------------
+//
+// The number-line tool emits `{min, max, minClosed, maxClosed}`; the first
+// server contract read `{start, end, startClosed, endClosed}`. Same mathematics,
+// two vocabularies, and a student whose graph was right was told it was wrong.
+//
+// Both are normalized here, at the security boundary, so no caller has to know
+// which one it was handed. Three further facts this normalization has to carry:
+//
+//   * JSON has no Infinity. A ray drawn to ±∞ in the browser arrives as null
+//     after serialization, so null/undefined MUST read as unbounded, not as 0.
+//   * An unbounded end is never closed, whatever the JSON says.
+//   * A union is a set. `(-∞, -3] ∪ [4, ∞)` is the same answer whichever piece
+//     the student drew first, so both sides are sorted before comparison.
+//
+// This mirrors `src/tools/intervalNumberLine/intervalMath.js` deliberately: the
+// server cannot import the client bundle, and a test asserts the two agree.
+const PATH_INFINITY = Number.POSITIVE_INFINITY;
+
+const normalizePathInterval = (raw = {}) => {
+  const lowerRaw = raw.min ?? raw.start ?? raw.from ?? raw.lower;
+  const upperRaw = raw.max ?? raw.end ?? raw.to ?? raw.upper;
+  const lower = lowerRaw === null || lowerRaw === undefined || lowerRaw === '-inf' || lowerRaw === '-∞'
+    ? -PATH_INFINITY
+    : Number(lowerRaw);
+  const upper = upperRaw === null || upperRaw === undefined || upperRaw === 'inf' || upperRaw === '∞'
+    ? PATH_INFINITY
+    : Number(upperRaw);
+  return {
+    min: Number.isNaN(lower) ? -PATH_INFINITY : lower,
+    max: Number.isNaN(upper) ? PATH_INFINITY : upper,
+    minClosed: Number.isFinite(lower) ? Boolean(raw.minClosed ?? raw.startClosed) : false,
+    maxClosed: Number.isFinite(upper) ? Boolean(raw.maxClosed ?? raw.endClosed) : false,
+  };
+};
+
+export const normalizePathIntervals = (raw = []) => list(raw)
+  .map(normalizePathInterval)
+  .filter((interval) => interval.min <= interval.max)
+  .sort((a, b) => a.min - b.min || a.max - b.max);
+
+const samePathEndpoint = (left, right, tolerance = 1e-6) => {
+  if (left === right) return true;
+  if (!Number.isFinite(left) || !Number.isFinite(right)) return false;
+  return Math.abs(left - right) <= tolerance;
+};
+
+export const samePathIntervals = (left = [], right = [], tolerance = 1e-6) => {
+  const a = normalizePathIntervals(left);
+  const b = normalizePathIntervals(right);
+  if (a.length !== b.length) return false;
+  return a.every((interval, index) => {
+    const other = b[index];
+    return samePathEndpoint(interval.min, other.min, tolerance)
+      && samePathEndpoint(interval.max, other.max, tolerance)
+      && interval.minClosed === other.minClosed
+      && interval.maxClosed === other.maxClosed;
+  });
+};
+
+const parsePathIntervalNotation = (text) => {
+  const raw = String(text || '')
+    .replace(UNICODE_MINUS, '-')
+    .replace(/\\left|\\right/g, '')
+    .replace(/infinity|infty|inf/gi, '∞')
+    .replace(/\\cup/g, '∪')
+    .replace(/\bU\b/g, '∪')
+    .trim();
+  if (!raw) return null;
+  const pieces = raw.split('∪').map((piece) => piece.trim()).filter(Boolean);
+  if (!pieces.length) return null;
+
+  const parsed = [];
+  for (const piece of pieces) {
+    const match = piece.match(/^([[(])\s*(-?∞|-?[\d.]+)\s*,\s*(-?∞|-?[\d.]+)\s*([\])])$/);
+    if (!match) return null;
+    const [, openBracket, lowerText, upperText, closeBracket] = match;
+    const min = lowerText.includes('∞') ? (lowerText.startsWith('-') ? -PATH_INFINITY : PATH_INFINITY) : Number(lowerText);
+    const max = upperText.includes('∞') ? (upperText.startsWith('-') ? -PATH_INFINITY : PATH_INFINITY) : Number(upperText);
+    if (Number.isNaN(min) || Number.isNaN(max)) return null;
+    parsed.push({
+      min,
+      max,
+      minClosed: openBracket === '[' && Number.isFinite(min),
+      maxClosed: closeBracket === ']' && Number.isFinite(max),
+    });
+  }
+  return normalizePathIntervals(parsed);
+};
+
+/**
+ * Interval notation, graded as mathematics rather than as a string.
+ *
+ * `[-3,5)`, `[-3, 5)` and `[-3.0, 5)` are one answer, and a student should not
+ * lose a question to a space. Unreadable notation is wrong, never "accepted".
+ */
+export const pathIntervalNotationMatches = (studentText, expectedIntervals, tolerance = 1e-6) => {
+  const parsed = parsePathIntervalNotation(studentText);
+  return parsed ? samePathIntervals(parsed, expectedIntervals, tolerance) : false;
+};
+
+/**
+ * Can an equation actually be read out of this question?
+ *
+ * The balance workspace needs one equation with exactly one equals sign, from
+ * whichever field the author used. The server has no parser for the tool's AST,
+ * so this is deliberately the weaker check — it catches "there is no equation
+ * here at all", which is the case that reached students as a crash screen.
+ */
+export const hasSingleEquation = (question = {}) => {
+  if (question.leftExpression && question.rightExpression) return true;
+  return [question.equation, question.equationAscii, question.initialEquation, question.equationLatex]
+    .some((value) => typeof value === 'string' && value.split('=').length === 2);
 };
 
 /** Copy only the named fields, and only when they are actually present. */
@@ -305,14 +433,22 @@ const CONTRACTS = {
   },
 
   // Graph an interval or a compound inequality on a number line.
+  //
+  // Version 2. Version 1 read `{start, end, startClosed, endClosed}` while the
+  // browser tool has always emitted `{min, max, minClosed, maxClosed}`, and
+  // graded the ask stage `notation` while the authoring contract and the tool
+  // both call it `interval`. The result was that a correct number-line graph
+  // could be marked wrong in server-graded My Math Path, and the notation stage
+  // was never graded at all. Both vocabularies are accepted from here on, so
+  // content authored against either one keeps working.
   intervalNumberLine: {
-    serverGradingVersion: 1,
+    serverGradingVersion: 2,
     responseShape: 'intervals',
     sanitizePublicQuestion: (question) => pick(question, [
-      'prompt', 'min', 'max', 'step', 'ask', 'notation', 'variable', 'context',
+      'prompt', 'min', 'max', 'step', 'ask', 'variable', 'context', 'inequalityText',
     ]),
     buildPrivateGradingDefinition: (question) => ({
-      intervals: list(question.expectedIntervals ?? question.intervals),
+      intervals: normalizePathIntervals(question.expectedIntervals ?? question.intervals),
       notation: question.expectedNotation ?? question.answer ?? null,
       inequality: question.expectedInequality ?? null,
       ask: list(question.ask).length ? list(question.ask) : ['graph'],
@@ -321,24 +457,30 @@ const CONTRACTS = {
     validateStudentResponse: (raw) => (
       raw && (Array.isArray(raw.intervals) || typeof raw.notation === 'string')
         ? valid()
-        : invalid('A number-line response needs the intervals the student graphed.')
+        : invalid('A number-line response needs the intervals the student graphed and the notation the question asked for.')
     ),
     gradeStudentResponse: (definition, raw) => {
       const parts = [];
-      if (definition.ask.includes('graph') && definition.intervals.length) {
-        const given = list(raw.intervals);
-        const matches = given.length === definition.intervals.length
-          && definition.intervals.every((wanted, index) => {
-            const candidate = given[index] || {};
-            return sameNumber(candidate.start ?? candidate[0], wanted.start ?? wanted[0], definition.tolerance)
-              && sameNumber(candidate.end ?? candidate[1], wanted.end ?? wanted[1], definition.tolerance)
-              && Boolean(candidate.startClosed) === Boolean(wanted.startClosed)
-              && Boolean(candidate.endClosed) === Boolean(wanted.endClosed);
-          });
-        parts.push({ id: 'graph', isCorrect: matches });
+      if (definition.ask.includes('graph')) {
+        // An empty key cannot mark anything correct: with nothing to compare
+        // against, the graph stage fails rather than passing by default.
+        parts.push({
+          id: 'graph',
+          isCorrect: definition.intervals.length > 0
+            && samePathIntervals(raw.intervals, definition.intervals, definition.tolerance),
+        });
       }
-      if (definition.notation) {
-        parts.push({ id: 'notation', isCorrect: sameText(raw.notation, definition.notation) });
+      // `interval` is the live ask-stage name; `notation` is the legacy one.
+      if (definition.ask.includes('interval') || definition.ask.includes('notation')) {
+        parts.push({
+          id: 'notation',
+          isCorrect: definition.intervals.length > 0
+            ? pathIntervalNotationMatches(raw.notation, definition.intervals, definition.tolerance)
+            : definition.notation != null && sameText(raw.notation, definition.notation),
+        });
+      }
+      if (definition.ask.includes('inequality') && definition.inequality != null) {
+        parts.push({ id: 'inequality', isCorrect: sameText(raw.inequality, definition.inequality) });
       }
       return graded(parts.length > 0 && parts.every((part) => part.isCorrect), parts);
     },
@@ -366,6 +508,10 @@ const CONTRACTS = {
       variable: String(question.variable || question.objective?.variable || 'x'),
       // Present means "this question needs symbolic marking", which disqualifies it.
       symbolicPrompts: list(question.algebraPrompts).length,
+      // The workspace cannot be built without an equation to put on the
+      // balance, and a question the tool cannot render is a question that must
+      // not be issued — having an answer key is not enough.
+      hasEquation: hasSingleEquation(question),
       tolerance: Number(question.numericTolerance ?? 1e-6),
     }),
     validateStudentResponse: (raw) => {
@@ -420,10 +566,16 @@ const CONTRACTS = {
           ['id', 'label', 'point', 'vector'],
         )),
       } : {}),
+      // `analysisRequests` is the key the workspace reads, so it is the key the
+      // payload must use. Authors may write either name — the server reads both
+      // — but emitting `analysisParts` here meant the tool silently found no
+      // analysis stage, never showed it to the student, and the server then
+      // marked every analysis part wrong on work the student was never asked
+      // for. The same class of mismatch as the number line's start/min.
       ...(analysisRequests(question).length ? {
-        analysisParts: analysisRequests(question).map((part, index) => pick(
+        analysisRequests: analysisRequests(question).map((part, index) => pick(
           { id: `analysis-${index + 1}`, ...part },
-          ['id', 'label', 'prompt', 'kind', 'responseMode', 'unit', 'choices'],
+          ['id', 'label', 'prompt', 'kind', 'responseMode', 'unit', 'choices', 'notation', 'allowNone'],
         )),
       } : {}),
     }),
@@ -438,6 +590,7 @@ const CONTRACTS = {
         .map((part, index) => ({
           id: String(part?.id || `analysis-${index + 1}`),
           kind: String(part?.kind || 'text'),
+          renderable: analysisKindIsRenderable(part),
           expected: list(part?.expected),
           accepted: list(part?.acceptedAnswers),
         }))
@@ -550,6 +703,27 @@ const analysisRequests = (question) => (
   list(question?.analysisParts).length ? list(question.analysisParts) : list(question?.analysisRequests)
 );
 
+// The analysis kinds the graphing workspace actually renders. Mirrors
+// `src/analysisRequestCatalog.js`, which the server cannot import; a test
+// asserts the two lists are identical.
+//
+// Why this is a security-boundary concern and not authoring trivia: an
+// unrecognised kind does not fail in the tool, it silently becomes a
+// click-a-point task. The server would then grade a typed `answers` entry that
+// the student was never given a box for, and mark it wrong every time.
+export const PATH_ANALYSIS_NOTATION_KINDS = Object.freeze([
+  'domain', 'range', 'increasing', 'decreasing', 'constant', 'positive', 'negative',
+]);
+export const PATH_ANALYSIS_POINT_FEATURES = Object.freeze([
+  'xIntercepts', 'yIntercept', 'vertex', 'localMaximum', 'localMinimum', 'center',
+]);
+
+const analysisKindIsRenderable = (part) => {
+  const kind = String(part?.kind || '');
+  if (PATH_ANALYSIS_NOTATION_KINDS.includes(kind)) return true;
+  return kind === 'point' && PATH_ANALYSIS_POINT_FEATURES.includes(String(part?.feature || ''));
+};
+
 /**
  * The value on the far side of `x = …`.
  *
@@ -629,7 +803,12 @@ export const hasGradableDefinition = (toolId, definition) => {
     case 'algebra':
       return definition.expected != null || definition.accepted.length > 0;
     case 'system':
-      return definition.solution != null || definition.classification != null;
+      // The systems GRADER collects an ordered pair and nothing else — it has
+      // no control for classifying a system. So a `system` question that also
+      // declares a classification asks for something the student is never shown
+      // a way to answer, and would be marked wrong on it every time. That
+      // question belongs to `systemsWorkspace`, which does collect one.
+      return definition.solution != null && definition.classification == null;
     case 'systemsWorkspace':
       return definition.mode === 'linear' && definition.solution.type != null;
     case 'relationMapping':
@@ -639,10 +818,14 @@ export const hasGradableDefinition = (toolId, definition) => {
     case 'stepAlgebra':
       // Symbolic prompts need marking this server cannot do fairly.
       return definition.symbolicPrompts === 0
+        && definition.hasEquation
         && (definition.expected != null || definition.accepted.length > 0);
     case 'functionInvestigation':
-      // Something must have a declared expectation, or there is nothing to mark.
-      return definition.points.length > 0 || definition.markers.length > 0 || definition.analysis.length > 0;
+      // Something must have a declared expectation, or there is nothing to
+      // mark — and every analysis part must be one the workspace can actually
+      // put in front of the student, or it would be marked wrong unanswerably.
+      return definition.analysis.every((part) => part.renderable)
+        && (definition.points.length > 0 || definition.markers.length > 0 || definition.analysis.length > 0);
     case 'multiAnswer':
       return definition.parts.length > 0
         && definition.parts.every((part) => part.expected != null || part.accepted.length > 0);

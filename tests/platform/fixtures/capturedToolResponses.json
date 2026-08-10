@@ -1,0 +1,150 @@
+{
+  "algebra": {
+    "pathToolId": "algebra",
+    "rawWork": {
+      "value": "4"
+    }
+  },
+  "system": {
+    "pathToolId": "system",
+    "rawWork": {
+      "x": 1,
+      "y": 3,
+      "value": "(1,3)"
+    }
+  },
+  "multiAnswer": {
+    "pathToolId": "multiAnswer",
+    "rawWork": {
+      "responses": {
+        "slope": "3",
+        "intercept": "-2"
+      }
+    }
+  },
+  "relationMapping": {
+    "pathToolId": "relationMapping",
+    "rawWork": {
+      "arrows": [
+        [
+          -2,
+          3
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          3,
+          -1
+        ]
+      ],
+      "domain": [
+        -2,
+        1,
+        3
+      ],
+      "range": [
+        -1,
+        2,
+        3
+      ],
+      "isFunction": "yes"
+    }
+  },
+  "intervalNumberLine": {
+    "pathToolId": "intervalNumberLine",
+    "rawWork": {
+      "intervals": [
+        {
+          "min": -3,
+          "max": 5,
+          "minClosed": true,
+          "maxClosed": false
+        }
+      ],
+      "notation": "[-3, 5)",
+      "inequality": ""
+    }
+  },
+  "intervalNumberLineRays": {
+    "pathToolId": "intervalNumberLine",
+    "rawWork": {
+      "intervals": [
+        {
+          "min": 2,
+          "max": null,
+          "minClosed": false,
+          "maxClosed": false
+        },
+        {
+          "min": null,
+          "max": -3,
+          "minClosed": false,
+          "maxClosed": true
+        }
+      ],
+      "notation": "(-∞, -3] U (2, ∞)",
+      "inequality": ""
+    }
+  },
+  "systemsWorkspace": {
+    "pathToolId": "systemsWorkspace",
+    "rawWork": {
+      "x": "2",
+      "y": "5",
+      "classification": "one"
+    }
+  },
+  "stepAlgebra": {
+    "pathToolId": "stepAlgebra",
+    "rawWork": {
+      "finalEquation": " x = 15"
+    }
+  },
+  "functionInvestigation": {
+    "pathToolId": "functionInvestigation",
+    "rawWork": {
+      "placements": {
+        "p1": [
+          0,
+          1
+        ],
+        "p2": [
+          2,
+          5
+        ]
+      },
+      "markerPlacements": {
+        "endpoint-0-start": {
+          "marker": "arrow",
+          "point": [
+            -2.665,
+            -4.33
+          ],
+          "droppedPoint": [
+            -3,
+            -5
+          ],
+          "locationCorrect": true
+        },
+        "endpoint-0-end": {
+          "marker": "arrow",
+          "point": [
+            2.665,
+            6.33
+          ],
+          "droppedPoint": [
+            2,
+            5
+          ],
+          "locationCorrect": true
+        }
+      },
+      "answers": {
+        "domain": "(-\\infty, \\infty)"
+      },
+      "selections": {}
+    }
+  }
+}

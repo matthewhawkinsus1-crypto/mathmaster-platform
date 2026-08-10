@@ -35,7 +35,14 @@ export const parseEquationInput = (question = {}) => {
   if (question.leftExpression && question.rightExpression) {
     return { left: String(question.leftExpression), right: String(question.rightExpression), variable: objective.variable, objective };
   }
-  const equation = String(question.equation || question.equationAscii || question.initialEquation || '');
+  // `equationLatex` is read too, and it has to be. The platform's own authoring
+  // catalogue lists it as a stepAlgebra field and its worked example uses it —
+  // but nothing ever translated it into what this parser reads, so a question
+  // authored exactly as documented reached the student as "This question could
+  // not be displayed". It is converted rather than parsed as-is, because
+  // `\frac{x}{2}=3` is not an expression until the LaTeX is unwrapped.
+  const equation = String(question.equation || question.equationAscii || question.initialEquation || '')
+    || latexToExpression(question.equationLatex);
   const parts = equation.split('=');
   if (parts.length !== 2) throw new Error('Step-by-step algebra questions require one equation with one equals sign.');
   return { left: parts[0].trim(), right: parts[1].trim(), variable: objective.variable, objective };

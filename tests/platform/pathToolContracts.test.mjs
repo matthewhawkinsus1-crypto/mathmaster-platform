@@ -22,7 +22,6 @@ const QUESTIONS = {
     equationsLatex: ['y = 2x + 1', 'y = -x + 4'],
     graph: { xMin: -5, xMax: 5 },
     answer: '(1, 3)',
-    classification: 'one solution',
   },
   relationMapping: {
     type: 'relationMapping',
@@ -74,7 +73,7 @@ const QUESTIONS = {
     ],
     endpointRequirements: [{ id: 'endpoint-left', point: [-5, -9], vector: [-1, -2], marker: 'arrow' }],
     analysisParts: [
-      { id: 'slope', label: 'Slope', kind: 'text', acceptedAnswers: ['2'] },
+      { id: 'domain', label: 'Domain', kind: 'domain', notation: 'interval', acceptedAnswers: ['(-∞, ∞)'] },
     ],
   },
 };
@@ -82,14 +81,14 @@ const QUESTIONS = {
 // Every string that must never reach a browser, per question.
 const SECRETS = {
   algebra: ['"4"', 'acceptedAnswers'],
-  system: ['(1, 3)', 'one solution'],
+  system: ['(1, 3)'],
   relationMapping: [],
   intervalNumberLine: ['[-4, 2)'],
   multiAnswer: ['"3"', '"-2"'],
   systemsWorkspace: [],
   stepAlgebra: ['"5"'],
   // The y-values of the plotted points, and the end-behaviour symbol.
-  functionInvestigation: ['[0,1]', '[2,5]', 'arrow'],
+  functionInvestigation: ['[0,1]', '[2,5]', 'arrow', '(-∞, ∞)'],
 };
 
 // --- The allowlist actually holds --------------------------------------------
@@ -181,7 +180,9 @@ test('the public payload still describes the tool well enough to render it', () 
   assert.equal(graph.tool.pointTasks[0].expected, undefined, 'the y is the answer');
   assert.equal(graph.tool.endpointRequirements[0].marker, undefined, 'which symbol belongs there is the answer');
   assert.ok(graph.tool.endpointRequirements[0].point, 'where the graph ends is student-visible');
-  assert.equal(graph.tool.analysisParts[0].acceptedAnswers, undefined);
+  // Under the name the workspace actually reads — see toolResponseContracts.
+  assert.equal(graph.tool.analysisRequests[0].acceptedAnswers, undefined);
+  assert.equal(graph.tool.analysisParts, undefined);
 });
 
 test('the allowlist is per tool, because one field list cannot be safe for all', () => {
@@ -227,11 +228,19 @@ test('algebra: the server checks the value', () => {
   assert.equal(grade('algebra', { value: '5' }).isCorrect, false);
 });
 
-test('systems: the intersection and the classification are both checked', () => {
-  assert.equal(grade('system', { x: 1, y: 3, classification: 'one solution' }).isCorrect, true);
-  assert.equal(grade('system', { value: '(1,3)', classification: 'one solution' }).isCorrect, true);
-  assert.equal(grade('system', { x: 2, y: 3, classification: 'one solution' }).isCorrect, false);
-  assert.equal(grade('system', { x: 1, y: 3, classification: 'no solution' }).isCorrect, false);
+test('systems: the intersection is checked, from either shape the grader sends', () => {
+  assert.equal(grade('system', { x: 1, y: 3 }).isCorrect, true);
+  assert.equal(grade('system', { value: '(1,3)' }).isCorrect, true);
+  assert.equal(grade('system', { x: 2, y: 3 }).isCorrect, false);
+});
+
+test('a systems question that also asks for a classification is not issued', () => {
+  // The systems grader collects an ordered pair and offers no classification
+  // control, so the student would be marked wrong on a question they were never
+  // given a way to answer. `systemsWorkspace` is the tool that classifies.
+  const withClassification = { ...QUESTIONS.system, classification: 'one solution' };
+  assert.equal(isPathEligible(withClassification), false);
+  assert.equal(buildPublicToolPayload(withClassification), null);
 });
 
 test('a relation stored the Firestore-safe way grades identically to the legacy way', () => {
@@ -279,6 +288,54 @@ test('number line: the graph and the notation must agree with the key', () => {
     ...right,
     intervals: [{ start: -4, end: 2, startClosed: true, endClosed: true }],
   }).isCorrect, false);
+  // The notation stage is graded on its own. The original server used a
+  // different name for this ask stage, so this assertion could not have failed
+  // — the part was never added.
+  assert.equal(grade('intervalNumberLine', { ...right, notation: '[-4, 2]' }).isCorrect, false);
+});
+
+test('number line: the browser sends min/max, and both vocabularies grade', () => {
+  // The tool has always submitted {min,max,minClosed,maxClosed}; the first
+  // server contract read {start,end,startClosed,endClosed} and marked correct
+  // graphs wrong. Content authored in either vocabulary must keep working, so
+  // both are graded here against the response the browser really sends.
+  const authored = {
+    type: 'intervalNumberLine',
+    prompt: 'Graph -3 ≤ x < 5, then write it in interval notation.',
+    min: -8,
+    max: 8,
+    ask: ['graph', 'interval'],
+    intervals: [{ min: -3, max: 5, minClosed: true, maxClosed: false }],
+  };
+  const fromBrowser = {
+    intervals: [{ min: -3, max: 5, minClosed: true, maxClosed: false }],
+    notation: '[-3, 5)',
+    inequality: '',
+  };
+  const result = gradePathResponse({ privateGrading: buildPrivateToolGrading(authored), raw: fromBrowser });
+  assert.equal(result.isCorrect, true, JSON.stringify(result.parts));
+  assert.deepEqual(result.parts, [{ id: 'graph', isCorrect: true }, { id: 'notation', isCorrect: true }]);
+
+  // The same question authored the legacy way, graded on the same response.
+  const legacy = {
+    ...authored,
+    ask: ['graph', 'notation'],
+    intervals: undefined,
+    expectedIntervals: [{ start: -3, end: 5, startClosed: true, endClosed: false }],
+  };
+  assert.equal(
+    gradePathResponse({ privateGrading: buildPrivateToolGrading(legacy), raw: fromBrowser }).isCorrect,
+    true,
+  );
+
+  // And the notation is graded as mathematics, not as a string: spacing and a
+  // trailing zero are the same answer, a different bracket is not.
+  assert.equal(gradePathResponse({
+    privateGrading: buildPrivateToolGrading(authored), raw: { ...fromBrowser, notation: '[-3.0,5)' },
+  }).isCorrect, true);
+  assert.equal(gradePathResponse({
+    privateGrading: buildPrivateToolGrading(authored), raw: { ...fromBrowser, notation: '(-3, 5)' },
+  }).isCorrect, false);
 });
 
 test('systems workspace: the server redoes the solve rather than trusting the tool', () => {
@@ -308,7 +365,7 @@ test('graphing: points, end behaviour and analysis are each marked, and partial 
   const right = {
     placements: { p1: [0, 1], p2: [2, 5] },
     markerPlacements: { 'endpoint-left': { marker: 'arrow' } },
-    answers: { slope: '2' },
+    answers: { domain: '(-∞, ∞)' },
   };
   const all = grade('functionInvestigation', right);
   assert.equal(all.isCorrect, true, JSON.stringify(all.parts));
@@ -356,7 +413,7 @@ test('a forged isCorrect cannot change the verdict', () => {
       finalEquation: 'x = 99999',
       placements: { p1: [9, 9], p2: [9, 9] },
       markerPlacements: { 'endpoint-left': { marker: 'open' } },
-      answers: { slope: '99' },
+      answers: { domain: 'nonsense' },
     };
     const result = gradePathResponse({ privateGrading: buildPrivateToolGrading(QUESTIONS[toolId]), raw: forged });
     assert.equal(result.isCorrect, false, `${toolId} trusted a forged verdict`);
