@@ -203,7 +203,85 @@ async function classModel() {
   return classModelModule;
 }
 
+let authorizationModule = null;
+async function authorizationContext() {
+  if (!authorizationModule) authorizationModule = await import("./shared/authorizationContext.mjs");
+  return authorizationModule;
+}
+
 const CLASS_COLLECTION = "classes";
+
+// The teacher-readable child records. Each one carries its own authorization
+// context, because a rule that joined to the classes collection would need a
+// get() per document and Firestore caps that at ten per query.
+const AUTHORIZED_CHILD_COLLECTIONS = Object.freeze([
+  { path: (studentId) => `grades/${studentId}/evidenceEvents`, label: "evidenceEvents" },
+  { path: (studentId) => `grades/${studentId}/scratchpads`, label: "scratchpads" },
+]);
+
+/** The class a student is in right now, or null. */
+async function loadStudentClass(db, studentData) {
+  if (!studentData?.classId) return null;
+  const snapshot = await db.collection(CLASS_COLLECTION).doc(studentData.classId).get();
+  return snapshot.exists ? { classId: snapshot.id, ...snapshot.data() } : null;
+}
+
+/**
+ * Move a student's existing records onto their new teacher.
+ *
+ * Bounded by one student's history and batched, and it runs on a rare
+ * administrative action rather than on a read. See the policy note at the top
+ * of shared/authorizationContext.mjs: the access list moves, the origin fields
+ * never do.
+ */
+async function reauthorizeStudentRecords(db, studentId, classRecord) {
+  const auth = await authorizationContext();
+  const counts = {};
+
+  const apply = async (ref, docs) => {
+    let updated = 0;
+    for (let index = 0; index < docs.length; index += 400) {
+      const chunk = docs.slice(index, index + 400);
+      const batch = db.batch();
+      let queued = 0;
+      chunk.forEach((entry) => {
+        const change = auth.reauthorizeContext(entry.data() || {}, { classRecord });
+        if (!change) return;
+        batch.set(entry.ref, change, { merge: true });
+        queued += 1;
+      });
+      if (queued) {
+        // eslint-disable-next-line no-await-in-loop
+        await batch.commit();
+        updated += queued;
+      }
+    }
+    return updated;
+  };
+
+  for (const collectionSpec of AUTHORIZED_CHILD_COLLECTIONS) {
+    // eslint-disable-next-line no-await-in-loop
+    const snapshot = await db.collection(collectionSpec.path(studentId)).get();
+    // eslint-disable-next-line no-await-in-loop
+    counts[collectionSpec.label] = await apply(null, snapshot.docs);
+  }
+
+  // The derived per-student documents are single records, not collections.
+  for (const collectionName of ["studentMasteryProfiles", "studentRetentionSchedules"]) {
+    const ref = db.collection(collectionName).doc(studentId);
+    // eslint-disable-next-line no-await-in-loop
+    const snapshot = await ref.get();
+    if (!snapshot.exists) { counts[collectionName] = 0; continue; }
+    const change = auth.reauthorizeContext(snapshot.data() || {}, { classRecord });
+    if (change) {
+      // eslint-disable-next-line no-await-in-loop
+      await ref.set(change, { merge: true });
+    }
+    counts[collectionName] = change ? 1 : 0;
+  }
+
+  return counts;
+}
 
 /** Every class, as plain objects. Small collection, read whole. */
 async function loadClasses(db) {
@@ -910,6 +988,16 @@ exports.saveClass = onCall(async (request) => {
     });
     if (members.size) await batch.commit();
     rostersUpdated = members.size;
+
+    // Handing a class to a different teacher moves every student's records in
+    // it, for the same reason moving one student does.
+    if (teacherChanged) {
+      const moved = { ...record, classId: ref.id };
+      for (const member of members.docs) {
+        // eslint-disable-next-line no-await-in-loop
+        await reauthorizeStudentRecords(db, member.id, moved);
+      }
+    }
   }
 
   await writeAdminAudit(db, actor, isNew ? "class_created" : "class_updated", ref.id, { ...record, rostersUpdated });
@@ -1023,6 +1111,97 @@ exports.migrateClassesFromPeriods = onCall(async (request) => {
 });
 
 /**
+ * Root-admin action: give existing evidence, mastery and scratchpad records the
+ * authorization context the scoped rules read.
+ *
+ * The second half of the deployment gate. Records written before this existed
+ * carry no `authorizedTeacherEmails`, so under the scoped rule no teacher could
+ * open them — a student's whole history would go dark. This must report zero
+ * remaining before those rules are deployed.
+ *
+ * `dryRun` reports without writing. Idempotent: a record that already has the
+ * fields is skipped, so a second run changes nothing.
+ */
+exports.backfillRecordAuthorization = onCall(async (request) => {
+  const actor = await requireRootAdmin(request);
+  const db = getFirestore();
+  const auth = await authorizationContext();
+  const dryRun = request.data?.dryRun === true;
+
+  const roster = await db.collection("grades").select("classId", "assignedTeacherEmail", "status").get();
+  const classes = new Map((await loadClasses(db)).map((entry) => [entry.classId, entry]));
+
+  const totals = { studentsScanned: 0, recordsScanned: 0, recordsUpdated: 0, studentsWithNoTeacher: [] };
+
+  for (const studentDoc of roster.docs) {
+    if (studentDoc.id === "test_connection") continue;
+    const student = studentDoc.data() || {};
+    const classRecord = student.classId ? classes.get(student.classId) || null : null;
+    totals.studentsScanned += 1;
+    if (!classRecord?.teacherOfRecord && student.status !== "disabled") {
+      totals.studentsWithNoTeacher.push(studentDoc.id);
+    }
+
+    for (const spec of AUTHORIZED_CHILD_COLLECTIONS) {
+      // eslint-disable-next-line no-await-in-loop
+      const snapshot = await db.collection(spec.path(studentDoc.id)).get();
+      const plan = auth.planAuthorizationBackfill({
+        records: snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })),
+        studentId: studentDoc.id,
+        classRecord,
+        student,
+      });
+      totals.recordsScanned += plan.report.scanned;
+      totals.recordsUpdated += plan.report.toUpdate;
+      if (!dryRun && plan.updates.length) {
+        for (let index = 0; index < plan.updates.length; index += 400) {
+          const chunk = plan.updates.slice(index, index + 400);
+          const batch = db.batch();
+          chunk.forEach((update) => {
+            const { authorizationBackfilledAt, ...fields } = update.fields;
+            batch.set(db.collection(spec.path(studentDoc.id)).doc(update.id), {
+              ...fields,
+              authorizationBackfilledAt: FieldValue.serverTimestamp(),
+            }, { merge: true });
+          });
+          // eslint-disable-next-line no-await-in-loop
+          await batch.commit();
+        }
+      }
+    }
+
+    for (const collectionName of ["studentMasteryProfiles", "studentRetentionSchedules"]) {
+      const ref = db.collection(collectionName).doc(studentDoc.id);
+      // eslint-disable-next-line no-await-in-loop
+      const snapshot = await ref.get();
+      if (!snapshot.exists) continue;
+      const plan = auth.planAuthorizationBackfill({
+        records: [{ id: studentDoc.id, ...snapshot.data() }],
+        studentId: studentDoc.id,
+        classRecord,
+        student,
+      });
+      totals.recordsScanned += plan.report.scanned;
+      totals.recordsUpdated += plan.report.toUpdate;
+      if (!dryRun && plan.updates.length) {
+        const { authorizationBackfilledAt, ...fields } = plan.updates[0].fields;
+        // eslint-disable-next-line no-await-in-loop
+        await ref.set({ ...fields, authorizationBackfilledAt: FieldValue.serverTimestamp() }, { merge: true });
+      }
+    }
+  }
+
+  const report = {
+    dryRun,
+    ...totals,
+    // The gate: after this runs, no record may still be unreadable.
+    readyForScopedChildRules: dryRun ? totals.recordsUpdated === 0 && totals.studentsWithNoTeacher.length === 0 : totals.studentsWithNoTeacher.length === 0,
+  };
+  if (!dryRun) await writeAdminAudit(db, actor, "record_authorization_backfilled", "children", report);
+  return report;
+});
+
+/**
  * Root-admin action: put a student in a class, move them, or take them out.
  *
  * This is the roster operation. It never touches the account and never touches
@@ -1057,23 +1236,30 @@ exports.setStudentClass = onCall(async (request) => {
 
   const previous = studentSnapshot.data() || {};
   await studentRef.set({
+    // membershipFieldsFor carries assignedTeacherEmail, so the roster record
+    // and the security rule it feeds can never disagree with the class.
     ...model.membershipFieldsFor(classRecord),
-    // The teacher of record follows the class, so the two can never disagree.
-    assignedTeacherEmail: classRecord?.teacherOfRecord || null,
     updatedAt: FieldValue.serverTimestamp(),
   }, { merge: true });
+
+  // The student's existing evidence, mastery and scratchpads move with them.
+  // Without this the new teacher would hold a roster row for a child whose
+  // work they cannot open.
+  const reauthorized = await reauthorizeStudentRecords(db, studentId, classRecord);
 
   await writeAdminAudit(db, actor, classRecord ? "student_class_assigned" : "student_removed_from_class", studentId, {
     fromClassId: previous.classId || null,
     toClassId: classRecord?.classId || null,
     classPeriod: classRecord?.period || model.UNASSIGNED_PERIOD,
     teacherOfRecord: classRecord?.teacherOfRecord || null,
+    reauthorized,
   });
   return {
     studentId,
     classId: classRecord?.classId || null,
     classPeriod: classRecord?.period || model.UNASSIGNED_PERIOD,
     assignedTeacherEmail: classRecord?.teacherOfRecord || null,
+    reauthorized,
   };
 });
 
@@ -2411,6 +2597,16 @@ exports.submitPathResponse = onCall(async (request) => {
   // import is never paid for inside it.
   await mathPath.pathToolContracts();
 
+  // The authorization context this evidence will carry, resolved from the
+  // student's class before the transaction so the read is not inside it.
+  const auth = await authorizationContext();
+  const studentRecord = await db.collection("grades").doc(studentId).get();
+  const authorizationFields = auth.buildAuthorizationContext({
+    studentId,
+    student: studentRecord.data() || null,
+    classRecord: await loadStudentClass(db, studentRecord.data()),
+  });
+
   const transactionResult = await db.runTransaction(async (transaction) => {
     const [sessionSnapshot, submissionSnapshot] = await Promise.all([
       transaction.get(sessionRef),
@@ -2472,7 +2668,10 @@ exports.submitPathResponse = onCall(async (request) => {
     const event = {
       schemaVersion: 1,
       eventKey: evidenceKey,
-      studentId,
+      // Who may read this, answerable from the record itself. `origin*` records
+      // the class and teacher this work actually happened under and is never
+      // rewritten; `authorizedTeacherEmails` follows the student if they move.
+      ...authorizationFields,
       occurredAt: now,
       alignmentKeys: currentQuestion.alignmentKeys || [session.target.alignmentKey],
       masteryEvidenceKeys: currentQuestion.alignmentKeys || [session.target.alignmentKey],
@@ -3100,7 +3299,17 @@ exports.updateMyMathPathMasteryFromEvidence = onDocumentCreated(
         };
       });
 
-      transaction.set(profileRef, { profiles, updatedAt: Date.now() }, { merge: true });
+      // The mastery profile inherits the evidence's authorization context, so
+      // a derived record is never readable by anyone the source was not.
+      transaction.set(profileRef, {
+        profiles,
+        studentId,
+        classId: evidence.classId ?? null,
+        originClassId: evidence.originClassId ?? evidence.classId ?? null,
+        originTeacherEmail: evidence.originTeacherEmail ?? null,
+        authorizedTeacherEmails: Array.isArray(evidence.authorizedTeacherEmails) ? evidence.authorizedTeacherEmails : [],
+        updatedAt: Date.now(),
+      }, { merge: true });
       transaction.set(applicationRef, { studentId, eventKey, appliedAt: Date.now() });
     });
   },

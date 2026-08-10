@@ -77,6 +77,7 @@ export const ADMIN_ONLY_OPERATIONS = Object.freeze([
   'saveClass',
   'setClassStatus',
   'migrateClassesFromPeriods',
+  'backfillRecordAuthorization',
   'listAdminAuditLog',
 ]);
 

@@ -36,6 +36,7 @@ export default function ClassesAdmin() {
   const [confirming, setConfirming] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
   const [migration, setMigration] = useState(null);
+  const [backfill, setBackfill] = useState(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -191,6 +192,46 @@ export default function ClassesAdmin() {
                 </ul>
               </details>
             )}
+          </div>
+        )}
+      </section>
+
+      {/* The second gate. A student's history goes dark under the scoped child
+          rules unless every existing record carries its authorization context. */}
+      <section style={{ ...card, background: backfill?.readyForScopedChildRules ? '#e6f4ea' : '#fef7e0', borderColor: backfill?.readyForScopedChildRules ? '#a8d5b5' : '#f9ab00' }}>
+        <h3 style={{ margin: 0, color: backfill?.readyForScopedChildRules ? '#137333' : '#7a4f00' }}>Evidence &amp; mastery access</h3>
+        <p style={{ margin: '8px 0 14px', color: backfill?.readyForScopedChildRules ? '#137333' : '#7a4f00', lineHeight: 1.55 }}>
+          Every piece of evidence, every mastery profile and every scratchpad records who may open it. Records written
+          before that existed carry nothing, so no teacher could open them. Run this after the roster migration and before
+          deploying the scoped rules. Safe to run again.
+        </p>
+        <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
+          <button type="button" style={quiet} disabled={busy === 'backfill-dry'} onClick={() => run(
+            'backfill-dry',
+            async () => { const result = await teacherAdmin.backfillRecordAuthorization(true); setBackfill(result); return result; },
+            (result) => `${result.recordsScanned} records checked · ${result.recordsUpdated} would be updated. Nothing was written.`,
+          )}>
+            {busy === 'backfill-dry' ? 'Checking…' : 'Check without changing anything'}
+          </button>
+          <button type="button" style={primary} disabled={busy === 'backfill'} onClick={() => run(
+            'backfill',
+            async () => { const result = await teacherAdmin.backfillRecordAuthorization(false); setBackfill(result); return result; },
+            (result) => `${result.recordsUpdated} of ${result.recordsScanned} records updated.`,
+          )}>
+            {busy === 'backfill' ? 'Working…' : 'Backfill record access'}
+          </button>
+        </div>
+        {backfill && (
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(0,0,0,.12)', fontSize: 13, lineHeight: 1.7 }}>
+            <div>Students scanned: <strong>{backfill.studentsScanned}</strong></div>
+            <div>Records scanned: <strong>{backfill.recordsScanned}</strong></div>
+            <div>Records {backfill.dryRun ? 'that need updating' : 'updated'}: <strong>{backfill.recordsUpdated}</strong></div>
+            <div>Active students whose class has no teacher: <strong>{backfill.studentsWithNoTeacher?.length || 0}</strong></div>
+            <p style={{ margin: '10px 0 0', fontWeight: 900, color: backfill.readyForScopedChildRules ? '#137333' : '#a50e0e' }}>
+              {backfill.readyForScopedChildRules
+                ? 'Every record can be opened by the right teacher. The scoped evidence and mastery rules are safe to deploy.'
+                : 'Not ready — finish assigning teachers of record, then run this again.'}
+            </p>
           </div>
         )}
       </section>

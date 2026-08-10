@@ -158,6 +158,92 @@ test('a stale denormalized teacher is what a partial move would leave behind', a
   });
 });
 
+// --- Evidence, mastery and scratchpads carry their own authorization ----------------
+
+const CHILD_PATHS = [
+  'grades/STUDENT_A/evidenceEvents/ev-1',
+  'grades/STUDENT_A/scratchpads/sp-1',
+  'studentMasteryProfiles/STUDENT_A',
+  'studentRetentionSchedules/STUDENT_A',
+];
+
+const seedChildren = (authorizedTeacherEmails) => env.withSecurityRulesDisabled(async (context) => {
+  const db = context.firestore();
+  for (const path of CHILD_PATHS) {
+    await setDoc(doc(db, path), {
+      studentId: 'STUDENT_A',
+      classId: 'class-a',
+      originClassId: 'class-a',
+      originTeacherEmail: TEACHER_A,
+      authorizedTeacherEmails,
+    }, { merge: true });
+  }
+});
+
+test('a teacher reads a student\'s evidence and mastery only when the record names them', async () => {
+  await seedChildren([TEACHER_A]);
+  for (const path of CHILD_PATHS) {
+    await assertSucceeds(getDoc(doc(teacherA(), path)));
+    // This is the hole the broad teacher() rule left open: another teacher
+    // reading a child's evidence and mastery.
+    await assertFails(getDoc(doc(teacherB(), path)));
+  }
+});
+
+test('the student reads their own evidence and mastery whatever the access list says', async () => {
+  await seedChildren([TEACHER_A]);
+  await assertSucceeds(getDoc(doc(studentA(), 'studentMasteryProfiles/STUDENT_A')));
+  await assertSucceeds(getDoc(doc(studentA(), 'grades/STUDENT_A/evidenceEvents/ev-1')));
+  await assertFails(getDoc(doc(studentB(), 'studentMasteryProfiles/STUDENT_A')));
+});
+
+test('a record with no access list is readable by no teacher at all', async () => {
+  // Exactly the state of every record written before this existed, which is
+  // why the backfill has to report zero before the scoped rules go live.
+  await env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'grades/STUDENT_A/evidenceEvents/ev-legacy'), { studentId: 'STUDENT_A' });
+  });
+  await assertFails(getDoc(doc(teacherA(), 'grades/STUDENT_A/evidenceEvents/ev-legacy')));
+  await assertFails(getDoc(doc(teacherB(), 'grades/STUDENT_A/evidenceEvents/ev-legacy')));
+  await assertSucceeds(getDoc(doc(admin(), 'grades/STUDENT_A/evidenceEvents/ev-legacy')));
+});
+
+test('after a move, the new teacher reads the history and the old teacher keeps theirs', async () => {
+  // What `reauthorizeContext` writes: origin untouched, access list carrying
+  // the teacher who was there plus the teacher who has them now.
+  await seedChildren([TEACHER_A, TEACHER_B]);
+  for (const path of CHILD_PATHS) {
+    await assertSucceeds(getDoc(doc(teacherB(), path)));
+    await assertSucceeds(getDoc(doc(teacherA(), path)));
+  }
+  // And the record still says where the work actually happened.
+  const record = await getDoc(doc(admin(), 'grades/STUDENT_A/evidenceEvents/ev-1'));
+  assert.equal(record.data().originTeacherEmail, TEACHER_A);
+  assert.equal(record.data().originClassId, 'class-a');
+});
+
+test('a teacher who never taught the student and does not now is refused', async () => {
+  await seedChildren([TEACHER_A]);
+  const teacherC = env.authenticatedContext('uid-c', { role: 'teacher', email: 'teacher.c@desotoisd.org' }).firestore();
+  for (const path of CHILD_PATHS) {
+    await assertFails(getDoc(doc(teacherC, path)));
+  }
+});
+
+test('a student cannot mint evidence that names a teacher, or none at all', async () => {
+  // No access list: refused, so a client cannot create a record nobody can see.
+  await assertFails(setDoc(doc(studentA(), 'grades/STUDENT_A/evidenceEvents/forged-1'), {
+    studentId: 'STUDENT_A', eventKey: 'forged-1',
+  }));
+  // Wrong student: refused whatever else is in it.
+  await assertFails(setDoc(doc(studentA(), 'grades/STUDENT_B/evidenceEvents/forged-2'), {
+    studentId: 'STUDENT_B', eventKey: 'forged-2', authorizedTeacherEmails: [TEACHER_B],
+  }));
+  // Evidence is append-only: not even the student may edit it afterwards.
+  await seedChildren([TEACHER_A]);
+  await assertFails(setDoc(doc(studentA(), 'grades/STUDENT_A/evidenceEvents/ev-1'), { tampered: true }, { merge: true }));
+});
+
 // --- A student is confined to themselves -------------------------------------------
 
 test('a student reads their own record and nobody else\'s', async () => {

@@ -184,6 +184,9 @@ export const teacherAdmin = {
   /** `dryRun` plans and reports without writing anything. */
   migrateClassesFromPeriods: (dryRun = false) =>
     callable('migrateClassesFromPeriods')({ dryRun }).then((result) => result.data || {}),
+  /** Gives existing evidence/mastery/scratchpads the fields the rules read. */
+  backfillRecordAuthorization: (dryRun = false) =>
+    callable('backfillRecordAuthorization')({ dryRun }).then((result) => result.data || {}),
   /** Put a student in a class, move them, or take them out (classId: null). */
   setStudentClass: ({ studentId, classId }) =>
     callable('setStudentClass')({ studentId, classId: classId || '' }).then((result) => result.data || {}),
