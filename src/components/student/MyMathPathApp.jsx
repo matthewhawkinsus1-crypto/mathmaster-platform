@@ -7,6 +7,7 @@ import { fetchStudentEvidenceEvents } from '../../platform/history/evidencePersi
 import { toCanonicalKey, toDisplayCode } from '../../utils/teksUtils.js';
 import { curateStudentPanel } from '../../platform/path/studentPanel.js';
 import { teksCodeFromSkillId } from '../../platform/path/skillGraph.js';
+import { DEFAULT_MASTERY_COURSE_ID, getWheelTeksForCourse } from '../../platform/mastery/strandConfig.js';
 
 // The mastery-status priority list this used to be was a second, competing
 // idea of what to recommend, sitting beside the path engine and able to
@@ -14,21 +15,25 @@ import { teksCodeFromSkillId } from '../../platform/path/skillGraph.js';
 // adaptive brief warns about, so the engine is asked first and this remains
 // only as the fallback for when it has nothing to say — no pacing set, or a
 // course with no graph.
-const chooseFallbackTeks = (profiles = {}) => {
+const chooseFallbackTeks = (profiles = {}, courseId = DEFAULT_MASTERY_COURSE_ID) => {
+  const inCourse = new Set(getWheelTeksForCourse(courseId));
   const priority = ['Needs Attention', 'Developing', 'Not Enough Evidence', 'Secure', 'Mastered'];
-  const entries = Object.entries(profiles);
+  const entries = Object.entries(profiles).filter(([code]) => inCourse.has(toDisplayCode(code)));
   for (const status of priority) {
     const match = entries.find(([, profile]) => profile?.mastery?.status === status);
     if (match) return toDisplayCode(match[0]);
   }
-  return 'A.5A';
+  // No standard of this course has any evidence yet. A hardcoded 'A.5A' here
+  // told an Algebra II student to practise an Algebra I standard, so this now
+  // returns nothing and the screen says it has no suggestion.
+  return null;
 };
 
-const chooseRecommendedTeks = ({ profiles, pathOptions }) => {
+const chooseRecommendedTeks = ({ profiles, pathOptions, courseId }) => {
   const panel = pathOptions ? curateStudentPanel(pathOptions) : null;
   const engineChoice = panel?.best?.skillId || panel?.strengthen?.skillId || null;
   const code = engineChoice ? teksCodeFromSkillId(engineChoice) : null;
-  return code || chooseFallbackTeks(profiles);
+  return code || chooseFallbackTeks(profiles, courseId);
 };
 
 export const MyMathPathApp = ({
@@ -38,6 +43,9 @@ export const MyMathPathApp = ({
   // is dropped on a mastery map to find it again.
   launchTeksCode = null,
   pathOptions = null,
+  // The course this student is enrolled in. It drives the mastery wheel and
+  // every fallback, so an Algebra II student never meets Algebra I content.
+  courseId = DEFAULT_MASTERY_COURSE_ID,
   onExit = null,
 }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -65,8 +73,8 @@ export const MyMathPathApp = ({
   useEffect(() => { loadState(); }, [loadState]);
 
   const recommendedTeks = useMemo(
-    () => chooseRecommendedTeks({ profiles: masteryData.masteryProfilesByTEKS, pathOptions }),
-    [masteryData.masteryProfilesByTEKS, pathOptions],
+    () => chooseRecommendedTeks({ profiles: masteryData.masteryProfilesByTEKS, pathOptions, courseId }),
+    [masteryData.masteryProfilesByTEKS, pathOptions, courseId],
   );
   const availableTeks = useMemo(() => Object.keys(masteryData.masteryProfilesByTEKS).map(toDisplayCode), [masteryData.masteryProfilesByTEKS]);
 
@@ -109,7 +117,7 @@ export const MyMathPathApp = ({
       )}
 
       {error && <div role="alert" style={{ maxWidth: '940px', margin: '16px auto', padding: '12px 14px', borderRadius: '8px', background: '#fce8e6', color: '#a50e0e' }}>{error}</div>}
-      {activeTab === 'dashboard' && <MyMathPathDashboard studentName={studentName || studentId || 'Student'} masteryProfilesByTEKS={masteryData.masteryProfilesByTEKS} retentionSchedulesByTEKS={masteryData.retentionSchedulesByTEKS} recommendedTeks={recommendedTeks} onStartSession={startSession} />}
+      {activeTab === 'dashboard' && <MyMathPathDashboard studentName={studentName || studentId || 'Student'} masteryProfilesByTEKS={masteryData.masteryProfilesByTEKS} retentionSchedulesByTEKS={masteryData.retentionSchedulesByTEKS} recommendedTeks={recommendedTeks} courseId={courseId} onStartSession={startSession} />}
       {activeTab === 'history' && <StudentPracticeHistory evidenceEvents={evidenceEvents} availableTeks={availableTeks} loading={loading} error={historyError} />}
       {activeTab === 'session' && sessionConfig && <MyMathPathProductionContainer {...sessionConfig} studentProfile={studentProfile} onReturnToDashboard={returnToDashboard} onSessionComplete={() => loadState()} />}
     </div>

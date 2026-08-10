@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { MASTERY_STATUS_COLORS, TEKS_STRANDS } from '../../platform/mastery/strandConfig.js';
+import {
+  DEFAULT_MASTERY_COURSE_ID, MASTERY_STATUS_COLORS, getMasteryStrands, masteryCourseLabel,
+} from '../../platform/mastery/strandConfig.js';
 
 const polarToCartesian = (cx, cy, radius, angle) => ({
   x: cx + radius * Math.cos(angle),
@@ -21,12 +23,21 @@ const describeArc = (cx, cy, innerRadius, outerRadius, startAngle, endAngle) => 
   ].join(' ');
 };
 
-export const MyMathPathWheel = ({ masteryProfilesByTEKS = {}, onSelectTEKS, size = 380 }) => {
+export const MyMathPathWheel = ({
+  masteryProfilesByTEKS = {},
+  onSelectTEKS,
+  size = 380,
+  // The wheel shows the course the student is enrolled in. Showing an Algebra
+  // II student the Algebra I standards reports mastery of a course they are
+  // not taking, which is worse than showing nothing.
+  courseId = DEFAULT_MASTERY_COURSE_ID,
+}) => {
   const [focusedTeks, setFocusedTeks] = useState(null);
   const center = size / 2;
   const outerRadius = size * 0.44;
   const innerRadius = size * 0.26;
-  const entries = Object.values(TEKS_STRANDS).flatMap((strand) => strand.codes.map((code) => ({
+  const courseLabel = masteryCourseLabel(courseId);
+  const entries = getMasteryStrands(courseId).flatMap((strand) => strand.codes.map((code) => ({
     code,
     strand,
     profile: masteryProfilesByTEKS[code] || {
@@ -40,7 +51,7 @@ export const MyMathPathWheel = ({ masteryProfilesByTEKS = {}, onSelectTEKS, size
 
   return (
     <div style={{ position: 'relative', width: '100%', maxWidth: `${size}px`, aspectRatio: '1', margin: '0 auto' }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ width: '100%', height: '100%', display: 'block', userSelect: 'none' }} aria-label="Texas Algebra I mastery wheel">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ width: '100%', height: '100%', display: 'block', userSelect: 'none' }} aria-label={`Texas ${courseLabel} mastery wheel`}>
         {entries.map((entry, index) => {
           const startAngle = index * anglePerSegment - Math.PI / 2 + gapAngle / 2;
           const endAngle = (index + 1) * anglePerSegment - Math.PI / 2 - gapAngle / 2;
