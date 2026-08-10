@@ -48,7 +48,7 @@ const chooseRecommendedTeks = ({ profiles, pathOptions, courseId }) => {
   return code || chooseFallbackTeks(profiles, courseId);
 };
 
-export const MyMathPathApp = ({
+export const MyMathPathExperience = ({
   studentId, studentName, studentProfile = null, assignments = null,
   // A skill chosen from Recommended for You. Opening straight into practice on
   // it is the whole point of the panel — otherwise a student picks a skill and
@@ -62,6 +62,17 @@ export const MyMathPathApp = ({
   // facts the course path is built from.
   studentRecord = null,
   teacherAssessmentPriorities = [],
+  // Data, supplied by whoever owns it. The live container reads Firestore; the
+  // Teacher Path Simulator hands over a synthetic learner. Neither this
+  // component nor anything below it can tell the difference, which is the
+  // point — a simulator that renders a copy of the student experience is
+  // simulating the copy.
+  masteryData = { masteryProfilesByTEKS: {}, retentionSchedulesByTEKS: {} },
+  evidenceEvents = [],
+  loading = false,
+  error = null,
+  historyError = null,
+  onReload = null,
   onExit = null,
 }) => {
   // The path is the default view. The mastery wheel is an overview of what has
@@ -69,27 +80,6 @@ export const MyMathPathApp = ({
   // arrives with.
   const [activeTab, setActiveTab] = useState('path');
   const [sessionConfig, setSessionConfig] = useState(null);
-  const [masteryData, setMasteryData] = useState({ masteryProfilesByTEKS: {}, retentionSchedulesByTEKS: {} });
-  const [evidenceEvents, setEvidenceEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [historyError, setHistoryError] = useState(null);
-
-  const loadState = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    const [masteryResult, historyResult] = await Promise.allSettled([
-      fetchStudentMasteryState(studentId, { assignments }),
-      fetchStudentEvidenceEvents(studentId),
-    ]);
-    if (masteryResult.status === 'fulfilled') setMasteryData(masteryResult.value);
-    else setError(masteryResult.reason?.message || 'Mastery data is unavailable.');
-    if (historyResult.status === 'fulfilled') { setEvidenceEvents(historyResult.value); setHistoryError(null); }
-    else setHistoryError(historyResult.reason?.message || 'Practice history is temporarily unavailable.');
-    setLoading(false);
-  }, [studentId, assignments]);
-
-  useEffect(() => { loadState(); }, [loadState]);
 
   const recommendedTeks = useMemo(
     () => chooseRecommendedTeks({ profiles: masteryData.masteryProfilesByTEKS, pathOptions, courseId }),
@@ -132,7 +122,7 @@ export const MyMathPathApp = ({
   const returnToDashboard = () => {
     setSessionConfig(null);
     setActiveTab('path');
-    loadState();
+    onReload?.();
   };
 
   if (loading && !Object.keys(masteryData.masteryProfilesByTEKS).length) return <div style={{ padding: '60px', textAlign: 'center', color: '#174ea6' }}>Loading My Math Path…</div>;
@@ -177,8 +167,51 @@ export const MyMathPathApp = ({
       )}
       {activeTab === 'dashboard' && <MyMathPathDashboard studentName={studentName || studentId || 'Student'} masteryProfilesByTEKS={masteryData.masteryProfilesByTEKS} retentionSchedulesByTEKS={masteryData.retentionSchedulesByTEKS} recommendedTeks={recommendedTeks} courseId={courseId} pathOptions={pathOptions} assessmentContext={assessmentContext} onPracticeAs={({ skillId, framework }) => { const code = teksCodeFromSkillId(skillId); if (code) startSession(code, { framework }); }} onStartSession={startSession} />}
       {activeTab === 'history' && <StudentPracticeHistory evidenceEvents={evidenceEvents} availableTeks={availableTeks} loading={loading} error={historyError} />}
-      {activeTab === 'session' && sessionConfig && <MyMathPathProductionContainer {...sessionConfig} studentProfile={studentProfile} onReturnToDashboard={returnToDashboard} onSessionComplete={() => loadState()} />}
+      {activeTab === 'session' && sessionConfig && <MyMathPathProductionContainer {...sessionConfig} studentProfile={studentProfile} onReturnToDashboard={returnToDashboard} onSessionComplete={() => onReload?.()} />}
     </div>
+  );
+};
+
+
+// The live container: it owns the fetching and nothing else.
+//
+// Splitting this out is what lets the Teacher Path Simulator render the real
+// experience against a synthetic learner without writing simulation records
+// into a real student's Firestore documents.
+export const MyMathPathApp = (props) => {
+  const { studentId, assignments } = props;
+  const [masteryData, setMasteryData] = useState({ masteryProfilesByTEKS: {}, retentionSchedulesByTEKS: {} });
+  const [evidenceEvents, setEvidenceEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [historyError, setHistoryError] = useState(null);
+
+  const loadState = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const [masteryResult, historyResult] = await Promise.allSettled([
+      fetchStudentMasteryState(studentId, { assignments }),
+      fetchStudentEvidenceEvents(studentId),
+    ]);
+    if (masteryResult.status === 'fulfilled') setMasteryData(masteryResult.value);
+    else setError(masteryResult.reason?.message || 'Mastery data is unavailable.');
+    if (historyResult.status === 'fulfilled') { setEvidenceEvents(historyResult.value); setHistoryError(null); }
+    else setHistoryError(historyResult.reason?.message || 'Practice history is temporarily unavailable.');
+    setLoading(false);
+  }, [studentId, assignments]);
+
+  useEffect(() => { loadState(); }, [loadState]);
+
+  return (
+    <MyMathPathExperience
+      {...props}
+      masteryData={masteryData}
+      evidenceEvents={evidenceEvents}
+      loading={loading}
+      error={error}
+      historyError={historyError}
+      onReload={loadState}
+    />
   );
 };
 

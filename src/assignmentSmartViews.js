@@ -1,4 +1,4 @@
-import { CLASS_PERIODS, getAssignmentDate, getAssignmentLifecycle, getDOLState } from './assignmentLifecycle';
+import { CLASS_PERIODS, getAssignmentDate, getAssignmentLifecycle, getDOLState } from './assignmentLifecycle.js';
 
 // Smart Views are computed on the fly from existing lifecycle/DOL data —
 // nothing here is stored. Each view is a pure predicate over one assignment.
