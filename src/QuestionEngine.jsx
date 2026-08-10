@@ -17,6 +17,7 @@ import GuidedClassworkCoach from './GuidedClassworkCoach';
 import RelationshipModel from './RelationshipModel';
 import WorkflowRunner from './platform/workflow/WorkflowRunner';
 import { readComposedQuestion } from './platform/workflow/questionWorkflow';
+import { buildLiteralWorkspaceQuestion, usesLiteralWorkspace } from './literalWorkspace';
 import GraphScenarioMatch from './GraphScenarioMatch';
 import GraphComparison from './GraphComparison';
 import GraphStory from './GraphStory';
@@ -104,6 +105,14 @@ export default function QuestionEngine({
     [question, generationKey, studentProfile],
   );
   const { confirm: confirmAction } = useToast();
+  // Built once per question, not once per render. StepByStepAlgebra resets its
+  // whole workspace when its `question` prop changes identity, so handing it a
+  // freshly-built object on every render wiped the armed operation the instant
+  // a student clicked it.
+  const literalWorkspace = useMemo(
+    () => (usesLiteralWorkspace(processedQuestion) ? buildLiteralWorkspaceQuestion(processedQuestion) : null),
+    [processedQuestion],
+  );
   // A composed question is defined by its workflow, not by its type name.
   const isComposed = useMemo(
     () => readComposedQuestion(processedQuestion).composed,
@@ -444,8 +453,34 @@ export default function QuestionEngine({
         return <NumberLine {...commonModuleProps} />;
       case 'fraction':
         return <FractionGrader {...commonModuleProps} />;
-      case 'literal':
-        return <LiteralGrader {...commonModuleProps} />;
+      case 'literal': {
+        // Solving a formula for one of its letters is the same act as solving a
+        // numeric equation, so a literal question may ask for the balance
+        // workspace instead of a box to type the rearranged expression into.
+        if (!literalWorkspace) return <LiteralGrader {...commonModuleProps} />;
+        if (!literalWorkspace.question) {
+          // Falling back silently would leave a question that asked for the
+          // workspace quietly grading something else.
+          return (
+            <div>
+              <LiteralGrader {...commonModuleProps} />
+              <p style={{ margin: '12px auto 0', maxWidth: 680, color: '#7a4f00', fontSize: 13, lineHeight: 1.55 }}>
+                This question asked to be solved on the balance workspace, but {literalWorkspace.reason}, so it is
+                shown as a written answer instead.
+              </p>
+            </div>
+          );
+        }
+        return (
+          <StepByStepAlgebra
+            {...commonModuleProps}
+            question={literalWorkspace.question}
+            questionRecord={record}
+            onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
+            maximumAttempts={resolvedMaximumAttempts}
+          />
+        );
+      }
       case 'system':
         return <SystemGrader {...commonModuleProps} />;
       case 'table':

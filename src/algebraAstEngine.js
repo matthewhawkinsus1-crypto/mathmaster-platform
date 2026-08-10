@@ -73,10 +73,22 @@ const matchingGroupStart = (text, endIndex) => {
   return -1;
 };
 
-const SIMPLE_OPERAND = /^(?:\d+(?:\.\d+)?|[a-zA-Z]|\\[a-zA-Z]+)$/;
+// mathjs writes a symbol it also knows as a unit -- b, h, l, A, N, T -- as
+// \mathrm{b}, so a plain [a-zA-Z] test misses exactly the letters school
+// formulas are made of, and `b \cdot h` fell through to the parenthesised
+// fallback as b(h). A literal equation must read A = bh.
+const OPERAND_SOURCE = '\\d+(?:\\.\\d+)?|\\\\mathrm\\{[A-Za-z]+\\}|[a-zA-Z]|\\\\[a-zA-Z]+';
+const SIMPLE_OPERAND = new RegExp(`^(?:${OPERAND_SOURCE})$`);
+const OPERAND_AT_END = new RegExp(`(${OPERAND_SOURCE})$`);
+const OPERAND_AT_START = new RegExp(`^(${OPERAND_SOURCE})`);
+
+// mathjs marks any symbol that shares a name with a unit as upright text.
+// Upright is how units are set; a VARIABLE is italic, and A = bh should not be
+// rendered as though A were amperes and h were hours.
+const unwrapSingleLetterUnits = (latex) => String(latex).replace(/\\mathrm\{([A-Za-z])\}/g, '$1');
 
 const cleanImplicitMultiplicationLatex = (latex) => {
-  let text = String(latex);
+  let text = unwrapSingleLetterUnits(latex);
   let guard = 40;
 
   while (text.includes('\\cdot') && guard > 0) {
@@ -91,7 +103,7 @@ const cleanImplicitMultiplicationLatex = (latex) => {
     // (group) · B — the scalar belongs in front of the group.
     if (before.endsWith(GROUP_CLOSE)) {
       const groupStart = matchingGroupStart(before, before.length - GROUP_CLOSE.length);
-      const operandMatch = after.match(/^(\d+(?:\.\d+)?|[a-zA-Z]|\\[a-zA-Z]+)/);
+      const operandMatch = after.match(OPERAND_AT_START);
       if (groupStart >= 0 && operandMatch) {
         const prefix = before.slice(0, groupStart);
         const group = before.slice(groupStart);
@@ -102,8 +114,8 @@ const cleanImplicitMultiplicationLatex = (latex) => {
 
     // Two simple operands sit side by side, unless both are numbers — `23` is
     // not two times three, so that one is parenthesised instead.
-    const leftOperand = before.match(/(\d+(?:\.\d+)?|[a-zA-Z]|\\[a-zA-Z]+)$/);
-    const rightOperand = after.match(/^(\d+(?:\.\d+)?|[a-zA-Z]|\\[a-zA-Z]+)/);
+    const leftOperand = before.match(OPERAND_AT_END);
+    const rightOperand = after.match(OPERAND_AT_START);
     const bothNumeric = leftOperand && rightOperand
       && /^\d/.test(leftOperand[1]) && /^\d/.test(rightOperand[1]);
     if (leftOperand && rightOperand && SIMPLE_OPERAND.test(rightOperand[1]) && !bothNumeric) {
@@ -228,8 +240,36 @@ export const isSolvedEquation = (equationState) => {
   return (leftSolved || rightSolved) && simplificationSatisfied;
 };
 
+// MathLive reports LaTeX. Everything downstream of the operand field speaks
+// mathjs, so the conversion happens once, here at the boundary, rather than in
+// each caller — and a student who types 1/2 by hand and one who builds a
+// stacked fraction reach the same expression.
+const LATEX_TO_EXPRESSION = [
+  [/[−–—]/g, '-'],
+  [/\\left|\\right/g, ''],
+  [/\\dfrac|\\tfrac/g, '\\frac'],
+  [/\\cdot|\\times/g, '*'],
+  [/\\div/g, '/'],
+  [/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, '(($1)/($2))'],
+  [/\\sqrt\{([^{}]*)\}/g, 'sqrt($1)'],
+  [/\\pi/g, 'pi'],
+  [/\\,|\\!|\\;/g, ''],
+  [/\^\{([^{}]*)\}/g, '^($1)'],
+  [/_\{([^{}]*)\}/g, '_$1'],
+];
+
+export const latexToExpression = (rawValue) => {
+  let text = String(rawValue ?? '').trim();
+  // Repeat once so a fraction inside a fraction resolves rather than leaving
+  // braces behind for the guard below to reject.
+  for (let pass = 0; pass < 2; pass += 1) {
+    LATEX_TO_EXPRESSION.forEach(([pattern, replacement]) => { text = text.replace(pattern, replacement); });
+  }
+  return text.trim();
+};
+
 export const parseOperationOperand = (rawValue) => {
-  const text = String(rawValue ?? '').trim();
+  const text = latexToExpression(rawValue);
   if (!text) throw new Error('Enter a number, variable term, or expression for the operation.');
   if (/[=;\[\]{}]/.test(text)) throw new Error('Enter only the expression being applied, without an equals sign.');
   const node = parse(text);

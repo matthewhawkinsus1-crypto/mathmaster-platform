@@ -17,7 +17,9 @@ import {
   getSuggestedMove,
   isSolvedEquation,
   expressionsEquivalent,
+  latexToExpression,
   parseEquationInput,
+  parseOperationOperand,
   splitAdditiveTerms,
 } from './algebraAstEngine';
 import { getAttemptsRemaining, normalizeQuestionRecord } from './attemptPolicy';
@@ -749,6 +751,16 @@ export default function StepByStepAlgebra({
   };
 
   const armedOperationLabel = armedTile ? OPERATIONS.find((item) => item.id === armedTile.operation)?.label : null;
+  // What the button says it will apply. The field now holds LaTeX, and
+  // "Apply Divide by \\frac{1}{2}" is not a sentence a student should read.
+  const operandLabel = (() => {
+    if (!operand) return '';
+    try {
+      return parseOperationOperand(operand).expression;
+    } catch {
+      return latexToExpression(operand);
+    }
+  })();
 
   // Placed after every hook so hook order stays identical whether or not the
   // blueprint parsed. A student can't repair the JSON, so this states what
@@ -887,10 +899,35 @@ export default function StepByStepAlgebra({
         </div>
       </div>
 
+      {pendingMove?.assumption && (
+        // Dividing a formula by a letter is only legitimate while that letter
+        // is not zero. Solving A = bh for h is not the same statement as
+        // A = bh, and a student rearranging formulas should see the condition
+        // rather than absorb the idea that it never matters.
+        <p style={{ margin: '10px 2px 0', fontSize: 13, color: '#7a4f00', fontWeight: 700 }}>
+          This step assumes {pendingMove.assumption}.
+        </p>
+      )}
+
       {armedTile && (
         <div style={{ display: 'flex', alignItems: 'end', gap: '12px', flexWrap: 'wrap', padding: '16px', marginTop: '14px', border: '2px solid #1a73e8', borderRadius: '12px', background: '#f8fbff' }}>
-          <label style={{ flex: '1 1 220px', fontWeight: 'bold', color: '#3c4043' }}>{armedOperationLabel} what to both sides?<input autoFocus value={operand} onChange={(event) => setOperand(event.target.value)} placeholder="Examples: 2, -3, 1/2, b, 3x" disabled={disabled || savingStep} style={{ display: 'block', width: '100%', marginTop: '7px', padding: '12px', fontSize: '18px', borderRadius: '8px', border: '2px solid #9fb8dd', boxSizing: 'border-box' }} /></label>
-          <button type="button" draggable={!disabled} onDragStart={(event) => event.dataTransfer.setData('text/algebra-operation', armedTile.operation)} onClick={() => attemptMove(armedTile.operation, armedTile.side)} disabled={disabled || savingStep} style={{ padding: '13px 18px', border: 'none', borderRadius: '9px', background: disabled || savingStep ? '#dadce0' : '#1a73e8', color: '#fff', fontWeight: 'bold', cursor: disabled || savingStep ? 'not-allowed' : 'grab' }}>Apply {armedOperationLabel} {operand}</button>
+          {/* The operand is mathematics, so it is entered as mathematics. A
+              literal equation is solved by dividing by b or multiplying by
+              (x + 1), and a plain text box makes those look like typing while
+              the equation beside them looks like algebra. */}
+          <label style={{ flex: '1 1 260px', fontWeight: 'bold', color: '#3c4043' }}>
+            {armedOperationLabel} what to both sides?
+            <div style={{ marginTop: '7px' }}>
+              <MathInput
+                value={operand}
+                onChange={setOperand}
+                toolProfile="basic"
+                placeholder="2, -3, 1/2, b, 3x"
+                ariaLabel={`${armedOperationLabel} what to both sides`}
+              />
+            </div>
+          </label>
+          <button type="button" draggable={!disabled} onDragStart={(event) => event.dataTransfer.setData('text/algebra-operation', armedTile.operation)} onClick={() => attemptMove(armedTile.operation, armedTile.side)} disabled={disabled || savingStep} style={{ padding: '13px 18px', border: 'none', borderRadius: '9px', background: disabled || savingStep ? '#dadce0' : '#1a73e8', color: '#fff', fontWeight: 'bold', cursor: disabled || savingStep ? 'not-allowed' : 'grab' }}>Apply {armedOperationLabel} {operandLabel}</button>
           <button type="button" onPointerDown={(event) => beginPointerDrag(armedTile.operation, event)} onPointerMove={onDragPointerMove} onPointerUp={onDragPointerUp} onPointerCancel={onDragPointerCancel} disabled={disabled || savingStep} style={{ padding: '13px 18px', border: '1px dashed #1a73e8', borderRadius: '9px', background: '#fff', color: '#174ea6', fontWeight: 'bold', cursor: disabled || savingStep ? 'not-allowed' : 'grab', touchAction: 'none' }}>⠿ Pick up &amp; drag onto a side</button>
           <button type="button" onClick={() => setArmedTile(null)} style={{ padding: '13px 14px', border: '1px solid #dadce0', borderRadius: '9px', background: '#fff', color: '#5f6368', fontWeight: 'bold' }}>Cancel</button>
           {isFactorOperation(armedTile.operation) && (
