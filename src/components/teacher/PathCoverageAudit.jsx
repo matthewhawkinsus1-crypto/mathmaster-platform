@@ -121,22 +121,35 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
       <section style={card}>
         <h3 style={{ margin: 0 }}>Import a Path bank seed package</h3>
         <p style={{ margin: '6px 0 14px', color: '#5f6368', fontSize: 13, lineHeight: 1.55, maxWidth: 720 }}>
-          Drop in a seed JSON — either an array of question documents or an object with an <code>items</code> array. Each
+          Select the seed JSON files — one or several at once, and a package split across course files must be selected
+          together so it is validated and imported as a single unit. An array, or an object with <code>documents</code>,
+          <code>items</code> or <code>questions</code>, are all accepted. Each
           one is checked with the same validation production uses to issue a question; anything that fails is reported and
           not stored. Re-importing the same file updates rather than duplicates.
         </p>
         <input
           type="file"
           accept="application/json,.json"
+          multiple
           onChange={async (event) => {
-            const file = event.target.files?.[0];
-            if (!file) return;
+            const files = [...(event.target.files || [])];
+            if (!files.length) return;
             setError(null);
             setBusy(true);
             try {
-              const parsed = JSON.parse(await file.text());
-              const items = Array.isArray(parsed) ? parsed : (parsed.items || parsed.questions || []);
-              if (!items.length) throw new Error('That file contains no question documents.');
+              const parsedFiles = await Promise.all(files.map(async (file) => JSON.parse(await file.text())));
+              // The seed package wraps its payload in `documents`; other
+              // exports use `items` or `questions`. Accept all three rather
+              // than making a human reshape a file to import it.
+              const items = parsedFiles.flatMap((parsed) => (Array.isArray(parsed)
+                ? parsed
+                : (parsed.documents || parsed.items || parsed.questions || [])));
+              if (!items.length) throw new Error('Those files contain no question documents.');
+              // One package split across course files is still one package, and
+              // has to be validated and imported as one — a per-file import
+              // could leave the bank half-filled.
+              const ids = new Set(items.map((entry) => entry?.id));
+              if (ids.size !== items.length) throw new Error('Those files contain duplicate question IDs.');
               setSeed(await seedPathQuestionBank(items, {
                 onProgress: ({ phase, chunk, chunks }) => setSeedPhase(`${phase === 'validating' ? 'Validating' : 'Importing'} ${chunk} of ${chunks}…`),
               }));

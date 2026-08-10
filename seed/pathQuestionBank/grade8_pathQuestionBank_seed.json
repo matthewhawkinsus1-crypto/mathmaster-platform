@@ -1,0 +1,627 @@
+{
+  "schemaVersion": 1,
+  "targetCollection": "pathQuestionBank",
+  "courseId": "grade8",
+  "documents": [
+    {
+      "id": "seed_8_4A_1",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.4A"
+      ],
+      "courseId": "grade8",
+      "familyId": "path-seed:8.4A:foundation",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.4A",
+      "prompt": "Find the slope of the line through (1, 3) and (3, 9).",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "3"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 1,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_8_4A_2",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.4A"
+      ],
+      "courseId": "grade8",
+      "familyId": "path-seed:8.4A:core",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.4A",
+      "prompt": "Find the slope of the line through (1, 4) and (4, -2).",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "-2"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 2,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_8_4A_3",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.4A"
+      ],
+      "courseId": "grade8",
+      "familyId": "path-seed:8.4A:representation",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.4A",
+      "prompt": "Find the slope of the line through (1, 5) and (5, 13).",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "2"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 3,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_8_4A_4",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.4A"
+      ],
+      "courseId": "grade8",
+      "familyId": "path-seed:8.4A:application",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.4A",
+      "prompt": "Find the slope of the line through (1, 6) and (6, 16).",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "2"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 4,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_8_4A_5",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.4A"
+      ],
+      "courseId": "grade8",
+      "familyId": "path-seed:8.4A:challenge",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 5,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.4A",
+      "prompt": "Find the slope of the line through (1, 7) and (3, 3).",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "-2"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 5,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_8_5G_1",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.5G"
+      ],
+      "courseId": "grade8",
+      "familyId": "path-seed:8.5G:foundation",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.5G",
+      "prompt": "Does the relation [(1, 2), (2, 3), (3, 4)] define y as a function of x?\n\nA) Yes, because each input has exactly one output.\nB) No, because at least one input has two different outputs.\nC) No, because two outputs may be equal.\nD) Yes, because every output is positive.\n\nType A, B, C, or D.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "A"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 1,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_8_5G_2",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.5G"
+      ],
+      "courseId": "grade8",
+      "familyId": "path-seed:8.5G:core",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.5G",
+      "prompt": "Does the relation [(1, 2), (1, 5), (3, 4)] define y as a function of x?\n\nA) Yes, because each input has exactly one output.\nB) No, because at least one input has two different outputs.\nC) No, because two outputs may be equal.\nD) Yes, because every output is positive.\n\nType A, B, C, or D.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "B"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 2,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_8_5G_3",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.5G"
+      ],
+      "courseId": "grade8",
+      "familyId": "path-seed:8.5G:representation",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.5G",
+      "prompt": "Does the relation [(0, 0), (2, 4), (4, 8)] define y as a function of x?\n\nA) Yes, because each input has exactly one output.\nB) No, because at least one input has two different outputs.\nC) No, because two outputs may be equal.\nD) Yes, because every output is positive.\n\nType A, B, C, or D.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "A"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 3,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_8_5G_4",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.5G"
+      ],
+      "courseId": "grade8",
+      "familyId": "path-seed:8.5G:application",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.5G",
+      "prompt": "Does the relation [(-1, 3), (0, 3), (1, 3)] define y as a function of x?\n\nA) Yes, because each input has exactly one output.\nB) No, because at least one input has two different outputs.\nC) No, because two outputs may be equal.\nD) Yes, because every output is positive.\n\nType A, B, C, or D.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "A"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 4,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_8_5G_5",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.5G"
+      ],
+      "courseId": "grade8",
+      "familyId": "path-seed:8.5G:challenge",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 5,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.5G",
+      "prompt": "Does the relation [(2, 1), (2, 1), (3, 5)] define y as a function of x?\n\nA) Yes, because each input has exactly one output.\nB) No, because at least one input has two different outputs.\nC) No, because two outputs may be equal.\nD) Yes, because every output is positive.\n\nType A, B, C, or D.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "A"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 5,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_8_5I_1",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.5I"
+      ],
+      "courseId": "grade8",
+      "familyId": "path-seed:8.5I:foundation",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.5I",
+      "prompt": "Which equation models the line through (1, 5) and (3, 11)?\n\nA) y = 3x + 2\nB) y = 2x + 3\nC) y = -3x + 2\nD) y = 3x - 2\n\nType A, B, C, or D.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "A"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 1,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_8_5I_2",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.5I"
+      ],
+      "courseId": "grade8",
+      "familyId": "path-seed:8.5I:core",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.5I",
+      "prompt": "Which equation models the line through (1, 5) and (3, 1)?\n\nA) y = -2x + 7\nB) y = 7x + -2\nC) y = 2x + 7\nD) y = -2x - 7\n\nType A, B, C, or D.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "A"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 2,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_8_5I_3",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.5I"
+      ],
+      "courseId": "grade8",
+      "familyId": "path-seed:8.5I:representation",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.5I",
+      "prompt": "Which equation models the line through (1, 1) and (3, 9)?\n\nA) y = 4x - 3\nB) y = -3x + 4\nC) y = -4x + -3\nD) y = 4x + 3\n\nType A, B, C, or D.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "A"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 3,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_8_5I_4",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.5I"
+      ],
+      "courseId": "grade8",
+      "familyId": "path-seed:8.5I:application",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.5I",
+      "prompt": "Which equation models the line through (1, 7) and (3, 9)?\n\nA) y = 1x + 6\nB) y = 6x + 1\nC) y = -1x + 6\nD) y = 1x - 6\n\nType A, B, C, or D.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "A"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 4,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_8_5I_5",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.5I"
+      ],
+      "courseId": "grade8",
+      "familyId": "path-seed:8.5I:challenge",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 5,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.5I",
+      "prompt": "Which equation models the line through (1, 4) and (3, -6)?\n\nA) y = -5x + 9\nB) y = 9x + -5\nC) y = 5x + 9\nD) y = -5x - 9\n\nType A, B, C, or D.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "A"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 5,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_8_8C_1",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.8C"
+      ],
+      "courseId": "grade8",
+      "familyId": "path-seed:8.8C:foundation",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.8C",
+      "prompt": "Solve 3x + 5 = 1x + 13.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "4"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 1,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_8_8C_2",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.8C"
+      ],
+      "courseId": "grade8",
+      "familyId": "path-seed:8.8C:core",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.8C",
+      "prompt": "Solve 4x - 2 = 2x - 8.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "-3"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 2,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_8_8C_3",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.8C"
+      ],
+      "courseId": "grade8",
+      "familyId": "path-seed:8.8C:representation",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.8C",
+      "prompt": "Solve 2x + 7 = 3x + 2.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "5"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 3,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_8_8C_4",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.8C"
+      ],
+      "courseId": "grade8",
+      "familyId": "path-seed:8.8C:application",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.8C",
+      "prompt": "Solve 5x + 1 = 2x + 7.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "2"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 4,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_8_8C_5",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.8C"
+      ],
+      "courseId": "grade8",
+      "familyId": "path-seed:8.8C:challenge",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 5,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.8C",
+      "prompt": "Solve 6x - 4 = 4x - 8.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "-2"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 5,
+        "reviewRequiredForHighStakesUse": true
+      }
+    }
+  ]
+}

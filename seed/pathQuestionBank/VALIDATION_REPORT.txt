@@ -1,0 +1,5 @@
+PathQuestionBank starter seed validation
+Total documents: 515
+Issuable: 515
+Non-issuable: 0
+All documents passed buildIssuePlan.
