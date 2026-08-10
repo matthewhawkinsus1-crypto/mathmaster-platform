@@ -11,6 +11,10 @@ export default function AlgebraTermRow({
   crossedIndices = [],
   justInsertedIndex = null,
   selectedIndices = [],
+  // The cancellation sequence, in order: the terms a stroke passed through are
+  // highlighted, and then the pair that cancels collapses out of the row.
+  highlightIndices = [],
+  collapsingIndices = [],
   onTermClick,
 }) {
   return (
@@ -25,12 +29,19 @@ export default function AlgebraTermRow({
       {terms.map((term, index) => {
         const crossed = crossedIndices.includes(index);
         const selected = selectedIndices.includes(index);
+        const highlighted = highlightIndices.includes(index);
+        const collapsing = collapsingIndices.includes(index);
+        const effect = [
+          index === justInsertedIndex ? 'algebra-term-pop' : '',
+          highlighted ? 'algebra-term-highlight' : '',
+          collapsing ? 'algebra-term-collapse' : '',
+        ].filter(Boolean).join(' ');
         return (
           <span
             key={index}
             data-term-index={index}
             ref={(el) => registerTermRef?.(index, el)}
-            className={index === justInsertedIndex ? 'algebra-term-pop' : ''}
+            className={effect}
             onClick={onTermClick ? () => onTermClick(index) : undefined}
             role={onTermClick ? 'button' : undefined}
             tabIndex={onTermClick ? 0 : undefined}

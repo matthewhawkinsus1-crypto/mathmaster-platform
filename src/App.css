@@ -500,3 +500,86 @@
   outline-offset: 2px;
   border-radius: 6px;
 }
+
+/* --- Cancellation sequence (F8) -------------------------------------------
+   Four steps, in this order, each saying something different:
+     highlight   these are the two terms your line went through
+     strike-lock the freehand line becomes a straight strike and stops moving
+     collapse    the cancelled pair shrinks out of the expression
+     reflow      what is left slides into its new position
+   The balance pulse then says the equation is still balanced, which is the
+   whole claim the workspace exists to make visible. */
+
+@keyframes algebraTermHighlight {
+  0%   { background: rgba(217, 48, 37, 0); box-shadow: 0 0 0 0 rgba(217, 48, 37, 0); }
+  35%  { background: rgba(217, 48, 37, 0.18); box-shadow: 0 0 0 4px rgba(217, 48, 37, 0.16); }
+  100% { background: rgba(217, 48, 37, 0); box-shadow: 0 0 0 0 rgba(217, 48, 37, 0); }
+}
+
+.algebra-term-highlight {
+  border-radius: 6px;
+  animation: algebraTermHighlight 460ms ease-out both;
+}
+
+@keyframes algebraStrikeLock {
+  0%   { opacity: 0.85; stroke-width: 3.5; }
+  40%  { opacity: 1; stroke-width: 5; }
+  100% { opacity: 1; stroke-width: 4; }
+}
+
+.algebra-strike-lock {
+  animation: algebraStrikeLock 260ms ease-out both;
+}
+
+@keyframes algebraTermCollapse {
+  0%   { opacity: 1; transform: scale(1); max-width: 12em; }
+  55%  { opacity: 0.35; transform: scale(0.86); }
+  100% { opacity: 0; transform: scale(0.55); max-width: 0; margin-left: 0; }
+}
+
+.algebra-term-collapse {
+  display: inline-flex;
+  overflow: hidden;
+  animation: algebraTermCollapse 380ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes algebraReflow {
+  from { opacity: 0.35; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.algebra-reflow {
+  animation: algebraReflow 300ms ease-out both;
+}
+
+@keyframes algebraBalancePulse {
+  0%, 100% { transform: scaleX(1); background: #6d7f99; }
+  45%      { transform: scaleX(1.03); background: #1a73e8; }
+}
+
+.algebra-balance-pulse {
+  transform-origin: center;
+  animation: algebraBalancePulse 640ms ease-in-out both;
+}
+
+/* Motion is meaning here, so nothing is removed outright — every step is cut
+   to a duration that reads as a state change rather than as movement. */
+@media (prefers-reduced-motion: reduce) {
+  .algebra-shake,
+  .algebra-term-pop,
+  .algebra-mirror-chip,
+  .algebra-mirror-arrive,
+  .algebra-cancel-fade,
+  .algebra-term-highlight,
+  .algebra-strike-lock,
+  .algebra-term-collapse,
+  .algebra-reflow,
+  .algebra-balance-pulse {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  .algebra-shake {
+    animation: none !important;
+  }
+}

@@ -3,6 +3,7 @@ import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
 import {
   appendStrokePoint, createStroke, evaluateStroke, strokeToPath,
 } from './strokeGeometry';
+import { motionDuration, prefersReducedMotion, watchReducedMotion } from './motionPreference';
 import MathDisplay from './MathDisplay';
 import MathInput from './MathInput';
 import QuestionPrompt from './QuestionPrompt';
@@ -136,6 +137,16 @@ export default function StepByStepAlgebra({
   const [shake, setShake] = useState(false);
   const [savingStep, setSavingStep] = useState(false);
   const [cancelAnimating, setCancelAnimating] = useState(false);
+  // The cancellation sequence. `lockedStroke` is the line the student drew,
+  // kept on screen after the pointer lifts so the strike reads as a decision
+  // rather than as ink that vanished; `struckIndices` highlights what it went
+  // through; `collapsingSides` runs the shrink just before the equation changes.
+  const [lockedStroke, setLockedStroke] = useState(null); // { side, points }
+  const [struckTerms, setStruckTerms] = useState(null); // { side, indices }
+  const [collapsingSides, setCollapsingSides] = useState([]);
+  const [balancePulse, setBalancePulse] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(prefersReducedMotion);
+  useEffect(() => watchReducedMotion(setReducedMotion), []);
   const [armedTile, setArmedTile] = useState(null); // { operation, side }
   const [heldToken, setHeldToken] = useState(null); // { x, y, label }
   const [mirrorToken, setMirrorToken] = useState(null); // { x, y, label } | null
@@ -284,6 +295,9 @@ export default function StepByStepAlgebra({
 
   const commitMove = async (move) => {
     setCancelAnimating(true);
+    // The pair shrinks out of the expression before the equation is replaced,
+    // so the student sees the terms leave rather than the line jump.
+    setCollapsingSides(move.requiredCancellationSides || []);
     window.setTimeout(async () => {
       const verdict = evaluateMove(move, supportLevel);
       // Valid work earns something even when it was the long way round. Only an
@@ -299,6 +313,12 @@ export default function StepByStepAlgebra({
       setSimplificationAnswers({});
       setManualSelection(null);
       setCancelAnimating(false);
+      setCollapsingSides([]);
+      setLockedStroke(null);
+      setStruckTerms(null);
+      // Both sides changed and the equation is still true. The beam says so.
+      setBalancePulse(true);
+      window.setTimeout(() => setBalancePulse(false), motionDuration(700, reducedMotion, { floor: 60 }));
       setMessage({
         tone: move.productive ? 'success' : 'growth',
         text: move.solved
@@ -309,7 +329,7 @@ export default function StepByStepAlgebra({
               : 'The marked terms canceled. Now simplify the other side yourself.'
             : verdict.message,
       });
-    }, 620);
+    }, motionDuration(620, reducedMotion, { floor: 40 }));
   };
 
   const attemptMove = async (operation, originSide = 'left') => {
@@ -372,15 +392,24 @@ export default function StepByStepAlgebra({
     if (!pendingMove || cancelAnimating || disabled) return;
     const element = event.currentTarget;
     strokeBoxRef.current = element;
-    element.setPointerCapture?.(event.pointerId);
+    // Capture is taken in extendStroke, not here. Capturing on pointerdown
+    // retargets the click to this box, so a student who TAPPED a term to
+    // select it never reached the term's own handler — silently disabling
+    // click-to-cancel, the alternative built for anyone who cannot swipe.
     const point = localPoint(event, element);
     if (point) setStroke({ side, points: createStroke(point) });
   };
 
   const extendStroke = (event) => {
     if (!stroke) return;
-    const point = localPoint(event, strokeBoxRef.current);
+    const element = strokeBoxRef.current;
+    const point = localPoint(event, element);
     if (!point) return;
+    // Once the pointer has actually travelled this is a stroke, not a tap, and
+    // capture keeps it reporting even if it wanders outside the box.
+    if (element?.setPointerCapture && !element.hasPointerCapture?.(event.pointerId)) {
+      element.setPointerCapture(event.pointerId);
+    }
     setStroke((current) => {
       if (!current) return current;
       const next = appendStrokePoint(current.points, point);
@@ -425,6 +454,8 @@ export default function StepByStepAlgebra({
 
     if (!verdict.matched) {
       triggerShake();
+      setLockedStroke(null);
+      setStruckTerms(null);
       setMessage({
         tone: 'growth',
         text: verdict.reason === 'missed'
@@ -433,6 +464,11 @@ export default function StepByStepAlgebra({
       });
       return;
     }
+
+    // Matched. The line stops moving and stays put, and the terms it crossed
+    // light up — the two halves of "yes, those two".
+    setLockedStroke({ side, points: current.points });
+    setStruckTerms({ side, indices: verdict.struck });
     await strikeSide(side);
   };
 
@@ -673,7 +709,18 @@ export default function StepByStepAlgebra({
 
     const showFactorPreview = armedTile && !pendingMove && isFactorOperation(armedTile.operation);
     if (!showFactorPreview) {
-      return <div className="algebra-equation-side" style={{ fontSize: '32px', margin: '16px 0' }}>{inner}</div>;
+      // Keying on the expression remounts the side when the equation actually
+      // changes, which is what makes the reflow animate on a real step and stay
+      // still through every other re-render.
+      return (
+        <div
+          key={sideExpression(side)}
+          className="algebra-equation-side algebra-reflow"
+          style={{ fontSize: '32px', margin: '16px 0' }}
+        >
+          {inner}
+        </div>
+      );
     }
 
     const factorLabel = operand.trim() || '?';
@@ -781,17 +828,39 @@ export default function StepByStepAlgebra({
                     {/* The line as it is being drawn. Ink is feedback: a
                         student needs to see what they actually drew, not
                         discover afterwards that it missed. */}
-                    {stroke?.side === side && stroke.points.length > 1 && (
-                      <svg aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 3, overflow: 'visible' }}>
-                        <path d={strokeToPath(stroke.points)} fill="none" stroke="#a50e0e" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.85" />
-                      </svg>
-                    )}
+                    {(() => {
+                      // The live line while drawing, then the SAME line locked
+                      // in place once it matched. Replacing it with a tidy
+                      // horizontal rule would throw away the student's own mark.
+                      const ink = stroke?.side === side && stroke.points.length > 1
+                        ? { points: stroke.points, locked: false }
+                        : lockedStroke?.side === side && lockedStroke.points.length > 1
+                          ? { points: lockedStroke.points, locked: true }
+                          : null;
+                      if (!ink) return null;
+                      return (
+                        <svg aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 3, overflow: 'visible' }}>
+                          <path
+                            className={ink.locked ? 'algebra-strike-lock' : ''}
+                            d={strokeToPath(ink.points)}
+                            fill="none"
+                            stroke={ink.locked ? '#c5221f' : '#a50e0e'}
+                            strokeWidth={ink.locked ? 4 : 3.5}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            opacity={ink.locked ? 1 : 0.85}
+                          />
+                        </svg>
+                      );
+                    })()}
                     {targetTerms ? (
                       <AlgebraTermRow
                         terms={targetTerms}
                         side={side}
                         crossedIndices={crossedPairIndices || []}
                         selectedIndices={selectedIndices}
+                        highlightIndices={struckTerms?.side === side ? struckTerms.indices : []}
+                        collapsingIndices={collapsingSides.includes(side) ? (crossedPairIndices || candidatePairIndices || []) : []}
                         onTermClick={target.canCancel && !cancelAnimating ? (termIndex) => handleTermClick(side, termIndex, candidatePairIndices) : undefined}
                       />
                     ) : (
@@ -804,7 +873,11 @@ export default function StepByStepAlgebra({
             );
           })}
           <div ref={equalsRef} style={{ gridColumn: 2, gridRow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '50px', fontWeight: 800, color: '#174ea6' }} aria-label="equals">=</div>
-          <div style={{ position: 'absolute', left: '8%', right: '8%', bottom: '8px', height: '8px', borderRadius: '999px', background: '#6d7f99' }} />
+          <div
+            aria-hidden="true"
+            className={balancePulse ? 'algebra-balance-pulse' : ''}
+            style={{ position: 'absolute', left: '8%', right: '8%', bottom: '8px', height: '8px', borderRadius: '999px', background: '#6d7f99' }}
+          />
         </div>
 
         <div ref={rightRailRef} className="algebra-rail" style={{ display: 'flex', flexDirection: 'column', gap: '8px', justifyContent: 'center', padding: '6px', borderRadius: '14px', background: '#0f1a2c' }}>
