@@ -130,6 +130,16 @@ service cloud.firestore {
       allow read, create, update, delete: if teacher();
     }
 
+    // Which standards My Math Path can actually issue a question for. Read by
+    // the student wheel so it never offers a dead end, and by the teacher
+    // coverage audit. Written only by the server, which computes it with the
+    // same issuability check the runtime uses — a client that could write this
+    // could make an uncovered standard look launchable.
+    match /pathCoverage/{courseId} {
+      allow read: if signedIn();
+      allow create, update, delete: if false;
+    }
+
     // Phase 6A private modeling criteria are never student-readable. Teachers
     // author them; grading reads them through the Admin SDK callable.
     match /modelingLabDefinitions/{labId} {

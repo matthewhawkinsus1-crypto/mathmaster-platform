@@ -216,6 +216,42 @@ export const getDirectEvidenceAlignments = (question) =>
  * Validation for authored alignment data. Returns errors that block an import
  * and warnings that are worth showing but not fatal.
  */
+/**
+ * Does this assignment look like one TEKS was stamped on every question?
+ *
+ * Alignment is a property of a QUESTION, not of a lesson. A set that evaluates
+ * a function from a table, decides whether a relation is a function, and graphs
+ * an inequality on a number line is assessing three different standards even
+ * though a teacher would happily call it one lesson. An AI author given only an
+ * assignment-level TEKS will copy it onto every item, and the result reads as
+ * mastery evidence for a standard the question never assessed.
+ *
+ * This cannot be an error: a focused practice set genuinely can be one
+ * standard. It is a warning, and it fires only on the pattern that is almost
+ * always wrong — one single TEKS shared by questions that use several
+ * different tools, which is the signature of a lesson-level tag.
+ */
+export const auditAlignmentSpecificity = (questions = [], { minimumDistinctTypes = 3 } = {}) => {
+  const items = asArray(questions);
+  if (items.length < minimumDistinctTypes) return { warnings: [] };
+
+  const codes = new Set();
+  const types = new Set();
+  items.forEach((question) => {
+    getPrimaryTeksCodes(question).forEach((code) => codes.add(String(code).toUpperCase()));
+    const type = String(question?.toolId || question?.type || '').trim();
+    if (type) types.add(type);
+  });
+
+  if (codes.size !== 1 || types.size < minimumDistinctTypes) return { warnings: [] };
+  const [code] = [...codes];
+  return {
+    warnings: [
+      `Every question in this assignment is aligned to ${code}, but the assignment uses ${types.size} different question types (${[...types].sort().join(', ')}). Alignment is per question — check each item and give it the standard it actually assesses, including a prerequisite standard where that is what the question measures.`,
+    ],
+  };
+};
+
 export const validateAlignments = (question = {}, { label = 'question' } = {}) => {
   const errors = [];
   const warnings = [];

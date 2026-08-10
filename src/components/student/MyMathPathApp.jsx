@@ -7,6 +7,8 @@ import StudentPracticeHistory from './StudentPracticeHistory.jsx';
 import { fetchStudentMasteryState } from '../../services/masteryStateService.js';
 import { fetchStudentEvidenceEvents } from '../../platform/history/evidencePersistence.js';
 import { toCanonicalKey, toDisplayCode } from '../../utils/teksUtils.js';
+import { fetchPathCoverage } from '../../platform/path/pathCoverageService.js';
+import { isSkillLaunchable } from '../../../functions/shared/pathCoverage.mjs';
 import { curateStudentPanel } from '../../platform/path/studentPanel.js';
 import { teksCodeFromSkillId } from '../../platform/path/skillGraph.js';
 import { DEFAULT_MASTERY_COURSE_ID, getWheelTeksForCourse } from '../../platform/mastery/strandConfig.js';
@@ -98,6 +100,7 @@ export const MyMathPathExperience = ({
   // CCMR. The components have existed since Batch 9; what was missing was any
   // route a student could take to reach them, and the evidence to fill them.
   const [goals, setGoals] = useState(() => readCcmrGoals(studentId));
+  const [coverageNotice, setCoverageNotice] = useState(null);
   const assessmentContext = useMemo(() => (assessmentContextOverride || buildStudentAssessmentContext({
     student: studentRecord,
     assignments,
@@ -109,7 +112,35 @@ export const MyMathPathExperience = ({
     writeCcmrGoals(studentId, next);
   }, [studentId]);
 
+  // Whether the secure bank can actually issue a question for a standard. A
+  // student is never sent somewhere that ends in "No authored question ...";
+  // the check happens here, before the session starts, rather than as an error
+  // afterwards.
+  const [coverage, setCoverage] = useState(null);
+  const [coverageLoaded, setCoverageLoaded] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    setCoverageLoaded(false);
+    fetchPathCoverage(courseId).then((index) => {
+      if (cancelled) return;
+      setCoverage(index);
+      setCoverageLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, [courseId]);
+
   const startSession = (teksCode, options = {}) => {
+    // Fails closed: an index that has never been built, or a standard missing
+    // from it, means MathMaster has not confirmed there is anything to practise.
+    if (!isSkillLaunchable(coverage, teksCode)) {
+      setCoverageNotice(
+        coverageLoaded
+          ? `${toDisplayCode(teksCode)} does not have My Math Path practice content yet, so it cannot be started. Your teacher can see which standards are missing content.`
+          : 'MathMaster is still checking which standards have practice content. Try again in a moment.',
+      );
+      return;
+    }
+    setCoverageNotice(null);
     setSessionConfig({
       targetAlignmentKey: toCanonicalKey(teksCode),
       sessionKind: options.sessionKind || 'practice',
@@ -148,6 +179,14 @@ export const MyMathPathExperience = ({
       )}
 
       {error && <div role="alert" style={{ maxWidth: '940px', margin: '16px auto', padding: '12px 14px', borderRadius: '8px', background: '#fce8e6', color: '#a50e0e' }}>{error}</div>}
+      {/* A standard with no practice content says so plainly instead of opening
+          a session that dies on the first question. */}
+      {coverageNotice && (
+        <div role="status" style={{ maxWidth: '940px', margin: '16px auto', padding: '12px 14px', borderRadius: '8px', background: '#fef7e0', color: '#7a4f00', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span>{coverageNotice}</span>
+          <button type="button" onClick={() => setCoverageNotice(null)} style={{ minHeight: 34, padding: '0 12px', border: '1px solid #d9b64a', borderRadius: 7, background: '#fff', color: '#7a4f00', fontWeight: 800, cursor: 'pointer' }}>Dismiss</button>
+        </div>
+      )}
       {activeTab === 'path' && (
         <StudentLearningPath
           pathOptions={pathOptions}

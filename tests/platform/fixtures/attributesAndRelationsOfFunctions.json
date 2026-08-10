@@ -1,0 +1,198 @@
+{
+  "schemaVersion": 4,
+  "assignment": {
+    "title": "Attributes and Relations of Functions",
+    "assignmentType": "notesClasswork",
+    "variantMode": "shared",
+    "courseId": "algebra2",
+    "folder": "Algebra II/Unit 1/Functions"
+  },
+  "questions": [
+    {
+      "type": "intervalNumberLine",
+      "prompt": "Graph the inequality -3 ≤ x < 5 on the number line, then write it in interval notation.",
+      "inequalityText": "-3 ≤ x < 5",
+      "intervals": [
+        { "min": -3, "max": 5, "minClosed": true, "maxClosed": false }
+      ],
+      "ask": ["graph", "interval"],
+      "min": -8,
+      "max": 8,
+      "dok": 2,
+      "difficultyBand": 2,
+      "activityRole": "classwork",
+      "alignments": [
+        { "framework": "teks", "code": "A2.7I", "role": "primary", "evidenceLevel": "assessed" }
+      ]
+    },
+    {
+      "type": "intervalNumberLine",
+      "prompt": "Graph x ≤ -4 or x > 2 on the number line, then write the compound inequality in interval notation.",
+      "inequalityText": "x ≤ -4 or x > 2",
+      "intervals": [
+        { "min": null, "max": -4, "minClosed": false, "maxClosed": true },
+        { "min": 2, "max": null, "minClosed": false, "maxClosed": false }
+      ],
+      "ask": ["graph", "interval"],
+      "min": -8,
+      "max": 8,
+      "dok": 2,
+      "difficultyBand": 3,
+      "activityRole": "classwork",
+      "alignments": [
+        { "framework": "teks", "code": "A2.7I", "role": "primary", "evidenceLevel": "assessed" }
+      ]
+    },
+    {
+      "type": "graphAnalysis",
+      "prompt": "Use the graph to determine the domain and range of the function in interval notation.",
+      "functionSpec": { "type": "quadratic", "a": -1, "h": 1, "k": 4 },
+      "graph": { "xMin": -6, "xMax": 6, "yMin": -6, "yMax": 6 },
+      "analysisRequests": [
+        { "id": "domain", "kind": "domain", "notation": "interval" },
+        { "id": "range", "kind": "range", "notation": "interval" }
+      ],
+      "dok": 2,
+      "difficultyBand": 2,
+      "activityRole": "classwork",
+      "alignments": [
+        { "framework": "teks", "code": "A2.7I", "role": "primary", "evidenceLevel": "assessed" }
+      ]
+    },
+    {
+      "type": "graphAnalysis",
+      "prompt": "Use the graph to determine the intervals on which the function is increasing and decreasing.",
+      "functionSpec": { "type": "quadratic", "a": 1, "h": 2.5, "k": -4 },
+      "graph": { "xMin": -5, "xMax": 8, "yMin": -6, "yMax": 8 },
+      "analysisRequests": [
+        { "id": "inc", "kind": "increasing", "notation": "interval" },
+        { "id": "dec", "kind": "decreasing", "notation": "interval" }
+      ],
+      "dok": 2,
+      "difficultyBand": 3,
+      "activityRole": "classwork",
+      "alignments": [
+        { "framework": "teks", "code": "A2.7I", "role": "primary", "evidenceLevel": "assessed" }
+      ]
+    },
+    {
+      "type": "graphAnalysis",
+      "prompt": "Use the graph to identify the intervals where the function is positive and negative.",
+      "functionSpec": { "type": "quadratic", "a": -1, "h": 1, "k": 4 },
+      "graph": { "xMin": -5, "xMax": 6, "yMin": -6, "yMax": 6 },
+      "analysisRequests": [
+        { "id": "pos", "kind": "positive", "notation": "interval" },
+        { "id": "neg", "kind": "negative", "notation": "interval" }
+      ],
+      "dok": 2,
+      "difficultyBand": 3,
+      "activityRole": "classwork",
+      "alignments": [
+        { "framework": "teks", "code": "A2.7I", "role": "primary", "evidenceLevel": "assessed" }
+      ]
+    },
+    {
+      "type": "relationMapping",
+      "prompt": "Represent the relation {(-2, 3), (1, 2), (3, -1), (-4, -3)} using a mapping diagram, state its domain and range, and decide whether it is a function.",
+      "pairs": [
+        { "x": -2, "y": 3 },
+        { "x": 1, "y": 2 },
+        { "x": 3, "y": -1 },
+        { "x": -4, "y": -3 }
+      ],
+      "ask": ["mapping", "domain", "range", "isFunction"],
+      "dok": 2,
+      "difficultyBand": 2,
+      "activityRole": "classwork",
+      "alignments": [
+        { "framework": "teks", "code": "A2.7I", "role": "primary", "evidenceLevel": "assessed" }
+      ]
+    },
+    {
+      "type": "table",
+      "prompt": "Complete the table of values for f(x) = 0.5x + 1 given the domain x ∈ {-2, 0, 2, 4}.",
+      "table": {
+        "columns": [
+          { "key": "x", "label": "x" },
+          { "key": "y", "label": "f(x)" }
+        ],
+        "rows": [
+          { "x": -2, "y": null },
+          { "x": 0, "y": null },
+          { "x": 2, "y": null },
+          { "x": 4, "y": null }
+        ],
+        "answers": { "0:y": 0, "1:y": 1, "2:y": 2, "3:y": 3 }
+      },
+      "dok": 1,
+      "difficultyBand": 1,
+      "activityRole": "classwork",
+      "alignments": [
+        { "framework": "teks", "code": "A2.7I", "role": "primary", "evidenceLevel": "assessed" }
+      ]
+    },
+    {
+      "type": "multiAnswer",
+      "prompt": "For the function f(x) = 0.5x + 1 evaluated over the domain {-2, 0, 2, 4}, classify the function as discrete or continuous and state its range in set notation.",
+      "answerFields": [
+        { "id": "classification", "label": "Classification (discrete or continuous)", "answer": "discrete" },
+        { "id": "range", "label": "Range", "answer": "{0, 1, 2, 3}" }
+      ],
+      "dok": 2,
+      "difficultyBand": 2,
+      "activityRole": "classwork",
+      "alignments": [
+        { "framework": "teks", "code": "A2.7I", "role": "primary", "evidenceLevel": "assessed" }
+      ]
+    },
+    {
+      "type": "functionGraph",
+      "prompt": "Graph the continuous function f(x) = 0.5x + 1 for the domain x ≥ -3.",
+      "functionSpec": {
+        "type": "linear",
+        "m": 0.5,
+        "b": 1,
+        "domain": { "min": -3 }
+      },
+      "graph": { "xMin": -6, "xMax": 8, "yMin": -6, "yMax": 8 },
+      "dok": 2,
+      "difficultyBand": 3,
+      "activityRole": "classwork",
+      "alignments": [
+        { "framework": "teks", "code": "A2.7I", "role": "primary", "evidenceLevel": "assessed" }
+      ]
+    },
+    {
+      "type": "relationshipModel",
+      "prompt": "A low-flow shower head releases 1.8 gallons of water per minute. Identify the independent and dependent variables in this relationship.",
+      "scenario": "A low-flow shower head releases 1.8 gallons of water per minute. The function V(x) = 1.8x gives the volume of water released after x minutes.",
+      "quantities": [
+        { "id": "time", "label": "Time in minutes (x)" },
+        { "id": "volume", "label": "Volume of water in gallons V(x)" }
+      ],
+      "correctIndependentId": "time",
+      "correctDependentId": "volume",
+      "dok": 2,
+      "difficultyBand": 2,
+      "activityRole": "classwork",
+      "alignments": [
+        { "framework": "teks", "code": "A2.7I", "role": "primary", "evidenceLevel": "assessed" }
+      ]
+    },
+    {
+      "type": "multiAnswer",
+      "prompt": "For the shower head function V(x) = 1.8x where x is time in minutes and V(x) is volume in gallons, state the reasonable domain and range in interval notation, and state whether the function is discrete or continuous.",
+      "answerFields": [
+        { "id": "domain", "label": "Reasonable Domain", "answer": "[0, ∞)" },
+        { "id": "range", "label": "Reasonable Range", "answer": "[0, ∞)" },
+        { "id": "classification", "label": "Classification (discrete or continuous)", "answer": "continuous" }
+      ],
+      "dok": 2,
+      "difficultyBand": 2,
+      "activityRole": "classwork",
+      "alignments": [
+        { "framework": "teks", "code": "A2.7I", "role": "primary", "evidenceLevel": "assessed" }
+      ]
+    }
+  ]
+}

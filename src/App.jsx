@@ -37,7 +37,7 @@ import {
 } from './assignmentBlueprint';
 import { isPersonalizedBlueprint } from './problemGenerator';
 import AssignmentIntake from './AssignmentIntake';
-import { validateAlignments } from './platform/contract/alignments';
+import { auditAlignmentSpecificity, validateAlignments } from './platform/contract/alignments';
 import { validateQuestionsSemantics } from './platform/contract/semanticValidation';
 import {
   buildQuestionDraftKey,
@@ -114,6 +114,7 @@ import {
 } from './platform/path/pathStore.js';
 import SignInAccess from './SignInAccess.jsx';
 import ClassesAdmin from './components/admin/ClassesAdmin.jsx';
+import PathCoverageAudit from './components/teacher/PathCoverageAudit.jsx';
 import { resolveStudentCourseContext } from '../functions/shared/classModel.mjs';
 import {
   buildHonorsEnrichmentQuestion,
@@ -1649,6 +1650,10 @@ function App() {
       errors.push(...result.errors);
       warnings.push(...result.warnings);
     });
+
+    // One TEKS copied onto every question is the commonest authoring mistake an
+    // AI makes, and it silently corrupts mastery evidence rather than failing.
+    warnings.push(...auditAlignmentSpecificity(parsed.questions).warnings);
 
     // A recognized type is not enough: the renderer has to be able to show it.
     const semantic = validateQuestionsSemantics(parsed.questions);
@@ -3384,7 +3389,7 @@ function App() {
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><div role="group" aria-label="Root administrator workspace" style={{ display: 'inline-flex', padding: 3, borderRadius: 9, background: '#3c4043', border: '1px solid #5f6368' }}><button type="button" aria-pressed="false" onClick={() => setTeacherWorkspaceMode('teacher')} style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: 'transparent', color: '#e8eaed', fontWeight: 900 }}>Teacher View</button><button type="button" aria-pressed="true" style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: '#fff', color: '#202124', fontWeight: 900 }}>Administration</button></div><button type="button" onClick={() => { setTeacherWorkspaceMode('teacher'); setTeacherTab('demo'); }} style={{ padding: '9px 13px', border: '1px solid #c7a9ea', borderRadius: 8, background: '#f8f0fc', color: '#6f2da8', fontWeight: 900 }}>Open Demo Experience</button><button onClick={handleLogout} style={{ padding: '9px 13px', background: 'transparent', color: '#f28b82', border: '1px solid #f28b82', borderRadius: 8, fontWeight: 900 }}>Log Out</button></div>
             </header>
             <div role="tablist" aria-label="Administration sections" style={{ display: 'flex', gap: 8, padding: '14px 28px 0', flexWrap: 'wrap' }}>
-              {[['classes', 'Classes & rosters'], ['accounts', 'Accounts & sign-in']].map(([id, label]) => (
+              {[['classes', 'Classes & rosters'], ['accounts', 'Accounts & sign-in'], ['coverage', 'Path content coverage']].map(([id, label]) => (
                 <button
                   key={id}
                   type="button"
@@ -3398,9 +3403,9 @@ function App() {
               ))}
             </div>
             <main style={{ padding: 28 }}>
-              {adminTab === 'classes'
-                ? <ClassesAdmin />
-                : <SignInAccess signedInEmail={user.email} mode="admin" />}
+              {adminTab === 'classes' && <ClassesAdmin />}
+              {adminTab === 'accounts' && <SignInAccess signedInEmail={user.email} mode="admin" />}
+              {adminTab === 'coverage' && <PathCoverageAudit />}
             </main>
           </div>
         </div>

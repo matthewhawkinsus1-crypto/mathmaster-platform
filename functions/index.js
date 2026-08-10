@@ -1110,6 +1110,95 @@ exports.migrateClassesFromPeriods = onCall(async (request) => {
   return { dryRun, ...plan.report };
 });
 
+// --- My Math Path content coverage ---------------------------------------------
+//
+// A student may only be routed to a standard the secure bank can actually issue
+// and grade. This is what makes that knowable before they click, rather than
+// discovered as a server error afterwards.
+
+let coverageModule = null;
+async function pathCoverage() {
+  if (!coverageModule) coverageModule = await import("./shared/pathCoverage.mjs");
+  return coverageModule;
+}
+
+const COVERAGE_COLLECTION = "pathCoverage";
+
+/**
+ * Which course's coverage index answers for a standard.
+ *
+ * The same rule the client's `courseIdForTeks` uses: an `A2.` code is Algebra
+ * II, anything else is Algebra I. Prerequisites from earlier grades live in the
+ * `offWheel` section of whichever course routed to them.
+ */
+function coverageCourseIdFor(alignmentKey) {
+  return /^(texas:)?A2\./i.test(String(alignmentKey || "").trim()) ? "algebra2" : "algebra1";
+}
+
+/**
+ * Recompute the coverage index for one or more courses.
+ *
+ * Teacher-callable, because a teacher needs to know which standards their class
+ * can actually practise. The write is server-side only.
+ *
+ * ISSUABILITY IS `buildIssuePlan` — the same function `issueNextQuestion` calls.
+ * A question cannot count as coverage unless the server would really issue and
+ * grade it, so this index and the runtime can never disagree about what exists.
+ *
+ * THE WHEEL LIST COMES FROM THE CALLER, and that is safe in the only direction
+ * that matters. Deriving it server-side would mean importing the whole Texas
+ * standards catalogue into the Functions bundle, which is not deployed with
+ * `functions/`. Supplying it cannot make an uncovered skill launchable: a
+ * standard absent from the index is not in `skills`, and `isSkillLaunchable`
+ * fails closed on anything it does not find. A short or wrong list can only
+ * make MORE skills unavailable, never fewer — it degrades the report, it cannot
+ * open a dead end.
+ */
+exports.rebuildPathCoverage = onCall(async (request) => {
+  await requireTeacher(request);
+  const db = getFirestore();
+  const coverage = await pathCoverage();
+
+  const requestedCourses = Array.isArray(request.data?.courses) ? request.data.courses : [];
+  const wheelByCourse = request.data?.wheelTeksByCourse && typeof request.data.wheelTeksByCourse === "object"
+    ? request.data.wheelTeksByCourse
+    : {};
+  const courses = requestedCourses.length ? requestedCourses : Object.keys(wheelByCourse);
+  if (!courses.length) {
+    throw new HttpsError("invalid-argument", "Supply at least one course and its wheel standards.");
+  }
+
+  // One read of the bank for every course; a question may serve more than one.
+  const bankSnapshot = await db.collection("pathQuestionBank").get();
+  const bankItems = bankSnapshot.docs.map((questionDoc) => ({ id: questionDoc.id, ...questionDoc.data() }));
+
+  const plans = {};
+  for (const bankItem of bankItems) {
+    // eslint-disable-next-line no-await-in-loop
+    plans[bankItem.id] = await mathPath.buildIssuePlan(bankItem);
+  }
+
+  const indexes = {};
+  for (const courseId of courses) {
+    const wheelTeks = Array.isArray(wheelByCourse[courseId]) ? wheelByCourse[courseId] : [];
+    if (!wheelTeks.length) {
+      throw new HttpsError("invalid-argument", `No wheel standards were supplied for ${courseId}.`);
+    }
+    const index = coverage.buildCoverageIndex({
+      courseId: String(courseId),
+      wheelTeks,
+      bankItems,
+      plans,
+      generatedAt: Date.now(),
+    });
+    // eslint-disable-next-line no-await-in-loop
+    await db.collection(COVERAGE_COLLECTION).doc(String(courseId)).set(index);
+    indexes[courseId] = index;
+  }
+
+  return { courses, indexes };
+});
+
 /**
  * Root-admin action: give existing evidence, mastery and scratchpad records the
  * authorization context the scoped rules read.
@@ -2467,6 +2556,29 @@ exports.startMyMathPathSession = onCall(async (request) => {
   const sessionKind = request.data?.sessionKind === "retentionProbe" ? "retentionProbe" : "practice";
   const requiredQuestions = pathSessionRequiredQuestions(sessionKind, request.data?.requiredQuestions);
   const db = getFirestore();
+
+  // Refuse a standard the secure bank cannot issue a question for, and refuse
+  // it HERE — at the start, with an explanation — rather than letting the
+  // student open a session that dies on its first question. The wheel already
+  // hides these, but a launch link, a stale tab or a direct call must meet the
+  // same rule, so the check is not left to the browser.
+  //
+  // Coverage that has never been computed does not block: this is an integrity
+  // guard over published content, and failing closed on a missing index would
+  // take down every course the moment the index was absent. The gap it leaves
+  // is exactly the pre-existing behaviour — issueNextQuestion still refuses,
+  // with its own message.
+  const coverageForCourse = await db.collection(COVERAGE_COLLECTION).doc(coverageCourseIdFor(targetAlignmentKey)).get();
+  if (coverageForCourse.exists) {
+    const coverage = await pathCoverage();
+    if (!coverage.isSkillLaunchable(coverageForCourse.data(), targetAlignmentKey)) {
+      throw new HttpsError(
+        "failed-precondition",
+        coverage.explainCoverage(coverageForCourse.data(), targetAlignmentKey),
+        { reason: "no-path-coverage" },
+      );
+    }
+  }
   const lockId = mathPath.opaqueId("pathlock", studentId, targetAlignmentKey);
   const lockRef = db.collection("activePathLocks").doc(lockId);
   const proposedSessionRef = db.collection("pathSessions").doc();

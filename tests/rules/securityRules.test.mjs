@@ -277,6 +277,25 @@ test('no client may write a class, not even the administrator', async () => {
   await assertFails(setDoc(doc(studentA(), 'classes/class-new'), { name: 'Mine' }));
 });
 
+// --- Coverage is readable by everyone and writable by nobody ---------------------------
+
+test('the coverage index is readable after sign-in and writable by no client', async () => {
+  await env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'pathCoverage/algebra1'), {
+      courseId: 'algebra1', skills: { 'A.5A': { studentReady: true, issuableCount: 3 } },
+    });
+  });
+  // The student wheel and the teacher audit both read it.
+  await assertSucceeds(getDoc(doc(studentA(), 'pathCoverage/algebra1')));
+  await assertSucceeds(getDoc(doc(teacherA(), 'pathCoverage/algebra1')));
+
+  // A client that could write it could make an uncovered standard look
+  // launchable, which is the dead end this whole index exists to prevent.
+  await assertFails(setDoc(doc(teacherA(), 'pathCoverage/algebra1'), { skills: {} }, { merge: true }));
+  await assertFails(setDoc(doc(admin(), 'pathCoverage/algebra1'), { skills: {} }, { merge: true }));
+  await assertFails(setDoc(doc(studentA(), 'pathCoverage/algebra2'), { skills: { 'A2.7I': { studentReady: true } } }));
+});
+
 // --- Nobody unauthenticated gets anything ---------------------------------------------
 
 test('a signed-out request reads nothing at all', async () => {
