@@ -43,6 +43,28 @@ export const rebuildPathCoverage = async (courses = ['algebra1', 'algebra2']) =>
 };
 
 /**
+ * Import a seed package into the secure Path bank.
+ *
+ * Every item is validated server-side by the same `buildIssuePlan` the runtime
+ * uses before anything is written, and the call is idempotent on each item's
+ * own id, so a partial import is simply re-run.
+ */
+export const seedPathQuestionBank = async (items, { dryRun = false, chunkSize = 400 } = {}) => {
+  const call = httpsCallable(functions, 'seedPathQuestionBank');
+  const totals = { received: 0, accepted: 0, rejected: [], standards: new Set() };
+  for (let index = 0; index < items.length; index += chunkSize) {
+    // eslint-disable-next-line no-await-in-loop
+    const result = await call({ items: items.slice(index, index + chunkSize), dryRun });
+    const data = result.data || {};
+    totals.received += data.received || 0;
+    totals.accepted += data.accepted || 0;
+    totals.rejected.push(...(data.rejected || []));
+    (data.standards || []).forEach((code) => totals.standards.add(code));
+  }
+  return { ...totals, standards: [...totals.standards].sort(), dryRun };
+};
+
+/**
  * A predicate bound to one course's index.
  *
  * Handed to the engines so they can ask "can a student work here?" without

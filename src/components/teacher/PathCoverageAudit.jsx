@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { fetchPathCoverage, rebuildPathCoverage } from '../../platform/path/pathCoverageService.js';
+import { fetchPathCoverage, rebuildPathCoverage, seedPathQuestionBank } from '../../platform/path/pathCoverageService.js';
 import {
   COVERAGE_STATE, COVERAGE_STATE_LABELS, summarizeCoverage,
 } from '../../../functions/shared/pathCoverage.mjs';
@@ -39,6 +39,7 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [onlyGaps, setOnlyGaps] = useState(false);
+  const [seed, setSeed] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -110,6 +111,60 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
             </button>
           ))}
         </div>
+      </section>
+
+      {/* Bootstrapping the bank. It starts empty by design and is filled
+          deliberately; every item is validated server-side before it is stored,
+          so a seed file cannot put content in front of a student that the
+          runtime would refuse to issue. */}
+      <section style={card}>
+        <h3 style={{ margin: 0 }}>Import a Path bank seed package</h3>
+        <p style={{ margin: '6px 0 14px', color: '#5f6368', fontSize: 13, lineHeight: 1.55, maxWidth: 720 }}>
+          Drop in a seed JSON — either an array of question documents or an object with an <code>items</code> array. Each
+          one is checked with the same validation production uses to issue a question; anything that fails is reported and
+          not stored. Re-importing the same file updates rather than duplicates.
+        </p>
+        <input
+          type="file"
+          accept="application/json,.json"
+          onChange={async (event) => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            setError(null);
+            setBusy(true);
+            try {
+              const parsed = JSON.parse(await file.text());
+              const items = Array.isArray(parsed) ? parsed : (parsed.items || parsed.questions || []);
+              if (!items.length) throw new Error('That file contains no question documents.');
+              setSeed(await seedPathQuestionBank(items));
+            } catch (caught) {
+              setError(caught.message || 'Could not import that seed file.');
+            } finally {
+              setBusy(false);
+              event.target.value = '';
+            }
+          }}
+          disabled={busy}
+          style={{ fontSize: 14 }}
+        />
+        {seed && (
+          <div style={{ marginTop: 14, fontSize: 13, lineHeight: 1.7 }}>
+            <div>Received: <strong>{seed.received}</strong></div>
+            <div>Stored: <strong style={{ color: seed.accepted ? '#137333' : '#a50e0e' }}>{seed.accepted}</strong></div>
+            <div>Standards supplied: <strong>{seed.standards.length}</strong></div>
+            {seed.rejected.length > 0 && (
+              <details style={{ marginTop: 8 }}>
+                <summary style={{ cursor: 'pointer', fontWeight: 800, color: '#a50e0e' }}>{seed.rejected.length} rejected</summary>
+                <ul style={{ margin: '8px 0 0', color: '#3c4043' }}>
+                  {seed.rejected.slice(0, 40).map((entry, position) => (
+                    <li key={`${entry.id}-${position}`}>{entry.id || '(no id)'} — {String(entry.reason).replace(/_/g, ' ')}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
+            <p style={{ margin: '10px 0 0', color: '#5f6368' }}>Recompute coverage above to see the new counts.</p>
+          </div>
+        )}
       </section>
 
       {!loading && !index && (

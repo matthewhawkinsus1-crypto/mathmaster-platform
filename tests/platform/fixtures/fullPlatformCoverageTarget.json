@@ -1,0 +1,2925 @@
+{
+  "schemaVersion": 1,
+  "policy": "Full active content-standard reserve coverage target",
+  "note": "Process standards are secondary/process alignments, not standalone My Math Path mastery targets. Geometry and Precalculus are planned but inactive and therefore excluded until complete registries are activated.",
+  "familiesPerContentStandard": 5,
+  "familySlots": [
+    {
+      "slot": "foundation",
+      "difficultyBand": 2,
+      "dok": 1
+    },
+    {
+      "slot": "core",
+      "difficultyBand": 3,
+      "dok": 2
+    },
+    {
+      "slot": "representation",
+      "difficultyBand": 3,
+      "dok": 2
+    },
+    {
+      "slot": "application",
+      "difficultyBand": 4,
+      "dok": 3
+    },
+    {
+      "slot": "challenge",
+      "difficultyBand": 5,
+      "dok": 3
+    }
+  ],
+  "courses": {
+    "grade6": {
+      "totalExpectations": 59,
+      "processExpectations": 7,
+      "contentStandards": 52,
+      "requiredFamilies": 260,
+      "standards": [
+        {
+          "code": "6.2A",
+          "description": "classify whole numbers, integers, and rational numbers using a visual representation such as a Venn diagram to describe relationships between sets of numbers.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.2B",
+          "description": "identify a number, its opposite, and its absolute value.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.2C",
+          "description": "locate, compare, and order integers and rational numbers using a number line.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.2D",
+          "description": "order a set of rational numbers arising from mathematical and real-world contexts.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.2E",
+          "description": "extend representations for division to include fraction notation such as a/b represents the same number as a ÷ b where b ≠ 0.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.3A",
+          "description": "recognize that dividing by a rational number and multiplying by its reciprocal result in equivalent values.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.3B",
+          "description": "determine, with and without computation, whether a quantity is increased or decreased when multiplied by a fraction, including values greater than or less than one.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.3C",
+          "description": "represent integer operations with concrete models and connect the actions with the models to standardized algorithms.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.3D",
+          "description": "add, subtract, multiply, and divide integers fluently.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.3E",
+          "description": "multiply and divide positive rational numbers fluently.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.4A",
+          "description": "compare two rules verbally, numerically, graphically, and symbolically in the form of y = ax or y = x + a in order to differentiate between additive and multiplicative relationships.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.4B",
+          "description": "apply qualitative and quantitative reasoning to solve prediction and comparison of real-world problems involving ratios and rates.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.4C",
+          "description": "give examples of ratios as multiplicative comparisons of two quantities describing the same attribute.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.4D",
+          "description": "give examples of rates as the comparison by division of two quantities having different attributes, including rates as quotients.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.4E",
+          "description": "represent ratios and percents with concrete models, fractions, and decimals.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.4F",
+          "description": "represent benchmark fractions and percents such as 1%, 10%, 25%, 33 1/3%, and multiples of these values using 10 by 10 grids, strip diagrams, number lines, and numbers.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.4G",
+          "description": "generate equivalent forms of fractions, decimals, and percents using real-world problems, including problems that involve money.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.4H",
+          "description": "convert units within a measurement system, including the use of proportions and unit rates.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.5A",
+          "description": "represent mathematical and real-world problems involving ratios and rates using scale factors, tables, graphs, and proportions.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.5B",
+          "description": "solve real-world problems to find the whole given a part and the percent, to find the part given the whole and the percent, and to find the percent given the part and the whole, including the use of concrete and pictorial models.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.5C",
+          "description": "use equivalent fractions, decimals, and percents to show equal parts of the same whole.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.6A",
+          "description": "identify independent and dependent quantities from tables and graphs.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.6B",
+          "description": "write an equation that represents the relationship between independent and dependent quantities from a table.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.6C",
+          "description": "represent a given situation using verbal descriptions, tables, graphs, and equations in the form y = kx or y = x + b.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.7A",
+          "description": "generate equivalent numerical expressions using order of operations, including whole number exponents and prime factorization.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.7B",
+          "description": "distinguish between expressions and equations verbally, numerically, and algebraically.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.7C",
+          "description": "determine if two expressions are equivalent using concrete models, pictorial models, and algebraic representations.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.7D",
+          "description": "generate equivalent expressions using the properties of operations: inverse, identity, commutative, associative, and distributive properties.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.8A",
+          "description": "extend previous knowledge of triangles and their properties to include the sum of angles of a triangle, the relationship between the lengths of sides and measures of angles in a triangle, and determining when three lengths form a triangle.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.8B",
+          "description": "model area formulas for parallelograms, trapezoids, and triangles by decomposing and rearranging parts of these shapes.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.8C",
+          "description": "write equations that represent problems related to the area of rectangles, parallelograms, trapezoids, and triangles and volume of right rectangular prisms where dimensions are positive rational numbers.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.8D",
+          "description": "determine solutions for problems involving the area of rectangles, parallelograms, trapezoids, and triangles and volume of right rectangular prisms where dimensions are positive rational numbers.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.9A",
+          "description": "write one-variable, one-step equations and inequalities to represent constraints or conditions within problems.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.9B",
+          "description": "represent solutions for one-variable, one-step equations and inequalities on number lines.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.9C",
+          "description": "write corresponding real-world problems given one-variable, one-step equations or inequalities.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.10A",
+          "description": "model and solve one-variable, one-step equations and inequalities that represent problems, including geometric concepts.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.10B",
+          "description": "determine if the given value(s) make(s) one-variable, one-step equations or inequalities true.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.11",
+          "description": "graph points in all four quadrants using ordered pairs of rational numbers.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.12A",
+          "description": "represent numeric data graphically, including dot plots, stem-and-leaf plots, histograms, and box plots.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.12B",
+          "description": "use the graphical representation of numeric data to describe the center, spread, and shape of the data distribution.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.12C",
+          "description": "summarize numeric data with numerical summaries, including the mean and median (measures of center) and the range and interquartile range (IQR) (measures of spread), and use these summaries to describe the center, spread, and shape of the data distribution.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.12D",
+          "description": "summarize categorical data with numerical and graphical summaries, including the mode, the percent of values in each category (relative frequency table), and the percent bar graph, and use these summaries to describe the data distribution.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.13A",
+          "description": "interpret numeric data summarized in dot plots, stem-and-leaf plots, histograms, and box plots.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.13B",
+          "description": "distinguish between situations that yield data with and without variability.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.14A",
+          "description": "compare the features and costs of a checking account and a debit card offered by different local financial institutions.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.14B",
+          "description": "distinguish between debit cards and credit cards.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.14C",
+          "description": "balance a check register that includes deposits, withdrawals, and transfers.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.14D",
+          "description": "explain why it is important to establish a positive credit history.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.14E",
+          "description": "describe the information in a credit report and how long it is retained.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.14F",
+          "description": "describe the value of credit reports to borrowers and to lenders.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.14G",
+          "description": "explain various methods to pay for college, including through savings, grants, scholarships, student loans, and work-study.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "6.14H",
+          "description": "compare the annual salary of several occupations requiring various levels of post-secondary education or vocational training and calculate the effects of the different annual salaries on lifetime income.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        }
+      ]
+    },
+    "grade7": {
+      "totalExpectations": 50,
+      "processExpectations": 7,
+      "contentStandards": 43,
+      "requiredFamilies": 215,
+      "standards": [
+        {
+          "code": "7.2",
+          "description": "extend previous knowledge of sets and subsets using a visual representation to describe relationships between sets of rational numbers.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.3A",
+          "description": "add, subtract, multiply, and divide rational numbers fluently.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.3B",
+          "description": "apply and extend previous understandings of operations to solve problems using addition, subtraction, multiplication, and division of rational numbers.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.4A",
+          "description": "represent constant rates of change in mathematical and real-world problems given pictorial, tabular, verbal, numeric, graphical, and algebraic representations, including d = rt.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.4B",
+          "description": "calculate unit rates from rates in mathematical and real-world problems.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.4C",
+          "description": "determine the constant of proportionality (k = y/x) within mathematical and real-world problems.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.4D",
+          "description": "solve problems involving ratios, rates, and percents, including multi-step problems involving percent increase and percent decrease, and financial literacy problems.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.4E",
+          "description": "convert between measurement systems, including the use of proportions and the use of unit rates.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.5A",
+          "description": "generalize the critical attributes of similarity, including ratios within and between similar shapes.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.5B",
+          "description": "describe π as the ratio of the circumference of a circle to its diameter.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.5C",
+          "description": "solve mathematical and real-world problems involving similar shape and scale drawings.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.6A",
+          "description": "represent sample spaces for simple and compound events using lists and tree diagrams.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.6B",
+          "description": "select and use different simulations to represent simple and compound events with and without technology.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.6C",
+          "description": "make predictions and determine solutions using experimental data for simple and compound events.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.6D",
+          "description": "make predictions and determine solutions using theoretical probability for simple and compound events.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.6E",
+          "description": "find the probabilities of a simple event and its complement and describe the relationship between the two.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.6F",
+          "description": "use data from a random sample to make inferences about a population.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.6G",
+          "description": "solve problems using data represented in bar graphs, dot plots, and circle graphs, including part-to-whole and part-to-part comparisons and equivalents.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.6H",
+          "description": "solve problems using qualitative and quantitative predictions and comparisons from simple experiments.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.6I",
+          "description": "determine experimental and theoretical probabilities related to simple and compound events using data and sample spaces.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.7",
+          "description": "represent linear relationships using verbal descriptions, tables, graphs, and equations that simplify to the form y = mx + b.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.8A",
+          "description": "model the relationship between the volume of a rectangular prism and a rectangular pyramid having both congruent bases and heights and connect that relationship to the formulas.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.8B",
+          "description": "explain verbally and symbolically the relationship between the volume of a triangular prism and a triangular pyramid having both congruent bases and heights and connect that relationship to the formulas.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.8C",
+          "description": "use models to determine the approximate formulas for the circumference and area of a circle and connect the models to the actual formulas.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.9A",
+          "description": "solve problems involving the volume of rectangular prisms, triangular prisms, rectangular pyramids, and triangular pyramids.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.9B",
+          "description": "determine the circumference and area of circles.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.9C",
+          "description": "determine the area of composite figures containing combinations of rectangles, squares, parallelograms, trapezoids, triangles, semicircles, and quarter circles.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.9D",
+          "description": "solve problems involving the lateral and total surface area of a rectangular prism, rectangular pyramid, triangular prism, and triangular pyramid by determining the area of the shape's net.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.10A",
+          "description": "write one-variable, two-step equations and inequalities to represent constraints or conditions within problems.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.10B",
+          "description": "represent solutions for one-variable, two-step equations and inequalities on number lines.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.10C",
+          "description": "write a corresponding real-world problem given a one-variable, two-step equation or inequality.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.11A",
+          "description": "model and solve one-variable, two-step equations and inequalities.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.11B",
+          "description": "determine if the given value(s) make(s) one-variable, two-step equations and inequalities true.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.11C",
+          "description": "write and solve equations using geometry concepts, including the sum of the angles in a triangle, and angle relationships.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.12A",
+          "description": "compare two groups of numeric data using comparative dot plots or box plots by comparing their shapes, centers, and spreads.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.12B",
+          "description": "use data from a random sample to make inferences about a population.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.12C",
+          "description": "compare two populations based on data in random samples from these populations, including informal comparative inferences about differences between the two populations.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.13A",
+          "description": "calculate the sales tax for a given purchase and calculate income tax for earned wages.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.13B",
+          "description": "identify the components of a personal budget, including income; planned savings for college, retirement, and emergencies; taxes; and fixed and variable expenses, and calculate what percentage each category comprises of the total budget.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.13C",
+          "description": "create and organize a financial assets and liabilities record and construct a net worth statement.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.13D",
+          "description": "use a family budget estimator to determine the minimum household budget and average hourly wage needed for a family to meet its basic needs in the student's city or another large city nearby.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.13E",
+          "description": "calculate and compare simple interest and compound interest earnings.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "7.13F",
+          "description": "analyze and compare monetary incentives, including sales, rebates, and coupons.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        }
+      ]
+    },
+    "grade8": {
+      "totalExpectations": 52,
+      "processExpectations": 7,
+      "contentStandards": 45,
+      "requiredFamilies": 225,
+      "standards": [
+        {
+          "code": "8.2A",
+          "description": "extend previous knowledge of sets and subsets using a visual representation to describe relationships between sets of real numbers.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.2B",
+          "description": "approximate the value of an irrational number, including π and square roots of numbers less than 225, and locate that rational number approximation on a number line.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.2C",
+          "description": "convert between standard decimal notation and scientific notation.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.2D",
+          "description": "order a set of real numbers arising from mathematical and real-world contexts.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.3A",
+          "description": "generalize that the ratio of corresponding sides of similar shapes are proportional, including a shape and its dilation.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.3B",
+          "description": "compare and contrast the attributes of a shape and its dilation(s) on a coordinate plane.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.3C",
+          "description": "use an algebraic representation to explain the effect of a given positive rational scale factor applied to two-dimensional figures on a coordinate plane with the origin as the center of dilation.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.4A",
+          "description": "use similar right triangles to develop an understanding that slope, m, given as the rate comparing the change in y-values to the change in x-values, (y2 - y1)/ (x2 - x1), is the same for any two points (x1, y1) and (x2, y2) on the same line.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.4B",
+          "description": "graph proportional relationships, interpreting the unit rate as the slope of the line that models the relationship.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.4C",
+          "description": "use data from a table or graph to determine the rate of change or slope and y-intercept in mathematical and real-world problems.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.5A",
+          "description": "represent linear proportional situations with tables, graphs, and equations in the form of y = kx.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.5B",
+          "description": "represent linear non-proportional situations with tables, graphs, and equations in the form of y = mx + b, where b ≠ 0.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.5C",
+          "description": "contrast bivariate sets of data that suggest a linear relationship with bivariate sets of data that do not suggest a linear relationship from a graphical representation.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.5D",
+          "description": "use a trend line that approximates the linear relationship between bivariate sets of data to make predictions.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.5E",
+          "description": "solve problems involving direct variation.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.5F",
+          "description": "distinguish between proportional and non-proportional situations using tables, graphs, and equations in the form y = kx or y = mx + b, where b ≠ 0.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.5G",
+          "description": "identify functions using sets of ordered pairs, tables, mappings, and graphs.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.5H",
+          "description": "identify examples of proportional and non-proportional functions that arise from mathematical and real-world problems.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.5I",
+          "description": "write an equation in the form y = mx + b to model a linear relationship between two quantities using verbal, numerical, tabular, and graphical representations.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.6A",
+          "description": "describe the volume formula V = Bh of a cylinder in terms of its base area and its height.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.6B",
+          "description": "model the relationship between the volume of a cylinder and a cone having both congruent bases and heights and connect that relationship to the formulas.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.6C",
+          "description": "use models and diagrams to explain the Pythagorean theorem.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.7A",
+          "description": "solve problems involving the volume of cylinders, cones, and spheres.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.7B",
+          "description": "use previous knowledge of surface area to make connections to the formulas for lateral and total surface area and determine solutions for problems involving rectangular prisms, triangular prisms, and cylinders.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.7C",
+          "description": "use the Pythagorean Theorem and its converse to solve problems.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.7D",
+          "description": "determine the distance between two points on a coordinate plane using the Pythagorean Theorem.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.8A",
+          "description": "write one-variable equations or inequalities with variables on both sides that represent problems using rational number coefficients and constants.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.8B",
+          "description": "write a corresponding real-world problem when given a one-variable equation or inequality with variables on both sides of the equal sign using rational number coefficients and constants.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.8C",
+          "description": "model and solve one-variable equations with variables on both sides of the equal sign that represent mathematical and real-world problems using rational number coefficients and constants.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.8D",
+          "description": "use informal arguments to establish facts about the angle sum and exterior angle of triangles, the angles created when parallel lines are cut by a transversal, and the angle- angle criterion for similarity of triangles.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.9",
+          "description": "identify and verify the values of x and y that simultaneously satisfy two linear equations in the form y = mx + b from the intersections of the graphed equations.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.10A",
+          "description": "generalize the properties of orientation and congruence of rotations, reflections, translations, and dilations of two-dimensional shapes on a coordinate plane.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.10B",
+          "description": "differentiate between transformations that preserve congruence and those that do not.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.10C",
+          "description": "explain the effect of translations, reflections over the x- or y-axis, and rotations limited to 90°, 180°, 270°, and 360° as applied to two-dimensional shapes on a coordinate plane using an algebraic representation.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.10D",
+          "description": "model the effect on linear and area measurements of dilated two-dimensional shapes.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.11A",
+          "description": "construct a scatterplot and describe the observed data to address questions of association such as linear, non-linear, and no association between bivariate data.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.11B",
+          "description": "determine the mean absolute deviation and use this quantity as a measure of the average distance data are from the mean using a data set of no more than 10 data points.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.11C",
+          "description": "simulate generating random samples of the same size from a population with known characteristics to develop the notion of a random sample being representative of the population from which it was selected.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.12A",
+          "description": "solve real-world problems comparing how interest rate and loan length affect the cost of credit.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.12B",
+          "description": "calculate the total cost of repaying a loan, including credit cards and easy access loans, under various rates of interest and over different periods using an online calculator.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.12C",
+          "description": "explain how small amounts of money invested regularly, including money saved for college and retirement, grow over time.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.12D",
+          "description": "calculate and compare simple interest and compound interest earnings.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.12E",
+          "description": "identify and explain the advantages and disadvantages of different payment methods.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.12F",
+          "description": "analyze situations to determine if they represent financially responsible decisions and identify the benefits of financial responsibility and the costs of financial irresponsibility.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "8.12G",
+          "description": "estimate the cost of a two-year and four-year college education, including family contribution, and devise a periodic savings plan for accumulating the money needed to contribute to the total cost of attendance for at least the first year of college.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        }
+      ]
+    },
+    "algebra1": {
+      "totalExpectations": 56,
+      "processExpectations": 7,
+      "contentStandards": 49,
+      "requiredFamilies": 245,
+      "standards": [
+        {
+          "code": "A.2A",
+          "description": "Determine domain and range of linear functions, including reasonable continuous and discrete values in context.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.2B",
+          "description": "Write linear equations in two variables in multiple forms from a point and slope or from two points.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.2C",
+          "description": "Write linear equations in two variables from a table, graph, or verbal description.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.2D",
+          "description": "Write and solve equations involving direct variation.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.2E",
+          "description": "Write the equation of a line through a point that is parallel to a given line.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.2F",
+          "description": "Write the equation of a line through a point that is perpendicular to a given line.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.2G",
+          "description": "Write equations of horizontal or vertical lines and determine whether slope is zero or undefined.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.2H",
+          "description": "Write linear inequalities in two variables from a table, graph, or verbal description.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.2I",
+          "description": "Write systems of two linear equations from a table, graph, or verbal description.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.3A",
+          "description": "Determine slope from a table, graph, two points, or an equation in multiple forms.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.3B",
+          "description": "Calculate and interpret rate of change of a linear function in mathematical and real-world contexts.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.3C",
+          "description": "Graph linear functions and identify key features such as intercepts, zeros, and slope.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.3D",
+          "description": "Graph the solution set of linear inequalities in two variables.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.3E",
+          "description": "Determine effects of transformations of the linear parent function.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.3F",
+          "description": "Graph systems of two linear equations and determine their solutions when they exist.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.3G",
+          "description": "Estimate graphically the solutions of systems of two linear equations in real-world problems.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.3H",
+          "description": "Graph the solution set of systems of two linear inequalities.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.4A",
+          "description": "Calculate and interpret the correlation coefficient between two quantitative variables using technology.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.4B",
+          "description": "Compare and contrast association and causation in real-world problems.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.4C",
+          "description": "Write linear functions that reasonably fit data to estimate solutions and make predictions.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.5A",
+          "description": "Solve linear equations in one variable, including distribution and variables on both sides.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.5B",
+          "description": "Solve linear inequalities in one variable, including distribution and variables on both sides.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.5C",
+          "description": "Solve systems of two linear equations with two variables in mathematical and real-world problems.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.6A",
+          "description": "Determine domain and range of quadratic functions and represent them using inequalities.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.6B",
+          "description": "Write quadratic equations from a vertex and another point, and convert vertex form to standard form.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.6C",
+          "description": "Write quadratic functions from real solutions and graphs of related equations.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.7A",
+          "description": "Graph quadratic functions and identify key attributes including intercepts, zeros, extrema, vertex, and axis of symmetry.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.7B",
+          "description": "Describe the relationship between linear factors of quadratic expressions and zeros of quadratic functions.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.7C",
+          "description": "Determine effects of transformations of the quadratic parent function.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.8A",
+          "description": "Solve quadratic equations with real solutions by factoring, square roots, completing the square, and the quadratic formula.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.8B",
+          "description": "Write quadratic functions that reasonably fit data to estimate solutions and make predictions using technology.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.9A",
+          "description": "Determine domain and range of exponential functions and represent them using inequalities.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.9B",
+          "description": "Interpret parameters in exponential functions in real-world problems.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.9C",
+          "description": "Write exponential functions to model mathematical and real-world growth and decay situations.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.9D",
+          "description": "Graph exponential growth and decay functions and identify key features including y-intercept and asymptote.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.9E",
+          "description": "Write exponential functions that reasonably fit data and make predictions using technology.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.10A",
+          "description": "Add and subtract polynomials of degree one and degree two.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.10B",
+          "description": "Multiply polynomials of degree one and degree two.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.10C",
+          "description": "Determine polynomial quotients when the divisor degree does not exceed the dividend degree.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.10D",
+          "description": "Rewrite polynomial expressions using the distributive property.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.10E",
+          "description": "Factor trinomials with real factors, including perfect-square trinomials.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.10F",
+          "description": "Recognize and factor a difference of two squares.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.11A",
+          "description": "Simplify numerical radical expressions involving square roots.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.11B",
+          "description": "Simplify numeric and algebraic expressions using laws of integral and rational exponents.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.12A",
+          "description": "Determine whether relations represented verbally, tabularly, graphically, or symbolically define a function.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.12B",
+          "description": "Evaluate functions written in function notation for values in their domains.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.12C",
+          "description": "Identify terms of arithmetic and geometric sequences represented recursively in function form.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.12D",
+          "description": "Write formulas for the nth term of arithmetic and geometric sequences from several terms.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A.12E",
+          "description": "Solve mathematical and scientific formulas and literal equations for a specified variable.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        }
+      ]
+    },
+    "algebra2": {
+      "totalExpectations": 55,
+      "processExpectations": 7,
+      "contentStandards": 48,
+      "requiredFamilies": 240,
+      "standards": [
+        {
+          "code": "A2.2A",
+          "description": "Graph square root, reciprocal, cubic, cube root, exponential, absolute value, and logarithmic parent functions and analyze applicable key attributes such as domain, range, intercepts, symmetries, asymptotic behavior, and extrema on an interval.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.2B",
+          "description": "Graph and write the inverse of a function using inverse-function notation.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.2C",
+          "description": "Describe and analyze relationships between functions and their inverses, including quadratic/square root and logarithmic/exponential pairs and required domain restrictions.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.2D",
+          "description": "Use composition of functions, including necessary domain restrictions, to determine whether two functions are inverses.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.3A",
+          "description": "Formulate systems of equations, including three linear equations in three variables and systems with one linear and one quadratic equation.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.3B",
+          "description": "Solve systems of three linear equations in three variables using Gaussian elimination, technology with matrices, and substitution.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.3C",
+          "description": "Solve algebraically systems of two equations in two variables consisting of one linear equation and one quadratic equation.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.3D",
+          "description": "Determine the reasonableness of solutions to systems consisting of a linear equation and a quadratic equation in two variables.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.3E",
+          "description": "Formulate systems of at least two linear inequalities in two variables.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.3F",
+          "description": "Solve systems of two or more linear inequalities in two variables.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.3G",
+          "description": "Determine possible solutions in the solution set of systems of two or more linear inequalities in two variables.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.4A",
+          "description": "Write a quadratic function given three specified points in the plane.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.4B",
+          "description": "Write the equation of a parabola using given attributes, including vertex, focus, directrix, axis of symmetry, and direction of opening.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.4C",
+          "description": "Determine the effect on the graph of the square root parent function when it is vertically or horizontally scaled, reflected, or translated.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.4D",
+          "description": "Transform a quadratic function from standard form to vertex form to identify its attributes.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.4E",
+          "description": "Formulate quadratic and square root equations using technology from a table of data.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.4F",
+          "description": "Solve quadratic and square root equations.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.4G",
+          "description": "Identify extraneous solutions of square root equations.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.4H",
+          "description": "Solve quadratic inequalities.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.5A",
+          "description": "Determine effects on key attributes of exponential and logarithmic graphs when they are vertically scaled/reflected or translated.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.5B",
+          "description": "Formulate exponential and logarithmic equations that model real-world situations, including exponential relationships written recursively.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.5C",
+          "description": "Rewrite exponential equations as corresponding logarithmic equations and logarithmic equations as corresponding exponential equations.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.5D",
+          "description": "Solve exponential equations of the form y = ab^x and single logarithmic equations having real solutions.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.5E",
+          "description": "Determine the reasonableness of a solution to a logarithmic equation.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.6A",
+          "description": "Analyze transformations of cubic and cube root parent functions for specified positive and negative real parameter values.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.6B",
+          "description": "Solve cube root equations that have real roots.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.6C",
+          "description": "Analyze transformations of the absolute value parent function for specified positive and negative real parameter values.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.6D",
+          "description": "Formulate absolute value linear equations.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.6E",
+          "description": "Solve absolute value linear equations.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.6F",
+          "description": "Solve absolute value linear inequalities.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.6G",
+          "description": "Analyze transformations of the reciprocal parent function for specified positive and negative real parameter values.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.6H",
+          "description": "Formulate rational equations that model real-world situations.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.6I",
+          "description": "Solve rational equations that have real solutions.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.6J",
+          "description": "Determine the reasonableness of a solution to a rational equation.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.6K",
+          "description": "Determine asymptotic restrictions on the domain of a rational function and represent domain and range using interval notation, inequalities, and set notation.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.6L",
+          "description": "Formulate and solve equations involving inverse variation.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.7A",
+          "description": "Add, subtract, and multiply complex numbers.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.7B",
+          "description": "Add, subtract, and multiply polynomials.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.7C",
+          "description": "Determine the quotient of a polynomial of degree three or four when divided by a polynomial of degree one or two.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.7D",
+          "description": "Determine linear factors of polynomial functions of degree three and four using algebraic methods.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.7E",
+          "description": "Determine linear and quadratic factors of polynomial expressions of degree three and four, including sums/differences of cubes and factoring by grouping.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.7F",
+          "description": "Determine sums, differences, products, and quotients of rational expressions with integral exponents of degree one and two.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.7G",
+          "description": "Rewrite radical expressions containing variables into equivalent forms.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.7H",
+          "description": "Solve equations involving rational exponents.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.7I",
+          "description": "Write the domain and range of a function in interval notation, inequalities, and set notation.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.8A",
+          "description": "Analyze data to select the appropriate model from among linear, quadratic, and exponential models.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.8B",
+          "description": "Use regression methods available through technology to write linear, quadratic, and exponential functions from a given set of data.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        },
+        {
+          "code": "A2.8C",
+          "description": "Predict, make decisions, and make critical judgments from data using linear, quadratic, and exponential models.",
+          "requiredFamilies": 5,
+          "slots": [
+            "foundation",
+            "core",
+            "representation",
+            "application",
+            "challenge"
+          ]
+        }
+      ]
+    }
+  },
+  "totals": {
+    "allExpectations": 272,
+    "processExpectations": 35,
+    "contentStandards": 237,
+    "requiredFamilies": 1185
+  }
+}

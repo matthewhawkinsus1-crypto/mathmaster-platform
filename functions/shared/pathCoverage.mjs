@@ -20,19 +20,27 @@
 //
 //   none              nobody has authored anything for this standard
 //   authoredUnusable  something exists and the server cannot issue it
-//   minimal           issuable, but thin enough that a student will repeat items
-//   adequate          enough families, spread across difficulty bands
+//   minimal           issuable, but fewer than a session's worth of families
+//   adequate          five or more, spread across difficulty bands
 //
-// `minimal` is the no-dead-end floor: a student can practise without hitting an
-// error. `adequate` is the launch bar. Both are reported, because shipping at
-// the floor is a decision somebody should make deliberately rather than
-// discover in March.
+// `minimal` is NOT student-ready. A standard with one or two families would
+// hand the same problem to a student repeatedly inside a single session, so it
+// is reported as partial progress toward the target rather than as a skill
+// anyone can be routed into.
 
-/** The absolute floor. Below this a student meets an error. */
-export const MINIMUM_ISSUABLE_FAMILIES = 1;
+// A My Math Path session is FIVE questions. One family only stops the crash; it
+// also guarantees the student meets the same problem five times, which teaches
+// them the bank is empty whatever the coverage screen claims. So the minimum a
+// standard must have before a student is sent to it is one family per question
+// in a session.
+//
+// This is deliberately stricter than "issuableCount > 0". A standard below it
+// reads as "Coming soon" on the wheel rather than as a thin but usable skill.
+export const SESSION_QUESTION_COUNT = 5;
+export const MINIMUM_ISSUABLE_FAMILIES = SESSION_QUESTION_COUNT;
 
-/** The bar a course should clear before students are turned loose on it. */
-export const ADEQUATE_ISSUABLE_FAMILIES = 3;
+/** The same five, spread across bands, which is what a session should feel like. */
+export const ADEQUATE_ISSUABLE_FAMILIES = SESSION_QUESTION_COUNT;
 
 /** Spread matters as much as count: three copies of one band is not variety. */
 export const ADEQUATE_DISTINCT_BANDS = 2;
@@ -89,7 +97,9 @@ export const evaluateSkillCoverage = ({ displayCode, items = [], plans = {} }) =
   let state = COVERAGE_STATE.NONE;
   if (issuable.length >= ADEQUATE_ISSUABLE_FAMILIES && distinctBands >= ADEQUATE_DISTINCT_BANDS) {
     state = COVERAGE_STATE.ADEQUATE;
-  } else if (issuable.length >= MINIMUM_ISSUABLE_FAMILIES) {
+  } else if (issuable.length > 0) {
+    // Some usable content, but not yet a session's worth — or a session's worth
+    // all sitting in one band. Real progress; not a door.
     state = COVERAGE_STATE.MINIMAL;
   } else if (items.length > 0) {
     // Something was authored for this standard and none of it can be issued.
@@ -196,7 +206,7 @@ export const explainCoverage = (index, teksCode) => {
     case COVERAGE_STATE.ADEQUATE:
       return `${record.issuableCount} practice question families are ready for ${key}.`;
     case COVERAGE_STATE.MINIMAL:
-      return `${key} has ${record.issuableCount} practice question famil${record.issuableCount === 1 ? 'y' : 'ies'} — enough to practise, but students will repeat items.`;
+      return `${key} has ${record.issuableCount} of the ${MINIMUM_ISSUABLE_FAMILIES} practice question families a session needs, so it is not open to students yet.`;
     case COVERAGE_STATE.AUTHORED_UNUSABLE:
       return `${key} has ${record.activeCount} authored question${record.activeCount === 1 ? '' : 's'}, but none can be graded securely yet.`;
     default:

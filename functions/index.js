@@ -1135,6 +1135,12 @@ function coverageCourseIdFor(alignmentKey) {
   return /^(texas:)?A2\./i.test(String(alignmentKey || "").trim()) ? "algebra2" : "algebra1";
 }
 
+let selectionModule = null;
+async function pathSelection() {
+  if (!selectionModule) selectionModule = await import("./shared/pathQuestionSelection.mjs");
+  return selectionModule;
+}
+
 let promotionModule = null;
 async function pathPromotion() {
   if (!promotionModule) promotionModule = await import("./shared/pathPromotion.mjs");
@@ -1183,6 +1189,77 @@ exports.promoteQuestionToPathBank = onCall(async (request) => {
   await db.collection("pathQuestionBank").doc(bankId).set(record, { merge: true });
 
   return { bankId, standards: evaluation.standards, toolId: evaluation.toolId, checks: evaluation.checks };
+});
+
+/**
+ * Root-admin action: bootstrap the secure Path bank from a seed package.
+ *
+ * `pathQuestionBank` starts empty and is filled deliberately rather than
+ * discovered to be empty by a student. This is how a reviewed starter set gets
+ * in without anyone hand-creating Firestore documents.
+ *
+ * EVERY DOCUMENT IS VALIDATED BEFORE IT IS WRITTEN, by the same `buildIssuePlan`
+ * the runtime uses to issue a question. A seed item that would not survive
+ * production is rejected and reported, never stored — otherwise the bank fills
+ * with content that counts toward coverage and fails in front of a child.
+ *
+ * IDEMPOTENT. Each item carries its own `id`; re-running replaces rather than
+ * duplicating, so a partial import can simply be run again. `dryRun` validates
+ * and reports without writing anything.
+ */
+exports.seedPathQuestionBank = onCall(async (request) => {
+  const actor = await requireRootAdmin(request);
+  const db = getFirestore();
+  const dryRun = request.data?.dryRun === true;
+  const items = Array.isArray(request.data?.items) ? request.data.items : [];
+  if (!items.length) throw new HttpsError("invalid-argument", "Supply the seed items to import.");
+  if (items.length > 600) throw new HttpsError("invalid-argument", "Import at most 600 items per call.");
+
+  const accepted = [];
+  const rejected = [];
+  for (const item of items) {
+    const id = String(item?.id || "").trim();
+    if (!id) { rejected.push({ id: null, reason: "missing_id" }); continue; }
+    // eslint-disable-next-line no-await-in-loop
+    const plan = await mathPath.buildIssuePlan(item);
+    if (!plan.issuable) { rejected.push({ id, reason: plan.reason }); continue; }
+    if (!Array.isArray(item.alignmentKeys) || item.alignmentKeys.length === 0) {
+      rejected.push({ id, reason: "no_alignment_keys" });
+      continue;
+    }
+    accepted.push({ ...item, id, active: item.active !== false });
+  }
+
+  if (!dryRun && accepted.length) {
+    for (let index = 0; index < accepted.length; index += 400) {
+      const chunk = accepted.slice(index, index + 400);
+      const batch = db.batch();
+      chunk.forEach((record) => {
+        const { id, ...fields } = record;
+        batch.set(db.collection("pathQuestionBank").doc(id), {
+          ...fields,
+          seededAt: FieldValue.serverTimestamp(),
+          seededBy: actor.uid,
+        }, { merge: true });
+      });
+      // eslint-disable-next-line no-await-in-loop
+      await batch.commit();
+    }
+    await writeAdminAudit(db, actor, "path_bank_seeded", "pathQuestionBank", {
+      accepted: accepted.length,
+      rejected: rejected.length,
+    });
+  }
+
+  return {
+    dryRun,
+    received: items.length,
+    accepted: accepted.length,
+    rejected,
+    // The standards this import supplies content for, so the caller can check
+    // them against the coverage target without a second round trip.
+    standards: [...new Set(accepted.flatMap((record) => record.alignmentKeys.map((key) => String(key).replace(/^texas:/i, "").toUpperCase())))].sort(),
+  };
 });
 
 /** Remove a promoted question from the Path bank without touching the assignment. */
@@ -2721,9 +2798,17 @@ exports.issueNextQuestion = onCall(async (request) => {
   const courseLevel = courseSettingsSnapshot.data()?.profiles?.[classPeriod]?.courseLevel || "standard";
   const masteryProfile = masterySnapshot.data()?.profiles?.[targetDisplayCode] || {};
   const adaptiveRigor = rigorPolicy.resolveAdaptiveRigor({ courseLevel, profile: masteryProfile });
-  const difficultyPool = rigorPolicy.nearestDifficultyCandidates(candidates, adaptiveRigor.preferredDifficultyBand);
-  const index = Number(session.summary?.completedQuestions || 0) % difficultyPool.length;
-  const authored = difficultyPool[index];
+  // Selection prefers an UNUSED family, widening to the closest adjacent band
+  // before it repeats anything. Narrowing to the nearest band first and cycling
+  // inside it — which is what this used to do — trapped a five-question session
+  // in whichever one or two families happened to sit at the readiness band.
+  const selection = await pathSelection();
+  const familyUsage = session.familyUsage && typeof session.familyUsage === "object" ? session.familyUsage : {};
+  const choice = selection.selectNextFamily(candidates, {
+    preferredBand: adaptiveRigor.preferredDifficultyBand,
+    usage: familyUsage,
+  });
+  const authored = choice.question;
   const issuePlan = planByQuestionId.get(authored.id);
   const attemptsAllowed = session.sessionKind === "retentionProbe" ? 1 : 3;
   const questionInstanceId = mathPath.runtimeId("qi");
@@ -2744,7 +2829,13 @@ exports.issueNextQuestion = onCall(async (request) => {
     const freshData = fresh.data();
     if (!fresh.exists || freshData?.studentId !== studentId || freshData?.status !== "active") throw new HttpsError("failed-precondition", "This session changed before the question could be issued.");
     if (freshData.currentQuestion) return freshData.currentQuestion;
-    transaction.update(sessionRef, { currentQuestion, updatedAt: Date.now() });
+    // Remember which family was issued, so the next question in this session
+    // reaches for one the student has not seen.
+    transaction.update(sessionRef, {
+      currentQuestion,
+      familyUsage: selection.recordFamilyUse(freshData.familyUsage || {}, authored.id),
+      updatedAt: Date.now(),
+    });
     return currentQuestion;
   });
 
