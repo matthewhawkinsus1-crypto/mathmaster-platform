@@ -35,6 +35,7 @@ export default function ClassesAdmin() {
   const [selectedClassId, setSelectedClassId] = useState('');
   const [confirming, setConfirming] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [migration, setMigration] = useState(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -115,24 +116,84 @@ export default function ClassesAdmin() {
       {error && <div role="alert" style={{ ...card, background: '#fce8e6', borderColor: '#f0b4b2', color: '#a50e0e', marginBottom: 14 }}>{error}</div>}
       {status && <div role="status" style={{ ...card, background: '#e6f4ea', borderColor: '#a8d5b5', color: '#137333', marginBottom: 14 }}>{status}</div>}
 
-      {/* One-time migration, offered only while it would still do something. */}
-      {!loading && classes.length === 0 && (
-        <section style={{ ...card, background: '#fef7e0', borderColor: '#f9ab00' }}>
-          <h3 style={{ margin: 0, color: '#7a4f00' }}>No classes exist yet</h3>
-          <p style={{ margin: '8px 0 14px', color: '#7a4f00', lineHeight: 1.55 }}>
-            MathMaster previously organised students by period alone. Create one class per existing period and place every
-            student who already has a period into it — nothing is deleted, and you can rename, re-course and reassign each
-            class afterwards.
-          </p>
+      {/* The migration is the deployment gate for the scoped security rule, so
+          it reports rather than just runs, and it can be re-run safely. */}
+      <section style={{ ...card, background: migration?.readyForScopedRule ? '#e6f4ea' : '#fef7e0', borderColor: migration?.readyForScopedRule ? '#a8d5b5' : '#f9ab00' }}>
+        <h3 style={{ margin: 0, color: migration?.readyForScopedRule ? '#137333' : '#7a4f00' }}>
+          {classes.length === 0 ? 'No classes exist yet' : 'Roster migration check'}
+        </h3>
+        <p style={{ margin: '8px 0 14px', color: migration?.readyForScopedRule ? '#137333' : '#7a4f00', lineHeight: 1.55 }}>
+          MathMaster previously organised students by period alone. This creates one class per existing period and places
+          every student who already has a period, then reports anything it could not resolve. It is safe to run again —
+          a second run over a migrated database changes nothing.
+        </p>
+        <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
+          <button type="button" style={quiet} disabled={busy === 'migrate-dry'} onClick={() => run(
+            'migrate-dry',
+            async () => { const result = await teacherAdmin.migrateClassesFromPeriods(true); setMigration(result); return result; },
+            (result) => `Checked ${result.studentsScanned} student records. Nothing was written.`,
+          )}>
+            {busy === 'migrate-dry' ? 'Checking…' : 'Check without changing anything'}
+          </button>
           <button type="button" style={primary} disabled={busy === 'migrate'} onClick={() => run(
             'migrate',
-            () => teacherAdmin.migrateClassesFromPeriods(),
-            (result) => `${result.classesCreated} classes created · ${result.studentsPlaced} students placed${result.studentsUnplaced ? ` · ${result.studentsUnplaced} still need a class` : ''}.`,
+            async () => { const result = await teacherAdmin.migrateClassesFromPeriods(false); setMigration(result); return result; },
+            (result) => `${result.classesCreated} classes created · ${result.studentsAssigned} student records updated.`,
           )}>
-            {busy === 'migrate' ? 'Working…' : 'Create classes from existing periods'}
+            {busy === 'migrate' ? 'Working…' : 'Run migration'}
           </button>
-        </section>
-      )}
+        </div>
+
+        {migration && (
+          <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(0,0,0,.12)' }}>
+            <table style={{ borderCollapse: 'collapse', fontSize: 13 }}>
+              <tbody>
+                {[
+                  ['Students scanned', migration.studentsScanned],
+                  ['Active students', migration.activeStudentsScanned],
+                  ['Classes created', migration.classesCreated],
+                  ['Student records updated', migration.studentsAssigned],
+                  ['Unresolved', migration.unresolvedStudents?.length || 0],
+                  ['Conflicts', migration.conflicts?.length || 0],
+                  ['Active students with no teacher', migration.activeStudentsMissingTeacherAfterMigration?.length || 0],
+                ].map(([label, value]) => (
+                  <tr key={label}>
+                    <td style={{ padding: '3px 16px 3px 0', color: '#3c4043' }}>{label}</td>
+                    <td style={{ padding: '3px 0', fontWeight: 900 }}>{value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* The one sentence the deployment decision hangs on. */}
+            <p style={{ margin: '12px 0 0', fontWeight: 900, color: migration.readyForScopedRule ? '#137333' : '#a50e0e', lineHeight: 1.5 }}>
+              {migration.readyForScopedRule
+                ? 'Every active student has a teacher of record. The scoped grades security rule is safe to deploy.'
+                : 'Do NOT deploy the scoped grades rule yet — these students would become invisible to every teacher:'}
+            </p>
+            {!migration.readyForScopedRule && (
+              <ul style={{ margin: '8px 0 0', color: '#a50e0e', fontSize: 13, lineHeight: 1.6 }}>
+                {(migration.activeStudentsMissingTeacherAfterMigration || []).slice(0, 25).map((studentId) => (
+                  <li key={studentId}>
+                    {studentId} — {(migration.unresolvedStudents || []).find((entry) => entry.studentId === studentId)?.reason?.replace(/_/g, ' ') || 'no teacher of record'}
+                  </li>
+                ))}
+                {(migration.activeStudentsMissingTeacherAfterMigration || []).length > 25 && <li>…and more.</li>}
+              </ul>
+            )}
+            {(migration.conflicts || []).length > 0 && (
+              <details style={{ marginTop: 12 }}>
+                <summary style={{ cursor: 'pointer', fontWeight: 800, color: '#7a4f00' }}>{migration.conflicts.length} conflicting record{migration.conflicts.length === 1 ? '' : 's'}</summary>
+                <ul style={{ margin: '8px 0 0', fontSize: 13, lineHeight: 1.6, color: '#3c4043' }}>
+                  {migration.conflicts.slice(0, 25).map((conflict, index) => (
+                    <li key={`${conflict.studentId}-${index}`}>{conflict.studentId} — {conflict.reason.replace(/_/g, ' ')}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
+        )}
+      </section>
 
       {/* --- Create / edit a class ------------------------------------------- */}
       <section style={card}>

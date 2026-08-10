@@ -172,15 +172,124 @@ export const resolveStudentCourseContext = ({ student = null, classesById = {}, 
   };
 };
 
-/** The membership fields a student record carries, derived from their class. */
+/**
+ * The membership fields a student record carries, derived from their class.
+ *
+ * `assignedTeacherEmail` is a denormalized copy of the class's teacher of
+ * record, and it is not a convenience: it is what the roster query filters on
+ * and what the security rule reads. A rule that followed `classId` into the
+ * classes collection would need a get() per document, and Firestore caps
+ * document accesses at ten per query — any roster over ten students would stop
+ * working. So the authorization answer travels ON the record being queried.
+ *
+ * Which means every path that can change a student's class, or a class's
+ * teacher, must rewrite this in the same operation. See `saveClass` and
+ * `setStudentClass`.
+ */
 export const membershipFieldsFor = (classRecord) => (classRecord ? {
   classId: classRecord.classId,
   // Kept in step with the class so period-addressed surfaces stay correct.
   classPeriod: classRecord.period || UNASSIGNED_PERIOD,
+  assignedTeacherEmail: classRecord.teacherOfRecord || null,
 } : {
   classId: null,
   classPeriod: UNASSIGNED_PERIOD,
+  assignedTeacherEmail: null,
 });
+
+/**
+ * Plan the period-to-class migration, and say exactly what it found.
+ *
+ * Pure, so the plan can be inspected and the counts asserted before anything is
+ * written. It is also what makes the migration a deployment GATE rather than a
+ * button: the scoped security rule must not be deployed while any active
+ * student who should be rostered still has no teacher on their record, because
+ * that student's teacher would silently lose them.
+ *
+ * Idempotent by construction: it plans only what is missing or disagrees, so a
+ * second run over a migrated database plans nothing.
+ */
+export const planPeriodMigration = ({
+  students = [],
+  classes = [],
+  courseProfiles = {},
+  periods = DEFAULT_PERIODS,
+} = {}) => {
+  const classesToCreate = buildMigrationClasses({ periods, courseProfiles, existingClasses: classes });
+  const allClasses = [...classes, ...classesToCreate];
+  const byId = new Map(allClasses.map((entry) => [entry.classId, entry]));
+  const byPeriod = new Map(allClasses.map((entry) => [entry.period, entry]));
+
+  const studentUpdates = [];
+  const unresolved = [];
+  const conflicts = [];
+
+  students.forEach((student) => {
+    const target = student.classId ? byId.get(student.classId) : byPeriod.get(student.classPeriod);
+
+    // A classId pointing at a class that does not exist is a conflict, not a
+    // placement: guessing a replacement from the period could put a student in
+    // the wrong course.
+    if (student.classId && !target) {
+      conflicts.push({ studentId: student.id, reason: 'class_missing', classId: student.classId });
+      unresolved.push({ studentId: student.id, reason: 'class_missing' });
+      return;
+    }
+
+    if (!target) {
+      unresolved.push({ studentId: student.id, reason: student.classPeriod && student.classPeriod !== UNASSIGNED_PERIOD ? 'no_class_for_period' : 'no_class_and_no_period' });
+      return;
+    }
+
+    const wanted = membershipFieldsFor(target);
+    const drifted = wanted.classId !== (student.classId || null)
+      || wanted.classPeriod !== (student.classPeriod || UNASSIGNED_PERIOD)
+      || (wanted.assignedTeacherEmail || null) !== (student.assignedTeacherEmail || null);
+
+    // A record already pointing at a class but disagreeing about its teacher or
+    // period is exactly the stale-authorization case this migration exists to
+    // catch, so it is reported as well as repaired.
+    if (student.classId && drifted) {
+      conflicts.push({
+        studentId: student.id,
+        reason: 'stale_denormalized_fields',
+        was: { classPeriod: student.classPeriod || null, assignedTeacherEmail: student.assignedTeacherEmail || null },
+        now: { classPeriod: wanted.classPeriod, assignedTeacherEmail: wanted.assignedTeacherEmail },
+      });
+    }
+
+    if (drifted) studentUpdates.push({ studentId: student.id, fields: wanted });
+
+    // The class exists and the student is in it, but nobody teaches it — so
+    // no teacher can see them, and the scoped rule would hide them.
+    if (!wanted.assignedTeacherEmail) {
+      unresolved.push({ studentId: student.id, reason: 'class_has_no_teacher_of_record', classId: target.classId });
+    }
+  });
+
+  const activeStudents = students.filter((student) => student.status !== ACCOUNT_STATUS.DISABLED);
+  const stillMissingTeacher = activeStudents.filter((student) => {
+    const planned = studentUpdates.find((update) => update.studentId === student.id);
+    const after = planned ? planned.fields.assignedTeacherEmail : (student.assignedTeacherEmail || null);
+    return !after;
+  }).map((student) => student.id);
+
+  return {
+    classesToCreate,
+    studentUpdates,
+    report: {
+      studentsScanned: students.length,
+      activeStudentsScanned: activeStudents.length,
+      classesCreated: classesToCreate.length,
+      studentsAssigned: studentUpdates.length,
+      unresolvedStudents: unresolved,
+      conflicts,
+      // The gate. Named for what it means rather than as a bare number.
+      activeStudentsMissingTeacherAfterMigration: stillMissingTeacher,
+      readyForScopedRule: stillMissingTeacher.length === 0,
+    },
+  };
+};
 
 /**
  * Which students a teacher may see.

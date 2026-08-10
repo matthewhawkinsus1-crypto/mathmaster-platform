@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   ACCOUNT_STATUS, CLASS_STATUS, ClassInputError, DEFAULT_PERIODS, REMOVAL_KINDS,
   buildMigrationClasses, classIdsForTeacher, describeRemovalKinds, membershipFieldsFor,
-  normalizeClassInput, periodClassId, resolveStudentCourseContext, studentsForTeacher,
+  normalizeClassInput, periodClassId, planPeriodMigration, resolveStudentCourseContext, studentsForTeacher,
 } from '../../functions/shared/classModel.mjs';
 
 // --- What an administrator types ------------------------------------------------
@@ -72,6 +72,109 @@ test('every default period produces a usable id', () => {
   });
 });
 
+// --- The migration is the deployment gate ------------------------------------------
+
+const migrationInput = (students, classes = []) => ({
+  students,
+  classes,
+  courseProfiles: { 'Period 1': { course: 'algebra1', courseLevel: 'standard' } },
+});
+
+test('the migration reports what it found, not just what it did', () => {
+  const { report } = planPeriodMigration(migrationInput([
+    { id: 'S1', classPeriod: 'Period 1', status: 'active' },
+    { id: 'S2', classPeriod: 'Unassigned', status: 'active' },
+    { id: 'S3', classPeriod: 'Period 2', status: 'disabled' },
+  ]));
+  assert.equal(report.studentsScanned, 3);
+  assert.equal(report.activeStudentsScanned, 2);
+  assert.equal(report.classesCreated, 8);
+  assert.equal(report.studentsAssigned, 2, 'the two with a real period get a class; "Unassigned" is not a period');
+  // S2 has no period to place from; S1 and S3 land in migrated classes that
+  // nobody teaches yet. Both are reasons an administrator must resolve.
+  assert.deepEqual(
+    report.unresolvedStudents.map((entry) => [entry.studentId, entry.reason]).sort(),
+    [['S1', 'class_has_no_teacher_of_record'], ['S2', 'no_class_and_no_period'], ['S3', 'class_has_no_teacher_of_record']],
+  );
+  // Migrated classes have no teacher of record yet, so nobody can see anyone —
+  // which is precisely what must block the scoped rule.
+  assert.equal(report.readyForScopedRule, false);
+  assert.deepEqual(report.activeStudentsMissingTeacherAfterMigration.sort(), ['S1', 'S2']);
+});
+
+test('a student whose period has no class is reported unresolved, not guessed at', () => {
+  const { report, studentUpdates } = planPeriodMigration({
+    students: [{ id: 'S1', classPeriod: 'Zero Hour', status: 'active' }],
+    classes: [],
+    periods: ['Period 1'],
+  });
+  assert.equal(studentUpdates.length, 0);
+  assert.deepEqual(report.unresolvedStudents, [{ studentId: 'S1', reason: 'no_class_for_period' }]);
+});
+
+test('a classId pointing nowhere is a conflict, never silently re-placed by period', () => {
+  const { report, studentUpdates } = planPeriodMigration({
+    students: [{ id: 'S1', classId: 'deleted-class', classPeriod: 'Period 1', status: 'active' }],
+    classes: [{ classId: 'c-real', period: 'Period 1', teacherOfRecord: 'a@d.org' }],
+    periods: ['Period 1'],
+  });
+  assert.equal(studentUpdates.length, 0, 'guessing could put the student in the wrong course');
+  assert.equal(report.conflicts[0].reason, 'class_missing');
+  assert.equal(report.readyForScopedRule, false);
+});
+
+test('a record whose denormalized teacher has gone stale is reported and repaired', () => {
+  const { report, studentUpdates } = planPeriodMigration({
+    students: [{ id: 'S1', classId: 'c-1', classPeriod: 'Period 9', assignedTeacherEmail: 'old@d.org', status: 'active' }],
+    classes: [{ classId: 'c-1', period: 'Period 1', teacherOfRecord: 'new@d.org' }],
+    periods: ['Period 1'],
+  });
+  assert.equal(report.conflicts[0].reason, 'stale_denormalized_fields');
+  assert.deepEqual(report.conflicts[0].was, { classPeriod: 'Period 9', assignedTeacherEmail: 'old@d.org' });
+  assert.deepEqual(studentUpdates[0].fields, { classId: 'c-1', classPeriod: 'Period 1', assignedTeacherEmail: 'new@d.org' });
+  assert.equal(report.readyForScopedRule, true);
+});
+
+test('the gate opens only when every ACTIVE student has a teacher', () => {
+  const classes = [{ classId: 'c-1', period: 'Period 1', teacherOfRecord: 'a@d.org' }];
+  const ready = planPeriodMigration({
+    students: [
+      { id: 'S1', classPeriod: 'Period 1', status: 'active' },
+      // A deactivated student with no class must not hold the deployment.
+      { id: 'S2', classPeriod: 'Unassigned', status: 'disabled' },
+    ],
+    classes,
+    periods: ['Period 1'],
+  });
+  assert.equal(ready.report.readyForScopedRule, true);
+  assert.deepEqual(ready.report.activeStudentsMissingTeacherAfterMigration, []);
+
+  const notReady = planPeriodMigration({
+    students: [{ id: 'S3', classPeriod: 'Unassigned', status: 'active' }],
+    classes,
+    periods: ['Period 1'],
+  });
+  assert.equal(notReady.report.readyForScopedRule, false, 'an active student nobody can see must block the rule');
+});
+
+test('running the migration again does nothing', () => {
+  const classes = [{ classId: 'c-1', period: 'Period 1', teacherOfRecord: 'a@d.org' }];
+  const first = planPeriodMigration({
+    students: [{ id: 'S1', classPeriod: 'Period 1', status: 'active' }],
+    classes,
+    periods: ['Period 1'],
+  });
+  assert.equal(first.studentUpdates.length, 1);
+
+  // Apply the plan, then re-plan over the result.
+  const migrated = [{ id: 'S1', status: 'active', ...first.studentUpdates[0].fields }];
+  const second = planPeriodMigration({ students: migrated, classes, periods: ['Period 1'] });
+  assert.equal(second.classesToCreate.length, 0);
+  assert.equal(second.studentUpdates.length, 0, 'a second run must be a no-op');
+  assert.equal(second.report.conflicts.length, 0);
+  assert.equal(second.report.readyForScopedRule, true);
+});
+
 // --- The course My Math Path runs in ---------------------------------------------
 
 test('the class decides the course, not the period', () => {
@@ -106,10 +209,13 @@ test('a student with no class yet still resolves, and says so', () => {
 
 test('membership keeps the period label in step with the class', () => {
   assert.deepEqual(
-    membershipFieldsFor({ classId: 'c-9', period: 'Period 6' }),
-    { classId: 'c-9', classPeriod: 'Period 6' },
+    membershipFieldsFor({ classId: 'c-9', period: 'Period 6', teacherOfRecord: 'a@d.org' }),
+    { classId: 'c-9', classPeriod: 'Period 6', assignedTeacherEmail: 'a@d.org' },
   );
-  assert.deepEqual(membershipFieldsFor(null), { classId: null, classPeriod: 'Unassigned' });
+  assert.deepEqual(membershipFieldsFor(null), { classId: null, classPeriod: 'Unassigned', assignedTeacherEmail: null });
+  // A class with nobody teaching it hands the student no teacher, which is
+  // what the migration gate looks for.
+  assert.equal(membershipFieldsFor({ classId: 'c-9', period: 'Period 6' }).assignedTeacherEmail, null);
 });
 
 // --- Who a teacher may see --------------------------------------------------------

@@ -181,8 +181,9 @@ export const teacherAdmin = {
   saveClass: (record) => callable('saveClass')(record).then((result) => result.data || {}),
   setClassStatus: (classId, action) =>
     callable('setClassStatus')({ classId, action }).then((result) => result.data || {}),
-  migrateClassesFromPeriods: () =>
-    callable('migrateClassesFromPeriods')().then((result) => result.data || {}),
+  /** `dryRun` plans and reports without writing anything. */
+  migrateClassesFromPeriods: (dryRun = false) =>
+    callable('migrateClassesFromPeriods')({ dryRun }).then((result) => result.data || {}),
   /** Put a student in a class, move them, or take them out (classId: null). */
   setStudentClass: ({ studentId, classId }) =>
     callable('setStudentClass')({ studentId, classId: classId || '' }).then((result) => result.data || {}),

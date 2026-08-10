@@ -967,46 +967,59 @@ exports.migrateClassesFromPeriods = onCall(async (request) => {
   const db = getFirestore();
   const model = await classModel();
 
-  const [existingClasses, profileSnapshot] = await Promise.all([
+  // `dryRun` plans and reports without writing, so the same call that gates the
+  // deployment can be made safely before making it.
+  const dryRun = request.data?.dryRun === true;
+
+  const [existingClasses, profileSnapshot, roster] = await Promise.all([
     loadClasses(db),
     db.collection("settings").doc("courseProfiles").get(),
+    db.collection("grades").select("classPeriod", "classId", "assignedTeacherEmail", "status").get(),
   ]);
-  const created = model.buildMigrationClasses({
+
+  const students = roster.docs
+    .filter((studentDoc) => studentDoc.id !== "test_connection")
+    .map((studentDoc) => ({ id: studentDoc.id, ...studentDoc.data() }));
+
+  const plan = model.planPeriodMigration({
+    students,
+    classes: existingClasses,
     courseProfiles: profileSnapshot.data()?.profiles || {},
-    existingClasses,
   });
 
-  const batch = db.batch();
-  created.forEach((record) => {
-    batch.set(db.collection(CLASS_COLLECTION).doc(record.classId), {
-      ...record,
-      createdAt: FieldValue.serverTimestamp(),
-      createdBy: actor.uid,
-      updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
-  });
-  if (created.length) await batch.commit();
+  if (!dryRun) {
+    if (plan.classesToCreate.length) {
+      const batch = db.batch();
+      plan.classesToCreate.forEach((record) => {
+        batch.set(db.collection(CLASS_COLLECTION).doc(record.classId), {
+          ...record,
+          createdAt: FieldValue.serverTimestamp(),
+          createdBy: actor.uid,
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+      });
+      await batch.commit();
+    }
 
-  // Then place every student who has a period but no class into the class that
-  // now represents that period.
-  const classesByPeriod = new Map([...existingClasses, ...created].map((entry) => [entry.period, entry]));
-  const roster = await db.collection("grades").select("classPeriod", "classId").get();
-  let placed = 0;
-  let unplaced = 0;
-  const placement = db.batch();
-  roster.docs.forEach((studentDoc) => {
-    if (studentDoc.id === "test_connection") return;
-    const data = studentDoc.data() || {};
-    if (data.classId) return;
-    const target = classesByPeriod.get(data.classPeriod);
-    if (!target) { unplaced += 1; return; }
-    placement.set(studentDoc.ref, { ...model.membershipFieldsFor(target), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-    placed += 1;
-  });
-  if (placed) await placement.commit();
+    // Batched in chunks: a Firestore batch takes 500 writes, and a district
+    // roster is bigger than that.
+    for (let index = 0; index < plan.studentUpdates.length; index += 400) {
+      const chunk = plan.studentUpdates.slice(index, index + 400);
+      const batch = db.batch();
+      chunk.forEach((update) => {
+        batch.set(db.collection("grades").doc(update.studentId), {
+          ...update.fields,
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+      });
+      // eslint-disable-next-line no-await-in-loop
+      await batch.commit();
+    }
 
-  await writeAdminAudit(db, actor, "classes_migrated_from_periods", "classes", { classesCreated: created.length, studentsPlaced: placed, studentsUnplaced: unplaced });
-  return { classesCreated: created.length, studentsPlaced: placed, studentsUnplaced: unplaced };
+    await writeAdminAudit(db, actor, "classes_migrated_from_periods", "classes", plan.report);
+  }
+
+  return { dryRun, ...plan.report };
 });
 
 /**
