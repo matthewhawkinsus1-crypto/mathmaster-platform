@@ -44,8 +44,11 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
   const [anchorY, setAnchorY] = useState('');
   const [reflection, setReflection] = useState('');
   const [scaleKind, setScaleKind] = useState('');
+  const [scaleFactor, setScaleFactor] = useState('');
   const [horizontalDirection, setHorizontalDirection] = useState('');
+  const [horizontalDistance, setHorizontalDistance] = useState('');
   const [verticalDirection, setVerticalDirection] = useState('');
+  const [verticalDistance, setVerticalDistance] = useState('');
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
   const studentSpec = useMemo(() => normalizeTransformationSpec({ type: family, a, h, k, base: targetSpec.base }, family), [family, a, h, k, targetSpec.base]);
   const descriptor = transformationDescriptor(investigationSpec);
@@ -77,10 +80,17 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
     const checks = [
       reflection === (descriptor.reflection ? 'yes' : 'no'),
       scaleKind === descriptor.verticalScaleKind,
+      matchesNumericAnswer(scaleFactor, descriptor.verticalScale, 0.01),
       horizontalDirection === descriptor.horizontalDirection,
+      matchesNumericAnswer(horizontalDistance, descriptor.horizontalDistance, 0.01),
       verticalDirection === descriptor.verticalDirection,
+      matchesNumericAnswer(verticalDistance, descriptor.verticalDistance, 0.01),
     ];
-    submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / checks.length }, { reflection, scaleKind, horizontalDirection, verticalDirection }, { mode, family });
+    submit(
+      { isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / checks.length },
+      { reflection, scaleKind, scaleFactor: parseNumericAnswer(scaleFactor), horizontalDirection, horizontalDistance: parseNumericAnswer(horizontalDistance), verticalDirection, verticalDistance: parseNumericAnswer(verticalDistance) },
+      { mode, family, checks },
+    );
   };
 
   const checkAnchor = () => {
@@ -102,7 +112,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
       if (checks.filter(Boolean).length === 1) return `One coordinate of the ${anchor.label} is right. Check the other — h moves it sideways and k moves it up or down.`;
       return `Locate the ${anchor.label} on the graph and count gridlines: across for x first, then up or down for y.`;
     }
-    if (mode === 'describe') return 'At least one description is off. Take them one at a time: the sign of a controls reflection, its size controls stretch versus compression, h moves left or right, k moves up or down.';
+    if (mode === 'describe') return 'At least one description is off. Check both the direction and the amount: the sign of a controls reflection, |a| is the vertical scale factor, |h| is the horizontal shift, and |k| is the vertical shift.';
     return 'Compare one parameter at a time. Change only a, see what moves, then only h, then only k.';
   };
   const feedbackBlock = feedback ? <div style={{ marginTop: 14 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{ margin: '9px 0 0', color: '#3c4756', lineHeight: 1.55 }}>{feedbackMessage()}</p></div> : null;
@@ -142,8 +152,11 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
           <p style={{ color: '#5f6b7a' }}>Describe what changed from the parent function.</p>
           <label style={{ display: 'block', marginTop: 10 }}>Reflection across the x-axis?<select value={reflection} onChange={(event) => setReflection(event.target.value)} style={inputStyle}><option value="">Choose…</option><option value="yes">Yes</option><option value="no">No</option></select></label>
           <label style={{ display: 'block', marginTop: 10 }}>Vertical scale<select value={scaleKind} onChange={(event) => setScaleKind(event.target.value)} style={inputStyle}><option value="">Choose…</option><option value="stretch">Stretch</option><option value="compression">Compression</option><option value="unchanged">Unchanged</option></select></label>
+          <label style={{ display: 'block', marginTop: 10 }}>Vertical scale factor |a|<input type="number" step="0.1" min="0" value={scaleFactor} onChange={(event) => setScaleFactor(event.target.value)} style={inputStyle} placeholder="factor" /></label>
           <label style={{ display: 'block', marginTop: 10 }}>Horizontal translation<select value={horizontalDirection} onChange={(event) => setHorizontalDirection(event.target.value)} style={inputStyle}><option value="">Choose…</option><option value="left">Left</option><option value="right">Right</option><option value="none">None</option></select></label>
+          <label style={{ display: 'block', marginTop: 10 }}>Horizontal shift (units)<input type="number" step="0.5" min="0" value={horizontalDistance} onChange={(event) => setHorizontalDistance(event.target.value)} style={inputStyle} placeholder="0 if none" /></label>
           <label style={{ display: 'block', marginTop: 10 }}>Vertical translation<select value={verticalDirection} onChange={(event) => setVerticalDirection(event.target.value)} style={inputStyle}><option value="">Choose…</option><option value="up">Up</option><option value="down">Down</option><option value="none">None</option></select></label>
+          <label style={{ display: 'block', marginTop: 10 }}>Vertical shift (units)<input type="number" step="0.5" min="0" value={verticalDistance} onChange={(event) => setVerticalDistance(event.target.value)} style={inputStyle} placeholder="0 if none" /></label>
           <button type="button" onClick={checkDescription} style={{ ...buttonStyle, marginTop: 12 }}>Check description</button>
         </> : null}
 

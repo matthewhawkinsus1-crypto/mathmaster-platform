@@ -843,6 +843,7 @@ export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = nu
   '```',
   '',
   'MathMaster carries the STUDENT\'S equation into the table and the STUDENT\'S completed table into the graph. Do not duplicate a hidden correct graph merely to make later stages work.',
+  'When a reasonable domain or range is an infinite discrete set that is awkward to type (for example `{0,1,2,...}`), `answerModel` may also include `domainChoices` and/or `rangeChoices`. MathMaster will present those as student choice cards while preserving the domain/range stage.',
   '',
   'A non-context function task may also combine actions in one question. For example, `completeTable + constructGraph + stateRange + classifyContinuity` is one connected student workflow; keep all four actions and include the function/table data. MathMaster composes the table, graph, range response and classification automatically.',
   'For a graph the student READS, use `readGraph` plus the analysis actions. For a graph the student BUILDS, use `constructGraph`. Do not add `type: graphing` or `type: graphAnalysis` yourself.',

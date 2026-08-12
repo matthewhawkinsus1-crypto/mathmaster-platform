@@ -87,14 +87,14 @@ export const INTERACTION_STAGES = Object.freeze(Object.fromEntries([
     studentAction: 'States the domain.',
     produces: STAGE_OUTPUT.SET,
     consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.POINTS, STAGE_OUTPUT.TABLE, STAGE_OUTPUT.EQUATION],
-    fields: { prompt: 'string', notation: 'string' },
+    fields: { prompt: 'string', notation: 'string', choices: 'array' },
   }),
   stage('rangeInput', {
     label: 'State the range',
     studentAction: 'States the range.',
     produces: STAGE_OUTPUT.SET,
     consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.POINTS, STAGE_OUTPUT.TABLE, STAGE_OUTPUT.EQUATION],
-    fields: { prompt: 'string', notation: 'string' },
+    fields: { prompt: 'string', notation: 'string', choices: 'array' },
   }),
   stage('intervalInput', {
     label: 'Write the interval',

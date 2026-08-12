@@ -9,6 +9,26 @@ import useUndoHistory from './useUndoHistory';
 
 const TEXTUAL_MATH_SIGNAL = /[=<>≤≥≠+*/^()[\]{}\\∞π√∪∩]/;
 
+// MathLive's ASCII-math parser expects exponent syntax rather than Unicode
+// superscript glyphs. Normalize display-only strings so f⁻¹, x², and x³ stay
+// truly superscripted when they are rendered as math. Stored/graded values are
+// left untouched.
+const normalizePlainMathTypography = (value) => String(value ?? '')
+  .replace(/([A-Za-z])\^-1/g, '$1⁻¹');
+
+const normalizeMathDisplayValue = (value) => normalizePlainMathTypography(value)
+  .replace(/⁻¹/g, '^(-1)')
+  .replace(/²/g, '^2')
+  .replace(/³/g, '^3');
+
+const renderChoiceText = (value) => {
+  const text = String(value ?? '');
+  const format = resolveLabelFormat(text);
+  return format
+    ? <MathDisplay value={normalizeMathDisplayValue(text)} format={format} inline />
+    : normalizePlainMathTypography(text);
+};
+
 const looksLikePlainLanguageAnswer = (value) => {
   const text = String(value ?? '').trim();
   if (!text || TEXTUAL_MATH_SIGNAL.test(text)) return false;
@@ -110,19 +130,38 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                   // An English label goes through the math typesetter as
                   // juxtaposed variables — "Discrete or continuous?" comes out
                   // as "Discrete ∨ continuous?" — so it stays plain text.
-                  return format ? <MathDisplay value={text} format={format} inline /> : text;
+                  return format ? <MathDisplay value={normalizeMathDisplayValue(text)} format={format} inline /> : normalizePlainMathTypography(text);
                 })()}
               </label>
               {choiceOptions ? (
-                <select
-                  value={answers[field.id] || ''}
-                  onChange={(event) => history.setValue((current) => ({ ...current, [field.id]: event.target.value }))}
-                  aria-label={field.label || field.id}
-                  style={{ width: '100%', minHeight: '46px', padding: '10px 12px', borderRadius: '8px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : '#bdc7d6'}`, background: '#fff', fontSize: '16px' }}
-                >
-                  <option value="">Choose…</option>
-                  {choiceOptions.map((option) => <option key={String(option)} value={String(option)}>{String(option)}</option>)}
-                </select>
+                <div role="radiogroup" aria-label={field.label || field.id} style={{ display: 'grid', gap: '8px' }}>
+                  {choiceOptions.map((option) => {
+                    const raw = String(option);
+                    const selected = String(answers[field.id] || '') === raw;
+                    return (
+                      <button
+                        type="button"
+                        key={raw}
+                        role="radio"
+                        aria-checked={selected}
+                        onClick={() => history.setValue((current) => ({ ...current, [field.id]: raw }))}
+                        style={{
+                          minHeight: '46px',
+                          padding: '10px 12px',
+                          borderRadius: '8px',
+                          border: `2px solid ${selected ? '#1a73e8' : grade ? (grade.isCorrect ? '#188038' : '#d93025') : '#bdc7d6'}`,
+                          background: selected ? '#e8f0fe' : '#fff',
+                          color: '#202124',
+                          fontSize: '16px',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {renderChoiceText(raw)}
+                      </button>
+                    );
+                  })}
+                </div>
               ) : shouldUsePlainTextInput(field) ? (
                 <input
                   type="text"
@@ -146,7 +185,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                   }}
                 />
               ) : (
-                <MathInput value={answers[field.id] || ''} onChange={(value) => history.setValue((current) => ({ ...current, [field.id]: value }))} placeholder={field.placeholder || (shouldUseSetInput(field) ? '{…}' : 'answer')} ariaLabel={field.label || field.id} toolProfile={field.toolProfile || (shouldUseSetInput(field) ? 'set' : 'basic')} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
+                <MathInput value={answers[field.id] || ''} onChange={(value) => history.setValue((current) => ({ ...current, [field.id]: value }))} placeholder={field.placeholder || (shouldUseSetInput(field) ? '{…}' : 'answer')} ariaLabel={field.label || field.id} toolProfile={field.toolProfile || (shouldUseSetInput(field) ? 'set' : 'basic')} showToolsInitially={shouldUseSetInput(field)} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
               )}
             </div>
           );

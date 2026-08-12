@@ -41,6 +41,8 @@ export const relationIsFunction = (pairs = []) => {
 
 // --- Function modelling (the public type `relationshipModel`) ----------------
 
+const latestModelSource = (asked) => asked.has('graph') ? 'graph' : asked.has('table') ? 'table' : asked.has('equation') ? 'equation' : null;
+
 const FUNCTION_MODELING = {
   label: 'Model a relationship',
   publicType: 'relationshipModel',
@@ -79,23 +81,28 @@ const FUNCTION_MODELING = {
         ? { source: { fromStage: 'table' } }
         : (asked.has('equation') ? { source: { fromStage: 'equation' } } : {})),
     }),
-    domain: (question) => ({
+    domain: (question, asked) => ({
       id: 'domain',
       kind: 'domainInput',
       prompt: question.domainPrompt || 'State a reasonable domain for this situation.',
       notation: question.notation || 'interval',
+      ...(Array.isArray(question.domainChoices) && question.domainChoices.length ? { choices: question.domainChoices } : {}),
+      ...(latestModelSource(asked) ? { source: { fromStage: latestModelSource(asked) } } : {}),
     }),
-    range: (question) => ({
+    range: (question, asked) => ({
       id: 'range',
       kind: 'rangeInput',
       prompt: question.rangePrompt || 'State the range that goes with it.',
       notation: question.notation || 'interval',
+      ...(Array.isArray(question.rangeChoices) && question.rangeChoices.length ? { choices: question.rangeChoices } : {}),
+      ...(latestModelSource(asked) ? { source: { fromStage: latestModelSource(asked) } } : {}),
     }),
-    continuity: (question) => ({
+    continuity: (question, asked) => ({
       id: 'continuity',
       kind: 'classification',
       prompt: question.continuityPrompt || 'Is the relationship discrete or continuous?',
       choices: ['discrete', 'continuous'],
+      ...(latestModelSource(asked) ? { source: { fromStage: latestModelSource(asked) } } : {}),
     }),
     interpretation: (question) => ({
       id: 'interpretation',

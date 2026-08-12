@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import MathInput from '../../MathInput';
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import {
@@ -13,7 +14,6 @@ import {
 const INF = Number.POSITIVE_INFINITY;
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
 const secondaryButton = { ...primaryButton, background: '#fff', color: '#174ea6', border: '1px solid #9bb8e8' };
-const inputStyle = { width: '100%', padding: '11px 12px', border: '1px solid #cdd6e4', borderRadius: 9, fontSize: 16, minHeight: 44, boxSizing: 'border-box' };
 
 const WIDTH = 620;
 const HEIGHT = 130;
@@ -205,16 +205,30 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
 
         <Panel title="Write it in notation">
           {ask.includes('interval') && (
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#3c4756', marginBottom: 12 }}>
-              Interval notation
-              <input value={notation} onChange={(event) => { setNotation(event.target.value); clearFeedback(); }} placeholder="e.g. [-3, 5)" style={inputStyle} />
-            </label>
+            <div style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#3c4756', marginBottom: 12 }}>
+              <div style={{ marginBottom: 6 }}>Interval notation</div>
+              <MathInput
+                value={notation}
+                onChange={(value) => { setNotation(value); clearFeedback(); }}
+                placeholder="[-3, 5)"
+                ariaLabel="Interval notation"
+                toolProfile="interval"
+                showToolsInitially
+              />
+            </div>
           )}
           {ask.includes('inequality') && (
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#3c4756', marginBottom: 12 }}>
-              Inequality
-              <input value={inequality} onChange={(event) => { setInequality(event.target.value); clearFeedback(); }} placeholder={`e.g. -3 ≤ ${variable} < 5`} style={inputStyle} />
-            </label>
+            <div style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#3c4756', marginBottom: 12 }}>
+              <div style={{ marginBottom: 6 }}>Inequality</div>
+              <MathInput
+                value={inequality}
+                onChange={(value) => { setInequality(value); clearFeedback(); }}
+                placeholder={`-3 ≤ ${variable} < 5`}
+                ariaLabel="Inequality"
+                toolProfile="inequality"
+                showToolsInitially
+              />
+            </div>
           )}
 
           <button type="button" onClick={check} style={{ ...primaryButton, width: '100%' }}>Check</button>

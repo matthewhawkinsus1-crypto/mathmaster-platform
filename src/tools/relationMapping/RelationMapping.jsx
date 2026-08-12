@@ -44,6 +44,44 @@ const relationIsFunction = (pairs) => {
   });
 };
 
+
+const PLOT_SIZE = 430;
+const PLOT_PAD = 34;
+
+function RelationCoordinatePlot({ bounds, points, onTogglePoint }) {
+  const { xMin, xMax, yMin, yMax } = bounds;
+  const width = PLOT_SIZE - PLOT_PAD * 2;
+  const height = PLOT_SIZE - PLOT_PAD * 2;
+  const xToPx = (x) => PLOT_PAD + ((x - xMin) / (xMax - xMin)) * width;
+  const yToPx = (y) => PLOT_PAD + ((yMax - y) / (yMax - yMin)) * height;
+  const xTicks = Array.from({ length: Math.max(0, Math.floor(xMax) - Math.ceil(xMin) + 1) }, (_, i) => Math.ceil(xMin) + i);
+  const yTicks = Array.from({ length: Math.max(0, Math.floor(yMax) - Math.ceil(yMin) + 1) }, (_, i) => Math.ceil(yMin) + i);
+
+  const handleClick = (event) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const svgX = ((event.clientX - rect.left) / rect.width) * PLOT_SIZE;
+    const svgY = ((event.clientY - rect.top) / rect.height) * PLOT_SIZE;
+    const x = Math.round(xMin + ((svgX - PLOT_PAD) / width) * (xMax - xMin));
+    const y = Math.round(yMax - ((svgY - PLOT_PAD) / height) * (yMax - yMin));
+    if (x < xMin || x > xMax || y < yMin || y > yMax) return;
+    onTogglePoint?.(x, y);
+  };
+
+  return (
+    <svg viewBox={`0 0 ${PLOT_SIZE} ${PLOT_SIZE}`} onClick={handleClick} role="application" aria-label="Coordinate plane for plotting the relation" style={{ width: '100%', maxWidth: 520, display: 'block', margin: '0 auto', background: '#fff', border: '1px solid #d9e2f1', borderRadius: 12, cursor: 'crosshair' }}>
+      {xTicks.map((x) => <line key={`gx${x}`} x1={xToPx(x)} x2={xToPx(x)} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} stroke="#e5e9f0" strokeWidth="1" />)}
+      {yTicks.map((y) => <line key={`gy${y}`} x1={PLOT_PAD} x2={PLOT_SIZE - PLOT_PAD} y1={yToPx(y)} y2={yToPx(y)} stroke="#e5e9f0" strokeWidth="1" />)}
+      {xMin <= 0 && xMax >= 0 ? <line x1={xToPx(0)} x2={xToPx(0)} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} stroke="#445" strokeWidth="2" /> : null}
+      {yMin <= 0 && yMax >= 0 ? <line x1={PLOT_PAD} x2={PLOT_SIZE - PLOT_PAD} y1={yToPx(0)} y2={yToPx(0)} stroke="#445" strokeWidth="2" /> : null}
+      {xTicks.map((x) => (x === 0 ? null : <text key={`tx${x}`} x={xToPx(x)} y={yToPx(0) + 17} textAnchor="middle" fontSize="10" fill="#5f6b7a">{x}</text>))}
+      {yTicks.map((y) => (y === 0 ? null : <text key={`ty${y}`} x={xToPx(0) - 9} y={yToPx(y) + 4} textAnchor="end" fontSize="10" fill="#5f6b7a">{y}</text>))}
+      {points.map(([x, y]) => <circle key={`${x}|${y}`} cx={xToPx(x)} cy={yToPx(y)} r="7" fill="#1a73e8" stroke="#fff" strokeWidth="2" pointerEvents="none" />)}
+      <text x={PLOT_SIZE - PLOT_PAD + 12} y={yMin <= 0 && yMax >= 0 ? yToPx(0) + 4 : PLOT_SIZE - PLOT_PAD + 18} fontSize="13" fontWeight="700" fill="#3c4756">x</text>
+      <text x={xMin <= 0 && xMax >= 0 ? xToPx(0) + 8 : PLOT_PAD - 4} y={PLOT_PAD - 12} fontSize="13" fontWeight="700" fill="#3c4756">y</text>
+    </svg>
+  );
+}
+
 export default function RelationMapping({ questionData = {}, onAction }) {
   const pairs = useMemo(() => (Array.isArray(questionData.pairs) ? questionData.pairs : [])
     .map(normalizePair)
@@ -61,7 +99,25 @@ export default function RelationMapping({ questionData = {}, onAction }) {
   const [domainAnswer, setDomainAnswer] = useState('');
   const [rangeAnswer, setRangeAnswer] = useState('');
   const [functionAnswer, setFunctionAnswer] = useState('');
+  const [plottedPoints, setPlottedPoints] = useState([]);
+  const [plotX, setPlotX] = useState('');
+  const [plotY, setPlotY] = useState('');
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
+
+  const plotBounds = useMemo(() => {
+    const xs = pairs.map(([x]) => x);
+    const ys = pairs.map(([, y]) => y);
+    const rawMinX = Math.floor(Math.min(...xs) - 1);
+    const rawMaxX = Math.ceil(Math.max(...xs) + 1);
+    const rawMinY = Math.floor(Math.min(...ys) - 1);
+    const rawMaxY = Math.ceil(Math.max(...ys) + 1);
+    return {
+      xMin: Math.min(-5, rawMinX),
+      xMax: Math.max(5, rawMaxX),
+      yMin: Math.min(-5, rawMinY),
+      yMax: Math.max(5, rawMaxY),
+    };
+  }, [pairs]);
 
   const height = Math.max(domainValues.length, rangeValues.length) * ROW + PAD_Y * 2;
   const yFor = (index, count) => PAD_Y + index * ROW + (Math.max(domainValues.length, rangeValues.length) - count) * ROW / 2;
@@ -81,8 +137,38 @@ export default function RelationMapping({ questionData = {}, onAction }) {
     setSelectedDomain(null);
   };
 
+  const samePairSet = (studentPairs, expectedPairs) => {
+    const key = ([x, y]) => `${Number(x).toFixed(8)}|${Number(y).toFixed(8)}`;
+    const student = new Set(studentPairs.map(key));
+    const expected = new Set(expectedPairs.map(key));
+    return student.size === expected.size && [...expected].every((pair) => student.has(pair));
+  };
+
+  const togglePlottedPoint = (x, y) => {
+    const nx = Number(x);
+    const ny = Number(y);
+    if (!Number.isFinite(nx) || !Number.isFinite(ny)) return;
+    clearFeedback();
+    setPlottedPoints((current) => {
+      const exists = current.some(([px, py]) => Math.abs(px - nx) < 1e-9 && Math.abs(py - ny) < 1e-9);
+      return exists
+        ? current.filter(([px, py]) => Math.abs(px - nx) >= 1e-9 || Math.abs(py - ny) >= 1e-9)
+        : [...current, [nx, ny]];
+    });
+  };
+
+  const addTypedPoint = () => {
+    const x = Number(String(plotX).replace(/[−–—]/g, '-'));
+    const y = Number(String(plotY).replace(/[−–—]/g, '-'));
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    togglePlottedPoint(x, y);
+    setPlotX('');
+    setPlotY('');
+  };
+
   const check = () => {
     const checks = {};
+    if (ask.includes('plot')) checks.plot = samePairSet(plottedPoints, pairs);
     if (ask.includes('mapping')) {
       const drawn = arrows.map(([x, y]) => `${x}->${y}`).sort();
       const expectedArrows = pairs.map(([x, y]) => `${x}->${y}`).sort();
@@ -96,7 +182,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
     const score = values.length ? values.filter(Boolean).length / values.length : 0;
     submit(
       { isCorrect: values.every(Boolean), score },
-      { arrows, domain: parseList(domainAnswer), range: parseList(rangeAnswer), isFunction: functionAnswer },
+      { plottedPoints, arrows, domain: parseList(domainAnswer), range: parseList(rangeAnswer), isFunction: functionAnswer },
       { checks },
     );
   };
@@ -104,6 +190,8 @@ export default function RelationMapping({ questionData = {}, onAction }) {
   const message = () => {
     if (feedback.isCorrect) return 'Correct — the diagram and your answers agree with the relation.';
     const checks = feedback.metadata?.checks || {};
+    if (checks.plot === false && !plottedPoints.length) return 'No points plotted yet. Plot each ordered pair on the coordinate plane.';
+    if (checks.plot === false) return 'The coordinate plot does not match the relation yet. Check each ordered pair (x, y).';
     if (checks.mapping === false && !arrows.length) return 'No arrows drawn yet. Click a value on the left, then the value on the right it maps to.';
     if (checks.mapping === false) return 'The arrows do not match the relation. Work through the ordered pairs one at a time — each pair is one arrow.';
     if (checks.domain === false) return 'The domain is not right. It is the set of every x-value that appears, listed once each.';
@@ -132,11 +220,39 @@ export default function RelationMapping({ questionData = {}, onAction }) {
         question={questionData}
         task={questionData.prompt || `Build the mapping diagram for {${pairs.map(([x, y]) => `(${x}, ${y})`).join(', ')}}.`}
         steps={[
-          'Click a value in the left column, then click the value on the right it maps to.',
-          'Click an arrow again to remove it.',
+          ...(ask.includes('plot') ? ['Plot every ordered pair on the coordinate plane. You can click a grid point or type its coordinates.'] : []),
+          ...(ask.includes('mapping') ? ['Click a value in the left column, then click the value on the right it maps to.', 'Click an arrow again to remove it.'] : []),
           'Then answer the questions about the relation.',
         ]}
       />
+
+      {ask.includes('plot') ? (
+        <Panel title="Coordinate plot">
+          <RelationCoordinatePlot
+            bounds={plotBounds}
+            points={plottedPoints}
+            onTogglePoint={togglePlottedPoint}
+          />
+          <p style={{ margin: '10px 0 8px', fontSize: 13, color: '#5f6b7a' }}>
+            Click an integer grid point to plot/remove it, or type coordinates below for any decimal point.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'end' }}>
+            <label style={{ fontSize: 13, fontWeight: 700, color: '#3c4756' }}>x-coordinate<input inputMode="decimal" value={plotX} onChange={(event) => setPlotX(event.target.value)} style={inputStyle} /></label>
+            <label style={{ fontSize: 13, fontWeight: 700, color: '#3c4756' }}>y-coordinate<input inputMode="decimal" value={plotY} onChange={(event) => setPlotY(event.target.value)} style={inputStyle} /></label>
+            <button type="button" onClick={addTypedPoint} style={primaryButton}>Plot point</button>
+          </div>
+          {plottedPoints.length ? (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 10 }}>
+              {plottedPoints.map(([x, y]) => (
+                <button key={`${x}|${y}`} type="button" onClick={() => togglePlottedPoint(x, y)} style={{ ...secondaryButton, padding: '7px 10px', minHeight: 36 }} aria-label={`Remove plotted point ${x}, ${y}`}>
+                  ({x}, {y}) ×
+                </button>
+              ))}
+              <button type="button" onClick={() => { clearFeedback(); setPlottedPoints([]); }} style={{ ...secondaryButton, padding: '7px 10px', minHeight: 36 }}>Clear plot</button>
+            </div>
+          ) : null}
+        </Panel>
+      ) : null}
 
       <ToolSplit>
         <Panel title="Mapping diagram">

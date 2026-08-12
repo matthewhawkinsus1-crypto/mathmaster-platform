@@ -1,0 +1,620 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Algebra II Honors — Lesson 3: Inverse Linear Functions",
+    "courseId": "algebra2",
+    "assignmentType": "notesClasswork",
+    "folder": "Algebra II/Module 1/Functions"
+  },
+  "activities": [
+    {
+      "role": "warmup",
+      "title": "Warm-Up",
+      "questions": [
+        {
+          "standard": "A2.7I",
+          "prompt": "Review ordered pairs and function notation.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "swap",
+              "label": "If (−3, 7) is in a relation, the swapped ordered pair is",
+              "type": "choice",
+              "options": [
+                "(7, −3)",
+                "(−7, 3)",
+                "(−3, 7)"
+              ],
+              "answer": "(7, −3)"
+            },
+            {
+              "id": "eval",
+              "label": "If f(x)=2x−5, then f(4)=",
+              "answer": 3
+            }
+          ],
+          "dok": 1,
+          "difficultyBand": 1
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Review the graph relationship y=x.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "slope",
+              "label": "Slope of y=x",
+              "type": "choice",
+              "options": [
+                "1",
+                "−1",
+                "0"
+              ],
+              "answer": "1"
+            },
+            {
+              "id": "role",
+              "label": "For inverse graphs, y=x acts as",
+              "type": "choice",
+              "options": [
+                "the reflection line",
+                "a vertical asymptote",
+                "the x-axis"
+              ],
+              "answer": "the reflection line"
+            }
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "graph": {
+            "xMin": -6,
+            "xMax": 6,
+            "yMin": -6,
+            "yMax": 6,
+            "functions": [
+              {
+                "type": "line",
+                "m": 1,
+                "b": 0
+              }
+            ],
+            "ariaLabel": "Graph of y=x"
+          }
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "For f(x)=3x+2, identify its domain and range.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "domain",
+              "label": "Domain",
+              "type": "choice",
+              "options": [
+                "(−∞, ∞)",
+                "[0, ∞)",
+                "(0, ∞)"
+              ],
+              "answer": "(−∞, ∞)"
+            },
+            {
+              "id": "range",
+              "label": "Range",
+              "type": "choice",
+              "options": [
+                "(−∞, ∞)",
+                "[2, ∞)",
+                "(0, ∞)"
+              ],
+              "answer": "(−∞, ∞)"
+            }
+          ],
+          "dok": 1,
+          "difficultyBand": 1
+        }
+      ]
+    },
+    {
+      "role": "classwork",
+      "title": "Classwork",
+      "questions": [
+        {
+          "standard": "A2.2B",
+          "prompt": "Find the inverse relation of {(−3, 26), (2, 11), (6, −1), (−1, 20)}.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "inverse",
+              "label": "Inverse relation",
+              "type": "choice",
+              "options": [
+                "{(26, −3), (11, 2), (−1, 6), (20, −1)}",
+                "{(−26, 3), (−11, −2), (1, −6), (−20, 1)}",
+                "{(−3, 26), (2, 11), (6, −1), (−1, 20)}"
+              ],
+              "answer": "{(26, −3), (11, 2), (−1, 6), (20, −1)}"
+            },
+            {
+              "id": "property",
+              "label": "What was done to each ordered pair?",
+              "type": "choice",
+              "options": [
+                "swap x and y",
+                "change both signs",
+                "reverse the order of the pairs only"
+              ],
+              "answer": "swap x and y"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.2B",
+          "prompt": "Use the inverse property. If f(6)=2, complete the statement about f⁻¹.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "input",
+              "label": "Input to f⁻¹",
+              "answer": 2
+            },
+            {
+              "id": "output",
+              "label": "Output of f⁻¹",
+              "answer": 6
+            }
+          ],
+          "dok": 1,
+          "difficultyBand": 1
+        },
+        {
+          "standard": "A2.2B",
+          "prompt": "Find the inverse of f(x)=3x−7.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "inverse",
+              "label": "f⁻¹(x)",
+              "type": "choice",
+              "options": [
+                "(x+7)/3",
+                "3x+7",
+                "(x−7)/3",
+                "7−3x"
+              ],
+              "answer": "(x+7)/3"
+            },
+            {
+              "id": "check",
+              "label": "Which composition should equal x if the inverse is correct?",
+              "type": "choice",
+              "options": [
+                "f(f⁻¹(x))",
+                "f(x)+f⁻¹(x)",
+                "f(x)−f⁻¹(x)"
+              ],
+              "answer": "f(f⁻¹(x))"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.2B",
+          "prompt": "Find the inverse of f(x)=−4x+12.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "inverse",
+              "label": "f⁻¹(x)",
+              "type": "choice",
+              "options": [
+                "(12−x)/4",
+                "(x−12)/4",
+                "−4x−12",
+                "4x+12"
+              ],
+              "answer": "(12−x)/4"
+            },
+            {
+              "id": "slope",
+              "label": "Slope of f⁻¹",
+              "type": "choice",
+              "options": [
+                "−1/4",
+                "1/4",
+                "−4",
+                "4"
+              ],
+              "answer": "−1/4"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.2B",
+          "prompt": "Use the inverse workspace to undo f(x)=2x+3 and observe how the graphs of f and f⁻¹ reflect across y=x.",
+          "studentActions": [
+            "findInverse"
+          ],
+          "inverse": {
+            "mode": "inverse"
+          },
+          "function": {
+            "family": "linear",
+            "m": 2,
+            "b": 3
+          },
+          "x": 4,
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.2B",
+          "prompt": "Find the inverse of f(x)=12−9x.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "inverse",
+              "label": "f⁻¹(x)",
+              "type": "choice",
+              "options": [
+                "(12−x)/9",
+                "(x−12)/9",
+                "12−x/9",
+                "9x−12"
+              ],
+              "answer": "(12−x)/9"
+            },
+            {
+              "id": "check",
+              "label": "If f(1)=3, then",
+              "type": "choice",
+              "options": [
+                "f⁻¹(3)=1",
+                "f⁻¹(1)=3",
+                "f⁻¹(3)=−1"
+              ],
+              "answer": "f⁻¹(3)=1"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.2B",
+          "prompt": "Carter earns a base salary of $2200 per month plus 5% of his monthly sales. His earnings are E(s)=2200+0.05s. Use the inverse to determine sales from earnings.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "inverse",
+              "label": "Inverse rule s=E⁻¹(x)",
+              "type": "choice",
+              "options": [
+                "20x−44000",
+                "0.05x+2200",
+                "20x+44000",
+                "(x+2200)/0.05"
+              ],
+              "answer": "20x−44000"
+            },
+            {
+              "id": "sales",
+              "label": "Sales needed for total earnings of $3450",
+              "answer": 25000
+            }
+          ],
+          "dok": 3,
+          "difficultyBand": 3
+        }
+      ]
+    },
+    {
+      "role": "practice",
+      "title": "Independent Practice",
+      "questions": [
+        {
+          "standard": "A2.2B",
+          "prompt": "Find the inverse relation of {(4, 8), (−6, 6), (3, 3), (0, −8)}.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "inverse",
+              "label": "Inverse relation",
+              "type": "choice",
+              "options": [
+                "{(8, 4), (6, −6), (3, 3), (−8, 0)}",
+                "{(4, 8), (−6, 6), (3, 3), (0, −8)}",
+                "{(−8, −4), (−6, 6), (−3, −3), (8, 0)}"
+              ],
+              "answer": "{(8, 4), (6, −6), (3, 3), (−8, 0)}"
+            },
+            {
+              "id": "function",
+              "label": "Is this inverse relation a function?",
+              "type": "choice",
+              "options": [
+                "yes",
+                "no"
+              ],
+              "answer": "yes"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.2B",
+          "prompt": "Find the inverse of f(x)=5x+10.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "inverse",
+              "label": "f⁻¹(x)",
+              "type": "choice",
+              "options": [
+                "(x−10)/5",
+                "5x−10",
+                "(x+10)/5",
+                "x/5+10"
+              ],
+              "answer": "(x−10)/5"
+            },
+            {
+              "id": "slope",
+              "label": "Slope of f⁻¹",
+              "type": "choice",
+              "options": [
+                "1/5",
+                "5",
+                "−1/5",
+                "−5"
+              ],
+              "answer": "1/5"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.2B",
+          "prompt": "Find the inverse of f(x)=−2x−6.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "inverse",
+              "label": "f⁻¹(x)",
+              "type": "choice",
+              "options": [
+                "−(x+6)/2",
+                "(x+6)/2",
+                "−2x+6",
+                "(x−6)/2"
+              ],
+              "answer": "−(x+6)/2"
+            },
+            {
+              "id": "check",
+              "label": "If f(3)=−12, then",
+              "type": "choice",
+              "options": [
+                "f⁻¹(−12)=3",
+                "f⁻¹(3)=−12",
+                "f⁻¹(12)=−3"
+              ],
+              "answer": "f⁻¹(−12)=3"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.2B",
+          "prompt": "Use the inverse workspace to undo f(x)=−3x+9 and connect a point on f to its swapped point on f⁻¹.",
+          "studentActions": [
+            "findInverse"
+          ],
+          "inverse": {
+            "mode": "inverse"
+          },
+          "function": {
+            "family": "linear",
+            "m": -3,
+            "b": 9
+          },
+          "x": 2,
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.2B",
+          "prompt": "A mechanic charges a $40 inspection fee plus $65 per half-hour of repair labor. Let C(h)=40+65h, where h is the number of half-hours. Use the inverse to find labor time from total cost.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "inverse",
+              "label": "Inverse rule h=C⁻¹(x)",
+              "type": "choice",
+              "options": [
+                "(x−40)/65",
+                "65x−40",
+                "(x+40)/65",
+                "40+65x"
+              ],
+              "answer": "(x−40)/65"
+            },
+            {
+              "id": "time",
+              "label": "Half-hours of labor when the total cost is $235",
+              "answer": 3
+            }
+          ],
+          "dok": 3,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.2B",
+          "prompt": "A linear function and its inverse intersect at a point on y=x. If the point is (5,5), what must both functions do there?",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "fvalue",
+              "label": "f(5)",
+              "type": "choice",
+              "options": [
+                "5",
+                "0",
+                "−5"
+              ],
+              "answer": "5"
+            },
+            {
+              "id": "inversevalue",
+              "label": "f⁻¹(5)",
+              "type": "choice",
+              "options": [
+                "5",
+                "0",
+                "−5"
+              ],
+              "answer": "5"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 3
+        }
+      ]
+    },
+    {
+      "role": "dol",
+      "title": "DOL / Exit Ticket",
+      "questions": [
+        {
+          "standard": "A2.2B",
+          "prompt": "Find the inverse relation of {(−2, 5), (1, 7), (4, 0)}.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "inverse",
+              "label": "Inverse relation",
+              "type": "choice",
+              "options": [
+                "{(5, −2), (7, 1), (0, 4)}",
+                "{(−5, 2), (−7, −1), (0, −4)}",
+                "{(−2, 5), (1, 7), (4, 0)}"
+              ],
+              "answer": "{(5, −2), (7, 1), (0, 4)}"
+            },
+            {
+              "id": "rule",
+              "label": "Inverse relations are made by",
+              "type": "choice",
+              "options": [
+                "swapping x and y",
+                "negating x and y",
+                "adding x and y"
+              ],
+              "answer": "swapping x and y"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.2B",
+          "prompt": "Find the inverse of f(x)=4x−9.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "inverse",
+              "label": "f⁻¹(x)",
+              "type": "choice",
+              "options": [
+                "(x+9)/4",
+                "(x−9)/4",
+                "4x+9",
+                "9−4x"
+              ],
+              "answer": "(x+9)/4"
+            },
+            {
+              "id": "check",
+              "label": "If f(6)=15, then",
+              "type": "choice",
+              "options": [
+                "f⁻¹(15)=6",
+                "f⁻¹(6)=15",
+                "f⁻¹(15)=−6"
+              ],
+              "answer": "f⁻¹(15)=6"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.2B",
+          "prompt": "A subscription cost is C(m)=15m+25, where m is months and C is total dollars. Use the inverse relationship.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "inverse",
+              "label": "m=C⁻¹(x)",
+              "type": "choice",
+              "options": [
+                "(x−25)/15",
+                "15x−25",
+                "(x+25)/15",
+                "25−15x"
+              ],
+              "answer": "(x−25)/15"
+            },
+            {
+              "id": "months",
+              "label": "Months represented by a total cost of $115",
+              "answer": 6
+            }
+          ],
+          "dok": 3,
+          "difficultyBand": 3
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,675 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Algebra II Honors — Lesson 4: Operations on Functions and Composition",
+    "courseId": "algebra2",
+    "assignmentType": "notesClasswork",
+    "folder": "Algebra II/Module 1/Functions"
+  },
+  "activities": [
+    {
+      "role": "warmup",
+      "title": "Warm-Up",
+      "questions": [
+        {
+          "standard": "A2.2B",
+          "prompt": "Review inverses. For f(x)=2x+5, identify f⁻¹(x) and one check.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "inverse",
+              "label": "f⁻¹(x)",
+              "type": "choice",
+              "options": [
+                "(x−5)/2",
+                "2x−5",
+                "(x+5)/2",
+                "5−2x"
+              ],
+              "answer": "(x−5)/2"
+            },
+            {
+              "id": "check",
+              "label": "If f(3)=11, then",
+              "type": "choice",
+              "options": [
+                "f⁻¹(11)=3",
+                "f⁻¹(3)=11",
+                "f⁻¹(11)=−3"
+              ],
+              "answer": "f⁻¹(11)=3"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.2D",
+          "prompt": "If f(2)=7 and g(2)=−3, evaluate two pointwise operations.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "sum",
+              "label": "(f+g)(2)",
+              "answer": 4
+            },
+            {
+              "id": "difference",
+              "label": "(f−g)(2)",
+              "answer": 10
+            }
+          ],
+          "dok": 1,
+          "difficultyBand": 1
+        },
+        {
+          "standard": "A2.2D",
+          "prompt": "If g(4)=2 and f(2)=9, evaluate the composition f(g(4)).",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "inside",
+              "label": "g(4)",
+              "answer": 2
+            },
+            {
+              "id": "composition",
+              "label": "f(g(4))",
+              "answer": 9
+            }
+          ],
+          "dok": 1,
+          "difficultyBand": 1
+        }
+      ]
+    },
+    {
+      "role": "classwork",
+      "title": "Classwork",
+      "questions": [
+        {
+          "standard": "A2.2D",
+          "prompt": "Given f(x)=3x²+7x and g(x)=2x²−x−1, find the sum and difference of the functions.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "sum",
+              "label": "(f+g)(x)",
+              "type": "choice",
+              "options": [
+                "5x²+6x−1",
+                "5x²+8x−1",
+                "x²+8x+1",
+                "5x⁴+6x²−1"
+              ],
+              "answer": "5x²+6x−1"
+            },
+            {
+              "id": "difference",
+              "label": "(f−g)(x)",
+              "type": "choice",
+              "options": [
+                "x²+8x+1",
+                "x²+6x−1",
+                "5x²+6x−1",
+                "−x²+8x+1"
+              ],
+              "answer": "x²+8x+1"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.2D",
+          "prompt": "Given f(x)=3x²−2x+1 and g(x)=x−4, identify the product (f·g)(x).",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "product",
+              "label": "(f·g)(x)",
+              "type": "choice",
+              "options": [
+                "3x³−14x²+9x−4",
+                "3x³−10x²−7x−4",
+                "3x²−6x−3",
+                "3x³−14x²−9x+4"
+              ],
+              "answer": "3x³−14x²+9x−4"
+            },
+            {
+              "id": "degree",
+              "label": "Degree of the product",
+              "type": "choice",
+              "options": [
+                "3",
+                "2",
+                "4",
+                "1"
+              ],
+              "answer": "3"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.2D",
+          "prompt": "Let f(x)=2x+3 and g(x)=x−4. Use the area model to multiply the two function rules and combine like terms.",
+          "studentActions": [
+            "multiplyPolynomials"
+          ],
+          "polynomial": {
+            "leftBinomial": [
+              2,
+              3
+            ],
+            "rightBinomial": [
+              1,
+              -4
+            ]
+          },
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.2D",
+          "prompt": "Given f(x)=3x²−2x+1 and g(x)=x−4, write the quotient function and its domain restriction.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "quotient",
+              "label": "(f/g)(x)",
+              "type": "choice",
+              "options": [
+                "(3x²−2x+1)/(x−4)",
+                "(x−4)/(3x²−2x+1)",
+                "3x−2+1/(x−4)"
+              ],
+              "answer": "(3x²−2x+1)/(x−4)"
+            },
+            {
+              "id": "restriction",
+              "label": "Excluded x-value",
+              "type": "choice",
+              "options": [
+                "4",
+                "−4",
+                "0",
+                "1"
+              ],
+              "answer": "4"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.2D",
+          "prompt": "Follow the value through both function machines and compare the two composition orders for f(x)=2x+3 and g(x)=x−4.",
+          "studentActions": [
+            "composeFunctions"
+          ],
+          "composition": {
+            "mode": "composition"
+          },
+          "f": {
+            "family": "linear",
+            "m": 2,
+            "b": 3
+          },
+          "g": {
+            "family": "linear",
+            "m": 1,
+            "b": -4
+          },
+          "x": 5,
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.2D",
+          "prompt": "For f(x)=3x²−x+4 and g(x)=2x−1, find both compositions.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "fog",
+              "label": "(f∘g)(x)",
+              "type": "choice",
+              "options": [
+                "12x²−14x+8",
+                "6x²−2x+7",
+                "12x²−8x+6",
+                "3x²+3x+4"
+              ],
+              "answer": "12x²−14x+8"
+            },
+            {
+              "id": "gof",
+              "label": "(g∘f)(x)",
+              "type": "choice",
+              "options": [
+                "6x²−2x+7",
+                "12x²−14x+8",
+                "6x²−x+3",
+                "3x²+x+7"
+              ],
+              "answer": "6x²−2x+7"
+            }
+          ],
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "standard": "A2.2D",
+          "prompt": "A $100 retirement deduction and a 4% state tax can be applied in different orders to a $1500 paycheck. Let r(x)=x−100 and t(x)=0.96x.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "beforeTax",
+              "label": "t(r(1500))",
+              "answer": 1344
+            },
+            {
+              "id": "afterTax",
+              "label": "r(t(1500))",
+              "answer": 1340
+            },
+            {
+              "id": "better",
+              "label": "Which order leaves the larger paycheck?",
+              "type": "choice",
+              "options": [
+                "retirement deduction before tax: t∘r",
+                "tax before retirement deduction: r∘t",
+                "they are equal"
+              ],
+              "answer": "retirement deduction before tax: t∘r"
+            }
+          ],
+          "dok": 3,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.2D",
+          "prompt": "Determine whether f(x)=3x−6 and g(x)=(x+6)/3 are inverses by examining both compositions.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "fog",
+              "label": "(f∘g)(x)",
+              "type": "choice",
+              "options": [
+                "x",
+                "x+6",
+                "3x",
+                "x−6"
+              ],
+              "answer": "x"
+            },
+            {
+              "id": "gof",
+              "label": "(g∘f)(x)",
+              "type": "choice",
+              "options": [
+                "x",
+                "x+6",
+                "x/3",
+                "3x−6"
+              ],
+              "answer": "x"
+            },
+            {
+              "id": "inverse",
+              "label": "Are f and g inverses?",
+              "type": "choice",
+              "options": [
+                "yes",
+                "no"
+              ],
+              "answer": "yes"
+            }
+          ],
+          "dok": 3,
+          "difficultyBand": 3
+        }
+      ]
+    },
+    {
+      "role": "practice",
+      "title": "Independent Practice",
+      "questions": [
+        {
+          "standard": "A2.2D",
+          "prompt": "Given f(x)=2x²+5x+2 and g(x)=3x²+3x−4, find the sum and difference.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "sum",
+              "label": "(f+g)(x)",
+              "type": "choice",
+              "options": [
+                "5x²+8x−2",
+                "5x²+8x+6",
+                "x²−2x−6",
+                "5x⁴+8x²−2"
+              ],
+              "answer": "5x²+8x−2"
+            },
+            {
+              "id": "difference",
+              "label": "(f−g)(x)",
+              "type": "choice",
+              "options": [
+                "−x²+2x+6",
+                "−x²+2x−2",
+                "x²−2x−6",
+                "−x²−2x+6"
+              ],
+              "answer": "−x²+2x+6"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.2D",
+          "prompt": "Let f(x)=x+5 and g(x)=2x−3. Use the area model to multiply the two function rules.",
+          "studentActions": [
+            "multiplyPolynomials"
+          ],
+          "polynomial": {
+            "leftBinomial": [
+              1,
+              5
+            ],
+            "rightBinomial": [
+              2,
+              -3
+            ]
+          },
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.2D",
+          "prompt": "Given f(x)=2x²+3x−1 and g(x)=x+2, write the quotient and identify the excluded input.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "quotient",
+              "label": "(f/g)(x)",
+              "type": "choice",
+              "options": [
+                "(2x²+3x−1)/(x+2)",
+                "(x+2)/(2x²+3x−1)",
+                "2x+3−1/(x+2)"
+              ],
+              "answer": "(2x²+3x−1)/(x+2)"
+            },
+            {
+              "id": "restriction",
+              "label": "Excluded x-value",
+              "type": "choice",
+              "options": [
+                "−2",
+                "2",
+                "−1",
+                "0"
+              ],
+              "answer": "−2"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.2D",
+          "prompt": "Compare the composition orders for f(x)=−x+6 and g(x)=3x+1 at x=2.",
+          "studentActions": [
+            "composeFunctions"
+          ],
+          "composition": {
+            "mode": "composition"
+          },
+          "f": {
+            "family": "linear",
+            "m": -1,
+            "b": 6
+          },
+          "g": {
+            "family": "linear",
+            "m": 3,
+            "b": 1
+          },
+          "x": 2,
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.2D",
+          "prompt": "For f(x)=x²+2x+3 and g(x)=x+5, find both compositions.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "fog",
+              "label": "(f∘g)(x)",
+              "type": "choice",
+              "options": [
+                "x²+12x+38",
+                "x²+2x+8",
+                "x²+10x+28",
+                "x²+7x+8"
+              ],
+              "answer": "x²+12x+38"
+            },
+            {
+              "id": "gof",
+              "label": "(g∘f)(x)",
+              "type": "choice",
+              "options": [
+                "x²+2x+8",
+                "x²+12x+38",
+                "x²+2x−2",
+                "x²+7x+3"
+              ],
+              "answer": "x²+2x+8"
+            }
+          ],
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "standard": "A2.2D",
+          "prompt": "Determine whether f(x)=0.5x+4 and g(x)=2x−8 are inverses.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "fog",
+              "label": "(f∘g)(x)",
+              "type": "choice",
+              "options": [
+                "x",
+                "x+4",
+                "0.5x−4",
+                "2x"
+              ],
+              "answer": "x"
+            },
+            {
+              "id": "gof",
+              "label": "(g∘f)(x)",
+              "type": "choice",
+              "options": [
+                "x",
+                "2x−8",
+                "x+8",
+                "0.5x"
+              ],
+              "answer": "x"
+            },
+            {
+              "id": "inverse",
+              "label": "Are they inverses?",
+              "type": "choice",
+              "options": [
+                "yes",
+                "no"
+              ],
+              "answer": "yes"
+            }
+          ],
+          "dok": 3,
+          "difficultyBand": 3
+        }
+      ]
+    },
+    {
+      "role": "dol",
+      "title": "DOL / Exit Ticket",
+      "questions": [
+        {
+          "standard": "A2.2D",
+          "prompt": "Given f(x)=x²−2x+3 and g(x)=2x+1, find both compositions.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "fog",
+              "label": "(f∘g)(x)",
+              "type": "choice",
+              "options": [
+                "4x²+2",
+                "2x²−4x+7",
+                "4x²−2x+2",
+                "x²+2x+4"
+              ],
+              "answer": "4x²+2"
+            },
+            {
+              "id": "gof",
+              "label": "(g∘f)(x)",
+              "type": "choice",
+              "options": [
+                "2x²−4x+7",
+                "4x²+2",
+                "2x²−2x+4",
+                "x²−2x+4"
+              ],
+              "answer": "2x²−4x+7"
+            }
+          ],
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "standard": "A2.2D",
+          "prompt": "Given f(x)=x+4 and g(x)=x−4, evaluate the product and quotient descriptions.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "product",
+              "label": "(f·g)(x)",
+              "type": "choice",
+              "options": [
+                "x²−16",
+                "x²+16",
+                "2x",
+                "x²−8x+16"
+              ],
+              "answer": "x²−16"
+            },
+            {
+              "id": "restriction",
+              "label": "For (f/g)(x), which input is excluded?",
+              "type": "choice",
+              "options": [
+                "4",
+                "−4",
+                "0",
+                "16"
+              ],
+              "answer": "4"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.2D",
+          "prompt": "Determine whether f(x)=4x+1 and g(x)=(x−1)/4 are inverses.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "fog",
+              "label": "(f∘g)(x)",
+              "type": "choice",
+              "options": [
+                "x",
+                "x−1",
+                "4x",
+                "x+1"
+              ],
+              "answer": "x"
+            },
+            {
+              "id": "gof",
+              "label": "(g∘f)(x)",
+              "type": "choice",
+              "options": [
+                "x",
+                "x+1",
+                "x/4",
+                "4x+1"
+              ],
+              "answer": "x"
+            },
+            {
+              "id": "inverse",
+              "label": "Conclusion",
+              "type": "choice",
+              "options": [
+                "yes, they are inverses",
+                "no, they are not inverses"
+              ],
+              "answer": "yes, they are inverses"
+            }
+          ],
+          "dok": 3,
+          "difficultyBand": 3
+        }
+      ]
+    }
+  ]
+}
