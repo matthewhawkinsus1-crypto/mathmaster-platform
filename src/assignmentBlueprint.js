@@ -3,6 +3,8 @@ import { normalizeQuestionStandards } from './questionMetadata.js';
 import { getTexasStandard } from './texasStandards.js';
 import { MISSING_TOOL_IDS, validateToolQuestion } from './tools/toolSchemas.js';
 import { normalizeLabDefinition } from './platform/labs/labDefinitionSchema.js';
+import { compileAuthoringIntentV5 } from './platform/contract/authoringIntentV5.js';
+import { looksLikeFiniteSetNotation } from '../functions/shared/answerEquivalence.mjs';
 
 export const DEFAULT_ASSIGNMENT_BLUEPRINT = `[
   {
@@ -284,6 +286,9 @@ Use type "multiAnswer" and list each required field:
 
 For personalized multi-answer questions, place complete field sets inside "variants".
 
+For categorical fields with a small set of valid answers, use "type": "choice" and provide "options". For ordinary written words or explanations, use "type": "text" so students get a normal text box instead of the math keyboard. Use the default field only for mathematical notation.
+
+
 FORMATTED MATH
 
 Wrap inline prompt math in dollar signs:
@@ -451,25 +456,62 @@ const stripOuterCodeFence = (value, repairs) => {
   return match[1].trim();
 };
 
+const findBalancedPayloadEnd = (text, startIndex) => {
+  const opening = text[startIndex];
+  if (opening !== '{' && opening !== '[') return -1;
+  const stack = [];
+  let inString = false;
+  let escaped = false;
+
+  for (let index = startIndex; index < text.length; index += 1) {
+    const character = text[index];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (character === '\\') escaped = true;
+      else if (character === '"') inString = false;
+      continue;
+    }
+    if (character === '"') { inString = true; continue; }
+    if (character === '{' || character === '[') { stack.push(character); continue; }
+    if (character !== '}' && character !== ']') continue;
+    const expected = character === '}' ? '{' : '[';
+    if (stack[stack.length - 1] !== expected) return -1;
+    stack.pop();
+    if (stack.length === 0) return index;
+  }
+  return -1;
+};
+
 const extractJsonPayload = (value, repairs) => {
   const trimmed = value.trim();
   const isArray = trimmed.startsWith('[') && trimmed.endsWith(']');
   const isObject = trimmed.startsWith('{') && trimmed.endsWith('}');
   if (isArray || isObject) return trimmed;
 
-  const arrayIndex = trimmed.indexOf('[');
-  const objectIndex = trimmed.indexOf('{');
-  const candidates = [arrayIndex, objectIndex].filter((index) => index >= 0);
-  if (!candidates.length) return trimmed;
+  // AI assistants sometimes return executable-looking wrappers such as
+  // `assignment = {...}; print(...)` or several fenced blocks after the JSON.
+  // Taking everything from the first opening brace to the LAST closing brace
+  // merged those unrelated blocks and created a false parse error. Stop at the
+  // first balanced top-level payload instead.
+  let inString = false;
+  let escaped = false;
+  for (let index = 0; index < trimmed.length; index += 1) {
+    const character = trimmed[index];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (character === '\\') escaped = true;
+      else if (character === '"') inString = false;
+      continue;
+    }
+    if (character === '"') { inString = true; continue; }
+    if (character !== '{' && character !== '[') continue;
+    const endIndex = findBalancedPayloadEnd(trimmed, index);
+    if (endIndex <= index) continue;
+    repairs.push('extracted the first complete JSON payload from surrounding AI text/code');
+    return trimmed.slice(index, endIndex + 1).trim();
+  }
 
-  const firstIndex = Math.min(...candidates);
-  const opening = trimmed[firstIndex];
-  const closing = opening === '[' ? ']' : '}';
-  const lastIndex = trimmed.lastIndexOf(closing);
-  if (lastIndex <= firstIndex) return trimmed;
-
-  repairs.push('removed text surrounding the JSON payload');
-  return trimmed.slice(firstIndex, lastIndex + 1).trim();
+  return trimmed;
 };
 
 const replacePythonLiteralsOutsideStrings = (value, repairs) => {
@@ -624,25 +666,238 @@ const escapeStrayBackslashesInStrings = (text, repairs) => {
   return out;
 };
 
+// Intake is an AUTHORING COMPILER, not a strict transcription test. External
+// AIs should be allowed to express mathematically clear intent in a few common
+// aliases; MathMaster normalizes that intent into the exact internal renderer
+// contract before validation/storage. Only deterministic, meaning-preserving
+// repairs belong here.
+const normalizeStaticFunctionSpec = (spec, repairs, label) => {
+  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) return spec;
+  const next = { ...spec };
+  if (String(next.type || '').toLowerCase() === 'linear') {
+    next.type = 'line';
+    repairs.push(`${label} function type linear → line`);
+  }
+  return next;
+};
+
+const normalizeGraphObject = (graph, repairs, label) => {
+  if (!graph || typeof graph !== 'object' || Array.isArray(graph)) return graph;
+  const next = { ...graph };
+  if (Array.isArray(next.functions)) {
+    next.functions = next.functions.map((spec, index) => normalizeStaticFunctionSpec(spec, repairs, `${label}.functions[${index}]`));
+  }
+  if (next.functionSpec && !next.functions) {
+    next.functions = [normalizeStaticFunctionSpec(next.functionSpec, repairs, `${label}.functionSpec`)];
+    delete next.functionSpec;
+    repairs.push(`wrapped ${label}.functionSpec as a drawable graph function`);
+  }
+  return next;
+};
+
+const normalizeGraphChoices = (items, repairs, label) => (Array.isArray(items) ? items : []).map((item, index) => {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) return item;
+  if (item.graph && typeof item.graph === 'object' && !Array.isArray(item.graph)) {
+    return { ...item, graph: normalizeGraphObject(item.graph, repairs, `${label}[${index}].graph`) };
+  }
+
+  const graphKeys = ['xMin', 'xMax', 'yMin', 'yMax', 'xStep', 'yStep', 'functions', 'points', 'segments', 'line', 'm', 'b', 'functionSpec', 'axisDisplay', 'xAxisLabel', 'xAxisUnit', 'yAxisLabel', 'yAxisUnit'];
+  const graph = {};
+  let moved = 0;
+  graphKeys.forEach((key) => {
+    if (!Object.prototype.hasOwnProperty.call(item, key)) return;
+    graph[key] = item[key];
+    moved += 1;
+  });
+  if (!moved) return item;
+  const next = { ...item };
+  graphKeys.forEach((key) => delete next[key]);
+  next.graph = normalizeGraphObject(graph, repairs, `${label}[${index}].graph`);
+  repairs.push(`nested ${label}[${index}] graph fields under .graph`);
+  return next;
+});
+
+const normalizeAnalysisRequests = (requests, repairs, label) => {
+  if (!Array.isArray(requests)) return requests;
+  const seen = new Map();
+  let added = 0;
+  const normalized = requests.map((request) => {
+    if (!request || typeof request !== 'object' || Array.isArray(request) || request.id) return request;
+    const base = String(request.feature || request.kind || 'part').replace(/[^A-Za-z0-9_-]+/g, '-') || 'part';
+    const count = (seen.get(base) || 0) + 1;
+    seen.set(base, count);
+    added += 1;
+    return { ...request, id: count === 1 ? base : `${base}-${count}` };
+  });
+  if (added) repairs.push(`generated ${added} missing analysis request id${added === 1 ? '' : 's'} in ${label}`);
+  return normalized;
+};
+
+const inferAuthoringQuestionType = (question = {}) => {
+  if (Array.isArray(question.intervals)) return 'intervalNumberLine';
+  if (Array.isArray(question.pairs)) return 'relationMapping';
+  if (question.sequence && typeof question.sequence === 'object') return 'sequenceExplorer';
+  if (Array.isArray(question.sets)) return 'representationMatch';
+  if (Array.isArray(question.quantities) && (question.scenario || question.correctIndependentId || question.correctDependentId)) return 'relationshipModel';
+  if (Array.isArray(question.scenarios) && Array.isArray(question.graphs) && question.correctMatches) return 'graphScenarioMatch';
+  if (Array.isArray(question.graphs) && Array.isArray(question.fields)) return 'graphComparison';
+  if (Array.isArray(question.analysisRequests) && question.functionSpec) return 'graphAnalysis';
+  if (question.table?.answers && Array.isArray(question.table?.columns) && Array.isArray(question.table?.rows)) return 'table';
+  if (Array.isArray(question.answerFields)) return 'multiAnswer';
+  if (Array.isArray(question.equations) || Array.isArray(question.equationsLatex)) return 'system';
+  if (question.solveFor && question.answer != null) return 'literal';
+  return null;
+};
+
+
+const inferBinaryChoiceOptions = (field = {}) => {
+  const label = String(field.label || field.prompt || '').toLowerCase();
+  const answer = String(field.answer ?? field.acceptedAnswers?.[0] ?? '').trim().toLowerCase();
+  const patterns = [
+    { options: ['yes', 'no'], pattern: /yes\s*(?:\/|or)\s*no|no\s*(?:\/|or)\s*yes/ },
+    { options: ['true', 'false'], pattern: /true\s*(?:\/|or)\s*false|false\s*(?:\/|or)\s*true/ },
+    { options: ['discrete', 'continuous'], pattern: /discrete\s*(?:\/|or)\s*continuous|continuous\s*(?:\/|or)\s*discrete/ },
+    { options: ['finite', 'infinite'], pattern: /finite\s*(?:\/|or)\s*infinite|infinite\s*(?:\/|or)\s*finite/ },
+  ];
+  return patterns.find((entry) => entry.pattern.test(label) && entry.options.includes(answer))?.options || null;
+};
+
 // Firestore does not allow an array to contain another array directly. The
-// original relationMapping authoring example used pairs such as [[-2, 3],
-// [1, 2]], which meant an AI could follow the MathMaster contract exactly and
-// still produce an assignment that failed only when the teacher clicked Save.
-// Accept that legacy input, repair it at intake, and store {x, y} objects.
+// authoring compiler accepts the natural [[x,y], ...] notation and stores the
+// Firestore-safe {x,y} shape. The same pass also absorbs common AI aliases so
+// they never trigger a round trip merely because the renderer uses a different
+// internal field name.
 const normalizeQuestionStorageShapes = (questions, repairs = []) => (Array.isArray(questions) ? questions : []).map((question, index) => {
   if (!question || typeof question !== 'object' || Array.isArray(question)) return question;
-  const type = question.toolId || question.type;
-  if (type !== 'relationMapping' || !Array.isArray(question.pairs)) return question;
+  let next = { ...question };
+  const label = `Question ${index + 1}`;
+  if (!next.toolId && !next.type) {
+    const inferredType = inferAuthoringQuestionType(next);
+    if (inferredType) {
+      next.type = inferredType;
+      repairs.push(`inferred ${label} type as ${inferredType} from its mathematical structure`);
+    }
+  }
+  const type = next.toolId || next.type;
 
-  let converted = 0;
-  const pairs = question.pairs.map((pair) => {
-    if (!Array.isArray(pair) || pair.length !== 2) return pair;
-    converted += 1;
-    return { x: pair[0], y: pair[1] };
+  // Standards are mathematical intent, but the verbose internal alignment
+  // object should not be an AI-authoring burden. Accept concise authoring
+  // shorthands and compile them into the canonical alignment array. Never
+  // inherit one assignment-level standard across every question: primary
+  // alignment remains question-specific.
+  if (!Array.isArray(next.alignments) || next.alignments.length === 0) {
+    const primaryStandard = String(next.standard || next.primaryStandard || '').trim();
+    const secondaryStandards = Array.isArray(next.secondaryStandards) ? next.secondaryStandards : [];
+    const prerequisiteStandards = Array.isArray(next.prerequisiteStandards) ? next.prerequisiteStandards : [];
+    if (primaryStandard) {
+      next.alignments = [
+        { framework: 'teks', code: primaryStandard, role: 'primary', evidenceLevel: next.evidenceLevel || 'assessed' },
+        ...secondaryStandards.filter(Boolean).map((code) => ({ framework: 'teks', code: String(code), role: 'secondary', evidenceLevel: 'practiced' })),
+        ...prerequisiteStandards.filter(Boolean).map((code) => ({ framework: 'teks', code: String(code), role: 'prerequisite', evidenceLevel: 'practiced' })),
+      ];
+      delete next.standard;
+      delete next.primaryStandard;
+      delete next.secondaryStandards;
+      delete next.prerequisiteStandards;
+      delete next.evidenceLevel;
+      repairs.push(`compiled ${label} standard shorthand into alignments`);
+    }
+  }
+
+  if (type === 'relationMapping' && Array.isArray(next.pairs)) {
+    let converted = 0;
+    const pairs = next.pairs.map((pair) => {
+      if (!Array.isArray(pair) || pair.length !== 2) return pair;
+      converted += 1;
+      return { x: pair[0], y: pair[1] };
+    });
+    if (converted) {
+      next.pairs = pairs;
+      repairs.push(`converted ${label} relationMapping [x, y] pairs to Firestore-safe {x, y} objects`);
+    }
+  }
+
+  // AI-facing authoring uses the ordinary words equation/equations. The older
+  // renderer field names remain internal compatibility details.
+  if (!next.equationLatex && typeof next.equation === 'string' && ['algebra', 'stepAlgebra', 'literal'].includes(type)) {
+    next.equationLatex = next.equation;
+    delete next.equation;
+    repairs.push(`mapped ${label}.equation to the internal equation field`);
+  }
+  if (!next.equationsLatex && Array.isArray(next.equations) && type === 'system') {
+    next.equationsLatex = next.equations;
+    delete next.equations;
+    repairs.push(`mapped ${label}.equations to the internal system equation field`);
+  }
+
+  if (type === 'intervalNumberLine' && Array.isArray(next.ask) && next.ask.includes('notation')) {
+    next.ask = next.ask.map((part) => part === 'notation' ? 'interval' : part);
+    repairs.push(`normalized ${label} intervalNumberLine ask notation → interval`);
+  }
+
+  if (Array.isArray(next.analysisRequests)) {
+    next.analysisRequests = normalizeAnalysisRequests(next.analysisRequests, repairs, `${label}.analysisRequests`);
+  }
+
+  if (next.graph && typeof next.graph === 'object' && !Array.isArray(next.graph)) {
+    next.graph = normalizeGraphObject(next.graph, repairs, `${label}.graph`);
+  }
+  if (['graphScenarioMatch', 'graphComparison'].includes(type) && Array.isArray(next.graphs)) {
+    next.graphs = normalizeGraphChoices(next.graphs, repairs, `${label}.graphs`);
+  }
+  if (Array.isArray(next.scenarios)) {
+    let scenarioAliases = 0;
+    next.scenarios = next.scenarios.map((scenario) => {
+      if (!scenario || typeof scenario !== 'object' || Array.isArray(scenario) || scenario.description) return scenario;
+      const description = scenario.text || scenario.prompt || scenario.scenario;
+      if (!description) return scenario;
+      const normalized = { ...scenario, description };
+      delete normalized.text;
+      scenarioAliases += 1;
+      return normalized;
+    });
+    if (scenarioAliases) repairs.push(`normalized ${scenarioAliases} scenario description alias${scenarioAliases === 1 ? '' : 'es'} in ${label}`);
+  }
+
+  // If an author supplies explicit options, the student should get a selector.
+  // Requiring the AI to also remember the renderer-only `type: choice` switch
+  // creates needless magic-word grading failures.
+  ['answerFields', 'fields'].forEach((key) => {
+    if (!Array.isArray(next[key])) return;
+    let promoted = 0;
+    let setFields = 0;
+    next[key] = next[key].map((field) => {
+      if (!field || typeof field !== 'object' || Array.isArray(field)) return field;
+      let normalizedField = field;
+      if (!normalizedField.type && Array.isArray(normalizedField.options) && normalizedField.options.length) {
+        promoted += 1;
+        normalizedField = { ...normalizedField, type: 'choice' };
+      }
+      if (!normalizedField.type) {
+        const inferredOptions = inferBinaryChoiceOptions(normalizedField);
+        if (inferredOptions) {
+          promoted += 1;
+          normalizedField = { ...normalizedField, type: 'choice', options: inferredOptions };
+        }
+      }
+      if (!normalizedField.type) {
+        const accepted = Array.isArray(normalizedField.acceptedAnswers) && normalizedField.acceptedAnswers.length
+          ? normalizedField.acceptedAnswers
+          : normalizedField.answer !== undefined
+            ? [normalizedField.answer]
+            : [];
+        if (accepted.some((value) => looksLikeFiniteSetNotation(value))) {
+          setFields += 1;
+          normalizedField = { ...normalizedField, type: 'set', toolProfile: normalizedField.toolProfile || 'set' };
+        }
+      }
+      return normalizedField;
+    });
+    if (promoted) repairs.push(`promoted ${promoted} ${label} ${key} option field${promoted === 1 ? '' : 's'} to student choice controls`);
+    if (setFields) repairs.push(`recognized ${setFields} ${label} ${key} field${setFields === 1 ? '' : 's'} as finite-set notation and enabled semantic set grading`);
   });
-  if (!converted) return question;
-  repairs.push(`converted Question ${index + 1} relationMapping [x, y] pairs to Firestore-safe {x, y} objects`);
-  return { ...question, pairs };
+
+  return next;
 });
 
 export const parseAssignmentBlueprintText = (rawValue) => {
@@ -664,13 +919,22 @@ export const parseAssignmentBlueprintText = (rawValue) => {
   normalizedText = escapeStrayBackslashesInStrings(normalizedText, repairs);
 
   try {
-    const parsed = JSON.parse(normalizedText);
+    let parsed = JSON.parse(normalizedText);
+    const sourceSchemaVersion = !Array.isArray(parsed) && parsed && typeof parsed === 'object'
+      ? Number(parsed.schemaVersion) || null
+      : null;
+    if (!Array.isArray(parsed) && parsed && typeof parsed === 'object' && Number(parsed.schemaVersion) === 5) {
+      const compiledV5 = compileAuthoringIntentV5(parsed);
+      parsed = compiledV5.package;
+      repairs.push(...compiledV5.repairs);
+    }
     if (Array.isArray(parsed)) {
       const questions = normalizeQuestionStorageShapes(parsed, repairs);
       return {
         questions,
         assignment: null,
         schemaVersion: 1,
+        sourceSchemaVersion,
         isPackage: false,
         normalizedText: JSON.stringify(questions, null, 2),
         repairs,
@@ -682,21 +946,32 @@ export const parseAssignmentBlueprintText = (rawValue) => {
     }
 
     const hasBundleActivities = Array.isArray(parsed.activities);
-    const bundledQuestions = hasBundleActivities
-      ? parsed.activities.flatMap((activity, activityIndex) => {
+    const normalizedActivities = hasBundleActivities
+      ? parsed.activities.map((activity, activityIndex) => {
           const activityRole = activity?.role || 'classwork';
-          const standardQuestions = Array.isArray(activity?.questions)
-            ? activity.questions.map((question) => ({
-                ...question,
-                activityRole: question?.activityRole || activityRole,
-              }))
-            : [];
+          const normalizedActivityQuestions = normalizeQuestionStorageShapes(
+            Array.isArray(activity?.questions)
+              ? activity.questions.map((question) => ({
+                  ...question,
+                  activityRole: question?.activityRole || activityRole,
+                }))
+              : [],
+            repairs,
+          );
+          return { ...activity, questions: normalizedActivityQuestions, __activityIndex: activityIndex };
+        })
+      : [];
+
+    const bundledQuestions = hasBundleActivities
+      ? normalizedActivities.flatMap((activity) => {
+          const activityRole = activity?.role || 'classwork';
+          const standardQuestions = activity.questions || [];
           if (!activity?.labDefinition && !activity?.isModelingLab) return standardQuestions;
           const labSource = activity.labDefinition || activity;
           const publicLab = normalizeLabDefinition(labSource);
           return [...standardQuestions, {
             type: 'modelingLab',
-            questionId: String(activity?.questionId || `${activity.activityId || `activity-${activityIndex + 1}`}-lab`),
+            questionId: String(activity?.questionId || `${activity.activityId || `activity-${Number(activity.__activityIndex || 0) + 1}`}-lab`),
             familyId: `modelingLab:${labSource.labType || 'optimization'}`,
             activityRole,
             dok: Number(labSource.dokLevel || labSource.dok || 3),
@@ -714,7 +989,9 @@ export const parseAssignmentBlueprintText = (rawValue) => {
     // Bundle V3 is authoritative when activities are present. Some transition
     // files also contain a legacy top-level questions mirror; using that mirror
     // would make the student assignment differ from the pre-flight preview.
-    const questions = normalizeQuestionStorageShapes(hasBundleActivities ? bundledQuestions : parsed.questions, repairs);
+    const questions = hasBundleActivities
+      ? bundledQuestions
+      : normalizeQuestionStorageShapes(parsed.questions, repairs);
     if (questions.length === 0) {
       throw new Error('Assignment Package JSON contains no questions.');
     }
@@ -733,10 +1010,19 @@ export const parseAssignmentBlueprintText = (rawValue) => {
       questions,
       assignment: assignmentMetadata,
       schemaVersion: Number(parsed.schemaVersion) || 2,
+      sourceSchemaVersion,
       isPackage: true,
       isBundle: hasBundleActivities,
-      bundleSource: hasBundleActivities ? parsed : null,
-      normalizedText: JSON.stringify(hasBundleActivities ? parsed : { ...parsed, questions }, null, 2),
+      bundleSource: hasBundleActivities
+        ? { ...parsed, activities: normalizedActivities.map(({ __activityIndex, ...activity }) => activity) }
+        : null,
+      normalizedText: JSON.stringify(
+        hasBundleActivities
+          ? { ...parsed, activities: normalizedActivities.map(({ __activityIndex, ...activity }) => activity) }
+          : { ...parsed, questions },
+        null,
+        2,
+      ),
       repairs,
     };
   } catch (error) {
@@ -776,8 +1062,12 @@ const normalizeAssignmentType = (value) => {
 const normalizeVariantMode = (value, questions) => {
   const token = String(value || '').trim().toLowerCase();
   if (['shared', 'exact', 'same', 'same-version', 'exact-same-version'].includes(token)) return 'shared';
-  if (['personalized', 'different', 'generated', 'different-stable-version'].includes(token)) return 'personalized';
-  return questions.some((question) => !isPersonalizedBlueprint(question)) ? 'shared' : 'personalized';
+  if (['personalized', 'different', 'generated', 'different-stable-version', 'mixed', 'per-student', 'perstudent', 'personalize-where-possible'].includes(token)) return 'personalized';
+  // Personalized means 'personalize where the question supports it'. Fixed
+  // graphs/data remain identical while generator/variant questions use the
+  // student's stable generation key. A single fixed visual must never force
+  // the entire assignment into one shared version.
+  return questions.some((question) => isPersonalizedBlueprint(question)) ? 'personalized' : 'shared';
 };
 
 const normalizeClassPeriod = (value) => {
@@ -896,7 +1186,6 @@ export const validateAssignmentQuestions = (questions, options = {}) => {
     throw new Error('JSON must be a non-empty array of questions.');
   }
 
-  const allowFixed = options.allowFixed === true || options.variantMode === 'shared';
   const supportedTypes = new Set(SUPPORTED_QUESTION_TYPES);
 
   questions.forEach((question, index) => {
@@ -921,7 +1210,7 @@ export const validateAssignmentQuestions = (questions, options = {}) => {
     if (rawDok !== undefined && rawDok !== null && rawDok !== '' && (!Number.isInteger(Number(rawDok)) || Number(rawDok) < 1 || Number(rawDok) > 4)) {
       throw new Error(`Question ${index + 1} has invalid DOK ${rawDok}. Use an integer from 1 through 4.`);
     }
-    const rawBand = question?.difficulty?.generatorBand ?? question?.difficulty?.band ?? question?.generatorBand;
+    const rawBand = question?.difficulty?.generatorBand ?? question?.difficulty?.band ?? question?.difficultyBand ?? question?.generatorBand;
     if (rawBand !== undefined && rawBand !== null && rawBand !== '' && (!Number.isInteger(Number(rawBand)) || Number(rawBand) < 1 || Number(rawBand) > 5)) {
       throw new Error(`Question ${index + 1} has invalid difficulty band ${rawBand}. Use an integer from 1 through 5.`);
     }
@@ -938,11 +1227,6 @@ export const validateAssignmentQuestions = (questions, options = {}) => {
           throw new Error(`Question ${index + 1} references TEKS ${entry.code}, which is not in a loaded Texas Math registry.`);
         }
       });
-    }
-    if (!allowFixed && !isPersonalizedBlueprint(question)) {
-      throw new Error(
-        `Question ${index + 1} (${question.type}) is fixed. Add a generator, at least two variants, or publish the assignment in Shared exact version mode.`,
-      );
     }
   });
 

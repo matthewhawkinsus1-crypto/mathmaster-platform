@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import QuestionEngine from '../../QuestionEngine';
 import { getQuestionPrimaryTeksCodes } from '../../questionMetadata';
 import { getTexasStandard } from '../../texasStandards';
@@ -13,6 +13,8 @@ import { staticMapProvider } from '../../platform/path/curriculumPacing';
 import { explainLock, listPrerequisiteChoices, simulateInstantMastery } from '../../platform/path/graphInspection';
 import { REMEDIATION_ACTION, describeBranchImpact, planRemediation } from '../../platform/path/remediationPlan';
 import { getStudentPathOptions } from '../../platform/path/recommendationEngine';
+import { getWheelTeksForCourse } from '../../platform/mastery/strandConfig.js';
+import { COURSES } from '../../../functions/shared/classModel.mjs';
 import { buildAssessmentEvidence, withSimulatedEvidence } from '../../platform/ccmr/assessmentEvidence';
 import { getDirectAlignmentIndex } from '../../platform/ccmr/assessmentCrosswalk';
 import { normalizeAssessmentContext, normalizeQuestionAlignments } from '../../platform/contract/alignments';
@@ -90,6 +92,9 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
 
   const [assignmentId, setAssignmentId] = useState(() => runnableAssignments[0]?.id || '');
   const [questionIndex, setQuestionIndex] = useState(0);
+  const [simulationCourseId, setSimulationCourseId] = useState('algebra1');
+  const courseWheelTeks = useMemo(() => getWheelTeksForCourse(simulationCourseId), [simulationCourseId]);
+  const [simulationTargetTeks, setSimulationTargetTeks] = useState(() => getWheelTeksForCourse('algebra1')[0] || '');
   const [profileId, setProfileId] = useState('fresh');
   const [mode, setMode] = useState('experience');
   const [slots, setSlots] = useState(() => [createSlot({ name: DEFAULT_SLOT_NAMES[0] })]);
@@ -117,14 +122,27 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
   const [whatIfSkillId, setWhatIfSkillId] = useState('');
   const [copied, setCopied] = useState('');
 
+  useEffect(() => {
+    if (!assignmentId && runnableAssignments[0]?.id) setAssignmentId(runnableAssignments[0].id);
+  }, [assignmentId, runnableAssignments]);
+
+  useEffect(() => {
+    if (!courseWheelTeks.includes(simulationTargetTeks)) setSimulationTargetTeks(courseWheelTeks[0] || '');
+  }, [courseWheelTeks, simulationTargetTeks]);
+
   const assignment = runnableAssignments.find((item) => item.id === assignmentId) || null;
   const question = assignment?.questions?.[questionIndex] || null;
   const teksCodes = useMemo(() => getQuestionPrimaryTeksCodes(question), [question]);
 
-  // Starting the session needs the question's TEKS, so it cannot be created
-  // until an assignment is chosen.
+  // Student Experience is course/skill based, not assignment based. A teacher
+  // can simulate a completely fresh student before a single classroom
+  // assignment exists. Question Bench still uses the selected assignment when
+  // there is one.
   const startSession = (nextProfileId = profileId) => {
-    const created = createSimulatedLearner({ profileId: nextProfileId, teacherId, teksCodes });
+    const seedCodes = mode === 'bench' && teksCodes.length
+      ? teksCodes
+      : (simulationTargetTeks ? [simulationTargetTeks] : []);
+    const created = createSimulatedLearner({ profileId: nextProfileId, teacherId, teksCodes: seedCodes });
     setSession({ ...created, extraAssignments: created.seedAssignments });
     setProfileId(nextProfileId);
   };
@@ -132,6 +150,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
   const simulationAssignments = useMemo(() => (
     session ? [...(session.extraAssignments || []), ...(assignment ? [assignment] : [])] : []
   ), [session, assignment]);
+  const simulationVisibleAssignments = useMemo(() => (assignment ? [assignment] : []), [assignment]);
 
   const evaluated = useMemo(() => (
     session ? evaluateSimulation({ learner: session.learner, assignments: simulationAssignments, question }) : null
@@ -148,9 +167,9 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
   // deliberately neutral calendar: an empty window map leaves every skill in
   // the current window. Otherwise "why is this locked?" would sometimes answer
   // "because it is March", which is true but is not what was being asked.
-  const inspectionCourseId = getTexasStandard(teksCodes[0])?.courseId || 'algebra1';
+  const inspectionCourseId = simulationCourseId;
   const courseSkills = useMemo(() => getSkillGraph(inspectionCourseId), [inspectionCourseId]);
-  const defaultSkillId = teksCodes[0] ? teksSkillId(teksCodes[0]) : (courseSkills[0]?.skillId || '');
+  const defaultSkillId = simulationTargetTeks ? teksSkillId(simulationTargetTeks) : (courseSkills[0]?.skillId || '');
   const activeSkillId = courseSkills.some((skill) => skill.skillId === inspectSkillId)
     ? inspectSkillId
     : defaultSkillId;
@@ -280,12 +299,12 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
   const benchRecord = session?.learner?.gradesByAssignment?.[assignmentId]?.[questionIndex] || null;
 
   const runOutcome = (outcomeId) => {
-    if (!session || !assignment) return;
+    if (!session) return;
     if (outcomeId === 'forceSkillMastery' || outcomeId === 'forceSkillFailure') {
       const forced = forceSkillState({
         learner: session.learner,
         targetKey: outcomeId === 'forceSkillMastery' ? 'masters' : 'didNotMeet',
-        teksCodes,
+        teksCodes: teksCodes.length ? teksCodes : (simulationTargetTeks ? [simulationTargetTeks] : []),
       });
       if (!forced.seedAssignment) return;
       setSession((current) => ({
@@ -301,6 +320,10 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
       }));
       return;
     }
+
+    // Force Correct/Incorrect/etc. are Question Bench controls and need a real
+    // assignment question. Whole-skill force controls above do not.
+    if (!assignment || !question) return;
 
     const applied = applySimulationOutcome({
       learner: session.learner,
@@ -339,17 +362,6 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
     window.setTimeout(() => setCopied(''), 5000);
   };
 
-  if (!runnableAssignments.length) {
-    return (
-      <div style={{ ...panel, textAlign: 'left' }}>
-        <h3 style={heading}>Path Simulator</h3>
-        <p style={{ color: '#5f6368', margin: 0, lineHeight: 1.6 }}>
-          Create an assignment first. The simulator runs real questions through the real
-          mastery and routing engines, so it needs something to run.
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div style={{ textAlign: 'left' }}>
@@ -393,8 +405,8 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
             {session ? (
               <SimulatedStudentExperience
                 learner={session.learner}
-                assignments={simulationAssignments}
-                pathQuestionAssignments={assignments}
+                assignments={simulationVisibleAssignments}
+                evidenceAssignments={simulationAssignments}
                 courseId={inspectionCourseId}
                 pacing={simulationPacing}
                 nowValue={simulatedNow}
@@ -460,7 +472,28 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
               <button type="button" onClick={() => { const next = removeSlot(slots, activeSlot.id); setSlots(next); setActiveSlotId(next[0].id); }} style={smallButton}>Delete</button>
             </div>
 
-            <label style={{ fontWeight: 800, fontSize: 13, display: 'block' }}>Starting state
+            <label style={{ fontWeight: 800, fontSize: 13, display: 'block' }}>Course
+              <select
+                value={simulationCourseId}
+                onChange={(event) => {
+                  const nextCourse = event.target.value;
+                  setSimulationCourseId(nextCourse);
+                  setSimulationTargetTeks(getWheelTeksForCourse(nextCourse)[0] || '');
+                  setSession(null);
+                }}
+                style={input}
+              >
+                {COURSES.map((course) => <option key={course.id} value={course.id}>{course.label}</option>)}
+              </select>
+            </label>
+
+            <label style={{ fontWeight: 800, fontSize: 13, display: 'block', marginTop: 12 }}>Starting skill
+              <select value={simulationTargetTeks} onChange={(event) => { setSimulationTargetTeks(event.target.value); setSession(null); }} style={input}>
+                {courseWheelTeks.map((code) => <option key={code} value={code}>{code} — {getTexasStandard(code)?.description || 'Texas standard'}</option>)}
+              </select>
+            </label>
+
+            <label style={{ fontWeight: 800, fontSize: 13, display: 'block', marginTop: 12 }}>Starting state
               <select value={profileId} onChange={(event) => startSession(event.target.value)} style={input}>
                 {STARTING_PROFILES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
               </select>
@@ -483,15 +516,15 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
               <>
                 <p style={{ margin: '0 0 6px', fontWeight: 800, fontSize: 13 }}>Force an outcome</p>
                 <p style={{ margin: '0 0 8px', fontSize: 12, color: '#5f6368', lineHeight: 1.5 }}>
-                  Applied to {assignment?.title || 'the selected assignment'}, question {questionIndex + 1}
-                  {teksCodes.length ? ` · ${teksCodes.join(', ')}` : ''}.
+                  {assignment && question
+                    ? `Question Bench: ${assignment.title || 'selected assignment'}, question ${questionIndex + 1}${teksCodes.length ? ` · ${teksCodes.join(', ')}` : ''}.`
+                    : `Path-only simulation · ${simulationTargetTeks || 'choose a starting skill'}. Whole-skill force controls remain available without an assignment.`}
                 </p>
-                {!teksCodes.length && (
+                {!teksCodes.length && !simulationTargetTeks && (
                   // Forcing a skill state needs a skill. Without this the two
                   // skill buttons would appear to work and change nothing.
                   <p style={{ margin: '0 0 8px', padding: '8px 10px', borderRadius: 8, background: '#fef7e0', color: '#7a4f00', fontSize: 12, lineHeight: 1.5 }}>
-                    This question has no TEKS alignment, so forcing a skill state has nothing to act on.
-                    Pick a question in the bench that is aligned.
+                    Choose a Path starting skill or an aligned Question Bench item before forcing a whole-skill state.
                   </p>
                 )}
                 <div style={{ display: 'grid', gap: 6, marginBottom: 14 }}>
@@ -501,8 +534,12 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                       type="button"
                       onClick={() => runOutcome(control.id)}
                       title={control.hint}
-                      disabled={!teksCodes.length && control.id.startsWith('forceSkill')}
-                      style={{ ...smallButton, textAlign: 'left', opacity: !teksCodes.length && control.id.startsWith('forceSkill') ? 0.5 : 1 }}
+                      disabled={(control.id.startsWith('forceSkill')
+                        ? (!teksCodes.length && !simulationTargetTeks)
+                        : (!assignment || !question))}
+                      style={{ ...smallButton, textAlign: 'left', opacity: (control.id.startsWith('forceSkill')
+                        ? (!teksCodes.length && !simulationTargetTeks)
+                        : (!assignment || !question)) ? 0.5 : 1 }}
                     >
                       {control.label}
                     </button>
@@ -529,16 +566,29 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                   )}
                 </ul>
 
-                <button type="button" onClick={() => setMode('bench')} style={{ ...smallButton, marginTop: 14, width: '100%' }}>
-                  Open the question bench
-                </button>
+                {runnableAssignments.length > 0 && (
+                  <button type="button" onClick={() => setMode('bench')} style={{ ...smallButton, marginTop: 14, width: '100%' }}>
+                    Open the question bench
+                  </button>
+                )}
               </>
             )}
           </aside>
         </div>
       )}
 
-      {mode === 'bench' && (
+      {mode === 'bench' && !runnableAssignments.length && (
+        <div style={panel}>
+          <h3 style={heading}>Question Bench</h3>
+          <p style={{ margin: 0, color: '#5f6368', lineHeight: 1.6 }}>
+            No classroom assignment exists yet. That does <strong>not</strong> block My Math Path — switch to Student experience to run the secure Path bank.
+            Question Bench appears after you create an assignment because its job is to QA a particular authored assignment question.
+          </p>
+          <button type="button" onClick={() => { setMode('experience'); if (!session) startSession(); }} style={{ ...smallButton, marginTop: 12, background: '#1a73e8', color: '#fff', border: 0 }}>Open Student experience</button>
+        </div>
+      )}
+
+      {mode === 'bench' && runnableAssignments.length > 0 && (
       <div style={panel}>
         <h3 style={heading}>1. Choose what to simulate</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 14 }}>
@@ -576,7 +626,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
       </div>
       )}
 
-      {mode === 'bench' && session && (
+      {mode === 'bench' && runnableAssignments.length > 0 && session && (
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 0 }}>
           <div style={panel}>
             <h3 style={heading}>2. One question, in the real renderer</h3>

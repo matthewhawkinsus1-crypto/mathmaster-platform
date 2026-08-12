@@ -81,6 +81,17 @@ test('the table follows the student\'s own equation whenever both are asked for'
   assert.deepEqual(tableOnly.grading.table, { values: { '0:y': '0' } });
 });
 
+
+test('the graph follows the student table, or the student equation when there is no table', () => {
+  const withTable = expandRecipe({ ...SHOWER, tableXValues: [0, 1, 2], recipe: { ask: ['equation', 'table', 'graph'] } });
+  assert.deepEqual(withTable.workflow.find((stage) => stage.id === 'graph').source, { fromStage: 'table' });
+  assert.deepEqual(withTable.grading.graph, { consistentWith: 'table', useStageVerdict: true });
+
+  const equationOnly = expandRecipe({ ...SHOWER, recipe: { ask: ['equation', 'graph'] } });
+  assert.deepEqual(equationOnly.workflow.find((stage) => stage.id === 'graph').source, { fromStage: 'equation' });
+  assert.deepEqual(equationOnly.grading.graph, { consistentWith: 'equation', useStageVerdict: true });
+});
+
 // --- Derived grading: only what the question already says --------------------
 
 test('roles, equation and continuity come from the fields the author already wrote', () => {

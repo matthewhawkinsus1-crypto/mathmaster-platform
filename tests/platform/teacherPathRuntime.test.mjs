@@ -56,7 +56,7 @@ const finish = async (runtime, sessionId, { correct, attempts = 1 }) => {
 
 // --- The bank is the teacher's own content ----------------------------------
 
-test('path questions come from the teacher\'s authored assignments', () => {
+test('legacy Question Bench runtime can still source authored assignment questions', () => {
   const bank = buildSimulationQuestionBank(ASSIGNMENTS);
   assert.equal(bankHasSkill(bank, teksSkillId(ORIGIN)), true);
   assert.equal(bankHasSkill(bank, teksSkillId(PREREQ)), true);
@@ -196,4 +196,62 @@ test('nothing here touches a real student', async () => {
   assert.match(changes.at(-1).learner.id, /^teacherSimulation:/);
   assert.match(session.sessionId, /^sim_path_/);
   assert.equal(session.simulated, true);
+});
+
+// --- Secure bank parity / no classroom assignment dependency -----------------
+
+test('student-experience runtime can issue and grade secure bank content with zero classroom assignments', async () => {
+  const bankRecord = {
+    id: 'seed_A_5C_foundation',
+    active: true,
+    alignmentKeys: ['texas:A.5C'],
+    courseId: 'algebra1',
+    familyId: 'path-seed:A.5C:foundation',
+    familyVersion: 1,
+    questionType: 'response',
+    activityRole: 'practice',
+    difficultyBand: 2,
+    dok: 1,
+    prompt: 'Which answer is correct? Type A.',
+    responseFields: [{ id: 'answer', label: 'Answer', inputProfile: 'text', expected: 'A' }],
+  };
+  const changes = [];
+  const runtime = createTeacherPathRuntime({
+    assignments: [],
+    pathBankQuestions: [bankRecord],
+    courseId: 'algebra1',
+    learner: { id: 'teacherSimulation:T1:secure-bank', gradesByAssignment: {} },
+    onChange: (payload) => changes.push(payload),
+  });
+
+  const { session } = await runtime.startOrResumePathSession({ targetAlignmentKey: ORIGIN, requiredQuestions: 2 });
+  const { questionInstance } = await runtime.fetchNextSanitizedQuestion({ sessionId: session.sessionId });
+
+  assert.equal(questionInstance.sourceBankQuestionId, bankRecord.id);
+  assert.equal(questionInstance.canonicalQuestion, undefined, 'legacy secure-bank answers must not travel in a canonical question');
+  assert.deepEqual(questionInstance.responseFields, [{ id: 'answer', label: 'Answer', inputProfile: 'text', unit: null }]);
+  assert.equal(JSON.stringify(questionInstance).includes('"expected":"A"'), false, 'expected answer must stay private');
+
+  const result = await runtime.submitStudentResponse({
+    sessionId: session.sessionId,
+    questionInstanceId: questionInstance.questionInstanceId,
+    responsePayload: { responses: { answer: 'A' } },
+    supportUsage: { isMathematicallyIndependent: true },
+  });
+  assert.equal(result.grading.isCorrect, true);
+  assert.equal(result.grading.questionFinalized, true);
+  assert.ok(changes.at(-1).learner.gradesByAssignment[session.sessionId]);
+});
+
+test('secure bank mode never falls back to classroom assignment questions when the bank is empty', async () => {
+  const runtime = createTeacherPathRuntime({
+    assignments: ASSIGNMENTS,
+    pathBankQuestions: [],
+    courseId: 'algebra1',
+  });
+  const { session } = await runtime.startOrResumePathSession({ targetAlignmentKey: ORIGIN });
+  await assert.rejects(
+    () => runtime.fetchNextSanitizedQuestion({ sessionId: session.sessionId }),
+    /secure Path bank has no issuable question/i,
+  );
 });

@@ -12,6 +12,7 @@ import {
 import { getQuestionCredit, normalizeQuestionRecord } from '../../attemptPolicy';
 import { matchesSmartView } from '../../assignmentSmartViews.js';
 import { createTeacherPathRuntime } from '../../platform/simulation/teacherPathRuntime.js';
+import { fetchTeacherPathBankSnapshot } from '../../platform/path/pathBankSimulationService.js';
 
 // The same arithmetic App.jsx uses for a real student's recorded grade. It is
 // three lines and lives on App's closure there; duplicating those three lines
@@ -44,12 +45,11 @@ const VIEWS = [
 export default function SimulatedStudentExperience({
   learner,
   assignments = [],
-  // The student-facing assignment list can be intentionally narrow in the
-  // simulator (for example, the one assignment selected in Question Bench),
-  // but My Math Path needs the full authored pool. Keeping those sources
-  // separate prevents a prerequisite from appearing "unavailable" merely
-  // because it lives in a different assignment.
-  pathQuestionAssignments = null,
+  evidenceAssignments = null,
+  // Kept for backward compatibility with older callers. My Math Path no
+  // longer uses classroom assignments as its question source; Student
+  // Experience reads the secure pathQuestionBank just like production.
+  pathQuestionAssignments = null, // eslint-disable-line no-unused-vars
   courseId = 'algebra1',
   classPeriod = 'Period 1',
   pacing = null,
@@ -64,19 +64,39 @@ export default function SimulatedStudentExperience({
   // the recommendation panel — moves with it.
   onSimulatedEvidence = null,
 }) {
-  const [view, setView] = useState('assignments');
+  const [view, setView] = useState(() => (assignments.length ? 'assignments' : 'path'));
+  const availableViews = assignments.length ? VIEWS : VIEWS.filter(([id]) => id === 'path');
   // Work done inside a path session lives here until the parent takes it,
   // which is what makes the Path visibly react to a real answer.
   const [sessionAssignments, setSessionAssignments] = useState([]);
 
   const evidenceRef = useRef(onSimulatedEvidence);
   evidenceRef.current = onSimulatedEvidence;
-  const pathQuestionSource = pathQuestionAssignments || assignments;
 
-  // One runtime per learner. The student's own container calls it exactly as
-  // it calls the live service, so nothing below this line knows the difference.
-  const runtime = useMemo(() => createTeacherPathRuntime({
-    assignments: pathQuestionSource,
+  // Student Experience uses the ACTUAL secure Path bank, not whatever classroom
+  // assignments happen to exist. This is the critical distinction: a student
+  // with zero assignments still has My Math Path work, while an empty Path bank
+  // is honestly shown as an empty Path bank.
+  const [pathBankQuestions, setPathBankQuestions] = useState(null);
+  const [pathBankError, setPathBankError] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    setPathBankQuestions(null);
+    setPathBankError(null);
+    fetchTeacherPathBankSnapshot().then((records) => {
+      if (!cancelled) setPathBankQuestions(records);
+    }).catch((error) => {
+      if (!cancelled) setPathBankError(error?.message || 'Could not read the secure Path bank.');
+    });
+    return () => { cancelled = true; };
+  }, [courseId]);
+
+  // One runtime per learner/bank snapshot. The student's own container calls it
+  // exactly as it calls the live service, so the renderer below does not know
+  // whether the learner is synthetic or real.
+  const runtime = useMemo(() => (pathBankQuestions ? createTeacherPathRuntime({
+    assignments,
+    pathBankQuestions,
     courseId,
     learner,
     onChange: ({ learner: nextLearner, sessionAssignment }) => {
@@ -86,15 +106,16 @@ export default function SimulatedStudentExperience({
       ]);
       evidenceRef.current?.({ learner: nextLearner, sessionAssignment });
     },
-  }), [pathQuestionSource, courseId, learner]);
+  }) : null), [assignments, pathBankQuestions, courseId, learner]);
 
   useEffect(() => { setSessionAssignments([]); }, [runtime]);
+  useEffect(() => { if (!assignments.length) setView('path'); }, [assignments.length]);
 
   // Everything the engines read: the teacher's assignments plus whatever the
   // simulated student has done in a path session.
   const allAssignments = useMemo(
-    () => [...assignments, ...sessionAssignments],
-    [assignments, sessionAssignments],
+    () => [...(evidenceAssignments || assignments), ...sessionAssignments],
+    [evidenceAssignments, assignments, sessionAssignments],
   );
 
   // The real engines, over the synthetic document. No mocks anywhere in here.
@@ -152,7 +173,7 @@ export default function SimulatedStudentExperience({
   return (
     <div>
       <div role="group" aria-label="Simulated student view" style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-        {VIEWS.map(([id, label]) => (
+        {availableViews.map(([id, label]) => (
           <button
             key={id}
             type="button"
@@ -190,21 +211,38 @@ export default function SimulatedStudentExperience({
         />
       )}
 
-      {view === 'path' && (
-        <MyMathPathExperience
-          studentId={learner?.id || 'simulated'}
-          studentName={learner?.displayName || 'Simulated student'}
-          assignments={assignments}
-          pathOptions={pathOptions}
-          courseId={courseId}
-          studentRecord={learner}
-          masteryData={masteryData}
-          sessionProvider={runtime}
-          evidenceEvents={[]}
-          loading={false}
-          assessmentContextOverride={assessmentContext}
-          onExit={() => setView('assignments')}
-        />
+      {view === 'path' && pathBankError && (
+        <div role="alert" style={{ padding: 18, border: '1px solid #f0b4b2', borderRadius: 10, background: '#fce8e6', color: '#a50e0e', lineHeight: 1.55 }}>
+          <strong>Could not load the secure Path bank.</strong><br />{pathBankError}
+        </div>
+      )}
+
+      {view === 'path' && !pathBankError && !runtime && (
+        <div style={{ padding: 32, textAlign: 'center', color: '#174ea6', fontWeight: 800 }}>Loading the secure My Math Path question bank…</div>
+      )}
+
+      {view === 'path' && runtime && (
+        <>
+          <div style={{ marginBottom: 10, padding: '9px 11px', borderRadius: 8, background: pathBankQuestions.length ? '#e6f4ea' : '#fef7e0', color: pathBankQuestions.length ? '#137333' : '#7a4f00', fontSize: 12, lineHeight: 1.45 }}>
+            <strong>Production Path-bank simulation.</strong> {pathBankQuestions.length
+              ? `${pathBankQuestions.length} active secure bank questions loaded. Classroom assignments are evidence only; they are not the Path content source.`
+              : 'The secure Path bank is empty. Initialize it in Administration → Path content coverage before expecting students to have Path practice.'}
+          </div>
+          <MyMathPathExperience
+            studentId={learner?.id || 'simulated'}
+            studentName={learner?.displayName || 'Simulated student'}
+            assignments={assignments}
+            pathOptions={pathOptions}
+            courseId={courseId}
+            studentRecord={learner}
+            masteryData={masteryData}
+            sessionProvider={runtime}
+            evidenceEvents={[]}
+            loading={false}
+            assessmentContextOverride={assessmentContext}
+            onExit={assignments.length ? () => setView('assignments') : null}
+          />
+        </>
       )}
     </div>
   );

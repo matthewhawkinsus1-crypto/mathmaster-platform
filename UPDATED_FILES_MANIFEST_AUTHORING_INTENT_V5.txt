@@ -1,0 +1,19 @@
+MathMaster Authoring Intent V5 — changed/added files from compiler-improved baseline
+
+ADDED
+src/platform/contract/authoringIntentV5.js
+tests/platform/authoringIntentV5.test.mjs
+tests/platform/authoringIntentV5Destinations.test.mjs
+scripts/validate-authoring-v5.mjs
+scripts/validate-assignments.mjs
+SAMPLE_AUTHORING_INTENT_V5.json
+AUTHORING_INTENT_V5_IMPLEMENTATION.md
+V5_IMPLEMENTATION_VALIDATION_REPORT.txt
+UPDATED_FILES_MANIFEST_AUTHORING_INTENT_V5.txt
+
+UPDATED
+src/assignmentBlueprint.js
+src/platform/contract/authoringContract.js
+tests/platform/authoringCompiler.test.mjs
+package.json
+AUTHORING_INTENT_V5_NEXT_PHASE.md

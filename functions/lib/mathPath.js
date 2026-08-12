@@ -20,6 +20,12 @@ async function legacyFieldGrading() {
   return legacyModule;
 }
 
+let answerEquivalenceModule = null;
+async function answerEquivalence() {
+  if (!answerEquivalenceModule) answerEquivalenceModule = await import('../shared/answerEquivalence.mjs');
+  return answerEquivalenceModule;
+}
+
 function canonicalAlignmentKey(value) {
   const raw = String(value || '').trim();
   if (!raw) return '';
@@ -193,17 +199,16 @@ async function buildIssuePlan(question) {
   return { issuable: true, reason: null, toolPayload: null, privateGrading: privateGradingDefinition(question) };
 }
 
-function valuesEquivalent(actual, field) {
+async function valuesEquivalent(actual, field) {
   const candidates = field.accepted?.length ? field.accepted : [field.expected];
+  const equivalence = await answerEquivalence();
   return candidates.some((expected) => {
-    const actualNumber = Number(actual);
-    const expectedNumber = Number(expected);
-    if (String(actual ?? '').trim() !== '' && Number.isFinite(actualNumber) && Number.isFinite(expectedNumber)) {
-      return Math.abs(actualNumber - expectedNumber) <= Math.max(0, Number(field.numericTolerance) || 0);
-    }
     const left = String(actual ?? '').trim();
     const right = String(expected ?? '').trim();
-    return field.caseSensitive ? left === right : left.toLowerCase() === right.toLowerCase();
+    if (field.caseSensitive && !Number.isFinite(Number(actual)) && !Number.isFinite(Number(expected))) {
+      return left === right;
+    }
+    return equivalence.sameValue(actual, expected, Math.max(0, Number(field.numericTolerance) || 0));
   });
 }
 
@@ -224,17 +229,17 @@ async function gradePathToolResponse(grading, responsePayload = {}) {
     });
   }
   // No tool on this question: the original field grader still applies.
-  const result = gradeResponse(grading, responsePayload);
+  const result = await gradeResponse(grading, responsePayload);
   return { ...result, parts: result.fieldResults, rejected: false, reason: null };
 }
 
-function gradeResponse(grading, responsePayload = {}) {
+async function gradeResponse(grading, responsePayload = {}) {
   const responses = responsePayload.responses && typeof responsePayload.responses === 'object'
     ? responsePayload.responses
     : {};
   const fields = Array.isArray(grading?.fields) ? grading.fields : [];
   if (!fields.length) return { isCorrect: false, score: 0, fieldResults: [] };
-  const fieldResults = fields.map((field) => ({ id: field.id, isCorrect: valuesEquivalent(responses[field.id], field) }));
+  const fieldResults = await Promise.all(fields.map(async (field) => ({ id: field.id, isCorrect: await valuesEquivalent(responses[field.id], field) })));
   const correctCount = fieldResults.filter((field) => field.isCorrect).length;
   return { isCorrect: correctCount === fields.length, score: correctCount / fields.length, fieldResults };
 }

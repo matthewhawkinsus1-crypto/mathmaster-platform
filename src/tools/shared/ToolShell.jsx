@@ -55,9 +55,13 @@ export const ResultPill = ({ ok, children }) => (
 // concrete steps. Previously each tool buried its directions in a paragraph
 // under the workspace, where a student reads them only after guessing wrong.
 export const TaskCard = ({ task, steps = [], note = null, question = null }) => {
-  // Surface the TEKS the item is already tagged with, so a student can see what
-  // skill this is building rather than just what to click. Silent when the
-  // question carries no alignment — an untagged item should not invent one.
+  const authoredPrompt = String(question?.prompt || '').trim();
+  const taskText = String(task || '').trim();
+  const promptDiffers = Boolean(authoredPrompt && authoredPrompt !== taskText);
+
+  // Standards are helpful as a student-facing skill description, but the raw
+  // TEKS identifier is teacher/programming metadata.  Keep the code available
+  // elsewhere in MathMaster and show students only the actual skill language.
   const standards = question ? normalizeQuestionStandards(question).primary : [];
   const aligned = standards
     .map((entry) => ({ code: entry.code, description: getTexasStandard(entry.code)?.description }))
@@ -69,8 +73,18 @@ export const TaskCard = ({ task, steps = [], note = null, question = null }) => 
       border: '1px solid #9bb8e8', borderLeft: '6px solid #1a73e8', borderRadius: 12,
       background: '#f4f8ff', padding: '14px 18px', marginBottom: 18,
     }}>
-      <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#174ea6' }}>Your task</div>
-      <p style={{ margin: '6px 0 0', fontSize: 17, fontWeight: 700, color: '#172033', lineHeight: 1.4 }}>{task}</p>
+      {authoredPrompt ? (
+        <>
+          <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#174ea6' }}>{promptDiffers ? 'Problem' : 'Your task'}</div>
+          <p style={{ margin: '6px 0 0', fontSize: 17, fontWeight: 700, color: '#172033', lineHeight: 1.4 }}>{authoredPrompt}</p>
+        </>
+      ) : null}
+      {taskText && (!authoredPrompt || promptDiffers) ? (
+        <>
+          <div style={{ marginTop: authoredPrompt ? 12 : 0, fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#174ea6' }}>{authoredPrompt ? 'What to do' : 'Your task'}</div>
+          <p style={{ margin: '6px 0 0', fontSize: 16, fontWeight: 700, color: '#172033', lineHeight: 1.4 }}>{taskText}</p>
+        </>
+      ) : null}
       {steps.length ? (
         <ol style={{ margin: '10px 0 0', paddingLeft: 20, color: '#3c4756', lineHeight: 1.6 }}>
           {steps.map((step, index) => <li key={index}>{step}</li>)}
@@ -79,10 +93,10 @@ export const TaskCard = ({ task, steps = [], note = null, question = null }) => 
       {note ? <p style={{ margin: '10px 0 0', fontSize: 13, color: '#5f6b7a' }}>{note}</p> : null}
       {aligned.length ? (
         <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid #d5e2f7' }}>
-          <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#5f6b7a' }}>You are practicing</div>
+          <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#5f6b7a' }}>Skill focus</div>
           {aligned.map((entry) => (
             <p key={entry.code} style={{ margin: '4px 0 0', fontSize: 13, color: '#3c4756', lineHeight: 1.5 }}>
-              <strong style={{ color: '#174ea6' }}>{entry.code}</strong> — {entry.description}
+              {entry.description}
             </p>
           ))}
         </div>

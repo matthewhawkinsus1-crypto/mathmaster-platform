@@ -98,6 +98,41 @@ test('a stage whose source is unanswered is waiting, not broken', () => {
   assert.equal(input.ready, false);
 });
 
+
+test('a dependent graph waits for a complete table artifact, not the first typed cell', () => {
+  const { workflow } = readComposedQuestion({
+    workflow: [
+      { id: 'table', kind: 'tableInput' },
+      { id: 'graph', kind: 'functionGraph', source: { fromStage: 'table' } },
+    ],
+  });
+  const partial = resolveStageInput({
+    stage: workflow[1],
+    responses: {
+      table: {
+        __mathmasterWorkflowArtifact: 'table',
+        isComplete: false,
+        cells: { '0:y': '2' },
+      },
+    },
+    content: {},
+  });
+  assert.equal(partial.ready, false);
+
+  const complete = resolveStageInput({
+    stage: workflow[1],
+    responses: {
+      table: {
+        __mathmasterWorkflowArtifact: 'table',
+        isComplete: true,
+        cells: { '0:y': '2', '1:y': '4' },
+      },
+    },
+    content: {},
+  });
+  assert.equal(complete.ready, true);
+});
+
 test('reading from a later stage is refused', () => {
   const { errors } = validateWorkflow([
     { kind: 'tableInput', source: { fromStage: 'equation' } },
@@ -186,6 +221,7 @@ test('Preflight leaves a valid composed question alone', () => {
     quantities: [{ id: 'time', label: 'Minutes' }, { id: 'volume', label: 'Gallons' }],
     correctIndependentId: 'time',
     correctDependentId: 'volume',
+    functionSpec: { type: 'linear', m: 1.8, b: 0 },
     workflow: SHOWER.map((kind) => ({ kind, choices: kind === 'classification' ? ['discrete', 'continuous'] : undefined })),
   };
   assert.deepEqual(validateQuestionSemantics(question, { label: 'Q8' }).errors, []);

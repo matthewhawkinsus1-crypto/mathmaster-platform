@@ -132,6 +132,33 @@ test('no answer key survives into the public payload', () => {
   });
 });
 
+test('a choice list travels as labels, never as the answer key', () => {
+  // `options` is what the student picks from, so it has to reach the browser.
+  // But an author — or an AI — may write it as objects carrying which one is
+  // right, and copying the field whole would ship the answer inside a field the
+  // allowlist had just admitted.
+  const withFlaggedOptions = {
+    type: 'multiAnswer',
+    prompt: 'Classify the relationship.',
+    answerFields: [{
+      id: 'kind',
+      label: 'Discrete or continuous?',
+      expected: 'discrete',
+      options: [{ label: 'discrete', correct: true }, { label: 'continuous', correct: false }],
+    }],
+  };
+  const payload = buildPublicToolPayload(withFlaggedOptions);
+  assert.deepEqual(payload.tool.answerFields[0].options, ['discrete', 'continuous']);
+  assert.ok(!JSON.stringify(payload).includes('correct'), JSON.stringify(payload));
+
+  // Plain string options are unchanged, which is how they are normally authored.
+  const plain = buildPublicToolPayload({
+    ...withFlaggedOptions,
+    answerFields: [{ ...withFlaggedOptions.answerFields[0], options: ['discrete', 'continuous'] }],
+  });
+  assert.deepEqual(plain.tool.answerFields[0].options, ['discrete', 'continuous']);
+});
+
 test('a question that hides its answer in an unexpected field still cannot leak it', () => {
   // The allowlist is what makes this true: a field nobody anticipated is not
   // copied, because only named fields are.

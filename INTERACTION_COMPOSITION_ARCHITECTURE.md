@@ -181,12 +181,35 @@ A composed question routes to the runner **before** the tool registry, so a
 type without one is still the standalone tool. Both live side by side; neither
 is a rewrite of the other.
 
-## Where this does not reach yet
+## Graph dependency is now end-to-end
 
-- The graph stages delegate to `InteractiveGraphWorkspace` in construct mode,
-  and a graph is not yet marked against the student's own table the way the
-  table is marked against their own equation. `consistentWith` is written for
-  numeric table cells only.
+The modelling chain is no longer a promise in JSON with a disconnected graph
+renderer.  `equation → table → graph` now carries a student-owned artifact all
+the way through:
+
+1. `tableInput` receives the student's equation and checks table values against
+   that equation, not the authored key.
+2. The table response carries its cells, numeric ordered pairs, and equation
+   lineage forward as a workflow artifact.
+3. A continuous graph parses that same student equation into an evaluable model
+   and uses the student's table points as the required plotted points.
+4. If the table contradicts the equation, graphing is blocked with a specific
+   revision message because contradictory work does not define one graph.
+5. The graph's draft key includes a fingerprint of its upstream artifact, so
+   revising the equation/table resets only the dependent graph instead of
+   leaving stale plotted work on screen.
+6. A discrete graph consumes the table points directly in point-only mode.
+7. The graph is graded for consistency with the student's own model/table.  A
+   wrong model is therefore charged once at the equation stage rather than
+   again at every dependent stage.
+
+A finite table with no equation/model lineage is still not enough to determine
+one unique **continuous** graph. Preflight rejects that mathematically
+underdetermined composition unless a public `functionSpec` is supplied. A
+discrete point plot does not have that restriction.
+
+## Remaining boundary
+
 - `numberLine` and `mappingDiagram` self-grade and report when the student
   presses the tool's own check button, so those stages register on that press
   rather than continuously as the student works.

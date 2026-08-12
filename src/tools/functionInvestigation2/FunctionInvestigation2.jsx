@@ -161,8 +161,8 @@ export default function FunctionInvestigation2({ questionData = {}, onAction }) 
 
   return (
     <ToolShell
-      title="Function Investigation"
-      subtitle="Investigate each function family using the features that actually define it."
+      title={mode === 'compare' ? 'Compare the Functions' : 'Analyze the Function'}
+      subtitle="Use the graph and the defining features of the function to answer the question."
       badge={mode === 'compare' ? 'Comparing functions' : FUNCTION_FAMILY_LABELS[spec.type]}
     >
       <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.features} steps={MODE_STEPS[mode] || MODE_STEPS.features} />

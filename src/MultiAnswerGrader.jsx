@@ -3,9 +3,60 @@ import MathInput from './MathInput';
 import MathDisplay from './MathDisplay';
 import QuestionPrompt from './QuestionPrompt';
 import QuestionVisual from './QuestionVisual';
-import { matchesAnyAnswer } from './answerUtils';
+import { looksLikeFiniteSetNotation, matchesAnyAnswer } from './answerUtils';
 import { resolveLabelFormat } from './labelFormat';
 import useUndoHistory from './useUndoHistory';
+
+const TEXTUAL_MATH_SIGNAL = /[=<>≤≥≠+*/^()[\]{}\\∞π√∪∩]/;
+
+const looksLikePlainLanguageAnswer = (value) => {
+  const text = String(value ?? '').trim();
+  if (!text || TEXTUAL_MATH_SIGNAL.test(text)) return false;
+  // A bare number is mathematical. Words (including phrases such as
+  // "39 buses") are language responses and should not be entered in a
+  // math field.
+  return /[A-Za-z]/.test(text);
+};
+
+
+const acceptedAnswersForField = (field) => (
+  Array.isArray(field?.acceptedAnswers) && field.acceptedAnswers.length
+    ? field.acceptedAnswers
+    : field?.answer !== undefined
+      ? [field.answer]
+      : []
+);
+
+const shouldUseSetInput = (field) => {
+  if (field?.type === 'set' || field?.notation === 'set' || field?.inputMode === 'set') return true;
+  return acceptedAnswersForField(field).some((value) => looksLikeFiniteSetNotation(value));
+};
+
+
+const inferredBinaryOptions = (field) => {
+  const label = String(field?.label || field?.prompt || '').toLowerCase();
+  const answer = String(field?.answer ?? field?.acceptedAnswers?.[0] ?? '').trim().toLowerCase();
+  const patterns = [
+    { options: ['yes', 'no'], pattern: /yes\s*(?:\/|or)\s*no|no\s*(?:\/|or)\s*yes/ },
+    { options: ['true', 'false'], pattern: /true\s*(?:\/|or)\s*false|false\s*(?:\/|or)\s*true/ },
+    { options: ['discrete', 'continuous'], pattern: /discrete\s*(?:\/|or)\s*continuous|continuous\s*(?:\/|or)\s*discrete/ },
+    { options: ['finite', 'infinite'], pattern: /finite\s*(?:\/|or)\s*infinite|infinite\s*(?:\/|or)\s*finite/ },
+  ];
+  const match = patterns.find((entry) => entry.pattern.test(label) && entry.options.includes(answer));
+  return match?.options || null;
+};
+
+const choiceOptionsForField = (field) => {
+  if (Array.isArray(field?.options) && field.options.length) return field.options;
+  return inferredBinaryOptions(field);
+};
+
+const shouldUsePlainTextInput = (field) => {
+  if (field?.type === 'text' || field?.inputMode === 'text') return true;
+  if (field?.type === 'math' || field?.inputMode === 'math') return false;
+  const accepted = acceptedAnswersForField(field);
+  return accepted.length > 0 && accepted.every(looksLikePlainLanguageAnswer);
+};
 
 export default function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
   const { prompt, answerFields = [] } = question;
@@ -43,12 +94,13 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
 
   return (
     <div>
-      <h2 style={{ color: '#202124', marginTop: 0 }}>Multiple-Part Question</h2>
+      <h2 style={{ color: '#202124', marginTop: 0 }}>{question.heading || 'Complete Each Part'}</h2>
       <QuestionPrompt>{prompt || 'Enter an answer for every part.'}</QuestionPrompt>
       <QuestionVisual question={question} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '24px' }}>
         {safeFields.map((field) => {
           const grade = feedback?.partGrades?.find((part) => part.id === field.id);
+          const choiceOptions = choiceOptionsForField(field);
           return (
             <div key={field.id} style={{ padding: '16px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : '#dfe3e7'}`, borderRadius: '10px', background: grade && !grade.isCorrect ? '#fff8f7' : '#fbfcfe' }}>
               <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', color: '#3c4043' }}>
@@ -61,7 +113,41 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                   return format ? <MathDisplay value={text} format={format} inline /> : text;
                 })()}
               </label>
-              <MathInput value={answers[field.id] || ''} onChange={(value) => history.setValue((current) => ({ ...current, [field.id]: value }))} placeholder={field.placeholder || 'answer'} ariaLabel={field.label || field.id} toolProfile={field.toolProfile || 'basic'} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
+              {choiceOptions ? (
+                <select
+                  value={answers[field.id] || ''}
+                  onChange={(event) => history.setValue((current) => ({ ...current, [field.id]: event.target.value }))}
+                  aria-label={field.label || field.id}
+                  style={{ width: '100%', minHeight: '46px', padding: '10px 12px', borderRadius: '8px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : '#bdc7d6'}`, background: '#fff', fontSize: '16px' }}
+                >
+                  <option value="">Choose…</option>
+                  {choiceOptions.map((option) => <option key={String(option)} value={String(option)}>{String(option)}</option>)}
+                </select>
+              ) : shouldUsePlainTextInput(field) ? (
+                <input
+                  type="text"
+                  value={answers[field.id] || ''}
+                  onChange={(event) => history.setValue((current) => ({ ...current, [field.id]: event.target.value }))}
+                  placeholder={field.placeholder || 'Type your answer'}
+                  aria-label={field.label || field.id}
+                  autoComplete="off"
+                  spellCheck={false}
+                  style={{
+                    width: '100%',
+                    minHeight: '54px',
+                    padding: '12px 14px',
+                    boxSizing: 'border-box',
+                    borderRadius: '8px',
+                    border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : '#1a73e8'}`,
+                    background: grade && !grade.isCorrect ? '#fff8f7' : grade?.isCorrect ? '#f4fbf5' : '#fff',
+                    color: '#202124',
+                    fontSize: '18px',
+                    fontFamily: 'inherit',
+                  }}
+                />
+              ) : (
+                <MathInput value={answers[field.id] || ''} onChange={(value) => history.setValue((current) => ({ ...current, [field.id]: value }))} placeholder={field.placeholder || (shouldUseSetInput(field) ? '{…}' : 'answer')} ariaLabel={field.label || field.id} toolProfile={field.toolProfile || (shouldUseSetInput(field) ? 'set' : 'basic')} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
+              )}
             </div>
           );
         })}

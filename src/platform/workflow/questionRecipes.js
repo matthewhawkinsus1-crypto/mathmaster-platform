@@ -20,14 +20,20 @@
 // Pure: builds JSON, renders nothing, grades nothing.
 
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
-const list = (value) => (Array.isArray(value) ? value.filter(Boolean) : []);
+const list = (value) => (Array.isArray(value) ? value.filter((item) => item !== undefined && item !== null && item !== '') : []);
 
 const uniqueSorted = (values) => [...new Set(values)].sort((a, b) => a - b);
+const normalizePair = (pair) => {
+  const x = Number(Array.isArray(pair) ? pair[0] : pair?.x);
+  const y = Number(Array.isArray(pair) ? pair[1] : pair?.y);
+  return Number.isFinite(x) && Number.isFinite(y) ? [x, y] : null;
+};
+const normalizedPairs = (pairs = []) => list(pairs).map(normalizePair).filter(Boolean);
 
 /** A relation is a function unless one input is sent to two different outputs. */
 export const relationIsFunction = (pairs = []) => {
   const seen = new Map();
-  return list(pairs).every(([x, y]) => {
+  return normalizedPairs(pairs).every(([x, y]) => {
     if (!seen.has(x)) { seen.set(x, y); return true; }
     return seen.get(x) === y;
   });
@@ -66,7 +72,12 @@ const FUNCTION_MODELING = {
       graphMode: question.graphMode || (question.continuity === 'discrete' ? 'discrete' : 'continuous'),
       prompt: question.graphPrompt || 'Build the graph of the relationship.',
       ...(isObject(question.graph) ? { graph: question.graph } : {}),
-      ...(asked.has('table') ? { source: { fromStage: 'table' } } : {}),
+      // Prefer the table because it contains the student's plotted values AND
+      // carries lineage back to the equation. If there is no table, graph the
+      // student's equation directly. Nothing here falls back to the answer key.
+      ...(asked.has('table')
+        ? { source: { fromStage: 'table' } }
+        : (asked.has('equation') ? { source: { fromStage: 'equation' } } : {})),
     }),
     domain: (question) => ({
       id: 'domain',
@@ -106,6 +117,10 @@ const FUNCTION_MODELING = {
     if (asked.has('table')) {
       if (asked.has('equation')) rules.table = { consistentWith: 'equation' };
       else if (isObject(question.tableAnswers)) rules.table = { values: question.tableAnswers };
+    }
+    if (asked.has('graph')) {
+      if (asked.has('table')) rules.graph = { consistentWith: 'table', useStageVerdict: true };
+      else if (asked.has('equation')) rules.graph = { consistentWith: 'equation', useStageVerdict: true };
     }
     if (asked.has('continuity') && question.continuity) rules.continuity = question.continuity;
     if (asked.has('domain') && question.correctDomain) rules.domain = question.correctDomain;
@@ -158,7 +173,7 @@ const RELATION_REPRESENTATIONS = {
   // the pairs rather than opinions. Deriving them is honest; the alternative is
   // asking the question and marking nothing.
   grading: (question, asked) => {
-    const pairs = list(question.pairs);
+    const pairs = normalizedPairs(question.pairs);
     if (!pairs.length) return {};
     const rules = {};
     if (asked.has('mapping')) rules.mapping = { pairs };

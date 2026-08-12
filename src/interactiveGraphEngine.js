@@ -38,6 +38,18 @@ export const buildInteractivePointTasks = (spec, options = {}) => {
       expected: studentChoosesX ? null : point.map((value) => round(value)),
       studentChoosesX,
     }));
+  } else if (spec.type === 'expression') {
+    // A workflow-generated model has no privileged vertex/center. The table
+    // points are the student's own evidence, so present every one neutrally.
+    suggested.slice(0, 5).forEach((point, index) => tasks.push({
+      id: `point-${index + 1}`,
+      label: `P${index + 1}`,
+      role: 'point',
+      x: round(point[0]),
+      expected: point.map((value) => round(value)),
+      lockedX: true,
+      studentChoosesX: false,
+    }));
   } else {
     reorderWithKeyInMiddle(suggested, keyPoint).forEach((point, index) => {
       const isKey = index === 2 || pointDistance(point, keyPoint) < 1e-5;

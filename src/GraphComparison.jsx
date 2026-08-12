@@ -7,6 +7,7 @@ import { matchesAcceptedText, matchesConceptGroups, stableStringify } from './sc
 export default function GraphComparison({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
   const graphs = useMemo(() => (Array.isArray(question.graphs) ? question.graphs.filter((item) => item?.graph) : []), [question.graphs]);
   const fields = useMemo(() => (Array.isArray(question.fields) ? question.fields.filter((item) => item?.id) : []), [question.fields]);
+  const graphLabelById = useMemo(() => Object.fromEntries(graphs.map((item, index) => [String(item.id || ''), item.label || `Graph ${index + 1}`])), [graphs]);
   const history = useUndoHistory({}, 80, draftKey ? `${draftKey}:graph-comparison` : null);
   const responses = history.value;
 
@@ -55,7 +56,7 @@ export default function GraphComparison({ question, onStateChange, onUndoStateCh
               {field.type === 'choice' ? (
                 <select value={responses[field.id] || ''} onChange={(event) => update(field.id, event.target.value)} style={{ display: 'block', width: '100%', marginTop: '8px', padding: '10px', borderRadius: '7px', border: '1px solid #bdc7d6', fontSize: '16px' }}>
                   <option value="">Choose an answer</option>
-                  {(field.options || []).map((option) => <option key={String(option.value ?? option)} value={String(option.value ?? option)}>{String(option.label ?? option)}</option>)}
+                  {(field.options || []).map((option) => { const value = String(option?.value ?? option); const label = String(option?.label ?? graphLabelById[value] ?? option); return <option key={value} value={value}>{label}</option>; })}
                 </select>
               ) : (
                 <textarea value={responses[field.id] || ''} onChange={(event) => update(field.id, event.target.value)} placeholder={field.placeholder || 'Write a complete mathematical comparison.'} style={{ display: 'block', width: '100%', minHeight: '95px', marginTop: '8px', padding: '11px', boxSizing: 'border-box', borderRadius: '7px', border: '1px solid #bdc7d6', font: 'inherit' }} />

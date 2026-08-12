@@ -6,7 +6,7 @@ import {
 } from '../../src/tools/intervalNumberLine/intervalMath.js';
 import { validateQuestionSemantics } from '../../src/platform/contract/semanticValidation.js';
 import { QUESTION_TYPE_CATALOG } from '../../src/platform/contract/questionTypeCatalog.js';
-import { buildAuthoringContract } from '../../src/platform/contract/authoringContract.js';
+import { buildAdvancedAuthoringContract } from '../../src/platform/contract/authoringContract.js';
 import { TOOL_CATALOG } from '../../src/tools/toolCatalog.js';
 
 // ---------------------------------------------------------------------------
@@ -108,7 +108,7 @@ test('the contract now shows the ray/union form', () => {
   assert.equal(entry.unboundedExample.intervals[0].min, null);
   assert.ok(entry.notes.some((note) => /display bounds only/i.test(note)));
 
-  const contract = buildAuthoringContract();
+  const contract = buildAdvancedAuthoringContract();
   assert.match(contract, /Watch out/);
   assert.match(contract, /rays and unions/i);
 });

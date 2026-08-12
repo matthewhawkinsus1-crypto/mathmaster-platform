@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { readFile } from 'node:fs/promises';
 
 import { toCanonicalKey, toDisplayCode, sameTeks } from '../../src/utils/teksUtils.js';
 import { getAllAlgebraOneWheelTeks, getStrandForTEKS } from '../../src/platform/mastery/strandConfig.js';
@@ -109,11 +110,15 @@ test('Phase 5D sanitizer strips grading answers while preserving renderable fiel
   assert.equal(safe.prompt, authored.prompt);
 });
 
-test('Phase 5D server grader handles numeric tolerance and partial multi-field credit', () => {
+// `gradeResponse` is async: scalar equivalence lives in a shared ESM module that
+// this CommonJS bridge loads lazily. Calling it without awaiting returns a
+// promise whose `.isCorrect` is undefined — falsy, so the caller silently marks
+// correct work wrong. Two production call sites did exactly that.
+test('Phase 5D server grader handles numeric tolerance and partial multi-field credit', async () => {
   const authored = { responseFields: [{ id: 'x', expected: 4, numericTolerance: 0.01 }, { id: 'label', expected: 'meters' }] };
   const grading = mathPath.privateGradingDefinition(authored);
-  const partial = mathPath.gradeResponse(grading, { responses: { x: '4.005', label: 'feet' } });
-  const correct = mathPath.gradeResponse(grading, { responses: { x: 4, label: 'METERS' } });
+  const partial = await mathPath.gradeResponse(grading, { responses: { x: '4.005', label: 'feet' } });
+  const correct = await mathPath.gradeResponse(grading, { responses: { x: 4, label: 'METERS' } });
   assert.equal(partial.isCorrect, false);
   assert.equal(partial.score, 0.5);
   assert.equal(correct.isCorrect, true);
@@ -121,4 +126,27 @@ test('Phase 5D server grader handles numeric tolerance and partial multi-field c
 
 test('Phase 5D runtime UUIDs are not stable IDs reused across submissions', () => {
   assert.notEqual(generateRuntimeUUID(), generateRuntimeUUID());
+});
+
+test('every server call into the async graders is awaited', async () => {
+  // The defect this catches shipped: `gradeResponse` became async, two call
+  // sites in the secure-exam path kept calling it synchronously, and
+  // `grading.isCorrect` read undefined off the promise. Every answer would have
+  // been marked wrong and an undefined score written to the session.
+  //
+  // Checked against the source rather than by exercising the callables, because
+  // the callables need Firestore and this is a syntactic mistake.
+  const source = await readFile(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const ASYNC_BRIDGES = ['gradeResponse', 'gradePathToolResponse', 'buildIssuePlan'];
+  const unawaited = [];
+  ASYNC_BRIDGES.forEach((name) => {
+    const pattern = new RegExp(`(\\w+\\s+)?mathPath\\.${name}\\(`, 'g');
+    source.split('\n').forEach((line, index) => {
+      if (!new RegExp(`mathPath\\.${name}\\(`).test(line)) return;
+      if (/await\s+mathPath\./.test(line)) return;
+      unawaited.push(`functions/index.js:${index + 1} — ${line.trim().slice(0, 100)}`);
+    });
+    pattern.lastIndex = 0;
+  });
+  assert.deepEqual(unawaited, [], `these read a promise instead of a verdict:\n${unawaited.join('\n')}`);
 });

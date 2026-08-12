@@ -1,0 +1,317 @@
+{
+  "schemaVersion": 1,
+  "targetCollection": "pathQuestionBank",
+  "courseId": "grade7",
+  "documents": [
+    {
+      "id": "seed_7_7_1",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.7"
+      ],
+      "courseId": "grade7",
+      "familyId": "path-seed:7.7:foundation",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.7",
+      "prompt": "A linear relationship follows y = 2x + 1. Which ordered pair lies on the relationship?\n\nA) (3, 7)\nB) (3, 9)\nC) (4, 7)\nD) (3, -7)\n\nType A, B, C, or D.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "A"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 1,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_7_7_2",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.7"
+      ],
+      "courseId": "grade7",
+      "familyId": "path-seed:7.7:core",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.7",
+      "prompt": "A linear relationship follows y = -3x + 8. Which ordered pair lies on the relationship?\n\nA) (4, -4)\nB) (4, -2)\nC) (5, -4)\nD) (4, 4)\n\nType A, B, C, or D.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "A"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 2,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_7_7_3",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.7"
+      ],
+      "courseId": "grade7",
+      "familyId": "path-seed:7.7:representation",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.7",
+      "prompt": "A linear relationship follows y = 4x - 5. Which ordered pair lies on the relationship?\n\nA) (5, 15)\nB) (5, 17)\nC) (6, 15)\nD) (5, -15)\n\nType A, B, C, or D.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "A"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 3,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_7_7_4",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.7"
+      ],
+      "courseId": "grade7",
+      "familyId": "path-seed:7.7:application",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.7",
+      "prompt": "A linear relationship follows y = -2x + 3. Which ordered pair lies on the relationship?\n\nA) (6, -9)\nB) (6, -7)\nC) (7, -9)\nD) (6, 9)\n\nType A, B, C, or D.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "A"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 4,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_7_7_5",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.7"
+      ],
+      "courseId": "grade7",
+      "familyId": "path-seed:7.7:challenge",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 5,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.7",
+      "prompt": "A linear relationship follows y = 5x - 7. Which ordered pair lies on the relationship?\n\nA) (7, 28)\nB) (7, 30)\nC) (8, 28)\nD) (7, -28)\n\nType A, B, C, or D.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "A"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 5,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_7_11A_1",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.11A"
+      ],
+      "courseId": "grade7",
+      "familyId": "path-seed:7.11A:foundation",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.11A",
+      "prompt": "Solve the two-step equation 3x + 5 = 17.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "4"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 1,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_7_11A_2",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.11A"
+      ],
+      "courseId": "grade7",
+      "familyId": "path-seed:7.11A:core",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.11A",
+      "prompt": "Solve the two-step equation 4x - 3 = -11.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "-2"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 2,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_7_11A_3",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.11A"
+      ],
+      "courseId": "grade7",
+      "familyId": "path-seed:7.11A:representation",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.11A",
+      "prompt": "Solve the two-step equation 5x + 7 = 22.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "3"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 3,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_7_11A_4",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.11A"
+      ],
+      "courseId": "grade7",
+      "familyId": "path-seed:7.11A:application",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.11A",
+      "prompt": "Solve the two-step equation 2x + 9 = 19.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "5"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 4,
+        "reviewRequiredForHighStakesUse": true
+      }
+    },
+    {
+      "id": "seed_7_11A_5",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.11A"
+      ],
+      "courseId": "grade7",
+      "familyId": "path-seed:7.11A:challenge",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 5,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.11A",
+      "prompt": "Solve the two-step equation 6x - 4 = 8.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "text",
+          "expected": "2"
+        }
+      ],
+      "seedMetadata": {
+        "source": "MathMaster curated starter coverage",
+        "coverageTier": "minimum-operational",
+        "familySlot": 5,
+        "reviewRequiredForHighStakesUse": true
+      }
+    }
+  ]
+}

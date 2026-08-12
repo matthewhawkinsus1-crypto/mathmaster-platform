@@ -297,7 +297,7 @@ export const LessonPreflightModal = ({
 
       <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
         <label style={labelStyle}>Assignment type<select value={draft.assignmentType} onChange={(event) => setField('assignmentType', event.target.value)} style={inputStyle}><option value="practice">Practice / Homework</option><option value="notesClasswork">Guided Notes / Classwork</option></select></label>
-        <label style={labelStyle}>Problem versions<select value={draft.variantMode} onChange={(event) => setField('variantMode', event.target.value)} style={inputStyle}><option value="shared">Shared exact version</option><option value="personalized">Different stable version per student</option></select></label>
+        <label style={labelStyle}>Problem versions<select value={draft.variantMode} onChange={(event) => setField('variantMode', event.target.value)} style={inputStyle}><option value="shared">Shared exact version</option><option value="personalized">Personalize where possible (fixed visuals stay shared)</option></select></label>
       </div>
 
       {draft.assignmentType === 'practice' && (

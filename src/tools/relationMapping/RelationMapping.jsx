@@ -114,7 +114,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
 
   if (!pairs.length) {
     return (
-      <ToolShell title="Mapping Diagram" subtitle="Represent a relation as a mapping between two sets." badge="Relations">
+      <ToolShell title="Build the Mapping Diagram" subtitle="Represent a relation as a mapping between two sets." badge="Relations">
         <Panel title="Nothing to map">
           <p style={{ margin: 0, color: '#5f6b7a' }}>This question has no ordered pairs to map. Let your teacher know.</p>
         </Panel>
@@ -124,7 +124,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
 
   return (
     <ToolShell
-      title="Mapping Diagram"
+      title="Build the Mapping Diagram"
       subtitle="A relation drawn as two sets with arrows between them — the clearest way to see whether it is a function."
       badge="Relations and functions"
     >

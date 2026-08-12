@@ -7,3 +7,12 @@ dist
 firebase-debug.log
 firestore-debug.log
 ui-debug.log
+
+# Project snapshots. Uploading a whole-project zip into the repo adds megabytes
+# to every clone forever, and invites someone to unpack it over the working
+# tree — which silently reverts whatever landed after the zip was cut. Hand
+# packages to the coding session directly instead.
+*.zip
+
+# One-off analysis scripts belong in a scratch directory, not at the repo root.
+check_module1.mjs

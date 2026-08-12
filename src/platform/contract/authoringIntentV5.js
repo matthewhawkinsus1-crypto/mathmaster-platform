@@ -1,0 +1,698 @@
+import { looksLikeFiniteSetNotation } from '../../../functions/shared/answerEquivalence.mjs';
+
+const asArray = (value) => Array.isArray(value) ? value : value == null ? [] : [value];
+const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
+const clean = (value) => String(value ?? '').trim();
+const normalizeToken = (value) => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, '');
+const ACTION_ALIASES = Object.freeze({
+  solve: 'solveEquation', solveequation: 'solveEquation', answernumeric: 'solveEquation',
+  solvebysteps: 'solveStepByStep', solvestepbystep: 'solveStepByStep', showsteps: 'solveStepByStep',
+  fractionanswer: 'fractionAnswer', simplifyfraction: 'fractionAnswer',
+  choosenumberline: 'chooseNumberLine', selectnumberline: 'chooseNumberLine',
+  constructnumberline: 'constructInterval', graphinequality: 'constructInterval', constructinterval: 'constructInterval',
+  writeinterval: 'writeInterval', intervalnotation: 'writeInterval',
+  readgraph: 'readGraph', constructgraph: 'constructGraph', graphfunction: 'constructGraph',
+  investigatefunction: 'investigateFunction', analyzegraph: 'analyzeGraph',
+  analyzedomain: 'analyzeDomain', statedomain: 'stateDomain', domain: 'analyzeDomain',
+  analyzerange: 'analyzeRange', staterange: 'stateRange', range: 'analyzeRange',
+  analyzeincreasing: 'analyzeIncreasing', increasing: 'analyzeIncreasing',
+  analyzedecreasing: 'analyzeDecreasing', decreasing: 'analyzeDecreasing',
+  analyzeconstant: 'analyzeConstant', constant: 'analyzeConstant',
+  analyzepositive: 'analyzePositive', positive: 'analyzePositive',
+  analyzenegative: 'analyzeNegative', negative: 'analyzeNegative',
+  findvertex: 'findVertex', vertex: 'findVertex', findxintercepts: 'findXIntercepts', xintercepts: 'findXIntercepts',
+  findyintercept: 'findYIntercept', yintercept: 'findYIntercept', findmaximum: 'findMaximum', findminimum: 'findMinimum',
+  solveforvariable: 'solveLiteral', solveliteral: 'solveLiteral',
+  solvesystem: 'solveSystem', graphsystem: 'graphSystem', solveinequalitysystem: 'solveInequalitySystem', rowreduce: 'rowReduce',
+  completetable: 'completeTable', readtable: 'readTable',
+  orderedpair: 'stateOrderedPair', stateorderedpair: 'stateOrderedPair',
+  multipleanswers: 'multipleResponses', multipleresponses: 'multipleResponses',
+  identifyquantities: 'identifyQuantities', identifyvariables: 'identifyQuantities', writeequation: 'writeEquation',
+  classifycontinuity: 'classifyContinuity', classifyrelationship: 'classifyContinuity',
+  matchgraphstostories: 'matchGraphsToStories', matchscenarios: 'matchGraphsToStories', comparegraphs: 'compareGraphs',
+  writegraphstory: 'writeGraphStory', interpretpoint: 'interpretPointInContext', interpretpointincontext: 'interpretPointInContext',
+  buildmapping: 'buildMapping', plotrelation: 'plotRelation', classifyfunction: 'classifyFunction', statefunctionstatus: 'classifyFunction',
+  analyzesequence: 'analyzeSequence', classifysequence: 'analyzeSequence', findterm: 'findSequenceTerm',
+  findsequenceterm: 'findSequenceTerm', findmissingterm: 'findMissingTerm', writerrecursive: 'writeRecursive',
+  writerecursive: 'writeRecursive', writeexplicit: 'writeExplicit', comparesequences: 'compareSequences', partialsum: 'partialSum',
+  connectrepresentations: 'connectRepresentations', matchrepresentation: 'connectRepresentations', findmismatch: 'findRepresentationMismatch',
+  fitline: 'fitDataModel', fitmodel: 'fitDataModel', analyzedata: 'analyzeData', predictfrommodel: 'predictFromModel',
+  inverse: 'findInverse', findinverse: 'findInverse', composition: 'composeFunctions', composefunctions: 'composeFunctions',
+  parabolageometry: 'analyzeParabolaGeometry', focusdirectrix: 'analyzeParabolaGeometry',
+  factorpolynomial: 'factorPolynomial', dividepolynomial: 'dividePolynomial', multiplypolynomials: 'multiplyPolynomials',
+  solveinequality: 'solveInequality', signchart: 'solveInequality',
+  complexoperations: 'complexOperations', complexplane: 'analyzeComplex',
+  exponentiallog: 'exponentialLogBridge', solveexponential: 'solveExponential', solvelogarithmic: 'solveLogarithmic',
+  transformfunction: 'analyzeTransformations', analyzetransformations: 'analyzeTransformations',
+  graphline: 'constructLine', constructline: 'constructLine',
+  interactivealgebra: 'stepAlgebra2', modelinglab: 'modelingLab',
+});
+
+const normalizeActions = (question = {}) => {
+  const source = asArray(question.studentActions || question.actions || question.studentAction);
+  const actions = source.map((entry) => ACTION_ALIASES[normalizeToken(entry)] || clean(entry)).filter(Boolean);
+  return [...new Set(actions)];
+};
+
+const copyCommon = (source, target = {}) => {
+  ['prompt','activityRole','dok','difficultyBand','calculator','assessmentContext','context','familyId','assessedConstruct'].forEach((key) => {
+    if (source[key] != null) target[key] = source[key];
+  });
+  if (source.standard) target.standard = source.standard;
+  if (source.primaryStandard) target.primaryStandard = source.primaryStandard;
+  if (source.secondaryStandards) target.secondaryStandards = source.secondaryStandards;
+  if (source.prerequisiteStandards) target.prerequisiteStandards = source.prerequisiteStandards;
+  if (source.alignments) target.alignments = source.alignments;
+  return target;
+};
+
+const answerOf = (q) => q.answer ?? q.expectedAnswer ?? q.response?.answer ?? q.answerModel?.answer;
+const acceptedOf = (q) => q.acceptedAnswers ?? q.response?.acceptedAnswers ?? q.answerModel?.acceptedAnswers;
+
+const coreFunctionSpec = (raw = {}) => {
+  const f = isObject(raw) ? raw : {};
+  const family = clean(f.family || f.type || 'linear');
+  const type = family === 'line' ? 'linear' : family;
+  if (type === 'linear') {
+    const m = Number(f.m ?? f.slope ?? f.a ?? 1);
+    const b = Number(f.b ?? f.intercept ?? f.k ?? 0);
+    return { type: 'linear', m, b, ...(f.domain ? { domain: f.domain } : {}) };
+  }
+  const out = { type };
+  ['a','h','k','base','p','orientation'].forEach((key) => { if (f[key] != null) out[key] = f[key]; });
+  if (f.domain) out.domain = f.domain;
+  return out;
+};
+
+const functionSpecFromIntentQuestion = (q = {}) => {
+  const core = coreFunctionSpec(q.function || q.functionSpec || {});
+  // V5 authors describe mathematics, not renderer storage. If they place a
+  // structured domain beside the function rather than nesting it inside the
+  // function, that is still enough mathematical intent for MathMaster to
+  // restrict the graph. String domain answers remain grading content and are
+  // never mistaken for a graph restriction.
+  if (!core.domain && isObject(q.domain) && ('min' in q.domain || 'max' in q.domain)) {
+    core.domain = q.domain;
+  }
+  return core;
+};
+
+const toolFunctionSpec = (raw = {}) => {
+  const core = coreFunctionSpec(raw);
+  if (core.type !== 'linear') return core;
+  return { type: 'linear', a: core.m, h: 0, k: core.b, ...(core.domain ? { domain: core.domain } : {}) };
+};
+
+const staticFunctionSpec = (raw = {}) => {
+  const core = coreFunctionSpec(raw);
+  if (core.type === 'linear') return { type: 'line', m: core.m, b: core.b };
+  return core;
+};
+
+const graphFromIntent = (q = {}) => {
+  if (isObject(q.graph)) return q.graph;
+  if (isObject(q.visual?.graph)) return q.visual.graph;
+  if (isObject(q.function) || isObject(q.functionSpec)) {
+    return { functions: [staticFunctionSpec(q.function || q.functionSpec)] };
+  }
+  return undefined;
+};
+
+const analysisRequestsFromActions = (actions, q = {}) => {
+  if ((!Array.isArray(actions) || actions.length === 0) && Array.isArray(q.analysisRequests) && q.analysisRequests.length) return q.analysisRequests;
+  const notation = q.notation || q.response?.notation || 'interval';
+  const map = [
+    ['analyzeDomain','domain'], ['stateDomain','domain'], ['analyzeRange','range'], ['stateRange','range'],
+    ['analyzeIncreasing','increasing'], ['analyzeDecreasing','decreasing'], ['analyzeConstant','constant'],
+    ['analyzePositive','positive'], ['analyzeNegative','negative'],
+  ];
+  const requests = [];
+  map.forEach(([action, kind]) => { if (actions.includes(action) && !requests.some((r) => r.kind === kind)) requests.push({ id: kind, kind, notation }); });
+  const points = [
+    ['findVertex','vertex','vertex'], ['findXIntercepts','xIntercepts','x-intercepts'], ['findYIntercept','yIntercept','y-intercept'],
+    ['findMaximum','localMaximum','maximum'], ['findMinimum','localMinimum','minimum'],
+  ];
+  points.forEach(([action, feature, id]) => { if (actions.includes(action)) requests.push({ id, kind: 'point', feature }); });
+  return requests;
+};
+
+
+const inferBinaryChoiceOptions = (field = {}) => {
+  const label = clean(field.label || field.prompt).toLowerCase();
+  const answer = clean(field.answer ?? field.acceptedAnswers?.[0]).toLowerCase();
+  const patterns = [
+    { options: ['yes', 'no'], pattern: /yes\s*(?:\/|or)\s*no|no\s*(?:\/|or)\s*yes/ },
+    { options: ['true', 'false'], pattern: /true\s*(?:\/|or)\s*false|false\s*(?:\/|or)\s*true/ },
+    { options: ['discrete', 'continuous'], pattern: /discrete\s*(?:\/|or)\s*continuous|continuous\s*(?:\/|or)\s*discrete/ },
+    { options: ['finite', 'infinite'], pattern: /finite\s*(?:\/|or)\s*infinite|infinite\s*(?:\/|or)\s*finite/ },
+  ];
+  return patterns.find((entry) => entry.pattern.test(label) && entry.options.includes(answer))?.options || null;
+};
+
+const fieldFromIntent = (field, index) => {
+  if (!isObject(field)) return field;
+  const out = { ...field };
+  out.id = out.id || `part-${index + 1}`;
+  out.label = out.label || out.prompt || `Part ${index + 1}`;
+  if (out.accepted != null && out.acceptedAnswers == null) out.acceptedAnswers = asArray(out.accepted);
+  if (out.expected != null && out.answer == null) out.answer = out.expected;
+  if (Array.isArray(out.options) && !out.type) out.type = 'choice';
+  if (!out.type) {
+    const inferredOptions = inferBinaryChoiceOptions(out);
+    if (inferredOptions) {
+      out.type = 'choice';
+      out.options = inferredOptions;
+    }
+  }
+  if (out.kind === 'text' && !out.type) out.type = 'text';
+  if (!out.type) {
+    const accepted = Array.isArray(out.acceptedAnswers) && out.acceptedAnswers.length
+      ? out.acceptedAnswers
+      : out.answer !== undefined
+        ? [out.answer]
+        : [];
+    if (accepted.some((value) => looksLikeFiniteSetNotation(value))) {
+      out.type = 'set';
+      out.toolProfile = out.toolProfile || 'set';
+    }
+  }
+  delete out.expected;
+  delete out.accepted;
+  delete out.prompt;
+  delete out.kind;
+  return out;
+};
+
+const normalizeGraphChoices = (choices = []) => asArray(choices).map((item, index) => {
+  if (!isObject(item)) return item;
+  const id = item.id || `g${index + 1}`;
+  if (item.graph) return { ...item, id };
+  if (item.function || item.functionSpec) return { id, label: item.label, graph: { functions: [staticFunctionSpec(item.function || item.functionSpec)] } };
+  return { ...item, id };
+});
+
+
+const responseById = (q = {}, id = '') => asArray(q.responses || q.answerFields || q.response?.fields)
+  .find((field) => isObject(field) && clean(field.id) === id);
+
+const responseExpected = (q = {}, id = '') => {
+  const field = responseById(q, id);
+  if (!field) return undefined;
+  if (Array.isArray(field.acceptedAnswers) && field.acceptedAnswers.length) return field.acceptedAnswers;
+  return field.answer ?? field.expected;
+};
+
+const normalizeIntentTable = (table = {}) => {
+  if (!isObject(table)) return null;
+  const rawColumns = asArray(table.columns);
+  const columns = rawColumns.map((column, index) => {
+    if (isObject(column)) {
+      const key = clean(column.key || column.id) || (index === 0 ? 'x' : index === 1 ? 'y' : `c${index + 1}`);
+      return { ...column, key, label: column.label || column.name || key };
+    }
+    const label = clean(column) || (index === 0 ? 'x' : index === 1 ? 'f(x)' : `Column ${index + 1}`);
+    return { key: index === 0 ? 'x' : index === 1 ? 'y' : `c${index + 1}`, label };
+  });
+  if (!columns.length) columns.push({ key: 'x', label: 'x' }, { key: 'y', label: 'f(x)' });
+  if (columns.length === 1) columns.push({ key: 'y', label: 'f(x)' });
+
+  const inputColumn = columns[0].key;
+  const responseColumn = columns[columns.length - 1].key;
+  const rows = asArray(table.rows);
+  const xValues = rows.map((row) => {
+    if (Array.isArray(row)) return row[0];
+    if (isObject(row)) return row[inputColumn];
+    return undefined;
+  }).filter((value) => value !== undefined && value !== null && value !== '');
+
+  const answers = {};
+  if (Array.isArray(table.answers)) {
+    table.answers.forEach((value, rowIndex) => {
+      if (value !== undefined && value !== null && value !== '') answers[`${rowIndex}:${responseColumn}`] = value;
+    });
+  } else if (isObject(table.answers)) {
+    Object.entries(table.answers).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') answers[key] = value;
+    });
+  }
+
+  return { columns, xValues, answers, inputColumn, responseColumn };
+};
+
+const evaluateIntentFunction = (spec = {}, xValue) => {
+  const x = Number(xValue);
+  if (!Number.isFinite(x)) return null;
+  const domain = isObject(spec.domain) ? spec.domain : {};
+  const min = Number(domain.min);
+  const max = Number(domain.max);
+  if (Number.isFinite(min)) {
+    const inclusive = domain.minInclusive !== false && domain.minClosed !== false;
+    if (inclusive ? x < min : x <= min) return null;
+  }
+  if (Number.isFinite(max)) {
+    const inclusive = domain.maxInclusive !== false && domain.maxClosed !== false;
+    if (inclusive ? x > max : x >= max) return null;
+  }
+
+  const type = spec.type || 'linear';
+  const a = Number(spec.a ?? 1);
+  const h = Number(spec.h ?? 0);
+  const k = Number(spec.k ?? 0);
+  const base = Number(spec.base ?? 2);
+  if (type === 'linear' || type === 'line') {
+    const m = Number(spec.m ?? spec.a ?? 1);
+    const b = Number(spec.b ?? spec.k ?? 0);
+    return m * x + b;
+  }
+  if (type === 'quadratic') return a * (x - h) ** 2 + k;
+  if (type === 'absolute') return a * Math.abs(x - h) + k;
+  if (type === 'cubic') return a * (x - h) ** 3 + k;
+  if (type === 'cubeRoot') return a * Math.cbrt(x - h) + k;
+  if (type === 'squareRoot') return x < h ? null : a * Math.sqrt(x - h) + k;
+  if (type === 'exponential') return a * base ** (x - h) + k;
+  if (type === 'logarithmic') return x <= h || base <= 0 || base === 1 ? null : a * (Math.log(x - h) / Math.log(base)) + k;
+  if (type === 'rational') return Math.abs(x - h) <= 1e-12 ? null : a / (x - h) + k;
+  return null;
+};
+
+const deriveTableAnswers = (functionSpec, tableInfo) => {
+  if (!isObject(functionSpec) || !tableInfo?.xValues?.length) return {};
+  const answers = {};
+  tableInfo.xValues.forEach((x, rowIndex) => {
+    const y = evaluateIntentFunction(functionSpec, x);
+    if (Number.isFinite(y)) answers[`${rowIndex}:${tableInfo.responseColumn}`] = Number(y.toFixed(10));
+  });
+  return answers;
+};
+
+const expectedContinuity = (q = {}) => clean(
+  q.continuity
+  ?? q.answerModel?.continuity
+  ?? responseExpected(q, 'continuity')
+  ?? q.relationshipType,
+).toLowerCase();
+
+const expectedDomain = (q = {}) => q.correctDomain ?? q.answerModel?.domain ?? responseExpected(q, 'domain');
+const expectedRange = (q = {}) => q.correctRange ?? q.answerModel?.range ?? responseExpected(q, 'range');
+const expectedEquation = (q = {}) => q.correctEquation ?? q.answerModel?.equation ?? responseExpected(q, 'equation');
+
+const functionWorkflowActions = new Set([
+  'writeEquation','completeTable','constructGraph','stateDomain','analyzeDomain','stateRange','analyzeRange','classifyContinuity',
+]);
+
+const shouldCompileFunctionWorkflow = (q = {}, actions = []) => {
+  if (!(isObject(q.function) || isObject(q.functionSpec) || isObject(q.table) || q.answerModel?.equation)) return false;
+  const present = actions.filter((action) => functionWorkflowActions.has(action));
+  if (present.length < 2) return false;
+  if (actions.includes('readGraph') && !actions.includes('constructGraph') && !actions.includes('completeTable') && !actions.includes('writeEquation')) return false;
+  return actions.includes('completeTable')
+    || actions.includes('writeEquation')
+    || (actions.includes('constructGraph') && present.some((action) => ['stateDomain','analyzeDomain','stateRange','analyzeRange','classifyContinuity'].includes(action)));
+};
+
+const latestStageSource = (workflow = [], preferredKinds = []) => {
+  for (let index = workflow.length - 1; index >= 0; index -= 1) {
+    if (!preferredKinds.length || preferredKinds.includes(workflow[index].kind)) return workflow[index].id;
+  }
+  return null;
+};
+
+const compileFunctionWorkflow = (q, actions) => {
+  const publicFunctionSpec = isObject(q.function) || isObject(q.functionSpec)
+    ? functionSpecFromIntentQuestion(q)
+    : null;
+  const tableInfo = normalizeIntentTable(q.table);
+  const continuity = expectedContinuity(q);
+  const graphMode = clean(q.graphMode || q.answerModel?.graphMode || continuity) || 'continuous';
+  const workflow = [];
+  const grading = {};
+
+  if (actions.includes('writeEquation')) {
+    workflow.push({ id: 'equation', kind: 'equationInput', prompt: q.equationPrompt || 'Write the equation or function rule.' });
+    const expected = expectedEquation(q);
+    if (expected !== undefined) grading.equation = expected;
+  }
+
+  if (actions.includes('completeTable')) {
+    const xValues = tableInfo?.xValues?.length
+      ? tableInfo.xValues
+      : asArray(q.tableXValues || q.answerModel?.tableXValues);
+    const columns = tableInfo?.columns?.length ? tableInfo.columns : [{ key: 'x', label: 'x' }, { key: 'y', label: 'f(x)' }];
+    const stage = {
+      id: 'table', kind: 'tableInput', prompt: q.tablePrompt || 'Complete the table of values.', xValues, columns,
+      inputColumn: tableInfo?.inputColumn || columns[0]?.key || 'x',
+      responseColumn: tableInfo?.responseColumn || columns[columns.length - 1]?.key || 'y',
+    };
+    if (actions.includes('writeEquation')) stage.source = { fromStage: 'equation' };
+    workflow.push(stage);
+
+    if (actions.includes('writeEquation')) {
+      grading.table = { consistentWith: 'equation' };
+    } else {
+      const authored = tableInfo?.answers || {};
+      const derived = publicFunctionSpec ? deriveTableAnswers(publicFunctionSpec, tableInfo || { xValues, responseColumn: stage.responseColumn }) : {};
+      const values = Object.keys(derived).length ? derived : authored;
+      if (Object.keys(values).length) grading.table = { values };
+    }
+  }
+
+  if (actions.includes('constructGraph')) {
+    const discrete = graphMode === 'discrete';
+    const stage = {
+      id: 'graph',
+      kind: discrete ? 'coordinatePlot' : 'functionGraph',
+      prompt: q.graphPrompt || (discrete ? 'Plot the points for the relation.' : 'Construct the graph of the function.'),
+      graphMode: discrete ? 'discrete' : 'continuous',
+      ...(isObject(q.graph) ? { graph: q.graph } : {}),
+    };
+    const source = latestStageSource(workflow, ['tableInput','equationInput']);
+    if (source) stage.source = { fromStage: source };
+    workflow.push(stage);
+    if (source) grading.graph = { consistentWith: source, useStageVerdict: true };
+  }
+
+  const addSetStage = (id, kind, prompt, expected, notation) => {
+    const stage = { id, kind, prompt, notation };
+    const source = latestStageSource(workflow, ['functionGraph','coordinatePlot','tableInput','equationInput']);
+    if (source) stage.source = { fromStage: source };
+    workflow.push(stage);
+    if (expected !== undefined) grading[id] = expected;
+  };
+
+  if (actions.some((action) => ['stateDomain','analyzeDomain'].includes(action))) {
+    addSetStage('domain', 'domainInput', q.domainPrompt || 'State the domain.', expectedDomain(q), q.notation || (continuity === 'discrete' ? 'set' : 'interval'));
+  }
+  if (actions.some((action) => ['stateRange','analyzeRange'].includes(action))) {
+    addSetStage('range', 'rangeInput', q.rangePrompt || 'State the range.', expectedRange(q), q.notation || (continuity === 'discrete' ? 'set' : 'interval'));
+  }
+  if (actions.includes('classifyContinuity')) {
+    const stage = { id: 'continuity', kind: 'classification', prompt: q.continuityPrompt || 'Is the relationship discrete or continuous?', choices: ['discrete','continuous'] };
+    const source = latestStageSource(workflow, ['functionGraph','coordinatePlot','tableInput']);
+    if (source) stage.source = { fromStage: source };
+    workflow.push(stage);
+    if (continuity) grading.continuity = continuity;
+  }
+
+  const type = actions.includes('constructGraph') ? 'functionGraph' : actions.includes('completeTable') ? 'table' : 'multiAnswer';
+  const fixedTableAnswers = isObject(grading.table?.values) ? grading.table.values : null;
+  const out = copyCommon(q, {
+    type,
+    workflow,
+    grading,
+    ...(publicFunctionSpec && !actions.includes('writeEquation') ? { functionSpec: publicFunctionSpec } : {}),
+    ...(isObject(q.graph) ? { graph: q.graph } : {}),
+    ...(fixedTableAnswers && Object.keys(fixedTableAnswers).length ? { tableAnswers: fixedTableAnswers } : {}),
+  });
+  return out;
+};
+
+const compileRelationshipModel = (q, actions) => {
+  const relationship = q.relationship || q.model || {};
+  const quantities = q.quantities || relationship.quantities;
+  const out = copyCommon(q, {
+    type: 'relationshipModel',
+    scenario: q.scenario || relationship.scenario || q.context || q.prompt,
+    quantities,
+    correctIndependentId: q.correctIndependentId || relationship.correctIndependentId || relationship.independentId,
+    correctDependentId: q.correctDependentId || relationship.correctDependentId || relationship.dependentId,
+  });
+  const ask = [];
+  if (actions.includes('identifyQuantities')) ask.push('quantities');
+  if (actions.includes('writeEquation')) ask.push('equation');
+  if (actions.includes('completeTable')) ask.push('table');
+  if (actions.includes('constructGraph')) ask.push('graph');
+  if (actions.some((a) => ['stateDomain','analyzeDomain'].includes(a))) ask.push('domain');
+  if (actions.some((a) => ['stateRange','analyzeRange'].includes(a))) ask.push('range');
+  if (actions.includes('classifyContinuity')) ask.push('continuity');
+  if (ask.length > 1 || actions.some((a) => ['writeEquation','completeTable','constructGraph','stateDomain','stateRange'].includes(a))) {
+    out.recipe = { name: 'functionModeling', ask: ask.length ? ask : ['quantities','equation','table','graph','domain','range','continuity'] };
+  }
+  const answerModel = q.answerModel || relationship.answerModel || {};
+  out.correctEquation = q.correctEquation || answerModel.equation || relationship.equation || out.correctEquation;
+  out.tableXValues = q.tableXValues || answerModel.tableXValues || relationship.tableXValues || out.tableXValues;
+  out.graphMode = q.graphMode || answerModel.graphMode || relationship.graphMode;
+  out.continuity = q.continuity || answerModel.continuity || relationship.continuity || q.relationshipType;
+  out.correctDomain = q.correctDomain || answerModel.domain || relationship.domain;
+  out.correctRange = q.correctRange || answerModel.range || relationship.range;
+  out.notation = q.notation || answerModel.notation || (out.continuity === 'discrete' ? 'set' : 'interval');
+  out.graph = q.graph || relationship.graph;
+  if (!actions.includes('writeEquation') && (isObject(q.function) || isObject(q.functionSpec))) {
+    out.functionSpec = coreFunctionSpec(q.function || q.functionSpec);
+  }
+  if (q.relationshipType) out.relationshipType = q.relationshipType;
+  if (q.requireRelationshipType != null) out.requireRelationshipType = q.requireRelationshipType;
+  Object.keys(out).forEach((key) => out[key] === undefined && delete out[key]);
+  return out;
+};
+
+const resolveIntentType = (q, actions) => {
+  const hint = clean(q.toolHint || q.destination || q.intentType || q.questionType);
+  if (hint) return hint;
+  if (q.labDefinition || actions.includes('modelingLab')) return 'modelingLab';
+  if (q.data || q.points && actions.some((a) => ['analyzeData','fitDataModel','predictFromModel'].includes(a))) return 'dataModelingLab';
+  if (q.inverse || q.composition || actions.some((a) => ['findInverse','composeFunctions'].includes(a))) return 'inverseCompositionLab';
+  if (q.parabola || actions.includes('analyzeParabolaGeometry')) return 'parabolaGeometryLab';
+  if (q.polynomial || actions.some((a) => ['factorPolynomial','dividePolynomial','multiplyPolynomials'].includes(a))) return 'polynomialWorkshop';
+  if (q.signChart || actions.includes('solveInequality')) return 'signSolutionAnalyzer';
+  if (q.complex || q.z || actions.some((a) => ['complexOperations','analyzeComplex'].includes(a))) return 'complexPlaneLab';
+  if (q.logarithm || q.exponentialLog || actions.some((a) => ['exponentialLogBridge','solveExponential','solveLogarithmic'].includes(a))) return 'exponentialLogBridge';
+  if (q.transformation || actions.includes('analyzeTransformations')) return 'transformationsLab';
+  if (q.representations || q.sets || actions.some((a) => ['connectRepresentations','findRepresentationMismatch'].includes(a))) return 'representationMatch';
+  if (q.sequence || actions.some((a) => ['analyzeSequence','findSequenceTerm','findMissingTerm','writeRecursive','writeExplicit','compareSequences','partialSum'].includes(a))) return 'sequenceExplorer';
+  if (q.relation || q.pairs || actions.some((a) => ['buildMapping','plotRelation','classifyFunction'].includes(a))) return 'relationMapping';
+  if (actions.includes('matchGraphsToStories') || (q.stories && q.candidateGraphs)) return 'graphScenarioMatch';
+  if (actions.includes('compareGraphs') || (q.graphs && q.comparisonFields)) return 'graphComparison';
+  if (actions.includes('writeGraphStory')) return 'graphStory';
+  if (actions.includes('interpretPointInContext')) return 'contextInterpretation';
+  if (actions.some((a) => ['identifyQuantities','writeEquation','classifyContinuity'].includes(a)) && (q.quantities || q.relationship || q.scenario)) return 'relationshipModel';
+  if (actions.includes('solveInequalitySystem') || actions.includes('graphSystem') || actions.includes('rowReduce')) return 'systemsWorkspace';
+  if (actions.includes('solveSystem') || q.equations) return 'system';
+  if (actions.includes('solveLiteral') || q.solveFor) return 'literal';
+  if (actions.includes('solveStepByStep')) return 'stepAlgebra';
+  if (actions.includes('stepAlgebra2')) return 'stepAlgebra2';
+  if (actions.includes('constructLine') || q.lineIntent) return 'graphing2';
+  if (shouldCompileFunctionWorkflow(q, actions)) return 'functionWorkflow';
+  if (actions.includes('constructInterval') || actions.includes('writeInterval') || q.intervals) return 'intervalNumberLine';
+  if (actions.includes('chooseNumberLine') || q.numberLineChoices) return 'numberLine';
+  if (actions.includes('constructGraph')) return 'functionGraph';
+  if (actions.includes('investigateFunction')) return 'functionInvestigation2';
+  if (actions.some((a) => a.startsWith('analyze') || ['findVertex','findXIntercepts','findYIntercept','findMaximum','findMinimum'].includes(a)) && (q.function || q.functionSpec)) return 'graphAnalysis';
+  if (actions.includes('readGraph') && (q.graph || q.function)) return 'graphing';
+  if (actions.includes('completeTable') || q.table?.answers) return 'table';
+  if (actions.includes('stateOrderedPair')) return 'orderedPair';
+  if (actions.includes('multipleResponses') || q.responses || q.answerFields) return 'multiAnswer';
+  if (actions.includes('fractionAnswer')) return 'fraction';
+  if (actions.includes('solveEquation') || q.equation) return 'algebra';
+  return null;
+};
+
+const compileOne = (q, index, repairs) => {
+  if (!isObject(q)) throw new Error(`V5 question ${index + 1} must be an object.`);
+  // V5 is an authoring-intent language. Outside AIs are explicitly told not
+  // to choose renderer types, so a stray `type`/`toolId` from a repair loop must
+  // not bypass the compiler. Treat it as a hint only when there are no
+  // studentActions; normal V5 questions are always recompiled from intent.
+  const actions = normalizeActions(q);
+  if ((q.type || q.toolId) && actions.length) {
+    repairs.push(`ignored internal type hint on V5 question ${index + 1}; compiled from studentActions instead`);
+  } else if ((q.type || q.toolId) && !actions.length) {
+    repairs.push(`V5 question ${index + 1} had no studentActions; preserved its internal type for legacy compatibility`);
+    return { ...q };
+  }
+  const type = resolveIntentType(q, actions);
+  if (!type) throw new Error(`V5 question ${index + 1} does not contain enough mathematical intent to choose a student tool. Add studentActions and the needed mathematical data.`);
+  let out;
+  switch (type) {
+    case 'algebra':
+      out = copyCommon(q, { type, equation: q.equation || q.expression, answer: answerOf(q) });
+      break;
+    case 'fraction':
+      out = copyCommon(q, { type, answer: answerOf(q), generator: q.generator });
+      break;
+    case 'numberLine':
+      out = copyCommon(q, { type, choices: q.choices || q.numberLineChoices, answer: answerOf(q), min: q.min, max: q.max, step: q.step });
+      break;
+    case 'intervalNumberLine': {
+      const ask = [];
+      if (actions.includes('constructInterval')) ask.push('graph');
+      if (actions.includes('writeInterval')) ask.push('interval');
+      out = copyCommon(q, { type, inequalityText: q.inequalityText || q.inequality, intervals: q.intervals, ask: q.ask || (ask.length ? ask : ['graph','interval']), min: q.min, max: q.max, step: q.step });
+      break;
+    }
+    case 'graphing':
+      out = copyCommon(q, { type, graph: graphFromIntent(q), answer: answerOf(q), responseType: q.response?.kind });
+      break;
+    case 'functionWorkflow':
+      out = compileFunctionWorkflow(q, actions);
+      break;
+    case 'functionGraph':
+      out = copyCommon(q, { type, functionSpec: coreFunctionSpec(q.function || q.functionSpec), graph: q.graph, studentChoosesX: q.studentChoosesX ?? true, showCoordinates: q.showCoordinates });
+      break;
+    case 'functionInvestigation2': {
+      const requests = analysisRequestsFromActions(actions, q);
+      const kinds = requests.filter((r) => r.kind !== 'point').map((r) => r.kind);
+      const mode = q.mode || (kinds.some((k) => ['domain','range'].includes(k)) ? 'domainRange' : kinds.some((k) => ['increasing','decreasing','constant','positive','negative'].includes(k)) ? 'behavior' : requests.some((r) => r.kind === 'point') ? 'intercepts' : 'features');
+      out = copyCommon(q, { type, mode, function: toolFunctionSpec(q.function || q.functionSpec), analysisRequests: requests.length ? requests : undefined });
+      break;
+    }
+    case 'graphAnalysis':
+      out = copyCommon(q, { type, functionSpec: functionSpecFromIntentQuestion(q), analysisRequests: analysisRequestsFromActions(actions, q) });
+      break;
+    case 'stepAlgebra':
+      out = copyCommon(q, { type, equation: q.equation, generator: q.generator, workspaceDifficulty: q.workspaceDifficulty });
+      break;
+    case 'literal':
+      out = copyCommon(q, { type, equation: q.equation, solveFor: q.solveFor, answer: answerOf(q) });
+      break;
+    case 'system':
+      out = copyCommon(q, { type, equations: q.equations, answer: answerOf(q), graph: q.graph, showGraph: q.showGraph });
+      break;
+    case 'table':
+      out = copyCommon(q, { type, table: q.table, functionSpec: q.function ? coreFunctionSpec(q.function) : q.functionSpec });
+      break;
+    case 'orderedPair':
+      out = copyCommon(q, { type, answer: answerOf(q) || q.point, graph: q.graph });
+      break;
+    case 'multiAnswer': {
+      const fields = q.answerFields || q.responses || q.response?.fields || [];
+      out = copyCommon(q, { type, answerFields: fields.map(fieldFromIntent), table: q.table, graph: q.graph, visual: q.visual, mathDisplay: q.mathDisplay });
+      break;
+    }
+    case 'relationshipModel':
+      out = compileRelationshipModel(q, actions);
+      break;
+    case 'graphScenarioMatch':
+      out = copyCommon(q, { type, scenarios: q.scenarios || asArray(q.stories).map((story, i) => isObject(story) ? { id: story.id || `s${i + 1}`, title: story.title, description: story.description || story.text || story.prompt } : { id: `s${i + 1}`, description: story }), graphs: normalizeGraphChoices(q.graphs || q.candidateGraphs), correctMatches: q.correctMatches || q.matches });
+      break;
+    case 'graphComparison':
+      out = copyCommon(q, { type, graphs: normalizeGraphChoices(q.graphs || q.candidateGraphs), fields: (q.fields || q.comparisonFields || q.responses || []).map(fieldFromIntent) });
+      break;
+    case 'graphStory':
+      out = copyCommon(q, { type, graph: graphFromIntent(q), functionSpec: q.function ? coreFunctionSpec(q.function) : q.functionSpec, minimumScenarioCharacters: q.minimumScenarioCharacters, minimumExplanationCharacters: q.minimumExplanationCharacters });
+      break;
+    case 'contextInterpretation':
+      out = copyCommon(q, { type, scenario: q.scenario || q.context, quantityChoices: q.quantityChoices || q.quantities, graph: graphFromIntent(q), point: q.point, showGraph: q.showGraph });
+      break;
+    case 'relationMapping': {
+      const ask = q.ask || [
+        actions.includes('buildMapping') && 'mapping',
+        actions.includes('plotRelation') && 'plot',
+        actions.some((action) => ['stateDomain','analyzeDomain'].includes(action)) && 'domain',
+        actions.some((action) => ['stateRange','analyzeRange'].includes(action)) && 'range',
+        actions.includes('classifyFunction') && 'isFunction',
+      ].filter(Boolean);
+      out = copyCommon(q, { type, pairs: q.pairs || q.relation, ask: ask.length ? ask : ['mapping','domain','range','isFunction'] });
+      break;
+    }
+    case 'modelingLab':
+      out = copyCommon(q, { type, labDefinition: q.labDefinition || q.lab || q.modeling });
+      break;
+    case 'dataModelingLab': {
+      const data = q.data || {};
+      out = copyCommon(q, { type, mode: q.mode || (actions.includes('fitDataModel') ? 'lineFit' : actions.includes('predictFromModel') ? 'prediction' : 'full'), points: q.points || data.points, predictionX: q.predictionX ?? data.predictionX, predictionTolerance: q.predictionTolerance ?? data.predictionTolerance });
+      break;
+    }
+    case 'inverseCompositionLab':
+      out = copyCommon(q, { type, mode: q.mode || (actions.includes('composeFunctions') ? 'composition' : 'inverse'), f: toolFunctionSpec(q.f || q.function || q.inverse?.function), g: q.g ? toolFunctionSpec(q.g) : undefined, x: q.x, inverseBranch: q.inverseBranch });
+      break;
+    case 'systemsWorkspace':
+      out = copyCommon(q, { type, mode: q.mode || (actions.includes('solveInequalitySystem') ? 'inequalities' : actions.includes('rowReduce') ? 'matrix' : q.linearQuadratic ? 'linearQuadratic' : 'linear'), system: q.system, inequalities: q.inequalities, matrix: q.matrix, linearQuadratic: q.linearQuadratic });
+      break;
+    case 'parabolaGeometryLab': {
+      const p = q.parabola || {};
+      out = copyCommon(q, { type, mode: q.mode || (p.focus || q.focus ? 'fromGeometry' : 'features'), h: q.h ?? p.h, k: q.k ?? p.k, p: q.p ?? p.p, orientation: q.orientation || p.orientation, focus: q.focus || p.focus, directrix: q.directrix || p.directrix });
+      break;
+    }
+    case 'polynomialWorkshop': {
+      const p = q.polynomial || {};
+      const mode = q.mode || (actions.includes('dividePolynomial') ? 'division' : actions.includes('multiplyPolynomials') ? 'multiplyArea' : 'factorQuadratic');
+      out = copyCommon(q, { type, mode, coefficients: q.coefficients || p.coefficients, leftBinomial: q.leftBinomial || p.leftBinomial, rightBinomial: q.rightBinomial || p.rightBinomial, dividend: q.dividend || p.dividend, divisor: q.divisor || p.divisor, roots: q.roots || p.roots, denominatorRoots: q.denominatorRoots || p.denominatorRoots });
+      break;
+    }
+    case 'signSolutionAnalyzer': {
+      const s = q.signChart || q.inequalityModel || {};
+      out = copyCommon(q, { type, mode: q.mode || s.mode || 'polynomial', factors: q.factors || s.factors, denominatorFactors: q.denominatorFactors || s.denominatorFactors, relation: q.relation || s.relation, candidates: q.candidates || s.candidates, radicalEquation: q.radicalEquation || s.radicalEquation });
+      break;
+    }
+    case 'sequenceExplorer': {
+      let mode = q.mode;
+      if (!mode) mode = actions.includes('findMissingTerm') ? 'missingTerm' : actions.includes('partialSum') ? 'partialSum' : actions.includes('compareSequences') ? 'compare' : actions.includes('writeRecursive') || actions.includes('writeExplicit') ? 'ruleBridge' : 'analyze';
+      out = copyCommon(q, { type, mode, sequence: q.sequence, targetN: q.targetN, displayCount: q.displayCount, missingIndex: q.missingIndex, sumN: q.sumN, left: q.left, right: q.right, compareN: q.compareN, leftLabel: q.leftLabel, rightLabel: q.rightLabel });
+      break;
+    }
+    case 'complexPlaneLab': {
+      const c = q.complex || {};
+      out = copyCommon(q, { type, mode: q.mode || c.mode || (actions.includes('complexOperations') ? 'operations' : 'features'), z: q.z || c.z, w: q.w || c.w, operation: q.operation || c.operation, exponent: q.exponent ?? c.exponent, quarterTurns: q.quarterTurns ?? c.quarterTurns, quadratic: q.quadratic || c.quadratic });
+      break;
+    }
+    case 'exponentialLogBridge': {
+      const e = q.exponentialLog || q.logarithm || {};
+      out = copyCommon(q, { type, mode: q.mode || e.mode || (actions.includes('solveLogarithmic') ? 'solveLogarithmic' : actions.includes('solveExponential') ? 'solveExponential' : 'equivalentForms'), base: q.base ?? e.base, exponent: q.exponent ?? e.exponent, equation: q.equation || e.equation, function: q.function ? toolFunctionSpec(q.function) : e.function, x: q.x ?? e.x, y: q.y ?? e.y });
+      break;
+    }
+    case 'transformationsLab': {
+      const t = q.transformation || {};
+      out = copyCommon(q, { type, mode: q.mode || t.mode || 'identify', family: q.family || t.family || q.function?.family || q.function?.type, function: q.function ? toolFunctionSpec(q.function) : t.function, target: q.target || t.target, parentPoint: q.parentPoint || t.parentPoint });
+      break;
+    }
+    case 'representationMatch': {
+      const r = q.representations || {};
+      out = copyCommon(q, { type, mode: q.mode || r.mode || (actions.includes('findRepresentationMismatch') ? 'findMismatch' : 'completeSet'), targetId: q.targetId || r.targetId, sets: q.sets || r.sets, mixedSet: q.mixedSet || r.mixedSet, function: q.function ? toolFunctionSpec(q.function) : r.function, rows: q.rows || r.rows });
+      break;
+    }
+    case 'graphing2': {
+      const l = q.lineIntent || q.line || {};
+      let mode = q.mode || l.mode;
+      if (!mode) mode = q.givenPoints || l.givenPoints ? 'throughPoints' : q.point || l.point ? 'pointSlope' : q.standardForm || l.standard ? 'standardForm' : q.orientation || l.orientation ? 'verticalHorizontal' : 'slopeIntercept';
+      out = copyCommon(q, { type, mode, line: q.line || (mode === 'slopeIntercept' ? { m: q.m ?? l.m, b: q.b ?? l.b } : undefined), givenPoints: q.givenPoints || l.givenPoints, point: q.point || l.point, slope: q.slope ?? l.slope, standard: q.standardForm || l.standard, orientation: q.orientation || l.orientation, value: q.value ?? l.value });
+      break;
+    }
+    case 'stepAlgebra2':
+      out = copyCommon(q, { type, equation: q.equationModel || q.equation, mode: q.mode, workspaceDifficulty: q.workspaceDifficulty });
+      break;
+    default:
+      throw new Error(`V5 question ${index + 1} selected unsupported destination ${type}.`);
+  }
+  Object.keys(out).forEach((key) => out[key] === undefined && delete out[key]);
+  repairs.push(`compiled V5 question ${index + 1} intent → ${out.type}`);
+  return out;
+};
+
+export const compileAuthoringIntentV5 = (input = {}) => {
+  if (!isObject(input)) throw new Error('Authoring Intent V5 must be a JSON object.');
+  if (Number(input.schemaVersion) !== 5) return { package: input, repairs: [], decisions: [] };
+  const repairs = [];
+  const decisions = [];
+  const assignment = { ...(input.assignment || {}) };
+  const compileQuestions = (questions = [], role = null) => asArray(questions).map((question, index) => {
+    const source = role && isObject(question) && !question.activityRole ? { ...question, activityRole: role } : question;
+    const compiled = compileOne(source, index, repairs);
+    decisions.push({ index, type: compiled.type, actions: normalizeActions(source) });
+    return compiled;
+  });
+  let packageOut;
+  if (Array.isArray(input.activities)) {
+    const activities = input.activities.map((activity, activityIndex) => ({
+      ...activity,
+      role: activity?.role || 'classwork',
+      questions: compileQuestions(activity?.questions || [], activity?.role || 'classwork')
+    }));
+    packageOut = { ...input, schemaVersion: 4, assignment, activities };
+  } else {
+    packageOut = { ...input, schemaVersion: 4, assignment, questions: compileQuestions(input.questions || []) };
+  }
+  delete packageOut.authoringIntent;
+  repairs.unshift('compiled Authoring Intent V5 into canonical MathMaster V4 runtime questions');
+  return { package: packageOut, repairs, decisions };
+};
+
+export const AUTHORING_INTENT_V5_ACTIONS = Object.freeze([
+  'solveEquation','solveStepByStep','fractionAnswer','chooseNumberLine','constructInterval','writeInterval','readGraph','constructGraph',
+  'investigateFunction','analyzeDomain','analyzeRange','analyzeIncreasing','analyzeDecreasing','analyzeConstant','analyzePositive','analyzeNegative',
+  'findVertex','findXIntercepts','findYIntercept','findMaximum','findMinimum','solveLiteral','solveSystem','graphSystem','solveInequalitySystem','rowReduce',
+  'completeTable','stateOrderedPair','multipleResponses','identifyQuantities','writeEquation','classifyContinuity','matchGraphsToStories','compareGraphs',
+  'writeGraphStory','interpretPointInContext','buildMapping','plotRelation','classifyFunction','analyzeSequence','findSequenceTerm','findMissingTerm',
+  'writeRecursive','writeExplicit','compareSequences','partialSum','connectRepresentations','findRepresentationMismatch','analyzeData','fitDataModel','predictFromModel',
+  'findInverse','composeFunctions','analyzeParabolaGeometry','factorPolynomial','dividePolynomial','multiplyPolynomials','solveInequality','complexOperations','analyzeComplex',
+  'exponentialLogBridge','solveExponential','solveLogarithmic','analyzeTransformations','constructLine','modelingLab',
+]);

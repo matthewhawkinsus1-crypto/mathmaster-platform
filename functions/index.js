@@ -1,4 +1,6 @@
 const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
 const { initializeApp } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
 const { getFirestore, FieldPath, FieldValue } = require("firebase-admin/firestore");
@@ -1124,6 +1126,9 @@ async function pathCoverage() {
 
 const COVERAGE_COLLECTION = "pathCoverage";
 
+const PATH_RUNTIME_RELEASE = "path-bank-2026-08-11-r3";
+
+
 /**
  * Which course's coverage index answers for a standard.
  *
@@ -1146,6 +1151,48 @@ async function pathPromotion() {
   if (!promotionModule) promotionModule = await import("./shared/pathPromotion.mjs");
   return promotionModule;
 }
+
+/**
+ * Root-admin deployment diagnostic for My Math Path.
+ *
+ * The public Vercel client and Firebase Functions are deployed separately. A
+ * stale client used to make a new backend (or vice versa) look like a content
+ * problem. This callable gives Administration a safe handshake: release IDs,
+ * counts, and coverage summaries only. It never returns question payloads or
+ * answer keys.
+ */
+exports.getPathRuntimeStatus = onCall(async (request) => {
+  await requireRootAdmin(request);
+  const db = getFirestore();
+
+  const [bankCountSnapshot, algebra1Coverage, algebra2Coverage] = await Promise.all([
+    db.collection("pathQuestionBank").count().get(),
+    db.collection(COVERAGE_COLLECTION).doc("algebra1").get(),
+    db.collection(COVERAGE_COLLECTION).doc("algebra2").get(),
+  ]);
+
+  let starterAvailable = false;
+  let starterCount = 0;
+  try {
+    const items = loadBuiltInStarterPathSeed();
+    starterAvailable = items.length > 0;
+    starterCount = items.length;
+  } catch (error) {
+    logger.error("Path runtime status could not read the built-in starter bank", error);
+  }
+
+  const coverageSummary = (snapshot) => snapshot.exists ? (snapshot.data()?.summary || null) : null;
+  return {
+    release: PATH_RUNTIME_RELEASE,
+    bankCount: bankCountSnapshot.data().count || 0,
+    starterAvailable,
+    starterCount,
+    coverage: {
+      algebra1: coverageSummary(algebra1Coverage),
+      algebra2: coverageSummary(algebra2Coverage),
+    },
+  };
+});
 
 /**
  * Promote an authored assignment question into the secure Path bank.
@@ -1192,34 +1239,17 @@ exports.promoteQuestionToPathBank = onCall(async (request) => {
 });
 
 /**
- * Root-admin action: bootstrap the secure Path bank from a seed package.
+ * Validate and optionally write one complete Path-bank seed package.
  *
- * `pathQuestionBank` starts empty and is filled deliberately rather than
- * discovered to be empty by a student. This is how a reviewed starter set gets
- * in without anyone hand-creating Firestore documents.
- *
- * EVERY DOCUMENT IS VALIDATED BEFORE IT IS WRITTEN, by the same `buildIssuePlan`
- * the runtime uses to issue a question. A seed item that would not survive
- * production is rejected and reported, never stored — otherwise the bank fills
- * with content that counts toward coverage and fails in front of a child.
- *
- * IDEMPOTENT. Each item carries its own `id`; re-running replaces rather than
- * duplicating, so a partial import can simply be run again. `dryRun` validates
- * and reports without writing anything.
+ * Kept as an internal helper so both the manual root-admin importer and the
+ * built-in starter-bank initializer pass through the exact same production
+ * issuability gate. The caller must already be authorized.
  */
-exports.seedPathQuestionBank = onCall(async (request) => {
-  const actor = await requireRootAdmin(request);
-  const db = getFirestore();
-  const dryRun = request.data?.dryRun === true;
-  const items = Array.isArray(request.data?.items) ? request.data.items : [];
-  if (!items.length) throw new HttpsError("invalid-argument", "Supply the seed items to import.");
-  if (items.length > 600) throw new HttpsError("invalid-argument", "Import at most 600 items per call.");
-
+async function processPathSeedImport({ db, actor, items, dryRun = false }) {
   const accepted = [];
   const rejected = [];
   for (const item of items) {
     const id = String(item?.id || "").trim();
-    // Every rejection names the document well enough to find and fix it.
     const describe = (reason) => ({
       id: id || null,
       familyId: item?.familyId || null,
@@ -1227,8 +1257,9 @@ exports.seedPathQuestionBank = onCall(async (request) => {
       reason,
     });
     if (!id) { rejected.push(describe("missing_id")); continue; }
-    // The exact production check. The gate must not be stricter than the
-    // runtime, or content production would happily issue is refused here.
+    // The exact production check. A starter item that cannot be issued and
+    // graded by My Math Path never reaches Firestore and never counts toward
+    // coverage.
     // eslint-disable-next-line no-await-in-loop
     const plan = await mathPath.buildIssuePlan(item);
     if (!plan.issuable) { rejected.push(describe(plan.reason)); continue; }
@@ -1239,10 +1270,8 @@ exports.seedPathQuestionBank = onCall(async (request) => {
     accepted.push({ ...item, id, active: item.active !== false });
   }
 
-  // ALL OR NOTHING. A partially imported bank is the worst outcome: coverage
-  // would report some standards ready and others not, and nobody could tell
-  // whether that reflects the content or a half-finished import. So a single
-  // failure writes nothing and reports everything.
+  // ALL OR NOTHING. A partly imported starter bank can make the wheel tell
+  // different truths depending on which chunk happened to finish first.
   if (rejected.length) {
     return {
       dryRun,
@@ -1283,10 +1312,71 @@ exports.seedPathQuestionBank = onCall(async (request) => {
     accepted: accepted.length,
     wouldAccept: accepted.length,
     rejected,
-    // The standards this import supplies content for, so the caller can check
-    // them against the coverage target without a second round trip.
     standards: [...new Set(accepted.flatMap((record) => record.alignmentKeys.map((key) => String(key).replace(/^texas:/i, "").toUpperCase())))].sort(),
   };
+}
+
+/**
+ * Root-admin action: bootstrap the secure Path bank from a seed package chosen
+ * by the administrator.
+ *
+ * The browser may send a custom package here, but every document is validated
+ * before any write. `dryRun` supports the client's package-wide two-pass check
+ * when a custom package is larger than one callable chunk.
+ */
+exports.seedPathQuestionBank = onCall(async (request) => {
+  const actor = await requireRootAdmin(request);
+  const db = getFirestore();
+  const dryRun = request.data?.dryRun === true;
+  const items = Array.isArray(request.data?.items) ? request.data.items : [];
+  if (!items.length) throw new HttpsError("invalid-argument", "Supply the seed items to import.");
+  if (items.length > 600) throw new HttpsError("invalid-argument", "Import at most 600 items per call.");
+  return processPathSeedImport({ db, actor, items, dryRun });
+});
+
+const BUILT_IN_PATH_SEED_FILES = Object.freeze([
+  "algebra1_pathQuestionBank_seed.json",
+  "algebra2_pathQuestionBank_seed.json",
+  "grade7_pathQuestionBank_seed.json",
+  "grade8_pathQuestionBank_seed.json",
+]);
+
+function loadBuiltInStarterPathSeed() {
+  const seedDirectory = path.join(__dirname, "seeds", "pathQuestionBank");
+  const items = BUILT_IN_PATH_SEED_FILES.flatMap((fileName) => {
+    const filePath = path.join(seedDirectory, fileName);
+    const parsed = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    return Array.isArray(parsed) ? parsed : (parsed.documents || parsed.items || parsed.questions || []);
+  });
+  if (!items.length) throw new Error("The built-in Path starter bank is empty.");
+  const ids = new Set(items.map((item) => String(item?.id || "").trim()));
+  if (ids.size !== items.length || ids.has("")) throw new Error("The built-in Path starter bank contains missing or duplicate IDs.");
+  return items;
+}
+
+/**
+ * Root-admin one-click initializer for a fresh MathMaster installation.
+ *
+ * SECURITY: the answer-bearing starter JSON files live inside the Cloud
+ * Functions bundle, never `public/` and never the browser JavaScript bundle.
+ * A student therefore cannot download the seed answer key from Hosting. Only
+ * the root-admin callable can ask the server to install it, and the client gets
+ * counts/status back rather than the seed contents.
+ */
+exports.initializeStarterPathQuestionBank = onCall(async (request) => {
+  const actor = await requireRootAdmin(request);
+  const db = getFirestore();
+  let items;
+  try {
+    items = loadBuiltInStarterPathSeed();
+  } catch (error) {
+    logger.error("Could not load built-in My Math Path starter bank", error);
+    throw new HttpsError("failed-precondition", "The built-in My Math Path starter bank is unavailable in this deployment.");
+  }
+  if (items.length > 600) {
+    throw new HttpsError("failed-precondition", "The built-in starter bank exceeds the supported one-click import size.");
+  }
+  return processPathSeedImport({ db, actor, items, dryRun: false });
 });
 
 /** Remove a promoted question from the Path bank without touching the assignment. */
@@ -3336,7 +3426,10 @@ exports.submitSecureExamResponse = onCall(async (request) => {
     assertExamInProgress(session);
     const current = session.currentQuestion;
     if (!current || current.questionInstanceId !== questionInstanceId) throw new HttpsError("failed-precondition", "That question is no longer active.");
-    const grading = mathPath.gradeResponse(current.privateGrading, request.data?.responsePayload || {});
+    // Awaited: `gradeResponse` became async when scalar equivalence moved into
+    // the shared ESM module. Reading `.isCorrect` off the un-awaited promise
+    // marked every secure-exam answer wrong and wrote an undefined score.
+    const grading = await mathPath.gradeResponse(current.privateGrading, request.data?.responsePayload || {});
     const now = Date.now();
     const completedQuestions = Number(session.summary?.completedQuestions || 0) + 1;
     const correctQuestions = Number(session.summary?.correctQuestions || 0) + (grading.isCorrect ? 1 : 0);
@@ -3402,12 +3495,12 @@ exports.recordSecureExamIntegrityEvent = onCall(async (request) => {
   });
 });
 
-function applyOpenSecureExamDraft(session, now) {
+async function applyOpenSecureExamDraft(session, now) {
   const current = session.currentQuestion;
   const draft = current?.draftResponse;
   const responses = draft?.responsePayload?.responses && typeof draft.responsePayload.responses === "object" ? draft.responsePayload.responses : {};
   if (!current || !Object.values(responses).some((value) => String(value ?? "").trim())) return session;
-  const grading = mathPath.gradeResponse(current.privateGrading, draft.responsePayload);
+  const grading = await mathPath.gradeResponse(current.privateGrading, draft.responsePayload);
   const responseRecord = {
     questionInstanceId: current.questionInstanceId,
     bankQuestionId: current.bankQuestionId,
@@ -3445,7 +3538,7 @@ exports.finalizeSecureExam = onCall(async (request) => {
     if (reason === "timeExpired" && !secureExam.isExpired(session)) throw new HttpsError("failed-precondition", "The server-side exam deadline has not been reached.");
     if (reason !== "timeExpired" && secureExam.LOCKED_STATES.has(session.status)) throw new HttpsError("failed-precondition", "A locked exam must be resolved by the proctor.");
     const now = Date.now();
-    const withDraft = applyOpenSecureExamDraft(session, now);
+    const withDraft = await applyOpenSecureExamDraft(session, now);
     const updated = { ...withDraft, status: reason === "timeExpired" ? "time_expired" : "submitted", submittedAt: now, currentQuestion: null, updatedAt: now };
     transaction.set(ref, updated);
     return updated;
@@ -3515,7 +3608,7 @@ exports.proctorExamAction = onCall(async (request) => {
       const minutes = Math.max(1, Math.min(120, Math.round(Number(request.data?.minutes) || 5)));
       updated = { ...updated, addedTimeSeconds: Number(session.addedTimeSeconds || 0) + minutes * 60 };
     }
-    if (action === "forceSubmit") updated = { ...applyOpenSecureExamDraft(updated, now), status: "force_submitted", submittedAt: now, currentQuestion: null };
+    if (action === "forceSubmit") updated = { ...(await applyOpenSecureExamDraft(updated, now)), status: "force_submitted", submittedAt: now, currentQuestion: null };
     transaction.set(ref, updated);
     return updated;
   });

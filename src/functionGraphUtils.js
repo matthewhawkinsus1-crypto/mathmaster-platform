@@ -1,3 +1,4 @@
+import { evaluateModelAt } from './platform/workflow/modelExpression.js';
 const round = (value, places = 6) => Number(Number(value).toFixed(places));
 
 export const FUNCTION_GRAPH_TYPES = [
@@ -10,6 +11,7 @@ export const FUNCTION_GRAPH_TYPES = [
   'logarithmic',
   'exponential',
   'rational',
+  'expression',
 ];
 
 export const FUNCTION_GRAPH_LABELS = {
@@ -22,6 +24,7 @@ export const FUNCTION_GRAPH_LABELS = {
   logarithmic: 'Logarithmic',
   exponential: 'Exponential',
   rational: 'Rational',
+  expression: 'Your Model',
 };
 
 const normalizeDomain = (spec = {}) => {
@@ -99,6 +102,14 @@ export const evaluateGraphFunction = (spec, x) => {
   }
   if (type === 'exponential') return a * base ** (x - h) + k;
   if (type === 'rational') return a / (x - h) + k;
+  if (type === 'expression') {
+    const value = evaluateModelAt({
+      expression: String(spec.expression || ''),
+      variable: String(spec.variable || 'x'),
+      cacheKey: `${String(spec.variable || 'x')}|${String(spec.expression || '')}`,
+    }, x);
+    return value === null ? Number.NaN : value;
+  }
   return Number.NaN;
 };
 
@@ -109,6 +120,12 @@ export const getGraphKeyPoint = (spec) => {
   if (spec.type === 'linear' || spec.type === 'line') {
     const intercept = spec.b !== undefined ? Number(spec.b) : k;
     return [h, intercept];
+  }
+  if (spec.type === 'expression') {
+    const points = Array.isArray(spec.referencePoints) ? spec.referencePoints.filter((point) => Array.isArray(point) && point.length === 2) : [];
+    if (points.length) return points[Math.floor(points.length / 2)].map(Number);
+    const y = evaluateGraphFunction(spec, 0);
+    return [0, Number.isFinite(y) ? y : 0];
   }
   if (spec.type === 'logarithmic') return [h + 1, k];
   if (spec.type === 'exponential') return [h, k + a];
@@ -142,6 +159,13 @@ const fillToFive = (values, spec) => {
 
 export const getSuggestedGraphPoints = (spec) => {
   const h = Number(spec.h ?? 0);
+  if (spec.type === 'expression') {
+    const reference = Array.isArray(spec.referencePoints)
+      ? spec.referencePoints.filter((point) => Array.isArray(point) && point.length === 2 && point.every((value) => Number.isFinite(Number(value))))
+      : [];
+    if (reference.length) return reference.slice(0, 5).map(([x, y]) => [round(x), round(y)]);
+    return fillToFive([-2, -1, 0, 1, 2], spec);
+  }
   let xValues;
   switch (spec.type) {
     case 'absolute':
@@ -196,6 +220,7 @@ export const formatGraphEquationLatex = (spec) => {
   const shiftedX = termWithShift('x', h);
   const prefix = coefficientPrefix(a);
   let expression = 'y=f(x)';
+  if (spec.type === 'expression') return String(spec.originalEquation || `y=${spec.expression || ''}`);
   if (spec.type === 'linear' || spec.type === 'line') {
     const slope = Number(spec.m ?? spec.a ?? 1);
     const intercept = spec.b !== undefined ? Number(spec.b) : k;

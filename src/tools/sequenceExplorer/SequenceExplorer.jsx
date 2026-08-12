@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
-import { nearlyEqual, round } from '../shared/toolMath';
+import { matchesNumericAnswer, round } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
 import {
   compareSequencesAt,
@@ -9,6 +9,7 @@ import {
   normalizeSequenceSpec,
   sequenceChange,
   sequencePartialSum,
+  sequenceEvidenceCount,
   sequenceRuleParts,
   sequenceTerm,
 } from './sequenceMath';
@@ -16,7 +17,7 @@ import {
 const inputStyle = { width: '100%', padding: 9, border: '1px solid #cfd8e6', borderRadius: 8, boxSizing: 'border-box' };
 const actionStyle = { marginTop: 14, padding: '10px 16px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer' };
 const numberText = (value) => `${round(value, 4)}`;
-const matchesNumber = (answer, expected, tolerance = 0.01) => `${answer}`.trim() !== '' && nearlyEqual(answer, expected, tolerance);
+const matchesNumber = (answer, expected, tolerance = 0.01) => matchesNumericAnswer(answer, expected, tolerance);
 
 const sequenceFromQuestion = (questionData = {}) => {
   const kind = questionData.sequence?.kind || questionData.kind || 'arithmetic';
@@ -75,13 +76,13 @@ function AnalyzeSequence({ questionData, feedback, submit, onAction }) {
     const checks = [kindAnswer === spec.kind, matchesNumber(changeAnswer, expectedChange, 0.001), matchesNumber(termAnswer, expectedTerm, 0.01)];
     submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / checks.length }, { kindAnswer, changeAnswer, termAnswer }, { mode: 'analyze', targetN });
   };
-  return <ToolShell title="Sequence Explorer" subtitle="Connect pattern, table, discrete graph, and term structure." badge="Algebra I / II · Sequence Analysis">
+  return <ToolShell title="Analyze the Sequence" subtitle="Connect the pattern, table, discrete graph, and term structure." badge="Pattern and terms">
     <TaskCard question={questionData} task={'Decide whether this sequence is arithmetic or geometric, then give its change and the requested term.'} steps={['Compare consecutive terms by subtracting, then by dividing.', 'Whichever stays constant tells you the type.', 'Use that constant to reach the requested term.']} />
     <ToolGrid min={340}>
-      <SequenceVisual spec={spec} count={Number(questionData.displayCount ?? 7)} />
+      <SequenceVisual spec={spec} count={sequenceEvidenceCount(questionData.displayCount ?? 7, targetN, { revealTarget: questionData.revealTargetTerm === true })} />
       <Panel title="Analyze the pattern">
         <label>Sequence family<select value={kindAnswer} onChange={(event) => setKindAnswer(event.target.value)} style={inputStyle}><option value="">Choose…</option><option value="arithmetic">Arithmetic</option><option value="geometric">Geometric</option></select></label>
-        <label style={{ display: 'block', marginTop: 10 }}>Common {spec.kind === 'arithmetic' ? 'difference' : 'ratio'}<input value={changeAnswer} onChange={(event) => setChangeAnswer(event.target.value)} inputMode="decimal" style={inputStyle} /></label>
+        <label style={{ display: 'block', marginTop: 10 }}>Common {kindAnswer === 'arithmetic' ? 'difference' : kindAnswer === 'geometric' ? 'ratio' : 'change'}<input value={changeAnswer} onChange={(event) => setChangeAnswer(event.target.value)} inputMode="decimal" style={inputStyle} /></label>
         <label style={{ display: 'block', marginTop: 10 }}>a<sub>{targetN}</sub><input value={termAnswer} onChange={(event) => setTermAnswer(event.target.value)} inputMode="decimal" style={inputStyle} /></label>
         <button type="button" onClick={check} style={actionStyle}>Check analysis</button>
         {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Pattern, common change, and target term all agree.' : 'Use equal differences for arithmetic sequences and equal ratios for geometric sequences.'}</ResultPill></div> : null}
@@ -105,7 +106,7 @@ function RuleBridge({ questionData, feedback, submit, onAction }) {
     ];
     submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / checks.length }, { explicitFirst, explicitChange, recursiveFirst, recursiveChange }, { mode: 'ruleBridge', kind: spec.kind });
   };
-  return <ToolShell title="Sequence Explorer" subtitle="Move between explicit and recursive descriptions of the same sequence." badge="Algebra I / II · Rule Bridge">
+  return <ToolShell title="Write the Sequence Rules" subtitle="Move between explicit and recursive descriptions of the same sequence." badge="Recursive and explicit">
     <TaskCard question={questionData} task={'Write the same sequence both explicitly and recursively.'} steps={['The explicit rule gets any term directly from its position n.', 'The recursive rule builds each term from the one before it.', 'Both must produce the same sequence.']} />
     <ToolGrid min={330}>
       <SequenceVisual spec={spec} count={6} title="Evidence from the sequence" />
@@ -133,7 +134,7 @@ function MissingTerm({ questionData, feedback, submit, onAction }) {
     const checks = [matchesNumber(termAnswer, expected, 0.01), kindAnswer === spec.kind];
     submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / 2 }, { termAnswer, kindAnswer }, { mode: 'missingTerm', missingIndex });
   };
-  return <ToolShell title="Sequence Explorer" subtitle="Recover a missing term from invariant additive or multiplicative structure." badge="Algebra I / II · Missing Term">
+  return <ToolShell title="Find the Missing Term" subtitle="Recover a missing term from the sequence pattern." badge="Sequence pattern">
     <TaskCard question={questionData} task={'Recover the missing term and say what kind of sequence this is.'} steps={['Look at the terms either side of the gap.', 'Work out the constant difference or ratio from terms you can see.', 'Apply it to fill the gap.']} />
     <ToolGrid min={320}>
       <Panel title="Sequence with a gap">
@@ -161,10 +162,10 @@ function PartialSum({ questionData, feedback, submit, onAction }) {
     const checks = [matchesNumber(lastTerm, expectedLast, 0.01), matchesNumber(sumAnswer, expectedSum, 0.01)];
     submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / 2 }, { lastTerm, sumAnswer }, { mode: 'partialSum', sumN });
   };
-  return <ToolShell title="Sequence Explorer" subtitle="Connect a sequence of terms to the finite series formed by adding them." badge="Algebra II · Finite Sum">
+  return <ToolShell title="Find the Finite Sum" subtitle="Connect a sequence of terms to the finite series formed by adding them." badge="Finite series">
     <TaskCard question={questionData} task={'Find the last term of this finite sequence and the sum of all its terms.'} steps={['Extend the sequence to the requested number of terms.', 'Identify the last term.', 'Add all the terms, or use the appropriate sum formula.']} />
     <ToolGrid min={320}>
-      <SequenceVisual spec={spec} count={Math.min(sumN, 7)} title={`First ${Math.min(sumN, 7)} terms`} />
+      <SequenceVisual spec={spec} count={sequenceEvidenceCount(7, sumN, { revealTarget: questionData.revealTargetTerm === true, cap: 7 })} title="Sequence evidence" />
       <Panel title={`Find S${sumN}`}>
         <p><strong>S<sub>{sumN}</sub> = a₁ + a₂ + ··· + a<sub>{sumN}</sub></strong></p>
         <label>Last included term a<sub>{sumN}</sub><input value={lastTerm} onChange={(event) => setLastTerm(event.target.value)} style={inputStyle} /></label>
@@ -183,8 +184,9 @@ function CompareSequences({ questionData, feedback, submit, onAction }) {
   const result = compareSequencesAt(left, right, compareN);
   const leftLabel = questionData.leftLabel || 'Sequence A';
   const rightLabel = questionData.rightLabel || 'Sequence B';
-  const leftRows = generateSequence(left, Math.min(compareN, 7));
-  const rightRows = generateSequence(right, Math.min(compareN, 7));
+  const evidenceCount = sequenceEvidenceCount(questionData.displayCount ?? 7, compareN, { revealTarget: questionData.revealCompareTerm === true, cap: 7 });
+  const leftRows = generateSequence(left, evidenceCount);
+  const rightRows = generateSequence(right, evidenceCount);
   const bounds = graphBounds([...leftRows, ...rightRows].map((row) => row.value));
   const [relation, setRelation] = useState('');
   const [difference, setDifference] = useState('');
@@ -193,11 +195,11 @@ function CompareSequences({ questionData, feedback, submit, onAction }) {
     const checks = [relation === expectedRelation, matchesNumber(difference, result.difference, 0.01)];
     submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / 2 }, { relation, difference }, { mode: 'compare', compareN });
   };
-  return <ToolShell title="Sequence Explorer" subtitle="Compare linear additive growth with multiplicative growth at a specified term." badge="Algebra I / II · Growth Comparison">
+  return <ToolShell title="Compare the Sequences" subtitle="Compare additive and multiplicative growth at the same term number." badge="Growth comparison">
     <TaskCard question={questionData} task={'Compare the two sequences at the given term number.'} steps={['Work out the requested term of each sequence separately.', 'Compare the two values.', 'Choose the relationship and give the difference.']} />
     <ToolGrid min={330}>
       <Panel title="Two discrete models">
-        <CoordinatePlane xMin={0} xMax={Math.min(compareN, 7) + 1} yMin={bounds.yMin} yMax={bounds.yMax} points={[...leftRows.map((row) => ({ 0: row.n, 1: row.value, fill: '#1a73e8' })), ...rightRows.map((row) => ({ 0: row.n, 1: row.value, fill: '#d93025' }))]} />
+        <CoordinatePlane xMin={0} xMax={evidenceCount + 1} yMin={bounds.yMin} yMax={bounds.yMax} points={[...leftRows.map((row) => ({ 0: row.n, 1: row.value, fill: '#1a73e8' })), ...rightRows.map((row) => ({ 0: row.n, 1: row.value, fill: '#d93025' }))]} />
         <p><span style={{ color: '#1a73e8', fontWeight: 900 }}>● {leftLabel}</span> &nbsp; <span style={{ color: '#d93025', fontWeight: 900 }}>● {rightLabel}</span></p>
         <p style={{ color: '#5f6b7a' }}>Do not decide from the first few terms alone; compare both rules at the requested index.</p>
       </Panel>

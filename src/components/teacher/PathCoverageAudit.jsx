@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { fetchPathCoverage, rebuildPathCoverage, seedPathQuestionBank } from '../../platform/path/pathCoverageService.js';
+import { fetchPathCoverage, fetchPathRuntimeStatus, initializeBundledPathBankStarter, rebuildPathCoverage, seedPathQuestionBank } from '../../platform/path/pathCoverageService.js';
+import { clearTeacherPathBankSnapshotCache } from '../../platform/path/pathBankSimulationService.js';
 import {
   COVERAGE_STATE, COVERAGE_STATE_LABELS, summarizeCoverage,
 } from '../../../functions/shared/pathCoverage.mjs';
 import { COURSES } from '../../../functions/shared/classModel.mjs';
+import { PATH_WEB_RELEASE } from '../../platform/path/pathRelease.js';
 
 // Which standards My Math Path can actually teach.
 //
@@ -32,6 +34,21 @@ const pill = (state) => ({
   ...(STATE_STYLE[state] || STATE_STYLE[COVERAGE_STATE.NONE]),
 });
 
+
+const friendlyPathError = (caught, fallback) => {
+  const code = String(caught?.code || '').replace(/^functions\//, '');
+  if (code === 'internal') {
+    return `${fallback} The deployed Cloud Functions returned an internal error. This commonly happens when the Vercel web build and Firebase Functions are on different Path releases. Deploy Functions from the same project first, then deploy that project to Vercel.`;
+  }
+  if (code === 'not-found') {
+    return `${fallback} The required Path Cloud Function is not deployed. Deploy Firebase Functions from this project, then try again.`;
+  }
+  if (code === 'permission-denied' || code === 'unauthenticated') {
+    return `${fallback} Sign out and back in as Root Admin so your current authorization token is refreshed.`;
+  }
+  return caught?.message || fallback;
+};
+
 export default function PathCoverageAudit({ courseIds = COURSES.map((course) => course.id) }) {
   const [indexes, setIndexes] = useState({});
   const [courseId, setCourseId] = useState(courseIds[0]);
@@ -41,6 +58,19 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
   const [onlyGaps, setOnlyGaps] = useState(false);
   const [seed, setSeed] = useState(null);
   const [seedPhase, setSeedPhase] = useState(null);
+  const [runtimeStatus, setRuntimeStatus] = useState(null);
+  const [runtimeError, setRuntimeError] = useState(null);
+
+
+  const loadRuntimeStatus = useCallback(async () => {
+    setRuntimeError(null);
+    try {
+      setRuntimeStatus(await fetchPathRuntimeStatus());
+    } catch (caught) {
+      setRuntimeStatus(null);
+      setRuntimeError(friendlyPathError(caught, 'Could not verify the deployed My Math Path backend.'));
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -55,16 +85,47 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
     }
   }, [courseIds.join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); loadRuntimeStatus(); }, [load, loadRuntimeStatus]);
 
   const rebuild = async () => {
+    if (runtimeStatus?.bankCount === 0) {
+      setError('The secure Path bank is empty. Recompute does not create questions; initialize the built-in starter bank first.');
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
       const result = await rebuildPathCoverage(courseIds);
       setIndexes(result.indexes || {});
+      await loadRuntimeStatus();
     } catch (caught) {
-      setError(caught.message || 'Could not rebuild coverage.');
+      setError(friendlyPathError(caught, 'Could not rebuild coverage.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const initializeStarter = async () => {
+    setBusy(true);
+    setError(null);
+    setSeed(null);
+    try {
+      const result = await initializeBundledPathBankStarter({
+        onProgress: ({ phase, chunk, chunks }) => {
+          if (phase === 'initializing') setSeedPhase('Installing the secure starter bank…');
+          else if (phase === 'coverage') setSeedPhase('Recomputing Path coverage…');
+          else setSeedPhase(`${phase === 'validating' ? 'Validating' : 'Importing'} ${chunk} of ${chunks}…`);
+        },
+      });
+      setSeed(result.seed);
+      if (!result.initialized) throw new Error('The starter bank did not pass server validation. Nothing was written.');
+      clearTeacherPathBankSnapshotCache();
+      setIndexes(result.coverage?.indexes || {});
+      await loadRuntimeStatus();
+      setSeedPhase(null);
+    } catch (caught) {
+      setError(friendlyPathError(caught, 'Could not initialize the starter Path bank.'));
+      setSeedPhase(null);
     } finally {
       setBusy(false);
     }
@@ -77,6 +138,29 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
   return (
     <div>
       {error && <div role="alert" style={{ ...card, background: '#fce8e6', borderColor: '#f0b4b2', color: '#a50e0e' }}>{error}</div>}
+
+      <section style={{ ...card, background: runtimeError || (runtimeStatus?.release && runtimeStatus.release !== PATH_WEB_RELEASE) ? '#fef7e0' : '#f8fbff' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div>
+            <h3 style={{ margin: 0 }}>Path deployment status</h3>
+            <p style={{ margin: '6px 0 0', color: '#5f6368', fontSize: 13, lineHeight: 1.5 }}>
+              Web release: <strong>{PATH_WEB_RELEASE}</strong> · Server release: <strong>{runtimeStatus?.release || 'not verified'}</strong>
+            </p>
+            {runtimeStatus && (
+              <p style={{ margin: '4px 0 0', color: '#5f6368', fontSize: 13 }}>
+                Secure bank: <strong>{runtimeStatus.bankCount ?? 0}</strong> questions · Built-in starter: <strong>{runtimeStatus.starterAvailable ? `${runtimeStatus.starterCount} available` : 'unavailable'}</strong>
+              </p>
+            )}
+          </div>
+          <button type="button" style={quiet} onClick={loadRuntimeStatus} disabled={busy}>Check deployment</button>
+        </div>
+        {runtimeError && <p role="alert" style={{ margin: '12px 0 0', color: '#a50e0e', fontWeight: 800, lineHeight: 1.5 }}>{runtimeError}</p>}
+        {runtimeStatus?.release && runtimeStatus.release !== PATH_WEB_RELEASE && (
+          <p role="alert" style={{ margin: '12px 0 0', color: '#a50e0e', fontWeight: 800, lineHeight: 1.5 }}>
+            The web app and Cloud Functions are on different Path releases. Do not troubleshoot question content yet. Deploy Functions from this project, then deploy this same project to Vercel.
+          </p>
+        )}
+      </section>
 
       <section style={card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start' }}>
@@ -93,6 +177,10 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
             <button type="button" style={primary} onClick={rebuild} disabled={busy}>{busy ? 'Recomputing…' : 'Recompute from bank'}</button>
           </div>
         </div>
+
+        <p style={{ margin: '12px 0 0', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>
+          <strong>Recompute from bank does not create questions.</strong> It only rebuilds the coverage index from content already stored in the secure Path bank. If the bank count above is 0, initialize the starter bank first.
+        </p>
 
         <div role="group" aria-label="Course" style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
           {courseIds.map((id) => (
@@ -121,12 +209,20 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
       <section style={card}>
         <h3 style={{ margin: 0 }}>Import a Path bank seed package</h3>
         <p style={{ margin: '6px 0 14px', color: '#5f6368', fontSize: 13, lineHeight: 1.55, maxWidth: 720 }}>
-          Select the seed JSON files — one or several at once, and a package split across course files must be selected
-          together so it is validated and imported as a single unit. An array, or an object with <code>documents</code>,
-          <code>items</code> or <code>questions</code>, are all accepted. Each
-          one is checked with the same validation production uses to issue a question; anything that fails is reported and
-          not stored. Re-importing the same file updates rather than duplicates.
+          A new MathMaster installation starts with an empty secure bank. The built-in starter package supplies five
+          minimum-operational families for every currently routeable Algebra I / Algebra II Path standard and its current
+          middle-school prerequisites. Its answer key stays inside Cloud Functions — students never download the seed file —
+          and every item is validated by the production issuer before storage. It can be safely run again.
         </p>
+        <button type="button" style={{ ...primary, marginBottom: 16 }} onClick={initializeStarter} disabled={busy}>
+          {busy ? 'Working…' : 'Initialize / refresh built-in starter bank'}
+        </button>
+        <details style={{ marginBottom: 10 }}>
+          <summary style={{ cursor: 'pointer', fontWeight: 800, color: '#3c4043' }}>Import a different seed package instead</summary>
+          <p style={{ margin: '8px 0 12px', color: '#5f6368', fontSize: 13, lineHeight: 1.55, maxWidth: 720 }}>
+            Select one or more JSON files. A package split across course files must be selected together. An array, or an object
+            with <code>documents</code>, <code>items</code> or <code>questions</code>, is accepted.
+          </p>
         <input
           type="file"
           accept="application/json,.json"
@@ -150,9 +246,16 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
               // could leave the bank half-filled.
               const ids = new Set(items.map((entry) => entry?.id));
               if (ids.size !== items.length) throw new Error('Those files contain duplicate question IDs.');
-              setSeed(await seedPathQuestionBank(items, {
+              const imported = await seedPathQuestionBank(items, {
                 onProgress: ({ phase, chunk, chunks }) => setSeedPhase(`${phase === 'validating' ? 'Validating' : 'Importing'} ${chunk} of ${chunks}…`),
-              }));
+              });
+              setSeed(imported);
+              if (imported.imported) {
+                clearTeacherPathBankSnapshotCache();
+                setSeedPhase('Recomputing Path coverage…');
+                const coverage = await rebuildPathCoverage(courseIds);
+                setIndexes(coverage.indexes || {});
+              }
               setSeedPhase(null);
             } catch (caught) {
               setError(caught.message || 'Could not import that seed file.');
@@ -164,6 +267,7 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
           disabled={busy}
           style={{ fontSize: 14 }}
         />
+        </details>
         {seedPhase && <p style={{ marginTop: 12, color: '#174ea6', fontWeight: 700 }}>{seedPhase}</p>}
         {seed && (
           <div style={{ marginTop: 14, fontSize: 13, lineHeight: 1.7 }}>
@@ -197,7 +301,7 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
                 </table>
               </details>
             )}
-            {seed.imported && <p style={{ margin: '10px 0 0', color: '#5f6368' }}>Now recompute coverage above — it rereads the bank from Firestore rather than trusting this import.</p>}
+            {seed.imported && <p style={{ margin: '10px 0 0', color: '#137333', fontWeight: 800 }}>Import complete. Coverage was recomputed automatically and the simulator cache was refreshed.</p>}
           </div>
         )}
       </section>

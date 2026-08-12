@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
   auditStaticGraphViewport,
   evaluateStaticGraphFunction,
+  fitStaticGraphViewport,
   getQuadraticParameterization,
   validateStaticGraphFunctionSpec,
 } from '../../src/graphSpecUtils.js';
@@ -23,11 +24,27 @@ const visibleArch = auditStaticGraphViewport({
 }, { strictBoundaryVisibility: true });
 assert.deepEqual(visibleArch.errors, [], 'a fully visible vertex-form arch passes strict viewport validation');
 
-const clippedGrowth = auditStaticGraphViewport({
+const authoredTooSmall = {
   xMin: 0, xMax: 7, yMin: 0, yMax: 140,
   functions: [{ type: 'exponential', a: 2, base: 2, h: 0, k: 0 }],
+};
+const fittedGrowth = fitStaticGraphViewport(authoredTooSmall);
+assert.ok(fittedGrowth.yMax >= 256,
+  'the renderer expands a routine authored y-window instead of sending the AI back to engineer viewport bounds');
+const autoFitAudit = auditStaticGraphViewport(authoredTooSmall, { strictBoundaryVisibility: true });
+assert.deepEqual(autoFitAudit.errors, [], 'an ordinary clipped graph is repaired by platform auto-fit');
+
+const intentionallyLocked = auditStaticGraphViewport({
+  ...authoredTooSmall,
+  lockViewport: true,
 }, { strictBoundaryVisibility: true });
-assert.ok(clippedGrowth.errors.some((message) => /clipped by its viewport/.test(message)),
-  'graph cards reject a finite curve that runs outside the authored viewport');
+assert.ok(intentionallyLocked.errors.some((message) => /clipped by its locked viewport/.test(message)),
+  'a deliberately locked instructional viewport is still validated strictly');
+
+const omittedWindow = fitStaticGraphViewport({
+  functions: [{ type: 'exponential', a: 2, base: 2, h: 0, k: 0 }],
+});
+assert.ok(omittedWindow.xMin < 0 && omittedWindow.xMax > 0, 'MathMaster chooses a useful x-window when the AI omits it');
+assert.ok(omittedWindow.yMax > 2, 'MathMaster chooses a useful y-window from the function');
 
 console.log('graphSpecUtils.test.mjs: all assertions passed');

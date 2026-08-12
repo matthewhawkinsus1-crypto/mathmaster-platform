@@ -33,6 +33,14 @@ const INTERVAL_KEYS = [
   { label: '∩', command: '\\cap', ariaLabel: 'Insert intersection' },
 ];
 
+
+const SET_KEYS = [
+  { label: '{', command: '\\lbrace', ariaLabel: 'Insert opening set brace' },
+  { label: '}', command: '\\rbrace', ariaLabel: 'Insert closing set brace' },
+  { label: ',', command: ',', ariaLabel: 'Insert comma' },
+  { label: '∅', command: '\\varnothing', ariaLabel: 'Insert empty set' },
+];
+
 const INEQUALITY_KEYS = [
   { label: '<', command: '<', ariaLabel: 'Insert less than' },
   { label: '≤', command: '\\le', ariaLabel: 'Insert less than or equal to' },
@@ -48,8 +56,8 @@ const INEQUALITY_KEYS = [
 const getToolKeys = (profile) => {
   if (profile === 'interval') return INTERVAL_KEYS;
   if (profile === 'inequality') return INEQUALITY_KEYS;
-  if (profile === 'set') return [...INEQUALITY_KEYS, ...INTERVAL_KEYS.filter((item) => ['(', ')', '[', ']'].includes(item.label))];
-  if (profile === 'basic+set') return [...BASIC_KEYS, ...INEQUALITY_KEYS];
+  if (profile === 'set') return [...SET_KEYS, ...INEQUALITY_KEYS, ...INTERVAL_KEYS.filter((item) => ['(', ')', '[', ']'].includes(item.label))];
+  if (profile === 'basic+set') return [...BASIC_KEYS, ...SET_KEYS, ...INEQUALITY_KEYS];
   return BASIC_KEYS;
 };
 

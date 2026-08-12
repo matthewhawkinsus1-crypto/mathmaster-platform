@@ -26,6 +26,18 @@ export const fetchPathCoverage = async (courseId) => {
   }
 };
 
+
+/**
+ * Ask the deployed Functions backend which Path release it is running and
+ * whether the secure bank actually contains content.  This is diagnostics,
+ * not a content source: no question or answer data is returned.
+ */
+export const fetchPathRuntimeStatus = async () => {
+  const call = httpsCallable(functions, 'getPathRuntimeStatus');
+  const result = await call({});
+  return result.data || {};
+};
+
 /**
  * Recompute coverage from the secure bank.
  *
@@ -82,6 +94,25 @@ export const seedPathQuestionBank = async (items, { chunkSize = 400, onProgress 
 
   const written = await runPass(false);
   return { imported: written.rejected.length === 0, phase: 'import', ...written };
+};
+
+/**
+ * Root-admin bootstrap for a fresh installation.
+ *
+ * The answer-bearing starter package is stored only inside the Cloud Functions
+ * deployment. It is deliberately NOT fetched by the browser or copied into
+ * Vite public assets, because that would publish the secure bank answer key to
+ * every student. The callable returns counts/status only; coverage is rebuilt
+ * afterward from Firestore.
+ */
+export const initializeBundledPathBankStarter = async ({ onProgress = null } = {}) => {
+  onProgress?.({ phase: 'initializing', chunk: 0, chunks: 0 });
+  const call = httpsCallable(functions, 'initializeStarterPathQuestionBank');
+  const seed = (await call({})).data || {};
+  if (!seed.imported) return { initialized: false, seed, coverage: null };
+  onProgress?.({ phase: 'coverage', chunk: 0, chunks: 0 });
+  const coverage = await rebuildPathCoverage(['algebra1', 'algebra2']);
+  return { initialized: true, seed, coverage };
 };
 
 /**

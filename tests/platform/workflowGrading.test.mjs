@@ -179,3 +179,84 @@ test('several accepted answers are allowed', () => {
     true,
   );
 });
+
+test('a graph derived from student work is graded by its student-derived stage verdict', () => {
+  const stage = { id: 'graph', kind: 'functionGraph', sourceStageId: 'table' };
+  const rule = { consistentWith: 'table', useStageVerdict: true };
+  const correct = gradeStage({
+    stage,
+    rule,
+    responses: {
+      table: { __mathmasterWorkflowArtifact: 'table', isComplete: true, cells: { '0:y': '0' }, sourceModel: 'f(x)=2x' },
+      graph: { __mathmasterWorkflowArtifact: 'graph', isComplete: true, isCorrect: true },
+    },
+  });
+  assert.equal(correct.graded, true);
+  assert.equal(correct.isCorrect, true);
+
+  const wrong = gradeStage({
+    stage,
+    rule,
+    responses: {
+      table: { __mathmasterWorkflowArtifact: 'table', isComplete: true, cells: { '0:y': '0' }, sourceModel: 'f(x)=2x' },
+      graph: { __mathmasterWorkflowArtifact: 'graph', isComplete: true, isCorrect: false },
+    },
+  });
+  assert.equal(wrong.isCorrect, false);
+});
+
+test('a table workflow artifact is checked using its cells, not its metadata', () => {
+  const stage = { id: 'table', kind: 'tableInput', xValues: [0, 1], responseColumn: 'y' };
+  const rule = { consistentWith: 'equation' };
+  const mark = gradeStage({
+    stage,
+    rule,
+    responses: {
+      equation: 'f(x)=2x',
+      table: {
+        __mathmasterWorkflowArtifact: 'table',
+        isComplete: true,
+        cells: { '0:y': '0', '1:y': '2' },
+        points: [[0, 0], [1, 2]],
+        sourceModel: 'f(x)=2x',
+      },
+    },
+  });
+  assert.equal(mark.isCorrect, true);
+});
+
+test('a nonnumeric table entry is wrong, not silently uncheckable, when the model is evaluable', () => {
+  const check = checkTableConsistency({
+    response: { '0:y': '0', '1:y': 'banana' },
+    xValues: [0, 1],
+    model: 'f(x)=2x',
+  });
+  assert.equal(check.checked, 2);
+  assert.equal(check.consistent, false);
+  assert.equal(check.mismatches.length, 1);
+});
+
+test('a fraction typed in the table can stay consistent with the student function', () => {
+  const check = checkTableConsistency({
+    response: { '0:y': '1/3', '1:y': '2/3' },
+    xValues: [1, 2],
+    model: 'f(x)=x/3',
+  });
+  assert.equal(check.checked, 2);
+  assert.equal(check.consistent, true);
+});
+
+test('workflow domain/range stages grade roster-form sets semantically', () => {
+  const stage = { id: 'range', kind: 'rangeInput', notation: 'set' };
+  const rule = '{0, 1, 2, 3}';
+  assert.equal(
+    gradeStage({ stage, rule, responses: { range: '\\left\\{3,2,1,0\\right\\}' } }).isCorrect,
+    true,
+    'MathLive braces and reordered members should represent the same finite set',
+  );
+  assert.equal(
+    gradeStage({ stage, rule, responses: { range: '{0, 1, 2, 4}' } }).isCorrect,
+    false,
+    'a different member must still fail',
+  );
+});

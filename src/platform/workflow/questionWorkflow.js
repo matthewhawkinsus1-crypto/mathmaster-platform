@@ -31,6 +31,11 @@ export const hasStageResponse = (value) => {
   if (value === undefined || value === null || value === '') return false;
   if (Array.isArray(value)) return value.length > 0;
   if (typeof value === 'object') {
+    // Workflow artifacts may carry useful metadata before the student has
+    // finished the stage.  Downstream work must wait for the artifact itself
+    // to say it is complete; otherwise a graph could unlock after only one
+    // table cell was entered.
+    if (value.__mathmasterWorkflowArtifact) return value.isComplete === true;
     return Object.values(value).some((entry) => hasStageResponse(entry));
   }
   return true;

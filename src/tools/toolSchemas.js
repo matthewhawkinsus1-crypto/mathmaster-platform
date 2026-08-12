@@ -39,7 +39,8 @@ export const validateToolQuestion = (question = {}) => {
   if (!TOOL_IDS.has(toolId)) errors.push(`Unknown missing-tool id: ${toolId || '(missing)'}.`);
   if (question.difficultyBand != null && (!Number.isInteger(Number(question.difficultyBand)) || Number(question.difficultyBand) < 1 || Number(question.difficultyBand) > 5)) errors.push('difficultyBand must be an integer from 1 to 5.');
   if (question.dok != null && (!Number.isInteger(Number(question.dok)) || Number(question.dok) < 1 || Number(question.dok) > 4)) errors.push('dok must be an integer from 1 to 4.');
-  if (!question.masteryEvidenceKeys?.length) warnings.push('No masteryEvidenceKeys supplied; this item should not produce standards mastery until aligned.');
+  const hasStandardsAlignment = Array.isArray(question.alignments) && question.alignments.some((entry) => entry && String(entry.framework || 'teks') === 'teks' && entry.code);
+  if (!question.masteryEvidenceKeys?.length && !hasStandardsAlignment) warnings.push('No standards alignment supplied; this item should not produce standards mastery until aligned.');
 
   if (toolId === 'dataModelingLab') {
     if (question.points && (!Array.isArray(question.points) || question.points.length < 3)) errors.push('dataModelingLab requires at least 3 data points.');
@@ -115,6 +116,9 @@ export const validateToolQuestion = (question = {}) => {
       if (mode === 'partialSum' && !isPositiveInteger(question.sumN)) errors.push('partialSum mode requires sumN as a positive integer.');
     }
     if (question.displayCount != null && (!isPositiveInteger(question.displayCount) || Number(question.displayCount) > 20)) errors.push('sequenceExplorer displayCount must be an integer from 1 to 20.');
+    if (mode === 'analyze' && question.revealTargetTerm !== true && question.displayCount != null && question.targetN != null && Number(question.displayCount) >= Number(question.targetN)) {
+      errors.push('sequenceExplorer analyze mode must not display the requested target term before the student answers. Use displayCount < targetN, or set revealTargetTerm: true only when intentionally showing the answer as worked evidence.');
+    }
   }
   if (toolId === 'complexPlaneLab') {
     const modes = ['features','operations','division','powers','rotation','quadraticRoots'];
@@ -186,6 +190,13 @@ export const validateToolQuestion = (question = {}) => {
     const modes = ['completeSet','findMismatch','tableAudit','graphMatch'];
     const mode = question.mode || 'completeSet';
     if (!modes.includes(mode)) errors.push(`Unsupported representationMatch mode: ${mode}.`);
+    // Every mode reads `sets`. `findMismatch` builds its cards from them just
+    // as `completeSet` does, so leaving it out of this rule would have kept one
+    // mode quietly rendering the demo relationships instead of the authored
+    // ones — the failure this rule exists to stop.
+    if (['completeSet', 'findMismatch', 'graphMatch'].includes(mode) && (!Array.isArray(question.sets) || question.sets.length < 2)) {
+      errors.push(`representationMatch ${mode} mode requires an explicit sets array with at least two relationships; do not rely on hidden fallback content.`);
+    }
     if (question.sets) {
       if (!Array.isArray(question.sets) || question.sets.length < 2) errors.push('representationMatch sets must contain at least two relationships.');
       else {
@@ -209,8 +220,7 @@ export const validateToolQuestion = (question = {}) => {
       if (!Array.isArray(question.rows) || question.rows.length < 3 || question.rows.some((row) => !isFinitePoint(row))) errors.push('tableAudit mode requires at least three finite [x,y] rows.');
     }
     if (mode === 'graphMatch') {
-      if (!Array.isArray(question.sets) || question.sets.length < 2) errors.push('graphMatch mode requires at least two representation sets.');
-      else question.sets.forEach((set, index) => errors.push(...validateFunctionSpec(set.graphSpec || {}, `graphMatch set ${index + 1} graphSpec`)));
+      if (Array.isArray(question.sets) && question.sets.length >= 2) question.sets.forEach((set, index) => errors.push(...validateFunctionSpec(set.graphSpec || {}, `graphMatch set ${index + 1} graphSpec`)));
       if (!question.targetId) errors.push('graphMatch mode requires targetId.');
     }
   }

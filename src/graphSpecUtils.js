@@ -121,7 +121,144 @@ const graphBounds = (graph = {}) => {
 
 const inside = (value, min, max, tolerance = 1e-7) => Number.isFinite(value) && value >= min - tolerance && value <= max + tolerance;
 
+
+const AUTO_FIT_FUNCTION_TYPES = new Set([
+  'line', 'quadratic', 'absolute', 'squareRoot', 'cubic', 'cubeRoot', 'exponential',
+]);
+
+const niceBound = (value, direction = 'out') => {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number === 0) return number;
+  const magnitude = 10 ** Math.floor(Math.log10(Math.abs(number)));
+  const scaled = number / magnitude;
+  if (direction === 'down') return Math.floor(scaled) * magnitude;
+  if (direction === 'up') return Math.ceil(scaled) * magnitude;
+  return Math.round(scaled) * magnitude;
+};
+
+/**
+ * Expand a static graph's y-window when authored bounds would hide the
+ * mathematics. AI authors should describe the model; the renderer owns the
+ * final student-friendly viewport. `lockViewport: true` is the explicit opt-out
+ * for rare lessons where cropping itself is instructional.
+ */
+export const fitStaticGraphViewport = (graph = {}, { sampleCount = 160, paddingRatio = 0.08 } = {}) => {
+  if (!graph || typeof graph !== 'object' || Array.isArray(graph)) return graph;
+  if (graph.lockViewport === true || graph.autoFit === false) return graph;
+
+  const functions = Array.isArray(graph.functions) ? [...graph.functions] : [];
+  if (graph.line && typeof graph.line === 'object') functions.push({ type: 'line', ...graph.line });
+  if (finite(graph.m) || finite(graph.b)) functions.push({ type: 'line', m: Number(graph.m || 0), b: Number(graph.b || 0) });
+
+  const authoredXMin = finite(graph.xMin);
+  const authoredXMax = finite(graph.xMax);
+  let xMin = authoredXMin ? Number(graph.xMin) : Number.NaN;
+  let xMax = authoredXMax ? Number(graph.xMax) : Number.NaN;
+
+  const finitePointXs = [];
+  (Array.isArray(graph.points) ? graph.points : []).forEach((point) => {
+    const x = Array.isArray(point) ? Number(point[0]) : Number(point?.x);
+    if (Number.isFinite(x)) finitePointXs.push(x);
+  });
+
+  // If the author did not choose an x-window, select one from the mathematical
+  // family rather than dumping every function into the old [-10,10] default.
+  // This makes a simple exponential readable without requiring the AI to know
+  // renderer viewport heuristics.
+  if (!authoredXMin || !authoredXMax) {
+    let suggestedMin = -5;
+    let suggestedMax = 5;
+    if (functions.length === 1) {
+      const spec = functions[0] || {};
+      const type = spec.type || spec.kind || 'line';
+      const h = Number(spec.h ?? 0);
+      if (type === 'exponential') [suggestedMin, suggestedMax] = [h - 4, h + 4];
+      else if (type === 'squareRoot') [suggestedMin, suggestedMax] = [h - 1, h + 8];
+      else if (type === 'logarithmic') [suggestedMin, suggestedMax] = [h + 0.25, h + 8];
+      else if (['quadratic', 'absolute', 'cubic', 'cubeRoot', 'reciprocal', 'rational'].includes(type)) {
+        [suggestedMin, suggestedMax] = [h - 5, h + 5];
+      }
+    }
+    if (finitePointXs.length) {
+      const pointMin = Math.min(...finitePointXs);
+      const pointMax = Math.max(...finitePointXs);
+      const pointSpan = Math.max(2, pointMax - pointMin);
+      suggestedMin = Math.min(suggestedMin, pointMin - pointSpan * 0.1);
+      suggestedMax = Math.max(suggestedMax, pointMax + pointSpan * 0.1);
+    }
+    if (!authoredXMin) xMin = suggestedMin;
+    if (!authoredXMax) xMax = suggestedMax;
+  }
+
+  if (!Number.isFinite(xMin) || !Number.isFinite(xMax) || xMin >= xMax) [xMin, xMax] = [-5, 5];
+
+  const authoredYMin = finite(graph.yMin);
+  const authoredYMax = finite(graph.yMax);
+  let yMin = authoredYMin ? Number(graph.yMin) : Number.NaN;
+  let yMax = authoredYMax ? Number(graph.yMax) : Number.NaN;
+
+  const yValues = [];
+  functions.forEach((spec) => {
+    const type = spec?.type || spec?.kind || 'line';
+    if (!AUTO_FIT_FUNCTION_TYPES.has(type)) return;
+    for (let sample = 0; sample <= sampleCount; sample += 1) {
+      const x = xMin + ((xMax - xMin) * sample) / sampleCount;
+      const y = evaluateStaticGraphFunction(spec, x);
+      if (Number.isFinite(y) && Math.abs(y) < 1e9) yValues.push(y);
+    }
+  });
+
+  (Array.isArray(graph.points) ? graph.points : []).forEach((point) => {
+    const y = Array.isArray(point) ? Number(point[1]) : Number(point?.y);
+    if (Number.isFinite(y)) yValues.push(y);
+  });
+  (Array.isArray(graph.segments) ? graph.segments : []).forEach((segment) => {
+    const endpoints = [segment?.start, segment?.end, segment?.from, segment?.to];
+    endpoints.forEach((point) => {
+      const y = Array.isArray(point) ? Number(point[1]) : Number(point?.y);
+      if (Number.isFinite(y)) yValues.push(y);
+    });
+  });
+
+  if (!yValues.length) {
+    if (!authoredYMin) yMin = -10;
+    if (!authoredYMax) yMax = 10;
+    return { ...graph, xMin, xMax, yMin, yMax };
+  }
+
+  const observedMin = Math.min(...yValues);
+  const observedMax = Math.max(...yValues);
+  let baseMin = authoredYMin ? Math.min(yMin, observedMin) : observedMin;
+  let baseMax = authoredYMax ? Math.max(yMax, observedMax) : observedMax;
+
+  // Keep zero visible for common school graphs when all observed values are on
+  // one side of the axis and the author did not explicitly choose otherwise.
+  if (!authoredYMin && observedMin >= 0) baseMin = 0;
+  if (!authoredYMax && observedMax <= 0) baseMax = 0;
+
+  if (Math.abs(baseMax - baseMin) < 1e-9) {
+    baseMin -= 1;
+    baseMax += 1;
+  }
+
+  const span = Math.max(1, baseMax - baseMin);
+  const padding = Math.max(span * paddingRatio, 0.5);
+  let nextMin = authoredYMin && observedMin >= yMin ? yMin : niceBound(baseMin - padding, 'down');
+  let nextMax = authoredYMax && observedMax <= yMax ? yMax : niceBound(baseMax + padding, 'up');
+
+  if (!Number.isFinite(nextMin) || !Number.isFinite(nextMax) || nextMin >= nextMax) {
+    nextMin = Number.isFinite(yMin) ? yMin : -10;
+    nextMax = Number.isFinite(yMax) ? yMax : 10;
+  }
+
+  if ((authoredYMin && yMin === 0 && observedMin >= 0) || (!authoredYMin && observedMin >= 0)) nextMin = 0;
+  if ((authoredYMax && yMax === 0 && observedMax <= 0) || (!authoredYMax && observedMax <= 0)) nextMax = 0;
+
+  return { ...graph, xMin, xMax, yMin: nextMin, yMax: nextMax };
+};
+
 export const auditStaticGraphViewport = (graph = {}, { label = 'graph', strictBoundaryVisibility = false } = {}) => {
+  graph = fitStaticGraphViewport(graph);
   const errors = [];
   const warnings = [];
   const { xMin, xMax, yMin, yMax } = graphBounds(graph);
@@ -170,7 +307,7 @@ export const auditStaticGraphViewport = (graph = {}, { label = 'graph', strictBo
     if (Number.isFinite(leftY) && !inside(leftY, yMin, yMax)) clipped.push(`xMin gives y=${Number(leftY.toFixed(4))}`);
     if (Number.isFinite(rightY) && !inside(rightY, yMin, yMax)) clipped.push(`xMax gives y=${Number(rightY.toFixed(4))}`);
     if (clipped.length) {
-      errors.push(`${fnLabel} is clipped by its viewport (${clipped.join(', ')}). Expand the y-range, narrow the x-range, or set \`allowClipping: true\` only when cropping is intentional.`);
+      errors.push(`${fnLabel} is clipped by its locked viewport (${clipped.join(', ')}). Expand the y-range or narrow the x-range.`);
     }
   });
 

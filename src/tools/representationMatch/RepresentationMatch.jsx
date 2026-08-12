@@ -21,6 +21,39 @@ const buttonStyle = { padding: '11px 18px', background: '#1a73e8', color: '#fff'
 const FAMILY_LABELS = { linear: 'linear', quadratic: 'quadratic', exponential: 'exponential' };
 const familyLabel = (id) => FAMILY_LABELS[id] || String(id || '').replace(/[_-]+/g, ' ');
 
+const finiteOr = (value, fallback) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+
+const graphMatchBoundsFor = (sets = [], authored = null) => {
+  if (authored && Number.isFinite(Number(authored.xMin)) && Number.isFinite(Number(authored.xMax))
+      && Number.isFinite(Number(authored.yMin)) && Number.isFinite(Number(authored.yMax))
+      && Number(authored.xMax) > Number(authored.xMin) && Number(authored.yMax) > Number(authored.yMin)) {
+    return {
+      xMin: Number(authored.xMin), xMax: Number(authored.xMax),
+      yMin: Number(authored.yMin), yMax: Number(authored.yMax),
+    };
+  }
+
+  const centers = sets.map((item) => finiteOr(item?.graphSpec?.h, 0));
+  const centerMin = centers.length ? Math.min(...centers) : 0;
+  const centerMax = centers.length ? Math.max(...centers) : 0;
+  const xMin = Math.floor(centerMin - 3);
+  const xMax = Math.ceil(centerMax + 3);
+  const values = [];
+  sets.forEach((item) => {
+    for (let step = 0; step <= 48; step += 1) {
+      const x = xMin + ((xMax - xMin) * step) / 48;
+      const y = evaluateFunctionSpec(item?.graphSpec || {}, x);
+      if (Number.isFinite(y)) values.push(y);
+    }
+  });
+  if (!values.length) return { xMin, xMax, yMin: -5, yMax: 9 };
+  const low = Math.min(0, ...values);
+  const high = Math.max(0, ...values);
+  const span = Math.max(4, high - low);
+  const margin = Math.max(1, span * 0.08);
+  return { xMin, xMax, yMin: Math.floor(low - margin), yMax: Math.ceil(high + margin) };
+};
+
 const MODE_TASKS = {
   completeSet: 'Pick the equation, the table and the context that all describe the same relationship.',
   findMismatch: 'Two of these three cards describe the same relationship. Find the one that does not.',
@@ -62,6 +95,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
   const mode = questionData.mode || 'completeSet';
   const sets = useMemo(() => questionData.sets?.length ? questionData.sets : buildDefaultRepresentationSets(), [questionData.sets]);
   const targetId = questionData.targetId || sets[0]?.id;
+  const graphMatchBounds = useMemo(() => graphMatchBoundsFor(sets, questionData.graphBounds), [sets, questionData.graphBounds]);
   const choices = useMemo(() => [...sets].reverse(), [sets]);
   const fallbackMismatchId = sets.find((item) => item.id !== targetId)?.id || targetId;
   const mixed = questionData.mixedSet || { equationId: targetId, tableId: fallbackMismatchId, contextId: targetId };
@@ -106,7 +140,12 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
   const targetSet = representationById(sets, targetId);
   const cards = mixedRepresentationCards(sets, mixed);
 
-  return <ToolShell title="Representation Match" subtitle="Equations, tables, graphs and contexts are four ways of saying the same thing — prove they agree." badge="Multiple representations">
+  const shellTitle = mode === 'graphMatch' ? 'Match the Graph'
+    : mode === 'findMismatch' ? 'Find the Mismatch'
+      : mode === 'tableAudit' ? 'Check the Table'
+        : 'Connect the Representations';
+
+  return <ToolShell title={shellTitle} subtitle="Equations, tables, graphs and contexts are four ways of saying the same thing — make sure they agree." badge="Multiple representations">
     <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.completeSet} steps={MODE_STEPS[mode] || MODE_STEPS.completeSet} />
     <ToolGrid min={330}>
       <Panel title={mode === 'completeSet' ? 'Build a consistent representation set' : mode === 'findMismatch' ? 'Find the broken link' : mode === 'tableAudit' ? 'Audit the table' : 'Match the graph'}>
@@ -132,7 +171,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
 
         {mode === 'graphMatch' ? <>
           <p><strong>Target equation:</strong> {targetSet?.equation || 'Match the target relationship.'}</p>
-          <div style={{ display: 'grid', gap: 12 }}>{sets.map((item, index) => <button type="button" key={item.id} onClick={() => setGraphId(item.id)} style={{ textAlign: 'left', padding: 10, borderRadius: 12, border: graphId === item.id ? '2px solid #1a73e8' : '1px solid #d9e2f1', background: graphId === item.id ? '#eef4ff' : '#fff', cursor: 'pointer' }}><strong>Graph {String.fromCharCode(65 + index)}</strong><div style={{ marginTop: 8 }}><CoordinatePlane width={420} height={230} xMin={-5} xMax={5} yMin={-5} yMax={9} functions={[x => evaluateFunctionSpec(item.graphSpec || {}, x)]} /></div></button>)}</div>
+          <div style={{ display: 'grid', gap: 12 }}>{sets.map((item, index) => <button type="button" key={item.id} onClick={() => setGraphId(item.id)} style={{ textAlign: 'left', padding: 10, borderRadius: 12, border: graphId === item.id ? '2px solid #1a73e8' : '1px solid #d9e2f1', background: graphId === item.id ? '#eef4ff' : '#fff', cursor: 'pointer' }}><strong>Graph {String.fromCharCode(65 + index)}</strong><div style={{ marginTop: 8 }}><CoordinatePlane width={420} height={230} {...graphMatchBounds} functions={[x => evaluateFunctionSpec(item.graphSpec || {}, x)]} /></div></button>)}</div>
           <button type="button" onClick={checkGraph} disabled={!graphId} style={{ ...buttonStyle, marginTop: 12, opacity: graphId ? 1 : .55 }}>Check graph</button>
         </> : null}
 

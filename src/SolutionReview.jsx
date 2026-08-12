@@ -15,7 +15,18 @@ const asText = (value) => String(value ?? '').trim();
 const pointText = (point) => `(${point[0]}, ${point[1]})`;
 
 const unique = (values) => [...new Set(values.filter((value) => asText(value) !== '').map(asText))];
-const isProseRepresentation = (value) => /\b(?:check|point|sample|form|variable|decimal|solution is|selected number|intersection)\b/i.test(String(value));
+const isProseRepresentation = (value) => {
+  const text = String(value ?? '').trim();
+  if (!text) return false;
+  if (/\b(?:check|point|sample|form|variable|decimal|solution is|selected number|intersection)\b/i.test(text)) return true;
+  // Student-facing explanatory sentences must never be sent through the math
+  // parser. ASCII-math interprets English words as variables/operators (for
+  // example, "and" becomes ∧), which produced the garbled solution-review
+  // text seen in practice.
+  const words = text.match(/[A-Za-z]{2,}/g) || [];
+  const hasStrongMathSyntax = /\\(?:frac|sqrt|pi|infty|quad)|[=<>≤≥≠^]/.test(text);
+  return words.length >= 3 && !hasStrongMathSyntax;
+};
 
 const solveLinearSymbolically = (question) => {
   try {
@@ -100,7 +111,10 @@ const buildRepresentations = (question) => {
     case 'table':
       return ['The completed table values are listed below.'];
     case 'multiAnswer':
-      return ['Each required field and one accepted response are listed below.'];
+      // The answer-detail cards below already list each field and its accepted
+      // response. A generic 'Representation 1' note is redundant and was also
+      // vulnerable to being rendered as math.
+      return [];
     case 'relationshipModel': {
       const quantities = Object.fromEntries((question.quantities || []).map((item) => [item.id, item.label]));
       return unique([
@@ -166,7 +180,7 @@ const buildCompleteAnswerDetails = (question) => {
     return Object.entries(question.table?.answers || {}).map(([cell, value]) => `${cell}: ${value}`);
   }
   if (question.type === 'multiAnswer') {
-    return (question.answerFields || []).map((field) => `${field.label}: ${(field.acceptedAnswers || [])[0] ?? ''}`);
+    return (question.answerFields || []).map((field) => `${field.label}: ${(field.acceptedAnswers || [field.answer]).filter((value) => value !== undefined && value !== null && String(value).trim() !== '')[0] ?? ''}`);
   }
   if (question.type === 'relationshipModel') {
     const quantities = Object.fromEntries((question.quantities || []).map((item) => [item.id, item.label]));
@@ -265,14 +279,17 @@ export default function SolutionReview({ question }) {
       )}
       {representations.length > 0 && (
         <div style={{ display: 'grid', gap: '8px', marginBottom: '14px' }}>
-          {representations.map((representation, index) => (
-            <div key={`${representation}-${index}`} style={{ padding: '10px 12px', borderRadius: '8px', background: '#fff', border: '1px solid #d9e2f1' }}>
-              <strong style={{ color: '#5f6368', marginRight: '8px' }}>Representation {index + 1}:</strong>
-              {isProseRepresentation(representation)
-                ? <span style={{ color: '#202124' }}>{representation}</span>
-                : <MathDisplay value={representation} format={representation.includes('\\') ? 'latex' : 'ascii-math'} inline />}
-            </div>
-          ))}
+          {representations.map((representation, index) => {
+            const prose = isProseRepresentation(representation);
+            return (
+              <div key={`${representation}-${index}`} style={{ padding: '10px 12px', borderRadius: '8px', background: '#fff', border: '1px solid #d9e2f1' }}>
+                <strong style={{ color: '#5f6368', marginRight: '8px' }}>{prose ? 'Solution note' : `Representation ${index + 1}`}:</strong>
+                {prose
+                  ? <span style={{ color: '#202124' }}>{representation}</span>
+                  : <MathDisplay value={representation} format={representation.includes('\\') ? 'latex' : 'ascii-math'} inline />}
+              </div>
+            );
+          })}
         </div>
       )}
       {completeAnswerDetails.length > 0 && (

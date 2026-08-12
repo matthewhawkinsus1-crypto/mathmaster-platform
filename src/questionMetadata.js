@@ -72,6 +72,20 @@ export const normalizeQuestionStandards = (questionOrStandards = {}) => {
   // TEKS-shaped `standards` object. Without this branch every V4 question is
   // invisible to the mastery engine: it renders and grades, but contributes no
   // evidence, so mastery never moves and adaptive routing never fires.
+  // Secure My Math Path bank records carry canonical `alignmentKeys` such as
+  // `texas:A.5A` instead of the classroom-authoring `alignments` array. The
+  // Teacher Path Simulator reads those bank records directly, so they must be
+  // first-class evidence metadata rather than looking unaligned.
+  if (!question.standards && !question.teks && !Array.isArray(question.alignments) && Array.isArray(question.alignmentKeys)) {
+    const primary = normalizeStandardList(
+      question.alignmentKeys
+        .map((key) => String(key || '').replace(/^texas:/i, ''))
+        .filter(Boolean),
+      'assessed',
+    );
+    return { primary, secondary: [], prerequisite: [] };
+  }
+
   if (!question.standards && !question.teks && Array.isArray(question.alignments)) {
     const byRole = (role, level) => normalizeStandardList(
       question.alignments
@@ -130,7 +144,7 @@ export const normalizeQuestionDifficulty = (question = {}) => {
     : {};
   const levelToken = String(raw.instructionalLevel || raw.level || question.instructionalLevel || '').trim();
   const levelEntry = INSTRUCTIONAL_LEVELS.find((entry) => entry.key === levelToken);
-  const numericBand = Number(raw.generatorBand ?? raw.band ?? question.generatorBand);
+  const numericBand = Number(raw.generatorBand ?? raw.band ?? question.difficultyBand ?? question.generatorBand);
   const band = Number.isInteger(numericBand) && numericBand >= 1 && numericBand <= 5
     ? numericBand
     : levelEntry?.band ?? 3;

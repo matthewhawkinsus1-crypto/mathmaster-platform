@@ -5,132 +5,379 @@
       "toolId": "transformationsLab",
       "mode": "match",
       "family": "quadratic",
-      "target": { "a": -2, "h": 1, "k": 3 },
-      "masteryEvidenceKeys": ["batch-d:transformations:match"]
+      "target": {
+        "a": -2,
+        "h": 1,
+        "k": 3
+      },
+      "masteryEvidenceKeys": [
+        "batch-d:transformations:match"
+      ]
     },
     {
       "toolId": "transformationsLab",
       "mode": "identify",
       "family": "absolute",
-      "function": { "type": "absolute", "a": 0.5, "h": -2, "k": 1 },
-      "masteryEvidenceKeys": ["batch-d:transformations:identify"]
+      "function": {
+        "type": "absolute",
+        "a": 0.5,
+        "h": -2,
+        "k": 1
+      },
+      "masteryEvidenceKeys": [
+        "batch-d:transformations:identify"
+      ]
     },
     {
       "toolId": "transformationsLab",
       "mode": "pointMap",
       "family": "exponential",
-      "function": { "type": "exponential", "a": 2, "h": 1, "k": -3, "base": 2 },
-      "parentPoint": [1, 2],
-      "masteryEvidenceKeys": ["batch-d:transformations:point-map"]
+      "function": {
+        "type": "exponential",
+        "a": 2,
+        "h": 1,
+        "k": -3,
+        "base": 2
+      },
+      "parentPoint": [
+        1,
+        2
+      ],
+      "masteryEvidenceKeys": [
+        "batch-d:transformations:point-map"
+      ]
     },
     {
       "toolId": "transformationsLab",
       "mode": "describe",
       "family": "squareRoot",
-      "function": { "type": "squareRoot", "a": -0.5, "h": 3, "k": 2 },
-      "masteryEvidenceKeys": ["batch-d:transformations:describe"]
+      "function": {
+        "type": "squareRoot",
+        "a": -0.5,
+        "h": 3,
+        "k": 2
+      },
+      "masteryEvidenceKeys": [
+        "batch-d:transformations:describe"
+      ]
     },
     {
       "toolId": "transformationsLab",
       "mode": "anchor",
       "family": "rational",
-      "function": { "type": "rational", "a": 3, "h": -1, "k": 2 },
-      "masteryEvidenceKeys": ["batch-d:transformations:anchor"]
+      "function": {
+        "type": "rational",
+        "a": 3,
+        "h": -1,
+        "k": 2
+      },
+      "masteryEvidenceKeys": [
+        "batch-d:transformations:anchor"
+      ]
     },
     {
       "toolId": "representationMatch",
       "mode": "completeSet",
       "targetId": "linear",
-      "masteryEvidenceKeys": ["batch-d:representations:complete"]
+      "sets": [
+        {
+          "id": "linear",
+          "equation": "y = 2x + 1",
+          "table": "(0,1), (1,3), (2,5)",
+          "context": "Starts at 1 and increases by 2 each step.",
+          "graphSpec": {
+            "type": "linear",
+            "a": 2,
+            "h": 0,
+            "k": 1
+          }
+        },
+        {
+          "id": "quadratic",
+          "equation": "y = x²",
+          "table": "(-2,4), (-1,1), (0,0), (1,1)",
+          "context": "Symmetric growth from a minimum at the origin.",
+          "graphSpec": {
+            "type": "quadratic",
+            "a": 1,
+            "h": 0,
+            "k": 0
+          }
+        },
+        {
+          "id": "exponential",
+          "equation": "y = 2ˣ",
+          "table": "(0,1), (1,2), (2,4), (3,8)",
+          "context": "Doubles for each increase of 1 in x.",
+          "graphSpec": {
+            "type": "exponential",
+            "a": 1,
+            "h": 0,
+            "k": 0,
+            "base": 2
+          }
+        }
+      ],
+      "masteryEvidenceKeys": [
+        "batch-d:representations:complete"
+      ]
     },
     {
       "toolId": "representationMatch",
       "mode": "findMismatch",
       "targetId": "linear",
-      "mixedSet": { "equationId": "linear", "tableId": "quadratic", "contextId": "linear" },
-      "masteryEvidenceKeys": ["batch-d:representations:mismatch"]
+      "sets": [
+        {
+          "id": "linear",
+          "equation": "y = 2x + 1",
+          "table": "(0,1), (1,3), (2,5)",
+          "context": "Starts at 1 and increases by 2 each step.",
+          "graphSpec": {
+            "type": "linear",
+            "a": 2,
+            "h": 0,
+            "k": 1
+          }
+        },
+        {
+          "id": "quadratic",
+          "equation": "y = x²",
+          "table": "(-2,4), (-1,1), (0,0), (1,1)",
+          "context": "Symmetric growth from a minimum at the origin.",
+          "graphSpec": {
+            "type": "quadratic",
+            "a": 1,
+            "h": 0,
+            "k": 0
+          }
+        },
+        {
+          "id": "exponential",
+          "equation": "y = 2ˣ",
+          "table": "(0,1), (1,2), (2,4), (3,8)",
+          "context": "Doubles for each increase of 1 in x.",
+          "graphSpec": {
+            "type": "exponential",
+            "a": 1,
+            "h": 0,
+            "k": 0,
+            "base": 2
+          }
+        }
+      ],
+      "mixedSet": {
+        "equationId": "linear",
+        "tableId": "quadratic",
+        "contextId": "linear"
+      },
+      "masteryEvidenceKeys": [
+        "batch-d:representations:mismatch"
+      ]
     },
     {
       "toolId": "representationMatch",
       "mode": "tableAudit",
-      "function": { "type": "linear", "a": 2, "h": 0, "k": 1 },
-      "rows": [[-1, -1], [0, 1], [1, 4], [2, 5]],
-      "masteryEvidenceKeys": ["batch-d:representations:table-audit"]
+      "function": {
+        "type": "linear",
+        "a": 2,
+        "h": 0,
+        "k": 1
+      },
+      "rows": [
+        [
+          -1,
+          -1
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          4
+        ],
+        [
+          2,
+          5
+        ]
+      ],
+      "masteryEvidenceKeys": [
+        "batch-d:representations:table-audit"
+      ]
     },
     {
       "toolId": "representationMatch",
       "mode": "graphMatch",
       "targetId": "quadratic",
       "sets": [
-        { "id": "linear", "equation": "y = x + 1", "graphSpec": { "type": "linear", "a": 1, "h": 0, "k": 1 } },
-        { "id": "quadratic", "equation": "y = (x - 1)^2 - 2", "graphSpec": { "type": "quadratic", "a": 1, "h": 1, "k": -2 } },
-        { "id": "absolute", "equation": "y = |x - 1| - 2", "graphSpec": { "type": "absolute", "a": 1, "h": 1, "k": -2 } }
+        {
+          "id": "linear",
+          "equation": "y = x + 1",
+          "graphSpec": {
+            "type": "linear",
+            "a": 1,
+            "h": 0,
+            "k": 1
+          }
+        },
+        {
+          "id": "quadratic",
+          "equation": "y = (x - 1)^2 - 2",
+          "graphSpec": {
+            "type": "quadratic",
+            "a": 1,
+            "h": 1,
+            "k": -2
+          }
+        },
+        {
+          "id": "absolute",
+          "equation": "y = |x - 1| - 2",
+          "graphSpec": {
+            "type": "absolute",
+            "a": 1,
+            "h": 1,
+            "k": -2
+          }
+        }
       ],
-      "masteryEvidenceKeys": ["batch-d:representations:graph-match"]
+      "masteryEvidenceKeys": [
+        "batch-d:representations:graph-match"
+      ]
     },
     {
       "toolId": "functionInvestigation2",
       "mode": "features",
-      "function": { "type": "rational", "a": 2, "h": 1, "k": -2 },
-      "masteryEvidenceKeys": ["batch-d:functions:features"]
+      "function": {
+        "type": "rational",
+        "a": 2,
+        "h": 1,
+        "k": -2
+      },
+      "masteryEvidenceKeys": [
+        "batch-d:functions:features"
+      ]
     },
     {
       "toolId": "functionInvestigation2",
       "mode": "domainRange",
-      "function": { "type": "squareRoot", "a": -2, "h": 3, "k": 1 },
-      "masteryEvidenceKeys": ["batch-d:functions:domain-range"]
+      "function": {
+        "type": "squareRoot",
+        "a": -2,
+        "h": 3,
+        "k": 1
+      },
+      "masteryEvidenceKeys": [
+        "batch-d:functions:domain-range"
+      ]
     },
     {
       "toolId": "functionInvestigation2",
       "mode": "intercepts",
-      "function": { "type": "quadratic", "a": 1, "h": 1, "k": -4 },
-      "masteryEvidenceKeys": ["batch-d:functions:intercepts"]
+      "function": {
+        "type": "quadratic",
+        "a": 1,
+        "h": 1,
+        "k": -4
+      },
+      "masteryEvidenceKeys": [
+        "batch-d:functions:intercepts"
+      ]
     },
     {
       "toolId": "functionInvestigation2",
       "mode": "behavior",
-      "function": { "type": "exponential", "a": 2, "h": 0, "k": -1, "base": 0.5 },
-      "masteryEvidenceKeys": ["batch-d:functions:behavior"]
+      "function": {
+        "type": "exponential",
+        "a": 2,
+        "h": 0,
+        "k": -1,
+        "base": 0.5
+      },
+      "masteryEvidenceKeys": [
+        "batch-d:functions:behavior"
+      ]
     },
     {
       "toolId": "functionInvestigation2",
       "mode": "compare",
-      "left": { "type": "linear", "a": 2, "h": 0, "k": 1 },
-      "right": { "type": "quadratic", "a": 1, "h": 0, "k": 0 },
+      "left": {
+        "type": "linear",
+        "a": 2,
+        "h": 0,
+        "k": 1
+      },
+      "right": {
+        "type": "quadratic",
+        "a": 1,
+        "h": 0,
+        "k": 0
+      },
       "x": 3,
-      "masteryEvidenceKeys": ["batch-d:functions:compare"]
+      "masteryEvidenceKeys": [
+        "batch-d:functions:compare"
+      ]
     },
     {
       "toolId": "graphing2",
       "mode": "slopeIntercept",
-      "line": { "m": 1.5, "b": -2 },
-      "masteryEvidenceKeys": ["batch-d:graphing:slope-intercept"]
+      "line": {
+        "m": 1.5,
+        "b": -2
+      },
+      "masteryEvidenceKeys": [
+        "batch-d:graphing:slope-intercept"
+      ]
     },
     {
       "toolId": "graphing2",
       "mode": "throughPoints",
-      "givenPoints": [[-2, -1], [2, 3]],
-      "masteryEvidenceKeys": ["batch-d:graphing:through-points"]
+      "givenPoints": [
+        [
+          -2,
+          -1
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "masteryEvidenceKeys": [
+        "batch-d:graphing:through-points"
+      ]
     },
     {
       "toolId": "graphing2",
       "mode": "pointSlope",
-      "point": [-1, 2],
+      "point": [
+        -1,
+        2
+      ],
       "slope": -2,
-      "masteryEvidenceKeys": ["batch-d:graphing:point-slope"]
+      "masteryEvidenceKeys": [
+        "batch-d:graphing:point-slope"
+      ]
     },
     {
       "toolId": "graphing2",
       "mode": "standardForm",
-      "standard": { "A": 2, "B": 1, "C": 4 },
-      "masteryEvidenceKeys": ["batch-d:graphing:standard-form"]
+      "standard": {
+        "A": 2,
+        "B": 1,
+        "C": 4
+      },
+      "masteryEvidenceKeys": [
+        "batch-d:graphing:standard-form"
+      ]
     },
     {
       "toolId": "graphing2",
       "mode": "verticalHorizontal",
       "orientation": "vertical",
       "value": 3,
-      "masteryEvidenceKeys": ["batch-d:graphing:vertical"]
+      "masteryEvidenceKeys": [
+        "batch-d:graphing:vertical"
+      ]
     }
   ]
 }

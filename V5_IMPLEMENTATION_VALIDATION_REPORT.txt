@@ -1,0 +1,38 @@
+MathMaster Authoring Intent V5 — Reissued Build Validation
+Date: 2026-08-11
+
+BASELINE
+- Rebuilt from mathmaster-platform-main-5-ai-authoring-compiler-improved.zip, the latest locally available consolidated MathMaster build from this conversation.
+
+IMPLEMENTED/CONFIRMED
+- Formal schemaVersion 5 authoring-intent compiler.
+- V5 compiles to canonical V4 before runtime validation/persistence.
+- Stable studentActions vocabulary.
+- 34 unique currently student-authorable runtime destinations exercised by compiler coverage test.
+- Connected relationship modeling compiles equation -> table -> graph -> domain/range/continuity as one workflow.
+- Natural relation arrays accepted and normalized by existing intake.
+- Default copied AI authoring contract now uses V5 intent instead of renderer-specific V4 instructions.
+- V4 and Bundle V3 remain backward compatible.
+- Batch assignment validation command added.
+
+FOCUSED EXECUTABLE TESTS
+- authoringCompiler.test.mjs: PASS
+- authoringIntentV5.test.mjs: PASS
+- authoringIntentV5Destinations.test.mjs: PASS (34 unique destinations)
+- graphSpecUtils.test.mjs: PASS
+- semanticValidation.test.mjs: PASS
+
+MODULE 1 REGRESSION
+- 8 lesson JSON files
+- 103 questions
+- 8/8 assignment files passed structural + semantic + registry-tool checks
+- 0 failed
+
+AUTHORING CONTRACT
+- Algebra I V5 compact contract smoke test: PASS
+- Contract length in this build: about 11.2 KB
+
+ENVIRONMENT LIMITATION
+- The extracted project does not include installed npm dependencies.
+- Focused source tests were executed with a temporary local mathjs import stub only because tested paths do not exercise mathjs functionality; the stub was removed before packaging.
+- Run normal `npm ci`, full test suite, lint, and Vite production build in the deployment/coding environment before production deployment.

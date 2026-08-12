@@ -1,0 +1,38 @@
+MathMaster AI Authoring Compiler Improvement — Validation Report
+Date: 2026-08-11
+
+Targeted executable regression tests:
+- tests/platform/authoringCompiler.test.mjs: PASS
+- tests/platform/graphSpecUtils.test.mjs: PASS
+- tests/platform/semanticValidation.test.mjs: PASS
+- tests/platform/blueprintTextRepair.test.mjs: PASS (9/9 subtests)
+
+Module 1 regression set:
+- 8 lesson JSONs
+- 103 questions
+- structural validation: 0 errors
+- semantic validation: 0 errors / 0 warnings
+- alignment validation: 0 errors / 0 warnings
+- intake repairs on already-clean PASS2 JSONs: 0
+
+Representative Gemini-friction regression:
+- surrounding Python/code wrapper: repaired
+- Python True/False/None: repaired
+- concise standard shorthand: compiled to canonical alignment
+- omitted unambiguous question type: inferred
+- relationMapping nested arrays: converted to Firestore-safe objects
+- graph choice fields outside .graph: nested automatically
+- static graph linear alias: normalized to line
+- scenario text alias: normalized to description
+- interval notation ask alias: normalized
+- fixed visual inside personalized assignment: accepted
+- ordinary graph clipping: auto-fitted by MathMaster
+- TEKS warning: excluded from AI fix request so AI is not invited to guess a replacement standard
+
+Copied authoring contract size in this pass:
+- Algebra I course-specific compact contract: about 16.4 KB
+- Algebra II course-specific compact contract: about 17.1 KB
+- old advanced contract retained for developers: about 83.8 KB
+
+Environment limitation:
+The extracted sandbox project does not include installed npm dependencies. Focused tests were run with a temporary import-only mathjs stub where the tested paths do not exercise mathjs functionality, then the stub was removed. A full Vite production build should be run after normal `npm ci` in the coding environment.

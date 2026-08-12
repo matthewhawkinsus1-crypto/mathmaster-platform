@@ -36,6 +36,18 @@ export const generateSequence = (spec = {}, count = 6, startIndex = 1) => {
   });
 };
 
+
+// Student evidence should support the requested term without printing the
+// requested answer itself.  This is shared by the renderer and Preflight tests
+// so an AI cannot accidentally set displayCount = targetN and give the answer
+// away in the table/graph.
+export const sequenceEvidenceCount = (requestedCount = 7, targetN = null, { cap = 20, revealTarget = false } = {}) => {
+  const requested = Math.max(1, Math.min(Number(cap) || 20, Number.isInteger(Number(requestedCount)) ? Number(requestedCount) : 7));
+  const target = Number(targetN);
+  if (revealTarget || !Number.isInteger(target) || target <= 1) return requested;
+  return Math.max(1, Math.min(requested, target - 1));
+};
+
 export const sequenceChange = (spec = {}) => {
   const normalized = normalizeSequenceSpec(spec, spec.kind);
   return normalized.kind === 'arithmetic' ? normalized.difference : normalized.ratio;

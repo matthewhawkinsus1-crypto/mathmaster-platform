@@ -13,6 +13,7 @@ import GraphAnalysis from './GraphAnalysis';
 import StepByStepAlgebra from './StepByStepAlgebra';
 import ScratchpadOverlay from './ScratchpadOverlay';
 import SolutionReview from './SolutionReview';
+import ToolSolutionReview from './tools/shared/ToolSolutionReview';
 import GuidedClassworkCoach from './GuidedClassworkCoach';
 import RelationshipModel from './RelationshipModel';
 import WorkflowRunner from './platform/workflow/WorkflowRunner';
@@ -725,16 +726,25 @@ export default function QuestionEngine({
         )}
 
         {isExpired && showOutcomeFeedback && (
-          <div aria-label={expiredAlmost ? 'Almost' : 'Incorrect'} role="status" style={{ position: 'absolute', inset: 0, zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', background: expiredAlmost ? 'rgba(255,248,225,0.24)' : 'rgba(252,232,230,0.22)' }}>
-            <div style={{ transform: 'rotate(-6deg)', textAlign: 'center', color: expiredAlmost ? 'rgba(249,171,0,0.29)' : 'rgba(197,34,31,0.25)', textShadow: '0 3px 18px rgba(0,0,0,0.08)' }}>
-              {expiredAlmost ? (
-                <div style={{ fontSize: 'clamp(150px, 28vw, 300px)', fontWeight: 900, lineHeight: 0.55 }}>−</div>
-              ) : (
-                <div style={{ width: 'clamp(170px, 29vw, 310px)', height: 'clamp(170px, 29vw, 310px)', margin: '0 auto', border: 'clamp(12px, 2vw, 24px) solid currentColor', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'clamp(120px, 22vw, 245px)', fontWeight: 900, lineHeight: 1 }}>×</div>
-              )}
-              <div style={{ marginTop: expiredAlmost ? '-8px' : '8px', fontSize: 'clamp(38px, 7vw, 82px)', fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{expiredAlmost ? 'Almost' : 'Incorrect'}</div>
-              <div style={{ fontSize: 'clamp(58px, 10vw, 122px)', fontWeight: 1000, lineHeight: 0.95, textTransform: 'uppercase' }}>{resolvedActivityPolicy?.allowReplacement ? 'Try Again' : 'Recorded'}</div>
-            </div>
+          <div
+            aria-label={expiredAlmost ? 'Almost' : 'Incorrect'}
+            role="status"
+            style={{
+              position: 'absolute',
+              top: '12px',
+              right: '12px',
+              zIndex: 30,
+              pointerEvents: 'none',
+              padding: '8px 12px',
+              borderRadius: '999px',
+              border: `2px solid ${expiredAlmost ? '#f9ab00' : '#d93025'}`,
+              background: expiredAlmost ? 'rgba(255,248,225,0.96)' : 'rgba(252,232,230,0.96)',
+              color: expiredAlmost ? '#6b5200' : '#8c1d18',
+              fontWeight: 900,
+              boxShadow: '0 3px 10px rgba(0,0,0,0.12)',
+            }}
+          >
+            {expiredAlmost ? 'Almost — review below' : 'Incorrect — review below'}
           </div>
         )}
       </div>
@@ -784,7 +794,9 @@ export default function QuestionEngine({
       {isExpired && showOutcomeFeedback && (
         <div style={{ margin: '25px auto 0', padding: '18px', maxWidth: '700px', borderRadius: '10px', border: `2px solid ${expiredAlmost ? '#f9ab00' : '#d93025'}`, background: expiredAlmost ? '#fff8e1' : '#fce8e6', color: expiredAlmost ? '#6b5200' : '#5f2120', position: 'relative', zIndex: 45 }}>
           <strong>This response is closed after {resolvedMaximumAttempts} {resolvedMaximumAttempts === 1 ? 'attempt' : 'attempts'}.</strong>
-          {!missingToolDefinition && <SolutionReview question={processedQuestion} />}
+          {missingToolDefinition
+            ? <ToolSolutionReview question={processedQuestion} />
+            : <SolutionReview question={processedQuestion} />}
           {resolvedActivityPolicy?.allowReplacement && (
             <>
               <p style={{ margin: '8px 0 14px' }}>Review the solution, then request a new problem at the same difficulty.</p>

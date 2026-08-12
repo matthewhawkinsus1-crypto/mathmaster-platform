@@ -1,0 +1,19 @@
+MathMaster finite-set semantic grading update
+Baseline: mathmaster-platform-main-5-path-assignment-independent.zip
+
+If you are replacing the whole project, use:
+  mathmaster-platform-main-5-set-notation-semantic-grading-fixed.zip
+
+If you are merging into a newer branch, copy the files in the small fix package
+into the MathMaster project root (the folder containing src/, functions/, tests/,
+package.json and firebase.json), preserving their folder paths.
+
+This change affects BOTH the browser and Cloud Functions because the same answer
+equivalence rules are shared across classroom grading, Teacher Path Simulator and
+secure My Math Path grading.
+
+Deploy order after npm ci / npm run build:
+  1. firebase deploy --only functions
+  2. firebase deploy --only hosting
+
+No Firestore rules, index, or data migration is required.

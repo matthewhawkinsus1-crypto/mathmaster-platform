@@ -35,57 +35,20 @@
 // AUTHORITY — the browser must not be able to assert that it was right.
 
 // --- Comparison helpers -------------------------------------------------------
-// Deliberately self-contained. The server cannot import from the client bundle,
-// and a grading rule that exists in two places is a grading rule that will
-// eventually disagree with itself. Tests assert these agree with the client's
-// own comparisons where both are used.
+// The browser, Teacher Path Simulator and Cloud Functions all import the same
+// scalar/set equivalence rules. This prevents MathLive serialization from
+// receiving one verdict in classroom work and another in My Math Path.
+import {
+  asNumber,
+  normalizeAnswer,
+  sameNumber,
+  sameText,
+  sameValue,
+} from './answerEquivalence.mjs';
+
+export { asNumber, normalizeAnswer, sameNumber, sameText, sameValue } from './answerEquivalence.mjs';
 
 const UNICODE_MINUS = /[−–—]/g;
-
-// One symbol, several spellings. The student's math input hands back LaTeX
-// (`\infty`, `\cup`, `\le`), the authored key is usually typed in unicode
-// (`∞`, `∪`, `≤`), and they mean the same thing. The tool has always compared
-// them this way; the server did not, so a correct `(-\infty, \infty)` was
-// marked wrong against an accepted `(-∞, ∞)`. Kept in step with
-// `cleanSetAnswer` in src/interactiveGraphEngine.js, and a test asserts it.
-export const normalizeAnswer = (value) => String(value ?? '')
-  .trim()
-  .replace(UNICODE_MINUS, '-')
-  .replace(/\\left|\\right/g, '')
-  .replace(/\\cdot|\\times/g, '*')
-  .replace(/\\infty|∞/g, 'inf')
-  .replace(/\\cup|∪/g, 'u')
-  .replace(/\\cap|∩/g, 'n')
-  .replace(/\\leq?|≤/g, '<=')
-  .replace(/\\geq?|≥/g, '>=')
-  .replace(/\\neq?|≠/g, '!=')
-  .replace(/\\,/g, '')
-  .replace(/\s+/g, '')
-  .toLowerCase();
-
-export const asNumber = (value) => {
-  const text = normalizeAnswer(value);
-  if (!text) return null;
-  const fraction = text.match(/^(-?\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?)$/);
-  if (fraction) {
-    const denominator = Number(fraction[2]);
-    return denominator === 0 ? null : Number(fraction[1]) / denominator;
-  }
-  const numeric = Number(text);
-  return Number.isFinite(numeric) ? numeric : null;
-};
-
-export const sameNumber = (left, right, tolerance = 1e-6) => {
-  const a = asNumber(left);
-  const b = asNumber(right);
-  return a !== null && b !== null && Math.abs(a - b) <= tolerance;
-};
-
-export const sameText = (left, right) => normalizeAnswer(left) === normalizeAnswer(right);
-
-export const sameValue = (left, right, tolerance = 1e-6) => (
-  sameNumber(left, right, tolerance) || sameText(left, right)
-);
 
 export const sameSet = (left = [], right = [], tolerance = 1e-6) => {
   const a = [...left];
@@ -642,10 +605,26 @@ const CONTRACTS = {
     sanitizePublicQuestion: (question) => ({
       ...pick(question, ['prompt', 'context', 'graph', 'table', 'mathDisplay']),
       // Each field's prompt and input profile travel; its expected value does not.
-      answerFields: answerFieldsOf(question).map((part, index) => pick(
-        { id: `part-${index + 1}`, ...part },
-        ['id', 'label', 'prompt', 'inputProfile', 'unit', 'choices', 'placeholder'],
-      )),
+      answerFields: answerFieldsOf(question).map((part, index) => {
+        const safe = pick(
+          { id: `part-${index + 1}`, ...part },
+          ['id', 'label', 'prompt', 'type', 'inputMode', 'inputProfile', 'toolProfile', 'notation', 'unit', 'placeholder'],
+        );
+        // `choices` and `options` are the list the student picks FROM, so they
+        // travel — but only as the labels the dropdown renders. Copying them
+        // whole would re-open the denylist hole this file exists to close: an
+        // author writing `options: [{ label: 'discrete', correct: true }]`
+        // would have shipped the answer key to the browser inside a field the
+        // allowlist had just admitted. An allowlist that admits an unbounded
+        // object is not an allowlist.
+        ['choices', 'options'].forEach((field) => {
+          if (!Array.isArray(part?.[field])) return;
+          safe[field] = part[field].map((option) => (
+            option && typeof option === 'object' ? String(option.label ?? option.value ?? option.id ?? '') : String(option)
+          )).filter(Boolean);
+        });
+        return safe;
+      }),
     }),
     buildPrivateGradingDefinition: (question) => ({
       parts: answerFieldsOf(question).map((part, index) => ({

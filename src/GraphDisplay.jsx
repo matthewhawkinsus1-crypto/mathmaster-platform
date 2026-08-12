@@ -1,5 +1,5 @@
 import QuestionPrompt from './QuestionPrompt';
-import { evaluateStaticGraphFunction } from './graphSpecUtils';
+import { evaluateStaticGraphFunction, fitStaticGraphViewport } from './graphSpecUtils';
 
 const DEFAULT_WIDTH = 620;
 const DEFAULT_HEIGHT = 430;
@@ -120,10 +120,11 @@ const axisTitle = (label, unit) => {
 export default function GraphDisplay({ graph, title = 'Coordinate graph' }) {
   if (!graph) return null;
 
-  let xMin = clampRange(graph.xMin, -10);
-  let xMax = clampRange(graph.xMax, 10);
-  let yMin = clampRange(graph.yMin, -10);
-  let yMax = clampRange(graph.yMax, 10);
+  const displayGraph = fitStaticGraphViewport(graph);
+  let xMin = clampRange(displayGraph.xMin, -10);
+  let xMax = clampRange(displayGraph.xMax, 10);
+  let yMin = clampRange(displayGraph.yMin, -10);
+  let yMax = clampRange(displayGraph.yMax, 10);
 
   if (xMin >= xMax) [xMin, xMax] = [-10, 10];
   if (yMin >= yMax) [yMin, yMax] = [-10, 10];
@@ -133,21 +134,21 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph' }) {
   const toScreenX = (x) => PADDING + ((x - xMin) / (xMax - xMin)) * innerWidth;
   const toScreenY = (y) => PADDING + ((yMax - y) / (yMax - yMin)) * innerHeight;
 
-  const xStep = clampRange(graph.xStep, getStep(xMax - xMin));
-  const yStep = clampRange(graph.yStep, getStep(yMax - yMin));
+  const xStep = clampRange(displayGraph.xStep, getStep(xMax - xMin));
+  const yStep = clampRange(displayGraph.yStep, getStep(yMax - yMin));
   const xTicks = buildTicks(xMin, xMax, xStep > 0 ? xStep : 1);
   const yTicks = buildTicks(yMin, yMax, yStep > 0 ? yStep : 1);
-  const functions = normalizeFunctionList(graph);
-  const points = Array.isArray(graph.points) ? graph.points : [];
-  const segments = Array.isArray(graph.segments) ? graph.segments : [];
-  const endpointRequirements = Array.isArray(graph.endpointRequirements) ? graph.endpointRequirements : [];
-  const axisDisplay = graph.axisDisplay && typeof graph.axisDisplay === 'object' ? graph.axisDisplay : {};
+  const functions = normalizeFunctionList(displayGraph);
+  const points = Array.isArray(displayGraph.points) ? displayGraph.points : [];
+  const segments = Array.isArray(displayGraph.segments) ? displayGraph.segments : [];
+  const endpointRequirements = Array.isArray(displayGraph.endpointRequirements) ? displayGraph.endpointRequirements : [];
+  const axisDisplay = displayGraph.axisDisplay && typeof displayGraph.axisDisplay === 'object' ? displayGraph.axisDisplay : {};
   const showXTickLabels = axisDisplay.showXTickLabels !== false;
   const showYTickLabels = axisDisplay.showYTickLabels !== false;
   const showAxisSymbols = axisDisplay.showAxisSymbols !== false;
   const showAxisTitles = axisDisplay.showAxisTitles !== false;
-  const xTitle = showAxisTitles ? axisTitle(graph.xAxisLabel, graph.xAxisUnit) : '';
-  const yTitle = showAxisTitles ? axisTitle(graph.yAxisLabel, graph.yAxisUnit) : '';
+  const xTitle = showAxisTitles ? axisTitle(displayGraph.xAxisLabel, displayGraph.xAxisUnit) : '';
+  const yTitle = showAxisTitles ? axisTitle(displayGraph.yAxisLabel, displayGraph.yAxisUnit) : '';
   const interactionHighlight = graph.interactionHighlight && typeof graph.interactionHighlight === 'object'
     ? graph.interactionHighlight
     : {};

@@ -9,7 +9,9 @@ import IntervalNumberLine from '../../tools/intervalNumberLine/IntervalNumberLin
 import RelationMapping from '../../tools/relationMapping/RelationMapping';
 import { getStage } from './interactionStages';
 import { readComposedQuestion, resolveStageInput, summarizeWorkflowProgress } from './questionWorkflow';
-import { gradeWorkflow } from './workflowGrading';
+import { checkTableConsistency, gradeWorkflow } from './workflowGrading';
+import { buildExpressionFunctionSpec, evaluateModelAt, evaluateNumericValue } from './modelExpression';
+import { evaluateGraphFunction } from '../../functionGraphUtils';
 
 // Renders a question composed from interaction primitives.
 //
@@ -30,6 +32,57 @@ const panel = {
 };
 const stageHeading = { margin: '0 0 8px', fontSize: 13, fontWeight: 900, color: '#174ea6' };
 const waitingPanel = { ...panel, background: '#f8f9fa', borderStyle: 'dashed', color: '#5f6368' };
+
+const niceGridStep = (range, fallback = 1) => {
+  const safeRange = Math.abs(Number(range));
+  const safeFallback = Number(fallback);
+  if (!Number.isFinite(safeRange) || safeRange <= 0) return Number.isFinite(safeFallback) && safeFallback > 0 ? safeFallback : 1;
+  const raw = safeRange / 10;
+  const power = 10 ** Math.floor(Math.log10(raw || 1));
+  const scaled = raw / power;
+  const multiplier = scaled <= 1 ? 1 : scaled <= 2 ? 2 : scaled <= 5 ? 5 : 10;
+  return multiplier * power;
+};
+
+// The authored viewport is a minimum useful window, not a cage. A dependent
+// graph must always be able to display the points the student actually made.
+// Expand only when upstream work falls outside the authored bounds; never
+// silently clip a table point just because the original answer key fit.
+const expandGraphWindowToPoints = (graph = {}, points = []) => {
+  const base = {
+    xMin: Number.isFinite(Number(graph.xMin)) ? Number(graph.xMin) : -10,
+    xMax: Number.isFinite(Number(graph.xMax)) ? Number(graph.xMax) : 10,
+    yMin: Number.isFinite(Number(graph.yMin)) ? Number(graph.yMin) : -10,
+    yMax: Number.isFinite(Number(graph.yMax)) ? Number(graph.yMax) : 10,
+    ...graph,
+  };
+  const valid = (Array.isArray(points) ? points : [])
+    .filter((point) => Array.isArray(point) && point.length === 2 && point.every((entry) => Number.isFinite(Number(entry))))
+    .map(([x, y]) => [Number(x), Number(y)]);
+  if (!valid.length) return base;
+
+  const xs = valid.map(([x]) => x);
+  const ys = valid.map(([, y]) => y);
+  const baseXRange = Math.max(1, Number(base.xMax) - Number(base.xMin));
+  const baseYRange = Math.max(1, Number(base.yMax) - Number(base.yMin));
+  const xPad = Math.max(Number(base.xStep) || 0, baseXRange * 0.08, 0.5);
+  const yPad = Math.max(Number(base.yStep) || 0, baseYRange * 0.08, 0.5);
+
+  const expanded = {
+    ...base,
+    xMin: Math.min(Number(base.xMin), Math.min(...xs) < Number(base.xMin) ? Math.min(...xs) - xPad : Number(base.xMin)),
+    xMax: Math.max(Number(base.xMax), Math.max(...xs) > Number(base.xMax) ? Math.max(...xs) + xPad : Number(base.xMax)),
+    yMin: Math.min(Number(base.yMin), Math.min(...ys) < Number(base.yMin) ? Math.min(...ys) - yPad : Number(base.yMin)),
+    yMax: Math.max(Number(base.yMax), Math.max(...ys) > Number(base.yMax) ? Math.max(...ys) + yPad : Number(base.yMax)),
+  };
+  const xRange = expanded.xMax - expanded.xMin;
+  const yRange = expanded.yMax - expanded.yMin;
+  const currentXStep = Number(base.xStep) || 1;
+  const currentYStep = Number(base.yStep) || 1;
+  if (xRange / currentXStep > 20) expanded.xStep = niceGridStep(xRange, currentXStep);
+  if (yRange / currentYStep > 20) expanded.yStep = niceGridStep(yRange, currentYStep);
+  return expanded;
+};
 
 const chipRow = { display: 'flex', gap: 8, flexWrap: 'wrap' };
 const choiceChip = (active) => ({
@@ -118,21 +171,118 @@ function QuantityRolesStage({ stage, value, onChange, disabled }) {
 // as the stage response would mean a stage counted as answered the moment it
 // mounted, and would hand the next stage a status payload instead of a value.
 // Each delegate therefore says how to read the answer out of what it reports.
+const WORKFLOW_ARTIFACT = '__mathmasterWorkflowArtifact';
+
+const parseResponseKey = (payload) => {
+  try {
+    return JSON.parse(payload?.responseKey || '{}');
+  } catch {
+    return {};
+  }
+};
+
+const numericTablePoints = ({ stage, cells }) => {
+  const columns = Array.isArray(stage.columns) && stage.columns.length
+    ? stage.columns
+    : [{ key: 'x', label: 'x' }, { key: 'y', label: 'f(x)' }];
+  const inputColumn = stage.inputColumn || columns[0]?.key || 'x';
+  const responseColumn = stage.responseColumn || columns[columns.length - 1]?.key || 'y';
+  const xValues = Array.isArray(stage.xValues) ? stage.xValues : [];
+  return xValues.map((x, rowIndex) => {
+    const rawY = cells?.[`${rowIndex}:${responseColumn}`];
+    if (String(rawY ?? '').trim() === '') return null;
+    const numericX = evaluateNumericValue(x);
+    const y = evaluateNumericValue(rawY);
+    return numericX !== null && y !== null ? [numericX, y] : null;
+  }).filter(Boolean);
+};
+
+const checkTableAgainstFunctionSpec = ({ cells = {}, stage, functionSpec }) => {
+  if (!functionSpec) return null;
+  const columns = Array.isArray(stage.columns) && stage.columns.length
+    ? stage.columns
+    : [{ key: 'x', label: 'x' }, { key: 'y', label: 'f(x)' }];
+  const responseColumn = stage.responseColumn || columns[columns.length - 1]?.key || 'y';
+  const xValues = Array.isArray(stage.xValues) ? stage.xValues : [];
+  const rows = [];
+  xValues.forEach((x, rowIndex) => {
+    const entered = cells?.[`${rowIndex}:${responseColumn}`];
+    if (String(entered ?? '').trim() === '') return;
+    const numericX = evaluateNumericValue(x);
+    const expected = numericX === null ? Number.NaN : evaluateGraphFunction(functionSpec, numericX);
+    const enteredNumber = evaluateNumericValue(entered);
+    rows.push({
+      x,
+      entered,
+      expected,
+      matches: Number.isFinite(expected)
+        ? (enteredNumber !== null && Math.abs(enteredNumber - expected) <= 1e-6)
+        : null,
+    });
+  });
+  const checked = rows.filter((row) => row.matches !== null);
+  return {
+    checked: checked.length,
+    consistent: checked.length > 0 && checked.every((row) => row.matches),
+    mismatches: checked.filter((row) => !row.matches),
+    rows,
+  };
+};
+
+const tableArtifact = (payload, { stage, input, content }) => {
+  const cells = parseResponseKey(payload);
+  const sourceModel = typeof input?.value === 'string'
+    ? input.value
+    : input?.value?.sourceModel || null;
+  const columns = Array.isArray(stage.columns) && stage.columns.length
+    ? stage.columns
+    : [{ key: 'x', label: 'x' }, { key: 'y', label: 'f(x)' }];
+  const responseColumn = stage.responseColumn || columns[columns.length - 1]?.key || 'y';
+  const sourceFunctionSpec = !sourceModel && content?.functionSpec ? content.functionSpec : null;
+  const consistency = sourceModel
+    ? checkTableConsistency({
+      response: cells,
+      xValues: Array.isArray(stage.xValues) ? stage.xValues : [],
+      model: sourceModel,
+      responseColumn,
+    })
+    : checkTableAgainstFunctionSpec({ cells, stage, functionSpec: sourceFunctionSpec });
+
+  return {
+    [WORKFLOW_ARTIFACT]: 'table',
+    isComplete: Boolean(payload?.isComplete),
+    cells,
+    xValues: Array.isArray(stage.xValues) ? stage.xValues : [],
+    points: numericTablePoints({ stage, cells }),
+    sourceModel,
+    sourceFunctionSpec,
+    sourceChecked: consistency?.checked || 0,
+    sourceConsistent: consistency ? consistency.consistent : null,
+  };
+};
+
+const graphArtifact = (payload) => ({
+  [WORKFLOW_ARTIFACT]: 'graph',
+  isComplete: Boolean(payload?.isComplete),
+  isCorrect: Boolean(payload?.isCorrect),
+  responseKey: payload?.responseKey || '',
+  parts: Array.isArray(payload?.parts) ? payload.parts : [],
+});
+
+// Delegated components report a STATUS object — isComplete, isCorrect,
+// responseKey and so on — not the student's answer. Each reader turns that
+// status into the mathematical artifact the next workflow stage actually needs.
+// Dependent artifacts deliberately retain lineage: a table built from the
+// student's equation carries that equation forward so a graph can be built
+// from BOTH pieces of student work rather than from the answer key.
 const readDelegateResponse = {
-  tableInput: (payload) => {
-    try {
-      return JSON.parse(payload?.responseKey || '{}');
-    } catch {
-      return {};
-    }
-  },
+  tableInput: (payload, context) => tableArtifact(payload, context),
   // The two newer tools report through `onAction('ATTEMPT_SUBMITTED', payload)`
-  // and put the student's work in `payload.response`. They self-grade, so what
-  // matters here is the response, not their verdict.
+  // and put the student's work in `payload.response`.
   numberLine: (payload) => payload?.response?.intervals ?? payload?.response ?? null,
   mappingDiagram: (payload) => payload?.response?.arrows ?? payload?.response ?? null,
-  coordinatePlot: (payload) => payload?.placements ?? payload?.points ?? payload?.responseKey ?? null,
-  functionGraph: (payload) => payload?.placements ?? payload?.points ?? payload?.responseKey ?? null,
+  coordinatePlot: (payload) => graphArtifact(payload),
+  functionGraph: (payload) => graphArtifact(payload),
   algebraWorkspace: (payload) => payload?.responseKey ?? payload?.equation ?? null,
 };
 
@@ -204,31 +354,120 @@ const DELEGATES = {
       onAction={toolAction(onChange)}
     />
   ),
-  coordinatePlot: ({ stage, content, onChange, draftKey }) => (
-    <InteractiveGraphWorkspace
-      question={{
-        prompt: '',
-        graph: stage.graph || content?.graph || { xMin: -10, xMax: 10, yMin: -10, yMax: 10 },
-        plotMode: 'points',
-        pairs: stage.pairs || content?.pairs || [],
-      }}
-      mode="construct"
-      onStateChange={onChange}
-      draftKey={draftKey}
-    />
-  ),
-  functionGraph: ({ stage, content, onChange, draftKey }) => (
-    <InteractiveGraphWorkspace
-      question={{
-        prompt: '',
-        graph: stage.graph || content?.graph || { xMin: -10, xMax: 10, yMin: -10, yMax: 10 },
-        functionSpec: content?.functionSpec,
-      }}
-      mode="construct"
-      onStateChange={onChange}
-      draftKey={draftKey}
-    />
-  ),
+  coordinatePlot: ({ stage, input, content, onChange, draftKey }) => {
+    const source = input?.from === 'student' ? input.value : null;
+    const fromTable = source?.[WORKFLOW_ARTIFACT] === 'table' ? source.points : null;
+    const equationPoints = typeof source === 'string'
+      ? (Array.isArray(content?.tableXValues) && content.tableXValues.length ? content.tableXValues : [0, 1, 2, 3, 4])
+        .map((x) => {
+          const y = evaluateModelAt(source, Number(x));
+          return y === null ? null : [Number(x), y];
+        }).filter(Boolean)
+      : [];
+    const rawPairs = Array.isArray(fromTable) && fromTable.length
+      ? fromTable
+      : (equationPoints.length ? equationPoints : (stage.pairs || content?.pairs || []));
+    const pairs = (Array.isArray(rawPairs) ? rawPairs : []).map((pair) => {
+      if (Array.isArray(pair)) return [Number(pair[0]), Number(pair[1])];
+      return [Number(pair?.x), Number(pair?.y)];
+    }).filter((pair) => pair.every(Number.isFinite));
+    const pointTasks = pairs.map((point, index) => ({
+      id: `point-${index + 1}`,
+      label: `P${index + 1}`,
+      role: 'point',
+      x: point[0],
+      expected: point,
+      lockedX: true,
+    }));
+
+    return (
+      <InteractiveGraphWorkspace
+        question={{
+          prompt: '',
+          graph: expandGraphWindowToPoints(stage.graph || content?.graph || { xMin: -10, xMax: 10, yMin: -10, yMax: 10 }, pairs),
+          plotMode: 'points',
+          pointOnly: true,
+          pointTasks,
+          functionSpec: { type: 'expression', expression: '0', variable: 'x', referencePoints: pairs },
+          showCoordinates: true,
+          requireEndpointMarkers: false,
+        }}
+        mode="construct"
+        onStateChange={onChange}
+        draftKey={draftKey}
+      />
+    );
+  },
+  functionGraph: ({ stage, input, content, onChange, draftKey }) => {
+    const source = input?.from === 'student' ? input.value : null;
+    const sourceIsTable = source?.[WORKFLOW_ARTIFACT] === 'table';
+    const tablePoints = sourceIsTable && Array.isArray(source.points) ? source.points : [];
+    const sourceModel = sourceIsTable ? source.sourceModel : (typeof source === 'string' ? source : null);
+    const sourceFunctionSpec = sourceIsTable ? source.sourceFunctionSpec : null;
+    const authoredGraphWindow = stage.graph || content?.graph || { xMin: -10, xMax: 10, yMin: -10, yMax: 10 };
+    const points = tablePoints.length ? tablePoints : (() => {
+      if (!sourceModel) return [];
+      const xMin = Number(authoredGraphWindow.xMin);
+      const xMax = Number(authoredGraphWindow.xMax);
+      if (!Number.isFinite(xMin) || !Number.isFinite(xMax) || xMax <= xMin) return [];
+      const candidates = Array.from({ length: 5 }, (_, index) => xMin + (index / 4) * (xMax - xMin));
+      return candidates.map((x) => {
+        const y = evaluateModelAt(sourceModel, x);
+        return y === null ? null : [Number(x.toFixed(6)), Number(y.toFixed(6))];
+      }).filter(Boolean);
+    })();
+    const graphWindow = expandGraphWindowToPoints(authoredGraphWindow, points);
+
+    // The graph must represent the student's own prior work.  For a table that
+    // came from an equation, contradictory work has no single graph; make that
+    // conflict visible and require the student to resolve it rather than
+    // secretly switching to the authored answer key.
+    if (sourceIsTable && (source.sourceModel || source.sourceFunctionSpec) && source.sourceChecked > 0 && source.sourceConsistent === false) {
+      return (
+        <div style={{ ...waitingPanel, background: '#fff8e1', color: '#7a4f00' }}>
+          <strong>Your table and function do not agree yet.</strong>
+          <p style={{ margin: '6px 0 0', lineHeight: 1.5 }}>
+            Fix the table or the function first. Once they describe the same relationship, MathMaster will build this graphing step from your work.
+          </p>
+        </div>
+      );
+    }
+
+    const functionSpec = sourceModel
+      ? buildExpressionFunctionSpec(sourceModel, { referencePoints: points })
+      : (sourceFunctionSpec || content?.functionSpec);
+
+    if (!functionSpec) {
+      return (
+        <div style={{ ...waitingPanel, background: '#fff8e1', color: '#7a4f00' }}>
+          <strong>Your model cannot be graphed yet.</strong>
+          <p style={{ margin: '6px 0 0', lineHeight: 1.5 }}>
+            Revise the function so it is a complete equation, then finish the table. This graph is generated from those answers, not from a hidden answer key.
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <InteractiveGraphWorkspace
+        question={{
+          prompt: '',
+          graph: graphWindow,
+          functionSpec,
+          equationLatex: sourceModel || undefined,
+          graphAnswer: points.length ? { suggestedPoints: points } : undefined,
+          showCoordinates: true,
+          studentChoosesX: false,
+          // A modelling workflow asks for domain in its own later stage.  Do not
+          // force the graph tool to guess endpoint semantics before that answer.
+          requireEndpointMarkers: stage.requireEndpointMarkers ?? false,
+        }}
+        mode="construct"
+        onStateChange={onChange}
+        draftKey={draftKey}
+      />
+    );
+  },
   algebraWorkspace: ({ stage, content, input, onChange, draftKey }) => (
     <StepByStepAlgebra
       question={{
@@ -245,7 +484,7 @@ const DELEGATES = {
   ),
 };
 
-const NOTATION_PROFILE = { interval: 'interval', inequality: 'inequality', set: 'interval' };
+const NOTATION_PROFILE = { interval: 'interval', inequality: 'inequality', set: 'set' };
 
 function StageBody({ stage, input, content, value, onChange, disabled, draftKey }) {
   const delegate = DELEGATES[stage.kind];
@@ -301,6 +540,17 @@ function StageBody({ stage, input, content, value, onChange, disabled, draftKey 
       );
   }
 }
+
+const dependencyFingerprint = (value) => {
+  let text = '';
+  try { text = JSON.stringify(value ?? null); } catch { text = String(value ?? ''); }
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+};
 
 export default function WorkflowRunner({
   question,
@@ -363,7 +613,12 @@ export default function WorkflowRunner({
 
   return (
     <div style={{ textAlign: 'left' }}>
-      {content?.scenario && (
+      {content?.prompt && (
+        <div style={{ ...panel, background: '#f8fbff', borderColor: '#c5d5ef' }}>
+          <QuestionPrompt>{content.prompt}</QuestionPrompt>
+        </div>
+      )}
+      {content?.scenario && content.scenario !== content?.prompt && (
         <div style={{ ...panel, background: '#f8f9fa' }}>
           <QuestionPrompt>{content.scenario}</QuestionPrompt>
         </div>
@@ -402,9 +657,9 @@ export default function WorkflowRunner({
               input={input}
               content={content}
               value={responses[stage.id]}
-              onChange={(value) => setResponse(stage.id, (readDelegateResponse[stage.kind] || ((raw) => raw))(value))}
+              onChange={(value) => setResponse(stage.id, (readDelegateResponse[stage.kind] || ((raw) => raw))(value, { stage, input, content }))}
               disabled={disabled}
-              draftKey={draftKey ? `${draftKey}:${stage.id}` : null}
+              draftKey={draftKey ? `${draftKey}:${stage.id}${stage.sourceStageId && ['functionGraph', 'coordinatePlot'].includes(stage.kind) ? `:${dependencyFingerprint(input.value)}` : ''}` : null}
             />
           </section>
         );

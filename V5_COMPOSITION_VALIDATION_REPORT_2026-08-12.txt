@@ -1,0 +1,60 @@
+MathMaster V5 Composition Compiler Validation — 2026-08-12
+
+Problem reproduced
+------------------
+The real authoring transcript supplied Authoring Intent V5 with multi-action questions such as:
+  completeTable + constructGraph + analyze/stateRange + classifyContinuity
+and contextual:
+  identifyQuantities + writeEquation + completeTable + constructGraph + domain + range + continuity
+The old compiler collapsed some rich questions to one legacy type, after which semantic validation complained that promised tables/graphs were missing and the repair loop downgraded the assignment to V4.
+
+Permanent fixes validated
+-------------------------
+1. Rich V5 function questions compile to workflow compositions.
+2. Workflow table/graph stages satisfy semantic visual-promise validation.
+3. V5 repair prompts remain schemaVersion 5.
+4. V5 studentActions cannot be bypassed by stray type/toolId/analysisRequests/renderer graph plumbing.
+5. Graph analysis derives analysisRequests from studentActions.
+6. Structured top-level V5 domain restrictions are attached to the function when appropriate.
+7. Relation mapping preserves analyzeDomain/analyzeRange.
+8. Given functions can derive deterministic table keys; conflicting AI-authored table keys do not override the function.
+9. Given-function table artifacts feed dependent graphs and consistency checks.
+10. Workflow domain/range finite sets use semantic set equivalence.
+11. Composed parent prompts are rendered to students.
+12. Internal V5 compiler plumbing failures are reported as MathMaster platform defects rather than sent back to the authoring AI as V4 repair work.
+
+Automated checks
+----------------
+npm run validate:authoring-v5
+  PASS
+  Rich workflow: tableInput -> coordinatePlot -> rangeInput -> classification
+
+npm run test:authoring-v5
+  48 tests passed
+  0 failed
+  Includes:
+    - 34 V5 runtime destinations
+    - 9-question Function Attributes V5-shaped composition regression
+    - compiler normalization
+    - semantic validation
+    - workflow dependency validation
+    - workflow grading
+    - graph spec validation
+
+Additional focused tests executed
+  - module1StudentUiGuardrails.test.mjs: PASS (4)
+  - answerUtils.test.mjs: PASS
+  - setAnswerEquivalence.test.mjs: PASS
+  - workflow finite-set grading regression: PASS
+
+Syntax/transpile checks
+  PASS src/App.jsx
+  PASS src/AssignmentIntake.jsx
+  PASS src/platform/workflow/WorkflowRunner.jsx
+  PASS changed JS compiler/validation files via node --check
+
+Environment note
+----------------
+The artifact environment did not contain the project's installed npm dependencies. A temporary test-only mathjs shim was used to execute the pure compiler/workflow regression tests and was REMOVED before packaging. The production ZIP contains the normal package.json dependency on mathjs and no shim/node_modules directory.
+
+A full Vite production build should be run after npm ci in the normal deployment environment.

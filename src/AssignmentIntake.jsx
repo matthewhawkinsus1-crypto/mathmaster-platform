@@ -73,6 +73,7 @@ export default function AssignmentIntake({
   toastInfo,
 }) {
   const [dropActive, setDropActive] = useState(false);
+  const [authoringCourse, setAuthoringCourse] = useState('algebra1');
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState(null);
   const fileInputRef = useRef(null);
@@ -81,11 +82,11 @@ export default function AssignmentIntake({
 
   const handleCopyContract = async () => {
     try {
-      const contract = buildAuthoringContract();
+      const contract = buildAuthoringContract({ courseId: authoringCourse });
       await writeClipboardText(contract);
       toastSuccess?.(
         'Instructions copied',
-        `Paste them into ChatGPT, Claude or Gemini, then describe the assignment you want. ${Math.round(contract.length / 1000)} KB of ${CONTRACT_SCHEMA_NAME} rules.`,
+        `Paste them into ChatGPT, Claude or Gemini, then describe the assignment you want. MathMaster now sends a compact authoring contract (${Math.round(contract.length / 1000)} KB) and repairs renderer plumbing automatically.`,
       );
     } catch (error) {
       toastError?.('Could not copy the instructions', error.message);
@@ -99,17 +100,29 @@ export default function AssignmentIntake({
     try {
       const result = await onJsonReady({ text, sourceName });
       if (result?.ok) {
-        toastSuccess?.('Assignment read', 'Review the details and publish from the preflight screen.');
+        const repairCount = Array.isArray(result.repairs) ? result.repairs.length : 0;
+        toastSuccess?.(
+          'Assignment read',
+          repairCount
+            ? `MathMaster repaired ${repairCount} authoring detail${repairCount === 1 ? '' : 's'} automatically. Review the assignment in Preflight.`
+            : 'Review the details and publish from the preflight screen.',
+        );
       } else {
         setFailure({
           sourceName,
           rawJson: text,
           errors: result?.errors?.length ? result.errors : ['MathMaster could not read this JSON.'],
           warnings: result?.warnings || [],
+          sourceSchemaVersion: result?.sourceSchemaVersion || (/"schemaVersion"\s*:\s*5\b/.test(String(text || '')) ? 5 : null),
+          compilerDefect: result?.compilerDefect === true,
         });
       }
     } catch (error) {
-      setFailure({ sourceName, rawJson: text, errors: [error.message], warnings: [] });
+      setFailure({
+        sourceName, rawJson: text, errors: [error.message], warnings: [],
+        sourceSchemaVersion: /"schemaVersion"\s*:\s*5\b/.test(String(text || '')) ? 5 : null,
+        compilerDefect: false,
+      });
     } finally {
       setBusy(false);
     }
@@ -139,10 +152,29 @@ export default function AssignmentIntake({
   const handleCopyFixRequest = async () => {
     if (!failure) return;
     try {
+      if (failure.compilerDefect) {
+        const report = [
+          '# MathMaster V5 compiler defect',
+          '',
+          'The outside AI supplied Authoring Intent V5, but MathMaster failed while converting that intent into its internal renderer/runtime contract.',
+          'Do not repair this by converting the assignment to V4 or adding type/toolId/functionSpec/analysisRequests plumbing to the AI JSON.',
+          '',
+          '## Compiler errors',
+          ...failure.errors.map((error, index) => `${index + 1}. ${error}`),
+          '',
+          '## Original V5 intent',
+          failure.rawJson,
+        ].join('\n');
+        await writeClipboardText(report);
+        toastInfo?.('Platform bug report copied', 'This report is for the MathMaster coding workflow, not for the assignment-writing AI.');
+        return;
+      }
       await writeClipboardText(buildFixRequest(failure));
       toastInfo?.(
         'Fix request copied',
-        'Paste it into the same AI conversation, then bring the corrected JSON back with Paste JSON from Clipboard.',
+        Number(failure.sourceSchemaVersion) === 5
+          ? 'Paste it into the same AI conversation. The request keeps the assignment in Authoring Intent V5 so renderer details remain MathMaster’s job.'
+          : 'Paste it into the same AI conversation, then bring the corrected JSON back with Paste JSON from Clipboard.',
       );
     } catch (error) {
       toastError?.('Could not copy the fix request', error.message);
@@ -162,9 +194,22 @@ export default function AssignmentIntake({
               5 classwork questions and a 2-question DOL&rdquo;</em>. The instructions are generated from this
               build, so the AI sees the current tools, standards and rules.
             </p>
-            <button type="button" onClick={handleCopyContract} style={primaryButton}>
-              📋 Copy AI Assignment Builder Instructions
-            </button>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#334155', fontWeight: 700, fontSize: 14 }}>
+                Course
+                <select
+                  value={authoringCourse}
+                  onChange={(event) => setAuthoringCourse(event.target.value)}
+                  style={{ minHeight: 42, border: '1px solid #9bb8e8', borderRadius: 9, padding: '0 10px', background: '#fff', color: '#172033', fontWeight: 700 }}
+                >
+                  <option value="algebra1">Algebra I</option>
+                  <option value="algebra2">Algebra II</option>
+                </select>
+              </label>
+              <button type="button" onClick={handleCopyContract} style={primaryButton}>
+                📋 Copy AI Assignment Builder Instructions
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -219,8 +264,11 @@ export default function AssignmentIntake({
             This JSON needs a fix{failure.sourceName ? ` — ${failure.sourceName}` : ''}
           </h3>
           <p style={{ margin: '0 0 10px', color: '#5f6b7a', fontSize: 13, lineHeight: 1.55 }}>
-            Nothing was created. You do not need to edit the JSON yourself — copy the fix request below,
-            paste it into the same AI conversation, then bring the corrected JSON back.
+            {failure.compilerDefect
+              ? 'The V5 intent contains enough student-facing information, but MathMaster failed while compiling its own renderer/runtime plumbing. This is a platform defect — do not send the assignment back to the AI as V4.'
+              : Number(failure.sourceSchemaVersion) === 5
+                ? 'MathMaster repairs V5 renderer plumbing automatically. Any remaining item below should describe a genuine mathematical/content omission. The copied repair request keeps schemaVersion 5.'
+                : 'MathMaster already repairs formatting, aliases, mixed fixed/generated delivery, and ordinary graph viewport issues. Anything still listed below could not be repaired safely without changing meaning.'}
           </p>
           <ul style={{ margin: '0 0 14px', paddingLeft: 20, color: '#3c4756', lineHeight: 1.6, fontSize: 13 }}>
             {failure.errors.map((error, index) => <li key={index}>{error}</li>)}
@@ -237,7 +285,7 @@ export default function AssignmentIntake({
           )}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <button type="button" onClick={handleCopyFixRequest} style={primaryButton}>
-              📋 Copy AI Fix Request
+              {failure.compilerDefect ? '📋 Copy Platform Bug Report' : '📋 Copy AI Fix Request'}
             </button>
             <button type="button" onClick={clearFailure} style={secondaryButton}>Dismiss</button>
           </div>

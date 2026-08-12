@@ -79,6 +79,8 @@ export const ADMIN_ONLY_OPERATIONS = Object.freeze([
   'migrateClassesFromPeriods',
   'backfillRecordAuthorization',
   'seedPathQuestionBank',
+  'initializeStarterPathQuestionBank',
+  'getPathRuntimeStatus',
   'listAdminAuditLog',
 ]);
 

@@ -10,7 +10,10 @@
     "preview": "vite preview",
     "dev:tools": "vite --open /tools-lab.html",
     "build:tools": "vite build",
-    "test:rules": "firebase emulators:exec --only firestore --project mathmaster-rules-test \"node --test 'tests/rules/*.test.mjs'\""
+    "test:rules": "firebase emulators:exec --only firestore --project mathmaster-rules-test \"node --test 'tests/rules/*.test.mjs'\"",
+    "test:authoring-v5": "node --test tests/platform/authoringIntentV5.test.mjs tests/platform/authoringIntentV5Destinations.test.mjs tests/platform/authoringIntentV5CompositionRegression.test.mjs tests/platform/authoringCompiler.test.mjs tests/platform/semanticValidation.test.mjs tests/platform/questionWorkflow.test.mjs tests/platform/workflowGrading.test.mjs tests/platform/graphSpecUtils.test.mjs",
+    "validate:authoring-v5": "node scripts/validate-authoring-v5.mjs",
+    "validate:assignments": "node scripts/validate-assignments.mjs"
   },
   "dependencies": {
     "firebase": "^12.17.1",

@@ -153,8 +153,17 @@ export const formatNumber = (value, digits = 2) => Number.isFinite(Number(value)
 // in several labs. Every tool that grades a typed number goes through here.
 export const parseNumericAnswer = (value) => {
   if (value == null) return null;
-  const text = String(value).trim();
+  const text = String(value).trim().replace(/−/g, '-');
   if (text === '') return null;
+
+  const fraction = text.match(/^([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*\/\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))$/);
+  if (fraction) {
+    const numerator = Number(fraction[1]);
+    const denominator = Number(fraction[2]);
+    if (Number.isFinite(numerator) && Number.isFinite(denominator) && Math.abs(denominator) > 1e-12) return numerator / denominator;
+    return null;
+  }
+
   const parsed = Number(text);
   return Number.isFinite(parsed) ? parsed : null;
 };

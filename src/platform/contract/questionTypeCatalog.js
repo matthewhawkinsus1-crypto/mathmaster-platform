@@ -351,10 +351,10 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
 
   multiAnswer: {
     label: 'Several answers in one question',
-    studentAction: "Types several short answers. It is a response form, NOT a construction workspace.",
+    studentAction: "Types several short answers. It is a response form, NOT a construction workspace. Use `type: \"choice\"` plus `options` for categorical fields. Finite roster-form sets use `type: \"set\"`; MathMaster also infers set mode from an authored answer such as {-4, -3, -2}.",
     representation: REPRESENTATIONS.SYMBOLIC,
     purpose: 'Collect several labelled responses to one stimulus.',
-    useWhen: ['One graph, table or scenario should produce several answers.'],
+    useWhen: ['One graph, table or scenario should produce several answers.', 'Use choice fields for finite categories such as linear/quadratic/exponential, finite/infinite, or discrete/continuous.', 'Use set fields for finite roster-form set notation; element order is graded mathematically, not as a string.'],
     doNotUseWhen: ['There is only one thing to answer.'],
     required: [requires('answerFields', 'needs an `answerFields` array — note the name, `fields` is not read')],
     validate: (question) => {
@@ -369,10 +369,13 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
         if (!has(field.answer) && !nonEmptyArray(field.acceptedAnswers)) {
           errors.push(`answerFields[${index}] needs an \`answer\` or an \`acceptedAnswers\` array`);
         }
+        if (field.type === 'choice' && !nonEmptyArray(field.options)) {
+          errors.push(`answerFields[${index}] is a choice field and needs a non-empty \`options\` array`);
+        }
       });
       return errors;
     },
-    optional: ['mathDisplay', 'graph', 'visual'],
+    optional: ['mathDisplay', 'graph', 'visual', 'answerFields[].type="choice"', 'answerFields[].type="text"', 'answerFields[].type="set"', 'answerFields[].options', 'answerFields[].toolProfile'],
     example: {
       type: 'multiAnswer', prompt: 'Use the graph to complete each part.',
       graph: { functions: [{ type: 'quadratic', a: 1, h: 0, k: -4 }], xMin: -6, xMax: 6, yMin: -6, yMax: 6 },
@@ -405,15 +408,32 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
       const ids = question.quantities.map((quantity) => quantity?.id);
       if (!ids.includes(question.correctIndependentId)) errors.push('`correctIndependentId` must match one of the quantity ids');
       if (!ids.includes(question.correctDependentId)) errors.push('`correctDependentId` must match one of the quantity ids');
+      if ((question.requireRelationshipType || question.relationshipType)
+          && !/(discrete|continuous|classif|relationship\s+type)/i.test(String(question.prompt || ''))) {
+        errors.push('the renderer asks the student to classify the relationship as discrete or continuous, so the prompt must tell the student that classification is required');
+      }
       return errors;
     },
     optional: ['relationshipType', 'requireRelationshipType', 'graph', 'axisSetup', 'recipe', 'workflow', 'grading'],
+    notes: [
+      'When one source task asks for an equation, table, and graph of the SAME model, keep those stages together with `recipe: { name: "functionModeling", ask: [...] }`. MathMaster threads the student\'s equation into their table and their completed table into the graph; do not replace that dependency with hidden fixed answers.',
+      "Use `graphMode: \"continuous\"` when the relationship is continuous and `graphMode: \"discrete\"` when only the table's ordered pairs should be plotted.",
+    ],
     example: {
       type: 'relationshipModel',
-      prompt: 'Identify the variables in this situation.',
-      scenario: 'A pool fills at a steady rate.',
+      prompt: 'Build one model from the quantities through the graph, then state the reasonable domain and range and classify the relationship.',
+      scenario: 'A pool fills at a steady rate of 5 litres per minute from empty.',
       quantities: [{ id: 'time', label: 'Time (minutes)' }, { id: 'volume', label: 'Water in the pool (litres)' }],
       correctIndependentId: 'time', correctDependentId: 'volume',
+      recipe: { name: 'functionModeling', ask: ['quantities', 'equation', 'table', 'graph', 'domain', 'range', 'continuity'] },
+      correctEquation: 'V(t)=5t',
+      tableXValues: [0, 1, 2, 3, 4],
+      graphMode: 'continuous',
+      continuity: 'continuous',
+      correctDomain: 't>=0',
+      correctRange: 'V>=0',
+      notation: 'inequality',
+      graph: { xMin: 0, xMax: 8, yMin: 0, yMax: 40, xStep: 1, yStep: 5 },
     },
   },
 
@@ -499,13 +519,13 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
 
   graphStory: {
     label: 'Write a graph story',
-    studentAction: "Reads a graph as a narrative and answers in order.",
+    studentAction: "If a `graph` is supplied, reads that graph and writes a matching scenario; otherwise creates a scenario and sketches its graph. In both modes the student names the independent/dependent quantities, supplies axis labels/units, and explains the graph.",
     representation: REPRESENTATIONS.GRAPH,
-    purpose: 'The student writes a situation that a given graph could describe.',
+    purpose: 'The student connects a real-world story, its quantities, axis meaning, and a graph.',
     useWhen: ['The skill is explaining a graph in words.'],
     doNotUseWhen: ['You want a computed answer.'],
     required: [requires('prompt', 'needs a prompt')],
-    optional: ['graph', 'functionSpec', 'minimumScenarioCharacters', 'minimumExplanationCharacters'],
+    optional: ['graph', 'requireSketch', 'minimumScenarioCharacters', 'minimumExplanationCharacters'],
     example: {
       type: 'graphStory', prompt: 'Describe a situation this graph could show.',
       graph: { functions: [{ type: 'line', m: -1, b: 6 }], xMin: 0, xMax: 8, yMin: 0, yMax: 8 },

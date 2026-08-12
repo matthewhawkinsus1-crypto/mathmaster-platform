@@ -190,14 +190,21 @@ const warningsFor = (question) => validateQuestionSemantics(question).warnings;
   };
   assert.deepEqual(errorsFor(vertexQuadratic), [], 'vertex-form static quadratics are valid and visible');
 
-  const clipped = {
+  const autoFitted = {
     type: 'graphScenarioMatch', prompt: 'Match them.',
     scenarios: [{ id: 'shares', description: 'Shares double.' }],
     graphs: [{ id: 'g1', graph: { xMin: 0, xMax: 7, yMin: 0, yMax: 140, functions: [{ type: 'exponential', a: 2, base: 2, h: 0, k: 0 }] } }],
     correctMatches: { shares: 'g1' },
   };
-  assert.ok(errorsFor(clipped).some((e) => /clipped by its viewport/.test(e)),
-    'graph matching rejects a curve whose finite boundary value is outside the visible range');
+  assert.deepEqual(errorsFor(autoFitted), [],
+    'routine graph viewport mistakes are auto-fitted by MathMaster rather than bounced back to the AI');
+
+  const intentionallyLocked = {
+    ...autoFitted,
+    graphs: [{ id: 'g1', graph: { ...autoFitted.graphs[0].graph, lockViewport: true } }],
+  };
+  assert.ok(errorsFor(intentionallyLocked).some((e) => /clipped by its locked viewport/.test(e)),
+    'an explicitly locked instructional viewport is still rejected when it hides the authored function');
 }
 
 // --- a `graph` object is not always a GraphDisplay card ---------------------
@@ -275,3 +282,66 @@ const warningsFor = (question) => validateQuestionSemantics(question).warnings;
 }
 
 console.log('semanticValidation.test.mjs: all assertions passed');
+
+// --- student-UI guardrails added from the Module 1 audit --------------------
+{
+  assert.deepEqual(
+    warningsFor({ type: 'algebra', prompt: 'A rental costs $6 plus $4 per hour.' }).filter((w) => /contains LaTeX/.test(w)),
+    [],
+    'ordinary currency is not mistaken for dollar-delimited LaTeX',
+  );
+
+  const dependentGraphRecipe = {
+    type: 'relationshipModel',
+    prompt: 'Model the relationship.',
+    scenario: 'Water enters at 5 liters per minute.',
+    quantities: [{ id: 'time', label: 'Time' }, { id: 'water', label: 'Water' }],
+    correctIndependentId: 'time',
+    correctDependentId: 'water',
+    correctEquation: 'W(t)=5t',
+    tableXValues: [0, 1, 2],
+    recipe: { name: 'functionModeling', ask: ['quantities', 'equation', 'table', 'graph'] },
+    graph: { xMin: 0, xMax: 4, yMin: 0, yMax: 20 },
+  };
+  assert.deepEqual(errorsFor(dependentGraphRecipe), [],
+    'a workflow graph that follows equation → table is supported end to end');
+  assert.ok(!errorsFor(dependentGraphRecipe).some((e) => /no drawable function/.test(e)),
+    'the recipe viewport is not incorrectly audited as a static graph card');
+
+  const underdeterminedGraph = {
+    type: 'relationshipModel',
+    prompt: 'Graph from this table.',
+    recipe: { name: 'functionModeling', ask: ['table', 'graph'] },
+    tableXValues: [0, 1, 2],
+    tableAnswers: { '0:y': 0, '1:y': 1, '2:y': 4 },
+    graphMode: 'continuous',
+  };
+  assert.ok(errorsFor(underdeterminedGraph).some((e) => /does not determine one unique continuous graph/.test(e)),
+    'a continuous graph from a finite table still needs a model/equation lineage');
+}
+
+// --- categorical multiAnswer fields should not default to math entry --------
+{
+  const categorical = {
+    type: 'multiAnswer',
+    prompt: 'Choose the correct axes.',
+    answerFields: [
+      { id: 'x', label: 'Correct x-axis', acceptedAnswers: ['time', 'time elapsed'] },
+      { id: 'y', label: 'Correct y-axis', acceptedAnswers: ['distance', 'distance traveled'] },
+    ],
+  };
+  const result = validateQuestionSemantics(categorical, { label: 'axis question' });
+  assert.ok(result.warnings.some((message) => /looks categorical/.test(message)),
+    'finite word categories warn when an AI leaves them on free-response math entry');
+
+  const corrected = {
+    ...categorical,
+    answerFields: [
+      { id: 'x', label: 'Correct x-axis', type: 'choice', options: ['time', 'distance traveled'], answer: 'time' },
+      { id: 'y', label: 'Correct y-axis', type: 'choice', options: ['time', 'distance traveled'], answer: 'distance traveled' },
+    ],
+  };
+  const correctedResult = validateQuestionSemantics(corrected, { label: 'axis question' });
+  assert.ok(!correctedResult.warnings.some((message) => /looks categorical/.test(message)),
+    'explicit choice fields do not trigger the categorical-entry warning');
+}

@@ -35,7 +35,6 @@ import {
   normalizeAssignmentPackageMetadata,
   assertFirestoreSafeAssignmentPayload,
 } from './assignmentBlueprint';
-import { isPersonalizedBlueprint } from './problemGenerator';
 import AssignmentIntake from './AssignmentIntake';
 import { auditAlignmentSpecificity, validateAlignments } from './platform/contract/alignments';
 import { validateQuestionsSemantics } from './platform/contract/semanticValidation';
@@ -327,7 +326,6 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingLaunchAssignmentId, user, assignments]);
 
-  const [fixedBlueprintConfirmation, setFixedBlueprintConfirmation] = useState(null);
   // Holds the normalized text of the JSON currently in preflight. Nothing edits
   // it by hand any more; it exists so publishing can re-parse exactly what the
   // teacher reviewed.
@@ -1629,6 +1627,8 @@ function App() {
     }
   };
 
+  const V5_COMPILER_PLUMBING_ERROR = /missing a type\/toolId|refers to a table in its prompt, but the question contains none|refers to a graph in its prompt, but the question contains none|needs `functionSpec\.type`|needs `analysisRequests`|needs a `graph` object with functions, points or segments|cannot yet build that interactive graph from an upstream response/i;
+
   // Reads authored JSON of any accepted vintage and reports what is wrong in
   // terms an AI can act on, rather than throwing a single opaque message.
   const readAssignmentJson = (rawText) => {
@@ -1638,7 +1638,7 @@ function App() {
     try {
       parsed = parseAssignmentBlueprintText(rawText);
     } catch (error) {
-      return { ok: false, errors: [error.message], warnings };
+      return { ok: false, errors: [error.message], warnings, sourceSchemaVersion: null, compilerDefect: false };
     }
 
     try {
@@ -1662,12 +1662,17 @@ function App() {
     errors.push(...semantic.errors);
     warnings.push(...semantic.warnings);
 
-    if (errors.length) return { ok: false, errors, warnings, parsed };
+    if (errors.length) {
+      const sourceSchemaVersion = parsed.sourceSchemaVersion || null;
+      const compilerDefect = Number(sourceSchemaVersion) === 5
+        && errors.every((message) => V5_COMPILER_PLUMBING_ERROR.test(String(message)));
+      return { ok: false, errors, warnings, parsed, sourceSchemaVersion, compilerDefect };
+    }
 
     const metadata = parsed.isPackage
       ? normalizeAssignmentPackageMetadata(parsed.assignment, parsed.questions)
       : null;
-    return { ok: true, errors, warnings, parsed: { ...parsed, metadata } };
+    return { ok: true, errors, warnings, parsed: { ...parsed, metadata }, sourceSchemaVersion: parsed.sourceSchemaVersion || null, compilerDefect: false };
   };
 
   const buildPreflightBundle = (parsed, metadata) => {
@@ -1748,9 +1753,9 @@ function App() {
     setNewAssignmentJSON(result.parsed.normalizedText);
     const opened = openAssignmentPreflight({ ...result.parsed, authoringWarnings: result.warnings }, sourceName);
     if (opened !== true) {
-      return { ok: false, errors: [opened?.error || 'Could not build the preflight review from this JSON.'], warnings: result.warnings };
+      return { ok: false, errors: [opened?.error || 'Could not build the preflight review from this JSON.'], warnings: result.warnings, sourceSchemaVersion: result.sourceSchemaVersion, compilerDefect: false };
     }
-    return { ok: true, warnings: result.warnings };
+    return { ok: true, warnings: result.warnings, repairs: result.parsed.repairs || [] };
   };
 
 
@@ -1809,15 +1814,6 @@ function App() {
         lateDueValue,
         releaseValue,
       });
-
-      if (variantMode === 'personalized' && parsed.questions.some((question) => !isPersonalizedBlueprint(question))) {
-        setNewAssignmentJSON(parsed.normalizedText);
-        setFixedBlueprintConfirmation({
-          repairs: parsed.repairs,
-          teacherReview: teacherReview ? { ...teacherReview, variantMode: 'shared' } : null,
-        });
-        return;
-      }
 
       const parsedQuestions = normalizeAssignmentQuestions(
         validateAssignmentQuestions(parsed.questions, { variantMode }),
@@ -2031,12 +2027,6 @@ function App() {
     }
   };
 
-  const confirmSwitchToSharedAndPublish = () => {
-    const teacherReview = fixedBlueprintConfirmation?.teacherReview || null;
-    setFixedBlueprintConfirmation(null);
-    handleCreateAssignment(null, 'shared', teacherReview);
-  };
-
   const confirmAssignmentPreflight = async ({ draft }) => {
     setAssignmentPreflightBusy(true);
     try {
@@ -2044,10 +2034,6 @@ function App() {
     } finally {
       setAssignmentPreflightBusy(false);
     }
-  };
-
-  const cancelFixedBlueprintConfirmation = () => {
-    setFixedBlueprintConfirmation(null);
   };
 
   const openQuestionEditor = (assignment) => {
@@ -2887,129 +2873,6 @@ function App() {
     );
   };
 
-  const renderFixedBlueprintConfirmation = () => {
-    if (!fixedBlueprintConfirmation) return null;
-    return (
-      <div
-        role="presentation"
-        onMouseDown={(event) => {
-          if (event.target === event.currentTarget) cancelFixedBlueprintConfirmation();
-        }}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 10000,
-          background: 'rgba(32,33,36,0.72)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '20px',
-        }}
-      >
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="fixed-blueprint-title"
-          style={{
-            width: '100%',
-            maxWidth: '560px',
-            background: '#fff',
-            borderRadius: '16px',
-            boxShadow: '0 24px 70px rgba(0,0,0,0.3)',
-            overflow: 'hidden',
-            textAlign: 'left',
-          }}
-        >
-          <div style={{ padding: '24px 28px', borderBottom: '1px solid #e8eaed' }}>
-            <div
-              style={{
-                color: '#b06000',
-                fontWeight: 'bold',
-                fontSize: '13px',
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                marginBottom: '8px',
-              }}
-            >
-              This blueprint has fixed questions
-            </div>
-            <h2 id="fixed-blueprint-title" style={{ margin: 0, color: '#202124' }}>
-              Switch to Shared exact version?
-            </h2>
-          </div>
-
-          <div style={{ padding: '28px' }}>
-            <div
-              style={{
-                background: '#fef7e0',
-                color: '#7a4f01',
-                border: '1px solid #fce8a2',
-                borderRadius: '10px',
-                padding: '16px',
-                marginBottom: '16px',
-                lineHeight: 1.5,
-              }}
-            >
-              One or more questions in this blueprint are fixed (no generator and
-              fewer than two variants), but Problem versions is set to{' '}
-              <strong>Different stable version per student</strong>. Personalized mode
-              needs every question to be able to generate a different version for
-              each student, so this assignment can&apos;t publish as written.
-            </div>
-            <p style={{ color: '#3c4043', lineHeight: 1.55, margin: 0 }}>
-              Switching to <strong>Shared exact version</strong> lets fixed questions
-              publish as-is, and every student sees the same version. Questions that
-              already have a generator or two or more variants will keep generating
-              different versions per student either way.
-            </p>
-          </div>
-
-          <div
-            style={{
-              padding: '18px 28px',
-              borderTop: '1px solid #e8eaed',
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: '12px',
-              background: '#f8f9fa',
-            }}
-          >
-            <button
-              type="button"
-              onClick={cancelFixedBlueprintConfirmation}
-              style={{
-                padding: '10px 18px',
-                background: '#fff',
-                color: '#3c4043',
-                border: '1px solid #dadce0',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-              }}
-            >
-              Return to Assignment
-            </button>
-            <button
-              type="button"
-              onClick={confirmSwitchToSharedAndPublish}
-              style={{
-                padding: '10px 18px',
-                background: '#1a73e8',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-              }}
-            >
-              Switch and Publish
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   const renderTeacherScratchpadDialog = () => {
     if (!teacherScratchpadDialog) return null;
     return (
@@ -3418,7 +3281,6 @@ function App() {
       <div style={{ fontFamily: '"Segoe UI", sans-serif', backgroundColor: '#f8f9fa', minHeight: '100vh', padding: '20px' }}>
         {renderDeleteAssignmentDialog()}
         {renderExportJsonDialog()}
-        {renderFixedBlueprintConfirmation()}
         {renderTeacherScratchpadDialog()}
         {assignmentPreflight && (
           <LessonPreflightModal

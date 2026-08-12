@@ -17,13 +17,22 @@
 //
 // Pure: no React, no Firestore, no clock.
 
-import { evaluate } from 'mathjs';
-import { compareMathAnswer, normalizeMathAnswer } from '../../answerUtils.js';
+import { compareMathAnswer, looksLikeFiniteSetNotation, normalizeMathAnswer } from '../../answerUtils.js';
 import { isAlgebraicallyEquivalent } from '../../grading/equivalence.js';
 import { hasStageResponse } from './questionWorkflow.js';
+import { evaluateModelAt, evaluateNumericValue, toEvaluableExpression } from './modelExpression.js';
+export { evaluateModelAt, evaluateNumericValue, toEvaluableExpression } from './modelExpression.js';
 
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
 const list = (value) => (Array.isArray(value) ? value : []);
+
+const isWorkflowArtifact = (value, kind = null) => Boolean(
+  isObject(value)
+  && value.__mathmasterWorkflowArtifact
+  && (!kind || value.__mathmasterWorkflowArtifact === kind)
+);
+
+const responsePayload = (value) => isWorkflowArtifact(value, 'table') ? (value.cells || {}) : value;
 
 // Stages whose answers are mathematical expressions rather than labels, and so
 // deserve equivalence rather than string comparison: 2x and x+x are one answer.
@@ -31,52 +40,9 @@ const ALGEBRAIC_KINDS = new Set([
   'equationInput', 'algebraWorkspace', 'domainInput', 'rangeInput', 'intervalInput',
 ]);
 
-const LATEX_TO_MATH = [
-  [/\\left|\\right/g, ''],
-  [/\\cdot|\\times/g, '*'],
-  [/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, '(($1)/($2))'],
-  [/\\sqrt\{([^{}]*)\}/g, 'sqrt($1)'],
-  [/\\pi/g, 'pi'],
-  [/[{}]/g, ''],
-  [/\s+/g, ''],
-];
-
-/**
- * Turn what the student typed into something mathjs can evaluate.
- *
- * MathLive reports LaTeX, and a function is usually written with its name:
- * `f(x)=x+2`. Only the right-hand side can be evaluated, so the definition is
- * dropped. Returns null when there is nothing evaluable, which every caller
- * treats as "cannot check" rather than as "wrong".
- */
-export const toEvaluableExpression = (value) => {
-  let text = String(value ?? '').trim();
-  if (!text) return null;
-  LATEX_TO_MATH.forEach(([pattern, replacement]) => { text = text.replace(pattern, replacement); });
-  if (text.includes('=')) {
-    const parts = text.split('=');
-    if (parts.length !== 2) return null;
-    text = parts[1];
-  }
-  if (!text || /[;[\]]/.test(text) || text.length > 300) return null;
-  // Implicit multiplication mathjs already understands (2x), but a leading
-  // function name would parse as a call: `f(x)` on the right of nothing.
-  return text;
-};
-
-/**
- * Evaluate the student's own model at one input value.
- */
-export const evaluateModelAt = (expression, x, variable = 'x') => {
-  const evaluable = toEvaluableExpression(expression);
-  if (!evaluable) return null;
-  try {
-    const result = evaluate(evaluable, { [variable]: x });
-    return Number.isFinite(result) ? result : null;
-  } catch {
-    return null;
-  }
-};
+// Parsing and evaluation of the student's function live in modelExpression.js.
+// The graph workflow imports the same implementation, so the table and graph
+// can never disagree about what the student wrote.
 
 /**
  * Is this table consistent with the function the student wrote?
@@ -94,16 +60,19 @@ export const checkTableConsistency = ({
   xValues.forEach((x, rowIndex) => {
     const entered = response?.[`${rowIndex}:${responseColumn}`];
     if (String(entered ?? '').trim() === '') return;
-    const expected = evaluateModelAt(model, Number(x));
-    const enteredNumber = Number(String(entered).replace(/[−–—]/g, '-'));
+    const numericX = evaluateNumericValue(x);
+    const expected = numericX === null ? null : evaluateModelAt(model, numericX);
+    const enteredNumber = evaluateNumericValue(entered);
     rows.push({
       x,
       entered,
       expected,
-      // An unevaluable model leaves `matches` null: unknown, not false.
-      matches: expected === null || !Number.isFinite(enteredNumber)
+      // An unevaluable MODEL leaves `matches` null: unknown, not false. A
+      // nonnumeric student entry is checkable and wrong; ignoring it would let
+      // a completed table skip a bad row and still unlock the dependent graph.
+      matches: expected === null
         ? null
-        : Math.abs(enteredNumber - expected) <= tolerance,
+        : (enteredNumber !== null && Math.abs(enteredNumber - expected) <= tolerance),
     });
   });
 
@@ -129,6 +98,11 @@ const definesAFunction = (text) => {
 
 const matchesAnswer = (stage, response, expected) => {
   if (Array.isArray(expected)) return expected.some((option) => matchesAnswer(stage, response, option));
+  // Domain/range stages can legitimately ask for roster-form sets. Set
+  // membership is order-independent and MathLive serializes visible braces in
+  // several equivalent ways, so use the shared semantic set comparator before
+  // algebraic-expression equivalence.
+  if (looksLikeFiniteSetNotation(expected)) return compareMathAnswer(response, expected);
   if (ALGEBRAIC_KINDS.has(stage.kind)) {
     if (isAlgebraicallyEquivalent(response, expected)) return true;
     if (stage.kind === 'equationInput' && definesAFunction(response) && definesAFunction(expected)) {
@@ -232,11 +206,26 @@ export const gradeStage = ({ stage, rule, responses = {} }) => {
   }
 
   if (isObject(rule) && rule.consistentWith) {
+    // A graph built from an upstream table/equation is locally graded by the
+    // graph workspace against the STUDENT-DERIVED function and points. Preserve
+    // that verdict instead of comparing it with the authored answer key.
+    if (rule.useStageVerdict && isWorkflowArtifact(response, 'graph')) {
+      return {
+        ...base,
+        graded: true,
+        isCorrect: response.isCorrect === true,
+        detail: response.isCorrect
+          ? 'Your graph matches the model and table you built.'
+          : 'Revise the graph so it matches the model and table you built.',
+      };
+    }
+
     const model = responses[rule.consistentWith];
+    const modelValue = isWorkflowArtifact(model, 'table') ? model.sourceModel : model;
     const check = checkTableConsistency({
-      response,
+      response: responsePayload(response),
       xValues: Array.isArray(stage.xValues) ? stage.xValues : [],
-      model: typeof model === 'string' ? model : '',
+      model: typeof modelValue === 'string' ? modelValue : '',
       responseColumn: stage.responseColumn || 'y',
     });
     if (!check.checked) {
@@ -255,7 +244,7 @@ export const gradeStage = ({ stage, rule, responses = {} }) => {
 
   if (isObject(rule) && Array.isArray(rule.pairs)) return { ...base, ...gradePairs(response, rule.pairs) };
   if (isObject(rule) && Array.isArray(rule.set)) return { ...base, ...gradeSet(response, rule.set) };
-  if (isObject(rule) && rule.values) return { ...base, ...gradeTableValues(response, rule.values) };
+  if (isObject(rule) && rule.values) return { ...base, ...gradeTableValues(responsePayload(response), rule.values) };
   if (stage.kind === 'quantityRoles' && isObject(rule)) return { ...base, ...gradeRoles(response, rule) };
 
   const expected = isObject(rule) ? (rule.anyOf ?? rule.equals) : rule;

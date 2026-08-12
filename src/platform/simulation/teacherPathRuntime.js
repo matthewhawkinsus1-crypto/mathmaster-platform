@@ -8,9 +8,10 @@
 //
 // It is a *runtime*, not a second engine. Question selection, the attempt
 // policy, mastery, and every routing decision come from the same modules the
-// student path uses. The only things that differ are where the questions come
-// from (the teacher's own authored assignments instead of the published
-// Firestore bank) and where grading happens.
+// student path uses. Student Experience now receives the published secure Path
+// bank itself; classroom assignments are evidence and Question-Bench content,
+// not a prerequisite for Path practice. Grading still happens locally because
+// a teacher session cannot impersonate a student's secure callable identity.
 //
 // GRADING, SAID PLAINLY. This runtime uses the same Path Tool Contract the
 // server uses. A question whose tool has a contract is issued as a public tool
@@ -27,6 +28,8 @@
 import {
   buildPrivateToolGrading, buildPublicToolPayload, gradePathResponse,
 } from '../../../functions/shared/pathToolContracts.mjs';
+import { buildFieldGradingDefinition, hasFieldGradableDefinition } from '../../../functions/shared/legacyFieldGrading.mjs';
+import { sameValue } from '../../../functions/shared/answerEquivalence.mjs';
 import { getQuestionPrimaryTeksCodes } from '../../questionMetadata.js';
 import { teksSkillId, teksCodeFromSkillId, describeSkill } from '../path/skillGraph.js';
 import { buildMasteryBySkillForStudent } from '../path/masteryAdapter.js';
@@ -39,11 +42,9 @@ const uid = (prefix) => `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 const list = (value) => (Array.isArray(value) ? value : []);
 
 /**
- * Index the teacher's own authored questions by the skill they assess.
- *
- * This is the honest local answer to "where do path questions come from" in a
- * simulator: the teacher's real content, with its real tools and real TEKS —
- * not a sandbox item that asks the student to type 4.
+ * Index assignment questions by skill for legacy tests and Question-Bench
+ * callers. Student Experience does NOT use this as its Path content source; it
+ * uses buildSimulationQuestionBankFromPathBank below.
  */
 export const buildSimulationQuestionBank = (assignments = []) => {
   const bySkill = new Map();
@@ -56,8 +57,35 @@ export const buildSimulationQuestionBank = (assignments = []) => {
           question,
           sourceAssignmentId: assignment.id,
           sourceQuestionIndex: index,
+          sourceBankQuestionId: null,
           teksCode: toDisplayCode(code),
         });
+      });
+    });
+  });
+  return bySkill;
+};
+
+/**
+ * Index the ACTUAL secure Path-bank records for simulation.
+ *
+ * This is the source used by Student Experience. Assignment questions belong
+ * to Question Bench QA; they are not the content source for My Math Path. A
+ * fresh student with zero classroom assignments must still have Path work as
+ * long as the secure bank has published content for the course.
+ */
+export const buildSimulationQuestionBankFromPathBank = (records = []) => {
+  const bySkill = new Map();
+  list(records).filter((record) => record?.active !== false).forEach((question) => {
+    getQuestionPrimaryTeksCodes(question).forEach((code) => {
+      const skillId = teksSkillId(code);
+      if (!bySkill.has(skillId)) bySkill.set(skillId, []);
+      bySkill.get(skillId).push({
+        question,
+        sourceAssignmentId: null,
+        sourceQuestionIndex: null,
+        sourceBankQuestionId: question.id || null,
+        teksCode: toDisplayCode(code),
       });
     });
   });
@@ -84,6 +112,52 @@ const sessionAssignment = (sessionId, issued) => ({
 
 const emptyEvidence = () => ({ finalized: 0, missed: 0, consecutiveMisses: 0 });
 
+const publicFieldPayload = (question = {}) => ({
+  familyId: String(question.familyId || question.questionType || 'path-question'),
+  familyVersion: Number(question.familyVersion) || 1,
+  questionType: String(question.questionType || 'response'),
+  activityRole: String(question.activityRole || 'practice'),
+  difficultyBand: Number(question.difficultyBand) || 3,
+  dok: Number(question.dok) || 1,
+  calculatorPolicy: String(question.calculatorPolicy || 'inherit'),
+  assessedConstruct: question.assessedConstruct || null,
+  prompt: String(question.prompt || ''),
+  responseFields: list(question.responseFields).map((field, index) => ({
+    id: String(field?.id || `response-${index + 1}`),
+    label: String(field?.label || `Response ${index + 1}`),
+    inputProfile: field?.inputProfile || 'text',
+    unit: field?.unit || null,
+  })),
+});
+
+const fieldValuesEquivalent = (actual, field) => {
+  const candidates = field.accepted?.length ? field.accepted : [field.expected];
+  return candidates.some((expected) => {
+    const actualText = String(actual ?? '').trim();
+    const expectedText = String(expected ?? '').trim();
+    if (field.caseSensitive && !Number.isFinite(Number(actual)) && !Number.isFinite(Number(expected))) {
+      return actualText === expectedText;
+    }
+    return sameValue(actual, expected, Math.max(0, Number(field.numericTolerance) || 0));
+  });
+};
+
+// Byte-for-byte equivalent in behaviour to the production field grader in
+// functions/lib/mathPath.js. Kept here only because that CommonJS module pulls
+// in Node crypto and cannot be bundled into the browser. The grading definition
+// itself is shared from legacyFieldGrading.mjs, so the private answer contract
+// cannot drift.
+const gradeFieldResponse = (privateGrading, responsePayload = {}) => {
+  const responses = responsePayload?.responses && typeof responsePayload.responses === 'object'
+    ? responsePayload.responses
+    : {};
+  const fields = list(privateGrading?.fields);
+  if (!fields.length) return { isCorrect: false, score: 0, parts: [] };
+  const parts = fields.map((field) => ({ id: field.id, isCorrect: fieldValuesEquivalent(responses[field.id], field) }));
+  const correctCount = parts.filter((part) => part.isCorrect).length;
+  return { isCorrect: correctCount === fields.length, score: correctCount / fields.length, parts };
+};
+
 /**
  * Create the runtime.
  *
@@ -93,12 +167,16 @@ const emptyEvidence = () => ({ finalized: 0, missed: 0, consecutiveMisses: 0 });
  */
 export const createTeacherPathRuntime = ({
   assignments = [],
+  pathBankQuestions = null,
   courseId = 'algebra1',
   learner: initialLearner = null,
   onChange = null,
   requiredQuestions = 5,
 } = {}) => {
-  const bank = buildSimulationQuestionBank(assignments);
+  const usingSecureBank = Array.isArray(pathBankQuestions);
+  const bank = usingSecureBank
+    ? buildSimulationQuestionBankFromPathBank(pathBankQuestions)
+    : buildSimulationQuestionBank(assignments);
   let learner = initialLearner || { id: 'simulated', gradesByAssignment: {} };
   const sessions = new Map();
 
@@ -152,6 +230,7 @@ export const createTeacherPathRuntime = ({
     // The secure payload if this tool has a contract, and nothing at all if it
     // does not — the same allowlist the server applies.
     const toolPayload = buildPublicToolPayload(chosen.question);
+    const fieldGraded = !toolPayload && hasFieldGradableDefinition(chosen.question);
     const instance = {
       questionInstanceId,
       ...(toolPayload ? {
@@ -159,9 +238,16 @@ export const createTeacherPathRuntime = ({
         serverGradingVersion: toolPayload.serverGradingVersion,
         responseShape: toolPayload.responseShape,
         tool: toolPayload.tool,
+      } : fieldGraded ? {
+        // The starter secure bank is intentionally field-graded. This is the
+        // same public shape production issues: labels and prompt, never the
+        // expected answers. PathSessionPlayer already has a dedicated fields
+        // renderer for exactly this payload.
+        ...publicFieldPayload(chosen.question),
       } : {
-        // No contract for this tool: the complete question, rendered through the
-        // ordinary QuestionEngine and marked locally.
+        // Assignment fallback used only by tests/legacy callers. Student
+        // Experience passes `pathBankQuestions`, so production simulation never
+        // silently substitutes classroom content for an empty secure bank.
         canonicalQuestion: chosen.question,
       }),
       skillId,
@@ -173,11 +259,15 @@ export const createTeacherPathRuntime = ({
       attemptsUsed: 0,
       sourceAssignmentId: chosen.sourceAssignmentId,
       sourceQuestionIndex: chosen.sourceQuestionIndex,
+      sourceBankQuestionId: chosen.sourceBankQuestionId,
     };
     // The grading definition stays here, alongside the session, exactly as the
     // server keeps it in `session.currentQuestion`. It is never part of the
     // instance handed to the renderer.
-    session.privateGrading = toolPayload ? buildPrivateToolGrading(chosen.question) : null;
+    session.privateGrading = toolPayload
+      ? buildPrivateToolGrading(chosen.question)
+      : (fieldGraded ? buildFieldGradingDefinition(chosen.question) : null);
+    session.privateGradingMode = toolPayload ? 'tool' : (fieldGraded ? 'fields' : 'canonical');
     session.issued.push({ ...instance, question: chosen.question });
     session.currentQuestion = instance;
     session.currentSkillId = skillId;
@@ -235,7 +325,9 @@ export const createTeacherPathRuntime = ({
     const instance = issue(session, session.currentSkillId, session.lastDecision?.action || PATH_ACTION.CONTINUE);
     if (!instance) {
       const code = teksCodeFromSkillId(session.blockedSkillId) || session.blockedSkillId;
-      throw new Error(`No authored question in your assignments is aligned to ${code}, so the simulation cannot issue one. Add a question for it and start again.`);
+      throw new Error(usingSecureBank
+        ? `The secure Path bank has no issuable question aligned to ${code}. Initialize or add Path-bank content for this standard, then refresh the simulation.`
+        : `No authored question in your assignments is aligned to ${code}, so the simulation cannot issue one. Add a question for it and start again.`);
     }
     publish(session);
     return { questionInstance: instance };
@@ -272,6 +364,9 @@ export const createTeacherPathRuntime = ({
           needsNextQuestion: false,
         };
       }
+      isCorrect = graded.isCorrect;
+    } else if (session.privateGradingMode === 'fields') {
+      graded = gradeFieldResponse(session.privateGrading, responsePayload);
       isCorrect = graded.isCorrect;
     }
 
@@ -348,6 +443,7 @@ export const createTeacherPathRuntime = ({
 
     session.currentQuestion = null;
     session.privateGrading = null;
+    session.privateGradingMode = null;
     publish(session);
 
     return {

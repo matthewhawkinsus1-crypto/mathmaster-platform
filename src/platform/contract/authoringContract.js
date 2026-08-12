@@ -72,6 +72,13 @@ const toolSection = () => {
       .join(', ');
     return bullet(`${toolId} — ${definition.label} · courses: ${(definition.courses || []).join(', ') || 'any'}${supports ? ` · supports: ${supports}` : ''}`);
   });
+  rows.push('');
+  rows.push(line('**Student-experience rules for registry tools:**'));
+  rows.push(bullet('Always write a complete student-facing `prompt`. MathMaster shows the authored problem above the tool directions; do not rely on an internal mode name to explain the task.'));
+  rows.push(bullet('For `sequenceExplorer` in `analyze` mode, the evidence shown before submission must stop before the requested target term: use `displayCount < targetN`. The runtime also enforces this so the answer cannot be printed in the table/graph by accident.'));
+  rows.push(bullet('For sequence compare and finite-sum tasks, do not deliberately reveal the requested comparison/final term unless the item is a worked example.'));
+  rows.push(bullet('Use normal V4 `alignments` for standards. `masteryEvidenceKeys` is platform-owned and must not be authored by the AI.'));
+  rows.push(bullet('For `representationMatch`, supply explicit `sets`; never depend on demo/default representations.'));
   return section('Interactive tool types', rows);
 };
 
@@ -225,6 +232,15 @@ const fidelitySection = () => section('Source representation fidelity', [
   '}',
   '```',
   '',
+  line('For `multiAnswer`, do not send ordinary words through a math field. If the answer is'),
+  line('a finite category (for example time/distance, linear/quadratic/exponential, or'),
+  line('finite/infinite), author `type: "choice"` with explicit `options`. If the student'),
+  line('must type a word or explanation, author `type: "text"`. Reserve the default math'),
+  line('entry for actual mathematical notation. Finite roster-form sets are semantic'),
+  line('answers, not strings: an answer such as `{-4, -3, -2}` is recognized as a set'),
+  line('automatically, and MathMaster accepts equivalent element order and MathLive brace'),
+  line('serialization. You may explicitly use `type: "set"`, but it is not required.'),
+  '',
   line('**Do not reach for this shape when the source asked for more.** If the source says'),
   line('write the function, complete the table, graph it, and classify the relationship,'),
   line('then a table with two text boxes has deleted three of the four things the student'),
@@ -264,43 +280,47 @@ const taskFidelitySection = () => section('Source task fidelity', [
   line('function for the money collected, complete the table, graph it, state the reasonable'),
   line('domain and range, and say whether it is discrete or continuous."'),
   '',
-  line('That is six verbs. An item that shows a table and asks two text questions has kept'),
-  line('one. No single type carries all six today, so apply the rule above and SPLIT the'),
-  line('task — each question keeps a real student action, and none of the six is lost:'),
+  line('That is six verbs. Keep them in ONE composed `relationshipModel` when they describe'),
+  line("one mathematical model. MathMaster now threads the student's own equation into"),
+  line('their table and then threads those completed table values into the graphing stage:'),
   '',
   '```json',
-  '[',
-  '  {',
-  '    "type": "relationshipModel",',
-  '    "prompt": "A group sells bars for $2 each. Identify the quantities and the relationship.",',
-  '    "scenario": "A group sells bars for $2 each. The money collected depends on the number sold.",',
-  '    "quantities": [',
-  '      { "id": "bars", "label": "Bars sold (x)" },',
-  '      { "id": "money", "label": "Money collected f(x)" }',
-  '    ],',
-  '    "correctIndependentId": "bars",',
-  '    "correctDependentId": "money"',
+  '{',
+  '  "type": "relationshipModel",',
+  '  "prompt": "A group sells bars for $2 each. Build one model from quantities through the graph, then state the reasonable domain and range and classify the relationship.",',
+  '  "scenario": "A group sells bars for $2 each. The money collected depends on the number sold.",',
+  '  "quantities": [',
+  '    { "id": "bars", "label": "Bars sold", "unit": "bars" },',
+  '    { "id": "money", "label": "Money collected", "unit": "dollars" }',
+  '  ],',
+  '  "correctIndependentId": "bars",',
+  '  "correctDependentId": "money",',
+  '  "recipe": {',
+  '    "name": "functionModeling",',
+  '    "ask": ["quantities", "equation", "table", "graph", "domain", "range", "continuity"]',
   '  },',
-  '  {',
-  '    "type": "table",',
-  '    "prompt": "Complete the table of values for f(x) = 2x.",',
-  '    "table": {',
-  '      "columns": [{ "key": "x", "label": "Bars sold" }, { "key": "y", "label": "Money ($)" }],',
-  '      "rows": [{ "x": 0, "y": null }, { "x": 1, "y": null }, { "x": 2, "y": null }],',
-  '      "answers": { "0:y": 0, "1:y": 2, "2:y": 4 }',
-  '    }',
-  '  },',
-  '  {',
-  '    "type": "functionGraph",',
-  '    "prompt": "Graph f(x) = 2x for the bars that can actually be sold.",',
-  '    "functionSpec": { "type": "linear", "m": 2, "b": 0, "domain": { "min": 0 } },',
-  '    "graph": { "xMin": -1, "xMax": 8, "yMin": -2, "yMax": 16 }',
-  '  }',
-  ']',
+  '  "correctEquation": "f(x)=2x",',
+  '  "tableXValues": [0, 1, 2, 3, 4],',
+  '  "graphMode": "discrete",',
+  '  "continuity": "discrete",',
+  '  "correctDomain": "x>=0",',
+  '  "correctRange": "f>=0",',
+  '  "notation": "inequality",',
+  '  "graph": { "xMin": 0, "xMax": 8, "yMin": 0, "yMax": 16, "xStep": 1, "yStep": 2 }',
+  '}',
   '```',
   '',
-  line('Three questions, six verbs kept, every one of them something the student does.'),
-  line('That is the trade the rule asks for: more questions, never fewer actions.'),
+  line('**Dependency rule:** do not duplicate a hidden answer key in the table or graph just'),
+  line('to make later stages work. In `functionModeling`, the table is evaluated from the'),
+  line("equation the STUDENT wrote. The graph is then constructed from the STUDENT'S"),
+  line('completed table (and the equation lineage carried with it). If the equation and'),
+  line('table disagree, the graph stage waits for the student to reconcile them instead of'),
+  line('silently switching to the authored correct function.'),
+  '',
+  line("For a continuous model the graph stage plots the student's table points and asks"),
+  line('the student to draw the continuous function through them. For a discrete model it'),
+  line('plots only the ordered pairs. Use the separate-question split only when the source'),
+  line('really contains separate tasks, not to work around a missing dependency.'),
   '',
   line('**Choosing a graph for an analysis question.** When the target is identifying BOTH'),
   line('increasing and decreasing intervals, choose a function that visibly does both. A'),
@@ -336,7 +356,7 @@ const planningSection = () => section('Plan before you generate', [
  * rather than maintained by hand. Paste the result into any AI assistant and it
  * knows exactly what MathMaster will accept.
  */
-export const buildAuthoringContract = ({ generatedAt = new Date() } = {}) => {
+export const buildAdvancedAuthoringContract = ({ generatedAt = new Date() } = {}) => {
   const parts = [];
 
   parts.push([
@@ -454,15 +474,15 @@ export const buildAuthoringContract = ({ generatedAt = new Date() } = {}) => {
 
   parts.push(section('Static graph objects — do not guess the function schema', [
     line('Read-only graphs (`graph`, and each `graphs[].graph` inside graphScenarioMatch or graphComparison) use the shared `GraphDisplay` contract.'),
-    line('For `graphScenarioMatch` and `graphComparison`, every choice MUST be shaped as `{ "id": "g1", "graph": { ... } }`. Functions placed directly beside `id` are ignored by the renderer and are rejected in Preflight.'),
-    line('A scenario carries its wording in `description` (with an optional `title`). Text written under any other key renders as an empty card.'),
+    line('Canonical storage nests each graph choice as `{ "id": "g1", "graph": { ... } }`, but authoring intake also accepts graph fields directly on the choice and normalizes them.'),
+    line('A scenario canonically uses `description` (with optional `title`); authoring intake also accepts common `text`/`prompt` aliases.'),
     '',
     line('A quadratic may be written in either of these TWO forms. Choose one form and never mix them:'),
     bullet('Standard form: `{ "type": "quadratic", "a": -1, "b": 8, "c": 0 }` means y = ax² + bx + c.'),
     bullet('Vertex form: `{ "type": "quadratic", "a": -1, "h": 4, "k": 16 }` means y = a(x - h)² + k.'),
     line('Vertex form is especially useful when the maximum/minimum must be placed deliberately. Standard form remains supported for older content.'),
     '',
-    line('Before outputting any graph, evaluate the function at the visible x-boundaries and check every defining feature (vertex, endpoint, intercept or starting value) against `yMin`/`yMax`. For graph-matching and graph-comparison cards, the intended curve must fit in the viewport. If y = 2·2^x and xMax = 7, then y(7) = 256; a yMax of 140 is therefore invalid unless clipping is deliberately enabled.'),
+    line('For routine static graphs, omit `yMin`/`yMax` unless the viewing window is itself instructional. MathMaster auto-fits the rendered y-window to keep the authored mathematics visible. Use `lockViewport: true` only when a specific crop/window is part of the task.'),
     line('Do not use negative x-values for a real-world axis such as elapsed time unless the context explicitly permits negative time.'),
     line('If the context is countable only in whole units (tickets, packs, people), use plotted `points` rather than a continuous line when discreteness matters instructionally.'),
   ]));
@@ -513,20 +533,10 @@ export const buildAuthoringContract = ({ generatedAt = new Date() } = {}) => {
     line('Ranges are inclusive `[min, max]` integer pairs.'),
     ...GENERATOR_FIELDS.map((entry) => bullet(`\`${entry.field}\` — ${entry.shape}: ${entry.note}`)),
     '',
-    line('**The rule that catches most authors:** when `assignment.variantMode` is'),
-    line('"personalized" (the default), *every* question must be able to vary — give it a'),
-    line('`generator`, or supply two or more `variants`. A question with only fixed literal'),
-    line('values is rejected in personalized mode with "Question N is fixed".'),
-    '',
-    line('If a question genuinely must be identical for every student — a specific graph to'),
-    line('read, a named real-world data set — then set `assignment.variantMode` to "shared"'),
-    line('for the whole assignment and use literal values throughout.'),
-    '',
-    line('**Interactive tool questions are always fixed.** Every tool listed under'),
-    line('"Interactive tool types" needs literal values (a specific line, system, sequence'),
-    line('or data set) to render at all, so an assignment that uses any of them must set'),
-    line('`"variantMode": "shared"`. Only the plain types — algebra, fraction, numberLine'),
-    line('and anything you give a `generator` — can be personalized.'),
+    line('`assignment.variantMode: "personalized"` means personalize where each question supports it.'),
+    line('Questions with generators or variants receive stable student-specific versions; fixed graphs/data remain fixed.'),
+    line('A fixed interactive question no longer forces the entire assignment into shared mode.'),
+    line('Use `"shared"` only when you intentionally want every question/version to be identical for all students.'),
     '',
     line('Other rules: a range must have min <= max; a coefficient range must not be able'),
     line('to produce 0; two slopes that must differ need a range wide enough to differ.'),
@@ -647,13 +657,269 @@ export const buildAuthoringContract = ({ generatedAt = new Date() } = {}) => {
   return parts.join('\n');
 };
 
+const COMPACT_RECIPE_TYPES = Object.freeze([
+  'table', 'multiAnswer', 'intervalNumberLine', 'functionGraph', 'graphAnalysis',
+  'relationshipModel', 'graphScenarioMatch', 'graphComparison', 'relationMapping',
+  'sequenceExplorer', 'representationMatch', 'functionInvestigation2',
+]);
+
+const COMPACT_TOOL_EXAMPLES = Object.freeze({
+  sequenceExplorer: {
+    label: 'Sequence explorer',
+    action: 'Analyzes a sequence, finds a term, fills a missing term, compares two sequences, or writes recursive/explicit rules.',
+    required: ['mode', 'sequence'],
+    example: { type: 'sequenceExplorer', prompt: 'Find the common difference and the 8th term.', mode: 'analyze', sequence: { kind: 'arithmetic', first: 7, difference: 4 }, targetN: 8, displayCount: 6 },
+  },
+  representationMatch: {
+    label: 'Connect representations',
+    action: 'Matches equation, table, context, or graph representations of the same relationship.',
+    required: ['mode', 'sets'],
+    example: { type: 'representationMatch', prompt: 'Choose the graph that matches y = 2x + 1.', mode: 'graphMatch', targetId: 'linear', sets: [{ id: 'linear', graphSpec: { type: 'linear', a: 2, h: 0, k: 1 } }, { id: 'quadratic', graphSpec: { type: 'quadratic', a: 1, h: 0, k: -4 } }] },
+  },
+  functionInvestigation2: {
+    label: 'Analyze a function',
+    action: 'Reads family-specific domain/range, intercept, feature, behavior, or comparison information from a graph.',
+    required: ['mode', 'function'],
+    example: { type: 'functionInvestigation2', prompt: 'Determine the domain and range.', mode: 'domainRange', function: { type: 'quadratic', a: -1, h: 2, k: 6 } },
+  },
+});
+
+const compactAuthoringExample = (example) => {
+  const clone = example && typeof example === 'object' ? JSON.parse(JSON.stringify(example)) : example;
+  const visit = (node, parentKey = '') => {
+    if (!node || typeof node !== 'object') return;
+    if (Array.isArray(node)) { node.forEach((item) => visit(item, parentKey)); return; }
+    if (Object.prototype.hasOwnProperty.call(node, 'equationLatex') && !Object.prototype.hasOwnProperty.call(node, 'equation')) {
+      node.equation = node.equationLatex; delete node.equationLatex;
+    }
+    if (Object.prototype.hasOwnProperty.call(node, 'equationsLatex') && !Object.prototype.hasOwnProperty.call(node, 'equations')) {
+      node.equations = node.equationsLatex; delete node.equationsLatex;
+    }
+    if (Array.isArray(node.alignments) && !Object.prototype.hasOwnProperty.call(node, 'standard')) {
+      const primary = node.alignments.find((entry) => entry?.framework === 'teks' && entry?.role === 'primary' && entry?.code);
+      if (primary) {
+        node.standard = primary.code;
+        const secondaries = node.alignments.filter((entry) => entry?.framework === 'teks' && entry?.role === 'secondary' && entry?.code).map((entry) => entry.code);
+        const prerequisites = node.alignments.filter((entry) => entry?.framework === 'teks' && entry?.role === 'prerequisite' && entry?.code).map((entry) => entry.code);
+        if (secondaries.length) node.secondaryStandards = secondaries;
+        if (prerequisites.length) node.prerequisiteStandards = prerequisites;
+        delete node.alignments;
+      }
+    }
+    if (parentKey === 'graph') {
+      delete node.xMin; delete node.xMax; delete node.yMin; delete node.yMax; delete node.xStep; delete node.yStep;
+    }
+    Object.entries(node).forEach(([key, value]) => visit(value, key));
+    if (node.graph && typeof node.graph === 'object' && !Array.isArray(node.graph)) {
+      const drawableKeys = ['functions', 'points', 'segments', 'line', 'm', 'b', 'axisDisplay', 'xAxisLabel', 'xAxisUnit', 'yAxisLabel', 'yAxisUnit'];
+      if (!drawableKeys.some((key) => Object.prototype.hasOwnProperty.call(node.graph, key))) delete node.graph;
+    }
+  };
+  visit(clone);
+  return clone;
+};
+
+const compactTeksSection = (courseId = null) => {
+  const requestedCourse = ['algebra1', 'algebra2'].includes(String(courseId || '')) ? String(courseId) : null;
+  const lines = [];
+  TEXAS_MATH_ACTIVE_COURSES
+    .filter((course) => ['algebra1', 'algebra2'].includes(course.id))
+    .filter((course) => !requestedCourse || course.id === requestedCourse)
+    .forEach((course) => {
+      const standards = TEXAS_STANDARDS_BY_COURSE[course.id] || [];
+      lines.push(`### ${course.label || course.id}`);
+      standards.forEach((standard) => lines.push(`- ${standard.code} — ${standard.description}`));
+      lines.push('');
+    });
+  return lines.join('\n');
+};
+
+const compactRecipeSection = () => COMPACT_RECIPE_TYPES.map((type) => {
+  const entry = QUESTION_TYPE_CATALOG[type];
+  const special = COMPACT_TOOL_EXAMPLES[type];
+  const required = entry
+    ? (entry.required || []).map((item) => item.path).filter(Boolean)
+    : (special?.required || []);
+  const label = entry?.label || special?.label || type;
+  const action = entry?.studentAction || entry?.purpose || special?.action || 'Uses the named interactive tool.';
+  const example = entry?.example || special?.example;
+  return [
+    `### ${type} — ${label}`,
+    action,
+    `Needs: ${required.length ? required.join(', ') : 'prompt'}.`,
+    ...(example ? [`Example: ${JSON.stringify(compactAuthoringExample(example))}`] : []),
+  ].join('\n');
+}).join('\n\n');
+
+const compactOtherTypeSection = () => SUPPORTED_QUESTION_TYPES
+  .filter((type) => !COMPACT_RECIPE_TYPES.includes(type))
+  .map((type) => {
+    const entry = QUESTION_TYPE_CATALOG[type];
+    const required = (entry?.required || []).map((item) => item.path).filter(Boolean);
+    return `- ${type}${entry?.label ? ` — ${entry.label}` : ''}; needs ${required.length ? required.join(', ') : 'prompt'}`;
+  })
+  .join('\n');
+
+/**
+ * Default AI-facing contract. This is intentionally an AUTHORING API rather
+ * than a dump of renderer implementation details. MathMaster owns defaults,
+ * viewports, mixed fixed/generated delivery, policy and storage normalization.
+ * The long registry-derived contract remains available to developers through
+ * buildAdvancedAuthoringContract, but teachers should not need it.
+ */
+export const AUTHORING_INTENT_SCHEMA_VERSION = 5;
+export const AUTHORING_INTENT_SCHEMA_NAME = 'MathMaster Authoring Intent V5';
+
+/**
+ * Default teacher-facing AI contract. V4 remains the internal/runtime schema,
+ * but outside AIs author mathematical intent instead of renderer implementation.
+ */
+export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = null } = {}) => [
+  `# ${AUTHORING_INTENT_SCHEMA_NAME}`,
+  `Generated from MathMaster on ${generatedAt.toISOString().slice(0, 10)}.`,
+  '',
+  'Return one JSON object and nothing else. Describe the mathematics and what the student must DO.',
+  'Do not choose MathMaster React components, V4 question types/toolIds, Firestore storage shapes, graph viewport bounds, attempt rules, or internal grading fields. MathMaster compiles this intent into its V4 runtime format.',
+  'If MathMaster later asks for a repair, KEEP schemaVersion 5. Never convert a V5 intent into V4 or add renderer plumbing such as type, toolId, functionSpec, analysisRequests, or graph merely to satisfy an internal error.',
+  '',
+  '## Assignment shape',
+  '```json',
+  '{',
+  '  "schemaVersion": 5,',
+  '  "assignment": {',
+  '    "title": "Descriptive title",',
+  `    "courseId": "${courseId || 'algebra1'}",`,
+  '    "assignmentType": "notesClasswork",',
+  '    "folder": "Algebra I/Module 1/Functions"',
+  '  },',
+  '  "activities": [',
+  '    { "role": "warmup", "title": "Warm-Up", "questions": [] },',
+  '    { "role": "classwork", "title": "Classwork", "questions": [] },',
+  '    { "role": "practice", "title": "Practice", "questions": [] }',
+  '  ]',
+  '}',
+  '```',
+  '',
+  'Dates, classes, attempts, hints, feedback release, mastery weights, IDs, and student readiness are set by MathMaster/teacher Preflight. Do not include them.',
+  '',
+  '## Question intent',
+  'Every question needs:',
+  '- `prompt`: student-facing wording.',
+  '- `standard`: the primary TEKS for THIS question.',
+  '- `studentActions`: what the student physically does.',
+  '- the mathematical data needed to perform those actions.',
+  '',
+  'Example — construct a graph:',
+  '```json',
+  '{',
+  '  "standard": "A.3C",',
+  '  "prompt": "Graph f(x) = 2x + 1 for x ≥ 0.",',
+  '  "studentActions": ["constructGraph"],',
+  '  "function": { "family": "linear", "m": 2, "b": 1, "domain": { "min": 0 } }',
+  '}',
+  '```',
+  '',
+  'Example — one connected contextual model:',
+  '```json',
+  '{',
+  '  "standard": "A.3C",',
+  '  "prompt": "Build a model for the situation from quantities through the graph.",',
+  '  "scenario": "A refill station adds 5 liters of water per minute to an empty container.",',
+  '  "studentActions": ["identifyQuantities","writeEquation","completeTable","constructGraph","stateDomain","stateRange","classifyContinuity"],',
+  '  "quantities": [',
+  '    { "id": "time", "label": "Time", "unit": "minutes" },',
+  '    { "id": "water", "label": "Water", "unit": "liters" }',
+  '  ],',
+  '  "correctIndependentId": "time",',
+  '  "correctDependentId": "water",',
+  '  "answerModel": {',
+  '    "equation": "W(t)=5t",',
+  '    "tableXValues": [0,1,2,3,4],',
+  '    "domain": "t>=0",',
+  '    "range": "W>=0",',
+  '    "continuity": "continuous"',
+  '  }',
+  '}',
+  '```',
+  '',
+  'MathMaster carries the STUDENT\'S equation into the table and the STUDENT\'S completed table into the graph. Do not duplicate a hidden correct graph merely to make later stages work.',
+  '',
+  'A non-context function task may also combine actions in one question. For example, `completeTable + constructGraph + stateRange + classifyContinuity` is one connected student workflow; keep all four actions and include the function/table data. MathMaster composes the table, graph, range response and classification automatically.',
+  'For a graph the student READS, use `readGraph` plus the analysis actions. For a graph the student BUILDS, use `constructGraph`. Do not add `type: graphing` or `type: graphAnalysis` yourself.',
+  '',
+  '## Stable studentActions',
+  '- Solving: `solveEquation`, `solveStepByStep`, `fractionAnswer`, `solveLiteral`, `solveSystem`.',
+  '- Number lines: `chooseNumberLine`, `constructInterval`, `writeInterval`.',
+  '- Graphs/functions: `readGraph`, `constructGraph`, `investigateFunction`, `analyzeDomain`, `analyzeRange`, `analyzeIncreasing`, `analyzeDecreasing`, `analyzeConstant`, `analyzePositive`, `analyzeNegative`, `findVertex`, `findXIntercepts`, `findYIntercept`, `findMaximum`, `findMinimum`.',
+  '- Representations: `completeTable`, `stateOrderedPair`, `multipleResponses`, `buildMapping`, `plotRelation`, `classifyFunction`, `matchGraphsToStories`, `compareGraphs`, `writeGraphStory`, `interpretPointInContext`, `connectRepresentations`.',
+  '- Context modeling: `identifyQuantities`, `writeEquation`, `stateDomain`, `stateRange`, `classifyContinuity`.',
+  '- Sequences: `analyzeSequence`, `findSequenceTerm`, `findMissingTerm`, `writeRecursive`, `writeExplicit`, `compareSequences`, `partialSum`.',
+  '- Specialist workspaces when the lesson genuinely needs them: `analyzeData`, `fitDataModel`, `predictFromModel`, `findInverse`, `composeFunctions`, `analyzeParabolaGeometry`, `factorPolynomial`, `dividePolynomial`, `multiplyPolynomials`, `solveInequality`, `complexOperations`, `analyzeComplex`, `solveExponential`, `solveLogarithmic`, `analyzeTransformations`, `constructLine`.',
+  '',
+  '## Mathematical data shapes',
+  '- Function: `{ "family":"linear", "m":2, "b":1 }` or `{ "family":"quadratic", "a":1, "h":2, "k":-3 }`. Exponential/logarithmic may add `base`.',
+  '- Relation: `"relation": [[-2,3],[1,2],[3,-1]]`.',
+  '- Interval: `"intervals": [{"min":-3,"max":5,"minClosed":true,"maxClosed":false}]`; use null for infinity.',
+  '- Table: include `columns` and `rows`. If the table is generated from a supplied function, `answers` may be omitted because MathMaster derives the blank-cell key from the function. If you do provide answers, MathMaster verifies/normalizes them rather than treating renderer shape as authoring responsibility. A read-only table omits `answers` and is normally paired with `multipleResponses`.',
+  '- Graph analysis: provide the function and the analysis `studentActions`; do not hand-author internal `analysisRequests`. If the displayed function has a restricted domain, put that restriction inside `function.domain`.',
+  '- Sequence: `{ "kind":"arithmetic", "first":7, "difference":4 }` or `{ "kind":"geometric", "first":3, "ratio":2 }`.',
+  '- Graph/story matching: supply `stories`, `candidateGraphs`, and `matches`. A candidate graph may simply carry a `function` instead of hand-calculated viewport bounds.',
+  '- Multipart response: use `responses`, each with `id`, `label`, and `answer`/`acceptedAnswers`; add `options` for finite choices.',
+  '',
+  '## Student-experience rules',
+  '- Preserve source representation. If the source shows a graph, table, number line, mapping, or ordered pairs, the student must see that representation.',
+  '- Preserve source verbs. If students are asked to write, complete, graph, classify, explain, and compare, do not silently delete actions because a simpler response box is easier.',
+  '- Use finite choices for categories such as linear/quadratic/exponential, finite/infinite, discrete/continuous, and yes/no when the source does not require written explanation.',
+  '- Prompts are plain text. Use Unicode math such as ≤, ≥, ∞, ×, π, √, ∪, ½. Ordinary currency such as $6 is fine.',
+  '- For countable contexts, use discrete representations when discreteness matters. Do not invent negative elapsed time.',
+  '- Do not reveal a requested sequence term in the starter terms.',
+  '- Do not invent or replace a TEKS just to make validation pass.',
+  '',
+  '## Course TEKS',
+  compactTeksSection(courseId),
+  '',
+  '## Output',
+  'Return exactly one JSON object with `schemaVersion: 5`. MathMaster will compile V5 intent into its internal V4 tool contracts, auto-fit ordinary graph windows, normalize storage-safe shapes, and run student-experience validation before teacher Preflight. Do not output V4.',
+].join('\n');
+
 /**
  * The paste-back request for a failed import: the offending JSON, the exact
  * validator errors, and only the contract rules that bear on them.
  */
-export const buildFixRequest = ({ rawJson = '', errors = [], warnings = [] } = {}) => {
+export const buildFixRequest = ({ rawJson = '', errors = [], warnings = [], sourceSchemaVersion = null } = {}) => {
   const errorList = (Array.isArray(errors) ? errors : [errors]).filter(Boolean);
   const warningList = (Array.isArray(warnings) ? warnings : [warnings]).filter(Boolean);
+  const aiSafeWarnings = warningList.filter((warning) => !/(TEKS|alignment|mastery|standard)/i.test(String(warning)));
+  const isV5 = Number(sourceSchemaVersion) === AUTHORING_INTENT_SCHEMA_VERSION
+    || /"schemaVersion"\s*:\s*5\b/.test(String(rawJson || ''));
+
+  if (isV5) {
+    return [
+      `# Fix this ${AUTHORING_INTENT_SCHEMA_NAME} JSON`,
+      '',
+      'MathMaster could not safely compile the authoring intent below. Fix only the mathematical/content omissions named in the errors.',
+      'KEEP `schemaVersion: 5`. Do not convert this to V4. Do not add `type`, `toolId`, `functionSpec`, `analysisRequests`, renderer-specific `graph` plumbing, Firestore fields, or viewport bounds just to satisfy an internal message.',
+      'Preserve every `studentActions` verb unless the error says the mathematical task itself is contradictory.',
+      '',
+      '## Validation errors that must be fixed',
+      ...errorList.map((error, index) => `${index + 1}. ${error}`),
+      ...(aiSafeWarnings.length ? ['', '## Safe warnings to clean up', ...aiSafeWarnings.map((w) => `- ${w}`)] : []),
+      '',
+      '## V5 repair rules',
+      '- Return exactly one JSON object with `schemaVersion: 5`.',
+      '- Keep the same assignment/activity structure and studentActions.',
+      '- Supply mathematical data that is genuinely missing (for example a function, relation, interval, table data, scenario, or expected non-derivable response).',
+      '- If a student reads a graph, provide `function` or graph/story mathematical data; MathMaster chooses the renderer.',
+      '- If a student completes a table and then constructs a graph, keep both actions in the same question; MathMaster composes the dependency.',
+      '- Do not change TEKS/standards merely to silence a warning.',
+      '- Use Unicode math in student-facing text; ordinary currency such as $6 is fine.',
+      '',
+      '## The V5 JSON to fix',
+      '```json',
+      String(rawJson || '').trim(),
+      '```',
+    ].join('\n');
+  }
 
   return [
     `# Fix this ${CONTRACT_SCHEMA_NAME} JSON`,
@@ -664,7 +930,7 @@ export const buildFixRequest = ({ rawJson = '', errors = [], warnings = [] } = {
     '',
     '## Validation errors that must be fixed',
     ...errorList.map((error, index) => `${index + 1}. ${error}`),
-    ...(warningList.length ? ['', '## Warnings (fix if straightforward)', ...warningList.map((w) => `- ${w}`)] : []),
+    ...(aiSafeWarnings.length ? ['', '## Safe warnings to clean up', ...aiSafeWarnings.map((w) => `- ${w}`)] : []),
     '',
     '## Rules that apply',
     `- Schema version is ${CONTRACT_SCHEMA_VERSION}.`,
@@ -676,9 +942,10 @@ export const buildFixRequest = ({ rawJson = '', errors = [], warnings = [] } = {
     '- Generator ranges are inclusive [min, max] with min <= max.',
     `- Never emit platform-owned fields: ${PLATFORM_OWNED_FIELDS.join(', ')}.`,
     '- Do not add dates, class periods or Honors designations; the teacher sets those.',
-    '- No LaTeX in any string. Prompts render as plain text; write math in Unicode (≤, ≥, ∞, ×, π, √, ∪, ½).',
+    '- No LaTeX commands/delimiters in student-facing prompts, labels or context. Ordinary currency such as $6 is fine; write prompt math in Unicode (≤, ≥, ∞, ×, π, √, ∪, ½).',
     `- analysisRequests kinds: ${NOTATION_ANALYSIS_KINDS.join(', ')}, or "point" WITH a feature (${POINT_FEATURES.join(', ')}).`,
     '- "positive" and "negative" are kinds in their own right. Never rewrite them as "point".',
+    '- Do not change TEKS/standards merely to silence a warning. MathMaster keeps alignment review in Preflight.',
     '',
     '## The JSON to fix',
     '```json',
