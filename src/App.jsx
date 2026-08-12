@@ -3034,6 +3034,36 @@ function App() {
           ? { label: 'Scheduled', background: '#e8eaed', color: '#3c4043' }
           : { label: 'On-time access', background: '#e6f4ea', color: '#137333' };
 
+    // Bundle/V5 activities are flattened for runtime compatibility, but every
+    // question keeps its activityRole. Rebuild the visible sections here so a
+    // student can tell when they are in the Warm-Up, Classwork, Practice, or
+    // DOL instead of seeing one undifferentiated row of question numbers.
+    const activitySectionMeta = {
+      warmup: { label: 'Warm-Up', background: '#fff4ce', color: '#7a4f00', border: '#f9ab00' },
+      classwork: { label: 'Classwork', background: '#e8f0fe', color: '#174ea6', border: '#1a73e8' },
+      practice: { label: 'Practice', background: '#e6f4ea', color: '#137333', border: '#34a853' },
+      dol: { label: 'DOL / Exit Ticket', background: '#f3e8fd', color: '#681da8', border: '#9334e6' },
+      checkpoint: { label: 'Checkpoint', background: '#fce8e6', color: '#a50e0e', border: '#d93025' },
+      quiz: { label: 'Quiz', background: '#fce8e6', color: '#a50e0e', border: '#d93025' },
+      test: { label: 'Test', background: '#fce8e6', color: '#a50e0e', border: '#d93025' },
+    };
+    const visibleQuestionEntries = includedQuestionIndices.map((index, visiblePosition) => {
+      const question = questions[index];
+      const isTimedDOLQuestion = dolState.enabled && index === dolState.questionIndex;
+      const role = resolveQuestionActivityRole({ question, assignment, isDOL: isTimedDOLQuestion });
+      return { index, visiblePosition, question, role, isTimedDOLQuestion };
+    });
+    const navigationSections = visibleQuestionEntries.reduce((sections, entry) => {
+      const previous = sections[sections.length - 1];
+      if (previous?.role === entry.role) previous.entries.push(entry);
+      else sections.push({ role: entry.role, entries: [entry] });
+      return sections;
+    }, []);
+    const currentSectionMeta = activitySectionMeta[activeQuestionRole] || {
+      label: String(activeQuestionRole || 'Activity').replace(/(^|\s)\S/g, (letter) => letter.toUpperCase()),
+      background: '#f1f3f4', color: '#3c4043', border: '#9aa0a6',
+    };
+
     return (
       <div
         className={`mathmaster-assignment-screen ${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`}
@@ -3110,46 +3140,62 @@ function App() {
             </div>
           </header>
 
-          <div className="mathmaster-question-navigation" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: '12px', marginBottom: '24px' }}>
-            {includedQuestionIndices.map((index, visiblePosition) => {
-              const question = questions[index];
-              const record = normalizeQuestionRecord(workingTracker?.[index]);
-              const isDOLQuestion = dolState.enabled && index === dolState.questionIndex;
-              const cardRole = resolveQuestionActivityRole({ question, assignment, isDOL: isDOLQuestion });
-              const cardPolicy = getEffectiveActivityPolicy(cardRole);
-              const cardFeedbackHeld = !preview && !lifecycle.isPracticeOnly && cardPolicy.feedback === 'teacherRelease' && !assignmentFeedbackWasReleased(assignment);
-              const storedCardState = getQuestionCardState(workingTracker?.[index]);
-              const cardState = cardFeedbackHeld && ['correct', 'expired'].includes(record.status)
-                ? { background: '#eef4ff', color: '#174ea6', label: 'Submitted · feedback held' }
-                : storedCardState;
-              const dolUnavailable = isDOLQuestion && !preview && !lifecycle.isClosed && !['active', 'ended'].includes(dolState.status);
+          <div className="mathmaster-question-navigation" style={{ display: 'grid', gap: '14px', marginBottom: '24px' }}>
+            {navigationSections.map((section) => {
+              const sectionMeta = activitySectionMeta[section.role] || { label: section.role, background: '#f1f3f4', color: '#3c4043', border: '#9aa0a6' };
               return (
-                <button
-                  type="button"
-                  key={index}
-                  onClick={() => changeQuestion(index)}
-                  style={{
-                    padding: '14px',
-                    cursor: dolUnavailable ? 'not-allowed' : 'pointer',
-                    backgroundColor: dolUnavailable ? '#f1f3f4' : cardState.background,
-                    color: dolUnavailable ? '#80868b' : cardState.color,
-                    border: currentQuestionIndex === index ? '3px solid #1a73e8' : isDOLQuestion ? '2px solid #9334e6' : '1px solid #dadce0',
-                    borderRadius: '10px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    boxShadow: currentQuestionIndex === index ? '0 4px 12px rgba(26,115,232,0.2)' : 'none',
-                    opacity: dolUnavailable ? 0.7 : 1,
-                  }}
-                >
-                  <div style={{ fontSize: '14px', fontWeight: 'bold' }}>Question {visiblePosition + 1}</div>
-                  {isDOLQuestion && <div style={{ marginTop: '5px', padding: '3px 7px', borderRadius: '999px', background: '#f3e8fd', color: '#681da8', fontSize: '10px', fontWeight: 900 }}>{dolUnavailable ? 'DOL opens later' : 'DOL'}</div>}
-                  <div style={{ fontSize: '12px', marginTop: '7px', fontWeight: 'bold' }}>{dolUnavailable ? 'Locked until DOL window' : cardState.label}</div>
-                  {record.totalAttempts > 0 && <div style={{ fontSize: '11px', marginTop: '3px', opacity: 0.85 }}>{record.totalAttempts} total attempt{record.totalAttempts === 1 ? '' : 's'}</div>}
-                </button>
+                <section key={`${section.role}-${section.entries[0]?.index}`} aria-label={`${sectionMeta.label} questions`} style={{ padding: '13px', borderRadius: '12px', border: `2px solid ${sectionMeta.border}`, background: sectionMeta.background }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '10px', color: sectionMeta.color }}>
+                    <strong style={{ fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{sectionMeta.label}</strong>
+                    <span style={{ fontSize: '12px', fontWeight: 800 }}>{section.entries.length} question{section.entries.length === 1 ? '' : 's'}</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: '10px' }}>
+                    {section.entries.map(({ index, visiblePosition, role: cardRole, isTimedDOLQuestion }) => {
+                      const record = normalizeQuestionRecord(workingTracker?.[index]);
+                      const cardPolicy = getEffectiveActivityPolicy(cardRole);
+                      const cardFeedbackHeld = !preview && !lifecycle.isPracticeOnly && cardPolicy.feedback === 'teacherRelease' && !assignmentFeedbackWasReleased(assignment);
+                      const storedCardState = getQuestionCardState(workingTracker?.[index]);
+                      const cardState = cardFeedbackHeld && ['correct', 'expired'].includes(record.status)
+                        ? { background: '#eef4ff', color: '#174ea6', label: 'Submitted · feedback held' }
+                        : storedCardState;
+                      const dolUnavailable = isTimedDOLQuestion && !preview && !lifecycle.isClosed && !['active', 'ended'].includes(dolState.status);
+                      return (
+                        <button
+                          type="button"
+                          key={index}
+                          onClick={() => !dolUnavailable && changeQuestion(index)}
+                          disabled={dolUnavailable}
+                          style={{
+                            padding: '14px',
+                            cursor: dolUnavailable ? 'not-allowed' : 'pointer',
+                            backgroundColor: dolUnavailable ? '#f1f3f4' : cardState.background,
+                            color: dolUnavailable ? '#80868b' : cardState.color,
+                            border: currentQuestionIndex === index ? `3px solid ${sectionMeta.border}` : '1px solid #dadce0',
+                            borderRadius: '10px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            boxShadow: currentQuestionIndex === index ? '0 4px 12px rgba(26,115,232,0.2)' : 'none',
+                            opacity: dolUnavailable ? 0.7 : 1,
+                          }}
+                        >
+                          <div style={{ fontSize: '14px', fontWeight: 'bold' }}>Question {visiblePosition + 1}</div>
+                          <div style={{ marginTop: '5px', padding: '3px 7px', borderRadius: '999px', background: sectionMeta.background, color: sectionMeta.color, border: `1px solid ${sectionMeta.border}`, fontSize: '10px', fontWeight: 900 }}>{sectionMeta.label}</div>
+                          <div style={{ fontSize: '12px', marginTop: '7px', fontWeight: 'bold' }}>{dolUnavailable ? 'Locked until DOL window' : cardState.label}</div>
+                          {record.totalAttempts > 0 && <div style={{ fontSize: '11px', marginTop: '3px', opacity: 0.85 }}>{record.totalAttempts} total attempt{record.totalAttempts === 1 ? '' : 's'}</div>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
               );
             })}
           </div>
+
+          <section aria-label="Current assignment section" style={{ marginBottom: '12px', padding: '12px 16px', borderRadius: '10px', borderLeft: `6px solid ${currentSectionMeta.border}`, background: currentSectionMeta.background, color: currentSectionMeta.color, textAlign: 'left' }}>
+            <strong style={{ fontSize: '16px' }}>{currentSectionMeta.label}</strong>
+            <span style={{ marginLeft: '8px', fontSize: '13px' }}>You are working in this section now.</span>
+          </section>
 
           <main className="mathmaster-question-stage" style={{ background: '#fff', borderRadius: '12px', padding: '10px', minHeight: '500px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
             <QuestionEngine

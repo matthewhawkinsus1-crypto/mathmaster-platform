@@ -2,6 +2,12 @@ import MathDisplay from './MathDisplay';
 
 const MATH_DELIMITER_PATTERN = /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)|\$[^$\n]+?\$)/g;
 
+// Preserve author-entered values, but never show raw calculator-style inverse
+// notation in prose. This is display-only typography; grading data is not
+// changed.
+const normalizePlainMathTypography = (value) => String(value ?? '')
+  .replace(/([A-Za-z])\^-1/g, '$1⁻¹');
+
 const getDelimitedMath = (segment) => {
   if (segment.startsWith('$$')) {
     return { value: segment.slice(2, -2), inline: false };
@@ -44,7 +50,7 @@ export default function QuestionPrompt({
         MATH_DELIMITER_PATTERN.lastIndex = 0;
 
         if (!isMath) {
-          return <span key={`${index}-${segment}`}>{segment}</span>;
+          return <span key={`${index}-${segment}`}>{normalizePlainMathTypography(segment)}</span>;
         }
 
         const math = getDelimitedMath(segment);

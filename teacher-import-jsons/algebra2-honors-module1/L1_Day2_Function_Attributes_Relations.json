@@ -1,0 +1,570 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Algebra II Honors — Lesson 1 Day 2: Function Attributes and Relations",
+    "courseId": "algebra2",
+    "assignmentType": "notesClasswork",
+    "folder": "Algebra II/Module 1/Functions"
+  },
+  "activities": [
+    {
+      "role": "warmup",
+      "title": "Warm-Up",
+      "questions": [
+        {
+          "standard": "A2.7I",
+          "prompt": "Use the graph of f(x) = |x + 1| − 2. State the domain and range.",
+          "studentActions": [
+            "analyzeDomain",
+            "analyzeRange"
+          ],
+          "function": {
+            "family": "absolute",
+            "a": 1,
+            "h": -1,
+            "k": -2
+          },
+          "dok": 1,
+          "difficultyBand": 1
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "Graph −2 ≤ x < 4 and write the interval in interval notation.",
+          "studentActions": [
+            "constructInterval",
+            "writeInterval"
+          ],
+          "inequalityText": "−2 ≤ x < 4",
+          "intervals": [
+            {
+              "min": -2,
+              "max": 4,
+              "minClosed": true,
+              "maxClosed": false
+            }
+          ],
+          "dok": 1,
+          "difficultyBand": 1
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "Build the mapping for {(−2, 1), (0, 3), (2, 5)} and state the domain and range.",
+          "studentActions": [
+            "buildMapping",
+            "stateDomain",
+            "stateRange"
+          ],
+          "relation": [
+            [
+              -2,
+              1
+            ],
+            [
+              0,
+              3
+            ],
+            [
+              2,
+              5
+            ]
+          ],
+          "dok": 1,
+          "difficultyBand": 1
+        }
+      ]
+    },
+    {
+      "role": "classwork",
+      "title": "Classwork",
+      "questions": [
+        {
+          "standard": "A2.7I",
+          "prompt": "Use the graph of f(x) = (x − 2)² − 4. State where the function is increasing and where it is decreasing.",
+          "studentActions": [
+            "analyzeIncreasing",
+            "analyzeDecreasing"
+          ],
+          "function": {
+            "family": "quadratic",
+            "a": 1,
+            "h": 2,
+            "k": -4
+          },
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "Use the graph of f(x) = −(x − 1)² + 4. State where the function is positive and where it is negative.",
+          "studentActions": [
+            "analyzePositive",
+            "analyzeNegative"
+          ],
+          "function": {
+            "family": "quadratic",
+            "a": -1,
+            "h": 1,
+            "k": 4
+          },
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "Use the graph of f(x) = |x + 2| − 3. State where the function is increasing, decreasing, positive, and negative.",
+          "studentActions": [
+            "analyzeIncreasing",
+            "analyzeDecreasing",
+            "analyzePositive",
+            "analyzeNegative"
+          ],
+          "function": {
+            "family": "absolute",
+            "a": 1,
+            "h": -2,
+            "k": -3
+          },
+          "dok": 3,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "Represent {(−3, 2), (0, 5), (0, −1), (4, 2)} with a mapping and a coordinate plot. State the domain and range, then decide whether it is a function.",
+          "studentActions": [
+            "buildMapping",
+            "plotRelation",
+            "stateDomain",
+            "stateRange",
+            "classifyFunction"
+          ],
+          "relation": [
+            [
+              -3,
+              2
+            ],
+            [
+              0,
+              5
+            ],
+            [
+              0,
+              -1
+            ],
+            [
+              4,
+              2
+            ]
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "Complete the table for f(x) = 0.5x + 1 over x ∈ {−2, 0, 2, 4}, plot only those points, state the domain and range, and classify the relation as discrete or continuous.",
+          "studentActions": [
+            "completeTable",
+            "constructGraph",
+            "stateDomain",
+            "stateRange",
+            "classifyContinuity"
+          ],
+          "function": {
+            "family": "linear",
+            "m": 0.5,
+            "b": 1
+          },
+          "table": {
+            "columns": [
+              "x",
+              "f(x)"
+            ],
+            "rows": [
+              [
+                -2,
+                null
+              ],
+              [
+                0,
+                null
+              ],
+              [
+                2,
+                null
+              ],
+              [
+                4,
+                null
+              ]
+            ]
+          },
+          "answerModel": {
+            "domain": "{−2, 0, 2, 4}",
+            "range": "{0, 1, 2, 3}",
+            "continuity": "discrete"
+          },
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "Build a model for the money collected from selling chocolate bars.",
+          "scenario": "A student group sells chocolate bars for $2 each. The function M(x) gives the amount of money collected after selling x chocolate bars.",
+          "studentActions": [
+            "identifyQuantities",
+            "writeEquation",
+            "completeTable",
+            "constructGraph",
+            "stateDomain",
+            "stateRange",
+            "classifyContinuity"
+          ],
+          "quantities": [
+            {
+              "id": "bars",
+              "label": "Number of chocolate bars sold"
+            },
+            {
+              "id": "money",
+              "label": "Money collected in dollars"
+            }
+          ],
+          "correctIndependentId": "bars",
+          "correctDependentId": "money",
+          "answerModel": {
+            "equation": "M(x)=2x",
+            "tableXValues": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "domain": "{0, 1, 2, 3, ...}",
+            "range": "{0, 2, 4, 6, ...}",
+            "continuity": "discrete",
+            "graphMode": "discrete",
+            "domainChoices": [
+              "{0, 1, 2, 3, ...}",
+              "[0, ∞)",
+              "{1, 2, 3, 4, ...}"
+            ],
+            "rangeChoices": [
+              "{0, 2, 4, 6, ...}",
+              "[0, ∞)",
+              "{2, 4, 6, 8, ...}"
+            ]
+          },
+          "dok": 3,
+          "difficultyBand": 3,
+          "domainPrompt": "Choose the reasonable domain for the number of chocolate bars sold.",
+          "rangePrompt": "Choose the corresponding range for the money collected."
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "Build a model for the water released by the shower head.",
+          "scenario": "A low-flow shower head releases 1.8 gallons of water per minute. Let t be time in minutes and let V(t) be the total gallons released.",
+          "studentActions": [
+            "identifyQuantities",
+            "writeEquation",
+            "completeTable",
+            "constructGraph",
+            "stateDomain",
+            "stateRange",
+            "classifyContinuity"
+          ],
+          "quantities": [
+            {
+              "id": "time",
+              "label": "Time in minutes"
+            },
+            {
+              "id": "volume",
+              "label": "Water released in gallons"
+            }
+          ],
+          "correctIndependentId": "time",
+          "correctDependentId": "volume",
+          "answerModel": {
+            "equation": "V(t)=1.8t",
+            "tableXValues": [
+              0,
+              0.5,
+              2.5,
+              5
+            ],
+            "domain": "[0, ∞)",
+            "range": "[0, ∞)",
+            "continuity": "continuous",
+            "graphMode": "continuous"
+          },
+          "dok": 3,
+          "difficultyBand": 3,
+          "graph": {
+            "xMin": 0,
+            "xMax": 6,
+            "yMin": 0,
+            "yMax": 12
+          },
+          "domainPrompt": "State the reasonable domain for time in interval notation.",
+          "rangePrompt": "State the reasonable range for water volume in interval notation."
+        }
+      ]
+    },
+    {
+      "role": "practice",
+      "title": "Independent Practice",
+      "questions": [
+        {
+          "standard": "A2.7I",
+          "prompt": "Use the graph of f(x) = −2|x − 1| + 6. State where the function is increasing and decreasing.",
+          "studentActions": [
+            "analyzeIncreasing",
+            "analyzeDecreasing"
+          ],
+          "function": {
+            "family": "absolute",
+            "a": -2,
+            "h": 1,
+            "k": 6
+          },
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "Use the graph of f(x) = (x + 3)² − 9. State where the function is positive and where it is negative.",
+          "studentActions": [
+            "analyzePositive",
+            "analyzeNegative"
+          ],
+          "function": {
+            "family": "quadratic",
+            "a": 1,
+            "h": -3,
+            "k": -9
+          },
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "Represent {(−2, 4), (1, 1), (3, −2), (5, 1)} with a mapping and decide whether it is a function. State the domain and range.",
+          "studentActions": [
+            "buildMapping",
+            "stateDomain",
+            "stateRange",
+            "classifyFunction"
+          ],
+          "relation": [
+            [
+              -2,
+              4
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              3,
+              -2
+            ],
+            [
+              5,
+              1
+            ]
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "Complete the table for f(x) = −x + 4 over x ∈ {0, 1, 2, 3, 4}, plot the points, state the range, and classify the relation.",
+          "studentActions": [
+            "completeTable",
+            "constructGraph",
+            "analyzeRange",
+            "classifyContinuity"
+          ],
+          "function": {
+            "family": "linear",
+            "m": -1,
+            "b": 4
+          },
+          "table": {
+            "columns": [
+              "x",
+              "f(x)"
+            ],
+            "rows": [
+              [
+                0,
+                null
+              ],
+              [
+                1,
+                null
+              ],
+              [
+                2,
+                null
+              ],
+              [
+                3,
+                null
+              ],
+              [
+                4,
+                null
+              ]
+            ]
+          },
+          "answerModel": {
+            "range": "{0, 1, 2, 3, 4}",
+            "continuity": "discrete"
+          },
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "A taxi fare is modeled by C(t) = 3t + 5 for any real travel time t from 0 to 20 minutes. Complete the attributes.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "continuity",
+              "label": "Discrete or continuous?",
+              "type": "choice",
+              "options": [
+                "discrete",
+                "continuous"
+              ],
+              "answer": "continuous"
+            },
+            {
+              "id": "domain",
+              "label": "Reasonable domain",
+              "type": "choice",
+              "options": [
+                "[0, 20]",
+                "{0, 1, 2, …, 20}",
+                "(−∞, ∞)"
+              ],
+              "answer": "[0, 20]"
+            },
+            {
+              "id": "range",
+              "label": "Reasonable range",
+              "type": "choice",
+              "options": [
+                "[5, 65]",
+                "[0, 60]",
+                "{5, 8, 11, …, 65}"
+              ],
+              "answer": "[5, 65]"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        }
+      ]
+    },
+    {
+      "role": "dol",
+      "title": "DOL / Exit Ticket",
+      "questions": [
+        {
+          "standard": "A2.7I",
+          "prompt": "For f(x) = −(x − 2)² + 9, state the intervals where the function is increasing, decreasing, positive, and negative.",
+          "studentActions": [
+            "analyzeIncreasing",
+            "analyzeDecreasing",
+            "analyzePositive",
+            "analyzeNegative"
+          ],
+          "function": {
+            "family": "quadratic",
+            "a": -1,
+            "h": 2,
+            "k": 9
+          },
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "Represent {(−1, 2), (2, 5), (2, −3), (6, 1)} with a mapping. State the domain and range and decide whether it is a function.",
+          "studentActions": [
+            "buildMapping",
+            "stateDomain",
+            "stateRange",
+            "classifyFunction"
+          ],
+          "relation": [
+            [
+              -1,
+              2
+            ],
+            [
+              2,
+              5
+            ],
+            [
+              2,
+              -3
+            ],
+            [
+              6,
+              1
+            ]
+          ],
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "A tank is filled at 4 gallons per minute for exactly 12 minutes. Let V(t)=4t for 0 ≤ t ≤ 12. Complete the attributes.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "continuity",
+              "label": "Discrete or continuous?",
+              "type": "choice",
+              "options": [
+                "discrete",
+                "continuous"
+              ],
+              "answer": "continuous"
+            },
+            {
+              "id": "domain",
+              "label": "Domain",
+              "type": "choice",
+              "options": [
+                "[0, 12]",
+                "{0, 1, 2, …, 12}",
+                "(−∞, ∞)"
+              ],
+              "answer": "[0, 12]"
+            },
+            {
+              "id": "range",
+              "label": "Range",
+              "type": "choice",
+              "options": [
+                "[0, 48]",
+                "[4, 48]",
+                "{0, 4, 8, …, 48}"
+              ],
+              "answer": "[0, 48]"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        }
+      ]
+    }
+  ]
+}

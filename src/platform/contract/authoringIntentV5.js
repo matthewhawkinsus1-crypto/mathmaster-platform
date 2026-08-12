@@ -371,8 +371,9 @@ const compileFunctionWorkflow = (q, actions) => {
     if (source) grading.graph = { consistentWith: source, useStageVerdict: true };
   }
 
-  const addSetStage = (id, kind, prompt, expected, notation) => {
+  const addSetStage = (id, kind, prompt, expected, notation, choices = []) => {
     const stage = { id, kind, prompt, notation };
+    if (Array.isArray(choices) && choices.length) stage.choices = choices;
     const source = latestStageSource(workflow, ['functionGraph','coordinatePlot','tableInput','equationInput']);
     if (source) stage.source = { fromStage: source };
     workflow.push(stage);
@@ -380,10 +381,10 @@ const compileFunctionWorkflow = (q, actions) => {
   };
 
   if (actions.some((action) => ['stateDomain','analyzeDomain'].includes(action))) {
-    addSetStage('domain', 'domainInput', q.domainPrompt || 'State the domain.', expectedDomain(q), q.notation || (continuity === 'discrete' ? 'set' : 'interval'));
+    addSetStage('domain', 'domainInput', q.domainPrompt || 'State the domain.', expectedDomain(q), q.notation || (continuity === 'discrete' ? 'set' : 'interval'), q.domainChoices || q.answerModel?.domainChoices);
   }
   if (actions.some((action) => ['stateRange','analyzeRange'].includes(action))) {
-    addSetStage('range', 'rangeInput', q.rangePrompt || 'State the range.', expectedRange(q), q.notation || (continuity === 'discrete' ? 'set' : 'interval'));
+    addSetStage('range', 'rangeInput', q.rangePrompt || 'State the range.', expectedRange(q), q.notation || (continuity === 'discrete' ? 'set' : 'interval'), q.rangeChoices || q.answerModel?.rangeChoices);
   }
   if (actions.includes('classifyContinuity')) {
     const stage = { id: 'continuity', kind: 'classification', prompt: q.continuityPrompt || 'Is the relationship discrete or continuous?', choices: ['discrete','continuous'] };
@@ -434,6 +435,15 @@ const compileRelationshipModel = (q, actions) => {
   out.continuity = q.continuity || answerModel.continuity || relationship.continuity || q.relationshipType;
   out.correctDomain = q.correctDomain || answerModel.domain || relationship.domain;
   out.correctRange = q.correctRange || answerModel.range || relationship.range;
+  out.quantitiesPrompt = q.quantitiesPrompt || relationship.quantitiesPrompt;
+  out.equationPrompt = q.equationPrompt || relationship.equationPrompt;
+  out.tablePrompt = q.tablePrompt || relationship.tablePrompt;
+  out.graphPrompt = q.graphPrompt || relationship.graphPrompt;
+  out.domainPrompt = q.domainPrompt || relationship.domainPrompt;
+  out.rangePrompt = q.rangePrompt || relationship.rangePrompt;
+  out.continuityPrompt = q.continuityPrompt || relationship.continuityPrompt;
+  out.domainChoices = q.domainChoices || answerModel.domainChoices || relationship.domainChoices;
+  out.rangeChoices = q.rangeChoices || answerModel.rangeChoices || relationship.rangeChoices;
   out.notation = q.notation || answerModel.notation || (out.continuity === 'discrete' ? 'set' : 'interval');
   out.graph = q.graph || relationship.graph;
   if (!actions.includes('writeEquation') && (isObject(q.function) || isObject(q.functionSpec))) {

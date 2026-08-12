@@ -137,18 +137,27 @@ const warningsFor = (question) => validateQuestionSemantics(question).warnings;
 
 // --- LaTeX and the control characters it decays into ------------------------
 {
-  // Prompts render as plain text, so LaTeX reaches the student as raw markup.
+  // QuestionPrompt now renders math only when it is explicitly delimited.
+  // Raw LaTeX outside a supported delimiter would still reach the student as
+  // markup, so it remains a warning.
   assert.ok(warningsFor({ type: 'algebra', prompt: 'Simplify \\frac{1}{2} + \\frac{1}{3}.' })
-    .some((w) => /contains LaTeX/.test(w)), 'a LaTeX command in a prompt is warned about');
+    .some((w) => /contains raw LaTeX/.test(w)), 'an undelimited LaTeX command in a prompt is warned about');
 
-  assert.ok(warningsFor({ type: 'algebra', prompt: 'Solve $2x + 3 = 11$.' })
-    .some((w) => /contains LaTeX/.test(w)), 'a dollar-delimited expression is warned about');
+  // Dollar-delimited prompt math is intentionally supported by QuestionPrompt
+  // and is rendered through MathDisplay rather than shown as raw markup.
+  assert.deepEqual(
+    warningsFor({ type: 'algebra', prompt: 'Solve $2x + 3 = 11$.' })
+      .filter((w) => /contains raw LaTeX/.test(w)),
+    [],
+    'supported dollar-delimited prompt math is not warned about',
+  );
 
-  // LaTeX anywhere a student can read it, not only in the prompt.
+  // Other student-visible UI strings do not go through QuestionPrompt's math
+  // renderer, so raw LaTeX in a field label is still warned about.
   assert.ok(warningsFor({
     type: 'multiAnswer', prompt: 'Answer both parts.',
     answerFields: [{ id: 'a', label: 'Value of \\theta', answer: '30' }],
-  }).some((w) => /contains LaTeX/.test(w)), 'LaTeX in an answer field label is warned about');
+  }).some((w) => /contains raw LaTeX/.test(w)), 'LaTeX in an answer field label is warned about');
 
   // "\frac" parses as formfeed + "rac": the text is already missing characters.
   assert.ok(errorsFor({ type: 'algebra', prompt: 'Simplify \f rac12.' })
@@ -157,7 +166,7 @@ const warningsFor = (question) => validateQuestionSemantics(question).warnings;
   // Unicode math — what the contract asks for — is clean.
   assert.deepEqual(
     warningsFor({ type: 'algebra', prompt: 'Solve -3 ≤ x < 5 and write ½ × π as a decimal.' })
-      .filter((w) => /contains LaTeX/.test(w)),
+      .filter((w) => /contains raw LaTeX/.test(w)),
     [],
     'Unicode math produces no LaTeX warning',
   );
@@ -165,7 +174,7 @@ const warningsFor = (question) => validateQuestionSemantics(question).warnings;
   // A lone backslash or a Windows path is not a LaTeX command.
   assert.deepEqual(
     warningsFor({ type: 'algebra', prompt: 'The set difference A \\ B.' })
-      .filter((w) => /contains LaTeX/.test(w)),
+      .filter((w) => /contains raw LaTeX/.test(w)),
     [],
     'a lone backslash is not flagged',
   );
@@ -286,7 +295,7 @@ console.log('semanticValidation.test.mjs: all assertions passed');
 // --- student-UI guardrails added from the Module 1 audit --------------------
 {
   assert.deepEqual(
-    warningsFor({ type: 'algebra', prompt: 'A rental costs $6 plus $4 per hour.' }).filter((w) => /contains LaTeX/.test(w)),
+    warningsFor({ type: 'algebra', prompt: 'A rental costs $6 plus $4 per hour.' }).filter((w) => /contains raw LaTeX/.test(w)),
     [],
     'ordinary currency is not mistaken for dollar-delimited LaTeX',
   );

@@ -1,0 +1,401 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Algebra II Honors — Lesson 1 Day 1: Interval Notation, Domain, and Range",
+    "courseId": "algebra2",
+    "assignmentType": "notesClasswork",
+    "folder": "Algebra II/Module 1/Functions"
+  },
+  "activities": [
+    {
+      "role": "warmup",
+      "title": "Warm-Up",
+      "questions": [
+        {
+          "standard": "A2.7I",
+          "prompt": "Graph −4 ≤ x < 3 on the number line, then write the interval in interval notation.",
+          "studentActions": [
+            "constructInterval",
+            "writeInterval"
+          ],
+          "inequalityText": "−4 ≤ x < 3",
+          "intervals": [
+            {
+              "min": -4,
+              "max": 3,
+              "minClosed": true,
+              "maxClosed": false
+            }
+          ],
+          "dok": 1,
+          "difficultyBand": 1
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "Graph x > 2 on the number line, then write the interval in interval notation.",
+          "studentActions": [
+            "constructInterval",
+            "writeInterval"
+          ],
+          "inequalityText": "x > 2",
+          "intervals": [
+            {
+              "min": 2,
+              "max": null,
+              "minClosed": false,
+              "maxClosed": false
+            }
+          ],
+          "dok": 1,
+          "difficultyBand": 1
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "Graph x ≤ −5 or x > 1 on the number line, then write the compound interval in interval notation.",
+          "studentActions": [
+            "constructInterval",
+            "writeInterval"
+          ],
+          "inequalityText": "x ≤ −5 or x > 1",
+          "intervals": [
+            {
+              "min": null,
+              "max": -5,
+              "minClosed": false,
+              "maxClosed": true
+            },
+            {
+              "min": 1,
+              "max": null,
+              "minClosed": false,
+              "maxClosed": false
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        }
+      ]
+    },
+    {
+      "role": "classwork",
+      "title": "Classwork",
+      "questions": [
+        {
+          "standard": "A2.7I",
+          "prompt": "Graph −3 ≤ x < 5 and write the interval in interval notation.",
+          "studentActions": [
+            "constructInterval",
+            "writeInterval"
+          ],
+          "inequalityText": "−3 ≤ x < 5",
+          "intervals": [
+            {
+              "min": -3,
+              "max": 5,
+              "minClosed": true,
+              "maxClosed": false
+            }
+          ],
+          "dok": 1,
+          "difficultyBand": 1
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "Graph x < −2 or x ≥ 4 and write the compound interval in interval notation.",
+          "studentActions": [
+            "constructInterval",
+            "writeInterval"
+          ],
+          "inequalityText": "x < −2 or x ≥ 4",
+          "intervals": [
+            {
+              "min": null,
+              "max": -2,
+              "minClosed": false,
+              "maxClosed": false
+            },
+            {
+              "min": 4,
+              "max": null,
+              "minClosed": true,
+              "maxClosed": false
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "Use the graph of f(x) = 2x − 1 restricted to −3 ≤ x < 4. State the domain and range in interval notation.",
+          "studentActions": [
+            "analyzeDomain",
+            "analyzeRange"
+          ],
+          "function": {
+            "family": "linear",
+            "m": 2,
+            "b": -1,
+            "domain": {
+              "min": -3,
+              "max": 4,
+              "minClosed": true,
+              "maxClosed": false
+            }
+          },
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "Use the graph of f(x) = −(x − 1)² + 4. State the domain and range in interval notation.",
+          "studentActions": [
+            "analyzeDomain",
+            "analyzeRange"
+          ],
+          "function": {
+            "family": "quadratic",
+            "a": -1,
+            "h": 1,
+            "k": 4
+          },
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "Use the graph of f(x) = √(x + 2) + 1. State the domain and range in interval notation.",
+          "studentActions": [
+            "analyzeDomain",
+            "analyzeRange"
+          ],
+          "function": {
+            "family": "squareRoot",
+            "a": 1,
+            "h": -2,
+            "k": 1
+          },
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "Build the mapping for the relation {(-3, 4), (0, 1), (2, 4), (5, -2)}. Then state the domain and range and decide whether the relation is a function.",
+          "studentActions": [
+            "buildMapping",
+            "stateDomain",
+            "stateRange",
+            "classifyFunction"
+          ],
+          "relation": [
+            [
+              -3,
+              4
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              2,
+              4
+            ],
+            [
+              5,
+              -2
+            ]
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        }
+      ]
+    },
+    {
+      "role": "practice",
+      "title": "Independent Practice",
+      "questions": [
+        {
+          "standard": "A2.7I",
+          "prompt": "Graph −1 < x ≤ 6 and write the interval in interval notation.",
+          "studentActions": [
+            "constructInterval",
+            "writeInterval"
+          ],
+          "inequalityText": "−1 < x ≤ 6",
+          "intervals": [
+            {
+              "min": -1,
+              "max": 6,
+              "minClosed": false,
+              "maxClosed": true
+            }
+          ],
+          "dok": 1,
+          "difficultyBand": 1
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "Graph x ≤ −4 or x ≥ 3 and write the interval in interval notation.",
+          "studentActions": [
+            "constructInterval",
+            "writeInterval"
+          ],
+          "inequalityText": "x ≤ −4 or x ≥ 3",
+          "intervals": [
+            {
+              "min": null,
+              "max": -4,
+              "minClosed": false,
+              "maxClosed": true
+            },
+            {
+              "min": 3,
+              "max": null,
+              "minClosed": true,
+              "maxClosed": false
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "Use the graph of f(x) = |x − 2| − 3. State its domain and range in interval notation.",
+          "studentActions": [
+            "analyzeDomain",
+            "analyzeRange"
+          ],
+          "function": {
+            "family": "absolute",
+            "a": 1,
+            "h": 2,
+            "k": -3
+          },
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "Use the graph of f(x) = 1/(x + 1). State its domain and range in interval notation.",
+          "studentActions": [
+            "analyzeDomain",
+            "analyzeRange"
+          ],
+          "function": {
+            "family": "rational",
+            "a": 1,
+            "h": -1,
+            "k": 0
+          },
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "Build the mapping for {(−2, 5), (1, 0), (4, 5), (6, −3)} and state its domain and range.",
+          "studentActions": [
+            "buildMapping",
+            "stateDomain",
+            "stateRange"
+          ],
+          "relation": [
+            [
+              -2,
+              5
+            ],
+            [
+              1,
+              0
+            ],
+            [
+              4,
+              5
+            ],
+            [
+              6,
+              -3
+            ]
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        }
+      ]
+    },
+    {
+      "role": "dol",
+      "title": "DOL / Exit Ticket",
+      "questions": [
+        {
+          "standard": "A2.7I",
+          "prompt": "Graph x < −1 or 2 ≤ x ≤ 5, then write the interval in interval notation.",
+          "studentActions": [
+            "constructInterval",
+            "writeInterval"
+          ],
+          "inequalityText": "x < −1 or 2 ≤ x ≤ 5",
+          "intervals": [
+            {
+              "min": null,
+              "max": -1,
+              "minClosed": false,
+              "maxClosed": false
+            },
+            {
+              "min": 2,
+              "max": 5,
+              "minClosed": true,
+              "maxClosed": true
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "Use the graph of f(x) = (x + 2)² − 5. State the domain and range in interval notation.",
+          "studentActions": [
+            "analyzeDomain",
+            "analyzeRange"
+          ],
+          "function": {
+            "family": "quadratic",
+            "a": 1,
+            "h": -2,
+            "k": -5
+          },
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "For the relation {(−1, 3), (2, 0), (4, 3), (7, −2)}, state the domain and range and decide whether it is a function.",
+          "studentActions": [
+            "buildMapping",
+            "stateDomain",
+            "stateRange",
+            "classifyFunction"
+          ],
+          "relation": [
+            [
+              -1,
+              3
+            ],
+            [
+              2,
+              0
+            ],
+            [
+              4,
+              3
+            ],
+            [
+              7,
+              -2
+            ]
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        }
+      ]
+    }
+  ]
+}

@@ -31,11 +31,19 @@ const normalizeDomain = (spec = {}) => {
   const domain = spec.domain || spec.restrictedDomain || {};
   const minimum = Number(domain.min);
   const maximum = Number(domain.max);
+  const inclusiveFlag = (inclusiveKey, closedKey) => {
+    if (domain[inclusiveKey] !== undefined) return domain[inclusiveKey] !== false;
+    if (domain[closedKey] !== undefined) return domain[closedKey] !== false;
+    return true;
+  };
   return {
     min: Number.isFinite(minimum) ? minimum : Number.NEGATIVE_INFINITY,
     max: Number.isFinite(maximum) ? maximum : Number.POSITIVE_INFINITY,
-    minInclusive: domain.minInclusive !== false,
-    maxInclusive: domain.maxInclusive !== false,
+    // V4 historically used minInclusive/maxInclusive while Authoring Intent V5
+    // uses the more natural minClosed/maxClosed names. Accept both so an open
+    // endpoint cannot silently turn into a closed endpoint at runtime.
+    minInclusive: inclusiveFlag('minInclusive', 'minClosed'),
+    maxInclusive: inclusiveFlag('maxInclusive', 'maxClosed'),
   };
 };
 

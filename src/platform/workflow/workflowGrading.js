@@ -89,7 +89,7 @@ export const checkTableConsistency = ({
 // Only a stage that asks for a function is allowed to ignore the name: an
 // equation the student SOLVED (`x = 3`) is about which variable was isolated,
 // so its left side is part of the answer and is never dropped.
-const FUNCTION_DEFINITION = /^[a-z](?:\([a-z]\))?$/;
+const FUNCTION_DEFINITION = /^[a-z](?:\([a-z]\))?$/i;
 
 const definesAFunction = (text) => {
   const parts = String(text ?? '').split('=');
@@ -98,6 +98,13 @@ const definesAFunction = (text) => {
 
 const matchesAnswer = (stage, response, expected) => {
   if (Array.isArray(expected)) return expected.some((option) => matchesAnswer(stage, response, option));
+  // Some domain/range stages intentionally present a bounded set of authored
+  // choices (for example an infinite discrete domain). In that case the
+  // response is a selected label, not an algebraic expression to simplify.
+  if (Array.isArray(stage?.choices) && stage.choices.length) {
+    return compareMathAnswer(response, expected)
+      || normalizeMathAnswer(response) === normalizeMathAnswer(expected);
+  }
   // Domain/range stages can legitimately ask for roster-form sets. Set
   // membership is order-independent and MathLive serializes visible braces in
   // several equivalent ways, so use the shared semantic set comparator before

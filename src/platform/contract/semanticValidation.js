@@ -200,6 +200,8 @@ const auditQuestionGraphs = (question, type, label, errors, warnings, composedQu
   }
 };
 
+const SUPPORTED_PROMPT_MATH = /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)|\$[^$\n]+?\$)/g;
+
 const checkPlainTextMath = (question, label, errors, warnings) => {
   const strings = collectStrings(question);
 
@@ -209,11 +211,18 @@ const checkPlainTextMath = (question, label, errors, warnings) => {
     );
   }
 
-  const latex = strings.find((text) => LATEX_COMMAND.test(text) || LATEX_DELIMITER.test(text));
+  // QuestionPrompt intentionally renders $...$, \\(...\\), $$...$$ and
+  // \\[...\\] through MathDisplay. Strip those supported prompt segments before
+  // checking for raw LaTeX. Other fields are still ordinary UI strings and
+  // should not silently receive renderer markup.
+  const prompt = String(question?.prompt ?? '');
+  const promptRemainder = prompt.replace(SUPPORTED_PROMPT_MATH, '');
+  const stringsToCheck = strings.map((text) => (text === prompt ? promptRemainder : text));
+  const latex = stringsToCheck.find((text) => LATEX_COMMAND.test(text) || LATEX_DELIMITER.test(text));
   if (latex) {
     const sample = (latex.match(LATEX_COMMAND) || latex.match(LATEX_DELIMITER) || [''])[0];
     warnings.push(
-      `${label} contains LaTeX (${sample}). MathMaster renders prompts as plain text, so the student would see the markup. Write the math in Unicode instead: ≤ ≥ ≠ ∞ × ÷ ± π √ ∪ ½ x².`,
+      `${label} contains raw LaTeX (${sample}) outside a supported math-delimited question prompt. Use Unicode for ordinary UI text, or wrap prompt mathematics in $...$ / \\(...\\).`,
     );
   }
 };

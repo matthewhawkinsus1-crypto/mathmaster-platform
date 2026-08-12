@@ -1,0 +1,653 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Algebra II Honors — Lesson 2 Day 2: Transformations of Parent Functions",
+    "courseId": "algebra2",
+    "assignmentType": "notesClasswork",
+    "folder": "Algebra II/Module 1/Functions"
+  },
+  "activities": [
+    {
+      "role": "warmup",
+      "title": "Warm-Up",
+      "questions": [
+        {
+          "standard": "A2.2A",
+          "prompt": "Review the parent function f(x)=|x|.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "family",
+              "label": "Family",
+              "type": "choice",
+              "options": [
+                "absolute value",
+                "quadratic",
+                "square root",
+                "reciprocal"
+              ],
+              "answer": "absolute value"
+            },
+            {
+              "id": "vertex",
+              "label": "Vertex",
+              "type": "choice",
+              "options": [
+                "(0, 0)",
+                "(1, 0)",
+                "(0, 1)"
+              ],
+              "answer": "(0, 0)"
+            }
+          ],
+          "dok": 1,
+          "difficultyBand": 1
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Review the parent function f(x)=√x.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "domain",
+              "label": "Domain",
+              "type": "choice",
+              "options": [
+                "[0, ∞)",
+                "(−∞, ∞)",
+                "(0, ∞)"
+              ],
+              "answer": "[0, ∞)"
+            },
+            {
+              "id": "range",
+              "label": "Range",
+              "type": "choice",
+              "options": [
+                "[0, ∞)",
+                "(−∞, ∞)",
+                "(0, ∞)"
+              ],
+              "answer": "[0, ∞)"
+            }
+          ],
+          "dok": 1,
+          "difficultyBand": 1
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Review f(x)=2ˣ.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "intercept",
+              "label": "y-intercept",
+              "type": "choice",
+              "options": [
+                "(0, 1)",
+                "(1, 0)",
+                "(0, 2)"
+              ],
+              "answer": "(0, 1)"
+            },
+            {
+              "id": "asymptote",
+              "label": "Horizontal asymptote",
+              "type": "choice",
+              "options": [
+                "y=0",
+                "x=0",
+                "y=1"
+              ],
+              "answer": "y=0"
+            }
+          ],
+          "dok": 1,
+          "difficultyBand": 1
+        }
+      ]
+    },
+    {
+      "role": "classwork",
+      "title": "Classwork",
+      "questions": [
+        {
+          "standard": "A2.2A",
+          "prompt": "Read the transformed absolute-value graph and determine the values of a, h, and k.",
+          "studentActions": [
+            "analyzeTransformations"
+          ],
+          "transformation": {
+            "mode": "identify"
+          },
+          "function": {
+            "family": "absolute",
+            "a": 2,
+            "h": 3,
+            "k": -1
+          },
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Describe every vertical reflection, vertical scale, horizontal translation, and vertical translation in the transformed square-root graph.",
+          "studentActions": [
+            "analyzeTransformations"
+          ],
+          "transformation": {
+            "mode": "describe"
+          },
+          "function": {
+            "family": "squareRoot",
+            "a": -0.5,
+            "h": -2,
+            "k": 3
+          },
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Map the parent-function point (1, 1) through the cubic transformation y = 2(x − 1)³ − 1.",
+          "studentActions": [
+            "analyzeTransformations"
+          ],
+          "transformation": {
+            "mode": "pointMap"
+          },
+          "function": {
+            "family": "cubic",
+            "a": 2,
+            "h": 1,
+            "k": -1
+          },
+          "parentPoint": [
+            1,
+            1
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Adjust a, h, and k until your exponential graph matches the target transformation.",
+          "studentActions": [
+            "analyzeTransformations"
+          ],
+          "transformation": {
+            "mode": "match"
+          },
+          "family": "exponential",
+          "target": {
+            "a": 0.5,
+            "h": -1,
+            "k": 2,
+            "base": 2
+          },
+          "dok": 3,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Use the model g(x)=A·f(B(x−C))+D. Describe g(x)=f(x+3).",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "horizontal",
+              "label": "Horizontal translation",
+              "type": "choice",
+              "options": [
+                "left 3",
+                "right 3",
+                "none"
+              ],
+              "answer": "left 3"
+            },
+            {
+              "id": "vertical",
+              "label": "Vertical translation",
+              "type": "choice",
+              "options": [
+                "up 3",
+                "down 3",
+                "none"
+              ],
+              "answer": "none"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Describe the horizontal transformation g(x)=f(2x).",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "type",
+              "label": "Transformation",
+              "type": "choice",
+              "options": [
+                "horizontal compression",
+                "horizontal stretch",
+                "vertical stretch"
+              ],
+              "answer": "horizontal compression"
+            },
+            {
+              "id": "factor",
+              "label": "Scale factor",
+              "type": "choice",
+              "options": [
+                "1/2",
+                "2",
+                "−2"
+              ],
+              "answer": "1/2"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Describe g(x)=f(−x).",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "reflection",
+              "label": "Reflection",
+              "type": "choice",
+              "options": [
+                "across the y-axis",
+                "across the x-axis",
+                "across y=x"
+              ],
+              "answer": "across the y-axis"
+            },
+            {
+              "id": "translation",
+              "label": "Translation",
+              "type": "choice",
+              "options": [
+                "none",
+                "right 1",
+                "left 1"
+              ],
+              "answer": "none"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Describe every transformation in g(x)=−2f(x−1)+3.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "reflection",
+              "label": "Reflection",
+              "type": "choice",
+              "options": [
+                "across the x-axis",
+                "across the y-axis",
+                "none"
+              ],
+              "answer": "across the x-axis"
+            },
+            {
+              "id": "verticalScale",
+              "label": "Vertical scale",
+              "type": "choice",
+              "options": [
+                "stretch by 2",
+                "compression by 1/2",
+                "unchanged"
+              ],
+              "answer": "stretch by 2"
+            },
+            {
+              "id": "horizontal",
+              "label": "Horizontal translation",
+              "type": "choice",
+              "options": [
+                "right 1",
+                "left 1",
+                "none"
+              ],
+              "answer": "right 1"
+            },
+            {
+              "id": "vertical",
+              "label": "Vertical translation",
+              "type": "choice",
+              "options": [
+                "up 3",
+                "down 3",
+                "none"
+              ],
+              "answer": "up 3"
+            }
+          ],
+          "dok": 3,
+          "difficultyBand": 3
+        }
+      ]
+    },
+    {
+      "role": "practice",
+      "title": "Independent Practice",
+      "questions": [
+        {
+          "standard": "A2.2A",
+          "prompt": "Read the transformed reciprocal graph and determine a, h, and k.",
+          "studentActions": [
+            "analyzeTransformations"
+          ],
+          "transformation": {
+            "mode": "identify"
+          },
+          "function": {
+            "family": "rational",
+            "a": 3,
+            "h": -1,
+            "k": 2
+          },
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Describe every transformation shown by the transformed exponential graph.",
+          "studentActions": [
+            "analyzeTransformations"
+          ],
+          "transformation": {
+            "mode": "describe"
+          },
+          "function": {
+            "family": "exponential",
+            "a": -2,
+            "base": 2,
+            "h": 2,
+            "k": 1
+          },
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Map the parent-function point (4, 2) through y = 0.5√(x − 3) + 2.",
+          "studentActions": [
+            "analyzeTransformations"
+          ],
+          "transformation": {
+            "mode": "pointMap"
+          },
+          "function": {
+            "family": "squareRoot",
+            "a": 0.5,
+            "h": 3,
+            "k": 2
+          },
+          "parentPoint": [
+            4,
+            2
+          ],
+          "dok": 3,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Describe g(x)=f(x−5)−2.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "horizontal",
+              "label": "Horizontal translation",
+              "type": "choice",
+              "options": [
+                "right 5",
+                "left 5",
+                "none"
+              ],
+              "answer": "right 5"
+            },
+            {
+              "id": "vertical",
+              "label": "Vertical translation",
+              "type": "choice",
+              "options": [
+                "down 2",
+                "up 2",
+                "none"
+              ],
+              "answer": "down 2"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Describe g(x)=f(−2x)+1.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "reflection",
+              "label": "Horizontal reflection",
+              "type": "choice",
+              "options": [
+                "across the y-axis",
+                "across the x-axis",
+                "none"
+              ],
+              "answer": "across the y-axis"
+            },
+            {
+              "id": "scale",
+              "label": "Horizontal scale",
+              "type": "choice",
+              "options": [
+                "compression by 1/2",
+                "stretch by 2",
+                "unchanged"
+              ],
+              "answer": "compression by 1/2"
+            },
+            {
+              "id": "vertical",
+              "label": "Vertical translation",
+              "type": "choice",
+              "options": [
+                "up 1",
+                "down 1",
+                "none"
+              ],
+              "answer": "up 1"
+            }
+          ],
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Compare g(x)=3f(x+2)−4 to f(x).",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "verticalScale",
+              "label": "Vertical scale",
+              "type": "choice",
+              "options": [
+                "stretch by 3",
+                "compression by 1/3",
+                "unchanged"
+              ],
+              "answer": "stretch by 3"
+            },
+            {
+              "id": "horizontal",
+              "label": "Horizontal translation",
+              "type": "choice",
+              "options": [
+                "left 2",
+                "right 2",
+                "none"
+              ],
+              "answer": "left 2"
+            },
+            {
+              "id": "vertical",
+              "label": "Vertical translation",
+              "type": "choice",
+              "options": [
+                "down 4",
+                "up 4",
+                "none"
+              ],
+              "answer": "down 4"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 3
+        }
+      ]
+    },
+    {
+      "role": "dol",
+      "title": "DOL / Exit Ticket",
+      "questions": [
+        {
+          "standard": "A2.2A",
+          "prompt": "Read the transformed cube-root graph and determine a, h, and k.",
+          "studentActions": [
+            "analyzeTransformations"
+          ],
+          "transformation": {
+            "mode": "identify"
+          },
+          "function": {
+            "family": "cubeRoot",
+            "a": -2,
+            "h": 1,
+            "k": -3
+          },
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Describe g(x)=−f(3(x+2))+4.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "xreflection",
+              "label": "Horizontal reflection",
+              "type": "choice",
+              "options": [
+                "none",
+                "across the y-axis",
+                "across the x-axis"
+              ],
+              "answer": "none"
+            },
+            {
+              "id": "ysreflection",
+              "label": "Vertical reflection",
+              "type": "choice",
+              "options": [
+                "across the x-axis",
+                "across the y-axis",
+                "none"
+              ],
+              "answer": "across the x-axis"
+            },
+            {
+              "id": "hscale",
+              "label": "Horizontal scale",
+              "type": "choice",
+              "options": [
+                "compression by 1/3",
+                "stretch by 3",
+                "unchanged"
+              ],
+              "answer": "compression by 1/3"
+            },
+            {
+              "id": "horizontal",
+              "label": "Horizontal translation",
+              "type": "choice",
+              "options": [
+                "left 2",
+                "right 2",
+                "none"
+              ],
+              "answer": "left 2"
+            },
+            {
+              "id": "vertical",
+              "label": "Vertical translation",
+              "type": "choice",
+              "options": [
+                "up 4",
+                "down 4",
+                "none"
+              ],
+              "answer": "up 4"
+            }
+          ],
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Map the parent-function point (0, 1) through $y=-3*2^(x-2)+1$.",
+          "studentActions": [
+            "analyzeTransformations"
+          ],
+          "transformation": {
+            "mode": "pointMap"
+          },
+          "function": {
+            "family": "exponential",
+            "a": -3,
+            "base": 2,
+            "h": 2,
+            "k": 1
+          },
+          "parentPoint": [
+            0,
+            1
+          ],
+          "dok": 3,
+          "difficultyBand": 4
+        }
+      ]
+    }
+  ]
+}

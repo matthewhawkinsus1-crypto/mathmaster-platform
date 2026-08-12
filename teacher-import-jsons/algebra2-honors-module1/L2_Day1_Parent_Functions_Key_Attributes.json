@@ -1,0 +1,501 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Algebra II Honors — Lesson 2 Day 1: Parent Functions and Key Attributes",
+    "courseId": "algebra2",
+    "assignmentType": "notesClasswork",
+    "folder": "Algebra II/Module 1/Functions"
+  },
+  "activities": [
+    {
+      "role": "warmup",
+      "title": "Warm-Up",
+      "questions": [
+        {
+          "standard": "A2.7I",
+          "prompt": "Use the graph of f(x) = |x|. State the domain and range.",
+          "studentActions": [
+            "analyzeDomain",
+            "analyzeRange"
+          ],
+          "function": {
+            "family": "absolute",
+            "a": 1,
+            "h": 0,
+            "k": 0
+          },
+          "dok": 1,
+          "difficultyBand": 1
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "Use the graph of f(x) = x². State where the function is increasing and where it is decreasing.",
+          "studentActions": [
+            "analyzeIncreasing",
+            "analyzeDecreasing"
+          ],
+          "function": {
+            "family": "quadratic",
+            "a": 1,
+            "h": 0,
+            "k": 0
+          },
+          "dok": 1,
+          "difficultyBand": 1
+        },
+        {
+          "standard": "A2.7I",
+          "prompt": "For f(x)=2x+1, identify the domain and range.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "domain",
+              "label": "Domain",
+              "type": "choice",
+              "options": [
+                "(−∞, ∞)",
+                "[0, ∞)",
+                "(0, ∞)"
+              ],
+              "answer": "(−∞, ∞)"
+            },
+            {
+              "id": "range",
+              "label": "Range",
+              "type": "choice",
+              "options": [
+                "(−∞, ∞)",
+                "[1, ∞)",
+                "(0, ∞)"
+              ],
+              "answer": "(−∞, ∞)"
+            }
+          ],
+          "dok": 1,
+          "difficultyBand": 1
+        }
+      ]
+    },
+    {
+      "role": "classwork",
+      "title": "Classwork",
+      "questions": [
+        {
+          "standard": "A2.2A",
+          "prompt": "Analyze the parent function f(x)=|x|. State the domain, range, vertex, and minimum point.",
+          "studentActions": [
+            "analyzeDomain",
+            "analyzeRange",
+            "findVertex",
+            "findMinimum"
+          ],
+          "function": {
+            "family": "absolute",
+            "a": 1,
+            "h": 0,
+            "k": 0
+          },
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Analyze the parent function f(x)=√x. State the domain, range, x-intercept, and y-intercept.",
+          "studentActions": [
+            "analyzeDomain",
+            "analyzeRange",
+            "findXIntercepts",
+            "findYIntercept"
+          ],
+          "function": {
+            "family": "squareRoot",
+            "a": 1,
+            "h": 0,
+            "k": 0
+          },
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Analyze the parent function f(x)=x³. State the domain, range, and where it is increasing.",
+          "studentActions": [
+            "analyzeDomain",
+            "analyzeRange",
+            "analyzeIncreasing"
+          ],
+          "function": {
+            "family": "cubic",
+            "a": 1,
+            "h": 0,
+            "k": 0
+          },
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Analyze the parent function f(x)=∛x. State the domain, range, and where it is increasing.",
+          "studentActions": [
+            "analyzeDomain",
+            "analyzeRange",
+            "analyzeIncreasing"
+          ],
+          "function": {
+            "family": "cubeRoot",
+            "a": 1,
+            "h": 0,
+            "k": 0
+          },
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Analyze the reciprocal parent function f(x)=1/x. State the domain, range, where it is positive, and where it is negative.",
+          "studentActions": [
+            "analyzeDomain",
+            "analyzeRange",
+            "analyzePositive",
+            "analyzeNegative"
+          ],
+          "function": {
+            "family": "rational",
+            "a": 1,
+            "h": 0,
+            "k": 0
+          },
+          "dok": 3,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Analyze the exponential parent function f(x)=2ˣ. State the domain, range, y-intercept, and where it is increasing.",
+          "studentActions": [
+            "analyzeDomain",
+            "analyzeRange",
+            "findYIntercept",
+            "analyzeIncreasing"
+          ],
+          "function": {
+            "family": "exponential",
+            "a": 1,
+            "base": 2,
+            "h": 0,
+            "k": 0
+          },
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Analyze the logarithmic parent function f(x)=log₂(x). State the domain, range, x-intercept, and where it is increasing.",
+          "studentActions": [
+            "analyzeDomain",
+            "analyzeRange",
+            "findXIntercepts",
+            "analyzeIncreasing"
+          ],
+          "function": {
+            "family": "logarithmic",
+            "a": 1,
+            "base": 2,
+            "h": 0,
+            "k": 0
+          },
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Connect each parent function to its asymptotic behavior.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "reciprocal",
+              "label": "For f(x)=1/x",
+              "type": "choice",
+              "options": [
+                "vertical x=0 and horizontal y=0",
+                "horizontal y=1 only",
+                "no asymptotes"
+              ],
+              "answer": "vertical x=0 and horizontal y=0"
+            },
+            {
+              "id": "exponential",
+              "label": "For f(x)=2ˣ",
+              "type": "choice",
+              "options": [
+                "horizontal y=0",
+                "vertical x=0",
+                "no asymptotes"
+              ],
+              "answer": "horizontal y=0"
+            },
+            {
+              "id": "logarithmic",
+              "label": "For f(x)=log₂(x)",
+              "type": "choice",
+              "options": [
+                "vertical x=0",
+                "horizontal y=0",
+                "no asymptotes"
+              ],
+              "answer": "vertical x=0"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 3
+        }
+      ]
+    },
+    {
+      "role": "practice",
+      "title": "Independent Practice",
+      "questions": [
+        {
+          "standard": "A2.2A",
+          "prompt": "Identify the family and key attributes of f(x)=√x.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "family",
+              "label": "Parent family",
+              "type": "choice",
+              "options": [
+                "square root",
+                "cube root",
+                "absolute value",
+                "reciprocal"
+              ],
+              "answer": "square root"
+            },
+            {
+              "id": "domain",
+              "label": "Domain",
+              "type": "choice",
+              "options": [
+                "[0, ∞)",
+                "(−∞, ∞)",
+                "(0, ∞)"
+              ],
+              "answer": "[0, ∞)"
+            },
+            {
+              "id": "range",
+              "label": "Range",
+              "type": "choice",
+              "options": [
+                "[0, ∞)",
+                "(−∞, ∞)",
+                "(0, ∞)"
+              ],
+              "answer": "[0, ∞)"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Identify the family and key attributes of f(x)=1/x.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "family",
+              "label": "Parent family",
+              "type": "choice",
+              "options": [
+                "reciprocal",
+                "exponential",
+                "logarithmic",
+                "cubic"
+              ],
+              "answer": "reciprocal"
+            },
+            {
+              "id": "domain",
+              "label": "Domain",
+              "type": "choice",
+              "options": [
+                "(−∞, 0) ∪ (0, ∞)",
+                "(−∞, ∞)",
+                "(0, ∞)"
+              ],
+              "answer": "(−∞, 0) ∪ (0, ∞)"
+            },
+            {
+              "id": "range",
+              "label": "Range",
+              "type": "choice",
+              "options": [
+                "(−∞, 0) ∪ (0, ∞)",
+                "(−∞, ∞)",
+                "[0, ∞)"
+              ],
+              "answer": "(−∞, 0) ∪ (0, ∞)"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Use the graph of f(x)=−√x. State the domain, range, and whether the function is increasing or decreasing.",
+          "studentActions": [
+            "analyzeDomain",
+            "analyzeRange",
+            "analyzeIncreasing",
+            "analyzeDecreasing"
+          ],
+          "function": {
+            "family": "squareRoot",
+            "a": -1,
+            "h": 0,
+            "k": 0
+          },
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Use the graph of f(x)=(1/2)ˣ. State the domain, range, and whether the function is increasing or decreasing.",
+          "studentActions": [
+            "analyzeDomain",
+            "analyzeRange",
+            "analyzeIncreasing",
+            "analyzeDecreasing"
+          ],
+          "function": {
+            "family": "exponential",
+            "a": 1,
+            "base": 0.5,
+            "h": 0,
+            "k": 0
+          },
+          "dok": 3,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Use the graph of f(x)=log₁⁄₂(x). State the domain, range, and whether the function is increasing or decreasing.",
+          "studentActions": [
+            "analyzeDomain",
+            "analyzeRange",
+            "analyzeIncreasing",
+            "analyzeDecreasing"
+          ],
+          "function": {
+            "family": "logarithmic",
+            "a": 1,
+            "base": 0.5,
+            "h": 0,
+            "k": 0
+          },
+          "dok": 3,
+          "difficultyBand": 4
+        }
+      ]
+    },
+    {
+      "role": "dol",
+      "title": "DOL / Exit Ticket",
+      "questions": [
+        {
+          "standard": "A2.2A",
+          "prompt": "Analyze f(x)=1/x. State its domain, range, and intervals where it is decreasing.",
+          "studentActions": [
+            "analyzeDomain",
+            "analyzeRange",
+            "analyzeDecreasing"
+          ],
+          "function": {
+            "family": "rational",
+            "a": 1,
+            "h": 0,
+            "k": 0
+          },
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "Identify the parent function from its equation and one defining attribute.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "family",
+              "label": "For f(x)=∛x, the family is",
+              "type": "choice",
+              "options": [
+                "cube root",
+                "cubic",
+                "square root",
+                "logarithmic"
+              ],
+              "answer": "cube root"
+            },
+            {
+              "id": "attribute",
+              "label": "Which is true?",
+              "type": "choice",
+              "options": [
+                "domain and range are both all real numbers",
+                "domain is x≥0",
+                "range is y≥0",
+                "x=0 is a vertical asymptote"
+              ],
+              "answer": "domain and range are both all real numbers"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A2.2A",
+          "prompt": "For f(x)=2ˣ and g(x)=log₂(x), identify the matching asymptotes.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "exp",
+              "label": "Asymptote of f",
+              "type": "choice",
+              "options": [
+                "y=0",
+                "x=0",
+                "y=1"
+              ],
+              "answer": "y=0"
+            },
+            {
+              "id": "log",
+              "label": "Asymptote of g",
+              "type": "choice",
+              "options": [
+                "x=0",
+                "y=0",
+                "x=1"
+              ],
+              "answer": "x=0"
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 3
+        }
+      ]
+    }
+  ]
+}

@@ -88,8 +88,17 @@ export const sameIntervals = (left, right) => {
 // different bracket spacing, "inf"/"infinity"/"∞", "U"/"∪" for union, and a
 // hyphen or minus sign.
 export const parseIntervalNotation = (text) => {
+  // MathLive serializes the same visible interval in several LaTeX forms.
+  // Normalize those forms before parsing so a student who uses MathMaster's
+  // own ∞/∪/bracket buttons is graded the same as a student who types Unicode.
   const raw = String(text || '')
     .replace(/[−–—]/g, '-')
+    .replace(/\\left|\\right/g, '')
+    .replace(/\\lbrack/g, '[')
+    .replace(/\\rbrack/g, ']')
+    .replace(/\\infty/g, '∞')
+    .replace(/\\cup/g, '∪')
+    .replace(/\\(?:,|;|!|quad|qquad)/g, '')
     .replace(/infinity|infty|inf/gi, '∞')
     .replace(/\bU\b/g, '∪')
     .trim();

@@ -22,6 +22,20 @@ const MOBILE_ENTRY_KEYS = [
   { label: '⌫', action: 'deleteBackward', ariaLabel: 'Delete previous character' },
 ];
 
+const FUNCTION_KEYS = [
+  { label: 'x', command: 'x', ariaLabel: 'Insert x' },
+  { label: 'y', command: 'y', ariaLabel: 'Insert y' },
+  { label: 't', command: 't', ariaLabel: 'Insert t' },
+  { label: 'n', command: 'n', ariaLabel: 'Insert n' },
+  { label: 'M', command: 'M', ariaLabel: 'Insert capital M' },
+  { label: 'V', command: 'V', ariaLabel: 'Insert capital V' },
+  { label: 'C', command: 'C', ariaLabel: 'Insert capital C' },
+  { label: '(', command: '(', ariaLabel: 'Insert open parenthesis' },
+  { label: ')', command: ')', ariaLabel: 'Insert close parenthesis' },
+  { label: 'f(x)', command: 'f(x)', ariaLabel: 'Insert f of x' },
+  { label: 'g(x)', command: 'g(x)', ariaLabel: 'Insert g of x' },
+];
+
 const INTERVAL_KEYS = [
   { label: '(', command: '(', ariaLabel: 'Insert open parenthesis' },
   { label: ')', command: ')', ariaLabel: 'Insert close parenthesis' },
@@ -30,7 +44,6 @@ const INTERVAL_KEYS = [
   { label: '−∞', command: '-\\infty', ariaLabel: 'Insert negative infinity' },
   { label: '∞', command: '\\infty', ariaLabel: 'Insert positive infinity' },
   { label: '∪', command: '\\cup', ariaLabel: 'Insert union' },
-  { label: '∩', command: '\\cap', ariaLabel: 'Insert intersection' },
 ];
 
 
@@ -50,13 +63,13 @@ const INEQUALITY_KEYS = [
   { label: '−∞', command: '-\\infty', ariaLabel: 'Insert negative infinity' },
   { label: '∞', command: '\\infty', ariaLabel: 'Insert positive infinity' },
   { label: '∪', command: '\\cup', ariaLabel: 'Insert union' },
-  { label: '∩', command: '\\cap', ariaLabel: 'Insert intersection' },
 ];
 
 const getToolKeys = (profile) => {
   if (profile === 'interval') return INTERVAL_KEYS;
   if (profile === 'inequality') return INEQUALITY_KEYS;
   if (profile === 'set') return [...SET_KEYS, ...INEQUALITY_KEYS, ...INTERVAL_KEYS.filter((item) => ['(', ')', '[', ']'].includes(item.label))];
+  if (profile === 'function') return [...FUNCTION_KEYS, ...BASIC_KEYS];
   if (profile === 'basic+set') return [...BASIC_KEYS, ...SET_KEYS, ...INEQUALITY_KEYS];
   return BASIC_KEYS;
 };
@@ -99,7 +112,11 @@ export default function MathInput({
     if (!mathField) return undefined;
 
     mathField.mathVirtualKeyboardPolicy = 'manual';
-    if (isMobile) mathField.setAttribute('inputmode', 'none');
+    // Most math responses use MathMaster's controlled mobile keypad. Function
+    // rules are different: students may legitimately need arbitrary letters
+    // such as M, V, C, t or n. Keep the device keyboard available there while
+    // still providing the math toolbar.
+    if (isMobile && toolProfile !== 'function') mathField.setAttribute('inputmode', 'none');
     else mathField.removeAttribute('inputmode');
     mathField.menuItems = [];
     mathField.smartFence = true;
@@ -126,7 +143,7 @@ export default function MathInput({
       mathField.removeEventListener('keydown', preventUnusedModes, { capture: true });
       mathField.removeEventListener('contextmenu', preventContextMenu);
     };
-  }, [placeholder, isMobile]);
+  }, [placeholder, isMobile, toolProfile]);
 
   useEffect(() => {
     if (mfRef.current && mfRef.current.value !== value) mfRef.current.value = value || '';
@@ -177,7 +194,7 @@ export default function MathInput({
         ref={mfRef}
         aria-label={ariaLabel || placeholder || 'Math answer'}
         math-virtual-keyboard-policy="manual"
-        inputmode={isMobile ? 'none' : undefined}
+        inputmode={isMobile && toolProfile !== 'function' ? 'none' : undefined}
         onFocus={() => { if (isMobile) setShowTools(true); }}
         style={{
           display: 'block',
