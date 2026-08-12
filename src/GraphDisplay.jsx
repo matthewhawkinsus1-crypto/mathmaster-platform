@@ -1,5 +1,5 @@
 import QuestionPrompt from './QuestionPrompt';
-import { evaluateStaticGraphFunction, fitStaticGraphViewport } from './graphSpecUtils';
+import { evaluateStaticGraphFunction, fitStaticGraphViewport, resolvePointFill, resolvePointRadius } from './graphSpecUtils';
 
 const DEFAULT_WIDTH = 620;
 const DEFAULT_HEIGHT = 430;
@@ -293,7 +293,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph' }) {
           if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
           return (
             <g key={`point-${index}`}>
-              <circle cx={toScreenX(x)} cy={toScreenY(y)} r={Number(point.radius) || 5} fill={point.fill || '#d93025'} stroke="#fff" strokeWidth="2" />
+              <circle cx={toScreenX(x)} cy={toScreenY(y)} r={resolvePointRadius(point, 5)} fill={resolvePointFill(point, '#d93025')} stroke="#fff" strokeWidth="2" />
               {!Array.isArray(point) && point.label && (
                 <text x={toScreenX(x) + 9} y={toScreenY(y) - 9} fontSize="13" fontWeight="bold" fill="#3c4043">
                   {point.label}

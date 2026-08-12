@@ -32,3 +32,27 @@ test('representationMatch completeSet requires authored sets instead of hidden f
   });
   assert.equal(valid.isValid,true,valid.errors.join('; '));
 });
+
+test('a graphing2 standard-form question keeps its coefficients through the blueprint parse', async () => {
+  // `standard` means two different things in this codebase: a TEKS shorthand on
+  // an ordinary question, and the A/B/C coefficients of Ax + By = C on
+  // graphing2. Reading the object as a code stringified it into an alignment of
+  // "[object Object]" and deleted the coefficients, so the question reached the
+  // student with no equation and reported mastery against a standard that does
+  // not exist.
+  const { parseAssignmentBlueprintText } = await import('../../src/assignmentBlueprint.js');
+  const parsed = parseAssignmentBlueprintText(JSON.stringify([
+    { toolId: 'graphing2', mode: 'standardForm', standard: { A: 2, B: 1, C: 4 } },
+    { type: 'algebra', prompt: 'Solve for x.', equationLatex: '2x = 8', answer: '4', standard: 'A.5A' },
+  ]));
+
+  assert.deepEqual(parsed.questions[0].standard, { A: 2, B: 1, C: 4 }, 'coefficients must survive');
+  assert.equal(parsed.questions[0].alignments, undefined, 'coefficients are not a standards alignment');
+  assert.equal(validateToolQuestion(parsed.questions[0]).isValid, true);
+
+  // The genuine shorthand still compiles, and is still consumed.
+  assert.deepEqual(parsed.questions[1].alignments, [
+    { framework: 'teks', code: 'A.5A', role: 'primary', evidenceLevel: 'assessed' },
+  ]);
+  assert.equal(parsed.questions[1].standard, undefined);
+});

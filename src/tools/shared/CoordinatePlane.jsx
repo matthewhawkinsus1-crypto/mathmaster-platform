@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { clientPointToGraphCoordinate } from '../../utils/responsiveCoordinates.js';
+import { resolvePointFill, resolvePointRadius } from '../../graphSpecUtils';
 
 // Shared by every Batch A-D tool, so an unguarded window froze three labs at
 // once. A step of 0/NaN never terminates, and a legitimate step across a huge
@@ -278,10 +279,12 @@ export default function CoordinatePlane({
 
         {points.map((point, index) => {
           const hovered = hoveredPointIndex === index;
+          const pointFill = resolvePointFill(point, '#1a73e8');
+          const pointRadius = resolvePointRadius(point, 6);
           return (
             <g key={`p${index}`} onPointerEnter={() => setHoveredPointIndex(index)} onPointerLeave={() => setHoveredPointIndex(null)}>
-              {hovered ? <circle cx={sx(point[0])} cy={sy(point[1])} r={(point.r || 6) + 6} fill={point.fill || '#1a73e8'} opacity="0.18" /> : null}
-              <circle cx={sx(point[0])} cy={sy(point[1])} r={hovered ? (point.r || 6) + 2 : (point.r || 6)} fill={point.fill || '#1a73e8'} stroke="#fff" strokeWidth="2" />
+              {hovered ? <circle cx={sx(point[0])} cy={sy(point[1])} r={pointRadius + 6} fill={pointFill} opacity="0.18" /> : null}
+              <circle cx={sx(point[0])} cy={sy(point[1])} r={hovered ? pointRadius + 2 : pointRadius} fill={pointFill} stroke="#fff" strokeWidth="2" />
               {point.label ? <text x={sx(point[0]) + 10} y={sy(point[1]) - 9} fontSize="11" fontWeight="700" fill="#24324a">{point.label}</text> : null}
               {hovered ? <text x={sx(point[0]) + 10} y={sy(point[1]) + 16} fontSize="11" fill="#24324a">{formatCoordinate(point)}</text> : null}
             </g>

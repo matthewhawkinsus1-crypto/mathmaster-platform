@@ -786,7 +786,20 @@ const normalizeQuestionStorageShapes = (questions, repairs = []) => (Array.isArr
   // inherit one assignment-level standard across every question: primary
   // alignment remains question-specific.
   if (!Array.isArray(next.alignments) || next.alignments.length === 0) {
-    const primaryStandard = String(next.standard || next.primaryStandard || '').trim();
+    // `standard` is not exclusively a standards field. `graphing2` in
+    // standardForm mode carries `standard: { A, B, C }` — the coefficients of
+    // Ax + By = C — and reading that as a TEKS code stringified the object into
+    // an alignment of "[object Object]" and then DELETED the coefficients, so
+    // the question arrived at the student with no equation and reported mastery
+    // against a standard that does not exist.
+    //
+    // Only a string shaped like a standards code is treated as the shorthand,
+    // and only the key it actually came from is consumed.
+    const looksLikeStandardCode = (value) => typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9.\-_]*$/.test(value.trim());
+    const fromKey = looksLikeStandardCode(next.primaryStandard)
+      ? 'primaryStandard'
+      : looksLikeStandardCode(next.standard) ? 'standard' : null;
+    const primaryStandard = fromKey ? String(next[fromKey]).trim() : '';
     const secondaryStandards = Array.isArray(next.secondaryStandards) ? next.secondaryStandards : [];
     const prerequisiteStandards = Array.isArray(next.prerequisiteStandards) ? next.prerequisiteStandards : [];
     if (primaryStandard) {
@@ -795,8 +808,7 @@ const normalizeQuestionStorageShapes = (questions, repairs = []) => (Array.isArr
         ...secondaryStandards.filter(Boolean).map((code) => ({ framework: 'teks', code: String(code), role: 'secondary', evidenceLevel: 'practiced' })),
         ...prerequisiteStandards.filter(Boolean).map((code) => ({ framework: 'teks', code: String(code), role: 'prerequisite', evidenceLevel: 'practiced' })),
       ];
-      delete next.standard;
-      delete next.primaryStandard;
+      delete next[fromKey];
       delete next.secondaryStandards;
       delete next.prerequisiteStandards;
       delete next.evidenceLevel;

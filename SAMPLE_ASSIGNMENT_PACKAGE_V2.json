@@ -227,7 +227,7 @@
     },
     {
       "type": "relationshipModel",
-      "prompt": "Music Downloads — identify the quantities and describe how the graph should be labeled.",
+      "prompt": "Music Downloads — identify the quantities and describe how the graph should be labeled, and classify the relationship as discrete or continuous.",
       "scenario": "A music service charges $1 for each song purchased.",
       "quantities": [
         {
@@ -316,7 +316,7 @@
     },
     {
       "type": "relationshipModel",
-      "prompt": "Aquarium Draining — identify the quantities, label the graph, choose a reasonable scale, and interpret the starting point.",
+      "prompt": "Aquarium Draining — identify the quantities, label the graph, choose a reasonable scale, and interpret the starting point, and classify the relationship as discrete or continuous.",
       "scenario": "A 200-gallon aquarium is drained at a constant rate of 10 gallons per minute.",
       "quantities": [
         {
@@ -409,7 +409,7 @@
     },
     {
       "type": "relationshipModel",
-      "prompt": "Doubling Interest — identify the quantities and explain the graph's starting value.",
+      "prompt": "Doubling Interest — identify the quantities and explain the graph's starting value, and classify the relationship as discrete or continuous.",
       "scenario": "Interest begins at $1 and doubles after each week.",
       "quantities": [
         {
@@ -501,7 +501,7 @@
     },
     {
       "type": "relationshipModel",
-      "prompt": "Repeated Halving — identify the quantities and describe the graph's starting value.",
+      "prompt": "Repeated Halving — identify the quantities and describe the graph's starting value, and classify the relationship as discrete or continuous.",
       "scenario": "A 20-foot piece of rope is repeatedly cut so that the remaining piece is half as long after each cut.",
       "quantities": [
         {
@@ -598,7 +598,7 @@
     },
     {
       "type": "relationshipModel",
-      "prompt": "Baton Toss — identify the quantities, label the axes, and interpret the beginning of the motion.",
+      "prompt": "Baton Toss — identify the quantities, label the axes, and interpret the beginning of the motion, and classify the relationship as discrete or continuous.",
       "scenario": "A baton rises, reaches a maximum height of 22 feet, and returns to its starting height after 2 seconds.",
       "quantities": [
         {
@@ -691,7 +691,7 @@
     },
     {
       "type": "relationshipModel",
-      "prompt": "Half-Pipe Ride — identify the quantities, label the axes, choose a reasonable scale, and interpret the starting point.",
+      "prompt": "Half-Pipe Ride — identify the quantities, label the axes, choose a reasonable scale, and interpret the starting point, and classify the relationship as discrete or continuous.",
       "scenario": "A skateboarder starts 4 feet above the ground, moves down to the bottom of a half-pipe, and rises back to 4 feet.",
       "quantities": [
         {

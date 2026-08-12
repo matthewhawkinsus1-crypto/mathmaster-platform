@@ -27,7 +27,7 @@ form, student-selected graph x-values, undefined inputs, rational branches, mult
 graph analysis, partial-credit fields, systems, global Undo, and the scratchpad.
 
 See `SCRATCHPAD_MULTIPART_UNDO_ARCHITECTURE.md` for the complete design and
-`VALIDATION_REPORT_SCRATCHPAD_MULTIPART_UNDO.txt` for test results.
+`docs/handoffs/VALIDATION_REPORT_SCRATCHPAD_MULTIPART_UNDO.txt` for test results.
 
 ## Google Classroom sync
 

@@ -83,7 +83,7 @@
   },
   {
     "type": "relationshipModel",
-    "prompt": "Aquarium draining: identify the quantities and model the starting value and scale.",
+    "prompt": "Aquarium draining: identify the quantities and model the starting value and scale, and classify the relationship as discrete or continuous.",
     "scenario": "A 200-gallon aquarium drains at a constant rate of 10 gallons per minute.",
     "quantities": [
       {

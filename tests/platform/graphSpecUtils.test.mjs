@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import {
+  resolvePointFill,
+  resolvePointRadius,
   auditStaticGraphViewport,
   evaluateStaticGraphFunction,
   fitStaticGraphViewport,
@@ -48,3 +50,25 @@ assert.ok(omittedWindow.xMin < 0 && omittedWindow.xMax > 0, 'MathMaster chooses 
 assert.ok(omittedWindow.yMax > 2, 'MathMaster chooses a useful y-window from the function');
 
 console.log('graphSpecUtils.test.mjs: all assertions passed');
+
+// A plotted point arrives either as [x, y] or as an object carrying its own
+// styling, and reading `.fill` off the array form is a trap: on an ARRAY,
+// `.fill` is Array.prototype.fill. It is a function and it is truthy, so
+// `point.fill || fallback` returned the built-in method, React refused it as an
+// attribute value and dropped it, and every point plotted from an array pair
+// rendered with no fill. The only symptom was a dev-mode warning.
+assert.equal(resolvePointFill([2, 3], '#1a73e8'), '#1a73e8',
+  'an array pair has no authored fill, whatever Array.prototype says');
+assert.equal(typeof resolvePointFill([2, 3], '#1a73e8'), 'string',
+  'the resolved fill is always something React can render');
+assert.equal(resolvePointFill({ fill: '#d93025' }, '#1a73e8'), '#d93025');
+assert.equal(resolvePointFill({ fill: '' }, '#1a73e8'), '#1a73e8');
+assert.equal(resolvePointFill({ fill: { r: 1 } }, '#1a73e8'), '#1a73e8', 'an object is not a colour');
+assert.equal(resolvePointFill(undefined, '#1a73e8'), '#1a73e8');
+
+assert.equal(resolvePointRadius([2, 3], 6), 6);
+assert.equal(resolvePointRadius({ r: 9 }, 6), 9);
+assert.equal(resolvePointRadius({ radius: 4 }, 6), 4);
+assert.equal(resolvePointRadius({ r: 'wide' }, 6), 6, 'never NaN into an SVG attribute');
+
+console.log('graphSpecUtils.test.mjs: point-style assertions passed');

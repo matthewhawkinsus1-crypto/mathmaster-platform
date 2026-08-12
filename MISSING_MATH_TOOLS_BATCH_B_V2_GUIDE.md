@@ -147,7 +147,7 @@ Permanent tests were added at:
 
 They cover polynomial arithmetic, factoring, graph behavior, rational cancellation, polynomial/rational sign logic, extraneous-solution checking, vertical/horizontal parabola geometry, equidistance, focus/directrix reconstruction, and schema rejection cases.
 
-See `MISSING_MATH_TOOLS_BATCH_B_V2_VALIDATION_REPORT.txt` for the full validation result.
+See `docs/handoffs/MISSING_MATH_TOOLS_BATCH_B_V2_VALIDATION_REPORT.txt` for the full validation result.
 
 ---
 

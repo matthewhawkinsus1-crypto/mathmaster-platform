@@ -160,7 +160,7 @@ Permanent tests:
 
 They cover sequence nth terms, inference, explicit/recursive structure, finite sums and comparisons; complex arithmetic, division, powers, rotations and roots; exponential/log translations, equation solving, inverse features and composition; plus Batch C schema accept/reject cases.
 
-See `MISSING_MATH_TOOLS_BATCH_C_V2_VALIDATION_REPORT.txt` for the final validation result.
+See `docs/handoffs/MISSING_MATH_TOOLS_BATCH_C_V2_VALIDATION_REPORT.txt` for the final validation result.
 
 ---
 

@@ -168,7 +168,7 @@ Permanent tests:
 
 The permanent math-tool suite now contains 56 tests. Batch D tests cover transformation mapping/descriptors/anchors; representation matching/table auditing; function-specific features/domain/range/intercepts/behavior/comparison; line conversion/construction evidence; and schema accept/reject cases.
 
-See `MISSING_MATH_TOOLS_BATCH_D_V2_VALIDATION_REPORT.txt` for final verification.
+See `docs/handoffs/MISSING_MATH_TOOLS_BATCH_D_V2_VALIDATION_REPORT.txt` for final verification.
 
 ---
 

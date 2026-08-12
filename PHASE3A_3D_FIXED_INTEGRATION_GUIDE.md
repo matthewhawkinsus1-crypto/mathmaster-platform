@@ -75,4 +75,4 @@ npx vite build --ssr src/toolsLabMain.jsx
 npx vite build --ssr src/components/teacher/LessonPreflightModal.jsx
 ```
 
-See `PHASE3A_3D_FIXED_VALIDATION_REPORT.txt` for the recorded results.
+See `docs/handoffs/PHASE3A_3D_FIXED_VALIDATION_REPORT.txt` for the recorded results.

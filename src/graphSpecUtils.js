@@ -313,3 +313,24 @@ export const auditStaticGraphViewport = (graph = {}, { label = 'graph', strictBo
 
   return { errors, warnings };
 };
+
+/**
+ * The colour a plotted point should be drawn in.
+ *
+ * A point arrives either as `[x, y]` or as an object carrying its own styling,
+ * and `point.fill` has to be read carefully: on an ARRAY, `.fill` is
+ * `Array.prototype.fill`. That is a function, and it is truthy, so
+ * `point.fill || fallback` returned the built-in method. React refuses a
+ * function as an attribute value and drops the attribute, so every point
+ * plotted from an array pair rendered with no fill at all — silently, because
+ * the only symptom was a dev-mode warning and a colourless dot.
+ */
+export const resolvePointFill = (point, fallback) => (
+  typeof point?.fill === 'string' && point.fill ? point.fill : fallback
+);
+
+/** The radius for a plotted point, from either shape, never NaN. */
+export const resolvePointRadius = (point, fallback) => {
+  const radius = Number(point?.r ?? point?.radius);
+  return Number.isFinite(radius) && radius > 0 ? radius : fallback;
+};
