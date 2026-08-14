@@ -173,6 +173,29 @@ const typeRecipeSection = () => {
   return section('How to build each question type', lines);
 };
 
+
+const instructionalScopeSection = () => section('Instructional scope and lesson depth', [
+  line('**A familiar word does not authorize a later-course or later-unit skill.**'),
+  '',
+  line('Match not only the topic, but the depth at which the supplied lesson teaches it.'),
+  bullet('Exposure: students see/hear the idea or vocabulary.'),
+  bullet('Recognition/classification: students identify the feature on a graph or sort examples by it.'),
+  bullet('Analysis: students calculate or state exact values/intervals associated with the feature.'),
+  bullet('Construction: students create an equation/model from the feature.'),
+  '',
+  line('Never jump upward in that sequence unless the source lesson explicitly does so.'),
+  line('Example: a lesson may introduce "absolute maximum/minimum" so students can sort quadratic graphs by that characteristic. That does NOT automatically authorize finding the exact maximum value, solving for a vertex, or constructing an equation from a prescribed extremum.'),
+  line('Likewise, a lesson may discuss a graph as increasing/decreasing without authorizing formal increasing/decreasing intervals in interval notation.'),
+  '',
+  bullet('Scaffolding may reach DOWN to prerequisite skills already taught in earlier grades/courses.'),
+  bullet('Scaffolding must never reach UP into a later course/unit merely because MathMaster has a tool capable of it.'),
+  bullet('For Algebra I, do not require formal increasing/decreasing/positive/negative intervals in interval notation unless MathMaster has an explicit later-course/extension authorization.'),
+  bullet('For Algebra I domain/range, preserve the representation used by the source lesson; do not silently upgrade inequalities/sets/verbal descriptions into interval notation.'),
+  bullet('If the source only asks students to recognize a family characteristic, use comparison/classification controls rather than `findMaximum`, `findMinimum`, or an equation-construction task.'),
+  '',
+  line('MathMaster Preflight contains a lesson-depth guard for curated curriculum lessons. If it rejects a question as beyond the current lesson depth, rewrite the question at the source lesson\'s level rather than deleting the guardrail.'),
+]);
+
 const fidelitySection = () => section('Source representation fidelity', [
   line('**This is the most important rule in this document.**'),
   '',
@@ -190,6 +213,8 @@ const fidelitySection = () => section('Source representation fidelity', [
   bullet('Never replace "analyse the displayed graph" with prose describing what the graph does.'),
   bullet('Use a prose description of a graph only when interpreting a verbal situation is itself the intended skill.'),
   bullet('When MathMaster has an interactive tool that fits the source task, prefer it over a generic response question.'),
+  bullet('When the lesson objective is graphical behavior, the student must actually see the graph. Do not replace graph reading with equation-to-graph inference unless that representation transfer has already been taught in the lesson.'),
+  bullet('For V5 questions, use `assessedConstruct: "graphicalBehavior"` when behavior/shape is the target. MathMaster can then enforce that a visible `graph` or `function` is supplied for lessons whose representation scope requires graph reading.'),
   '',
   line('**The specific mistake to avoid.** If you find yourself writing a prompt like'),
   line('"A graph falls from left to right until x = 2, then rises" — stop. That is a graph'),
@@ -896,6 +921,7 @@ export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = nu
   '',
   '## Student-experience rules',
   '- Preserve source representation. If the source shows a graph, table, number line, mapping, or ordered pairs, the student must see that representation.',
+  '- Representation fidelity is checked independently from topic alignment. If the lesson is about analyzing displayed graphs, do not ask students to infer behavior/shape from an equation alone. Supply `graph` or `function` and, when useful, set `assessedConstruct: "graphicalBehavior"`.',
   '- Preserve source verbs. If students are asked to write, complete, graph, classify, explain, and compare, do not silently delete actions because a simpler response box is easier.',
   '- Use finite choices for categories such as linear/quadratic/exponential, finite/infinite, discrete/continuous, and yes/no when the source does not require written explanation.',
   '- Prompts are plain text. Use Unicode math such as ≤, ≥, ∞, ×, π, √, ∪, ½. Ordinary currency such as $6 is fine.',

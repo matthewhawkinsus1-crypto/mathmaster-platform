@@ -1,3 +1,4 @@
+import { validateInstructionalScopeV5 } from '../curriculum/instructionalScope.js';
 import { looksLikeFiniteSetNotation } from '../../../functions/shared/answerEquivalence.mjs';
 import { normalizeStaticGraphPoints } from '../../graphPointUtils.js';
 
@@ -590,7 +591,7 @@ const compileOne = (q, index, repairs) => {
       break;
     case 'multiAnswer': {
       const fields = q.answerFields || q.responses || q.response?.fields || [];
-      out = copyCommon(q, { type, answerFields: fields.map(fieldFromIntent), table: q.table, graph: normalizeStaticGraphPoints(q.graph), visual: q.visual, mathDisplay: q.mathDisplay });
+      out = copyCommon(q, { type, answerFields: fields.map(fieldFromIntent), table: q.table, graph: graphFromIntent(q), visual: q.visual, mathDisplay: q.mathDisplay });
       break;
     }
     case 'relationshipModel':
@@ -745,6 +746,10 @@ const compileOne = (q, index, repairs) => {
 export const compileAuthoringIntentV5 = (input = {}) => {
   if (!isObject(input)) throw new Error('Authoring Intent V5 must be a JSON object.');
   if (Number(input.schemaVersion) !== 5) return { package: input, repairs: [], decisions: [] };
+  const scope = validateInstructionalScopeV5(input);
+  if (scope.errors.length) {
+    throw new Error(`Instructional scope check failed:\n- ${scope.errors.join('\n- ')}`);
+  }
   const repairs = [];
   const decisions = [];
   const assignment = { ...(input.assignment || {}) };
