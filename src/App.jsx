@@ -3437,6 +3437,7 @@ function App() {
       return { index, visiblePosition, sectionPosition, question, role, isTimedDOLQuestion };
     });
     const sectionQuestionIsComplete = (index) => ['correct', 'expired'].includes(normalizeQuestionRecord(workingTracker?.[index]).status);
+    const sectionQuestionIsCorrect = (index) => normalizeQuestionRecord(workingTracker?.[index]).status === 'correct';
     const navigationSections = visibleQuestionEntries.reduce((sections, entry) => {
       const previous = sections[sections.length - 1];
       if (previous?.role === entry.role) previous.entries.push(entry);
@@ -3445,6 +3446,7 @@ function App() {
     }, []).map((section) => ({
       ...section,
       complete: section.entries.length > 0 && section.entries.every((entry) => sectionQuestionIsComplete(entry.index)),
+      allCorrect: section.entries.length > 0 && section.entries.every((entry) => sectionQuestionIsCorrect(entry.index)),
     }));
     const currentSectionMeta = activitySectionMeta[activeQuestionRole] || {
       label: String(activeQuestionRole || 'Activity').replace(/(^|\s)\S/g, (letter) => letter.toUpperCase()),
@@ -3499,6 +3501,20 @@ function App() {
     const nextQuestionEntry = findNeighbor(1);
     const nextQuestionSectionMeta = nextQuestionEntry ? (activitySectionMeta[nextQuestionEntry.role] || { label: nextQuestionEntry.role }) : null;
     const nextQuestionDestinationLabel = nextQuestionEntry ? `Question ${nextQuestionEntry.sectionPosition + 1} of ${navigationSections.find((section) => section.role === nextQuestionEntry.role)?.entries.length || 1}` : '';
+    const currentNavigationSectionIndex = navigationSections.findIndex((section) => section.role === currentNavigationSection?.role);
+    const laterNavigationSections = currentNavigationSectionIndex >= 0
+      ? navigationSections.slice(currentNavigationSectionIndex + 1)
+      : [];
+    // When a student finishes an entire section, point the celebration CTA at
+    // the next AVAILABLE unfinished section. A locked DOL is intentionally
+    // skipped rather than becoming a dead-end button.
+    const nextAvailableIncompleteSection = laterNavigationSections.find((section) => !section.complete && sectionNavigationTarget(section));
+    const nextAvailableSection = nextAvailableIncompleteSection
+      || laterNavigationSections.find((section) => sectionNavigationTarget(section));
+    const nextAvailableSectionTarget = nextAvailableSection ? sectionNavigationTarget(nextAvailableSection) : null;
+    const nextAvailableSectionMeta = nextAvailableSection
+      ? (activitySectionMeta[nextAvailableSection.role] || { label: nextAvailableSection.role })
+      : null;
     const leaveAssignment = () => {
       if (preview) setTeacherTab('assignments');
       else flushAssignmentActivity(activeAssignmentId).catch(() => {});
@@ -3598,7 +3614,7 @@ function App() {
                       type="button"
                       role="listitem"
                       key={`section-tab-${section.role}-${section.entries[0]?.index}`}
-                      className={`mathmaster-section-tab${active ? ' is-active' : ''}${section.complete ? ' is-complete' : ''}${sectionAvailable ? '' : ' is-locked'}`}
+                      className={`mathmaster-section-tab${active ? ' is-active' : ''}${section.allCorrect ? ' is-complete' : ''}${sectionAvailable ? '' : ' is-locked'}`}
                       style={{ '--section-color': meta.color, '--section-border': meta.border, '--section-bg': meta.background }}
                       onClick={() => targetEntry && changeQuestion(targetEntry.index)}
                       disabled={!sectionAvailable}
@@ -3607,8 +3623,11 @@ function App() {
                         ? `${compactSectionLabel(section)}: ${completedQuestions} of ${section.entries.length} complete. Open the next question that still needs a correct answer.`
                         : `${compactSectionLabel(section)} is not available yet.`}
                     >
-                      <span>{compactSectionLabel(section)}</span>
-                      <small>{sectionAvailable ? `${section.complete ? '✓ ' : ''}${completedQuestions}/${section.entries.length}` : '🔒 Locked'}</small>
+                      {section.allCorrect && <span className="mathmaster-section-complete-medallion" aria-hidden="true">✓</span>}
+                      <span className="mathmaster-section-tab-copy">
+                        <span className="mathmaster-section-tab-label">{compactSectionLabel(section)}</span>
+                        <small>{sectionAvailable ? (section.allCorrect ? 'Complete' : `${completedQuestions}/${section.entries.length}`) : '🔒 Locked'}</small>
+                      </span>
                     </button>
                   );
                 })}
@@ -3624,7 +3643,7 @@ function App() {
             </div>
 
             <div className="mathmaster-assignment-unified-bottom">
-              <div className="mathmaster-current-section-inline">
+              <div className={`mathmaster-current-section-inline${currentNavigationSection?.allCorrect ? ' is-complete' : ''}`}>
                 <div className="mathmaster-current-section-summary">
                   <strong>{currentSectionMeta.label}</strong>
                   <span>
@@ -3787,6 +3806,11 @@ function App() {
               onNextQuestion={nextQuestionEntry ? () => changeQuestion(nextQuestionEntry.index) : null}
               nextQuestionLabel={nextQuestionDestinationLabel}
               nextQuestionSectionLabel={nextQuestionSectionMeta?.label || ''}
+              sectionComplete={Boolean(currentNavigationSection?.allCorrect)}
+              sectionLabel={currentSectionMeta.label}
+              sectionQuestionCount={currentSectionQuestionCount}
+              onContinueSection={nextAvailableSectionTarget ? () => changeQuestion(nextAvailableSectionTarget.index) : null}
+              continueSectionLabel={nextAvailableSectionMeta?.label || ''}
             />
           </main>
         </div>

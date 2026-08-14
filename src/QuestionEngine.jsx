@@ -123,6 +123,11 @@ export default function QuestionEngine({
   onNextQuestion = null,
   nextQuestionLabel = '',
   nextQuestionSectionLabel = '',
+  sectionComplete = false,
+  sectionLabel = '',
+  sectionQuestionCount = 0,
+  onContinueSection = null,
+  continueSectionLabel = '',
   // Secure server grading. When present, this question's verdict belongs to the
   // server: the engine collects the student's raw work, sends it, and displays
   // what comes back. Nothing the tools compute about correctness is reported as
@@ -183,6 +188,17 @@ export default function QuestionEngine({
   const [undoController, setUndoController] = useState(null);
   const [scratchpadOpen, setScratchpadOpen] = useState(false);
   const [scratchpadLoading, setScratchpadLoading] = useState(false);
+  const previousSectionCompleteRef = useRef(Boolean(sectionComplete));
+  const [sectionCompletionCelebrating, setSectionCompletionCelebrating] = useState(false);
+
+  useEffect(() => {
+    const wasComplete = previousSectionCompleteRef.current;
+    previousSectionCompleteRef.current = Boolean(sectionComplete);
+    if (wasComplete || !sectionComplete) return undefined;
+    setSectionCompletionCelebrating(true);
+    const timer = window.setTimeout(() => setSectionCompletionCelebrating(false), 1400);
+    return () => window.clearTimeout(timer);
+  }, [sectionComplete]);
   const [scratchpadDataUrl, setScratchpadDataUrl] = useState('');
   const [unchangedConfirmOpen, setUnchangedConfirmOpen] = useState(false);
   const [scaffoldComplete, setScaffoldComplete] = useState(false);
@@ -806,7 +822,30 @@ export default function QuestionEngine({
         </div>
       )}
 
-      {isCorrect && showOutcomeFeedback && typeof onNextQuestion === 'function' && (
+      {isCorrect && showOutcomeFeedback && sectionComplete && (
+        <section
+          className={`mathmaster-section-completion-card${sectionCompletionCelebrating ? ' is-celebrating' : ''}`}
+          role="status"
+          aria-label={`${sectionLabel || 'Section'} complete`}
+        >
+          <div className="mathmaster-section-completion-icon" aria-hidden="true">✓</div>
+          <div className="mathmaster-section-completion-copy">
+            <span>Section milestone</span>
+            <strong>{String(sectionLabel || 'Section').toUpperCase()} COMPLETE</strong>
+            <small>You completed all {sectionQuestionCount || ''} {sectionLabel || 'section'} question{Number(sectionQuestionCount) === 1 ? '' : 's'}.</small>
+          </div>
+          {typeof onContinueSection === 'function' ? (
+            <button type="button" onClick={onContinueSection} className="mathmaster-section-completion-continue">
+              <span>Continue to {continueSectionLabel || 'next section'}</span>
+              <span aria-hidden="true">→</span>
+            </button>
+          ) : (
+            <div className="mathmaster-section-completion-done">All currently available sections are complete.</div>
+          )}
+        </section>
+      )}
+
+      {isCorrect && showOutcomeFeedback && !sectionComplete && typeof onNextQuestion === 'function' && (
         <div role="navigation" aria-label="Continue to the next question" style={{ margin: '16px auto 6px', maxWidth: '700px', position: 'relative', zIndex: 50 }}>
           <button
             type="button"
