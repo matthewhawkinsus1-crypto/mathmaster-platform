@@ -604,9 +604,31 @@ const compileOne = (q, index, repairs) => {
     case 'graphStory':
       out = copyCommon(q, { type, graph: graphFromIntent(q), functionSpec: q.function ? coreFunctionSpec(q.function) : q.functionSpec, minimumScenarioCharacters: q.minimumScenarioCharacters, minimumExplanationCharacters: q.minimumExplanationCharacters });
       break;
-    case 'contextInterpretation':
-      out = copyCommon(q, { type, scenario: q.scenario || q.context, quantityChoices: q.quantityChoices || q.quantities, graph: graphFromIntent(q), point: q.point, showGraph: q.showGraph });
+    case 'contextInterpretation': {
+      const target = isObject(q.target)
+        ? q.target
+        : Array.isArray(q.point)
+          ? { kind: q.pointKind || 'arbitraryPoint', coordinates: q.point, ...(q.targetLabel ? { label: q.targetLabel } : {}) }
+          : undefined;
+      out = copyCommon(q, {
+        type,
+        scenario: q.scenario || q.context,
+        quantityChoices: q.quantityChoices || q.quantities,
+        quantities: isObject(q.quantities) ? q.quantities : undefined,
+        target,
+        responseMode: q.responseMode,
+        requireQuantities: q.requireQuantities,
+        requireUnits: q.requireUnits,
+        requireValues: q.requireValues,
+        applyResponseToGraph: q.applyResponseToGraph,
+        requiredConcepts: q.requiredConcepts,
+        sampleAnswer: q.sampleAnswer,
+        graph: graphFromIntent(q),
+        point: q.point,
+        showGraph: q.showGraph,
+      });
       break;
+    }
     case 'relationMapping': {
       const ask = q.ask || [
         actions.includes('buildMapping') && 'mapping',

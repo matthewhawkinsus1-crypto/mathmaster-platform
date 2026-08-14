@@ -130,7 +130,10 @@ const auditQuestionGraphs = (question, type, label, errors, warnings, composedQu
     // nothing but the viewport. Auditing those as static cards reported a
     // correct question as having "no drawable function", which is the same
     // mistake in reverse: judging JSON against a renderer it never reaches.
+    const selfRenderedViewport = String(type) === 'constraintFunctionBuilder'
+      || (String(type) === 'relationshipModel' && question.axisSetup?.required === true);
     const drawsItsOwnPicture = composedQuestion
+      || selfRenderedViewport
       || has(question.toolId)
       || has(get(question, 'functionSpec.type'))
       || nonEmptyArray(question.inequalities)
