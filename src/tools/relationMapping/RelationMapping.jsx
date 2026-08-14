@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
+import MathDisplay from '../../MathDisplay';
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
 const secondaryButton = { ...primaryButton, background: '#fff', color: '#174ea6', border: '1px solid #9bb8e8' };
@@ -225,6 +226,19 @@ export default function RelationMapping({ questionData = {}, onAction }) {
           'Then answer the questions about the relation.',
         ]}
       />
+
+      {questionData.showGivenRelation !== false ? (
+        <Panel title="Given relation">
+          <p style={{ margin: '0 0 8px', color: '#5f6b7a' }}>Use these ordered pairs to build the mapping, plot, domain, and range.</p>
+          <div aria-label="Given ordered pairs" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {pairs.map(([x, y]) => (
+              <span key={`${x}|${y}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '7px 10px', borderRadius: 999, border: '1px solid #cdd6e4', background: '#f8fbff', fontWeight: 700 }}>
+                <MathDisplay value={`(${x}, ${y})`} format="ascii-math" inline ariaLabel={`Ordered pair ${x}, ${y}`} />
+              </span>
+            ))}
+          </div>
+        </Panel>
+      ) : null}
 
       {ask.includes('plot') ? (
         <Panel title="Coordinate plot">

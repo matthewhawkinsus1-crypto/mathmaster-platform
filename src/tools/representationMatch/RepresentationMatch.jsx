@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import ToolShell, { Panel, ResultPill, ToolGrid, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
+import MathDisplay from '../../MathDisplay';
 import { evaluateFunctionSpec } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
 import {
@@ -136,7 +137,53 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
     submit({ isCorrect: ok, score: ok ? 1 : 0 }, { graphId }, { mode, targetId });
   };
 
-  const selectRepresentation = (label, value, setter) => <label style={{ display: 'block', marginBottom: 12 }}>{label}<select value={value} onChange={(event) => setter(event.target.value)} style={inputStyle}><option value="">Choose…</option>{choices.map((item) => <option value={item.id} key={item.id}>{item[label.toLowerCase()]}</option>)}</select></label>;
+  const selectRepresentation = (label, value, setter) => {
+    const kind = label.toLowerCase();
+    if (kind === 'equation') {
+      return (
+        <fieldset style={{ border: 0, padding: 0, margin: '0 0 14px' }}>
+          <legend style={{ fontWeight: 700, marginBottom: 7 }}>Equation</legend>
+          <div role="radiogroup" aria-label="Equation choices" style={{ display: 'grid', gap: 8 }}>
+            {choices.map((item) => {
+              const selected = value === item.id;
+              return (
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  key={item.id}
+                  onClick={() => setter(item.id)}
+                  style={{
+                    width: '100%',
+                    minHeight: 46,
+                    padding: '10px 12px',
+                    textAlign: 'left',
+                    borderRadius: 9,
+                    border: selected ? '2px solid #1a73e8' : '1px solid #cdd6e4',
+                    background: selected ? '#eef4ff' : '#fff',
+                    color: '#202124',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <MathDisplay value={item.equation || ''} format="ascii-math" inline style={{ fontSize: 18 }} ariaLabel={`Equation choice ${item.equation || ''}`} />
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
+      );
+    }
+
+    return (
+      <label style={{ display: 'block', marginBottom: 12 }}>
+        {label}
+        <select value={value} onChange={(event) => setter(event.target.value)} style={inputStyle}>
+          <option value="">Choose…</option>
+          {choices.map((item) => <option value={item.id} key={item.id}>{item[kind]}</option>)}
+        </select>
+      </label>
+    );
+  };
   const targetSet = representationById(sets, targetId);
   const cards = mixedRepresentationCards(sets, mixed);
 
@@ -159,7 +206,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
 
         {mode === 'findMismatch' ? <>
           <p>Two of these cards describe the same relationship. Select the one that does not belong.</p>
-          <div style={{ display: 'grid', gap: 10 }}>{cards.map((card) => <button type="button" key={card.kind} onClick={() => setMismatchKind(card.kind)} style={{ textAlign: 'left', padding: 12, borderRadius: 10, border: mismatchKind === card.kind ? '2px solid #1a73e8' : '1px solid #d9e2f1', background: mismatchKind === card.kind ? '#eef4ff' : '#fff', cursor: 'pointer' }}><strong style={{ textTransform: 'capitalize' }}>{card.kind}</strong><div style={{ marginTop: 5, color: '#44536a' }}>{card.value}</div></button>)}</div>
+          <div style={{ display: 'grid', gap: 10 }}>{cards.map((card) => <button type="button" key={card.kind} onClick={() => setMismatchKind(card.kind)} style={{ textAlign: 'left', padding: 12, borderRadius: 10, border: mismatchKind === card.kind ? '2px solid #1a73e8' : '1px solid #d9e2f1', background: mismatchKind === card.kind ? '#eef4ff' : '#fff', cursor: 'pointer' }}><strong style={{ textTransform: 'capitalize' }}>{card.kind}</strong><div style={{ marginTop: 5, color: '#44536a' }}>{card.kind === 'equation' ? <MathDisplay value={card.value} format="ascii-math" inline /> : card.value}</div></button>)}</div>
           <button type="button" onClick={checkMismatch} disabled={!mismatchKind} style={{ ...buttonStyle, marginTop: 12, opacity: mismatchKind ? 1 : .55 }}>Check mismatch</button>
         </> : null}
 
@@ -170,7 +217,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
         </> : null}
 
         {mode === 'graphMatch' ? <>
-          <p><strong>Target equation:</strong> {targetSet?.equation || 'Match the target relationship.'}</p>
+          <p><strong>Target equation:</strong> {targetSet?.equation ? <MathDisplay value={targetSet.equation} format="ascii-math" inline /> : 'Match the target relationship.'}</p>
           <div style={{ display: 'grid', gap: 12 }}>{sets.map((item, index) => <button type="button" key={item.id} onClick={() => setGraphId(item.id)} style={{ textAlign: 'left', padding: 10, borderRadius: 12, border: graphId === item.id ? '2px solid #1a73e8' : '1px solid #d9e2f1', background: graphId === item.id ? '#eef4ff' : '#fff', cursor: 'pointer' }}><strong>Graph {String.fromCharCode(65 + index)}</strong><div style={{ marginTop: 8 }}><CoordinatePlane width={420} height={230} {...graphMatchBounds} functions={[x => evaluateFunctionSpec(item.graphSpec || {}, x)]} /></div></button>)}</div>
           <button type="button" onClick={checkGraph} disabled={!graphId} style={{ ...buttonStyle, marginTop: 12, opacity: graphId ? 1 : .55 }}>Check graph</button>
         </> : null}
