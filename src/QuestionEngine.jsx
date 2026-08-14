@@ -105,6 +105,7 @@ export default function QuestionEngine({
   draftKey = null,
   studentProfile = null,
   guidedMode = false,
+  guidedNotesMode = 'automatic',
   assignmentLocked = false,
   assignmentLockedMessage = '',
   replacementWarning = '',
@@ -175,6 +176,7 @@ export default function QuestionEngine({
   const [contextScaffoldUsed, setContextScaffoldUsed] = useState(false);
   const [calculatorUsed, setCalculatorUsed] = useState(false);
   const [hintUsed, setHintUsed] = useState(false);
+  const [workflowGuidanceState, setWorkflowGuidanceState] = useState(null);
 
   const supportPresentation = useMemo(
     () => processedQuestion?.supportPresentation || getStudentSupportPresentation(stableStudentProfile),
@@ -201,6 +203,7 @@ export default function QuestionEngine({
     setContextScaffoldUsed(false);
     setCalculatorUsed(false);
     setHintUsed(false);
+    setWorkflowGuidanceState(null);
   }, [processedQuestion]);
 
   useEffect(() => {
@@ -483,6 +486,7 @@ export default function QuestionEngine({
         <WorkflowRunner
           question={processedQuestion}
           onStateChange={commonModuleProps.onStateChange}
+          onProgressChange={setWorkflowGuidanceState}
           disabled={commonModuleProps.disabled}
           draftKey={draftKey}
         />
@@ -673,10 +677,11 @@ export default function QuestionEngine({
       <GuidedClassworkCoach
         question={processedQuestion}
         draftKey={draftKey}
-        enabled={resolvedActivityPolicy?.hintsAllowed !== false && (guidedMode || supportPresentation.visualChunking)}
-        oneStepReveal={supportPresentation.visualChunking}
+        enabled={resolvedActivityPolicy?.hintsAllowed !== false && guidedNotesMode !== 'off' && (guidedMode || supportPresentation.visualChunking)}
+        mode={guidedNotesMode}
+        activeStageId={workflowGuidanceState?.currentStageId || null}
+        workflowProgress={workflowGuidanceState}
         disabled={locked}
-        onAssistanceUsed={() => setHintUsed(true)}
       />
     </div>
   );

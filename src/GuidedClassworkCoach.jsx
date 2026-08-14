@@ -1,46 +1,73 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import useLocalDraftState from './useLocalDraftState';
+import { resolveGuidedNotes } from './guidedNotes';
 
-const defaultSteps = (question) => {
-  if (question?.type === 'functionInvestigation' || question?.type === 'functionGraph') {
-    return [
-      'Read the equation and identify the center, vertex, or key point.',
-      'Choose appropriate x-values and place the five required graph locations.',
-      'Check the plotted points, then draw and connect the function.',
-      'Place the correct end-behavior symbol at every graph end.',
-      'Complete each requested intercept, extrema, domain, range, and interval response.',
-    ];
-  }
-  if (question?.type === 'stepAlgebra') {
-    return [
-      'Identify the term that prevents the target variable from being isolated.',
-      'Choose the inverse operation and apply it to both sides.',
-      'Mark only the zero pair or identity pair that actually cancels.',
-      'Simplify the opposite side in the response field.',
-      'Continue until the requested variable or form is isolated.',
-    ];
-  }
-  if (question?.type === 'table') return ['Read the function rule.', 'Substitute each x-value.', 'Enter and check every missing table value.'];
-  return ['Read the prompt and identify what must be entered.', 'Complete the current response field.', 'Check the response and revise any named incorrect part.'];
-};
+export default function GuidedClassworkCoach({
+  question,
+  draftKey,
+  enabled = false,
+  mode = 'automatic',
+  activeStageId = null,
+  workflowProgress = null,
+  disabled = false,
+}) {
+  const steps = useMemo(() => resolveGuidedNotes(question, { mode }), [question, mode]);
+  const [manualStepIndex, setManualStepIndex] = useLocalDraftState(draftKey ? `${draftKey}:guided-step` : null, 0);
+  const [collapsed, setCollapsed] = useLocalDraftState(draftKey ? `${draftKey}:guided-collapsed` : null, false);
 
-export default function GuidedClassworkCoach({ question, draftKey, enabled = false, oneStepReveal = false, disabled = false, onAssistanceUsed }) {
-  const steps = useMemo(() => (Array.isArray(question?.guidedSteps) && question.guidedSteps.length ? question.guidedSteps : defaultSteps(question)), [question]);
-  const [stepIndex, setStepIndex] = useLocalDraftState(draftKey ? `${draftKey}:guided-step` : null, 0);
-  if (!enabled || !steps.length) return null;
-  const safeIndex = Math.max(0, Math.min(steps.length - 1, Number(stepIndex) || 0));
-  const visibleSteps = oneStepReveal ? [steps[safeIndex]] : steps.slice(0, safeIndex + 1);
+  const synchronizedIndex = activeStageId
+    ? steps.findIndex((step) => step.stageId === activeStageId)
+    : -1;
+  const safeManualIndex = Math.max(0, Math.min(steps.length - 1, Number(manualStepIndex) || 0));
+  const safeIndex = synchronizedIndex >= 0 ? synchronizedIndex : safeManualIndex;
+  const currentStep = steps[safeIndex] || null;
+  const workflowComplete = Boolean(workflowProgress?.complete);
+
+  useEffect(() => {
+    if (workflowComplete) setCollapsed(true);
+  }, [workflowComplete, setCollapsed]);
+
+  if (!enabled || !steps.length || !currentStep) return null;
+
+  const synchronized = synchronizedIndex >= 0;
+  const headerLabel = workflowComplete
+    ? '✓ Guided Notes complete'
+    : `Guided Notes · Step ${safeIndex + 1} of ${steps.length}`;
+
   return (
-    <aside style={{ maxWidth: '860px', margin: '0 auto 18px', padding: '15px 17px', borderRadius: '12px', border: '2px solid #8ab4f8', background: '#f8fbff', textAlign: 'left' }}>
-      <div style={{ color: '#174ea6', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.07em', fontSize: '12px' }}>Guided notes / classwork</div>
-      <h3 style={{ margin: '6px 0 9px', color: '#202124' }}>Step {safeIndex + 1} of {steps.length}</h3>
-      <ol style={{ margin: '0 0 12px', paddingLeft: '23px', lineHeight: 1.55 }}>
-        {visibleSteps.map((step, index) => <li key={`${index}-${step}`} style={{ marginBottom: '5px' }}>{step}</li>)}
-      </ol>
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        <button type="button" disabled={disabled || safeIndex === 0} onClick={() => setStepIndex(Math.max(0, safeIndex - 1))} style={{ padding: '8px 12px', border: '1px solid #aac3e8', borderRadius: '8px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>Previous instruction</button>
-        <button type="button" disabled={disabled || safeIndex >= steps.length - 1} onClick={() => { onAssistanceUsed?.('guided-step'); setStepIndex(Math.min(steps.length - 1, safeIndex + 1)); }} style={{ padding: '8px 12px', border: 'none', borderRadius: '8px', background: safeIndex >= steps.length - 1 ? '#dadce0' : '#1a73e8', color: '#fff', fontWeight: 'bold' }}>{safeIndex >= steps.length - 1 ? 'All instructions revealed' : 'I completed this step'}</button>
-      </div>
+    <aside
+      className={`mathmaster-guided-notes ${collapsed ? 'is-collapsed' : 'is-expanded'}`}
+      style={{ maxWidth: '860px', margin: '0 auto 14px', borderRadius: '11px', border: '1px solid #8ab4f8', background: '#f8fbff', textAlign: 'left', overflow: 'hidden' }}
+    >
+      <button
+        type="button"
+        onClick={() => setCollapsed(!collapsed)}
+        aria-expanded={!collapsed}
+        style={{ width: '100%', minHeight: '46px', padding: '10px 13px', border: 0, background: workflowComplete ? '#e6f4ea' : '#edf4ff', color: workflowComplete ? '#137333' : '#174ea6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', cursor: 'pointer', textAlign: 'left', fontWeight: 900 }}
+      >
+        <span>
+          <span style={{ display: 'block', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{headerLabel}</span>
+          <span style={{ display: 'block', marginTop: '2px', color: '#202124', fontSize: '14px' }}>{currentStep.title}</span>
+        </span>
+        <span aria-hidden="true" style={{ fontSize: '18px' }}>{collapsed ? '▾' : '▴'}</span>
+      </button>
+
+      {!collapsed && (
+        <div style={{ padding: '12px 14px 13px' }}>
+          <p style={{ margin: 0, color: '#3c4043', lineHeight: 1.55, fontSize: '14px' }}>{currentStep.instruction}</p>
+          {synchronized ? (
+            <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ padding: '4px 8px', borderRadius: 999, background: '#e8f0fe', color: '#174ea6', fontSize: '11px', fontWeight: 900 }}>Follows your current math step</span>
+              {workflowProgress && <span style={{ color: '#5f6368', fontSize: '11px' }}>{workflowProgress.answered || 0} of {workflowProgress.total || steps.length} workflow steps complete</span>}
+            </div>
+          ) : steps.length > 1 ? (
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '11px' }}>
+              <button type="button" disabled={disabled || safeIndex === 0} onClick={() => setManualStepIndex(Math.max(0, safeIndex - 1))} style={{ padding: '7px 11px', border: '1px solid #aac3e8', borderRadius: '8px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>Previous note</button>
+              <button type="button" disabled={disabled || safeIndex >= steps.length - 1} onClick={() => setManualStepIndex(Math.min(steps.length - 1, safeIndex + 1))} style={{ padding: '7px 11px', border: 'none', borderRadius: '8px', background: safeIndex >= steps.length - 1 ? '#dadce0' : '#1a73e8', color: '#fff', fontWeight: 'bold' }}>{safeIndex >= steps.length - 1 ? 'All guidance viewed' : 'Next note'}</button>
+            </div>
+          ) : null}
+        </div>
+      )}
     </aside>
   );
 }

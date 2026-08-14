@@ -67,6 +67,7 @@ const initialReviewDraft = (draft = {}) => {
     variantMode: 'shared',
     sectionVariantModes: {},
     sectionAccessDefaults: { classwork: 'open', practice: 'open' },
+    guidedNotesBySection: { classwork: 'automatic', practice: 'off' },
     warmupEnabled: true,
     warmupMinutesBeforeStart: 7,
     warmupInstructionDate: '',
@@ -228,6 +229,11 @@ export const LessonPreflightModal = ({
     ...current,
     sectionAccessDefaults: { ...(current.sectionAccessDefaults || {}), [role]: value },
   }));
+  const guidedNotesMode = (role) => draft.guidedNotesBySection?.[role] || (role === 'classwork' ? 'automatic' : 'off');
+  const setGuidedNotesMode = (role, value) => setDraft((current) => ({
+    ...current,
+    guidedNotesBySection: { ...(current.guidedNotesBySection || {}), [role]: value },
+  }));
   const resolvedSectionVariantModes = Object.fromEntries(activityRoles.map((role) => [role, sectionVariantMode(role)]));
   const legacyVariantMode = Object.values(resolvedSectionVariantModes).every((mode) => mode === 'shared') ? 'shared' : 'personalized';
   const localToday = (() => {
@@ -387,6 +393,30 @@ export const LessonPreflightModal = ({
           ))}
         </div>
       </fieldset>
+
+      {activityRoles.some((role) => ['classwork', 'practice'].includes(role)) && (
+        <fieldset style={fieldsetStyle}>
+          <legend style={legendStyle}>Guided Notes by section</legend>
+          <p style={{ margin: '0 0 12px', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>
+            Guided Notes should teach the mathematics, not narrate the interface. Automatic uses authored notes when present and otherwise builds tool/workflow-aware guidance. Authored only hides the panel unless the JSON includes meaningful notes. Off removes the panel entirely.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(230px, 1fr))', gap: 12 }}>
+            {activityRoles.filter((role) => ['classwork', 'practice'].includes(role)).map((role) => (
+              <label key={role} style={labelStyle}>
+                {humanRole(role)} Guided Notes
+                <select value={guidedNotesMode(role)} onChange={(event) => setGuidedNotesMode(role, event.target.value)} style={inputStyle}>
+                  <option value="automatic">Automatic — authored or MathMaster-derived</option>
+                  <option value="authoredOnly">Only when meaningful notes are authored</option>
+                  <option value="off">Off</option>
+                </select>
+              </label>
+            ))}
+          </div>
+          <p style={{ margin: '10px 0 0', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>
+            Recommended default: Classwork = Automatic; Practice = Off. Generic filler such as “Read the question” is suppressed even in Automatic mode.
+          </p>
+        </fieldset>
+      )}
 
       {activityRoles.some((role) => ['classwork', 'practice'].includes(role)) && (
         <fieldset style={fieldsetStyle}>

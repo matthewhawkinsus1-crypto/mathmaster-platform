@@ -768,3 +768,23 @@
     grid-template-columns: minmax(0, 1fr) !important;
   }
 }
+
+
+/* A selected question should land below the sticky navigation rail instead of
+   making the student scroll through the assignment map again. */
+.mathmaster-question-stage {
+  scroll-margin-top: 78px;
+}
+
+/* The large section cards are now an optional overview. The compact rail is
+   the primary navigator; the overview is for checking section progress or
+   jumping visually, not a wall the student must cross on every question. */
+.mathmaster-assignment-overview-toggle {
+  box-shadow: 0 2px 8px rgba(32, 33, 36, 0.05);
+}
+
+@media (max-width: 768px) and (orientation: portrait) {
+  .mathmaster-assignment-screen .mathmaster-assignment-overview-toggle {
+    display: none !important;
+  }
+}

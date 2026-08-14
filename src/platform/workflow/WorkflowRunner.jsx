@@ -8,7 +8,7 @@ import StepByStepAlgebra from '../../StepByStepAlgebra';
 import IntervalNumberLine from '../../tools/intervalNumberLine/IntervalNumberLine';
 import RelationMapping from '../../tools/relationMapping/RelationMapping';
 import { getStage } from './interactionStages';
-import { readComposedQuestion, resolveStageInput, summarizeWorkflowProgress } from './questionWorkflow';
+import { hasStageResponse, readComposedQuestion, resolveStageInput, summarizeWorkflowProgress } from './questionWorkflow';
 import { checkTableConsistency, gradeWorkflow } from './workflowGrading';
 import { buildExpressionFunctionSpec, evaluateModelAt, evaluateNumericValue } from './modelExpression';
 import { evaluateGraphFunction } from '../../functionGraphUtils';
@@ -581,13 +581,16 @@ const dependencyFingerprint = (value) => {
 export default function WorkflowRunner({
   question,
   onStateChange,
+  onProgressChange,
   disabled = false,
   draftKey = null,
 }) {
   const { content, workflow, grading } = useMemo(() => readComposedQuestion(question), [question]);
   const [responses, setResponses] = useState({});
   const onStateChangeRef = useRef(onStateChange);
+  const onProgressChangeRef = useRef(onProgressChange);
   useEffect(() => { onStateChangeRef.current = onStateChange; }, [onStateChange]);
+  useEffect(() => { onProgressChangeRef.current = onProgressChange; }, [onProgressChange]);
 
   const progress = summarizeWorkflowProgress(workflow, responses);
 
@@ -628,11 +631,26 @@ export default function WorkflowRunner({
     // What is reported is the same answer state every other tool reports, so a
     // composed question submits, records an attempt and shows feedback through
     // the existing path rather than a parallel one.
+    const stages = workflowRef.current;
     onStateChangeRef.current?.(gradeWorkflow({
-      stages: workflowRef.current,
+      stages,
       responses,
       grading: gradingRef.current,
     }));
+
+    // Guided Notes follows the first unfinished mathematical stage rather than
+    // maintaining a second, unrelated "Step 1 of 3" counter. Nothing about
+    // correctness is exposed here — only which student-facing stage is current.
+    const progressState = summarizeWorkflowProgress(stages, responses);
+    const firstIncompleteIndex = stages.findIndex((stage) => !hasStageResponse(responses[stage.id]));
+    const currentIndex = firstIncompleteIndex >= 0 ? firstIncompleteIndex : Math.max(0, stages.length - 1);
+    const currentStage = stages[currentIndex] || null;
+    onProgressChangeRef.current?.({
+      ...progressState,
+      currentStageId: currentStage?.id || null,
+      currentStageKind: currentStage?.kind || null,
+      currentStageIndex: currentStage ? currentIndex : null,
+    });
   }, [responses]);
 
   if (!workflow.length) return null;

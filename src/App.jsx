@@ -283,6 +283,8 @@ function App() {
   const [teacherScratchpadDialog, setTeacherScratchpadDialog] = useState(null);
   const [teacherScratchpadLoading, setTeacherScratchpadLoading] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [assignmentOverviewExpanded, setAssignmentOverviewExpanded] = useState(false);
+  const assignmentQuestionStageRef = useRef(null);
   const [resumeAction, setResumeAction] = useState(null);
   const [now, setNow] = useState(Date.now());
   const [classSchedule, setClassSchedule] = useState(DEFAULT_CLASS_SCHEDULE);
@@ -1139,8 +1141,23 @@ function App() {
     };
   }, [user, activeView, isIdle, activeSupportPresentation.disableIdleTimer]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined' || activeView !== 'assignment' || !activeAssignmentId) return undefined;
+    let secondFrame = null;
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        assignmentQuestionStageRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      if (secondFrame != null) window.cancelAnimationFrame(secondFrame);
+    };
+  }, [activeView, activeAssignmentId, currentQuestionIndex]);
+
   const changeQuestion = async (newIndex) => {
     if (!activeAssignmentId || newIndex === currentQuestionIndex) return;
+    setAssignmentOverviewExpanded(false);
     const localAssignment = assignments.find((item) => item.id === activeAssignmentId);
     if (localAssignment?.questions && !questionIsIncluded(localAssignment.questions[newIndex])) return;
 
@@ -1240,6 +1257,7 @@ function App() {
       : includedQuestionIndices[0];
     setActiveAssignmentId(assignmentId);
     setCurrentQuestionIndex(safeQuestionIndex);
+    setAssignmentOverviewExpanded(false);
     lastActivityRef.current = Date.now();
     pendingAssignmentSecondsRef.current = 0;
     setIsIdle(false);
@@ -1271,6 +1289,7 @@ function App() {
 
     setActiveAssignmentId(assignmentId);
     setCurrentQuestionIndex(getIncludedQuestionIndices(assignmentData)[0] ?? 0);
+    setAssignmentOverviewExpanded(false);
     setPreviewTracker(createEmptyAssignmentTracker(assignmentData.questions));
     setPreviewScratchpads({});
     setActiveView('teacherPreview');
@@ -1822,6 +1841,7 @@ function App() {
         variantMode: metadata?.variantMode || 'personalized',
         sectionVariantModes: metadata?.sectionVariantModes || {},
         sectionAccessDefaults: { classwork: 'open', practice: 'open', ...(metadata?.sectionAccessDefaults || {}) },
+        guidedNotesBySection: { classwork: 'automatic', practice: 'off', ...(metadata?.guidedNotesBySection || {}) },
         assignedClassPeriods: [...(metadata?.assignedClassPeriods || [])],
         warmupEnabled: lessonBundle.activities.some((activity) => activity.role === 'warmup')
           && (metadata?.provided?.warmup ? metadata.warmup.enabled !== false : true),
@@ -2036,6 +2056,10 @@ function App() {
         sectionAccess: {
           classwork: { defaultState: teacherReview?.sectionAccessDefaults?.classwork === 'closed' ? 'closed' : 'open', overridesByClassPeriod: {} },
           practice: { defaultState: teacherReview?.sectionAccessDefaults?.practice === 'closed' ? 'closed' : 'open', overridesByClassPeriod: {} },
+        },
+        guidedNotesBySection: {
+          classwork: teacherReview?.guidedNotesBySection?.classwork || 'automatic',
+          practice: teacherReview?.guidedNotesBySection?.practice || 'off',
         },
         releaseAt,
         prerequisiteAssignmentId,
@@ -3426,6 +3450,8 @@ function App() {
       label: String(activeQuestionRole || 'Activity').replace(/(^|\s)\S/g, (letter) => letter.toUpperCase()),
       background: '#f1f3f4', color: '#3c4043', border: '#9aa0a6',
     };
+    const currentGuidedNotesMode = assignment?.guidedNotesBySection?.[activeQuestionRole]
+      || (activeQuestionRole === 'classwork' ? 'automatic' : 'off');
 
     const assignmentHasClasswork = visibleQuestionEntries.some((entry) => entry.role === 'classwork');
     const currentVisibleEntryPosition = visibleQuestionEntries.findIndex((entry) => entry.index === currentQuestionIndex);
@@ -3517,7 +3543,7 @@ function App() {
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <h1 style={{ margin: 0, color: '#202124', fontSize: '23px' }}>{assignment.title}</h1>
                 <span style={{ padding: '4px 9px', borderRadius: '999px', background: lifecycleBadge.background, color: lifecycleBadge.color, fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>{lifecycleBadge.label}</span>
-                {assignmentHasClasswork && <span style={{ padding: '4px 9px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6', fontSize: '11px', fontWeight: 900 }}>GUIDED NOTES / CLASSWORK</span>}
+                {assignmentHasClasswork && assignment?.guidedNotesBySection?.classwork !== 'off' && <span style={{ padding: '4px 9px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6', fontSize: '11px', fontWeight: 900 }}>GUIDED NOTES · CLASSWORK</span>}
                 <span style={{ padding: '4px 9px', borderRadius: '999px', background: currentSectionVariantMode === 'shared' ? '#e6f4ea' : '#f3e8fd', color: currentSectionVariantMode === 'shared' ? '#137333' : '#681da8', fontSize: '11px', fontWeight: 900 }}>{currentSectionVariantMode === 'shared' ? `${currentSectionMeta.label.toUpperCase()} · SAME VERSION` : `${currentSectionMeta.label.toUpperCase()} · PERSONALIZED VERSIONS`}</span>
               </div>
               <div style={{ color: '#5f6368', fontSize: '13px', marginTop: '7px', lineHeight: 1.5 }}>
@@ -3560,6 +3586,20 @@ function App() {
             <button type="button" className="mathmaster-compact-nav-next" onClick={() => nextQuestionEntry && changeQuestion(nextQuestionEntry.index)} disabled={!nextQuestionEntry} aria-label="Next question"><span>Next</span> ›</button>
           </nav>
 
+          <section className="mathmaster-assignment-overview-toggle" style={{ marginBottom: assignmentOverviewExpanded ? '10px' : '14px', padding: '9px 11px', borderRadius: '10px', border: '1px solid #d7e1f0', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+            <button type="button" onClick={() => setAssignmentOverviewExpanded((current) => !current)} aria-expanded={assignmentOverviewExpanded} style={{ minHeight: '38px', padding: '7px 11px', borderRadius: '8px', border: '1px solid #bdc7d6', background: '#f8fbff', color: '#174ea6', fontWeight: 900, cursor: 'pointer' }}>
+              {assignmentOverviewExpanded ? 'Hide assignment overview' : 'Show assignment overview'} {assignmentOverviewExpanded ? '▴' : '▾'}
+            </button>
+            <div aria-label="Section progress summary" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+              {navigationSections.map((section) => {
+                const meta = activitySectionMeta[section.role] || { label: section.role, background: '#f1f3f4', color: '#3c4043', border: '#9aa0a6' };
+                const completedQuestions = section.entries.filter((entry) => sectionQuestionIsComplete(entry.index)).length;
+                return <span key={`summary-${section.role}-${section.entries[0]?.index}`} style={{ padding: '5px 8px', borderRadius: 999, border: `1px solid ${section.complete ? '#188038' : meta.border}`, background: section.complete ? '#e6f4ea' : meta.background, color: section.complete ? '#137333' : meta.color, fontSize: '11px', fontWeight: 900 }}>{section.complete ? '✓ ' : ''}{meta.label} {completedQuestions}/{section.entries.length}</span>;
+              })}
+            </div>
+          </section>
+
+          {assignmentOverviewExpanded && (
           <div className="mathmaster-question-navigation" style={{ display: 'grid', gap: '14px', marginBottom: '24px' }}>
             {navigationSections.map((section) => {
               const sectionMeta = activitySectionMeta[section.role] || { label: section.role, background: '#f1f3f4', color: '#3c4043', border: '#9aa0a6' };
@@ -3624,13 +3664,14 @@ function App() {
               );
             })}
           </div>
+          )}
 
           <section className="mathmaster-current-section-banner" aria-label="Current assignment section" style={{ marginBottom: '12px', padding: '12px 16px', borderRadius: '10px', borderLeft: `6px solid ${currentSectionMeta.border}`, background: currentSectionMeta.background, color: currentSectionMeta.color, textAlign: 'left' }}>
             <strong style={{ fontSize: '16px' }}>{currentSectionMeta.label}</strong>
             <span style={{ marginLeft: '8px', fontSize: '13px' }}>{currentNavigationSection?.complete ? '✓ This entire section is complete.' : 'You are working in this section now.'}</span>
           </section>
 
-          <main className="mathmaster-question-stage" style={{ background: '#fff', borderRadius: '12px', padding: '10px', minHeight: '500px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+          <main ref={assignmentQuestionStageRef} className="mathmaster-question-stage" style={{ background: '#fff', borderRadius: '12px', padding: '10px', minHeight: '500px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
             <QuestionEngine
               key={`${activeAssignmentId}-${currentQuestionIndex}-${currentRecord.variantIndex}-${preview ? 'preview' : lifecycle.status}`}
               question={questions[currentQuestionIndex]}
@@ -3642,7 +3683,8 @@ function App() {
               onLoadScratchpad={handleLoadScratchpad}
               onSaveScratchpad={handleSaveScratchpad}
               studentProfile={preview ? null : adaptiveStudentProfile || user?.profile}
-              guidedMode={runtimeActivityRole === 'classwork'}
+              guidedMode={['classwork', 'practice'].includes(runtimeActivityRole) && currentGuidedNotesMode !== 'off'}
+              guidedNotesMode={currentGuidedNotesMode}
               assignmentLocked={!preview && ((currentIsDOL && dolState.status === 'ended') || (currentIsWarmup && warmupState.status !== 'active') || currentSectionManuallyLocked)}
               assignmentLockedMessage={!preview && currentIsDOL && dolState.status === 'ended'
                 ? 'The DOL timer has ended. Your saved response is available for review, but no new submission is allowed.'
