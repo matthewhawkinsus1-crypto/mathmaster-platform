@@ -111,6 +111,41 @@ code {
 }
 
 
+/* MathMaster native form controls must stay readable even when the browser/OS prefers dark controls.
+   Many interactive tools intentionally use light input surfaces even when the Chromebook/browser
+   advertises a dark color scheme. Keep text, placeholders, and native dropdown menus aligned with
+   those light surfaces. Inline/component styles can still override these defaults when a tool
+   intentionally uses a different visual treatment. */
+#root input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+#root select,
+#root textarea {
+  color-scheme: light;
+  color: #202124;
+  -webkit-text-fill-color: #202124;
+  background-color: #fff;
+}
+
+#root input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color'])::placeholder,
+#root textarea::placeholder {
+  color: #6b7280;
+  -webkit-text-fill-color: #6b7280;
+  opacity: 1;
+}
+
+#root select option,
+#root select optgroup {
+  color: #202124;
+  background: #fff;
+}
+
+#root input:disabled,
+#root select:disabled,
+#root textarea:disabled {
+  color: #5f6368;
+  -webkit-text-fill-color: #5f6368;
+  opacity: 1;
+}
+
 /* MathLive display and input elements should remain readable in every system theme. */
 math-span,
 math-div,
