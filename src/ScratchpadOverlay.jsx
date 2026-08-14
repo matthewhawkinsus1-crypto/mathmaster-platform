@@ -321,7 +321,7 @@ export default function ScratchpadOverlay({
           }}
         >
           <strong style={{ color: '#174ea6' }}>Current question</strong>
-          <QuestionPrompt style={{ margin: '4px 0 0', fontSize: '13px', lineHeight: 1.45, color: '#3c4043', textAlign: 'left' }}>
+          <QuestionPrompt variant="plain" style={{ margin: '4px 0 0', fontSize: '13px', lineHeight: 1.45, color: '#3c4043', textAlign: 'left' }}>
             {compactQuestion}
           </QuestionPrompt>
         </div>

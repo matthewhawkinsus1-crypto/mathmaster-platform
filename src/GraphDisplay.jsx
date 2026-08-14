@@ -355,7 +355,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph' }) {
       </svg>
       {graph.caption && (
         <figcaption style={{ color: '#5f6368', fontSize: '14px', padding: '8px 6px 2px' }}>
-          <QuestionPrompt style={{ color: '#5f6368', fontSize: '14px', lineHeight: 1.45, margin: 0 }}>
+          <QuestionPrompt variant="plain" style={{ color: '#5f6368', fontSize: '14px', lineHeight: 1.45, margin: 0 }}>
             {graph.caption}
           </QuestionPrompt>
         </figcaption>

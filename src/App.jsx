@@ -3459,6 +3459,8 @@ function App() {
     const currentNavigationSection = navigationSections.find((section) => section.entries.some((entry) => entry.index === currentQuestionIndex));
     const currentSectionQuestionNumber = (currentVisibleEntry?.sectionPosition ?? 0) + 1;
     const currentSectionQuestionCount = currentNavigationSection?.entries.length || 1;
+    const currentSectionCompletedCount = currentNavigationSection?.entries.filter((entry) => sectionQuestionIsComplete(entry.index)).length || 0;
+    const currentSectionRemainingCount = Math.max(0, currentSectionQuestionCount - currentSectionCompletedCount);
     const warmupCanBeViewed = ['active', 'closed', 'ended'].includes(warmupState.status);
     const entryIsAvailable = (entry) => {
       if (preview || lifecycle.isPracticeOnly) return true;
@@ -3481,6 +3483,8 @@ function App() {
     };
     const previousQuestionEntry = findNeighbor(-1);
     const nextQuestionEntry = findNeighbor(1);
+    const nextQuestionSectionMeta = nextQuestionEntry ? (activitySectionMeta[nextQuestionEntry.role] || { label: nextQuestionEntry.role }) : null;
+    const nextQuestionDestinationLabel = nextQuestionEntry ? `Question ${nextQuestionEntry.sectionPosition + 1} of ${navigationSections.find((section) => section.role === nextQuestionEntry.role)?.entries.length || 1}` : '';
     const leaveAssignment = () => {
       if (preview) setTeacherTab('assignments');
       else flushAssignmentActivity(activeAssignmentId).catch(() => {});
@@ -3666,9 +3670,40 @@ function App() {
           </div>
           )}
 
-          <section className="mathmaster-current-section-banner" aria-label="Current assignment section" style={{ marginBottom: '12px', padding: '12px 16px', borderRadius: '10px', borderLeft: `6px solid ${currentSectionMeta.border}`, background: currentSectionMeta.background, color: currentSectionMeta.color, textAlign: 'left' }}>
-            <strong style={{ fontSize: '16px' }}>{currentSectionMeta.label}</strong>
-            <span style={{ marginLeft: '8px', fontSize: '13px' }}>{currentNavigationSection?.complete ? '✓ This entire section is complete.' : 'You are working in this section now.'}</span>
+          <section className="mathmaster-current-section-banner" aria-label="Current assignment section progress" style={{ marginBottom: '12px', padding: '11px 15px', borderRadius: '10px', borderLeft: `6px solid ${currentSectionMeta.border}`, background: currentSectionMeta.background, color: currentSectionMeta.color, textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
+                <strong style={{ fontSize: '16px' }}>{currentSectionMeta.label}</strong>
+                <span style={{ fontSize: '12px', fontWeight: 850 }}>
+                  {currentNavigationSection?.complete
+                    ? '✓ Section complete'
+                    : `${currentSectionCompletedCount} of ${currentSectionQuestionCount} complete · ${currentSectionRemainingCount} remaining`}
+                </span>
+              </div>
+              <div aria-label={`${currentSectionMeta.label} question progress`} style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '7px', flexWrap: 'wrap' }}>
+                {(currentNavigationSection?.entries || []).map((entry) => {
+                  const complete = sectionQuestionIsComplete(entry.index);
+                  const current = entry.index === currentQuestionIndex;
+                  return (
+                    <span
+                      key={`section-progress-${entry.index}`}
+                      title={`${currentSectionMeta.label} Question ${entry.sectionPosition + 1}${complete ? ' complete' : current ? ' current' : ' remaining'}`}
+                      aria-label={`${currentSectionMeta.label} question ${entry.sectionPosition + 1}: ${complete ? 'complete' : current ? 'current' : 'remaining'}`}
+                      style={{
+                        width: current ? '24px' : '10px',
+                        height: '10px',
+                        borderRadius: 999,
+                        border: `2px solid ${current ? currentSectionMeta.border : complete ? '#188038' : currentSectionMeta.border}`,
+                        background: complete ? '#188038' : current ? '#fff' : 'rgba(255,255,255,0.58)',
+                        boxShadow: current ? `0 0 0 2px ${currentSectionMeta.background}` : 'none',
+                        transition: 'width 140ms ease',
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+            {!currentNavigationSection?.complete && <span style={{ fontSize: '11px', fontWeight: 850, opacity: 0.88 }}>Question {currentSectionQuestionNumber} of {currentSectionQuestionCount}</span>}
           </section>
 
           <main ref={assignmentQuestionStageRef} className="mathmaster-question-stage" style={{ background: '#fff', borderRadius: '12px', padding: '10px', minHeight: '500px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
@@ -3708,6 +3743,9 @@ function App() {
               draftKey={lifecycle.isPracticeOnly && !preview ? null : buildQuestionDraftKey({ studentId: preview ? 'teacher-preview' : user?.id || 'anonymous', assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex, variantIndex: currentRecord.variantIndex, sessionMode: draftSessionMode })}
               assignmentId={activeAssignmentId}
               executionScope={preview ? 'teacherPreview' : lifecycle.isPracticeOnly ? 'postDuePractice' : 'student'}
+              onNextQuestion={nextQuestionEntry ? () => changeQuestion(nextQuestionEntry.index) : null}
+              nextQuestionLabel={nextQuestionDestinationLabel}
+              nextQuestionSectionLabel={nextQuestionSectionMeta?.label || ''}
             />
           </main>
         </div>

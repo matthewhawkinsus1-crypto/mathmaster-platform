@@ -117,6 +117,9 @@ export default function QuestionEngine({
   teacherCalculatorChoice = null,
   assignmentId = null,
   executionScope = 'student',
+  onNextQuestion = null,
+  nextQuestionLabel = '',
+  nextQuestionSectionLabel = '',
   // Secure server grading. When present, this question's verdict belongs to the
   // server: the engine collects the student's raw work, sends it, and displays
   // what comes back. Nothing the tools compute about correctness is reported as
@@ -606,6 +609,9 @@ export default function QuestionEngine({
 
   const questionContextPanel = (
     <div className="mathmaster-question-context-panel">
+      <div className="mathmaster-desktop-question-anchor">
+        <QuestionPrompt>{processedQuestion?.prompt || processedQuestion?.scenario || 'Complete the math task.'}</QuestionPrompt>
+      </div>
       {!supportPresentation.declutter && (
         <div
           role="status"
@@ -688,14 +694,14 @@ export default function QuestionEngine({
 
   return (
     <div
-      className={`mathmaster-question-engine ${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`}
+      className={`mathmaster-question-engine mathmaster-question-engine-has-anchor ${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`}
       style={{ position: 'relative', padding: '10px', textAlign: 'center', fontFamily: 'sans-serif', overflow: 'hidden' }}
     >
       <MobileViewportContainer
         promptText={processedQuestion?.prompt || processedQuestion?.scenario || 'Complete the math task.'}
         contextPanel={questionContextPanel}
         toolWorkspace={(
-      <div style={{ position: 'relative' }}>
+      <div className="mathmaster-question-tool-workspace" style={{ position: 'relative' }}>
         <fieldset disabled={locked || scaffoldRequired || contextScaffoldRequired || submitting} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
           <div aria-disabled={locked || scaffoldRequired || contextScaffoldRequired || submitting ? 'true' : undefined} inert={locked || scaffoldRequired || contextScaffoldRequired || submitting ? '' : undefined} style={{ pointerEvents: locked || scaffoldRequired || contextScaffoldRequired || submitting ? 'none' : 'auto', opacity: locked ? 0.72 : scaffoldRequired || contextScaffoldRequired ? 0.5 : 1 }}>
             <QuestionModuleBoundary
@@ -723,8 +729,8 @@ export default function QuestionEngine({
         )}
 
         {isCorrect && showOutcomeFeedback && (
-          <div aria-label="Correct answer" role="status" style={{ position: 'absolute', inset: 0, zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', background: 'rgba(230,244,234,0.18)' }}>
-            <div style={{ transform: 'rotate(-8deg)', textAlign: 'center', color: 'rgba(24,128,56,0.24)', textShadow: '0 2px 18px rgba(24,128,56,0.12)' }}>
+          <div aria-label="Correct answer" role="status" style={{ position: 'absolute', inset: 0, zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', background: 'rgba(230,244,234,0.10)' }}>
+            <div style={{ transform: 'rotate(-8deg)', textAlign: 'center', color: 'rgba(24,128,56,0.16)', textShadow: '0 2px 18px rgba(24,128,56,0.12)' }}>
               <div style={{ fontSize: 'clamp(120px, 24vw, 250px)', fontWeight: 900, lineHeight: 0.72 }}>✓</div>
               <div style={{ fontSize: 'clamp(42px, 8vw, 92px)', fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Correct</div>
             </div>
@@ -784,6 +790,43 @@ export default function QuestionEngine({
           {!feedback.isCorrect && Array.isArray(feedback.incorrectParts) && feedback.incorrectParts.length > 0 && (
             <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)' }}>Focus on: {feedback.incorrectParts.join(', ')}.</div>
           )}
+        </div>
+      )}
+
+      {isCorrect && showOutcomeFeedback && typeof onNextQuestion === 'function' && (
+        <div role="navigation" aria-label="Continue to the next question" style={{ margin: '16px auto 6px', maxWidth: '700px', position: 'relative', zIndex: 50 }}>
+          <button
+            type="button"
+            onClick={onNextQuestion}
+            className="mathmaster-success-next-question"
+            style={{
+              width: '100%',
+              minHeight: '72px',
+              padding: '14px 18px',
+              border: '3px solid #0b57d0',
+              borderRadius: '14px',
+              background: '#1a73e8',
+              color: '#fff',
+              cursor: 'pointer',
+              boxShadow: '0 8px 22px rgba(26,115,232,0.30)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '16px',
+              textAlign: 'left',
+            }}
+          >
+            <span>
+              <span style={{ display: 'block', fontSize: '11px', fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.88 }}>You got it — keep going</span>
+              <span style={{ display: 'block', marginTop: '3px', fontSize: '21px', fontWeight: 950 }}>Next Question</span>
+              {(nextQuestionLabel || nextQuestionSectionLabel) && (
+                <span style={{ display: 'block', marginTop: '2px', fontSize: '13px', fontWeight: 750, opacity: 0.92 }}>
+                  {nextQuestionSectionLabel ? `${nextQuestionSectionLabel} · ` : ''}{nextQuestionLabel}
+                </span>
+              )}
+            </span>
+            <span aria-hidden="true" style={{ width: '44px', height: '44px', flex: '0 0 44px', display: 'grid', placeItems: 'center', borderRadius: '999px', background: '#fff', color: '#174ea6', fontSize: '30px', lineHeight: 1, fontWeight: 950 }}>→</span>
+          </button>
         </div>
       )}
 

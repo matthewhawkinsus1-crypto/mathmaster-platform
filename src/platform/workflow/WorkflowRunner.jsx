@@ -664,7 +664,7 @@ export default function WorkflowRunner({
       )}
       {content?.scenario && content.scenario !== content?.prompt && (
         <div style={{ ...panel, background: '#f8f9fa' }}>
-          <QuestionPrompt>{content.scenario}</QuestionPrompt>
+          <QuestionPrompt variant="plain">{content.scenario}</QuestionPrompt>
         </div>
       )}
 
@@ -694,7 +694,7 @@ export default function WorkflowRunner({
         return (
           <section key={stage.id} style={panel}>
             <h4 style={stageHeading}>Step {index + 1}. {definition?.label || stage.kind}</h4>
-            {stage.prompt && <QuestionPrompt style={{ fontSize: 16, margin: '0 0 12px' }}>{stage.prompt}</QuestionPrompt>}
+            {stage.prompt && <QuestionPrompt variant="plain" style={{ fontSize: 16, margin: '0 0 12px' }}>{stage.prompt}</QuestionPrompt>}
             <StageSource input={input} stages={workflow} />
             <StageBody
               stage={stage}

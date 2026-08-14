@@ -175,3 +175,32 @@ math-field:focus-within {
   outline: 3px solid rgba(26, 115, 232, 0.2);
   outline-offset: 2px;
 }
+
+
+/* Question hierarchy: the engine owns one clear primary prompt at the top of the
+   question. Individual math tools still keep their prompt markup for standalone
+   use, but when hosted by QuestionEngine that duplicate primary prompt is hidden. */
+.mathmaster-question-engine-has-anchor .mathmaster-question-tool-workspace .mathmaster-question-prompt-prominent {
+  display: none;
+}
+
+/* Phones already have the dedicated QUESTION panel in MobileViewportContainer. */
+@media (max-width: 768px), (pointer: coarse) {
+  .mathmaster-desktop-question-anchor {
+    display: none;
+  }
+}
+
+.mathmaster-success-next-question {
+  transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+}
+
+.mathmaster-success-next-question:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 11px 26px rgba(26,115,232,0.34) !important;
+}
+
+.mathmaster-success-next-question:focus-visible {
+  outline: 4px solid rgba(26,115,232,0.28);
+  outline-offset: 3px;
+}

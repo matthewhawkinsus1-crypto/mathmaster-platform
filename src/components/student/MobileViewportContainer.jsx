@@ -124,7 +124,7 @@ export const MobileViewportContainer = ({
           <span>QUESTION</span>
           {!isLandscape && <button type="button" onClick={() => setIsPromptCollapsed((current) => !current)}>{isPromptCollapsed ? 'Show Prompt ▼' : 'Minimize ▲'}</button>}
         </div>
-        {!isPromptCollapsed && <div className="prompt-body"><QuestionPrompt>{promptText || 'Complete the math task.'}</QuestionPrompt>{contextPanel}</div>}
+        {!isPromptCollapsed && <div className="prompt-body"><QuestionPrompt variant="plain" style={{ color: '#202124', fontWeight: 800, fontSize: 18, margin: 0 }}>{promptText || 'Complete the math task.'}</QuestionPrompt>{contextPanel}</div>}
         {responseFields && <div className="response-inputs-section">{responseFields}</div>}
         {isLandscape && actionButtons && <div className="landscape-action-bar">{actionButtons}</div>}
       </section>
