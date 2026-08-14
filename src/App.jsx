@@ -3475,6 +3475,20 @@ function App() {
       if (manualState.enabled && !manualState.isOpen) return false;
       return true;
     };
+    const compactSectionLabel = (section) => section?.role === 'dol'
+      ? 'DOL'
+      : (activitySectionMeta[section?.role]?.label || section?.role || 'Section');
+    const sectionNavigationTarget = (section) => {
+      const availableEntries = (section?.entries || []).filter((entry) => entryIsAvailable(entry));
+      if (!availableEntries.length) return null;
+      // A section shortcut resumes at the earliest question that is not yet
+      // correct. This intentionally includes an exhausted variant so the
+      // student can request a replacement rather than silently skipping it.
+      const needsWork = availableEntries.find((entry) => normalizeQuestionRecord(workingTracker?.[entry.index]).status !== 'correct');
+      if (needsWork) return needsWork;
+      const currentEntry = availableEntries.find((entry) => entry.index === currentQuestionIndex);
+      return currentEntry || availableEntries[0];
+    };
     const findNeighbor = (direction) => {
       for (let position = currentVisibleEntryPosition + direction; position >= 0 && position < visibleQuestionEntries.length; position += direction) {
         if (entryIsAvailable(visibleQuestionEntries[position])) return visibleQuestionEntries[position];
@@ -3569,39 +3583,103 @@ function App() {
             </div>
           </header>
 
-          <nav className="mathmaster-assignment-compact-nav" aria-label="Assignment question navigation">
-            <button type="button" className="mathmaster-compact-nav-back" onClick={leaveAssignment} aria-label={preview ? 'Back to instructor dashboard' : 'Back to dashboard'}>←</button>
-            <div className="mathmaster-compact-nav-current">
-              <strong>{currentSectionMeta.label}</strong>
-              <span>Question {currentSectionQuestionNumber} of {currentSectionQuestionCount} · {lifecycleBadge.label}{currentNavigationSection?.complete ? ' · Section complete' : ''}</span>
-              {!preview && dolState.status === 'active' && <span className="mathmaster-compact-nav-alert">DOL open{supportPresentation.hideCountdowns ? '' : ` · ${formatRemainingTime(dolState.millisecondsRemaining)}`}</span>}
+          <nav className="mathmaster-assignment-unified-nav" aria-label="Assignment navigation">
+            <div className="mathmaster-assignment-unified-top">
+              <button type="button" className="mathmaster-unified-nav-back" onClick={leaveAssignment} aria-label={preview ? 'Back to instructor dashboard' : 'Back to dashboard'}>←</button>
+              <div className="mathmaster-section-tabs" role="list" aria-label="Assignment sections">
+                {navigationSections.map((section) => {
+                  const meta = activitySectionMeta[section.role] || { label: section.role, background: '#f1f3f4', color: '#3c4043', border: '#9aa0a6' };
+                  const completedQuestions = section.entries.filter((entry) => sectionQuestionIsComplete(entry.index)).length;
+                  const targetEntry = sectionNavigationTarget(section);
+                  const sectionAvailable = Boolean(targetEntry);
+                  const active = currentNavigationSection?.role === section.role;
+                  return (
+                    <button
+                      type="button"
+                      role="listitem"
+                      key={`section-tab-${section.role}-${section.entries[0]?.index}`}
+                      className={`mathmaster-section-tab${active ? ' is-active' : ''}${section.complete ? ' is-complete' : ''}${sectionAvailable ? '' : ' is-locked'}`}
+                      style={{ '--section-color': meta.color, '--section-border': meta.border, '--section-bg': meta.background }}
+                      onClick={() => targetEntry && changeQuestion(targetEntry.index)}
+                      disabled={!sectionAvailable}
+                      aria-current={active ? 'page' : undefined}
+                      title={sectionAvailable
+                        ? `${compactSectionLabel(section)}: ${completedQuestions} of ${section.entries.length} complete. Open the next question that still needs a correct answer.`
+                        : `${compactSectionLabel(section)} is not available yet.`}
+                    >
+                      <span>{compactSectionLabel(section)}</span>
+                      <small>{sectionAvailable ? `${section.complete ? '✓ ' : ''}${completedQuestions}/${section.entries.length}` : '🔒 Locked'}</small>
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                className="mathmaster-overview-button"
+                onClick={() => setAssignmentOverviewExpanded((current) => !current)}
+                aria-expanded={assignmentOverviewExpanded}
+              >
+                <span className="mathmaster-overview-button-label">Overview</span> {assignmentOverviewExpanded ? '▴' : '▾'}
+              </button>
             </div>
-            <button type="button" onClick={() => previousQuestionEntry && changeQuestion(previousQuestionEntry.index)} disabled={!previousQuestionEntry} aria-label="Previous question">‹ <span>Previous</span></button>
-            <select
-              aria-label="Choose a question"
-              value={currentQuestionIndex}
-              onChange={(event) => changeQuestion(Number(event.target.value))}
-            >
-              {visibleQuestionEntries.map((entry) => {
-                const meta = activitySectionMeta[entry.role] || { label: entry.role };
-                return <option key={entry.index} value={entry.index} disabled={!entryIsAvailable(entry)}>{meta.label} Q{entry.sectionPosition + 1}{entryIsAvailable(entry) ? '' : ' · locked'}</option>;
-              })}
-            </select>
-            <button type="button" className="mathmaster-compact-nav-next" onClick={() => nextQuestionEntry && changeQuestion(nextQuestionEntry.index)} disabled={!nextQuestionEntry} aria-label="Next question"><span>Next</span> ›</button>
-          </nav>
 
-          <section className="mathmaster-assignment-overview-toggle" style={{ marginBottom: assignmentOverviewExpanded ? '10px' : '14px', padding: '9px 11px', borderRadius: '10px', border: '1px solid #d7e1f0', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
-            <button type="button" onClick={() => setAssignmentOverviewExpanded((current) => !current)} aria-expanded={assignmentOverviewExpanded} style={{ minHeight: '38px', padding: '7px 11px', borderRadius: '8px', border: '1px solid #bdc7d6', background: '#f8fbff', color: '#174ea6', fontWeight: 900, cursor: 'pointer' }}>
-              {assignmentOverviewExpanded ? 'Hide assignment overview' : 'Show assignment overview'} {assignmentOverviewExpanded ? '▴' : '▾'}
-            </button>
-            <div aria-label="Section progress summary" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-              {navigationSections.map((section) => {
-                const meta = activitySectionMeta[section.role] || { label: section.role, background: '#f1f3f4', color: '#3c4043', border: '#9aa0a6' };
-                const completedQuestions = section.entries.filter((entry) => sectionQuestionIsComplete(entry.index)).length;
-                return <span key={`summary-${section.role}-${section.entries[0]?.index}`} style={{ padding: '5px 8px', borderRadius: 999, border: `1px solid ${section.complete ? '#188038' : meta.border}`, background: section.complete ? '#e6f4ea' : meta.background, color: section.complete ? '#137333' : meta.color, fontSize: '11px', fontWeight: 900 }}>{section.complete ? '✓ ' : ''}{meta.label} {completedQuestions}/{section.entries.length}</span>;
-              })}
+            <div className="mathmaster-assignment-unified-bottom">
+              <div className="mathmaster-current-section-inline">
+                <div className="mathmaster-current-section-summary">
+                  <strong>{currentSectionMeta.label}</strong>
+                  <span>
+                    {currentNavigationSection?.complete
+                      ? '✓ Section complete'
+                      : `${currentSectionCompletedCount} of ${currentSectionQuestionCount} complete · ${currentSectionRemainingCount} remaining`}
+                  </span>
+                  <small>Question {currentSectionQuestionNumber} of {currentSectionQuestionCount} · {lifecycleBadge.label}</small>
+                </div>
+                <div className="mathmaster-question-number-strip" aria-label={`${currentSectionMeta.label} questions`}>
+                  {(currentNavigationSection?.entries || []).map((entry) => {
+                    const record = normalizeQuestionRecord(workingTracker?.[entry.index]);
+                    const correct = record.status === 'correct';
+                    const attempted = record.totalAttempts > 0 && !correct;
+                    const current = entry.index === currentQuestionIndex;
+                    const available = entryIsAvailable(entry);
+                    const status = correct ? 'correct' : attempted ? 'needs another try' : 'not attempted';
+                    return (
+                      <button
+                        type="button"
+                        key={`section-question-${entry.index}`}
+                        className={`mathmaster-question-number${current ? ' is-current' : ''}${correct ? ' is-correct' : ''}${attempted ? ' is-attempted' : ''}${available ? '' : ' is-locked'}`}
+                        style={{ '--section-color': currentSectionMeta.color, '--section-border': currentSectionMeta.border, '--section-bg': currentSectionMeta.background }}
+                        onClick={() => available && changeQuestion(entry.index)}
+                        disabled={!available}
+                        aria-current={current ? 'step' : undefined}
+                        aria-label={`${currentSectionMeta.label} question ${entry.sectionPosition + 1}: ${available ? status : 'locked'}${current ? ', current question' : ''}`}
+                        title={`${currentSectionMeta.label} Question ${entry.sectionPosition + 1} · ${available ? status : 'locked'}`}
+                      >
+                        {entry.sectionPosition + 1}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="mathmaster-unified-question-controls">
+                <button type="button" onClick={() => previousQuestionEntry && changeQuestion(previousQuestionEntry.index)} disabled={!previousQuestionEntry} aria-label="Previous question">‹ <span>Previous</span></button>
+                <select
+                  aria-label="Choose a question"
+                  value={currentQuestionIndex}
+                  onChange={(event) => changeQuestion(Number(event.target.value))}
+                >
+                  {visibleQuestionEntries.map((entry) => {
+                    const meta = activitySectionMeta[entry.role] || { label: entry.role };
+                    return <option key={entry.index} value={entry.index} disabled={!entryIsAvailable(entry)}>{meta.label} Q{entry.sectionPosition + 1}{entryIsAvailable(entry) ? '' : ' · locked'}</option>;
+                  })}
+                </select>
+                <button type="button" className="mathmaster-unified-next" onClick={() => nextQuestionEntry && changeQuestion(nextQuestionEntry.index)} disabled={!nextQuestionEntry} aria-label="Next question"><span>Next</span> ›</button>
+              </div>
             </div>
-          </section>
+            {!preview && dolState.status === 'active' && (
+              <div className="mathmaster-unified-nav-alert">DOL open{supportPresentation.hideCountdowns ? '' : ` · ${formatRemainingTime(dolState.millisecondsRemaining)}`}</div>
+            )}
+          </nav>
 
           {assignmentOverviewExpanded && (
           <div className="mathmaster-question-navigation" style={{ display: 'grid', gap: '14px', marginBottom: '24px' }}>
@@ -3669,43 +3747,6 @@ function App() {
             })}
           </div>
           )}
-
-          <section className="mathmaster-current-section-banner" aria-label="Current assignment section progress" style={{ marginBottom: '12px', padding: '11px 15px', borderRadius: '10px', borderLeft: `6px solid ${currentSectionMeta.border}`, background: currentSectionMeta.background, color: currentSectionMeta.color, textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
-                <strong style={{ fontSize: '16px' }}>{currentSectionMeta.label}</strong>
-                <span style={{ fontSize: '12px', fontWeight: 850 }}>
-                  {currentNavigationSection?.complete
-                    ? '✓ Section complete'
-                    : `${currentSectionCompletedCount} of ${currentSectionQuestionCount} complete · ${currentSectionRemainingCount} remaining`}
-                </span>
-              </div>
-              <div aria-label={`${currentSectionMeta.label} question progress`} style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '7px', flexWrap: 'wrap' }}>
-                {(currentNavigationSection?.entries || []).map((entry) => {
-                  const complete = sectionQuestionIsComplete(entry.index);
-                  const current = entry.index === currentQuestionIndex;
-                  return (
-                    <span
-                      key={`section-progress-${entry.index}`}
-                      title={`${currentSectionMeta.label} Question ${entry.sectionPosition + 1}${complete ? ' complete' : current ? ' current' : ' remaining'}`}
-                      aria-label={`${currentSectionMeta.label} question ${entry.sectionPosition + 1}: ${complete ? 'complete' : current ? 'current' : 'remaining'}`}
-                      style={{
-                        width: current ? '24px' : '10px',
-                        height: '10px',
-                        borderRadius: 999,
-                        border: `2px solid ${current ? currentSectionMeta.border : complete ? '#188038' : currentSectionMeta.border}`,
-                        background: complete ? '#188038' : current ? '#fff' : 'rgba(255,255,255,0.58)',
-                        boxShadow: current ? `0 0 0 2px ${currentSectionMeta.background}` : 'none',
-                        transition: 'width 140ms ease',
-                      }}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-            {!currentNavigationSection?.complete && <span style={{ fontSize: '11px', fontWeight: 850, opacity: 0.88 }}>Question {currentSectionQuestionNumber} of {currentSectionQuestionCount}</span>}
-          </section>
-
           <main ref={assignmentQuestionStageRef} className="mathmaster-question-stage" style={{ background: '#fff', borderRadius: '12px', padding: '10px', minHeight: '500px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
             <QuestionEngine
               key={`${activeAssignmentId}-${currentQuestionIndex}-${currentRecord.variantIndex}-${preview ? 'preview' : lifecycle.status}`}

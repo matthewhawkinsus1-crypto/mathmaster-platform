@@ -788,3 +788,369 @@
     display: none !important;
   }
 }
+
+/* --- Unified assignment navigator ---------------------------------------
+   Section shortcuts, section question progress, and previous/next controls
+   live in one sticky surface. Sections resume at the first available question
+   that is not yet correct; locked sections stay visible but disabled. */
+.mathmaster-assignment-unified-nav {
+  position: sticky;
+  top: 8px;
+  z-index: 85;
+  display: grid;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 9px 10px;
+  border: 1px solid #d7e1f0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 5px 18px rgba(32, 33, 36, 0.12);
+  backdrop-filter: blur(10px);
+}
+
+.mathmaster-assignment-unified-top,
+.mathmaster-assignment-unified-bottom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mathmaster-assignment-unified-top {
+  justify-content: space-between;
+}
+
+.mathmaster-unified-nav-back,
+.mathmaster-overview-button,
+.mathmaster-unified-question-controls button,
+.mathmaster-unified-question-controls select {
+  min-height: 38px;
+  border: 1px solid #bdc7d6;
+  border-radius: 8px;
+  background: #fff;
+  color: #174ea6;
+  font-weight: 850;
+  font-size: 13px;
+}
+
+.mathmaster-unified-nav-back,
+.mathmaster-overview-button,
+.mathmaster-unified-question-controls button {
+  cursor: pointer;
+}
+
+.mathmaster-unified-nav-back {
+  flex: 0 0 40px;
+  width: 40px;
+  padding: 4px;
+  font-size: 20px;
+}
+
+.mathmaster-overview-button {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+}
+
+.mathmaster-section-tabs {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: stretch;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.mathmaster-section-tab {
+  min-height: 40px;
+  padding: 5px 10px;
+  border: 1px solid var(--section-border, #bdc7d6);
+  border-radius: 999px;
+  background: var(--section-bg, #f8fbff);
+  color: var(--section-color, #174ea6);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 900;
+  line-height: 1.05;
+}
+
+.mathmaster-section-tab span {
+  white-space: nowrap;
+}
+
+.mathmaster-section-tab small {
+  font-size: 10px;
+  font-weight: 900;
+  white-space: nowrap;
+  opacity: 0.9;
+}
+
+.mathmaster-section-tab.is-active {
+  box-shadow: 0 0 0 3px var(--section-bg, #e8f0fe);
+  transform: translateY(-1px);
+}
+
+.mathmaster-section-tab.is-complete {
+  border-color: #188038;
+  background: #e6f4ea;
+  color: #137333;
+}
+
+.mathmaster-section-tab.is-locked,
+.mathmaster-section-tab:disabled {
+  border-color: #dadce0;
+  background: #f1f3f4;
+  color: #80868b;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+  opacity: 0.78;
+}
+
+.mathmaster-assignment-unified-bottom {
+  justify-content: space-between;
+  padding-top: 7px;
+  border-top: 1px solid #edf1f6;
+}
+
+.mathmaster-current-section-inline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.mathmaster-current-section-summary {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+  min-width: 120px;
+  text-align: left;
+  line-height: 1.15;
+}
+
+.mathmaster-current-section-summary strong {
+  color: #202124;
+  font-size: 14px;
+}
+
+.mathmaster-current-section-summary span {
+  margin-top: 2px;
+  color: #3c4043;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.mathmaster-current-section-summary small {
+  margin-top: 2px;
+  color: #6f7782;
+  font-size: 9px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.mathmaster-question-number-strip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.mathmaster-question-number {
+  width: 29px;
+  height: 29px;
+  padding: 0;
+  border: 2px solid var(--section-border, #1a73e8);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--section-color, #174ea6);
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.mathmaster-question-number.is-current {
+  background: var(--section-bg, #e8f0fe);
+  box-shadow: 0 0 0 3px var(--section-bg, #e8f0fe);
+  transform: scale(1.08);
+}
+
+.mathmaster-question-number.is-correct {
+  border-color: #188038;
+  background: #188038;
+  color: #fff;
+}
+
+.mathmaster-question-number.is-attempted:not(.is-correct) {
+  border-color: #f9ab00;
+  background: #fff4ce;
+  color: #7a4f00;
+}
+
+.mathmaster-question-number.is-locked,
+.mathmaster-question-number:disabled {
+  border-color: #dadce0;
+  background: #f1f3f4;
+  color: #9aa0a6;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.mathmaster-unified-question-controls {
+  display: grid;
+  grid-template-columns: auto minmax(120px, 185px) auto;
+  gap: 6px;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.mathmaster-unified-question-controls button {
+  padding: 6px 9px;
+}
+
+.mathmaster-unified-question-controls button:disabled {
+  color: #9aa0a6;
+  background: #f1f3f4;
+  border-color: #dadce0;
+  cursor: not-allowed;
+}
+
+.mathmaster-unified-question-controls select {
+  width: 100%;
+  padding: 5px 7px;
+}
+
+.mathmaster-unified-nav-alert {
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: #f3e8fd;
+  color: #681da8;
+  font-size: 11px;
+  font-weight: 900;
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .mathmaster-assignment-unified-bottom {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .mathmaster-current-section-inline,
+  .mathmaster-unified-question-controls {
+    width: 100%;
+  }
+
+  .mathmaster-unified-question-controls {
+    grid-template-columns: auto minmax(100px, 1fr) auto;
+  }
+}
+
+@media (max-width: 768px) and (orientation: portrait) {
+  .mathmaster-assignment-screen .mathmaster-assignment-unified-nav {
+    position: relative;
+    top: 0;
+    z-index: 90;
+    gap: 5px;
+    margin: 0;
+    padding: max(5px, env(safe-area-inset-top)) 5px 5px;
+    border-width: 0 0 1px;
+    border-radius: 0;
+    box-shadow: 0 3px 10px rgba(32, 33, 36, 0.12);
+  }
+
+  .mathmaster-assignment-screen .mathmaster-assignment-unified-top {
+    gap: 4px;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-section-tabs {
+    justify-content: flex-start;
+    gap: 4px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-section-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-section-tab {
+    min-height: 34px;
+    flex: 0 0 auto;
+    padding: 4px 7px;
+    font-size: 10px;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-section-tab small {
+    font-size: 8px;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-overview-button {
+    display: none;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-unified-nav-back {
+    min-height: 34px;
+    width: 34px;
+    flex-basis: 34px;
+    padding: 3px;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-assignment-unified-bottom {
+    gap: 5px;
+    padding-top: 5px;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-current-section-inline {
+    gap: 7px;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-current-section-summary {
+    min-width: 92px;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-current-section-summary strong {
+    font-size: 11px;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-current-section-summary span {
+    font-size: 9px;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-current-section-summary small {
+    display: none;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-question-number-strip {
+    gap: 3px;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-question-number {
+    width: 25px;
+    height: 25px;
+    font-size: 9px;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-unified-question-controls button,
+  .mathmaster-assignment-screen .mathmaster-unified-question-controls select {
+    min-height: 34px;
+    font-size: 10px;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-unified-question-controls button span {
+    display: none;
+  }
+}
+
+/* The unified navigator is taller than the old one-row rail, so selected
+   questions should land below it when changeQuestion scrolls the stage. */
+.mathmaster-question-stage {
+  scroll-margin-top: 142px;
+}
