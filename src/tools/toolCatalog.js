@@ -23,6 +23,8 @@ export const TOOL_CATALOG = Object.freeze({
   // both call for one — and listing Algebra I alone made the tool look
   // unavailable to an Algebra II author.
   relationMapping: { label: 'Mapping Diagram', courses: ['Algebra I', 'Algebra II'] },
+  openSortBoard: { label: 'Open Sort Board', courses: ['Algebra I', 'Algebra II'] },
+  constraintFunctionBuilder: { label: 'Constraint-Based Function Builder', courses: ['Algebra I', 'Algebra II'] },
 });
 
 export const TOOL_CATALOG_IDS = Object.freeze(Object.keys(TOOL_CATALOG));

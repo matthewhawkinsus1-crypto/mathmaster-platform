@@ -67,6 +67,8 @@ export const buildLiveStatus = ({
   activityRole = 'classwork',
   questionIndex = 0,
   questionCount = 0,
+  sectionQuestionIndex = 0,
+  sectionQuestionCount = 0,
   questionLabel = '',
   representation = 'text',
   questionStates = [],
@@ -80,6 +82,8 @@ export const buildLiveStatus = ({
   activityRole: String(activityRole || 'classwork'),
   questionIndex: clampInt(questionIndex),
   questionCount: clampInt(questionCount),
+  sectionQuestionIndex: clampInt(sectionQuestionIndex),
+  sectionQuestionCount: clampInt(sectionQuestionCount),
   questionLabel: String(questionLabel || '').slice(0, 80),
   representation: String(representation || 'text'),
   // One character per question: c=correct, x=incorrect, a=attempted, .=untouched.

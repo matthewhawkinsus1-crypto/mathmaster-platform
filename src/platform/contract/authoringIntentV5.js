@@ -27,7 +27,7 @@ const ACTION_ALIASES = Object.freeze({
   completetable: 'completeTable', readtable: 'readTable',
   orderedpair: 'stateOrderedPair', stateorderedpair: 'stateOrderedPair',
   multipleanswers: 'multipleResponses', multipleresponses: 'multipleResponses',
-  identifyquantities: 'identifyQuantities', identifyvariables: 'identifyQuantities', writeequation: 'writeEquation',
+  identifyquantities: 'identifyQuantities', identifyvariables: 'identifyQuantities', configureaxes: 'configureAxes', labelaxes: 'configureAxes', choosescale: 'configureAxes', writeequation: 'writeEquation',
   classifycontinuity: 'classifyContinuity', classifyrelationship: 'classifyContinuity',
   matchgraphstostories: 'matchGraphsToStories', matchscenarios: 'matchGraphsToStories', comparegraphs: 'compareGraphs',
   writegraphstory: 'writeGraphStory', interpretpoint: 'interpretPointInContext', interpretpointincontext: 'interpretPointInContext',
@@ -425,7 +425,11 @@ const compileRelationshipModel = (q, actions) => {
   if (actions.some((a) => ['stateDomain','analyzeDomain'].includes(a))) ask.push('domain');
   if (actions.some((a) => ['stateRange','analyzeRange'].includes(a))) ask.push('range');
   if (actions.includes('classifyContinuity')) ask.push('continuity');
-  if (ask.length > 1 || actions.some((a) => ['writeEquation','completeTable','constructGraph','stateDomain','stateRange'].includes(a))) {
+  // Axis labeling/scale is a distinct mathematical act handled by the
+  // relationshipModel component itself. Do not route that question through the
+  // generic function-modeling workflow, which intentionally has no axis-setup
+  // stage and would silently drop the objective.
+  if (!actions.includes('configureAxes') && (ask.length > 1 || actions.some((a) => ['writeEquation','completeTable','constructGraph','stateDomain','stateRange'].includes(a)))) {
     out.recipe = { name: 'functionModeling', ask: ask.length ? ask : ['quantities','equation','table','graph','domain','range','continuity'] };
   }
   const answerModel = q.answerModel || relationship.answerModel || {};
@@ -445,6 +449,24 @@ const compileRelationshipModel = (q, actions) => {
   out.domainChoices = q.domainChoices || answerModel.domainChoices || relationship.domainChoices;
   out.rangeChoices = q.rangeChoices || answerModel.rangeChoices || relationship.rangeChoices;
   out.notation = q.notation || answerModel.notation || (out.continuity === 'discrete' ? 'set' : 'interval');
+  if (actions.includes('configureAxes')) {
+    const axis = q.axisRequirements || relationship.axisRequirements || {};
+    out.axisSetup = {
+      required: true,
+      requireScale: axis.requireScale !== false,
+      inputMode: axis.inputMode === 'drag' ? 'drag' : 'type',
+      applyToGraph: axis.applyToGraph !== false,
+      hideGraphLabels: axis.hideGraphLabels !== false,
+      hideGraphUnits: axis.hideGraphUnits !== false,
+      hideGraphScale: axis.hideGraphScale !== false,
+      ...(Array.isArray(axis.acceptedXLabels) ? { acceptedXLabels: axis.acceptedXLabels } : {}),
+      ...(Array.isArray(axis.acceptedYLabels) ? { acceptedYLabels: axis.acceptedYLabels } : {}),
+      ...(Array.isArray(axis.acceptedXUnits) ? { acceptedXUnits: axis.acceptedXUnits } : {}),
+      ...(Array.isArray(axis.acceptedYUnits) ? { acceptedYUnits: axis.acceptedYUnits } : {}),
+      ...(Array.isArray(axis.acceptedXSteps) ? { acceptedXSteps: axis.acceptedXSteps } : {}),
+      ...(Array.isArray(axis.acceptedYSteps) ? { acceptedYSteps: axis.acceptedYSteps } : {}),
+    };
+  }
   out.graph = q.graph || relationship.graph;
   if (!actions.includes('writeEquation') && (isObject(q.function) || isObject(q.functionSpec))) {
     out.functionSpec = coreFunctionSpec(q.function || q.functionSpec);
@@ -470,11 +492,13 @@ const resolveIntentType = (q, actions) => {
   if (q.representations || q.sets || actions.some((a) => ['connectRepresentations','findRepresentationMismatch'].includes(a))) return 'representationMatch';
   if (q.sequence || actions.some((a) => ['analyzeSequence','findSequenceTerm','findMissingTerm','writeRecursive','writeExplicit','compareSequences','partialSum'].includes(a))) return 'sequenceExplorer';
   if (q.relation || q.pairs || actions.some((a) => ['buildMapping','plotRelation','classifyFunction'].includes(a))) return 'relationMapping';
+  if (actions.includes('sortIntoOwnGroups') || q.sortBoard || q.validSchemes) return 'openSortBoard';
+  if (actions.includes('buildFunctionFromConstraints') || q.constraints && q.allowedFamilies) return 'constraintFunctionBuilder';
   if (actions.includes('matchGraphsToStories') || (q.stories && q.candidateGraphs)) return 'graphScenarioMatch';
   if (actions.includes('compareGraphs') || (q.graphs && q.comparisonFields)) return 'graphComparison';
   if (actions.includes('writeGraphStory')) return 'graphStory';
   if (actions.includes('interpretPointInContext')) return 'contextInterpretation';
-  if (actions.some((a) => ['identifyQuantities','writeEquation','classifyContinuity'].includes(a)) && (q.quantities || q.relationship || q.scenario)) return 'relationshipModel';
+  if (actions.some((a) => ['identifyQuantities','configureAxes','writeEquation','classifyContinuity'].includes(a)) && (q.quantities || q.relationship || q.scenario)) return 'relationshipModel';
   if (actions.includes('solveInequalitySystem') || actions.includes('graphSystem') || actions.includes('rowReduce')) return 'systemsWorkspace';
   if (actions.includes('solveSystem') || q.equations) return 'system';
   if (actions.includes('solveLiteral') || q.solveFor) return 'literal';
@@ -650,6 +674,33 @@ const compileOne = (q, index, repairs) => {
       out = copyCommon(q, { type, mode: q.mode || r.mode || (actions.includes('findRepresentationMismatch') ? 'findMismatch' : 'completeSet'), targetId: q.targetId || r.targetId, sets: q.sets || r.sets, mixedSet: q.mixedSet || r.mixedSet, function: q.function ? toolFunctionSpec(q.function) : r.function, rows: q.rows || r.rows });
       break;
     }
+    case 'openSortBoard': {
+      const board = q.sortBoard || {};
+      out = copyCommon(q, {
+        type,
+        items: q.items || board.items,
+        validSchemes: q.validSchemes || board.validSchemes,
+        minGroups: q.minGroups ?? board.minGroups,
+        maxGroups: q.maxGroups ?? board.maxGroups,
+        requireRationale: q.requireRationale ?? board.requireRationale,
+        requireGroupNames: q.requireGroupNames ?? board.requireGroupNames,
+        rationaleMinLength: q.rationaleMinLength ?? board.rationaleMinLength,
+        hints: q.hints || board.hints,
+      });
+      break;
+    }
+    case 'constraintFunctionBuilder': {
+      const builder = q.builder || {};
+      out = copyCommon(q, {
+        type,
+        constraints: q.constraints || builder.constraints,
+        allowedFamilies: q.allowedFamilies || builder.allowedFamilies,
+        initialModel: q.initialModel || builder.initialModel,
+        graph: q.graph || builder.graph,
+        hints: q.hints || builder.hints,
+      });
+      break;
+    }
     case 'graphing2': {
       const l = q.lineIntent || q.line || {};
       let mode = q.mode || l.mode;
@@ -700,9 +751,9 @@ export const AUTHORING_INTENT_V5_ACTIONS = Object.freeze([
   'solveEquation','solveStepByStep','fractionAnswer','chooseNumberLine','constructInterval','writeInterval','readGraph','constructGraph',
   'investigateFunction','analyzeDomain','analyzeRange','analyzeIncreasing','analyzeDecreasing','analyzeConstant','analyzePositive','analyzeNegative',
   'findVertex','findXIntercepts','findYIntercept','findMaximum','findMinimum','solveLiteral','solveSystem','graphSystem','solveInequalitySystem','rowReduce',
-  'completeTable','stateOrderedPair','multipleResponses','identifyQuantities','writeEquation','classifyContinuity','matchGraphsToStories','compareGraphs',
+  'completeTable','stateOrderedPair','multipleResponses','identifyQuantities','configureAxes','writeEquation','classifyContinuity','matchGraphsToStories','compareGraphs',
   'writeGraphStory','interpretPointInContext','buildMapping','plotRelation','classifyFunction','analyzeSequence','findSequenceTerm','findMissingTerm',
-  'writeRecursive','writeExplicit','compareSequences','partialSum','connectRepresentations','findRepresentationMismatch','analyzeData','fitDataModel','predictFromModel',
+  'writeRecursive','writeExplicit','compareSequences','partialSum','connectRepresentations','findRepresentationMismatch','sortIntoOwnGroups','buildFunctionFromConstraints','analyzeData','fitDataModel','predictFromModel',
   'findInverse','composeFunctions','analyzeParabolaGeometry','factorPolynomial','dividePolynomial','multiplyPolynomials','solveInequality','complexOperations','analyzeComplex',
   'exponentialLogBridge','solveExponential','solveLogarithmic','analyzeTransformations','constructLine','modelingLab',
 ]);

@@ -41,6 +41,25 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
   const [inequality, setInequality] = useState('');
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
 
+  const chooseEndpointMode = (closed) => {
+    clearFeedback();
+    setClosedEnd(closed);
+    // If an endpoint is already sitting on the line, changing Open/Closed
+    // should change that endpoint immediately. The student should never have
+    // to erase and re-plot it just to change inclusion.
+    setPending((current) => (current == null ? current : { ...current, closed }));
+  };
+
+  const toggleBuiltEndpoint = (intervalIndex, endpoint) => {
+    clearFeedback();
+    setBuilt((current) => current.map((interval, index) => {
+      if (index !== intervalIndex) return interval;
+      if (endpoint === 'min' && interval.min !== -INF) return { ...interval, minClosed: !interval.minClosed };
+      if (endpoint === 'max' && interval.max !== INF) return { ...interval, maxClosed: !interval.maxClosed };
+      return interval;
+    }));
+  };
+
   const span = max - min || 1;
   const sx = (value) => PAD + ((Math.max(min, Math.min(max, value)) - min) / span) * (WIDTH - PAD * 2);
   const ticks = useMemo(() => {
@@ -92,7 +111,14 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
     setPending(null);
   };
 
-  const undo = () => { clearFeedback(); setPending(null); setBuilt((current) => current.slice(0, -1)); };
+  const undo = () => {
+    clearFeedback();
+    if (pending != null) {
+      setPending(null);
+      return;
+    }
+    setBuilt((current) => current.slice(0, -1));
+  };
   const reset = () => { clearFeedback(); setPending(null); setBuilt([]); setNotation(''); setInequality(''); };
 
   const check = () => {
@@ -136,15 +162,15 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
         steps={[
           'Click a tick mark to place your first endpoint.',
           'Click a second tick for a bounded interval, or choose a ray to shade to infinity.',
-          'Use the open/closed switch before you place an endpoint to control whether it is included.',
+          'Choose open or closed as you place an endpoint. You can also tap any plotted endpoint later to switch it without changing the shading.',
         ]}
       />
 
       <ToolSplit>
         <Panel title="Build the graph">
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-            <button type="button" onClick={() => setClosedEnd(true)} aria-pressed={closedEnd} style={closedEnd ? primaryButton : secondaryButton}>● Closed (included)</button>
-            <button type="button" onClick={() => setClosedEnd(false)} aria-pressed={!closedEnd} style={closedEnd ? secondaryButton : primaryButton}>○ Open (not included)</button>
+            <button type="button" onClick={() => chooseEndpointMode(true)} aria-pressed={closedEnd} style={closedEnd ? primaryButton : secondaryButton}>● Closed (included)</button>
+            <button type="button" onClick={() => chooseEndpointMode(false)} aria-pressed={!closedEnd} style={closedEnd ? secondaryButton : primaryButton}>○ Open (not included)</button>
           </div>
 
           <svg
@@ -172,18 +198,46 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                 <g key={index}>
                   <line x1={left} x2={right} y1={HEIGHT / 2} y2={HEIGHT / 2} stroke="#1a73e8" strokeWidth="6" opacity="0.85" />
                   {interval.min !== -INF && (
-                    <circle cx={sx(interval.min)} cy={HEIGHT / 2} r="8" fill={interval.minClosed ? '#1a73e8' : '#fff'} stroke="#1a73e8" strokeWidth="3" />
+                    <g
+                      role="button"
+                      tabIndex="0"
+                      aria-label={`${interval.minClosed ? 'Closed' : 'Open'} endpoint at ${interval.min}. Activate to make it ${interval.minClosed ? 'open' : 'closed'}.`}
+                      onClick={(event) => { event.stopPropagation(); toggleBuiltEndpoint(index, 'min'); }}
+                      onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleBuiltEndpoint(index, 'min'); } }}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <circle cx={sx(interval.min)} cy={HEIGHT / 2} r="15" fill="transparent" />
+                      <circle pointerEvents="none" cx={sx(interval.min)} cy={HEIGHT / 2} r="8" fill={interval.minClosed ? '#1a73e8' : '#fff'} stroke="#1a73e8" strokeWidth="3" />
+                    </g>
                   )}
                   {interval.max !== INF && (
-                    <circle cx={sx(interval.max)} cy={HEIGHT / 2} r="8" fill={interval.maxClosed ? '#1a73e8' : '#fff'} stroke="#1a73e8" strokeWidth="3" />
+                    <g
+                      role="button"
+                      tabIndex="0"
+                      aria-label={`${interval.maxClosed ? 'Closed' : 'Open'} endpoint at ${interval.max}. Activate to make it ${interval.maxClosed ? 'open' : 'closed'}.`}
+                      onClick={(event) => { event.stopPropagation(); toggleBuiltEndpoint(index, 'max'); }}
+                      onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleBuiltEndpoint(index, 'max'); } }}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <circle cx={sx(interval.max)} cy={HEIGHT / 2} r="15" fill="transparent" />
+                      <circle pointerEvents="none" cx={sx(interval.max)} cy={HEIGHT / 2} r="8" fill={interval.maxClosed ? '#1a73e8' : '#fff'} stroke="#1a73e8" strokeWidth="3" />
+                    </g>
                   )}
                 </g>
               );
             })}
 
             {pending != null && (
-              <g>
-                <circle cx={sx(pending.value)} cy={HEIGHT / 2} r="8" fill={pending.closed ? '#8a3ffc' : '#fff'} stroke="#8a3ffc" strokeWidth="3" />
+              <g
+                role="button"
+                tabIndex="0"
+                aria-label={`${pending.closed ? 'Closed' : 'Open'} pending endpoint at ${pending.value}. Activate to switch it.`}
+                onClick={(event) => { event.stopPropagation(); setPending((current) => current == null ? current : { ...current, closed: !current.closed }); }}
+                onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setPending((current) => current == null ? current : { ...current, closed: !current.closed }); } }}
+                style={{ cursor: 'pointer' }}
+              >
+                <circle cx={sx(pending.value)} cy={HEIGHT / 2} r="15" fill="transparent" />
+                <circle pointerEvents="none" cx={sx(pending.value)} cy={HEIGHT / 2} r="8" fill={pending.closed ? '#8a3ffc' : '#fff'} stroke="#8a3ffc" strokeWidth="3" />
                 <text pointerEvents="none" x={sx(pending.value)} y={HEIGHT / 2 - 18} textAnchor="middle" fontSize="12" fontWeight="700" fill="#6f2da8">{pending.value}</text>
               </g>
             )}
@@ -198,8 +252,12 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
 
           <p aria-live="polite" style={{ marginTop: 10, fontSize: 13, color: '#5f6b7a' }}>
             {pending != null
-              ? `${pending.closed ? 'Closed' : 'Open'} endpoint at ${pending.value} placed. Click a second tick for a bounded interval, or shade to infinity.`
-              : drawn.length ? `Your graph: ${intervalsToNotation(drawn)}` : 'Click a tick mark to begin.'}
+              ? `${pending.closed ? 'Closed' : 'Open'} endpoint at ${pending.value} placed. Click a second tick for a bounded interval, shade to infinity, or tap the endpoint to switch open/closed.`
+              : drawn.length
+                ? ask.includes('interval')
+                  ? `${drawn.length} graph ${drawn.length === 1 ? 'piece' : 'pieces'} placed. The notation is intentionally hidden here — write it yourself in the answer box.`
+                  : `Your graph: ${intervalsToNotation(drawn)}`
+                : 'Click a tick mark to begin.'}
           </p>
         </Panel>
 

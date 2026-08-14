@@ -1,6 +1,7 @@
 import React from 'react';
 import { EmptyState, ProgressBar, StatCard } from '../../ui/primitives';
 import RecommendedSkills from './RecommendedSkills.jsx';
+import DOLCountdown from './DOLCountdown.jsx';
 import { formatDateTime, formatRemainingTime } from '../../assignmentLifecycle';
 
 // The student's assignment dashboard, as a component.
@@ -41,6 +42,8 @@ export default function StudentDashboardView({
   onStartAssignment,
   onOpenMathPath = null,
   onOpenSecureExams = null,
+  liveChallengeInvite = null,
+  onOpenLiveChallenge = null,
   onLogout = null,
   // Everything Recommended for You needs, passed through rather than rebuilt.
   recommended = {},
@@ -55,7 +58,7 @@ export default function StudentDashboardView({
     return (
       <article key={assignment.id} style={{ background: '#fff', padding: '21px 26px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', flexWrap: 'wrap', border: `2px solid ${statusStyle.border}` }}>
         <div style={{ textAlign: 'left', flex: '1 1 470px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}><h3 style={{ margin: 0, color: '#202124' }}>{assignment.title}</h3><span style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', padding: '4px 8px', borderRadius: '999px', background: statusStyle.bg, color: statusStyle.color }}>{statusStyle.label}</span><span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6' }}>{assignment.assignmentType === 'notesClasswork' ? 'NOTES / CLASSWORK' : 'PRACTICE'}</span>{assignment.variantMode === 'shared' && <span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: '#e6f4ea', color: '#137333' }}>SAME CLASS VERSION</span>}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}><h3 style={{ margin: 0, color: '#202124' }}>{assignment.title}</h3><span style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', padding: '4px 8px', borderRadius: '999px', background: statusStyle.bg, color: statusStyle.color }}>{statusStyle.label}</span><span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6' }}>{assignment.assignmentType === 'notesClasswork' ? 'NOTES / CLASSWORK' : 'PRACTICE'}</span>{Object.keys(assignment.sectionVariantModes || {}).length > 0 ? <span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: '#f3e8fd', color: '#681da8' }}>SECTION-SPECIFIC VERSIONS</span> : assignment.variantMode === 'shared' && <span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: '#e6f4ea', color: '#137333' }}>SAME CLASS VERSION</span>}</div>
           <div style={{ color: '#5f6368', fontSize: '13px', lineHeight: 1.55 }}>Regular due: {formatDueDate(assignment)} · Final late due: {formatLateDueDate(assignment)}{lifecycle.isLate && <><br /><strong style={{ color: '#7a4f00' }}>Late work remains open for {formatRemainingTime(lifecycle.millisecondsRemaining)}.</strong></>}{!access.open && <><br /><strong style={{ color: '#a50e0e' }}>Complete the prerequisite notes/classwork first. It opens automatically at {formatDateTime(assignment.releaseAt)} if not completed.</strong></>}{assignment.assignmentType === 'notesClasswork' && <><br />Engaged: {formatTime(activity.totalTimeSeconds || 0)} · Daily grade: {classwork?.score === 100 ? '100 — prerequisite met' : 'In progress'}</>}{dol.enabled && dol.status === 'waiting' && <><br />DOL opens during the final {assignment.dol?.minutesBeforeEnd || 10} minutes of class.</>}</div>
           {questionsTotal > 0 && assignment.assignmentType !== 'notesClasswork' && (
             <div style={{ marginTop: '12px', maxWidth: '340px' }}>
@@ -87,10 +90,17 @@ export default function StudentDashboardView({
           </div>
         </header>
 
+        {liveChallengeInvite && ['invited', 'joined', 'running'].includes(liveChallengeInvite.status) && (
+          <section style={{ marginBottom: '18px', padding: '20px 24px', borderRadius: '16px', background: '#e8f0fe', border: '3px solid #1a73e8', color: '#174ea6', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>
+            <div><div style={{ fontSize: '13px', fontWeight: 1000, textTransform: 'uppercase' }}>⚡ Live Challenge</div><h2 style={{ margin: '4px 0' }}>{liveChallengeInvite.title || 'Class Live Challenge'}</h2><p style={{ margin: 0 }}>{liveChallengeInvite.status === 'running' ? 'The challenge is running now.' : 'Your teacher opened the lobby. Join now so you are ready when Round 1 starts.'}{liveChallengeInvite.alias ? ` You will play as ${liveChallengeInvite.alias}.` : ''}</p></div>
+            <button type="button" onClick={() => onOpenLiveChallenge?.()} style={{ padding: '13px 20px', border: 0, borderRadius: '10px', background: '#174ea6', color: '#fff', fontWeight: 900, fontSize: '16px' }}>{liveChallengeInvite.status === 'running' ? 'Join Challenge Now' : 'Enter Challenge Lobby'}</button>
+          </section>
+        )}
+
         {activeDols.map(({ assignment, state }) => (
           <section key={assignment.id} style={{ marginBottom: '18px', padding: '22px 25px', borderRadius: '16px', background: '#f3e8fd', border: '3px solid #9334e6', color: '#4a126b', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>
-            <div><div style={{ fontSize: '13px', fontWeight: 900, textTransform: 'uppercase' }}>DOL available now</div><h2 style={{ margin: '4px 0' }}>{assignment.title} · Question {state.questionIndex + 1}</h2><p style={{ margin: 0 }}>Submit this question before class ends for today&apos;s DOL grade.</p>{!supportPresentation.hideCountdowns && <div style={{ marginTop: '8px', fontSize: '22px', fontWeight: 1000 }}>{formatRemainingTime(state.millisecondsRemaining)} remaining</div>}</div>
-            <button onClick={() => onStartAssignment(assignment.id, state.questionIndex)} style={{ padding: '13px 20px', border: 0, borderRadius: '10px', background: '#681da8', color: '#fff', fontWeight: 900, fontSize: '16px' }}>Open DOL</button>
+            <div><div style={{ fontSize: '13px', fontWeight: 900, textTransform: 'uppercase' }}>DOL available now</div><h2 style={{ margin: '4px 0' }}>{assignment.title} · DOL section</h2><p style={{ margin: 0 }}>Complete all {(state.questionIndices || [state.questionIndex]).length} DOL question{(state.questionIndices || [state.questionIndex]).length === 1 ? '' : 's'} before the timer reaches zero.</p>{!supportPresentation.hideCountdowns && <div style={{ marginTop: '8px', fontSize: '22px', fontWeight: 1000 }}><DOLCountdown endsAt={state.endsAt} /> remaining</div>}</div>
+            <button onClick={() => onStartAssignment(assignment.id, (state.questionIndices || [state.questionIndex])[0])} style={{ padding: '13px 20px', border: 0, borderRadius: '10px', background: '#681da8', color: '#fff', fontWeight: 900, fontSize: '16px' }}>Start DOL Now</button>
           </section>
         ))}
 

@@ -1,8 +1,10 @@
+import { validateSortQuestion } from './openSortBoard/openSortMath.js';
+import { validateConstraintBuilderQuestion } from './constraintFunctionBuilder/constraintFunctionMath.js';
 const TOOL_IDS = new Set([
   'dataModelingLab','inverseCompositionLab','systemsWorkspace','parabolaGeometryLab','polynomialWorkshop',
   'signSolutionAnalyzer','sequenceExplorer','complexPlaneLab','exponentialLogBridge','transformationsLab',
   'representationMatch','functionInvestigation2','graphing2','stepAlgebra2','solutionReview2',
-  'intervalNumberLine','relationMapping',
+  'intervalNumberLine','relationMapping','openSortBoard','constraintFunctionBuilder',
 ]);
 
 const isPositiveInteger = (value) => Number.isInteger(Number(value)) && Number(value) >= 1;
@@ -261,6 +263,8 @@ export const validateToolQuestion = (question = {}) => {
       if (!['vertical','horizontal'].includes(question.orientation) || !Number.isFinite(Number(question.value))) errors.push('verticalHorizontal mode requires vertical/horizontal orientation and a finite value.');
     }
   }
+  if (toolId === 'openSortBoard') errors.push(...validateSortQuestion(question));
+  if (toolId === 'constraintFunctionBuilder') errors.push(...validateConstraintBuilderQuestion(question));
   if (toolId === 'relationMapping') {
     if (!Array.isArray(question.pairs) || question.pairs.length < 1) errors.push('relationMapping requires at least one pair.');
     else question.pairs.forEach((pair, index) => {

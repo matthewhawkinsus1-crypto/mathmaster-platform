@@ -15,6 +15,8 @@ import StepAlgebra2 from './stepAlgebra2/StepAlgebra2';
 import SolutionReview2 from './solutionReview2/SolutionReview2';
 import IntervalNumberLine from './intervalNumberLine/IntervalNumberLine';
 import RelationMapping from './relationMapping/RelationMapping';
+import OpenSortBoard from './openSortBoard/OpenSortBoard';
+import ConstraintFunctionBuilder from './constraintFunctionBuilder/ConstraintFunctionBuilder';
 import { getToolCapabilities } from './toolCapabilities';
 import { TOOL_CATALOG } from './toolCatalog';
 
@@ -38,6 +40,8 @@ const TOOL_COMPONENTS = {
   solutionReview2: SolutionReview2,
   intervalNumberLine: IntervalNumberLine,
   relationMapping: RelationMapping,
+  openSortBoard: OpenSortBoard,
+  constraintFunctionBuilder: ConstraintFunctionBuilder,
 };
 
 export const TOOL_REGISTRY = Object.fromEntries(

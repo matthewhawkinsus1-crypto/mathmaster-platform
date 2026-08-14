@@ -596,3 +596,175 @@
     position: static !important;
   }
 }
+
+/* --- Student assignment navigation --------------------------------------
+   The large activity cards are useful as an assignment overview, but they
+   should never be the only way to change questions. This compact rail stays
+   with the student and becomes the whole assignment chrome on a phone. */
+.mathmaster-assignment-compact-nav {
+  position: sticky;
+  top: 8px;
+  z-index: 80;
+  display: grid;
+  grid-template-columns: auto minmax(130px, 1fr) auto minmax(150px, 220px) auto;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 9px 10px;
+  border: 1px solid #d7e1f0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 5px 18px rgba(32, 33, 36, 0.12);
+  backdrop-filter: blur(10px);
+}
+
+.mathmaster-assignment-compact-nav button,
+.mathmaster-assignment-compact-nav select {
+  min-height: 42px;
+  border: 1px solid #bdc7d6;
+  border-radius: 8px;
+  background: #fff;
+  color: #174ea6;
+  font-weight: 850;
+  font-size: 14px;
+}
+
+.mathmaster-assignment-compact-nav button {
+  padding: 7px 11px;
+  cursor: pointer;
+}
+
+.mathmaster-assignment-compact-nav button:disabled {
+  color: #9aa0a6;
+  background: #f1f3f4;
+  border-color: #dadce0;
+  cursor: not-allowed;
+}
+
+.mathmaster-assignment-compact-nav select {
+  width: 100%;
+  padding: 6px 8px;
+}
+
+.mathmaster-assignment-compact-nav .mathmaster-compact-nav-current {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  text-align: left;
+  line-height: 1.25;
+}
+
+.mathmaster-assignment-compact-nav .mathmaster-compact-nav-current strong {
+  overflow: hidden;
+  color: #202124;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mathmaster-assignment-compact-nav .mathmaster-compact-nav-current > span {
+  margin-top: 2px;
+  color: #5f6368;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.mathmaster-assignment-compact-nav .mathmaster-compact-nav-alert {
+  color: #681da8 !important;
+  font-weight: 900 !important;
+}
+
+.mathmaster-assignment-compact-nav .mathmaster-compact-nav-back {
+  min-width: 42px;
+  padding-inline: 10px;
+  font-size: 22px;
+  line-height: 1;
+}
+
+@media (max-width: 768px) and (orientation: portrait) {
+  /* One phone viewport = one question. The old large assignment header and
+     activity overview remain available on wider screens, while the compact
+     rail carries the essential navigation/status on mobile. */
+  .mathmaster-assignment-screen {
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-assignment-shell {
+    width: 100% !important;
+    max-width: none !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-assignment-header,
+  .mathmaster-assignment-screen .mathmaster-question-navigation,
+  .mathmaster-assignment-screen .mathmaster-current-section-banner,
+  .mathmaster-assignment-screen .mathmaster-assignment-banner {
+    display: none !important;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-assignment-compact-nav {
+    position: relative;
+    top: 0;
+    z-index: 90;
+    grid-template-columns: 42px minmax(82px, 1fr) 46px minmax(86px, 112px) 54px;
+    gap: 5px;
+    margin: 0;
+    padding: max(6px, env(safe-area-inset-top)) 6px 6px;
+    border-width: 0 0 1px;
+    border-radius: 0;
+    box-shadow: 0 3px 10px rgba(32, 33, 36, 0.12);
+  }
+
+  .mathmaster-assignment-screen .mathmaster-assignment-compact-nav button,
+  .mathmaster-assignment-screen .mathmaster-assignment-compact-nav select {
+    min-width: 0;
+    min-height: 40px;
+    padding: 5px 6px;
+    font-size: 12px;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-assignment-compact-nav button span {
+    display: none;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-compact-nav-current strong {
+    font-size: 12px;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-compact-nav-current > span {
+    font-size: 9px;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-question-stage {
+    min-height: 0 !important;
+    height: auto !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-question-engine,
+  .mathmaster-assignment-screen .mathmaster-question-container {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+  }
+}
+
+/* Open Sort Board: graph cards need enough width to remain readable, but on a
+   Chromebook/phone the staging tray should stack above the student's groups
+   rather than squeezing two tiny columns side by side. */
+@media (max-width: 900px) {
+  .mathmaster-open-sort-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}

@@ -22,7 +22,7 @@ import { CREATION_MODE_LABELS, resolveCreationMode } from '../../assignmentDesti
 export const PREFLIGHT_STEPS = Object.freeze([
   { id: 'details', label: 'Details', hint: 'Title, folder and dates' },
   { id: 'classes', label: 'Classes', hint: 'Who receives it' },
-  { id: 'delivery', label: 'Delivery', hint: 'Type, DOL and posting' },
+  { id: 'delivery', label: 'Delivery', hint: 'Roles, DOL and posting' },
   { id: 'check', label: 'Check', hint: 'Preview, then create' },
 ]);
 

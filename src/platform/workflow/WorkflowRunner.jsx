@@ -325,8 +325,16 @@ const DELEGATES = {
           table: {
             columns,
             rows,
-            answers: driven ? {} : (content?.tableAnswers || stage.answers || {}),
-            blanks: driven ? xValues.map((_, rowIndex) => `${rowIndex}:${responseColumn}`) : [],
+            // Workflow answer keys live only in question.grading and are never
+            // passed into the renderer. Every response cell is therefore an
+            // editable blank here; gradeWorkflow checks it after submission.
+            // Previously fixed-table workflows relied on content.tableAnswers,
+            // but readComposedQuestion intentionally strips that answer field,
+            // leaving students with a read-only table (notably Algebra II L1
+            // Day 2 Q8). Keeping editability separate from answer ownership
+            // fixes that class of question without exposing a key in the UI.
+            answers: {},
+            blanks: xValues.map((_, rowIndex) => `${rowIndex}:${responseColumn}`),
           },
           ruleLatex: rule,
           showRule: Boolean(rule),

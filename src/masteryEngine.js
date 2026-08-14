@@ -4,7 +4,7 @@ import {
   normalizeQuestionInstructionalMetadata,
 } from './questionMetadata.js';
 import { getTexasStandard, TEXAS_PERFORMANCE_LEVELS } from './texasStandards.js';
-import { resolveDOLQuestionIndex } from './assignmentLifecycle.js';
+import { resolveDOLQuestionIndices } from './assignmentLifecycle.js';
 import { getEffectiveActivityPolicy, resolveQuestionActivityRole } from './platform/policies/activityPolicies.js';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -107,7 +107,7 @@ const resolveQuestionEvidenceWeight = ({ question, assignment, standardEntry, re
   const activityRole = resolveQuestionActivityRole({
     question,
     assignment,
-    isDOL: Boolean(dolEnabled && resolveDOLQuestionIndex(assignment) === questionIndex),
+    isDOL: Boolean(dolEnabled && resolveDOLQuestionIndices(assignment).includes(questionIndex)),
   });
   const activityPolicy = getEffectiveActivityPolicy(activityRole);
   const activityEvidenceWeight = Math.max(0, Number(activityPolicy.mastery.evidenceWeight) || 0);

@@ -222,6 +222,38 @@ const buildFunctionReview = (question) => {
   };
 };
 
+const buildOpenSortReview = (question) => {
+  const schemes = Array.isArray(question.validSchemes) ? question.validSchemes : [];
+  return {
+    title: 'Open-sort solution',
+    items: schemes.slice(0, 4).map((scheme, index) => ({
+      label: scheme.label || `Valid sort ${index + 1}`,
+      value: (scheme.groups || []).map((group) => `${group.label || 'Group'}: ${(group.itemIds || []).join(', ')}`).join(' · '),
+    })),
+    note: schemes.length > 1 ? 'More than one mathematical partition is valid for this problem.' : null,
+  };
+};
+
+const constraintText = (constraint = {}) => {
+  if (constraint.kind === 'family') return `Family: ${constraint.value}`;
+  if (constraint.kind === 'continuity' || constraint.kind === 'domainMode') return `Graph type: ${constraint.value}`;
+  if (constraint.kind === 'behavior') return `Behavior: ${constraint.value}`;
+  if (constraint.kind === 'extremum') return `Has an absolute ${constraint.value || constraint.extremumType}`;
+  if (constraint.kind === 'isFunction') return constraint.value ? 'Must be a function' : 'Must not be a function';
+  if (constraint.kind === 'straightLine') return constraint.value ? 'Must be a straight line' : 'Must not be a straight line';
+  if (constraint.kind === 'passesThrough') return `Passes through (${(constraint.point || constraint.value || []).join(', ')})`;
+  if (constraint.kind === 'vertex') return `Vertex: (${(constraint.point || constraint.value || []).join(', ')})`;
+  if (constraint.kind === 'yIntercept') return `y-intercept: ${constraint.value}`;
+  if (constraint.kind === 'xIntercept') return `x-intercept(s): ${Array.isArray(constraint.value) ? constraint.value.join(', ') : constraint.value}`;
+  return constraint.label || constraint.kind || 'Constraint';
+};
+
+const buildConstraintFunctionReview = (question) => ({
+  title: 'Constraint-builder solution',
+  items: (question.constraints || []).map((constraint, index) => ({ label: `Constraint ${index + 1}`, value: constraintText(constraint) })),
+  note: 'There is intentionally no single answer equation. Any relation that satisfies every listed constraint is correct.',
+});
+
 const buildRelationReview = (question) => {
   const pairs = relationPairs(question);
   const domain = uniqueSorted(pairs.map(([x]) => x));
@@ -251,6 +283,8 @@ export const buildToolSolutionReviewModel = (question = {}) => {
     if (toolId === 'representationMatch') return buildRepresentationReview(question);
     if (toolId === 'functionInvestigation2') return buildFunctionReview(question);
     if (toolId === 'relationMapping') return buildRelationReview(question);
+    if (toolId === 'openSortBoard') return buildOpenSortReview(question);
+    if (toolId === 'constraintFunctionBuilder') return buildConstraintFunctionReview(question);
   } catch (error) {
     return { title: 'Solution review', items: [], note: `The worked solution could not be generated: ${error.message}` };
   }

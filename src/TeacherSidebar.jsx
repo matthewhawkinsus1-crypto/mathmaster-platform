@@ -16,6 +16,7 @@
 const TAB_LABELS = {
   home: 'Home',
   demo: 'Demo Experience',
+  liveChallenge: 'Live Challenge',
   assignments: 'Assignments',
   library: 'Library',
   mathTools: 'Math Tools Lab',
@@ -35,6 +36,7 @@ const TAB_LABELS = {
 const TAB_ICONS = {
   home: '🏠',
   demo: '▶️',
+  liveChallenge: '⚡',
   assignments: '📄',
   library: '🗂️',
   mathTools: '🧪',
@@ -52,7 +54,7 @@ const TAB_ICONS = {
 };
 
 const TAB_GROUPS = [
-  { id: 'teach', label: 'Teach', tabs: ['home', 'demo', 'assignments', 'library', 'mathTools', 'simulator'] },
+  { id: 'teach', label: 'Teach', tabs: ['home', 'demo', 'liveChallenge', 'assignments', 'library', 'mathTools', 'simulator'] },
   { id: 'people', label: 'Classes', tabs: ['students', 'classesWorkspace', 'classes', 'pacing'] },
   { id: 'insight', label: 'Evidence', tabs: ['grades', 'standards', 'analytics', 'exams'] },
   { id: 'admin', label: 'Setup', tabs: ['classroom', 'access'] },

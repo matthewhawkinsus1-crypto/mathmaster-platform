@@ -1095,12 +1095,27 @@ const normalizeClassPeriods = (value) => {
   return [...new Set(items.map(normalizeClassPeriod).filter(Boolean))];
 };
 
+const normalizeSectionVariantModes = (value) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value)
+    .map(([role, mode]) => [String(role).trim().toLowerCase(), String(mode).trim().toLowerCase()])
+    .filter(([, mode]) => mode === 'shared' || mode === 'personalized'));
+};
+
+const normalizeDOLInstructionDates = (value) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value)
+    .map(([period, date]) => [normalizeClassPeriod(period), String(date || '').trim()])
+    .filter(([period, date]) => Boolean(period) && /^\d{4}-\d{2}-\d{2}$/.test(date)));
+};
+
 export const normalizeAssignmentPackageMetadata = (rawAssignment = {}, questions = []) => {
   const source = rawAssignment && typeof rawAssignment === 'object' && !Array.isArray(rawAssignment) ? rawAssignment : {};
   const templateKey = String(source.template || '').trim().toLowerCase();
   const template = ASSIGNMENT_TEMPLATE_DEFAULTS[templateKey] || {};
   const mergedDol = { ...(template.dol || {}), ...(source.dol || {}) };
-  const merged = { ...template, ...source, dol: mergedDol };
+  const mergedWarmup = { ...(template.warmup || {}), ...(source.warmup || {}) };
+  const merged = { ...template, ...source, dol: mergedDol, warmup: mergedWarmup };
 
   const assignmentType = normalizeAssignmentType(merged.assignmentType || merged.type);
   const variantMode = normalizeVariantMode(merged.variantMode || merged.problemVersions || merged.versionMode, questions);
@@ -1125,6 +1140,7 @@ export const normalizeAssignmentPackageMetadata = (rawAssignment = {}, questions
       folder: Object.prototype.hasOwnProperty.call(source, 'folder'),
       assignmentType: Object.prototype.hasOwnProperty.call(source, 'assignmentType') || Object.prototype.hasOwnProperty.call(source, 'type') || Boolean(templateKey),
       variantMode: Object.prototype.hasOwnProperty.call(source, 'variantMode') || Object.prototype.hasOwnProperty.call(source, 'problemVersions') || Object.prototype.hasOwnProperty.call(source, 'versionMode') || Boolean(templateKey),
+      sectionVariantModes: Object.prototype.hasOwnProperty.call(source, 'sectionVariantModes'),
       classes: ['classes', 'classPeriods', 'assignedClassPeriods'].some((key) => Object.prototype.hasOwnProperty.call(source, key)),
       releaseAt: Object.prototype.hasOwnProperty.call(source, 'releaseAt') || Object.prototype.hasOwnProperty.call(source, 'releaseDate'),
       dueAt: Object.prototype.hasOwnProperty.call(source, 'dueAt') || Object.prototype.hasOwnProperty.call(source, 'dueDate'),
@@ -1132,6 +1148,7 @@ export const normalizeAssignmentPackageMetadata = (rawAssignment = {}, questions
       prerequisite: Object.prototype.hasOwnProperty.call(source, 'prerequisiteAssignmentId') || Object.prototype.hasOwnProperty.call(source, 'prerequisiteTitle') || Object.prototype.hasOwnProperty.call(source, 'prerequisite'),
       completionRule: Object.prototype.hasOwnProperty.call(source, 'completionRule') || Boolean(templateKey),
       dol: Object.prototype.hasOwnProperty.call(source, 'dol') || Boolean(templateKey),
+      warmup: Object.prototype.hasOwnProperty.call(source, 'warmup') || Boolean(template?.warmup),
     },
     schemaVersion: Number(merged.schemaVersion) || 2,
     template: templateKey || null,
@@ -1140,6 +1157,7 @@ export const normalizeAssignmentPackageMetadata = (rawAssignment = {}, questions
     folder: String(merged.folder || '').trim() || null,
     assignmentType,
     variantMode,
+    sectionVariantModes: normalizeSectionVariantModes(merged.sectionVariantModes),
     assignedClassPeriods: classes,
     releaseAt: merged.releaseAt || merged.releaseDate || null,
     dueAt: merged.dueAt || merged.dueDate || null,
@@ -1149,9 +1167,23 @@ export const normalizeAssignmentPackageMetadata = (rawAssignment = {}, questions
     completionRule: merged.completionRule || (assignmentType === 'notesClasswork'
       ? { minEngagementMinutes: 10, minimumQuestionCompletionPercent: 80 }
       : null),
+    warmup: {
+      // Warm-Up availability follows the student's actual class period. The
+      // authored assignment may change the default seven-minute lead-in, while
+      // teacher close/reopen state is stored later on the live assignment.
+      enabled: merged.warmup?.enabled !== false,
+      minutesBeforeStart: Math.max(0, Number(merged.warmup?.minutesBeforeStart ?? merged.warmup?.minutes ?? 7)),
+      instructionDate: String(merged.warmup?.instructionDate || merged.warmup?.date || '').trim() || null,
+      instructionDatesByClassPeriod: normalizeDOLInstructionDates(merged.warmup?.instructionDatesByClassPeriod),
+    },
     dol: {
-      enabled: assignmentType === 'practice' && merged.dol?.enabled === true,
+      // DOL behavior belongs to the authored DOL/activity role, not the legacy
+      // assignmentType compatibility field. Guided classwork bundles may also
+      // contain an exit ticket.
+      enabled: merged.dol?.enabled === true,
       minutesBeforeEnd: Math.max(1, Number(merged.dol?.minutesBeforeEnd || merged.dol?.minutes || 10)),
+      instructionDate: String(merged.dol?.instructionDate || merged.dol?.date || '').trim() || null,
+      instructionDatesByClassPeriod: normalizeDOLInstructionDates(merged.dol?.instructionDatesByClassPeriod),
       questionIndex: dolQuestionIndex,
       questionId: String(merged.dol?.questionId || '').trim() || null,
     },

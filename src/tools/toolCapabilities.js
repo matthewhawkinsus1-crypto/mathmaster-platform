@@ -18,5 +18,7 @@ export const TOOL_CAPABILITIES = {
 
 TOOL_CAPABILITIES.intervalNumberLine = { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: false, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true };
 TOOL_CAPABILITIES.relationMapping = { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: false, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true };
+TOOL_CAPABILITIES.openSortBoard = { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: false, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true };
+TOOL_CAPABILITIES.constraintFunctionBuilder = { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: false, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true };
 
 export const getToolCapabilities = (toolId) => TOOL_CAPABILITIES[toolId] || {};

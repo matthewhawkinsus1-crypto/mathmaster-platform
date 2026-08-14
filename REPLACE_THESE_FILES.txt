@@ -1,0 +1,33 @@
+MathMaster current-main -> Live Challenge merged v2
+
+This package is specifically for the current GitHub-main build you exported on 2026-08-13.
+
+UPLOAD THIS ZIP TO CLOUD SHELL HOME, then run:
+
+cd ~/mathmaster-platform
+unzip -o ~/MathMaster-current-main-live-challenge-replacement-files-v2.zip
+npm install
+cd functions
+npm install
+cd ..
+npm run build
+
+STOP if the build fails.
+
+If the build succeeds, deploy only the seven new Live Challenge functions:
+
+firebase deploy --only functions:createLiveChallenge,functions:joinLiveChallenge,functions:startLiveChallenge,functions:advanceLiveChallenge,functions:submitLiveChallengeResponse,functions:finishLiveChallenge,functions:cancelLiveChallenge
+
+Then deploy Firestore rules:
+
+firebase deploy --only firestore:rules
+
+Then:
+
+git status
+git add -A
+git commit -m "Merge Live Challenge into current MathMaster main"
+git pull --rebase origin main
+git push origin main
+
+Do NOT use git push --force. If the rebase reports a conflict, stop there.

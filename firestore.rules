@@ -95,6 +95,52 @@ service cloud.firestore {
       allow create, update, delete: if ownsStudent(studentId) || teacher();
     }
 
+    // Live Challenge. All writes go through Cloud Functions so a student can
+    // never post their own score or inspect an answer-bearing round record.
+    // Each student gets one small invite pointer; that pointer is also the
+    // membership proof the room read rule checks.
+    match /liveChallengeInvites/{studentId} {
+      allow read: if ownsStudent(studentId);
+      allow create, update, delete: if false;
+    }
+
+    match /liveChallengeRooms/{roomId} {
+      allow read: if rootAdmin()
+        || (teacher() && resource.data.teacherEmail == request.auth.token.email)
+        || (signedIn()
+          && request.auth.token.role == 'student'
+          && get(/databases/$(database)/documents/liveChallengeInvites/$(request.auth.token.studentId)).data.roomId == roomId);
+      allow create, update, delete: if false;
+
+      // Anonymous per-player standings are separate documents so a whole class
+      // can answer at once without every response contending on one hot room
+      // document. They contain only game aliases and score/progress counters.
+      match /players/{playerKey} {
+        allow read: if rootAdmin()
+          || (teacher() && get(/databases/$(database)/documents/liveChallengeRooms/$(roomId)).data.teacherEmail == request.auth.token.email)
+          || (signedIn()
+            && request.auth.token.role == 'student'
+            && get(/databases/$(database)/documents/liveChallengeInvites/$(request.auth.token.studentId)).data.roomId == roomId);
+        allow create, update, delete: if false;
+      }
+    }
+
+    // One tiny pointer lets a teacher recover the currently active room after
+    // a refresh without querying years of completed game history.
+    match /liveChallengeTeacherActive/{teacherEmail} {
+      allow read: if rootAdmin() || (teacher() && request.auth.token.email == teacherEmail);
+      allow create, update, delete: if false;
+    }
+
+    // Question IDs, roster membership, per-student scores before public
+    // anonymization, and all other private game state stay server-only.
+    match /liveChallengePrivate/{roomId} {
+      allow read, write: if false;
+    }
+    match /liveChallengePrivate/{roomId}/{document=**} {
+      allow read, write: if false;
+    }
+
     // Route history: why the adaptive path sent a student where it did. A
     // student may read their own so the app can explain a decision back to
     // them, but only the platform's teacher role writes it — a student who

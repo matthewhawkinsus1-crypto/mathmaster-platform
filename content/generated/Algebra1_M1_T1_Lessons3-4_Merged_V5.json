@@ -1,0 +1,970 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "courseId": "algebra1",
+    "assignmentType": "notesClasswork",
+    "warmup": {
+      "enabled": true,
+      "minutesBeforeStart": 7
+    },
+    "dol": {
+      "enabled": true,
+      "minutesBeforeEnd": 10
+    },
+    "title": "Algebra I — Module 1 Topic 1 Lessons 3–4: Functions, Families, and Characteristics",
+    "folder": "Algebra I/Module 1/Topic 1/Lessons 3-4"
+  },
+  "lessonMetadata": {
+    "provider": "Bluebonnet",
+    "course": "Algebra I",
+    "module": 1,
+    "topic": 1,
+    "lessons": [
+      3,
+      4
+    ],
+    "sourceFocus": "Function definition and notation; multiple representations; domain/range; Vertical Line Test; discrete/continuous; linear, exponential, and quadratic families; characteristics-to-family reasoning; building and distinguishing functions from characteristics."
+  },
+  "activities": [
+    {
+      "role": "warmup",
+      "title": "Warm-Up — Function or Not?",
+      "questions": [
+        {
+          "standard": "A.12A",
+          "prompt": "Build the mapping, state the domain and range, and decide whether the relation is a function.",
+          "studentActions": [
+            "buildMapping",
+            "stateDomain",
+            "stateRange",
+            "classifyFunction"
+          ],
+          "relation": [
+            [
+              -3,
+              1
+            ],
+            [
+              -1,
+              3
+            ],
+            [
+              2,
+              5
+            ],
+            [
+              4,
+              7
+            ]
+          ],
+          "dok": 1,
+          "difficultyBand": 1
+        },
+        {
+          "standard": "A.12A",
+          "prompt": "One input in this relation is paired with two different outputs. Build the mapping and decide whether the relation is a function.",
+          "studentActions": [
+            "buildMapping",
+            "stateDomain",
+            "stateRange",
+            "classifyFunction"
+          ],
+          "relation": [
+            [
+              1,
+              2
+            ],
+            [
+              1,
+              6
+            ],
+            [
+              3,
+              4
+            ],
+            [
+              5,
+              8
+            ]
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A.12A",
+          "prompt": "One defensible ‘odd one out’ reason is shown. Choose the graph that does not belong under that reason.",
+          "studentActions": [
+            "compareGraphs"
+          ],
+          "candidateGraphs": [
+            {
+              "id": "A",
+              "label": "Graph A",
+              "function": {
+                "family": "linear",
+                "m": 2,
+                "b": 1
+              }
+            },
+            {
+              "id": "B",
+              "label": "Graph B",
+              "function": {
+                "family": "exponential",
+                "a": 2,
+                "base": 2
+              }
+            },
+            {
+              "id": "C",
+              "label": "Graph C",
+              "function": {
+                "family": "quadratic",
+                "a": 1,
+                "h": 0,
+                "k": -2
+              }
+            },
+            {
+              "id": "D",
+              "label": "Graph D",
+              "function": {
+                "family": "linear",
+                "m": -1,
+                "b": 4
+              }
+            }
+          ],
+          "comparisonFields": [
+            {
+              "id": "odd",
+              "label": "Odd one out if the rule is ‘the only graph with an absolute minimum’",
+              "answer": "Graph C",
+              "options": [
+                "Graph A",
+                "Graph B",
+                "Graph C",
+                "Graph D"
+              ]
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        }
+      ]
+    },
+    {
+      "role": "classwork",
+      "title": "Classwork — One Rule, Many Representations",
+      "questions": [
+        {
+          "standard": "A.12A",
+          "prompt": "Represent the relation with a mapping and coordinate plot, state its domain and range, and decide whether it defines a function.",
+          "studentActions": [
+            "buildMapping",
+            "plotRelation",
+            "stateDomain",
+            "stateRange",
+            "classifyFunction"
+          ],
+          "relation": [
+            [
+              -4,
+              -1
+            ],
+            [
+              -2,
+              1
+            ],
+            [
+              0,
+              3
+            ],
+            [
+              3,
+              6
+            ]
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A.12A",
+          "prompt": "Rewrite y=3x-5 using function notation, and identify the independent variable represented inside the parentheses.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "notation",
+              "label": "Function notation",
+              "answer": "f(x)=3x-5",
+              "acceptedAnswers": [
+                "f(x)=3x-5",
+                "f(x) = 3x - 5"
+              ]
+            },
+            {
+              "id": "input",
+              "label": "Independent variable",
+              "answer": "x",
+              "options": [
+                "x",
+                "f",
+                "y"
+              ]
+            }
+          ],
+          "dok": 1,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A.2A",
+          "prompt": "Analyze the domain and range of the restricted linear function f(x)=2x+1 for -3 ≤ x < 4.",
+          "studentActions": [
+            "analyzeDomain",
+            "analyzeRange"
+          ],
+          "function": {
+            "family": "linear",
+            "m": 2,
+            "b": 1,
+            "domain": {
+              "min": -3,
+              "max": 4,
+              "minInclusive": true,
+              "maxInclusive": false
+            }
+          },
+          "notation": "interval",
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A.6A",
+          "prompt": "Analyze the domain and range of f(x)=-(x-2)^2+6.",
+          "studentActions": [
+            "analyzeDomain",
+            "analyzeRange",
+            "findMaximum"
+          ],
+          "function": {
+            "family": "quadratic",
+            "a": -1,
+            "h": 2,
+            "k": 6
+          },
+          "notation": "inequality",
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A.9A",
+          "prompt": "Analyze the domain and range of f(x)=3(2^x).",
+          "studentActions": [
+            "analyzeDomain",
+            "analyzeRange"
+          ],
+          "function": {
+            "family": "exponential",
+            "a": 3,
+            "base": 2
+          },
+          "notation": "inequality",
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A.12A",
+          "prompt": "Use the Vertical Line Test idea to compare these relations and identify which one is not a function.",
+          "studentActions": [
+            "compareGraphs"
+          ],
+          "graphs": [
+            {
+              "id": "F",
+              "label": "Graph F",
+              "graph": {
+                "xMin": -4,
+                "xMax": 4,
+                "yMin": -4,
+                "yMax": 6,
+                "functions": [
+                  {
+                    "type": "quadratic",
+                    "a": 1,
+                    "h": 0,
+                    "k": 0
+                  }
+                ]
+              }
+            },
+            {
+              "id": "N",
+              "label": "Graph N",
+              "graph": {
+                "xMin": -4,
+                "xMax": 4,
+                "yMin": -4,
+                "yMax": 6,
+                "points": [
+                  [
+                    -2,
+                    1
+                  ],
+                  [
+                    0,
+                    -2
+                  ],
+                  [
+                    0,
+                    3
+                  ],
+                  [
+                    3,
+                    4
+                  ]
+                ]
+              }
+            }
+          ],
+          "comparisonFields": [
+            {
+              "id": "notfunction",
+              "label": "Not a function",
+              "answer": "Graph N",
+              "options": [
+                "Graph F",
+                "Graph N"
+              ]
+            },
+            {
+              "id": "why",
+              "label": "Reason",
+              "answer": "Graph N has one x-value paired with two y-values",
+              "options": [
+                "Graph N has one x-value paired with two y-values",
+                "Graph F is curved",
+                "Graph F has a minimum"
+              ]
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A.12A",
+          "prompt": "Connect the equation, table, graph-family clue, and context that all represent the same linear function.",
+          "studentActions": [
+            "connectRepresentations"
+          ],
+          "representations": {
+            "targetId": "linear",
+            "sets": [
+              {
+                "id": "linear",
+                "equation": "f(x)=2x+1",
+                "table": "(-1,-1), (0,1), (2,5)",
+                "context": "A $1 starting amount plus $2 for each unit.",
+                "graphSpec": {
+                  "type": "linear",
+                  "a": 2,
+                  "h": 0,
+                  "k": 1
+                }
+              },
+              {
+                "id": "quadratic",
+                "equation": "f(x)=x^2-4",
+                "table": "(-2,0), (0,-4), (2,0)",
+                "context": "A height falls to a minimum and rises symmetrically.",
+                "graphSpec": {
+                  "type": "quadratic",
+                  "a": 1,
+                  "h": 0,
+                  "k": -4
+                }
+              },
+              {
+                "id": "exponential",
+                "equation": "f(x)=2(2^x)",
+                "table": "(0,2), (1,4), (2,8)",
+                "context": "A quantity doubles each equal time interval.",
+                "graphSpec": {
+                  "type": "exponential",
+                  "a": 2,
+                  "base": 2,
+                  "h": 0,
+                  "k": 0
+                }
+              }
+            ]
+          },
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A.12A",
+          "prompt": "Connect the equation, table, graph-family clue, and context that all represent the same exponential function.",
+          "studentActions": [
+            "connectRepresentations"
+          ],
+          "representations": {
+            "targetId": "exponential",
+            "sets": [
+              {
+                "id": "linear",
+                "equation": "f(x)=2x+1",
+                "table": "(-1,-1), (0,1), (2,5)",
+                "context": "A $1 starting amount plus $2 for each unit.",
+                "graphSpec": {
+                  "type": "linear",
+                  "a": 2,
+                  "h": 0,
+                  "k": 1
+                }
+              },
+              {
+                "id": "quadratic",
+                "equation": "f(x)=x^2-4",
+                "table": "(-2,0), (0,-4), (2,0)",
+                "context": "A height falls to a minimum and rises symmetrically.",
+                "graphSpec": {
+                  "type": "quadratic",
+                  "a": 1,
+                  "h": 0,
+                  "k": -4
+                }
+              },
+              {
+                "id": "exponential",
+                "equation": "f(x)=2(2^x)",
+                "table": "(0,2), (1,4), (2,8)",
+                "context": "A quantity doubles each equal time interval.",
+                "graphSpec": {
+                  "type": "exponential",
+                  "a": 2,
+                  "base": 2,
+                  "h": 0,
+                  "k": 0
+                }
+              }
+            ]
+          },
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A.7A",
+          "prompt": "Compare one linear, one quadratic, and one exponential graph. Use straightness, extrema, and growth shape to identify each family.",
+          "studentActions": [
+            "compareGraphs"
+          ],
+          "candidateGraphs": [
+            {
+              "id": "L",
+              "label": "Graph L",
+              "function": {
+                "family": "linear",
+                "m": 2,
+                "b": 1
+              }
+            },
+            {
+              "id": "Q",
+              "label": "Graph Q",
+              "function": {
+                "family": "quadratic",
+                "a": -1,
+                "h": 2,
+                "k": 7
+              }
+            },
+            {
+              "id": "E",
+              "label": "Graph E",
+              "function": {
+                "family": "exponential",
+                "a": 1,
+                "base": 2
+              }
+            }
+          ],
+          "comparisonFields": [
+            {
+              "id": "line",
+              "label": "Straight-line family",
+              "answer": "Graph L",
+              "options": [
+                "Graph L",
+                "Graph Q",
+                "Graph E"
+              ]
+            },
+            {
+              "id": "extreme",
+              "label": "Family with an absolute maximum here",
+              "answer": "Graph Q",
+              "options": [
+                "Graph L",
+                "Graph Q",
+                "Graph E"
+              ]
+            },
+            {
+              "id": "curve",
+              "label": "Curved graph that increases over its entire domain",
+              "answer": "Graph E",
+              "options": [
+                "Graph L",
+                "Graph Q",
+                "Graph E"
+              ]
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A.7A",
+          "prompt": "Use the listed characteristics to identify the possible function family or families.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "straight",
+              "label": "Straight line; no absolute maximum or minimum",
+              "answer": "linear",
+              "options": [
+                "linear",
+                "quadratic",
+                "exponential",
+                "linear and exponential"
+              ]
+            },
+            {
+              "id": "smoothmono",
+              "label": "Smooth curve that increases or decreases over its entire domain",
+              "answer": "exponential",
+              "options": [
+                "linear",
+                "quadratic",
+                "exponential",
+                "linear and exponential"
+              ]
+            },
+            {
+              "id": "monotone",
+              "label": "Increases or decreases over the entire domain; could be straight or curved",
+              "answer": "linear and exponential",
+              "options": [
+                "linear",
+                "quadratic",
+                "exponential",
+                "linear and exponential"
+              ]
+            },
+            {
+              "id": "turn",
+              "label": "Has one absolute maximum or minimum and changes from increasing to decreasing or vice versa",
+              "answer": "quadratic",
+              "options": [
+                "linear",
+                "quadratic",
+                "exponential",
+                "linear and exponential"
+              ]
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A.7A",
+          "prompt": "Build the unique continuous quadratic described: it has an absolute maximum at (0,4) and x-intercepts at (-2,0) and (2,0). Write the equation, complete the table, construct the graph, and state the range.",
+          "studentActions": [
+            "writeEquation",
+            "completeTable",
+            "constructGraph",
+            "analyzeRange"
+          ],
+          "table": {
+            "columns": [
+              "x",
+              "f(x)"
+            ],
+            "rows": [
+              [
+                -2,
+                null
+              ],
+              [
+                -1,
+                null
+              ],
+              [
+                0,
+                null
+              ],
+              [
+                1,
+                null
+              ],
+              [
+                2,
+                null
+              ]
+            ]
+          },
+          "answerModel": {
+            "equation": "f(x)=-x^2+4",
+            "range": "(-∞, 4]"
+          },
+          "notation": "interval",
+          "dok": 3,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A.12A",
+          "prompt": "Create your own function example. In the scenario/explanation, include an equation or rule, name its family, and list at least three characteristics. Label the axes and sketch a graph that matches your description.",
+          "studentActions": [
+            "writeGraphStory"
+          ],
+          "minimumScenarioCharacters": 25,
+          "minimumExplanationCharacters": 50,
+          "dok": 4,
+          "difficultyBand": 4
+        },
+        {
+          "standard": "A.3C",
+          "prompt": "Two different equations can share the same family characteristics. Compare the lines and determine what extra information is needed to identify one unique graph.",
+          "studentActions": [
+            "compareGraphs"
+          ],
+          "candidateGraphs": [
+            {
+              "id": "A",
+              "label": "Graph A",
+              "function": {
+                "family": "linear",
+                "m": 1,
+                "b": 0
+              }
+            },
+            {
+              "id": "B",
+              "label": "Graph B",
+              "function": {
+                "family": "linear",
+                "m": 2,
+                "b": 3
+              }
+            }
+          ],
+          "comparisonFields": [
+            {
+              "id": "same",
+              "label": "What they share",
+              "answer": "Both are increasing linear functions",
+              "options": [
+                "Both are increasing linear functions",
+                "They have the same equation",
+                "Both have a maximum"
+              ]
+            },
+            {
+              "id": "unique",
+              "label": "What identifies one unique graph",
+              "answer": "An equation or enough exact points",
+              "options": [
+                "An equation or enough exact points",
+                "The word increasing",
+                "The word function"
+              ]
+            }
+          ],
+          "dok": 3,
+          "difficultyBand": 3
+        }
+      ]
+    },
+    {
+      "role": "practice",
+      "title": "Practice — Functions and Family Clues",
+      "questions": [
+        {
+          "standard": "A.12A",
+          "prompt": "Build the mapping for {(-2,4),(1,1),(3,-2),(5,1)}. State the domain and range and decide whether it is a function.",
+          "studentActions": [
+            "buildMapping",
+            "stateDomain",
+            "stateRange",
+            "classifyFunction"
+          ],
+          "relation": [
+            [
+              -2,
+              4
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              3,
+              -2
+            ],
+            [
+              5,
+              1
+            ]
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A.2A",
+          "prompt": "Use the graph of f(x)=-3x+6 restricted to 0 ≤ x ≤ 5. State the domain and range.",
+          "studentActions": [
+            "analyzeDomain",
+            "analyzeRange"
+          ],
+          "function": {
+            "family": "linear",
+            "m": -3,
+            "b": 6,
+            "domain": {
+              "min": 0,
+              "max": 5
+            }
+          },
+          "notation": "interval",
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A.6A",
+          "prompt": "Use f(x)=(x+3)^2-9 to state the domain and range and identify the minimum.",
+          "studentActions": [
+            "analyzeDomain",
+            "analyzeRange",
+            "findMinimum"
+          ],
+          "function": {
+            "family": "quadratic",
+            "a": 1,
+            "h": -3,
+            "k": -9
+          },
+          "notation": "inequality",
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A.9D",
+          "prompt": "A continuous smooth curve decreases across its entire domain and approaches a horizontal asymptote. Identify the likely family.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "family",
+              "label": "Function family",
+              "answer": "exponential",
+              "options": [
+                "linear",
+                "quadratic",
+                "exponential"
+              ]
+            }
+          ],
+          "dok": 1,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A.7A",
+          "prompt": "Which statement about a quadratic function is always compatible with its family shape?",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "claim",
+              "label": "Best statement",
+              "answer": "It can have one absolute maximum or one absolute minimum",
+              "options": [
+                "It can have one absolute maximum or one absolute minimum",
+                "It must increase over its entire domain",
+                "Its graph must be a straight line"
+              ]
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "standard": "A.3C",
+          "prompt": "Two increasing linear functions have different slopes and y-intercepts. Which conclusion is valid?",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "conclusion",
+              "label": "Conclusion",
+              "answer": "They share family characteristics but are different functions",
+              "options": [
+                "They share family characteristics but are different functions",
+                "They must be the same graph",
+                "One must be exponential"
+              ]
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 3
+        }
+      ]
+    },
+    {
+      "role": "dol",
+      "title": "DOL / Exit Ticket",
+      "questions": [
+        {
+          "standard": "A.12A",
+          "prompt": "Represent {(-1,2),(2,5),(2,-3),(6,1)} with a mapping. State the domain and range and decide whether it is a function.",
+          "studentActions": [
+            "buildMapping",
+            "stateDomain",
+            "stateRange",
+            "classifyFunction"
+          ],
+          "relation": [
+            [
+              -1,
+              2
+            ],
+            [
+              2,
+              5
+            ],
+            [
+              2,
+              -3
+            ],
+            [
+              6,
+              1
+            ]
+          ],
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A.7A",
+          "prompt": "Analyze f(x)=-(x-1)^2+4. State the domain, range, where it increases and decreases, and identify the maximum.",
+          "studentActions": [
+            "analyzeDomain",
+            "analyzeRange",
+            "analyzeIncreasing",
+            "analyzeDecreasing",
+            "findMaximum"
+          ],
+          "function": {
+            "family": "quadratic",
+            "a": -1,
+            "h": 1,
+            "k": 4
+          },
+          "notation": "interval",
+          "dok": 3,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A.9D",
+          "prompt": "A graph is continuous, curved, increasing over its entire domain, and has a horizontal asymptote. Identify a likely family and then decide whether those characteristics alone determine one unique equation.",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "responses": [
+            {
+              "id": "family",
+              "label": "Likely family",
+              "answer": "exponential",
+              "options": [
+                "linear",
+                "quadratic",
+                "exponential"
+              ]
+            },
+            {
+              "id": "unique",
+              "label": "Do the characteristics determine one unique equation?",
+              "answer": "no",
+              "options": [
+                "yes",
+                "no"
+              ]
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "standard": "A.12A",
+          "prompt": "A relation has x-intercepts at (-4,0) and (3,0) and two different y-intercepts, (0,2) and (0,-5). Can the relation be a function?",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "graph": {
+            "xMin": -6,
+            "xMax": 5,
+            "yMin": -7,
+            "yMax": 5,
+            "points": [
+              [
+                -4,
+                0
+              ],
+              [
+                3,
+                0
+              ],
+              [
+                0,
+                2
+              ],
+              [
+                0,
+                -5
+              ]
+            ]
+          },
+          "responses": [
+            {
+              "id": "possible",
+              "label": "Can it be a function?",
+              "answer": "no",
+              "options": [
+                "yes",
+                "no"
+              ]
+            },
+            {
+              "id": "reason",
+              "label": "Reason",
+              "answer": "x=0 is paired with two different y-values",
+              "options": [
+                "x=0 is paired with two different y-values",
+                "There are two x-intercepts",
+                "Some y-values are negative"
+              ]
+            }
+          ],
+          "dok": 3,
+          "difficultyBand": 3
+        }
+      ]
+    }
+  ]
+}

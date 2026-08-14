@@ -2,6 +2,9 @@ import {
   CLASS_PERIODS,
   assignmentIsForStudent,
   getAssignmentLifecycle,
+  getDOLState,
+  getWarmupState,
+  getSectionAccessState,
   getPeriodWindow,
 } from './assignmentLifecycle';
 import LiveClassMonitor from './components/teacher/LiveClassMonitor';
@@ -18,7 +21,7 @@ const greetingFor = (date) => {
 // Landing tab for teachers: today's classes at a glance, so a period's
 // status and roster are one click away instead of hunting through the
 // class-period dropdown on Grades or scrolling the full Classes grid.
-export default function TeacherHome({ allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onSelectPeriod, onOpenStudent }) {
+export default function TeacherHome({ allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onSelectPeriod, onOpenStudent, onUnlockDOL = null, dolUnlockBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null }) {
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
 
   const todaysClasses = CLASS_PERIODS
@@ -48,6 +51,30 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
 
   const totalOpen = assignments.filter((assignment) => getAssignmentLifecycle(assignment, nowValue).isOpen).length;
   const totalStudents = allStudents.length;
+  const liveDOLControls = periodInSession === 'all' ? [] : assignments
+    .filter((assignment) => assignmentIsForStudent(assignment, periodInSession))
+    .map((assignment) => ({
+      assignment,
+      state: getDOLState({ assignment, schedule: classSchedule, classPeriod: periodInSession, nowValue }),
+    }))
+    .filter(({ state }) => ['waiting', 'active'].includes(state.status));
+
+  const liveWarmupControls = periodInSession === 'all' ? [] : assignments
+    .filter((assignment) => assignmentIsForStudent(assignment, periodInSession))
+    .map((assignment) => ({
+      assignment,
+      state: getWarmupState({ assignment, schedule: classSchedule, classPeriod: periodInSession, nowValue }),
+    }))
+    .filter(({ state }) => ['active', 'closed'].includes(state.status));
+
+  const liveSectionControls = periodInSession === 'all' ? [] : assignments
+    .filter((assignment) => assignmentIsForStudent(assignment, periodInSession) && getAssignmentLifecycle(assignment, nowValue).isOpen)
+    .flatMap((assignment) => ['classwork', 'practice'].map((role) => ({
+      assignment,
+      role,
+      state: getSectionAccessState({ assignment, activityRole: role, classPeriod: periodInSession, nowValue }),
+    })))
+    .filter(({ state }) => state.enabled && !state.practiceOnly);
 
   return (
     <div style={{ textAlign: 'left' }}>
@@ -70,6 +97,83 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
           <div style={{ fontSize: '22px', fontWeight: 900 }}>{totalStudents}</div>
         </div>
       </div>
+
+      {liveWarmupControls.length > 0 && (
+        <section style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 12, border: '2px solid #f9ab00', background: '#fff8df', color: '#6a4900' }}>
+          <div style={{ fontWeight: 900, marginBottom: 8 }}>Warm-Up controls · {periodInSession}</div>
+          <div style={{ display: 'grid', gap: 8 }}>
+            {liveWarmupControls.map(({ assignment, state }) => {
+              const busyKey = `${assignment.id}:${periodInSession}`;
+              const closed = state.status === 'closed';
+              return (
+                <div key={assignment.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '9px 11px', borderRadius: 9, background: '#fff' }}>
+                  <div>
+                    <strong>{assignment.title}</strong>
+                    <div style={{ marginTop: 3, fontSize: 12 }}>{closed ? 'Closed for new responses · saved work remains visible' : 'Open now · students can begin immediately'}</div>
+                  </div>
+                  <button type="button" disabled={warmupControlBusyKey === busyKey} onClick={() => onToggleWarmup?.(assignment, periodInSession)} style={{ minHeight: 40, padding: '8px 13px', border: 0, borderRadius: 8, background: closed ? '#188038' : '#b06000', color: '#fff', fontWeight: 900, cursor: warmupControlBusyKey === busyKey ? 'wait' : 'pointer' }}>
+                    {warmupControlBusyKey === busyKey ? 'Saving…' : closed ? 'Reopen Warm-Up' : 'Close Warm-Up'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {liveSectionControls.length > 0 && (
+        <section style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 12, border: '2px solid #1a73e8', background: '#eef4ff', color: '#174ea6' }}>
+          <div style={{ fontWeight: 900, marginBottom: 8 }}>Classwork / Practice access · {periodInSession}</div>
+          <div style={{ fontSize: 12, marginBottom: 10, color: '#3c4043' }}>Use these controls to pace the room without changing other class periods. Closing a section preserves saved work but blocks new graded submissions.</div>
+          <div style={{ display: 'grid', gap: 8 }}>
+            {liveSectionControls.map(({ assignment, role, state }) => {
+              const busyKey = `${assignment.id}:${periodInSession}:${role}`;
+              const label = role === 'practice' ? 'Practice' : 'Classwork';
+              return (
+                <div key={`${assignment.id}:${role}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '9px 11px', borderRadius: 9, background: '#fff' }}>
+                  <div>
+                    <strong>{assignment.title}</strong>
+                    <div style={{ marginTop: 3, fontSize: 12 }}><strong>{label}:</strong> {state.isOpen ? 'open for new responses' : state.override?.state === 'closed' ? 'closed by teacher · saved work remains visible' : 'starts locked · waiting for teacher'}</div>
+                  </div>
+                  <button type="button" disabled={sectionAccessBusyKey === busyKey} onClick={() => onToggleSectionAccess?.(assignment, periodInSession, role)} style={{ minHeight: 40, padding: '8px 13px', border: 0, borderRadius: 8, background: state.isOpen ? '#b06000' : '#188038', color: '#fff', fontWeight: 900, cursor: sectionAccessBusyKey === busyKey ? 'wait' : 'pointer' }}>
+                    {sectionAccessBusyKey === busyKey ? 'Saving…' : state.isOpen ? `Close ${label}` : `Open ${label}`}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {liveDOLControls.length > 0 && (
+        <section style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 12, border: '2px solid #9334e6', background: '#f8f0fc', color: '#4a126b' }}>
+          <div style={{ fontWeight: 900, marginBottom: 8 }}>DOL controls · {periodInSession}</div>
+          <div style={{ display: 'grid', gap: 8 }}>
+            {liveDOLControls.map(({ assignment, state }) => {
+              const busyKey = `${assignment.id}:${periodInSession}`;
+              return (
+                <div key={assignment.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '9px 11px', borderRadius: 9, background: '#fff' }}>
+                  <div>
+                    <strong>{assignment.title}</strong>
+                    <div style={{ marginTop: 3, fontSize: 12 }}>
+                      {state.status === 'active'
+                        ? `${state.earlyUnlocked ? 'Unlocked early · ' : ''}${Math.max(0, Math.ceil(state.millisecondsRemaining / 60000))} min left`
+                        : `Locked · opens in ${Math.max(0, Math.ceil(state.millisecondsRemaining / 60000))} min`}
+                    </div>
+                  </div>
+                  {state.status === 'waiting' ? (
+                    <button type="button" disabled={dolUnlockBusyKey === busyKey} onClick={() => onUnlockDOL?.(assignment, periodInSession)} style={{ minHeight: 40, padding: '8px 13px', border: 0, borderRadius: 8, background: '#681da8', color: '#fff', fontWeight: 900, cursor: dolUnlockBusyKey === busyKey ? 'wait' : 'pointer' }}>
+                      {dolUnlockBusyKey === busyKey ? 'Unlocking…' : 'Unlock DOL Early'}
+                    </button>
+                  ) : (
+                    <span style={{ padding: '5px 9px', borderRadius: 999, background: '#e6f4ea', color: '#137333', fontSize: 11, fontWeight: 900 }}>OPEN NOW</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Live tiles sit above the day's schedule: during a period this is the
           thing the teacher is actually looking at. */}

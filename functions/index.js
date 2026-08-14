@@ -2788,6 +2788,559 @@ exports.queueReleasedAssessmentGrades = onDocumentWritten(
 );
 
 // ---------------------------------------------------------------------------
+// --- Live Challenge ----------------------------------------------------------
+//
+// Live Challenge is a competitive presentation layer over the secure Path
+// bank, not a second question/answer system. The browser receives the same
+// sanitized question payload My Math Path uses and every verdict comes from the
+// same server grader. A student cannot submit a client-computed score, cannot
+// read the private round list, and cannot write the room document directly.
+
+let liveChallengeModule = null;
+async function liveChallengeRules() {
+  if (!liveChallengeModule) liveChallengeModule = await import("./shared/liveChallenge.mjs");
+  return liveChallengeModule;
+}
+
+const LIVE_CHALLENGE_ROOMS = "liveChallengeRooms";
+const LIVE_CHALLENGE_PRIVATE = "liveChallengePrivate";
+const LIVE_CHALLENGE_INVITES = "liveChallengeInvites";
+const LIVE_CHALLENGE_TEACHER_ACTIVE = "liveChallengeTeacherActive";
+
+function challengeCourseId(value) {
+  const token = String(value || "").trim().toLowerCase();
+  if (token === "algebra2") return "algebra2";
+  return "algebra1";
+}
+
+function shuffleChallengeItems(items) {
+  const result = [...items];
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    const swap = crypto.randomInt(index + 1);
+    [result[index], result[swap]] = [result[swap], result[index]];
+  }
+  return result;
+}
+
+async function loadChallengeRoster(db, teacherEmail, classPeriod) {
+  const snapshot = await db.collection("grades").where("assignedTeacherEmail", "==", teacherEmail).get();
+  return snapshot.docs
+    .filter((studentDoc) => String(studentDoc.data()?.classPeriod || "") === classPeriod)
+    .map((studentDoc) => ({ studentId: studentDoc.id, ...studentDoc.data() }));
+}
+
+async function loadChallengeCandidates(db, { courseId, standardCode }) {
+  const challenge = await liveChallengeRules();
+  const normalized = challenge.canonicalChallengeStandard(standardCode);
+  let snapshot;
+  if (normalized === "mixed") {
+    snapshot = await db.collection("pathQuestionBank").where("courseId", "==", courseId).limit(300).get();
+  } else {
+    const alignmentKey = mathPath.canonicalAlignmentKey(normalized);
+    snapshot = await db.collection("pathQuestionBank").where("alignmentKeys", "array-contains", alignmentKey).limit(100).get();
+  }
+
+  const candidates = snapshot.docs
+    .map((questionDoc) => ({ id: questionDoc.id, ...questionDoc.data() }))
+    .filter((question) => question.active !== false)
+    .filter((question) => normalized !== "mixed" || String(question.courseId || courseId) === courseId);
+
+  const planned = await Promise.all(candidates.map(async (question) => ({
+    question,
+    plan: await mathPath.buildIssuePlan(question),
+  })));
+  return planned.filter((entry) => entry.plan.issuable);
+}
+
+function selectChallengeQuestions(entries, requestedCount) {
+  // Prefer one question from each family before a second question from the same
+  // family. This keeps a ten-round mixed game from feeling like ten cosmetic
+  // copies of one problem even when the bank is uneven.
+  const shuffled = shuffleChallengeItems(entries);
+  const firstByFamily = [];
+  const repeats = [];
+  const seen = new Set();
+  shuffled.forEach((entry) => {
+    const family = String(entry.question.familyId || entry.question.id);
+    if (seen.has(family)) repeats.push(entry);
+    else {
+      seen.add(family);
+      firstByFamily.push(entry);
+    }
+  });
+  return [...firstByFamily, ...repeats].slice(0, requestedCount);
+}
+
+async function buildLiveChallengePublicQuestion(db, { roomId, roundIndex, questionId }) {
+  const snapshot = await db.collection("pathQuestionBank").doc(questionId).get();
+  if (!snapshot.exists) throw new HttpsError("failed-precondition", "A Live Challenge question is no longer in the secure bank.");
+  const authored = snapshot.data() || {};
+  const plan = await mathPath.buildIssuePlan(authored);
+  if (!plan.issuable) throw new HttpsError("failed-precondition", "A Live Challenge question can no longer be securely graded.");
+  const displayStandard = (Array.isArray(authored.alignmentKeys) ? authored.alignmentKeys[0] : "")
+    ? mathPath.displayAlignmentKey(authored.alignmentKeys[0])
+    : null;
+  return {
+    ...mathPath.buildSanitizedQuestion(
+      { ...authored, activityRole: "practice" },
+      {
+        questionInstanceId: `challenge_${roomId}_r${roundIndex + 1}`,
+        attemptsAllowed: 1,
+        attemptsUsed: 0,
+        toolPayload: plan.toolPayload,
+      },
+    ),
+    teksCode: displayStandard,
+    challengeRound: roundIndex,
+  };
+}
+
+async function updateLiveChallengeInvites(db, playerIds, fields) {
+  if (!playerIds.length) return;
+  for (let start = 0; start < playerIds.length; start += 450) {
+    const batch = db.batch();
+    playerIds.slice(start, start + 450).forEach((studentId) => {
+      batch.set(db.collection(LIVE_CHALLENGE_INVITES).doc(studentId), fields, { merge: true });
+    });
+    // eslint-disable-next-line no-await-in-loop
+    await batch.commit();
+  }
+}
+
+async function requireOwnedChallenge(db, request, roomId) {
+  await requireTeacher(request);
+  const teacherEmail = callerEmail(request);
+  if (!teacherEmail) throw new HttpsError("permission-denied", "A verified teacher email is required for Live Challenge.");
+  const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(roomId);
+  const roomSnapshot = await roomRef.get();
+  if (!roomSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge no longer exists.");
+  const room = roomSnapshot.data() || {};
+  if (room.teacherEmail !== teacherEmail && !authLib.isRootAdminEmail(teacherEmail)) {
+    throw new HttpsError("permission-denied", "Only the teacher who launched this challenge can control it.");
+  }
+  return { teacherEmail, roomRef, room };
+}
+
+exports.createLiveChallenge = onCall(async (request) => {
+  await requireTeacher(request);
+  const teacherEmail = callerEmail(request);
+  if (!teacherEmail) throw new HttpsError("permission-denied", "A verified teacher email is required for Live Challenge.");
+  const db = getFirestore();
+  const challenge = await liveChallengeRules();
+
+  const classPeriod = String(request.data?.classPeriod || "").trim().slice(0, 80);
+  if (!classPeriod) throw new HttpsError("invalid-argument", "Choose a class period before launching a challenge.");
+  const courseId = challengeCourseId(request.data?.courseId);
+  const standardCode = challenge.canonicalChallengeStandard(request.data?.standardCode || "mixed");
+  const requestedRoundCount = challenge.normalizeRoundCount(request.data?.roundCount);
+  const roundSeconds = challenge.normalizeRoundSeconds(request.data?.roundSeconds);
+  const title = String(request.data?.title || `${classPeriod} Live Challenge`).trim().slice(0, 120) || `${classPeriod} Live Challenge`;
+
+  // One active room per teacher. A tiny pointer keeps refresh recovery O(1) and
+  // avoids reading completed challenge history every time the teacher opens
+  // the dashboard.
+  const activePointerRef = db.collection(LIVE_CHALLENGE_TEACHER_ACTIVE).doc(teacherEmail);
+  const activePointer = await activePointerRef.get();
+  if (activePointer.exists && activePointer.data()?.roomId) {
+    const activeRoom = await db.collection(LIVE_CHALLENGE_ROOMS).doc(activePointer.data().roomId).get();
+    if (activeRoom.exists && [challenge.LIVE_CHALLENGE_STATUS.LOBBY, challenge.LIVE_CHALLENGE_STATUS.RUNNING].includes(activeRoom.data()?.status)) {
+      throw new HttpsError("failed-precondition", "Finish or cancel your current Live Challenge before creating another one.", { roomId: activeRoom.id });
+    }
+    await activePointerRef.delete();
+  }
+
+  const roster = await loadChallengeRoster(db, teacherEmail, classPeriod);
+  if (!roster.length) throw new HttpsError("failed-precondition", `No students assigned to you were found in ${classPeriod}.`);
+
+  const candidates = await loadChallengeCandidates(db, { courseId, standardCode });
+  if (candidates.length < challenge.MIN_ROUND_COUNT) {
+    throw new HttpsError(
+      "failed-precondition",
+      standardCode === "mixed"
+        ? `The secure ${courseId === "algebra2" ? "Algebra II" : "Algebra I"} bank needs at least ${challenge.MIN_ROUND_COUNT} usable questions before a Live Challenge can start.`
+        : `${standardCode} has only ${candidates.length} securely gradeable challenge question${candidates.length === 1 ? "" : "s"}. At least ${challenge.MIN_ROUND_COUNT} are required.`,
+    );
+  }
+  const selected = selectChallengeQuestions(candidates, requestedRoundCount);
+  const actualRoundCount = selected.length;
+
+  const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc();
+  const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomRef.id);
+  const aliasSeed = parseInt(crypto.createHash("sha256").update(roomRef.id).digest("hex").slice(0, 6), 16);
+  const sortedRoster = [...roster].sort((a, b) => a.studentId.localeCompare(b.studentId));
+  const playerRecords = sortedRoster.map((student, index) => ({
+    studentId: student.studentId,
+    playerKey: crypto.randomUUID(),
+    alias: challenge.challengeAlias(index, aliasSeed),
+    joined: false,
+    score: 0,
+    correctCount: 0,
+    roundsAnswered: 0,
+    streak: 0,
+    answeredRound: -1,
+  }));
+
+  const rootBatch = db.batch();
+  rootBatch.set(roomRef, {
+    schemaVersion: 2,
+    title,
+    teacherEmail,
+    classPeriod,
+    courseId,
+    standardCode,
+    status: challenge.LIVE_CHALLENGE_STATUS.LOBBY,
+    roundCount: actualRoundCount,
+    requestedRoundCount,
+    roundSeconds,
+    currentRound: -1,
+    currentQuestion: null,
+    roundStartedAt: null,
+    roundEndsAt: null,
+    eligibleCount: sortedRoster.length,
+    scoringMode: "accuracyFirst",
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  rootBatch.set(privateRef, {
+    schemaVersion: 2,
+    roomId: roomRef.id,
+    teacherEmail,
+    questionIds: selected.map((entry) => entry.question.id),
+    status: challenge.LIVE_CHALLENGE_STATUS.LOBBY,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  await rootBatch.commit();
+
+  // Keep identity-bearing player state in one private document per student.
+  // Public player documents are created only after students join and contain
+  // anonymous aliases/statistics only. This avoids every student contending on
+  // one giant room/leaderboard document when a whole class answers together.
+  for (let start = 0; start < playerRecords.length; start += 200) {
+    const batch = db.batch();
+    playerRecords.slice(start, start + 200).forEach((player) => {
+      batch.set(privateRef.collection("players").doc(player.studentId), {
+        playerKey: player.playerKey,
+        alias: player.alias,
+        joined: false,
+        score: 0,
+        correctCount: 0,
+        roundsAnswered: 0,
+        streak: 0,
+        answeredRound: -1,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      batch.set(db.collection(LIVE_CHALLENGE_INVITES).doc(player.studentId), {
+        roomId: roomRef.id,
+        title,
+        teacherEmail,
+        classPeriod,
+        courseId,
+        alias: player.alias,
+        playerKey: player.playerKey,
+        status: "invited",
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    });
+    // eslint-disable-next-line no-await-in-loop
+    await batch.commit();
+  }
+
+  // The recover-after-refresh pointer is written only after the lobby roster
+  // and invitations exist, so a partial setup failure cannot trap the teacher
+  // behind a pointer to an unusable room.
+  await activePointerRef.set({ roomId: roomRef.id, teacherEmail, classPeriod, updatedAt: FieldValue.serverTimestamp() });
+
+  return {
+    roomId: roomRef.id,
+    roundCount: actualRoundCount,
+    requestedRoundCount,
+    eligibleCount: sortedRoster.length,
+    trimmed: actualRoundCount < requestedRoundCount,
+  };
+});
+
+async function loadPrivateChallengePlayers(privateRef) {
+  const snapshot = await privateRef.collection("players").get();
+  return snapshot.docs.map((playerDoc) => ({ studentId: playerDoc.id, ...playerDoc.data() }));
+}
+
+async function deletePrivateChallengeState(db, privateRef, players = []) {
+  try {
+    for (let start = 0; start < players.length; start += 450) {
+      const batch = db.batch();
+      players.slice(start, start + 450).forEach((player) => batch.delete(privateRef.collection("players").doc(player.studentId)));
+      // eslint-disable-next-line no-await-in-loop
+      await batch.commit();
+    }
+    await privateRef.delete();
+  } catch (error) {
+    // Finishing the live room and student invites is more important than
+    // retention cleanup. Leave recoverable private state behind rather than
+    // turning a completed challenge back into an error screen.
+    logger.warn(`Live Challenge private cleanup failed for ${privateRef.id}.`, error);
+  }
+}
+
+exports.joinLiveChallenge = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const db = getFirestore();
+  const challenge = await liveChallengeRules();
+  const roomId = String(request.data?.roomId || "").trim();
+  if (!roomId) throw new HttpsError("invalid-argument", "roomId is required.");
+
+  const inviteRef = db.collection(LIVE_CHALLENGE_INVITES).doc(studentId);
+  const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(roomId);
+  const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
+  const privatePlayerRef = privateRef.collection("players").doc(studentId);
+
+  await db.runTransaction(async (transaction) => {
+    const [inviteSnapshot, roomSnapshot, playerSnapshot] = await Promise.all([
+      transaction.get(inviteRef), transaction.get(roomRef), transaction.get(privatePlayerRef),
+    ]);
+    if (!inviteSnapshot.exists || inviteSnapshot.data()?.roomId !== roomId) throw new HttpsError("permission-denied", "This Live Challenge was not assigned to you.");
+    if (!roomSnapshot.exists || !playerSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge is no longer available.");
+    const room = roomSnapshot.data() || {};
+    if (![challenge.LIVE_CHALLENGE_STATUS.LOBBY, challenge.LIVE_CHALLENGE_STATUS.RUNNING].includes(room.status)) {
+      throw new HttpsError("failed-precondition", "That Live Challenge is no longer accepting players.");
+    }
+    const player = playerSnapshot.data() || {};
+    if (!player.playerKey) throw new HttpsError("failed-precondition", "Your Live Challenge player record is incomplete.");
+    const joinedPlayer = { ...player, joined: true, updatedAt: FieldValue.serverTimestamp() };
+    const publicPlayerRef = roomRef.collection("players").doc(player.playerKey);
+    transaction.set(privatePlayerRef, joinedPlayer, { merge: true });
+    transaction.set(publicPlayerRef, {
+      playerKey: player.playerKey,
+      alias: player.alias,
+      joined: true,
+      score: Math.max(0, Math.round(Number(player.score) || 0)),
+      correctCount: Math.max(0, Math.round(Number(player.correctCount) || 0)),
+      roundsAnswered: Math.max(0, Math.round(Number(player.roundsAnswered) || 0)),
+      streak: Math.max(0, Math.round(Number(player.streak) || 0)),
+      answeredRound: Number.isInteger(Number(player.answeredRound)) ? Number(player.answeredRound) : -1,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    transaction.set(inviteRef, {
+      status: room.status === challenge.LIVE_CHALLENGE_STATUS.RUNNING ? "running" : "joined",
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
+
+  return { roomId, joined: true };
+});
+
+async function openLiveChallengeRound({ db, roomRef, privateRef, room, privateState, roundIndex }) {
+  const challenge = await liveChallengeRules();
+  const questionId = privateState.questionIds?.[roundIndex];
+  if (!questionId) throw new HttpsError("failed-precondition", "That Live Challenge round has no question.");
+  const currentQuestion = await buildLiveChallengePublicQuestion(db, { roomId: roomRef.id, roundIndex, questionId });
+  const nowMs = Date.now();
+  const roundSeconds = challenge.normalizeRoundSeconds(room.roundSeconds);
+
+  await Promise.all([
+    privateRef.set({
+      status: challenge.LIVE_CHALLENGE_STATUS.RUNNING,
+      currentRound: roundIndex,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true }),
+    roomRef.set({
+      status: challenge.LIVE_CHALLENGE_STATUS.RUNNING,
+      currentRound: roundIndex,
+      currentQuestion,
+      roundStartedAt: new Date(nowMs),
+      roundEndsAt: new Date(nowMs + roundSeconds * 1000),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true }),
+  ]);
+
+  return { currentQuestion, roundIndex, roundEndsAt: new Date(nowMs + roundSeconds * 1000).toISOString() };
+}
+
+exports.startLiveChallenge = onCall(async (request) => {
+  const roomId = String(request.data?.roomId || "").trim();
+  if (!roomId) throw new HttpsError("invalid-argument", "roomId is required.");
+  const db = getFirestore();
+  const challenge = await liveChallengeRules();
+  const { roomRef, room } = await requireOwnedChallenge(db, request, roomId);
+  if (room.status !== challenge.LIVE_CHALLENGE_STATUS.LOBBY) throw new HttpsError("failed-precondition", "This challenge has already started.");
+  const joinedSnapshot = await roomRef.collection("players").limit(1).get();
+  if (joinedSnapshot.empty) throw new HttpsError("failed-precondition", "At least one student must join before the challenge starts.");
+  const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
+  const privateSnapshot = await privateRef.get();
+  if (!privateSnapshot.exists) throw new HttpsError("not-found", "The private challenge state is missing.");
+  const result = await openLiveChallengeRound({ db, roomRef, privateRef, room, privateState: privateSnapshot.data() || {}, roundIndex: 0 });
+  const players = await loadPrivateChallengePlayers(privateRef);
+  await updateLiveChallengeInvites(db, players.map((player) => player.studentId), {
+    status: "running",
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  return result;
+});
+
+async function finishLiveChallengeRoom({ db, roomRef, privateRef, room, status }) {
+  const players = await loadPrivateChallengePlayers(privateRef);
+  await Promise.all([
+    roomRef.set({
+      status,
+      currentQuestion: null,
+      roundEndsAt: null,
+      finishedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true }),
+    privateRef.set({ status, updatedAt: FieldValue.serverTimestamp() }, { merge: true }),
+  ]);
+  await db.collection(LIVE_CHALLENGE_TEACHER_ACTIVE).doc(room.teacherEmail).delete().catch(() => {});
+  await updateLiveChallengeInvites(db, players.map((player) => player.studentId), {
+    status,
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  await deletePrivateChallengeState(db, privateRef, players);
+  return { roomId: roomRef.id, status, roundCount: room.roundCount || 0 };
+}
+
+exports.advanceLiveChallenge = onCall(async (request) => {
+  const roomId = String(request.data?.roomId || "").trim();
+  if (!roomId) throw new HttpsError("invalid-argument", "roomId is required.");
+  const db = getFirestore();
+  const challenge = await liveChallengeRules();
+  const { roomRef, room } = await requireOwnedChallenge(db, request, roomId);
+  if (room.status !== challenge.LIVE_CHALLENGE_STATUS.RUNNING) throw new HttpsError("failed-precondition", "The challenge is not running.");
+  const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
+  const privateSnapshot = await privateRef.get();
+  if (!privateSnapshot.exists) throw new HttpsError("not-found", "The private challenge state is missing.");
+  const privateState = privateSnapshot.data() || {};
+  const nextRound = Number(room.currentRound) + 1;
+  if (nextRound >= (privateState.questionIds?.length || 0)) {
+    return finishLiveChallengeRoom({ db, roomRef, privateRef, room, status: challenge.LIVE_CHALLENGE_STATUS.FINISHED });
+  }
+  return openLiveChallengeRound({ db, roomRef, privateRef, room, privateState, roundIndex: nextRound });
+});
+
+exports.finishLiveChallenge = onCall(async (request) => {
+  const roomId = String(request.data?.roomId || "").trim();
+  if (!roomId) throw new HttpsError("invalid-argument", "roomId is required.");
+  const db = getFirestore();
+  const challenge = await liveChallengeRules();
+  const { roomRef, room } = await requireOwnedChallenge(db, request, roomId);
+  const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
+  const privateSnapshot = await privateRef.get();
+  if (!privateSnapshot.exists) throw new HttpsError("not-found", "The private challenge state is missing.");
+  return finishLiveChallengeRoom({ db, roomRef, privateRef, room, status: challenge.LIVE_CHALLENGE_STATUS.FINISHED });
+});
+
+exports.cancelLiveChallenge = onCall(async (request) => {
+  const roomId = String(request.data?.roomId || "").trim();
+  if (!roomId) throw new HttpsError("invalid-argument", "roomId is required.");
+  const db = getFirestore();
+  const challenge = await liveChallengeRules();
+  const { roomRef, room } = await requireOwnedChallenge(db, request, roomId);
+  const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
+  const privateSnapshot = await privateRef.get();
+  if (!privateSnapshot.exists) throw new HttpsError("not-found", "The private challenge state is missing.");
+  return finishLiveChallengeRoom({ db, roomRef, privateRef, room, status: challenge.LIVE_CHALLENGE_STATUS.CANCELLED });
+});
+
+exports.submitLiveChallengeResponse = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const db = getFirestore();
+  const challenge = await liveChallengeRules();
+  const roomId = String(request.data?.roomId || "").trim();
+  const submittedRound = Number(request.data?.roundIndex);
+  if (!roomId || !Number.isInteger(submittedRound) || submittedRound < 0) throw new HttpsError("invalid-argument", "roomId and roundIndex are required.");
+
+  const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(roomId);
+  const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
+  const privatePlayerRef = privateRef.collection("players").doc(studentId);
+  const inviteRef = db.collection(LIVE_CHALLENGE_INVITES).doc(studentId);
+  const [roomSnapshot, privateSnapshot, playerSnapshot, inviteSnapshot] = await Promise.all([
+    roomRef.get(), privateRef.get(), privatePlayerRef.get(), inviteRef.get(),
+  ]);
+  if (!roomSnapshot.exists || !privateSnapshot.exists || !playerSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge is no longer available.");
+  if (!inviteSnapshot.exists || inviteSnapshot.data()?.roomId !== roomId) throw new HttpsError("permission-denied", "This Live Challenge was not assigned to you.");
+  const room = roomSnapshot.data() || {};
+  const privateState = privateSnapshot.data() || {};
+  const currentPlayer = playerSnapshot.data() || {};
+  if (room.status !== challenge.LIVE_CHALLENGE_STATUS.RUNNING || Number(room.currentRound) !== submittedRound) {
+    throw new HttpsError("failed-precondition", "That Live Challenge round is no longer active.");
+  }
+  const endsAtMs = toDate(room.roundEndsAt)?.getTime() || 0;
+  if (endsAtMs && Date.now() > endsAtMs) throw new HttpsError("deadline-exceeded", "Time is up for this round.");
+  if (!currentPlayer.joined) throw new HttpsError("failed-precondition", "Join the Live Challenge before answering.");
+  if (Number(currentPlayer.answeredRound) === submittedRound) throw new HttpsError("already-exists", "You already answered this round.");
+
+  const questionId = privateState.questionIds?.[submittedRound];
+  const questionSnapshot = questionId ? await db.collection("pathQuestionBank").doc(questionId).get() : null;
+  if (!questionSnapshot?.exists) throw new HttpsError("failed-precondition", "This round's secure question is unavailable.");
+  const authored = questionSnapshot.data() || {};
+  const plan = await mathPath.buildIssuePlan(authored);
+  if (!plan.issuable) throw new HttpsError("failed-precondition", "This round can no longer be securely graded.");
+  const grading = await mathPath.gradePathToolResponse(plan.privateGrading, request.data?.responsePayload || {});
+  if (grading?.rejected) throw new HttpsError("failed-precondition", grading.reason || "The response could not be graded.");
+
+  let finalPlayer = null;
+  let finalScore = null;
+  await db.runTransaction(async (transaction) => {
+    const [latestRoomSnapshot, latestPlayerSnapshot] = await Promise.all([
+      transaction.get(roomRef), transaction.get(privatePlayerRef),
+    ]);
+    if (!latestRoomSnapshot.exists || !latestPlayerSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge ended before the response could be saved.");
+    const latestRoom = latestRoomSnapshot.data() || {};
+    const player = latestPlayerSnapshot.data() || {};
+    if (latestRoom.status !== challenge.LIVE_CHALLENGE_STATUS.RUNNING || Number(latestRoom.currentRound) !== submittedRound) {
+      throw new HttpsError("failed-precondition", "That Live Challenge round is no longer active.");
+    }
+    const latestEndsAtMs = toDate(latestRoom.roundEndsAt)?.getTime() || 0;
+    const nowMs = Date.now();
+    if (latestEndsAtMs && nowMs > latestEndsAtMs) throw new HttpsError("deadline-exceeded", "Time is up for this round.");
+    if (!player.joined) throw new HttpsError("failed-precondition", "Join the Live Challenge before answering.");
+    if (Number(player.answeredRound) === submittedRound) throw new HttpsError("already-exists", "You already answered this round.");
+    if (!player.playerKey) throw new HttpsError("failed-precondition", "Your Live Challenge player record is incomplete.");
+
+    finalScore = challenge.scoreChallengeRound({
+      gradeScore: grading?.score ?? (grading?.isCorrect ? 1 : 0),
+      isCorrect: grading?.isCorrect === true,
+      remainingMs: Math.max(0, latestEndsAtMs - nowMs),
+      totalMs: challenge.normalizeRoundSeconds(latestRoom.roundSeconds) * 1000,
+      previousStreak: player.streak || 0,
+    });
+    finalPlayer = {
+      ...player,
+      joined: true,
+      score: Math.max(0, Math.round(Number(player.score) || 0)) + finalScore.pointsAwarded,
+      correctCount: Math.max(0, Math.round(Number(player.correctCount) || 0)) + (grading?.isCorrect ? 1 : 0),
+      roundsAnswered: Math.max(0, Math.round(Number(player.roundsAnswered) || 0)) + 1,
+      streak: finalScore.newStreak,
+      answeredRound: submittedRound,
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+    const publicPlayerRef = roomRef.collection("players").doc(player.playerKey);
+    transaction.set(privatePlayerRef, finalPlayer, { merge: true });
+    transaction.set(publicPlayerRef, {
+      playerKey: player.playerKey,
+      alias: player.alias,
+      joined: true,
+      score: finalPlayer.score,
+      correctCount: finalPlayer.correctCount,
+      roundsAnswered: finalPlayer.roundsAnswered,
+      streak: finalPlayer.streak,
+      answeredRound: submittedRound,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
+
+  return {
+    isCorrect: grading?.isCorrect === true,
+    scorePercent: Math.round(Math.max(0, Math.min(1, Number(grading?.score) || 0)) * 100),
+    pointsAwarded: finalScore?.pointsAwarded || 0,
+    basePoints: finalScore?.basePoints || 0,
+    speedBonus: finalScore?.speedBonus || 0,
+    streakBonus: finalScore?.streakBonus || 0,
+    totalScore: finalPlayer?.score || 0,
+    streak: finalPlayer?.streak || 0,
+    rank: null,
+  };
+});
+
 // Phase 5D: secure My Math Path production seam
 // ---------------------------------------------------------------------------
 

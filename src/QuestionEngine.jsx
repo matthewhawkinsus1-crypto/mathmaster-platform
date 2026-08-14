@@ -106,6 +106,7 @@ export default function QuestionEngine({
   studentProfile = null,
   guidedMode = false,
   assignmentLocked = false,
+  assignmentLockedMessage = '',
   replacementWarning = '',
   dolMode = false,
   activityRole = 'practice',
@@ -770,11 +771,11 @@ export default function QuestionEngine({
 
       {feedback && !feedback.blocked && showOutcomeFeedback && (
         <div style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', backgroundColor: feedback.isCorrect ? '#e6f4ea' : '#fce8e6', color: feedback.isCorrect ? '#137333' : '#c5221f', fontSize: '16px', fontWeight: 'bold' }}>
-          {feedback.isCorrect
+          {feedback.message || (feedback.isCorrect
             ? 'Correct! This question is complete.'
             : feedback.expired
               ? `That was the final allowed attempt (${resolvedMaximumAttempts} total). This response is locked.${resolvedActivityPolicy?.allowReplacement ? ' Review the solution, then request a new question to continue.' : ''}`
-              : `Not quite. You have ${feedback.remainingAttempts} ${feedback.remainingAttempts === 1 ? 'attempt' : 'attempts'} remaining on this version.`}
+              : `Not quite. You have ${feedback.remainingAttempts} ${feedback.remainingAttempts === 1 ? 'attempt' : 'attempts'} remaining on this version.`)}
           {!feedback.isCorrect && Array.isArray(feedback.incorrectParts) && feedback.incorrectParts.length > 0 && (
             <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)' }}>Focus on: {feedback.incorrectParts.join(', ')}.</div>
           )}
@@ -788,7 +789,7 @@ export default function QuestionEngine({
       )}
 
       {assignmentLocked && !isCorrect && !isExpired && (
-        <div style={{ margin: '25px auto 0', padding: '18px', maxWidth: '700px', borderRadius: '10px', border: '2px solid #5f6368', background: '#f1f3f4', color: '#3c4043' }}><strong>This assignment is permanently closed.</strong> The saved response is available for review, but no changes or submissions are allowed.</div>
+        <div style={{ margin: '25px auto 0', padding: '18px', maxWidth: '700px', borderRadius: '10px', border: '2px solid #5f6368', background: '#f1f3f4', color: '#3c4043' }}><strong>{assignmentLockedMessage || 'This assignment is permanently closed.'}</strong>{!assignmentLockedMessage && ' The saved response is available for review, but no changes or submissions are allowed.'}</div>
       )}
 
       {isExpired && showOutcomeFeedback && (

@@ -94,7 +94,7 @@ function StudentTile({ row, onOpenStudent }) {
         <>
           <div style={{ fontSize: '12px', color: '#5f6368', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             <span aria-hidden="true" style={{ marginRight: '6px' }}>{glyph}</span>
-            {live.questionLabel || live.assignmentTitle || 'Working'}
+            {String(live.activityRole || 'activity').toUpperCase()} Q{Number(live.sectionQuestionIndex ?? live.questionIndex ?? 0) + 1} · {live.questionLabel || live.assignmentTitle || 'Working'}
           </div>
           <ProgressStrip questionStates={live.questionStates} questionIndex={live.questionIndex} />
           <div style={{ fontSize: '11px', color: '#80868b', marginTop: '6px' }}>

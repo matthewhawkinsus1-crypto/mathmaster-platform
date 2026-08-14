@@ -44,7 +44,8 @@ const snapValue = (value, step) => {
   return tidy(Math.round(value / size) * size);
 };
 
-const formatCoordinate = (point) => `(${tidy(point[0])}, ${tidy(point[1])})`;
+const pointXY = (point) => Array.isArray(point) ? [Number(point[0]), Number(point[1])] : [Number(point?.x), Number(point?.y)];
+const formatCoordinate = (point) => { const [x, y] = pointXY(point); return `(${tidy(x)}, ${tidy(y)})`; };
 
 export default function CoordinatePlane({
   xMin = -10, xMax = 10, yMin = -10, yMax = 10,
@@ -281,12 +282,14 @@ export default function CoordinatePlane({
           const hovered = hoveredPointIndex === index;
           const pointFill = resolvePointFill(point, '#1a73e8');
           const pointRadius = resolvePointRadius(point, 6);
+          const [pointX, pointY] = pointXY(point);
+          if (!Number.isFinite(pointX) || !Number.isFinite(pointY)) return null;
           return (
             <g key={`p${index}`} onPointerEnter={() => setHoveredPointIndex(index)} onPointerLeave={() => setHoveredPointIndex(null)}>
-              {hovered ? <circle cx={sx(point[0])} cy={sy(point[1])} r={pointRadius + 6} fill={pointFill} opacity="0.18" /> : null}
-              <circle cx={sx(point[0])} cy={sy(point[1])} r={hovered ? pointRadius + 2 : pointRadius} fill={pointFill} stroke="#fff" strokeWidth="2" />
-              {point.label ? <text x={sx(point[0]) + 10} y={sy(point[1]) - 9} fontSize="11" fontWeight="700" fill="#24324a">{point.label}</text> : null}
-              {hovered ? <text x={sx(point[0]) + 10} y={sy(point[1]) + 16} fontSize="11" fill="#24324a">{formatCoordinate(point)}</text> : null}
+              {hovered ? <circle cx={sx(pointX)} cy={sy(pointY)} r={pointRadius + 6} fill={pointFill} opacity="0.18" /> : null}
+              <circle cx={sx(pointX)} cy={sy(pointY)} r={hovered ? pointRadius + 2 : pointRadius} fill={pointFill} stroke="#fff" strokeWidth="2" />
+              {point?.label ? <text x={sx(pointX) + 10} y={sy(pointY) - 9} fontSize="11" fontWeight="700" fill="#24324a">{point.label}</text> : null}
+              {hovered ? <text x={sx(pointX) + 10} y={sy(pointY) + 16} fontSize="11" fill="#24324a">{formatCoordinate(point)}</text> : null}
             </g>
           );
         })}

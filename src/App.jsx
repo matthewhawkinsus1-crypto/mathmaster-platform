@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 import {
   addDoc,
@@ -53,10 +53,15 @@ import {
   formatRemainingTime,
   getAssignmentLifecycle,
   getDOLState,
+  getWarmupState,
+  getSectionAccessState,
+  getSectionVariantMode,
+  localDateKey,
   normalizeSchedule,
   prerequisiteAccess,
   recordAssignmentActivity,
   resolveDOLQuestionIndex,
+  resolveDOLQuestionIndices,
   getIncludedQuestionIndices,
   questionIsIncluded,
 } from './assignmentLifecycle';
@@ -73,6 +78,7 @@ import AssignmentLibrary from './AssignmentLibrary';
 import AssignmentCardMenu from './AssignmentCardMenu';
 import ClassesWorkspace from './ClassesWorkspace';
 import TeacherHome from './TeacherHome';
+import DOLCountdown from './components/student/DOLCountdown.jsx';
 import TexasStandardsDashboard from './TexasStandardsDashboard';
 import MathToolsLab from './dev/MathToolsLab';
 import { useToast } from './ui/Toast';
@@ -100,6 +106,7 @@ import TeacherAnalyticsDashboard from './components/analytics/TeacherAnalyticsDa
 import DemoExperience from './components/demo/DemoExperience.jsx';
 import StudentsRoster from './components/teacher/StudentsRoster.jsx';
 import ClassCourseSettings from './components/teacher/ClassCourseSettings.jsx';
+import ClassScheduleSettings from './components/teacher/ClassScheduleSettings.jsx';
 import PathSimulator from './components/teacher/PathSimulator.jsx';
 import PacingControls from './components/teacher/PacingControls.jsx';
 import RecommendedSkills from './components/student/RecommendedSkills.jsx';
@@ -125,8 +132,12 @@ import {
 } from './platform/rigor/courseRigor.js';
 import LoginScreen from './LoginScreen.jsx';
 import { useAuth } from './auth/AuthProvider.jsx';
+import { watchLiveChallengeInvite } from './platform/liveChallenge/liveChallengeService.js';
 
 const ROOT_ADMIN_EMAIL = 'matthew.hawkins@desotoisd.org';
+const LiveChallengeTeacher = lazy(() => import('./components/liveChallenge/LiveChallengeTeacher.jsx'));
+const LiveChallengeStudent = lazy(() => import('./components/liveChallenge/LiveChallengeStudent.jsx'));
+
 
 
 const createQuestionId = () => {
@@ -206,6 +217,13 @@ const activityTitleForRole = (role) => ({
   test: 'Unit Test',
 }[role] || 'Activity');
 
+const calculateDOLSectionScore = (assignmentTracker = {}, questionIndices = []) => {
+  const indices = Array.isArray(questionIndices) ? questionIndices : [];
+  if (!indices.length) return 0;
+  const earned = indices.reduce((total, index) => total + getQuestionCredit(assignmentTracker?.[index]), 0);
+  return Math.round((earned / indices.length) * 100);
+};
+
 function App() {
   const auth = useAuth();
   // Identity is owned entirely by <AuthProvider>. `user` below is the
@@ -283,7 +301,28 @@ function App() {
   const [movingFolderAssignmentId, setMovingFolderAssignmentId] = useState(null);
   const [movingFolderValue, setMovingFolderValue] = useState('');
   const [feedbackReleaseBusyId, setFeedbackReleaseBusyId] = useState(null);
+  const [dolUnlockBusyKey, setDolUnlockBusyKey] = useState(null);
+  const [warmupControlBusyKey, setWarmupControlBusyKey] = useState(null);
+  const [sectionAccessBusyKey, setSectionAccessBusyKey] = useState(null);
   const [studentDashboardMode, setStudentDashboardMode] = useState('assignments');
+  const [liveChallengeInvite, setLiveChallengeInvite] = useState(null);
+
+
+  // A Live Challenge invitation is one tiny per-student pointer. Listening at
+  // the App level means the student can be alerted while sitting on the
+  // dashboard OR while working inside an assignment; the heavy game player is
+  // still lazy-loaded only when they actually open it.
+  useEffect(() => {
+    if (user?.role !== 'student' || !user?.id) {
+      setLiveChallengeInvite(null);
+      return undefined;
+    }
+    return watchLiveChallengeInvite(
+      user.id,
+      (invite) => setLiveChallengeInvite(invite),
+      (error) => console.error('Could not watch Live Challenge invitation:', error),
+    );
+  }, [user?.role, user?.id]);
   const [assignmentSearch, setAssignmentSearch] = useState('');
   const [selectedAssignmentIds, setSelectedAssignmentIds] = useState(() => new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -356,13 +395,35 @@ function App() {
   const activeTimeRef = useRef(0);
   const pendingAssignmentSecondsRef = useRef(0);
   const lastDOLStatusRef = useRef({});
-  // One "your exit ticket just opened" toast per assignment per period.
+  // Last student DOL reminder timestamp, keyed by assignment + class + date.
+  // The active DOL card/banner stays visible; this adds a repeated nudge for a
+  // student who is deep in another question or sitting on the dashboard.
   const dolOpenAnnouncedRef = useRef({});
 
   useEffect(() => {
     const clock = window.setInterval(() => setNow(Date.now()), 30000);
     return () => window.clearInterval(clock);
   }, []);
+
+  // The general dashboard clock can stay inexpensive at 30 seconds, while DOL
+  // transitions need to happen at the actual bell-derived second. Schedule one
+  // precise wake-up for the next class start, DOL opening, or DOL ending.
+  useEffect(() => {
+    if (user?.role !== 'student' || !user.classPeriod) return undefined;
+    const realNow = Date.now();
+    const targets = assignments
+      .filter((assignment) => assignmentIsForStudent(assignment, user.classPeriod))
+      .map((assignment) => getDOLState({ assignment, schedule: classSchedule, classPeriod: user.classPeriod, nowValue: realNow }))
+      .map((state) => state.status === 'beforeClass' ? state.window?.start?.getTime()
+        : state.status === 'waiting' ? state.opensAt?.getTime()
+          : state.status === 'active' ? state.endsAt?.getTime() + 100
+            : null)
+      .filter((target) => Number.isFinite(target) && target > realNow);
+    if (!targets.length) return undefined;
+    const nextTarget = Math.min(...targets);
+    const timer = window.setTimeout(() => setNow(Date.now()), Math.max(50, nextTarget - realNow));
+    return () => window.clearTimeout(timer);
+  }, [user, assignments, classSchedule, now]);
 
   useEffect(() => {
     if (!user) return undefined;
@@ -378,6 +439,10 @@ function App() {
           String(a.dueAt || a.dueDate || '').localeCompare(String(b.dueAt || b.dueDate || '')),
         );
         setAssignments(liveAssignments);
+        // A teacher DOL unlock is an assignment update. Refresh the logical
+        // clock with the snapshot so students do not wait for the next 30s
+        // lifecycle tick before seeing an early release.
+        setNow(Date.now());
       },
       (error) => console.error('Assignment live update failed:', error),
     );
@@ -841,6 +906,21 @@ function App() {
     if (!included.includes(currentQuestionIndex)) setCurrentQuestionIndex(included[0]);
   }, [activeAssignmentData, currentQuestionIndex]);
 
+  // A question change should feel like changing pages, not like loading the
+  // next page at the old scroll position. This matters most on phones where
+  // a long graph/tool workspace can otherwise leave the next prompt offscreen.
+  useEffect(() => {
+    if (!['assignment', 'teacherPreview'].includes(activeView)) return;
+    const frame = window.requestAnimationFrame(() => {
+      document.querySelector('.mathmaster-question-stage')?.scrollTo?.({ top: 0, left: 0, behavior: 'auto' });
+      document.querySelector('.math-tool-workspace')?.scrollTo?.({ top: 0, left: 0, behavior: 'auto' });
+      if (window.innerWidth > 768) {
+        document.querySelector('.mathmaster-assignment-compact-nav')?.scrollIntoView?.({ block: 'start', behavior: 'auto' });
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeView, activeAssignmentId, currentQuestionIndex]);
+
   useEffect(() => {
     if (!isStudentAssignment || !activeAssignmentId || isPracticeMode) return undefined;
     const interval = window.setInterval(() => {
@@ -880,12 +960,17 @@ function App() {
       const included = getIncludedQuestionIndices(activeAssignmentData);
       const question = activeAssignmentData.questions?.[currentQuestionIndex];
       const record = normalizeQuestionRecord(activeWorkingTracker?.[currentQuestionIndex]);
+      const sectionIndices = included.filter((index) => (
+        resolveQuestionActivityRole({ question: activeAssignmentData.questions?.[index], assignment: activeAssignmentData }) === activeQuestionRole
+      ));
       const payload = buildLiveStatus({
         assignmentId: activeAssignmentId,
         assignmentTitle: activeAssignmentData.title,
         activityRole: activeQuestionRole,
         questionIndex: Math.max(0, included.indexOf(currentQuestionIndex)),
         questionCount: included.length,
+        sectionQuestionIndex: Math.max(0, sectionIndices.indexOf(currentQuestionIndex)),
+        sectionQuestionCount: sectionIndices.length,
         questionLabel: String(question?.prompt || '').slice(0, 80),
         representation: getQuestionRepresentation(question),
         questionStates: encodeQuestionStates(activeWorkingTracker, included),
@@ -918,7 +1003,7 @@ function App() {
   // Teachers stream presence only while the live grid is on screen, so a
   // teacher sitting on Grades or Analytics is not paying for a listener.
   useEffect(() => {
-    if (user?.role !== 'teacher' || teacherTab !== 'home') return undefined;
+    if (user?.role !== 'teacher' || !['home', 'classesWorkspace'].includes(teacherTab)) return undefined;
     return onSnapshot(
       collection(db, 'presence'),
       (snapshot) => {
@@ -931,24 +1016,35 @@ function App() {
     );
   }, [user, teacherTab]);
 
-  // The DOL banner already appears once the window opens, but a student heads
-  // down at their work never sees it change. Announce the transition once.
+  // DOL reminders are global to the student experience, not just the open
+  // assignment. The persistent purple DOL card/banner is the primary notice;
+  // this reminder repeats every two minutes until the student submits once.
   useEffect(() => {
-    if (user?.role !== 'student' || !isStudentAssignment) return;
-    const key = `${activeAssignmentId}:opened`;
-    if (activeDOLState.status !== 'active') {
-      if (dolOpenAnnouncedRef.current[key] && activeDOLState.status === 'ended') {
-        delete dolOpenAnnouncedRef.current[key];
-      }
-      return;
-    }
-    if (dolOpenAnnouncedRef.current[key]) return;
-    dolOpenAnnouncedRef.current[key] = true;
-    toastInfo(
-      'Your exit ticket is open',
-      `Question ${activeDOLState.questionIndex + 1} is the DOL. You get one attempt and it closes when the period ends.`,
-    );
-  }, [activeDOLState.status, activeDOLState.questionIndex, activeAssignmentId, isStudentAssignment, user, toastInfo]);
+    if (user?.role !== 'student' || !user.classPeriod) return;
+    const activeKeys = new Set();
+    assignments.forEach((assignment) => {
+      if (!assignmentIsForStudent(assignment, user.classPeriod)) return;
+      const dolState = getDOLState({ assignment, schedule: classSchedule, classPeriod: user.classPeriod, nowValue: now });
+      if (dolState.status !== 'active') return;
+      const dolRecords = (dolState.questionIndices || [dolState.questionIndex])
+        .filter((index) => Number.isInteger(index) && index >= 0)
+        .map((index) => normalizeQuestionRecord(tracker?.[assignment.id]?.[index]));
+      if (dolRecords.some((record) => record.totalAttempts > 0 || ['correct', 'expired'].includes(record.status))) return;
+      const key = `${assignment.id}:${user.classPeriod}:${dolState.instructionDateKey || localDateKey(now)}`;
+      activeKeys.add(key);
+      const lastReminderAt = Number(dolOpenAnnouncedRef.current[key] || 0);
+      if (lastReminderAt && now - lastReminderAt < 120000) return;
+      const firstReminder = lastReminderAt === 0;
+      dolOpenAnnouncedRef.current[key] = now;
+      toastWarning(
+        firstReminder ? 'DOL is open — start now' : 'DOL reminder — start now',
+        `${assignment.title}: open the DOL now. The timer is running and ${formatRemainingTime(dolState.millisecondsRemaining)} remains.`,
+      );
+    });
+    Object.keys(dolOpenAnnouncedRef.current).forEach((key) => {
+      if (!activeKeys.has(key) && now - Number(dolOpenAnnouncedRef.current[key] || 0) > 15 * 60000) delete dolOpenAnnouncedRef.current[key];
+    });
+  }, [now, user, assignments, classSchedule, tracker, toastWarning]);
 
   useEffect(() => {
     if (user?.role !== 'student' || !user.classPeriod) return;
@@ -963,16 +1059,16 @@ function App() {
       if (dolState.status !== 'ended') return;
       if (dolGradesByAssignment?.[assignment.id]?.[dateKey]?.finalized) return;
       if (previousStatus && !['active', 'waiting', 'beforeClass'].includes(previousStatus)) return;
-      const questionIndex = dolState.questionIndex;
-      const record = normalizeQuestionRecord(tracker?.[assignment.id]?.[questionIndex]);
+      const questionIndices = dolState.questionIndices || [dolState.questionIndex];
       updates[assignment.id] = {
         ...(dolGradesByAssignment?.[assignment.id] || {}),
         [dateKey]: {
           finalized: true,
-          score: Math.round(getQuestionCredit(record) * 100),
-          questionIndex,
+          score: calculateDOLSectionScore(tracker?.[assignment.id] || {}, questionIndices),
+          questionIndex: questionIndices[0] ?? dolState.questionIndex,
+          questionIndices,
           recordedAt: new Date().toISOString(),
-          status: record.status,
+          status: 'section-finalized',
         },
       };
     });
@@ -1065,8 +1161,8 @@ function App() {
     if (!assignment) return;
 
     const dolState = getDOLState({ assignment, schedule: classSchedule, classPeriod: user.classPeriod, nowValue: Date.now() });
-    if (!getAssignmentLifecycle(assignment, Date.now()).isClosed && newIndex === dolState.questionIndex && dolState.enabled && !['active', 'ended'].includes(dolState.status)) {
-      toastInfo('DOL not open yet', 'The DOL question opens during the final minutes of this class period. Keep working the practice questions until the DOL banner appears.');
+    if (!getAssignmentLifecycle(assignment, Date.now()).isClosed && (dolState.questionIndices || [dolState.questionIndex]).includes(newIndex) && dolState.enabled && !['active', 'ended'].includes(dolState.status)) {
+      toastInfo('DOL not open yet', 'The DOL section opens during the final minutes of this class period. Keep working until the DOL banner appears.');
       return;
     }
 
@@ -1403,7 +1499,7 @@ function App() {
 
     let updatedDOLGrades = dolGradesByAssignment;
     const dolState = getDOLState({ assignment, schedule: classSchedule, classPeriod: user.classPeriod, nowValue: Date.now() });
-    if (activeQuestionRole === 'dol' && dolState.status === 'active' && currentQuestionIndex === dolState.questionIndex) {
+    if (activeQuestionRole === 'dol' && dolState.status === 'active' && (dolState.questionIndices || [dolState.questionIndex]).includes(currentQuestionIndex)) {
       const date = new Date();
       const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
       updatedDOLGrades = {
@@ -1412,10 +1508,11 @@ function App() {
           ...(dolGradesByAssignment?.[activeAssignmentId] || {}),
           [dateKey]: {
             finalized: false,
-            score: outcome.result.isCorrect ? 100 : Math.round(Number(outcome.result.partialCredit) || 0),
-            questionIndex: currentQuestionIndex,
+            score: calculateDOLSectionScore(updatedTracker[activeAssignmentId] || {}, dolState.questionIndices || [dolState.questionIndex]),
+            questionIndex: (dolState.questionIndices || [dolState.questionIndex])[0] ?? currentQuestionIndex,
+            questionIndices: dolState.questionIndices || [dolState.questionIndex],
             recordedAt: new Date().toISOString(),
-            status: outcome.record.status,
+            status: 'section-in-progress',
           },
         },
       };
@@ -1723,9 +1820,19 @@ function App() {
         releaseAt: toDateTimeLocalInputValue(metadata?.releaseAt || ''),
         assignmentType: metadata?.assignmentType || 'practice',
         variantMode: metadata?.variantMode || 'personalized',
+        sectionVariantModes: metadata?.sectionVariantModes || {},
+        sectionAccessDefaults: { classwork: 'open', practice: 'open', ...(metadata?.sectionAccessDefaults || {}) },
         assignedClassPeriods: [...(metadata?.assignedClassPeriods || [])],
-        dolEnabled: metadata?.dol?.enabled ?? lessonBundle.activities.some((activity) => activity.role === 'dol'),
+        warmupEnabled: lessonBundle.activities.some((activity) => activity.role === 'warmup')
+          && (metadata?.provided?.warmup ? metadata.warmup.enabled !== false : true),
+        warmupMinutesBeforeStart: metadata?.warmup?.minutesBeforeStart ?? 7,
+        warmupInstructionDate: metadata?.warmup?.instructionDate || '',
+        warmupInstructionDatesByClassPeriod: metadata?.warmup?.instructionDatesByClassPeriod || {},
+        dolEnabled: lessonBundle.activities.some((activity) => activity.role === 'dol')
+          && (metadata?.provided?.dol ? metadata.dol.enabled === true : true),
         dolMinutesBeforeEnd: metadata?.dol?.minutesBeforeEnd ?? 10,
+        dolInstructionDate: metadata?.dol?.instructionDate || '',
+        dolInstructionDatesByClassPeriod: metadata?.dol?.instructionDatesByClassPeriod || {},
         dolQuestionIndex: Number.isInteger(metadata?.dol?.questionIndex)
           ? metadata.dol.questionIndex
           : dolQuestionFromRole >= 0 ? dolQuestionFromRole : null,
@@ -1787,7 +1894,9 @@ function App() {
       const dueValue = teacherReview ? teacherReview.dueAt : packageMetadata?.dueAt || '';
       const lateDueValue = teacherReview ? teacherReview.lateDueAt : packageMetadata?.lateDueAt || '';
       const releaseValue = teacherReview ? teacherReview.releaseAt : packageMetadata?.releaseAt || '';
-      const assignmentType = teacherReview?.assignmentType || packageMetadata?.assignmentType || 'practice';
+      // assignmentType is retained only as a backwards-compatible storage field.
+      // Runtime behavior comes from each question's authored activityRole.
+      const sourceAssignmentType = teacherReview?.assignmentType || packageMetadata?.assignmentType || 'practice';
       const requestedVariantMode = teacherReview?.variantMode || packageMetadata?.variantMode || 'personalized';
       const variantMode = overrideVariantMode || requestedVariantMode;
       const assignedClassPeriods = teacherReview
@@ -1818,11 +1927,55 @@ function App() {
       const parsedQuestions = normalizeAssignmentQuestions(
         validateAssignmentQuestions(parsed.questions, { variantMode }),
       );
+      const authoredRoles = parsedQuestions.map((question) => resolveQuestionActivityRole({
+        question,
+        assignment: { assignmentType: sourceAssignmentType },
+      }));
+      const hasClassworkSection = authoredRoles.includes('classwork');
+      const hasWarmupSection = authoredRoles.includes('warmup');
+      const hasDOLSection = authoredRoles.includes('dol');
+      const assignmentType = hasClassworkSection || hasWarmupSection ? 'notesClasswork' : 'practice';
+      const requestedSectionVariantModes = teacherReview?.sectionVariantModes || packageMetadata?.sectionVariantModes || {};
+      const sectionVariantModes = Object.fromEntries([...new Set(authoredRoles)].map((role) => [
+        role,
+        ['shared', 'personalized'].includes(requestedSectionVariantModes?.[role])
+          ? requestedSectionVariantModes[role]
+          : variantMode,
+      ]));
 
       const prerequisiteAssignmentId = resolvePackagePrerequisiteId(packageMetadata);
+      const warmupEnabled = hasWarmupSection && (teacherReview
+        ? teacherReview.warmupEnabled !== false
+        : packageMetadata?.provided?.warmup
+          ? packageMetadata.warmup.enabled !== false
+          : true);
+      const requestedWarmupLeadMinutes = Number(
+        teacherReview ? teacherReview.warmupMinutesBeforeStart : packageMetadata?.warmup?.minutesBeforeStart,
+      );
+      const warmupMinutesBeforeStart = Math.max(0, Number.isFinite(requestedWarmupLeadMinutes) ? requestedWarmupLeadMinutes : 7);
+      const warmupInstructionDate = String(
+        teacherReview?.warmupInstructionDate
+        || packageMetadata?.warmup?.instructionDate
+        || (releaseAt ? localDateKey(new Date(releaseAt)) : '')
+        || localDateKey(Date.now()),
+      ).trim() || null;
+      const warmupInstructionDatesByClassPeriod = teacherReview?.warmupInstructionDatesByClassPeriod
+        || packageMetadata?.warmup?.instructionDatesByClassPeriod
+        || {};
+
       let dolQuestionIndex = null;
-      let dolEnabled = assignmentType === 'practice' && (teacherReview ? teacherReview.dolEnabled === true : Boolean(packageMetadata?.dol?.enabled));
+      let dolEnabled = teacherReview
+        ? teacherReview.dolEnabled === true && hasDOLSection
+        : packageMetadata?.provided?.dol
+          ? packageMetadata.dol.enabled === true
+          : hasDOLSection;
       let dolMinutesBeforeEnd = Math.max(1, Number(teacherReview ? teacherReview.dolMinutesBeforeEnd : packageMetadata?.dol?.minutesBeforeEnd) || 10);
+      const dolInstructionDate = String(
+        teacherReview?.dolInstructionDate
+        || packageMetadata?.dol?.instructionDate
+        || (releaseAt ? localDateKey(new Date(releaseAt)) : '')
+        || localDateKey(Date.now()),
+      ).trim() || null;
 
       if (teacherReview) {
         dolQuestionIndex = Number.isInteger(Number(teacherReview.dolQuestionIndex))
@@ -1848,8 +2001,13 @@ function App() {
       if (Number.isInteger(dolQuestionIndex)) {
         dolQuestionIndex = Math.max(0, Math.min(parsedQuestions.length - 1, dolQuestionIndex));
       } else {
-        dolQuestionIndex = null;
+        const authoredDOLIndex = authoredRoles.findIndex((role) => role === 'dol');
+        dolQuestionIndex = authoredDOLIndex >= 0 ? authoredDOLIndex : null;
       }
+      // If the bundle marks a DOL role, that role is the source of truth. A
+      // legacy package with a timed DOL index is still honored for backwards
+      // compatibility.
+      dolEnabled = Boolean(dolEnabled && Number.isInteger(dolQuestionIndex));
 
       const folder = teacherReview
         ? normalizeFolderPath(teacherReview.folder) || null
@@ -1874,13 +2032,28 @@ function App() {
         dueDate,
         assignmentType,
         variantMode,
+        sectionVariantModes,
+        sectionAccess: {
+          classwork: { defaultState: teacherReview?.sectionAccessDefaults?.classwork === 'closed' ? 'closed' : 'open', overridesByClassPeriod: {} },
+          practice: { defaultState: teacherReview?.sectionAccessDefaults?.practice === 'closed' ? 'closed' : 'open', overridesByClassPeriod: {} },
+        },
         releaseAt,
         prerequisiteAssignmentId,
         completionRule,
+        warmup: {
+          enabled: warmupEnabled,
+          minutesBeforeStart: warmupMinutesBeforeStart,
+          instructionDate: warmupInstructionDate,
+          instructionDatesByClassPeriod: warmupInstructionDatesByClassPeriod,
+          closedByClassPeriod: {},
+        },
         dol: {
-          enabled: assignmentType === 'practice' && dolEnabled,
+          enabled: dolEnabled,
           minutesBeforeEnd: dolMinutesBeforeEnd,
+          instructionDate: dolInstructionDate,
+          instructionDatesByClassPeriod: teacherReview?.dolInstructionDatesByClassPeriod || packageMetadata?.dol?.instructionDatesByClassPeriod || {},
           questionIndex: dolQuestionIndex,
+          earlyUnlocks: {},
         },
         folder,
         assignmentPackageSchemaVersion: parsed.isPackage ? parsed.schemaVersion : 1,
@@ -2093,6 +2266,192 @@ function App() {
     }
   };
 
+  const handleUnlockDOLForClass = async (assignment, classPeriod) => {
+    if (!assignment?.id || !classPeriod) return;
+    const state = getDOLState({ assignment, schedule: classSchedule, classPeriod, nowValue: Date.now() });
+    if (!state.enabled) {
+      toastWarning('No timed DOL', 'This assignment does not have an enabled DOL section.');
+      return;
+    }
+    if (state.status === 'notToday') {
+      toastWarning('DOL is not scheduled today', `This DOL is scheduled for ${state.instructionDateKey || 'another date'}.`);
+      return;
+    }
+    if (!state.window) {
+      toastWarning('Bell schedule needed', `Set today’s A/B day and bell times for ${classPeriod} before unlocking its DOL.`);
+      return;
+    }
+    if (state.status === 'ended') {
+      toastWarning('DOL window ended', `The DOL window for ${classPeriod} has already ended.`);
+      return;
+    }
+    if (state.status === 'active') {
+      toastInfo('DOL is already open', `${assignment.title} is already available to ${classPeriod}.`);
+      return;
+    }
+
+    const durationMinutes = Math.max(1, Number(assignment?.dol?.minutesBeforeEnd || 10));
+    const proceed = await confirmAction({
+      title: `Unlock the DOL early for ${classPeriod}?`,
+      message: state.status === 'beforeClass'
+        ? `The DOL will open when ${classPeriod} begins and its ${durationMinutes}-minute timer will start then.`
+        : `The DOL will open immediately for ${classPeriod} and its ${durationMinutes}-minute timer will start now. Other class periods stay locked.`,
+      confirmLabel: 'Unlock DOL',
+    });
+    if (!proceed) return;
+
+    const busyKey = `${assignment.id}:${classPeriod}`;
+    setDolUnlockBusyKey(busyKey);
+    try {
+      const unlockedAt = new Date().toISOString();
+      await updateDoc(doc(db, 'assignments', assignment.id), {
+        dol: {
+          ...(assignment.dol || {}),
+          enabled: true,
+          earlyUnlocks: {
+            ...(assignment.dol?.earlyUnlocks || {}),
+            [classPeriod]: {
+              dateKey: localDateKey(Date.now()),
+              unlockedAt,
+              unlockedBy: user?.email || user?.id || 'teacher',
+            },
+          },
+        },
+        updatedAt: unlockedAt,
+      });
+      toastSuccess('DOL unlocked', `${assignment.title} is released early for ${classPeriod} only. Its timer starts when the unlock takes effect.`);
+    } catch (error) {
+      console.error(error);
+      toastError('Could not unlock DOL', error.message);
+    } finally {
+      setDolUnlockBusyKey(null);
+    }
+  };
+
+  const handleToggleWarmupForClass = async (assignment, classPeriod) => {
+    if (!assignment?.id || !classPeriod) return;
+    const state = getWarmupState({ assignment, schedule: classSchedule, classPeriod, nowValue: Date.now() });
+    if (!state.enabled) {
+      toastWarning('No Warm-Up section', 'This assignment does not have an authored Warm-Up section.');
+      return;
+    }
+    if (state.status === 'notToday') {
+      toastWarning('Warm-Up is not scheduled today', `This Warm-Up is scheduled for ${state.instructionDateKey || 'another date'}.`);
+      return;
+    }
+    if (!state.window) {
+      toastWarning('Bell schedule needed', `Set today’s A/B day and bell times for ${classPeriod} before controlling its Warm-Up.`);
+      return;
+    }
+    if (state.status === 'waiting') {
+      toastInfo('Warm-Up has not opened yet', `It opens ${state.minutesBeforeStart} minutes before ${classPeriod} begins.`);
+      return;
+    }
+    if (state.status === 'ended') {
+      toastWarning('Class period ended', 'The Warm-Up is already read-only because this class period has ended.');
+      return;
+    }
+
+    const closing = state.status === 'active';
+    const proceed = await confirmAction({
+      title: `${closing ? 'Close' : 'Reopen'} the Warm-Up for ${classPeriod}?`,
+      message: closing
+        ? 'Students in this class will keep their saved work for review, but they will not be able to make new Warm-Up submissions. Other class periods are unaffected.'
+        : 'Students in this class will be able to continue the Warm-Up until you close it again or the class period ends.',
+      confirmLabel: closing ? 'Close Warm-Up' : 'Reopen Warm-Up',
+    });
+    if (!proceed) return;
+
+    const busyKey = `${assignment.id}:${classPeriod}`;
+    setWarmupControlBusyKey(busyKey);
+    try {
+      const changedAt = new Date().toISOString();
+      const closedByClassPeriod = { ...(assignment.warmup?.closedByClassPeriod || {}) };
+      if (closing) {
+        closedByClassPeriod[classPeriod] = {
+          dateKey: localDateKey(Date.now()),
+          closedAt: changedAt,
+          closedBy: user?.email || user?.id || 'teacher',
+        };
+      } else {
+        delete closedByClassPeriod[classPeriod];
+      }
+      await updateDoc(doc(db, 'assignments', assignment.id), {
+        warmup: {
+          ...(assignment.warmup || {}),
+          enabled: true,
+          minutesBeforeStart: Math.max(0, Number(assignment?.warmup?.minutesBeforeStart ?? 7)),
+          closedByClassPeriod,
+        },
+        updatedAt: changedAt,
+      });
+      toastSuccess(closing ? 'Warm-Up closed' : 'Warm-Up reopened', `${assignment.title} · ${classPeriod}`);
+    } catch (error) {
+      console.error(error);
+      toastError(`Could not ${closing ? 'close' : 'reopen'} Warm-Up`, error.message);
+    } finally {
+      setWarmupControlBusyKey(null);
+    }
+  };
+
+  const handleToggleSectionAccessForClass = async (assignment, classPeriod, activityRole) => {
+    if (!assignment?.id || !classPeriod || !['classwork', 'practice'].includes(activityRole)) return;
+    const state = getSectionAccessState({ assignment, activityRole, classPeriod, nowValue: Date.now() });
+    if (!state.enabled) {
+      toastWarning('Section not found', `This assignment does not have an authored ${activityRole} section.`);
+      return;
+    }
+    if (state.practiceOnly) {
+      toastInfo('Assignment is in Practice Mode', 'After the final cutoff, all sections stay available for ungraded review and practice.');
+      return;
+    }
+    if (state.status === 'scheduled') {
+      toastWarning('Assignment has not opened yet', 'Section controls become active when the assignment is released.');
+      return;
+    }
+    if (!state.lifecycle?.isOpen) {
+      toastWarning('Assignment is not open', 'This section cannot be changed while the graded assignment is closed.');
+      return;
+    }
+
+    const nextState = state.isOpen ? 'closed' : 'open';
+    const label = activityRole === 'classwork' ? 'Classwork' : 'Practice';
+    const proceed = await confirmAction({
+      title: `${nextState === 'open' ? 'Open' : 'Close'} ${label} for ${classPeriod}?`,
+      message: nextState === 'open'
+        ? `Students in ${classPeriod} will be able to work in the ${label} section. Other class periods are unaffected.`
+        : `Students in ${classPeriod} will keep saved ${label} work for review, but new graded responses in that section will be locked until you reopen it. Other class periods are unaffected.`,
+      confirmLabel: `${nextState === 'open' ? 'Open' : 'Close'} ${label}`,
+    });
+    if (!proceed) return;
+
+    const busyKey = `${assignment.id}:${classPeriod}:${activityRole}`;
+    setSectionAccessBusyKey(busyKey);
+    try {
+      const changedAt = new Date().toISOString();
+      const sectionAccess = { ...(assignment.sectionAccess || {}) };
+      const config = { ...(sectionAccess[activityRole] || {}) };
+      const overridesByClassPeriod = { ...(config.overridesByClassPeriod || {}) };
+      overridesByClassPeriod[classPeriod] = {
+        state: nextState,
+        changedAt,
+        changedBy: user?.email || user?.id || 'teacher',
+      };
+      sectionAccess[activityRole] = {
+        ...config,
+        defaultState: config.defaultState === 'closed' ? 'closed' : 'open',
+        overridesByClassPeriod,
+      };
+      await updateDoc(doc(db, 'assignments', assignment.id), { sectionAccess, updatedAt: changedAt });
+      toastSuccess(`${label} ${nextState}`, `${assignment.title} · ${classPeriod}`);
+    } catch (error) {
+      console.error(error);
+      toastError(`Could not ${nextState === 'open' ? 'open' : 'close'} ${label}`, error.message);
+    } finally {
+      setSectionAccessBusyKey(null);
+    }
+  };
+
   const handleGoToClassFromHome = (period) => {
     setHomeNavigationPeriod(period);
     setTeacherTab('classesWorkspace');
@@ -2126,42 +2485,11 @@ function App() {
     await handleUpdateStudentProfile(student.id, { [group]: [...currentValues] });
   };
 
-  const updateSchedulePeriod = (period, field, value, modified = false) => {
-    setClassSchedule((currentValue) => {
-      const current = normalizeSchedule(currentValue);
-      if (!modified) {
-        return {
-          ...current,
-          periods: {
-            ...current.periods,
-            [period]: { ...current.periods[period], [field]: value },
-          },
-        };
-      }
-      const date = new Date();
-      const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-      const day = current.modifiedSchedules?.[dateKey] || { periods: JSON.parse(JSON.stringify(current.periods)) };
-      return {
-        ...current,
-        modifiedSchedules: {
-          ...current.modifiedSchedules,
-          [dateKey]: {
-            ...day,
-            periods: {
-              ...day.periods,
-              [period]: { ...(day.periods?.[period] || current.periods[period]), [field]: value },
-            },
-          },
-        },
-      };
-    });
-  };
-
   const handleSaveClassSchedule = async () => {
     const normalized = normalizeSchedule(classSchedule);
     await setDoc(doc(db, 'settings', 'classSchedule'), normalized);
     setClassSchedule(normalized);
-    toastSuccess('Schedule saved', 'DOL windows now use these period times.');
+    toastSuccess('A/B schedule saved', 'DOL windows now use the selected A/B day and any date-specific bell schedule.');
   };
 
   const handleUpdateCourseProfile = (period, patch) => {
@@ -2325,6 +2653,8 @@ function App() {
     setEditingAssignmentDates({
       dueAt: toLocalInput(assignment.dueAt || assignment.dueDate),
       lateDueAt: toLocalInput(assignment.lateDueAt || assignment.lateDueDate || assignment.dueAt || assignment.dueDate),
+      dolInstructionDate: assignment.dol?.instructionDate
+        || (assignment.releaseAt ? toLocalInput(assignment.releaseAt).slice(0, 10) : localDateKey(Date.now())),
       assignedClassPeriods: Array.isArray(assignment.assignedClassPeriods) ? assignment.assignedClassPeriods : [...CLASS_PERIODS],
     });
   };
@@ -2336,12 +2666,24 @@ function App() {
       toastError('Check the dates', 'The final late due date must be later than the regular due date.');
       return;
     }
-    await updateDoc(doc(db, 'assignments', assignmentId), {
+    const assignment = assignments.find((item) => item.id === assignmentId);
+    const hasDOL = Boolean(assignment?.dol?.enabled || assignment?.questions?.some((question) => (
+      resolveQuestionActivityRole({ question, assignment }) === 'dol'
+    )));
+    const patch = {
       dueAt: dueAt.toISOString(),
       dueDate: dueAt.toISOString(),
       lateDueAt: lateDueAt.toISOString(),
       assignedClassPeriods: editingAssignmentDates.assignedClassPeriods || [],
-    });
+    };
+    if (hasDOL) {
+      patch.dol = {
+        ...(assignment?.dol || {}),
+        enabled: assignment?.dol?.enabled ?? true,
+        instructionDate: editingAssignmentDates.dolInstructionDate || localDateKey(Date.now()),
+      };
+    }
+    await updateDoc(doc(db, 'assignments', assignmentId), patch);
     setEditingAssignmentId(null);
   };
 
@@ -2787,6 +3129,7 @@ function App() {
       template: assignment.assignmentTemplate || null,
       assignmentType: assignment.assignmentType || 'practice',
       variantMode: assignment.variantMode || 'personalized',
+      sectionVariantModes: assignment.sectionVariantModes || {},
       classes: assignment.assignedClassPeriods || [],
       releaseAt: assignment.releaseAt || null,
       dueAt: assignment.dueAt || assignment.dueDate || null,
@@ -3000,15 +3343,28 @@ function App() {
     const recordedGrade = calculateGrade(recordedTracker, assignment);
     const progress = calculatePracticeProgress(workingTracker, assignment);
     const dolState = getDOLState({ assignment, schedule: classSchedule, classPeriod: user?.classPeriod, nowValue: now });
+    const warmupState = getWarmupState({ assignment, schedule: classSchedule, classPeriod: user?.classPeriod, nowValue: now });
     const currentRecord = normalizeQuestionRecord(workingTracker?.[currentQuestionIndex]);
-    const currentIsDOL = !lifecycle.isPracticeOnly && activeQuestionRole === 'dol' && dolState.enabled && currentQuestionIndex === dolState.questionIndex;
+    const currentIsDOL = !lifecycle.isPracticeOnly && activeQuestionRole === 'dol' && dolState.enabled && (dolState.questionIndices || [dolState.questionIndex]).includes(currentQuestionIndex);
+    const currentIsWarmup = !lifecycle.isPracticeOnly && activeQuestionRole === 'warmup' && warmupState.enabled;
+    const currentManualSectionState = getSectionAccessState({
+      assignment,
+      activityRole: activeQuestionRole,
+      classPeriod: user?.classPeriod,
+      nowValue: now,
+    });
+    const currentSectionManuallyLocked = !preview
+      && !lifecycle.isPracticeOnly
+      && currentManualSectionState.enabled
+      && !currentManualSectionState.isOpen;
     const assignmentFeedbackHeld = !preview && !lifecycle.isPracticeOnly && assignmentHasHeldTeacherFeedback(assignment);
     const currentFeedbackReleased = lifecycle.isPracticeOnly || assignmentFeedbackWasReleased(assignment)
       || (activeActivityPolicy.feedback === 'afterAssignmentSubmit' && ['correct', 'expired'].includes(currentRecord.status));
     const runtimeActivityRole = !preview && lifecycle.isPracticeOnly ? 'practice' : activeQuestionRole;
     const runtimeActivityPolicy = getEffectiveActivityPolicy(runtimeActivityRole);
-    const generationStudentKey = assignment.variantMode === 'shared'
-      ? `shared-version:${assignment.id}`
+    const currentSectionVariantMode = getSectionVariantMode(assignment, activeQuestionRole);
+    const generationStudentKey = currentSectionVariantMode === 'shared'
+      ? `shared-version:${assignment.id}:${activeQuestionRole}`
       : preview ? 'teacher-preview' : user?.id || 'anonymous';
     const draftSessionMode = preview ? 'preview' : lifecycle.isPracticeOnly ? 'post-deadline-practice' : lifecycle.isLate ? 'late' : 'graded';
     const supportPresentation = preview ? getStudentSupportPresentation({}) : activeSupportPresentation;
@@ -3047,21 +3403,63 @@ function App() {
       quiz: { label: 'Quiz', background: '#fce8e6', color: '#a50e0e', border: '#d93025' },
       test: { label: 'Test', background: '#fce8e6', color: '#a50e0e', border: '#d93025' },
     };
+    const sectionOrdinals = {};
     const visibleQuestionEntries = includedQuestionIndices.map((index, visiblePosition) => {
       const question = questions[index];
-      const isTimedDOLQuestion = dolState.enabled && index === dolState.questionIndex;
+      const isTimedDOLQuestion = dolState.enabled && (dolState.questionIndices || [dolState.questionIndex]).includes(index);
       const role = resolveQuestionActivityRole({ question, assignment, isDOL: isTimedDOLQuestion });
-      return { index, visiblePosition, question, role, isTimedDOLQuestion };
+      const sectionPosition = sectionOrdinals[role] || 0;
+      sectionOrdinals[role] = sectionPosition + 1;
+      return { index, visiblePosition, sectionPosition, question, role, isTimedDOLQuestion };
     });
+    const sectionQuestionIsComplete = (index) => ['correct', 'expired'].includes(normalizeQuestionRecord(workingTracker?.[index]).status);
     const navigationSections = visibleQuestionEntries.reduce((sections, entry) => {
       const previous = sections[sections.length - 1];
       if (previous?.role === entry.role) previous.entries.push(entry);
       else sections.push({ role: entry.role, entries: [entry] });
       return sections;
-    }, []);
+    }, []).map((section) => ({
+      ...section,
+      complete: section.entries.length > 0 && section.entries.every((entry) => sectionQuestionIsComplete(entry.index)),
+    }));
     const currentSectionMeta = activitySectionMeta[activeQuestionRole] || {
       label: String(activeQuestionRole || 'Activity').replace(/(^|\s)\S/g, (letter) => letter.toUpperCase()),
       background: '#f1f3f4', color: '#3c4043', border: '#9aa0a6',
+    };
+
+    const assignmentHasClasswork = visibleQuestionEntries.some((entry) => entry.role === 'classwork');
+    const currentVisibleEntryPosition = visibleQuestionEntries.findIndex((entry) => entry.index === currentQuestionIndex);
+    const currentVisibleEntry = currentVisibleEntryPosition >= 0 ? visibleQuestionEntries[currentVisibleEntryPosition] : null;
+    const currentNavigationSection = navigationSections.find((section) => section.entries.some((entry) => entry.index === currentQuestionIndex));
+    const currentSectionQuestionNumber = (currentVisibleEntry?.sectionPosition ?? 0) + 1;
+    const currentSectionQuestionCount = currentNavigationSection?.entries.length || 1;
+    const warmupCanBeViewed = ['active', 'closed', 'ended'].includes(warmupState.status);
+    const entryIsAvailable = (entry) => {
+      if (preview || lifecycle.isPracticeOnly) return true;
+      if (entry?.role === 'warmup' && warmupState.enabled && !warmupCanBeViewed) return false;
+      if (entry?.isTimedDOLQuestion && !lifecycle.isClosed && !['active', 'ended'].includes(dolState.status)) return false;
+      const manualState = getSectionAccessState({
+        assignment,
+        activityRole: entry?.role,
+        classPeriod: user?.classPeriod,
+        nowValue: now,
+      });
+      if (manualState.enabled && !manualState.isOpen) return false;
+      return true;
+    };
+    const findNeighbor = (direction) => {
+      for (let position = currentVisibleEntryPosition + direction; position >= 0 && position < visibleQuestionEntries.length; position += direction) {
+        if (entryIsAvailable(visibleQuestionEntries[position])) return visibleQuestionEntries[position];
+      }
+      return null;
+    };
+    const previousQuestionEntry = findNeighbor(-1);
+    const nextQuestionEntry = findNeighbor(1);
+    const leaveAssignment = () => {
+      if (preview) setTeacherTab('assignments');
+      else flushAssignmentActivity(activeAssignmentId).catch(() => {});
+      setActiveView('dashboard');
+      setActiveAssignmentId(null);
     };
 
     return (
@@ -3077,40 +3475,41 @@ function App() {
       >
         {!preview && !supportPresentation.disableIdleTimer && renderIdleOverlay()}
         <div className="mathmaster-assignment-shell" style={{ maxWidth: '1120px', margin: '0 auto' }}>
+          {!preview && liveChallengeInvite?.status === 'running' && (
+            <section className="mathmaster-assignment-banner" style={{ marginBottom: '16px', padding: '18px 22px', borderRadius: '13px', background: '#e8f0fe', border: '3px solid #1a73e8', color: '#174ea6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', textAlign: 'left' }}>
+              <div><strong style={{ display: 'block', fontSize: '20px' }}>⚡ Live Challenge has started</strong><span>{liveChallengeInvite.title || 'Your class challenge'} is live now. Your assignment work is saved when you switch.</span></div>
+              <button type="button" onClick={() => { leaveAssignment(); setStudentDashboardMode('liveChallenge'); }} style={{ padding: '11px 17px', border: 0, borderRadius: '9px', background: '#174ea6', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Join Live Challenge</button>
+            </section>
+          )}
           {lifecycle.isLate && !preview && (
-            <section style={{ marginBottom: '16px', padding: '18px 22px', borderRadius: '13px', background: '#fff4ce', border: '2px solid #f9ab00', color: '#5f4400', textAlign: 'left' }}>
+            <section className="mathmaster-assignment-banner" style={{ marginBottom: '16px', padding: '18px 22px', borderRadius: '13px', background: '#fff4ce', border: '2px solid #f9ab00', color: '#5f4400', textAlign: 'left' }}>
               <strong style={{ display: 'block', fontSize: '20px' }}>Late submission window</strong>
               <span>The regular deadline passed. You have <strong>{formatRemainingTime(lifecycle.millisecondsRemaining)}</strong> before this assignment closes permanently on {formatLateDueDate(assignment)}.</span>
             </section>
           )}
 
           {lifecycle.isPracticeOnly && !preview && (
-            <section style={{ marginBottom: '16px', padding: '18px 22px', borderRadius: '13px', background: '#f1f3f4', border: '2px solid #5f6368', color: '#3c4043', textAlign: 'left' }}>
+            <section className="mathmaster-assignment-banner" style={{ marginBottom: '16px', padding: '18px 22px', borderRadius: '13px', background: '#f1f3f4', border: '2px solid #5f6368', color: '#3c4043', textAlign: 'left' }}>
               <strong style={{ display: 'block', fontSize: '20px' }}>Practice Mode — grading window ended</strong>
               <span>Your recorded grade is frozen. You may keep practicing with feedback, but these attempts earn no credit and are not written to the teacher gradebook, mastery evidence, Math Path recommendations, or activity analytics. Practice state stays only in memory for this signed-in browser session and is never saved.</span>
             </section>
           )}
 
-          {!preview && dolState.status === 'active' && (
-            <section style={{ marginBottom: '16px', padding: '20px 22px', borderRadius: '14px', background: '#f3e8fd', border: '2px solid #9334e6', color: '#4a126b', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px', flexWrap: 'wrap', textAlign: 'left' }}>
+          {!preview && dolState.status === 'active' && (dolState.questionIndices || [dolState.questionIndex]).some((index) => normalizeQuestionRecord(workingTracker?.[index]).totalAttempts === 0) && (
+            <section className="mathmaster-assignment-banner" style={{ marginBottom: '16px', padding: '20px 22px', borderRadius: '14px', background: '#f3e8fd', border: '2px solid #9334e6', color: '#4a126b', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px', flexWrap: 'wrap', textAlign: 'left' }}>
               <div>
                 <strong style={{ display: 'block', fontSize: '22px' }}>DOL is available now</strong>
-                <span>Question {Math.max(1, includedQuestionIndices.indexOf(dolState.questionIndex) + 1)} records today&apos;s DOL grade.</span>
-                {!supportPresentation.hideCountdowns && <div style={{ marginTop: '7px', fontWeight: 900, fontSize: '18px' }}>{formatRemainingTime(dolState.millisecondsRemaining)} remaining</div>}
+                <span>The entire DOL section is open. Complete all {(dolState.questionIndices || [dolState.questionIndex]).length} question{(dolState.questionIndices || [dolState.questionIndex]).length === 1 ? '' : 's'} before the timer reaches zero.</span>
+                {!supportPresentation.hideCountdowns && <div style={{ marginTop: '7px', fontWeight: 900, fontSize: '18px' }}><DOLCountdown endsAt={dolState.endsAt} /> remaining</div>}
               </div>
-              <button type="button" onClick={() => changeQuestion(dolState.questionIndex)} style={{ padding: '12px 18px', border: 0, borderRadius: '10px', background: '#681da8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Go to DOL Question</button>
+              <button type="button" onClick={() => changeQuestion((dolState.questionIndices || [dolState.questionIndex])[0])} style={{ padding: '12px 18px', border: 0, borderRadius: '10px', background: '#681da8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Start DOL Section</button>
             </section>
           )}
 
           <header className="mathmaster-assignment-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '18px 24px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', marginBottom: '22px', gap: '20px', flexWrap: 'wrap' }}>
             <div style={{ textAlign: 'left', flex: '1 1 390px' }}>
               <button
-                onClick={() => {
-                  if (preview) setTeacherTab('assignments');
-                  else flushAssignmentActivity(activeAssignmentId).catch(() => {});
-                  setActiveView('dashboard');
-                  setActiveAssignmentId(null);
-                }}
+                onClick={leaveAssignment}
                 style={{ background: 'none', border: 'none', color: '#1a73e8', cursor: 'pointer', fontWeight: 'bold', padding: 0, marginBottom: '5px' }}
               >
                 &larr; {preview ? 'Back to Instructor Dashboard' : 'Back to Dashboard'}
@@ -3118,8 +3517,8 @@ function App() {
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <h1 style={{ margin: 0, color: '#202124', fontSize: '23px' }}>{assignment.title}</h1>
                 <span style={{ padding: '4px 9px', borderRadius: '999px', background: lifecycleBadge.background, color: lifecycleBadge.color, fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>{lifecycleBadge.label}</span>
-                {assignment.assignmentType === 'notesClasswork' && <span style={{ padding: '4px 9px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6', fontSize: '11px', fontWeight: 900 }}>GUIDED NOTES / CLASSWORK</span>}
-                {assignment.variantMode === 'shared' && <span style={{ padding: '4px 9px', borderRadius: '999px', background: '#e6f4ea', color: '#137333', fontSize: '11px', fontWeight: 900 }}>SAME VERSION FOR EVERY STUDENT</span>}
+                {assignmentHasClasswork && <span style={{ padding: '4px 9px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6', fontSize: '11px', fontWeight: 900 }}>GUIDED NOTES / CLASSWORK</span>}
+                <span style={{ padding: '4px 9px', borderRadius: '999px', background: currentSectionVariantMode === 'shared' ? '#e6f4ea' : '#f3e8fd', color: currentSectionVariantMode === 'shared' ? '#137333' : '#681da8', fontSize: '11px', fontWeight: 900 }}>{currentSectionVariantMode === 'shared' ? `${activeSectionMeta.label.toUpperCase()} · SAME VERSION` : `${activeSectionMeta.label.toUpperCase()} · PERSONALIZED VERSIONS`}</span>
               </div>
               <div style={{ color: '#5f6368', fontSize: '13px', marginTop: '7px', lineHeight: 1.5 }}>
                 Regular due: {formatDueDate(assignment)}<br />Final late due: {formatLateDueDate(assignment)}
@@ -3131,7 +3530,7 @@ function App() {
                 <div style={{ fontSize: '12px', color: '#5f6368', textTransform: 'uppercase', fontWeight: 900 }}>{preview ? 'Preview progress' : lifecycle.isPracticeOnly ? 'Frozen recorded grade' : lifecycle.isLate ? 'Current late grade' : 'Current grade'}</div>
                 <div style={{ fontSize: '22px', fontWeight: 900, color: assignmentFeedbackHeld ? '#174ea6' : recordedGrade >= 70 ? '#188038' : '#202124' }}>{preview ? `${progress.correct}/${progress.total}` : assignmentFeedbackHeld ? 'Awaiting teacher release' : `${recordedGrade}%`}</div>
               </div>
-              {!preview && assignment.assignmentType === 'notesClasswork' && (
+              {!preview && assignmentHasClasswork && (
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: '12px', color: '#5f6368', textTransform: 'uppercase', fontWeight: 900 }}>Daily classwork</div>
                   <div style={{ fontSize: '18px', fontWeight: 900, color: classworkGradesByAssignment?.[assignment.id]?.score === 100 ? '#188038' : '#8a5a00' }}>{classworkGradesByAssignment?.[assignment.id]?.score === 100 ? '100 — prerequisite met' : 'In progress'}</div>
@@ -3140,17 +3539,42 @@ function App() {
             </div>
           </header>
 
+          <nav className="mathmaster-assignment-compact-nav" aria-label="Assignment question navigation">
+            <button type="button" className="mathmaster-compact-nav-back" onClick={leaveAssignment} aria-label={preview ? 'Back to instructor dashboard' : 'Back to dashboard'}>←</button>
+            <div className="mathmaster-compact-nav-current">
+              <strong>{currentSectionMeta.label}</strong>
+              <span>Question {currentSectionQuestionNumber} of {currentSectionQuestionCount} · {lifecycleBadge.label}{currentNavigationSection?.complete ? ' · Section complete' : ''}</span>
+              {!preview && dolState.status === 'active' && <span className="mathmaster-compact-nav-alert">DOL open{supportPresentation.hideCountdowns ? '' : ` · ${formatRemainingTime(dolState.millisecondsRemaining)}`}</span>}
+            </div>
+            <button type="button" onClick={() => previousQuestionEntry && changeQuestion(previousQuestionEntry.index)} disabled={!previousQuestionEntry} aria-label="Previous question">‹ <span>Previous</span></button>
+            <select
+              aria-label="Choose a question"
+              value={currentQuestionIndex}
+              onChange={(event) => changeQuestion(Number(event.target.value))}
+            >
+              {visibleQuestionEntries.map((entry) => {
+                const meta = activitySectionMeta[entry.role] || { label: entry.role };
+                return <option key={entry.index} value={entry.index} disabled={!entryIsAvailable(entry)}>{meta.label} Q{entry.sectionPosition + 1}{entryIsAvailable(entry) ? '' : ' · locked'}</option>;
+              })}
+            </select>
+            <button type="button" className="mathmaster-compact-nav-next" onClick={() => nextQuestionEntry && changeQuestion(nextQuestionEntry.index)} disabled={!nextQuestionEntry} aria-label="Next question"><span>Next</span> ›</button>
+          </nav>
+
           <div className="mathmaster-question-navigation" style={{ display: 'grid', gap: '14px', marginBottom: '24px' }}>
             {navigationSections.map((section) => {
               const sectionMeta = activitySectionMeta[section.role] || { label: section.role, background: '#f1f3f4', color: '#3c4043', border: '#9aa0a6' };
               return (
-                <section key={`${section.role}-${section.entries[0]?.index}`} aria-label={`${sectionMeta.label} questions`} style={{ padding: '13px', borderRadius: '12px', border: `2px solid ${sectionMeta.border}`, background: sectionMeta.background }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '10px', color: sectionMeta.color }}>
+                <section key={`${section.role}-${section.entries[0]?.index}`} aria-label={`${sectionMeta.label} questions`} style={{ padding: '13px', borderRadius: '12px', border: `2px solid ${section.complete ? '#188038' : sectionMeta.border}`, background: sectionMeta.background, boxShadow: section.complete ? '0 0 0 3px rgba(24,128,56,0.12)' : 'none' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '10px', color: sectionMeta.color, flexWrap: 'wrap' }}>
                     <strong style={{ fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{sectionMeta.label}</strong>
-                    <span style={{ fontSize: '12px', fontWeight: 800 }}>{section.entries.length} question{section.entries.length === 1 ? '' : 's'}</span>
+                    {section.complete ? (
+                      <span aria-label={`${sectionMeta.label} section complete`} style={{ padding: '7px 11px', borderRadius: 999, background: '#188038', color: '#fff', fontSize: '12px', fontWeight: 950, letterSpacing: '0.02em', boxShadow: '0 2px 6px rgba(24,128,56,0.28)' }}>✓ {sectionMeta.label.toUpperCase()} COMPLETE</span>
+                    ) : (
+                      <span style={{ fontSize: '12px', fontWeight: 800 }}>{section.entries.length} question{section.entries.length === 1 ? '' : 's'}</span>
+                    )}
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: '10px' }}>
-                    {section.entries.map(({ index, visiblePosition, role: cardRole, isTimedDOLQuestion }) => {
+                    {section.entries.map(({ index, sectionPosition, role: cardRole, isTimedDOLQuestion }) => {
                       const record = normalizeQuestionRecord(workingTracker?.[index]);
                       const cardPolicy = getEffectiveActivityPolicy(cardRole);
                       const cardFeedbackHeld = !preview && !lifecycle.isPracticeOnly && cardPolicy.feedback === 'teacherRelease' && !assignmentFeedbackWasReleased(assignment);
@@ -3159,29 +3583,38 @@ function App() {
                         ? { background: '#eef4ff', color: '#174ea6', label: 'Submitted · feedback held' }
                         : storedCardState;
                       const dolUnavailable = isTimedDOLQuestion && !preview && !lifecycle.isClosed && !['active', 'ended'].includes(dolState.status);
+                      const warmupUnavailable = cardRole === 'warmup' && warmupState.enabled && !preview && !lifecycle.isPracticeOnly && !warmupCanBeViewed;
+                      const manualSectionState = getSectionAccessState({ assignment, activityRole: cardRole, classPeriod: user?.classPeriod, nowValue: now });
+                      const manualSectionUnavailable = !preview && !lifecycle.isPracticeOnly && manualSectionState.enabled && !manualSectionState.isOpen;
+                      const sectionUnavailable = dolUnavailable || warmupUnavailable || manualSectionUnavailable;
+                      const lockedLabel = warmupUnavailable
+                        ? (warmupState.status === 'waiting' ? `Opens ${warmupState.minutesBeforeStart} min before class` : 'Warm-Up is not open today')
+                        : manualSectionUnavailable
+                          ? (manualSectionState.status === 'scheduled' ? 'Opens with assignment' : 'Waiting for teacher to open')
+                          : 'Locked until DOL window';
                       return (
                         <button
                           type="button"
                           key={index}
-                          onClick={() => !dolUnavailable && changeQuestion(index)}
-                          disabled={dolUnavailable}
+                          onClick={() => !sectionUnavailable && changeQuestion(index)}
+                          disabled={sectionUnavailable}
                           style={{
                             padding: '14px',
-                            cursor: dolUnavailable ? 'not-allowed' : 'pointer',
-                            backgroundColor: dolUnavailable ? '#f1f3f4' : cardState.background,
-                            color: dolUnavailable ? '#80868b' : cardState.color,
+                            cursor: sectionUnavailable ? 'not-allowed' : 'pointer',
+                            backgroundColor: sectionUnavailable ? '#f1f3f4' : cardState.background,
+                            color: sectionUnavailable ? '#80868b' : cardState.color,
                             border: currentQuestionIndex === index ? `3px solid ${sectionMeta.border}` : '1px solid #dadce0',
                             borderRadius: '10px',
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'center',
                             boxShadow: currentQuestionIndex === index ? '0 4px 12px rgba(26,115,232,0.2)' : 'none',
-                            opacity: dolUnavailable ? 0.7 : 1,
+                            opacity: sectionUnavailable ? 0.7 : 1,
                           }}
                         >
-                          <div style={{ fontSize: '14px', fontWeight: 'bold' }}>Question {visiblePosition + 1}</div>
+                          <div style={{ fontSize: '14px', fontWeight: 'bold' }}>Question {sectionPosition + 1}</div>
                           <div style={{ marginTop: '5px', padding: '3px 7px', borderRadius: '999px', background: sectionMeta.background, color: sectionMeta.color, border: `1px solid ${sectionMeta.border}`, fontSize: '10px', fontWeight: 900 }}>{sectionMeta.label}</div>
-                          <div style={{ fontSize: '12px', marginTop: '7px', fontWeight: 'bold' }}>{dolUnavailable ? 'Locked until DOL window' : cardState.label}</div>
+                          <div style={{ fontSize: '12px', marginTop: '7px', fontWeight: 'bold' }}>{sectionUnavailable ? lockedLabel : cardState.label}</div>
                           {record.totalAttempts > 0 && <div style={{ fontSize: '11px', marginTop: '3px', opacity: 0.85 }}>{record.totalAttempts} total attempt{record.totalAttempts === 1 ? '' : 's'}</div>}
                         </button>
                       );
@@ -3192,9 +3625,9 @@ function App() {
             })}
           </div>
 
-          <section aria-label="Current assignment section" style={{ marginBottom: '12px', padding: '12px 16px', borderRadius: '10px', borderLeft: `6px solid ${currentSectionMeta.border}`, background: currentSectionMeta.background, color: currentSectionMeta.color, textAlign: 'left' }}>
+          <section className="mathmaster-current-section-banner" aria-label="Current assignment section" style={{ marginBottom: '12px', padding: '12px 16px', borderRadius: '10px', borderLeft: `6px solid ${currentSectionMeta.border}`, background: currentSectionMeta.background, color: currentSectionMeta.color, textAlign: 'left' }}>
             <strong style={{ fontSize: '16px' }}>{currentSectionMeta.label}</strong>
-            <span style={{ marginLeft: '8px', fontSize: '13px' }}>You are working in this section now.</span>
+            <span style={{ marginLeft: '8px', fontSize: '13px' }}>{currentNavigationSection?.complete ? '✓ This entire section is complete.' : 'You are working in this section now.'}</span>
           </section>
 
           <main className="mathmaster-question-stage" style={{ background: '#fff', borderRadius: '12px', padding: '10px', minHeight: '500px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
@@ -3209,8 +3642,21 @@ function App() {
               onLoadScratchpad={handleLoadScratchpad}
               onSaveScratchpad={handleSaveScratchpad}
               studentProfile={preview ? null : adaptiveStudentProfile || user?.profile}
-              guidedMode={assignment.assignmentType === 'notesClasswork'}
-              assignmentLocked={false}
+              guidedMode={runtimeActivityRole === 'classwork'}
+              assignmentLocked={!preview && ((currentIsDOL && dolState.status === 'ended') || (currentIsWarmup && warmupState.status !== 'active') || currentSectionManuallyLocked)}
+              assignmentLockedMessage={!preview && currentIsDOL && dolState.status === 'ended'
+                ? 'The DOL timer has ended. Your saved response is available for review, but no new submission is allowed.'
+                : !preview && currentIsWarmup && warmupState.status === 'closed'
+                  ? 'Your teacher closed the Warm-Up for this class. Your saved work is available for review, but no new submission is allowed.'
+                  : !preview && currentIsWarmup && warmupState.status === 'ended'
+                    ? 'This class period has ended. Your Warm-Up is available for review only.'
+                    : !preview && currentIsWarmup && warmupState.status === 'waiting'
+                      ? `The Warm-Up opens ${warmupState.minutesBeforeStart} minutes before your class begins.`
+                      : !preview && currentIsWarmup
+                        ? 'The Warm-Up is only available on its instructional day during your class window.'
+                        : currentSectionManuallyLocked
+                          ? `Your teacher has closed the ${currentManualSectionState.role === 'practice' ? 'Practice' : 'Classwork'} section for this class. Saved work remains visible, but new submissions are locked until the section is reopened.`
+                          : ''}
               dolMode={!preview && currentIsDOL && dolState.status === 'active'}
               maximumAttempts={runtimeActivityPolicy.attempts}
               activityRole={runtimeActivityRole}
@@ -3254,9 +3700,6 @@ function App() {
     // from the one account that needs to fix/deploy it.
     const rootAdminUiEligible = user.isRootAdmin === true
       || String(user.email || '').trim().toLowerCase() === ROOT_ADMIN_EMAIL;
-    const today = new Date();
-    const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    const todayOverride = classSchedule.modifiedSchedules?.[todayKey]?.periods || null;
     const selectedAssignment = assignments.find((assignment) => assignment.id === gradebookFilter.assignmentId) || null;
     const selectedClassStudents = allStudents.filter((student) => (student.classPeriod || 'Unassigned') === gradebookFilter.classPeriod);
     const assignmentsForSelectedClass = assignments.filter((assignment) => !gradebookFilter.classPeriod || assignmentIsForStudent(assignment, gradebookFilter.classPeriod));
@@ -3380,6 +3823,16 @@ function App() {
 
           <div className="mm-dashboard-content" style={{ padding: '30px' }}>
             {teacherTab === 'demo' && <DemoExperience />}
+
+            {teacherTab === 'liveChallenge' && (
+              <Suspense fallback={<div style={{ padding: 28 }}>Loading Live Challenge…</div>}>
+                <LiveChallengeTeacher
+                  allStudents={allStudents}
+                  courseProfiles={courseProfiles}
+                  signedInEmail={user.email}
+                />
+              </Suspense>
+            )}
 
             {teacherTab === 'pacing' && (
               <PacingControls
@@ -3505,6 +3958,8 @@ function App() {
                   const lifecycle = getAssignmentLifecycle(assignment, now);
                   const affectedStudents = allStudents.filter((student) => student.gradesByAssignment?.[assignment.id] !== undefined).length;
                   const isSelected = selectedAssignmentIds.has(assignment.id);
+                  const hasDOL = Boolean(assignment?.dol?.enabled || assignment?.questions?.some((question) => resolveQuestionActivityRole({ question, assignment }) === 'dol'));
+                  const hasSectionVersions = Object.keys(assignment.sectionVariantModes || {}).length > 0;
                   return (
                     <article key={assignment.id} style={{ background: '#f8f9fa', padding: '18px', marginBottom: '12px', borderRadius: '10px', border: `1px solid ${isSelected ? 'var(--mm-primary)' : lifecycle.isLate ? '#f9ab00' : lifecycle.isPracticeOnly ? '#5f6368' : '#e0e3e7'}`, boxShadow: isSelected ? '0 0 0 2px var(--mm-primary-soft)' : 'none' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '18px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -3520,7 +3975,7 @@ function App() {
                             <strong style={{ fontSize: '18px' }}>{assignment.title}</strong>
                             <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: lifecycle.isPracticeOnly ? '#f1f3f4' : lifecycle.isLate ? '#fff4ce' : '#e6f4ea', color: lifecycle.isPracticeOnly ? '#3c4043' : lifecycle.isLate ? '#7a4f00' : '#137333' }}>{lifecycle.isPracticeOnly ? 'PRACTICE ONLY' : lifecycle.status.toUpperCase()}</span>
                             <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#e8f0fe', color: '#174ea6' }}>{assignment.assignmentType === 'notesClasswork' ? 'NOTES / CLASSWORK' : 'PRACTICE'}</span>
-                            {assignment.variantMode === 'shared' && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#e6f4ea', color: '#137333' }}>SHARED VERSION</span>}
+                            {hasSectionVersions ? <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#f3e8fd', color: '#681da8' }}>SECTION VERSIONS</span> : assignment.variantMode === 'shared' && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#e6f4ea', color: '#137333' }}>SHARED VERSION</span>}
                             {assignment.archived && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#f1f3f4', color: '#5f6368' }}>ARCHIVED</span>}
                             {/* A library item has no audience and no due date. Saying so
                                 plainly is the whole point of allowing it to exist. */}
@@ -3559,6 +4014,7 @@ function App() {
                         <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #d8dde6', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'end' }}>
                           <label style={{ fontWeight: 'bold' }}>Regular due <input type="datetime-local" value={editingAssignmentDates.dueAt} onChange={(event) => setEditingAssignmentDates((current) => ({ ...current, dueAt: event.target.value }))} style={{ display: 'block', padding: '8px', marginTop: '5px' }} /></label>
                           <label style={{ fontWeight: 'bold' }}>Final late due <input type="datetime-local" value={editingAssignmentDates.lateDueAt} onChange={(event) => setEditingAssignmentDates((current) => ({ ...current, lateDueAt: event.target.value }))} style={{ display: 'block', padding: '8px', marginTop: '5px' }} /></label>
+                          {hasDOL && <label style={{ fontWeight: 'bold' }}>DOL instructional date <input type="date" value={editingAssignmentDates.dolInstructionDate || ''} onChange={(event) => setEditingAssignmentDates((current) => ({ ...current, dolInstructionDate: event.target.value }))} style={{ display: 'block', padding: '8px', marginTop: '5px' }} /></label>}
                           <div style={{ flex: '1 1 100%', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>{CLASS_PERIODS.map((period) => <label key={period} style={{ padding: '5px 8px', borderRadius: '999px', background: editingAssignmentDates.assignedClassPeriods?.includes(period) ? '#e8f0fe' : '#fff', border: '1px solid #c5d5ef', fontWeight: 'bold', fontSize: '12px' }}><input type="checkbox" checked={editingAssignmentDates.assignedClassPeriods?.includes(period)} onChange={() => setEditingAssignmentDates((current) => ({ ...current, assignedClassPeriods: current.assignedClassPeriods?.includes(period) ? current.assignedClassPeriods.filter((item) => item !== period) : [...(current.assignedClassPeriods || []), period] }))} /> {period}</label>)}</div>
                           <button onClick={() => handleSaveAssignmentDates(assignment.id)} style={{ padding: '10px 15px', background: '#188038', color: '#fff', border: 0, borderRadius: '7px', fontWeight: 'bold' }}>Save Dates</button>
                           <button onClick={() => setEditingAssignmentId(null)} style={{ padding: '10px 15px', background: '#fff', border: '1px solid #c9ced6', borderRadius: '7px', fontWeight: 'bold' }}>Cancel</button>
@@ -3594,6 +4050,12 @@ function App() {
                 nowValue={now}
                 presenceById={presenceById}
                 onSelectPeriod={handleGoToClassFromHome}
+                onUnlockDOL={handleUnlockDOLForClass}
+                dolUnlockBusyKey={dolUnlockBusyKey}
+                onToggleWarmup={handleToggleWarmupForClass}
+                warmupControlBusyKey={warmupControlBusyKey}
+                onToggleSectionAccess={handleToggleSectionAccessForClass}
+                sectionAccessBusyKey={sectionAccessBusyKey}
                 onOpenStudent={(studentId) => {
                   const student = allStudents.find((entry) => entry.id === studentId);
                   if (student) handleViewClassGradebook(student.classPeriod || '', student);
@@ -3607,19 +4069,29 @@ function App() {
                 assignments={assignments}
                 classSchedule={classSchedule}
                 nowValue={now}
+                presenceById={presenceById}
                 onViewGradebook={handleViewClassGradebook}
+                onUnlockDOL={handleUnlockDOLForClass}
+                dolUnlockBusyKey={dolUnlockBusyKey}
+                onToggleWarmup={handleToggleWarmupForClass}
+                warmupControlBusyKey={warmupControlBusyKey}
+                onToggleSectionAccess={handleToggleSectionAccessForClass}
+                sectionAccessBusyKey={sectionAccessBusyKey}
                 initialPeriod={homeNavigationPeriod}
               />
             )}
 
             {teacherTab === 'classes' && (
               <div>
-                <h2 style={{ marginTop: 0 }}>Eight-Period Class Schedule</h2>
-                <p style={{ color: '#5f6368' }}>The DOL window opens during the configured final minutes of each period. A temporary schedule can override today without changing the normal schedule.</p>
+                <h2 style={{ marginTop: 0 }}>Class & Bell Schedule Settings</h2>
                 <ClassCourseSettings classPeriods={CLASS_PERIODS} courseProfiles={courseProfiles} assignments={assignments} onChange={handleUpdateCourseProfile} onSave={handleSaveCourseProfiles} saving={courseProfilesSaving} />
-                <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr style={{ background: '#f8f9fa' }}><th style={{ padding: '11px', textAlign: 'left' }}>Period</th><th>Enabled</th><th>Start</th><th>End</th></tr></thead><tbody>{CLASS_PERIODS.map((period) => { const item = classSchedule.periods?.[period] || {}; return <tr key={period} style={{ borderBottom: '1px solid #e8eaed' }}><td style={{ padding: '11px', fontWeight: 'bold' }}>{period}</td><td style={{ textAlign: 'center' }}><input type="checkbox" checked={Boolean(item.enabled)} onChange={(event) => updateSchedulePeriod(period, 'enabled', event.target.checked)} /></td><td style={{ textAlign: 'center' }}><input type="time" value={item.start || ''} onChange={(event) => updateSchedulePeriod(period, 'start', event.target.value)} /></td><td style={{ textAlign: 'center' }}><input type="time" value={item.end || ''} onChange={(event) => updateSchedulePeriod(period, 'end', event.target.value)} /></td></tr>; })}</tbody></table></div>
-                <div style={{ marginTop: '18px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}><button onClick={handleSaveClassSchedule} style={{ padding: '10px 16px', border: 0, borderRadius: '7px', background: '#1a73e8', color: '#fff', fontWeight: 900 }}>Save Normal Schedule</button><button onClick={() => setClassSchedule((current) => ({ ...normalizeSchedule(current), modifiedSchedules: { ...normalizeSchedule(current).modifiedSchedules, [todayKey]: { periods: JSON.parse(JSON.stringify(normalizeSchedule(current).periods)) } } }))} style={{ padding: '10px 16px', border: '1px solid #f9ab00', borderRadius: '7px', background: '#fff4ce', color: '#5f4400', fontWeight: 900 }}>Create / Reset Today&apos;s Modified Schedule</button></div>
-                {todayOverride && <section style={{ marginTop: '28px', padding: '18px', background: '#fff8e1', border: '2px solid #f9ab00', borderRadius: '10px' }}><h3 style={{ marginTop: 0 }}>Temporary schedule for {todayKey}</h3><table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr><th style={{ textAlign: 'left' }}>Period</th><th>Enabled</th><th>Start</th><th>End</th></tr></thead><tbody>{CLASS_PERIODS.map((period) => { const item = todayOverride[period] || {}; return <tr key={period}><td style={{ padding: '8px', fontWeight: 'bold' }}>{period}</td><td style={{ textAlign: 'center' }}><input type="checkbox" checked={Boolean(item.enabled)} onChange={(event) => updateSchedulePeriod(period, 'enabled', event.target.checked, true)} /></td><td style={{ textAlign: 'center' }}><input type="time" value={item.start || ''} onChange={(event) => updateSchedulePeriod(period, 'start', event.target.value, true)} /></td><td style={{ textAlign: 'center' }}><input type="time" value={item.end || ''} onChange={(event) => updateSchedulePeriod(period, 'end', event.target.value, true)} /></td></tr>; })}</tbody></table><div style={{ marginTop: '14px', display: 'flex', gap: '10px' }}><button onClick={handleSaveClassSchedule} style={{ padding: '9px 14px', border: 0, borderRadius: '7px', background: '#188038', color: '#fff', fontWeight: 900 }}>Save Today&apos;s Schedule</button><button onClick={() => setClassSchedule((current) => { const next = normalizeSchedule(current); const modifiedSchedules = { ...next.modifiedSchedules }; delete modifiedSchedules[todayKey]; return { ...next, modifiedSchedules }; })} style={{ padding: '9px 14px', border: '1px solid #d93025', borderRadius: '7px', background: '#fff', color: '#d93025', fontWeight: 900 }}>Remove Today Override</button></div></section>}
+                <ClassScheduleSettings
+                  classPeriods={CLASS_PERIODS}
+                  schedule={classSchedule}
+                  onChange={setClassSchedule}
+                  onSave={handleSaveClassSchedule}
+                  nowValue={now}
+                />
               </div>
             )}
 
@@ -3690,6 +4162,17 @@ function App() {
   }
 
   if (user.role === 'student' && activeView === 'dashboard') {
+    if (studentDashboardMode === 'liveChallenge') {
+      return (
+        <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading Live Challenge…</div>}>
+          <LiveChallengeStudent
+            invite={liveChallengeInvite}
+            studentProfile={user.profile}
+            onExit={() => setStudentDashboardMode('assignments')}
+          />
+        </Suspense>
+      );
+    }
     if (studentDashboardMode === 'mathPath') {
       return (
         <MyMathPathApp
@@ -3733,6 +4216,7 @@ function App() {
         prerequisiteAccess,
         calculateGrade,
         getDOLState,
+  getWarmupState,
         getIncludedQuestionIndices,
         normalizeQuestionRecord,
         questionIsIncluded,
@@ -3748,6 +4232,8 @@ function App() {
         onStartAssignment={startAssignment}
         onOpenMathPath={() => setStudentDashboardMode('mathPath')}
         onOpenSecureExams={() => setStudentDashboardMode('secureExams')}
+        liveChallengeInvite={liveChallengeInvite}
+        onOpenLiveChallenge={() => setStudentDashboardMode('liveChallenge')}
         onLogout={handleLogout}
         recommended={{
           student: studentRecord,

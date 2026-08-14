@@ -78,12 +78,19 @@ export const buildStudentDashboardModel = ({
     : Math.max(0, fallbackQuestionIndex);
 
   const activeDols = visible
-    .map((assignment) => ({
-      assignment,
-      lifecycle: getAssignmentLifecycle(assignment, nowValue),
-      state: getDOLState({ assignment, schedule: classSchedule, classPeriod, nowValue }),
-    }))
-    .filter(({ state, lifecycle }) => lifecycle.isOpen && state.status === 'active');
+    .map((assignment) => {
+      const state = getDOLState({ assignment, schedule: classSchedule, classPeriod, nowValue });
+      const records = (state.questionIndices || [state.questionIndex])
+        .filter((index) => Number.isInteger(index) && index >= 0)
+        .map((index) => normalizeQuestionRecord(tracker?.[assignment.id]?.[index]));
+      return {
+        assignment,
+        lifecycle: getAssignmentLifecycle(assignment, nowValue),
+        state,
+        records,
+      };
+    })
+    .filter(({ state, lifecycle, records }) => lifecycle.isOpen && state.status === 'active' && records.some((record) => record.totalAttempts === 0));
   const activeDolIds = new Set(activeDols.map(({ assignment }) => assignment.id));
 
   const isDone = (assignment, assignmentTracker, lifecycle) => {

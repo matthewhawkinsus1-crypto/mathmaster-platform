@@ -65,8 +65,16 @@ const initialReviewDraft = (draft = {}) => {
     releaseAt: '',
     assignmentType: 'practice',
     variantMode: 'shared',
+    sectionVariantModes: {},
+    sectionAccessDefaults: { classwork: 'open', practice: 'open' },
+    warmupEnabled: true,
+    warmupMinutesBeforeStart: 7,
+    warmupInstructionDate: '',
+    warmupInstructionDatesByClassPeriod: {},
     dolEnabled: false,
     dolMinutesBeforeEnd: 10,
+    dolInstructionDate: '',
+    dolInstructionDatesByClassPeriod: {},
     dolQuestionIndex: null,
     publicationStrategy: PUBLICATION_STRATEGIES.HYBRID,
     includeWarmupInClassroom: false,
@@ -113,6 +121,14 @@ export const LessonPreflightModal = ({
   busy = false,
 }) => {
   const activities = Array.isArray(lessonBundle?.activities) ? lessonBundle.activities : [];
+  const activityRoles = useMemo(() => [...new Set(activities.map((activity) => activity?.role).filter(Boolean))], [activities]);
+  const hasAuthoredWarmup = activityRoles.includes('warmup');
+  const hasAuthoredDOL = activityRoles.includes('dol');
+  // Activity sections are the source of truth. `assignmentType` remains in the
+  // saved document only for backwards compatibility with older runtime code.
+  const derivedAssignmentType = activityRoles.some((role) => role === 'warmup' || role === 'classwork')
+    ? 'notesClasswork'
+    : 'practice';
   const isNarrow = useIsNarrow();
   const [draft, setDraft] = useState(() => initialReviewDraft(initialDraft));
   const [activeStep, setActiveStep] = useState('details');
@@ -201,6 +217,52 @@ export const LessonPreflightModal = ({
   if (!lessonBundle) return null;
 
   const setField = (field, value) => setDraft((current) => ({ ...current, [field]: value }));
+  const sectionVariantMode = (role) => draft.sectionVariantModes?.[role] || draft.variantMode || 'shared';
+  const setSectionVariantMode = (role, value) => setDraft((current) => ({
+    ...current,
+    sectionVariantModes: { ...(current.sectionVariantModes || {}), [role]: value },
+  }));
+
+  const sectionAccessDefault = (role) => draft.sectionAccessDefaults?.[role] || 'open';
+  const setSectionAccessDefault = (role, value) => setDraft((current) => ({
+    ...current,
+    sectionAccessDefaults: { ...(current.sectionAccessDefaults || {}), [role]: value },
+  }));
+  const resolvedSectionVariantModes = Object.fromEntries(activityRoles.map((role) => [role, sectionVariantMode(role)]));
+  const legacyVariantMode = Object.values(resolvedSectionVariantModes).every((mode) => mode === 'shared') ? 'shared' : 'personalized';
+  const localToday = (() => {
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  })();
+  const resolvedWarmupInstructionDate = draft.warmupInstructionDate
+    || String(draft.releaseAt || '').slice(0, 10)
+    || localToday;
+  const resolvedWarmupInstructionDatesByClassPeriod = Object.fromEntries((draft.assignedClassPeriods || []).map((period) => [
+    period,
+    draft.warmupInstructionDatesByClassPeriod?.[period] || resolvedWarmupInstructionDate,
+  ]).filter(([, date]) => Boolean(date)));
+  const setWarmupClassDate = (period, value) => setDraft((current) => {
+    const next = { ...(current.warmupInstructionDatesByClassPeriod || {}) };
+    if (value) next[period] = value;
+    else delete next[period];
+    return { ...current, warmupInstructionDatesByClassPeriod: next };
+  });
+  const resolvedDOLInstructionDate = draft.dolInstructionDate
+    || String(draft.releaseAt || '').slice(0, 10)
+    || localToday;
+  const resolvedDOLInstructionDatesByClassPeriod = Object.fromEntries((draft.assignedClassPeriods || []).map((period) => [
+    period,
+    draft.dolInstructionDatesByClassPeriod?.[period] || resolvedDOLInstructionDate,
+  ]).filter(([, date]) => Boolean(date)));
+  const setDOLClassDate = (period, value) => setDraft((current) => {
+    const next = { ...(current.dolInstructionDatesByClassPeriod || {}) };
+    if (value) next[period] = value;
+    else delete next[period];
+    return { ...current, dolInstructionDatesByClassPeriod: next };
+  });
   const toggleClassPeriod = (period) => setDraft((current) => ({
     ...current,
     assignedClassPeriods: current.assignedClassPeriods.includes(period)
@@ -295,18 +357,117 @@ export const LessonPreflightModal = ({
     <section aria-label="Delivery">
       {isNarrow && <StepBlockers blockers={blockersForStep(readiness, 'delivery')} />}
 
-      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
-        <label style={labelStyle}>Assignment type<select value={draft.assignmentType} onChange={(event) => setField('assignmentType', event.target.value)} style={inputStyle}><option value="practice">Practice / Homework</option><option value="notesClasswork">Guided Notes / Classwork</option></select></label>
-        <label style={labelStyle}>Problem versions<select value={draft.variantMode} onChange={(event) => setField('variantMode', event.target.value)} style={inputStyle}><option value="shared">Shared exact version</option><option value="personalized">Personalize where possible (fixed visuals stay shared)</option></select></label>
+      <div style={{ padding: '13px 15px', marginBottom: 14, border: '1px solid #c5d5ef', borderRadius: 10, background: '#f8fbff' }}>
+        <strong style={{ color: '#174ea6' }}>Activity sections control student behavior</strong>
+        <p style={{ margin: '6px 0 8px', color: '#3c4043', lineHeight: 1.5 }}>
+          Warm-Up, Classwork, Practice, DOL, Quiz, and Test behavior comes from the activity roles authored in the JSON. You no longer need to choose a second Classwork/Practice designation here.
+        </p>
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+          {activityRoles.map((role) => <span key={role} style={{ padding: '5px 9px', borderRadius: 999, background: '#e8f0fe', color: '#174ea6', fontSize: 11, fontWeight: 900 }}>{humanRole(role)}</span>)}
+        </div>
+        <p style={{ margin: '8px 0 0', color: '#5f6368', fontSize: 11 }}>
+          Compatibility field saved automatically: {derivedAssignmentType === 'notesClasswork' ? 'notesClasswork' : 'practice'}.
+        </p>
       </div>
 
-      {draft.assignmentType === 'practice' && (
+      <fieldset style={fieldsetStyle}>
+        <legend style={legendStyle}>Question versions by section</legend>
+        <p style={{ margin: '0 0 12px', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>
+          Choose independently for each bundled section. Shared gives every student the same authored/generated version in that section. Personalized gives students different versions wherever the question supports generation or variants; fixed visuals remain fixed.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+          {activityRoles.map((role) => (
+            <label key={role} style={labelStyle}>
+              {humanRole(role)}
+              <select value={sectionVariantMode(role)} onChange={(event) => setSectionVariantMode(role, event.target.value)} style={inputStyle}>
+                <option value="shared">Same questions for all students</option>
+                <option value="personalized">Different versions where possible</option>
+              </select>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      {activityRoles.some((role) => ['classwork', 'practice'].includes(role)) && (
         <fieldset style={fieldsetStyle}>
-          <legend style={legendStyle}>DOL settings</legend>
-          <label style={{ ...labelStyle, minHeight: 44, display: 'flex', alignItems: 'center', gap: 8 }}><input type="checkbox" style={checkboxStyle} checked={draft.dolEnabled === true} onChange={(event) => setField('dolEnabled', event.target.checked)} /> Enable the DOL window</label>
-          {draft.dolEnabled && <label style={{ ...labelStyle, marginTop: 10 }}>Minutes before class ends<input type="number" min="1" max="30" value={draft.dolMinutesBeforeEnd || 10} onChange={(event) => setField('dolMinutesBeforeEnd', event.target.value)} style={{ ...inputStyle, width: 120 }} /></label>}
+          <legend style={legendStyle}>Teacher section access controls</legend>
+          <p style={{ margin: '0 0 12px', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>
+            Classwork and Practice can open automatically, or start locked until you release that section from the Live Class Hub. Either way, you can later open, close, or reopen the section for one class period without affecting your other classes.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(230px, 1fr))', gap: 12 }}>
+            {activityRoles.filter((role) => ['classwork', 'practice'].includes(role)).map((role) => (
+              <label key={role} style={labelStyle}>
+                {humanRole(role)} initial access
+                <select value={sectionAccessDefault(role)} onChange={(event) => setSectionAccessDefault(role, event.target.value)} style={inputStyle}>
+                  <option value="open">Open automatically with assignment</option>
+                  <option value="closed">Start locked until teacher opens it</option>
+                </select>
+              </label>
+            ))}
+          </div>
+          <p style={{ margin: '10px 0 0', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>
+            These controls affect new graded responses only. After the final cutoff, the assignment enters ungraded Practice Mode and all sections become available for review/practice.
+          </p>
         </fieldset>
       )}
+
+      <fieldset style={fieldsetStyle}>
+        <legend style={legendStyle}>Warm-Up timing</legend>
+        {hasAuthoredWarmup ? (
+          <>
+            <label style={{ ...labelStyle, minHeight: 44, display: 'flex', alignItems: 'center', gap: 8 }}><input type="checkbox" style={checkboxStyle} checked={draft.warmupEnabled !== false} onChange={(event) => setField('warmupEnabled', event.target.checked)} /> Use the class-period Warm-Up window for the authored Warm-Up section</label>
+            {draft.warmupEnabled !== false && (
+              <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12, marginTop: 10 }}>
+                <label style={labelStyle}>Warm-Up instructional date<input type="date" value={resolvedWarmupInstructionDate} onChange={(event) => setField('warmupInstructionDate', event.target.value)} style={inputStyle} /></label>
+                <label style={labelStyle}>Open before class (minutes)<input type="number" min="0" max="30" value={draft.warmupMinutesBeforeStart ?? 7} onChange={(event) => setField('warmupMinutesBeforeStart', event.target.value)} style={inputStyle} /></label>
+              </div>
+            )}
+            {draft.warmupEnabled !== false && <p style={{ margin: '10px 0 0', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>The Warm-Up opens {draft.warmupMinutesBeforeStart ?? 7} minutes before that class begins, only on its instructional date. You can close it early from the Live Class Hub; students keep their saved work but the section becomes read-only.</p>}
+            {draft.warmupEnabled !== false && draft.assignedClassPeriods.length > 0 && (
+              <details style={{ marginTop: 12, padding: '10px 12px', border: '1px solid #d8dde6', borderRadius: 8, background: '#fff' }}>
+                <summary style={{ cursor: 'pointer', fontWeight: 900 }}>Different Warm-Up date for a specific class (optional)</summary>
+                <p style={{ color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>Useful for A-Day/B-Day sections that receive this same bundled lesson on different dates. Leaving a class unchanged uses the default Warm-Up date above.</p>
+                <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+                  {draft.assignedClassPeriods.map((period) => (
+                    <label key={period} style={labelStyle}>{period}<input type="date" value={draft.warmupInstructionDatesByClassPeriod?.[period] || resolvedWarmupInstructionDate} onChange={(event) => setWarmupClassDate(period, event.target.value)} style={inputStyle} /></label>
+                  ))}
+                </div>
+              </details>
+            )}
+          </>
+        ) : (
+          <p style={{ margin: 0, color: '#5f6368', lineHeight: 1.5 }}>This assignment has no Warm-Up activity section, so no class-start Warm-Up window will be created.</p>
+        )}
+      </fieldset>
+
+      <fieldset style={fieldsetStyle}>
+        <legend style={legendStyle}>DOL timing</legend>
+        {hasAuthoredDOL ? (
+          <>
+            <label style={{ ...labelStyle, minHeight: 44, display: 'flex', alignItems: 'center', gap: 8 }}><input type="checkbox" style={checkboxStyle} checked={draft.dolEnabled === true} onChange={(event) => setField('dolEnabled', event.target.checked)} /> Use the class-period DOL window for the authored DOL section</label>
+            {draft.dolEnabled && (
+              <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12, marginTop: 10 }}>
+                <label style={labelStyle}>DOL instructional date<input type="date" value={resolvedDOLInstructionDate} onChange={(event) => setField('dolInstructionDate', event.target.value)} style={inputStyle} /></label>
+                <label style={labelStyle}>DOL timer / final-window minutes<input type="number" min="1" max="30" value={draft.dolMinutesBeforeEnd || 10} onChange={(event) => setField('dolMinutesBeforeEnd', event.target.value)} style={inputStyle} /></label>
+              </div>
+            )}
+            {draft.dolEnabled && <p style={{ margin: '10px 0 0', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>The DOL stays locked until the final {draft.dolMinutesBeforeEnd || 10} minutes of that class on its instructional date. If you unlock it early from the live class controls, its {draft.dolMinutesBeforeEnd || 10}-minute timer starts at the early unlock.</p>}
+            {draft.dolEnabled && draft.assignedClassPeriods.length > 0 && (
+              <details style={{ marginTop: 12, padding: '10px 12px', border: '1px solid #d8dde6', borderRadius: 8, background: '#fff' }}>
+                <summary style={{ cursor: 'pointer', fontWeight: 900 }}>Different DOL date for a specific class (optional)</summary>
+                <p style={{ color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>Use this when A-Day and B-Day sections receive the same bundled lesson on different calendar dates. Leaving a class unchanged uses the default DOL date above.</p>
+                <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+                  {draft.assignedClassPeriods.map((period) => (
+                    <label key={period} style={labelStyle}>{period}<input type="date" value={draft.dolInstructionDatesByClassPeriod?.[period] || resolvedDOLInstructionDate} onChange={(event) => setDOLClassDate(period, event.target.value)} style={inputStyle} /></label>
+                  ))}
+                </div>
+              </details>
+            )}
+          </>
+        ) : (
+          <p style={{ margin: 0, color: '#5f6368', lineHeight: 1.5 }}>This assignment has no DOL activity section, so no timed DOL window will be created.</p>
+        )}
+      </fieldset>
 
       <fieldset style={fieldsetStyle}>
         <legend style={legendStyle}>Publication plan</legend>
@@ -566,7 +727,7 @@ export const LessonPreflightModal = ({
                   // teacher can tap it at all it always does something: create,
                   // or jump to the step that is blocking creation.
                   if (!canCreate) { if (readiness.firstBlockedStep) goToStep(readiness.firstBlockedStep); return; }
-                  onConfirmPublish?.({ draft: { ...draft, honorsEnrichmentQuestion }, publicationPlan, lessonBundle: effectiveBundle, honorsReport });
+                  onConfirmPublish?.({ draft: { ...draft, assignmentType: derivedAssignmentType, variantMode: legacyVariantMode, sectionVariantModes: resolvedSectionVariantModes, warmupEnabled: hasAuthoredWarmup && draft.warmupEnabled !== false, warmupInstructionDate: resolvedWarmupInstructionDate, warmupInstructionDatesByClassPeriod: resolvedWarmupInstructionDatesByClassPeriod, dolEnabled: hasAuthoredDOL && draft.dolEnabled === true, dolInstructionDate: resolvedDOLInstructionDate, dolInstructionDatesByClassPeriod: resolvedDOLInstructionDatesByClassPeriod, honorsEnrichmentQuestion }, publicationPlan, lessonBundle: effectiveBundle, honorsReport });
                 }}
                 style={{ flex: isNarrow ? 2 : undefined, minHeight: isNarrow ? 48 : 44, padding: '10px 20px', border: 'none', borderRadius: 8, background: canCreate ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 800 }}
               >
