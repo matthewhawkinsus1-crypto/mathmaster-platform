@@ -6,6 +6,7 @@ import { validateLessonBundle } from '../../platform/validation/bundleValidator'
 import InteractiveModelingLabPlayer from '../labs/InteractiveModelingLabPlayer.jsx';
 import { buildHonorsEnrichmentQuestion, inspectHonorsRigor, splitClassPeriodsByRigor } from '../../platform/rigor/courseRigor.js';
 import RepresentationAudit from './RepresentationAudit';
+import SectionBalanceRigorAudit from './SectionBalanceRigorAudit.jsx';
 import {
   PREFLIGHT_STEPS, blockersForStep, collectReviewBlockers,
   describePreflightAction, stepIndex, summarizePreflightReadiness,
@@ -303,6 +304,7 @@ export const LessonPreflightModal = ({
     <section aria-label="Details">
       {isNarrow && <StepBlockers blockers={blockersForStep(readiness, 'details')} />}
       <RepresentationAudit questions={sourceQuestions} warnings={authoringWarnings} />
+      <SectionBalanceRigorAudit lessonBundle={effectiveBundle} />
 
       <div style={{ padding: '12px 14px', marginBottom: 16, background: '#e8f0fe', color: '#174ea6', border: '1px solid #aecbfa', borderRadius: 9, fontSize: 13, lineHeight: 1.5 }}>
         <strong>Nothing is published from JSON automatically.</strong> The values on these screens override the file when you create the assignment.

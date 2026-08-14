@@ -196,6 +196,26 @@ const instructionalScopeSection = () => section('Instructional scope and lesson 
   line('MathMaster Preflight contains a lesson-depth guard for curated curriculum lessons. If it rejects a question as beyond the current lesson depth, rewrite the question at the source lesson\'s level rather than deleting the guardrail.'),
 ]);
 
+const sectionBalanceRigorSection = () => section('Classwork versus Practice balance and rigor', [
+  line('**Classwork and Practice are not two labels for interchangeable questions.**'),
+  '',
+  bullet('Classwork: fewer, richer teaching problems. Use the strongest multi-representation and exploratory interactions here, with meaningful Guided Notes when appropriate.'),
+  bullet('Practice: broader independent application of the SAME lesson objectives at comparable cognitive rigor, with substantially less scaffolding.'),
+  bullet('DOL: a short independent sample of the essential objectives, not a second full Practice set.'),
+  '',
+  line('For a typical two-lesson bundle, aim for about 6–8 substantial Classwork questions and 8–12 Practice questions. This is a target, not a rigid quota; one long composed workflow can count for more instructional work than one short response item.'),
+  line('Practice should normally be at least as broad as Classwork. If Classwork has many more questions/opportunities than Practice, rebalance by keeping the best teaching examples in Classwork and moving or rewriting additional applications into Practice.'),
+  '',
+  bullet('Coverage parity: every major standard/objective taught in Classwork should normally reappear independently in Practice.'),
+  bullet('Rigor floor: Practice may remove support, but it must not quietly turn DOK 2–3 Classwork into mostly DOK 1 recognition.'),
+  bullet('Interaction parity: if Classwork uses graphs, mappings, tables, modeling, sorting, or representation matching, Practice should retain a meaningful share of those experiences instead of collapsing to mostly simple multiple-response questions.'),
+  bullet('Scaffolding reduction: Guided Notes belong primarily in Classwork. Practice should usually run without authored Guided Notes and with fewer hints.'),
+  bullet('Transfer variety: Practice should use new numbers, contexts, or representations while assessing the same lesson objective; do not merely copy Classwork verbatim.'),
+  bullet('Instructional ceiling still wins: never add later-unit/later-course mathematics merely to make Practice look harder.'),
+  '',
+  line('MathMaster Preflight reports Section Balance & Rigor warnings. They are advisory and teacher-overridable; curriculum instructional-scope violations remain separate hard guardrails.'),
+]);
+
 const fidelitySection = () => section('Source representation fidelity', [
   line('**This is the most important rule in this document.**'),
   '',
@@ -524,6 +544,7 @@ export const buildAdvancedAuthoringContract = ({ generatedAt = new Date() } = {}
   // about what they do. The second is violated more often, so it sits directly
   // after the first rather than further down.
   parts.push(taskFidelitySection());
+  parts.push(sectionBalanceRigorSection());
   parts.push(planningSection());
   parts.push(typeRecipeSection());
   parts.push(toolSection());
@@ -896,6 +917,15 @@ export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = nu
   '',
   'A non-context function task may also combine actions in one question. For example, `completeTable + constructGraph + stateRange + classifyContinuity` is one connected student workflow; keep all four actions and include the function/table data. MathMaster composes the table, graph, range response and classification automatically.',
   'For a graph the student READS, use `readGraph` plus the analysis actions. For a graph the student BUILDS, use `constructGraph`. Do not add `type: graphing` or `type: graphAnalysis` yourself.',
+  '',
+  '## Classwork versus Practice balance',
+  '- Classwork is the teaching section: fewer, richer, scaffolded learning experiences.',
+  '- Practice is the independent-application section: normally more opportunities than Classwork, comparable mathematical rigor, less scaffolding, and coverage of every major Classwork objective.',
+  '- For a typical two-lesson bundle, aim for about 6–8 Classwork questions and 8–12 Practice questions. Treat this as a strong default, not a rigid quota; long composed workflows count as richer opportunities.',
+  '- Do not make Practice easier just because support is removed. Maintain the same lesson-level cognitive demand and vary numbers/contexts/representations for transfer.',
+  '- If Classwork uses rich graph, mapping, table, modeling, sorting, or representation tools, Practice should preserve a meaningful share of those experiences rather than becoming mostly simple multiple-response questions.',
+  '- Guided Notes belong primarily in Classwork. Practice should normally omit authored Guided Notes unless the teacher/source explicitly requires scaffolding.',
+  '- Do not increase Practice rigor by importing later-unit or later-course mathematics. The instructional-scope ceiling always wins.',
   '',
   '## Stable studentActions',
   '- Solving: `solveEquation`, `solveStepByStep`, `fractionAnswer`, `solveLiteral`, `solveSystem`.',
