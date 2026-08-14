@@ -166,6 +166,51 @@ export default function GraphScenarioMatch({ question, onStateChange, onUndoStat
     };
   }, [updateConnectors]);
 
+  const scrollMatchPane = useCallback((pane, amount) => {
+    if (!pane) return;
+    pane.scrollTo({
+      top: Math.max(0, Math.min(pane.scrollHeight - pane.clientHeight, pane.scrollTop + amount)),
+      behavior: 'smooth',
+    });
+  }, []);
+
+  const handlePaneWheel = useCallback((event) => {
+    if (event.ctrlKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+
+    const pane = event.currentTarget;
+    const maxScrollTop = Math.max(0, pane.scrollHeight - pane.clientHeight);
+    if (maxScrollTop <= 0) return;
+
+    const multiplier = event.deltaMode === 1
+      ? 18
+      : event.deltaMode === 2
+        ? pane.clientHeight
+        : 1;
+    const delta = event.deltaY * multiplier;
+    const nextTop = Math.max(0, Math.min(maxScrollTop, pane.scrollTop + delta));
+
+    // Chromium occasionally hands wheel/trackpad movement to the outer assignment
+    // page when the pointer is over a nested interactive element. Own the wheel
+    // while this pane can actually move, then let the page take over at the ends.
+    if (Math.abs(nextTop - pane.scrollTop) > 0.5) {
+      event.preventDefault();
+      pane.scrollTop = nextTop;
+    }
+  }, []);
+
+  const handlePaneKeyDown = useCallback((event) => {
+    const pane = event.currentTarget;
+    const step = Math.max(90, Math.round(pane.clientHeight * 0.35));
+    const page = Math.max(160, Math.round(pane.clientHeight * 0.82));
+
+    if (event.key === 'ArrowDown') { event.preventDefault(); scrollMatchPane(pane, step); }
+    else if (event.key === 'ArrowUp') { event.preventDefault(); scrollMatchPane(pane, -step); }
+    else if (event.key === 'PageDown') { event.preventDefault(); scrollMatchPane(pane, page); }
+    else if (event.key === 'PageUp') { event.preventDefault(); scrollMatchPane(pane, -page); }
+    else if (event.key === 'Home') { event.preventDefault(); pane.scrollTo({ top: 0, behavior: 'smooth' }); }
+    else if (event.key === 'End') { event.preventDefault(); pane.scrollTo({ top: pane.scrollHeight, behavior: 'smooth' }); }
+  }, [scrollMatchPane]);
+
   const selectGraph = (graphId) => {
     setSelectedGraphId((current) => (current === graphId ? '' : graphId));
   };
@@ -245,10 +290,18 @@ export default function GraphScenarioMatch({ question, onStateChange, onUndoStat
               <span>Graph bank</span>
               <strong>Compare the graphs</strong>
             </div>
-            <small>Click one to connect it</small>
+            <small>Scroll this side independently</small>
           </div>
 
-          <div className="graph-scenario-scroll-pane" ref={graphPaneRef}>
+          <div
+            className="graph-scenario-scroll-pane"
+            ref={graphPaneRef}
+            tabIndex={0}
+            role="region"
+            aria-label="Scrollable graph bank"
+            onWheel={handlePaneWheel}
+            onKeyDown={handlePaneKeyDown}
+          >
             {graphs.map((graphChoice) => {
               const matchedScenarioId = Object.entries(matches).find(([, graphId]) => graphId === graphChoice.id)?.[0] || '';
               const matchedScenario = scenarioById.get(matchedScenarioId);
@@ -321,10 +374,18 @@ export default function GraphScenarioMatch({ question, onStateChange, onUndoStat
               <span>Scenario bank</span>
               <strong>Find the matching story</strong>
             </div>
-            <small>{selectedGraph ? `Connect ${selectedGraph.label || selectedGraph.id}` : 'Select a graph first'}</small>
+            <small>{selectedGraph ? `Connect ${selectedGraph.label || selectedGraph.id}` : 'Scroll this side independently'}</small>
           </div>
 
-          <div className="graph-scenario-scroll-pane" ref={scenarioPaneRef}>
+          <div
+            className="graph-scenario-scroll-pane"
+            ref={scenarioPaneRef}
+            tabIndex={0}
+            role="region"
+            aria-label="Scrollable scenario bank"
+            onWheel={handlePaneWheel}
+            onKeyDown={handlePaneKeyDown}
+          >
             {scenarios.map((scenario, index) => {
               const grade = getPartGrade(feedback, `match:${scenario.id}`);
               const matchedGraph = graphById.get(matches[scenario.id]);

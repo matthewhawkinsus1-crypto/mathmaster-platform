@@ -112,8 +112,11 @@
 
 .graph-scenario-bank {
   min-width: 0;
+  min-height: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   background: #f7f9fc;
   z-index: 2;
 }
@@ -136,16 +139,34 @@
 .graph-scenario-bank-header small { max-width: 145px; color: #5f6368; font-size: 11px; line-height: 1.3; text-align: right; }
 
 .graph-scenario-scroll-pane {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
+  height: 0;
   display: grid;
   align-content: start;
   gap: 12px;
   padding: 12px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
+  overflow-x: hidden;
+  overflow-y: scroll;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable both-edges;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
+
+.graph-scenario-scroll-pane:focus-visible {
+  outline: 3px solid rgba(26,115,232,.25);
+  outline-offset: -3px;
+}
+
+.graph-scenario-scroll-pane::-webkit-scrollbar { width: 12px; }
+.graph-scenario-scroll-pane::-webkit-scrollbar-track { background: #eef2f7; }
+.graph-scenario-scroll-pane::-webkit-scrollbar-thumb {
+  border: 3px solid #eef2f7;
+  border-radius: 999px;
+  background: #9aa9bf;
+}
+.graph-scenario-scroll-pane::-webkit-scrollbar-thumb:hover { background: #72839a; }
 
 .graph-scenario-board-gutter {
   z-index: 1;
@@ -376,13 +397,15 @@
   .graph-scenario-board-gutter { display: none; }
 
   .graph-scenario-bank {
+    height: auto;
+    min-height: 0;
     border: 1px solid #cfd8e6;
     border-radius: 14px;
     overflow: hidden;
   }
 
   .graph-scenario-story-bank { margin-top: 14px; }
-  .graph-scenario-scroll-pane { overflow: visible; }
+  .graph-scenario-scroll-pane { height: auto; overflow: visible; touch-action: auto; }
 
   .graph-scenario-graph-bank .graph-scenario-scroll-pane {
     display: flex;

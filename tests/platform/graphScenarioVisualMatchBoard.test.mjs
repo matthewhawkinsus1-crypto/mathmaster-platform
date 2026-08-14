@@ -16,7 +16,10 @@ test('graph/scenario matching is a visual click-to-connect board instead of drop
 test('desktop keeps graph and scenario banks visible in independently scrollable panes', () => {
   assert.match(css, /grid-template-columns:\s*minmax\(0, 1fr\) 54px minmax\(0, 1fr\)/);
   assert.match(css, /height:\s*min\(72vh, 730px\)/);
-  assert.match(css, /\.graph-scenario-scroll-pane[\s\S]*overflow-y:\s*auto/);
+  assert.match(css, /\.graph-scenario-bank[\s\S]*min-height:\s*0[\s\S]*height:\s*100%[\s\S]*overflow:\s*hidden/);
+  assert.match(css, /\.graph-scenario-scroll-pane[\s\S]*height:\s*0[\s\S]*overflow-y:\s*scroll/);
+  assert.match(source, /onWheel=\{handlePaneWheel\}/);
+  assert.match(source, /onKeyDown=\{handlePaneKeyDown\}/);
 });
 
 test('students can zoom graphs without leaving the matching question', () => {
