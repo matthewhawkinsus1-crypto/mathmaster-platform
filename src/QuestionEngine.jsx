@@ -40,6 +40,8 @@ import InteractiveModelingLabPlayer from './components/labs/InteractiveModelingL
 import { useToast } from './ui/Toast';
 import QuestionModuleBoundary from './QuestionModuleBoundary';
 import QuestionPrompt from './QuestionPrompt';
+import ReferenceInfoCard from './ReferenceInfoCard';
+import { resolveReferenceInfo } from './referenceInfo';
 import {
   getAttemptsRemaining,
   MAX_ATTEMPTS_PER_QUESTION,
@@ -136,6 +138,15 @@ export default function QuestionEngine({
   const processedQuestion = useMemo(
     () => normalizeContextualQuestion(generateQuestion(stableQuestion, generationKey, stableStudentProfile)),
     [stableQuestion, generationKey, stableStudentProfile],
+  );
+  const referenceInfo = useMemo(() => resolveReferenceInfo(processedQuestion), [processedQuestion]);
+  const presentationQuestion = useMemo(
+    () => (referenceInfo ? { ...processedQuestion, suppressScenarioDisplay: true } : processedQuestion),
+    [processedQuestion, referenceInfo],
+  );
+  const referenceSpeechText = useMemo(
+    () => [processedQuestion?.prompt, ...(referenceInfo?.statements || []).map((entry) => entry?.text)].filter(Boolean).join('. '),
+    [processedQuestion?.prompt, referenceInfo],
   );
   const { confirm: confirmAction } = useToast();
   // Built once per question, not once per render. StepByStepAlgebra resets its
@@ -469,7 +480,7 @@ export default function QuestionEngine({
   };
 
   const commonModuleProps = {
-    question: processedQuestion,
+    question: presentationQuestion,
     onStateChange: setAnswerState,
     onUndoStateChange: registerUndo,
     feedback: showOutcomeFeedback ? feedback : null,
@@ -488,7 +499,7 @@ export default function QuestionEngine({
     if (isComposed) {
       return (
         <WorkflowRunner
-          question={processedQuestion}
+          question={presentationQuestion}
           onStateChange={commonModuleProps.onStateChange}
           onProgressChange={setWorkflowGuidanceState}
           disabled={commonModuleProps.disabled}
@@ -504,7 +515,7 @@ export default function QuestionEngine({
         // answer key in its payload, so its own check would report "not yet"
         // for correct work. The server's result is shown below instead.
         <ToolRuntimeProvider showImmediateFeedback={showOutcomeFeedback && !serverGrading}>
-          <Tool questionData={processedQuestion} onAction={handleMissingToolAction} />
+          <Tool questionData={presentationQuestion} onAction={handleMissingToolAction} />
         </ToolRuntimeProvider>
       );
     }
@@ -611,8 +622,9 @@ export default function QuestionEngine({
   const questionContextPanel = (
     <div className="mathmaster-question-context-panel">
       <div className="mathmaster-desktop-question-anchor">
-        <QuestionPrompt>{processedQuestion?.prompt || processedQuestion?.scenario || 'Complete the math task.'}</QuestionPrompt>
+        <QuestionPrompt variant="task">{processedQuestion?.prompt || 'Complete the math task.'}</QuestionPrompt>
       </div>
+      <ReferenceInfoCard referenceInfo={referenceInfo} />
       {!supportPresentation.declutter && (
         <div
           role="status"
@@ -649,7 +661,7 @@ export default function QuestionEngine({
           {scratchpadLoading ? 'Opening Scratchpad…' : locked ? '✎ View Scratchpad' : '✎ Open Scratchpad'}
         </button>
         {supportPresentation.textToSpeech && (
-          <button type="button" onClick={() => speakText(processedQuestion?.prompt)} style={{ padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>🔊 Read Question</button>
+          <button type="button" onClick={() => speakText(referenceSpeechText)} style={{ padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>🔊 Read Question</button>
         )}
       </div>
 
@@ -675,21 +687,12 @@ export default function QuestionEngine({
           }}
         />
       )}
-      {contextScaffoldEnabled && (contextScaffoldComplete || locked) && (
+      {contextScaffoldEnabled && !referenceInfo && (contextScaffoldComplete || locked) && (
         <aside style={{ maxWidth: '860px', margin: '0 auto 18px', padding: '12px 15px', border: '1px solid #c5d5ef', borderRadius: '10px', background: '#f8fbff', textAlign: 'left', color: '#3c4043' }}>
           <strong style={{ color: '#174ea6' }}>Context:</strong> {processedQuestion.context.scenario}
         </aside>
       )}
 
-      <GuidedClassworkCoach
-        question={processedQuestion}
-        draftKey={draftKey}
-        enabled={resolvedActivityPolicy?.hintsAllowed !== false && guidedNotesMode !== 'off' && (guidedMode || supportPresentation.visualChunking)}
-        mode={guidedNotesMode}
-        activeStageId={workflowGuidanceState?.currentStageId || null}
-        workflowProgress={workflowGuidanceState}
-        disabled={locked}
-      />
     </div>
   );
 
@@ -703,6 +706,15 @@ export default function QuestionEngine({
         contextPanel={questionContextPanel}
         toolWorkspace={(
       <div className="mathmaster-question-tool-workspace" style={{ position: 'relative' }}>
+        <GuidedClassworkCoach
+          question={processedQuestion}
+          draftKey={draftKey}
+          enabled={resolvedActivityPolicy?.hintsAllowed !== false && guidedNotesMode !== 'off' && (guidedMode || supportPresentation.visualChunking)}
+          mode={guidedNotesMode}
+          activeStageId={workflowGuidanceState?.currentStageId || null}
+          workflowProgress={workflowGuidanceState}
+          disabled={locked}
+        />
         <fieldset disabled={locked || scaffoldRequired || contextScaffoldRequired || submitting} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
           <div aria-disabled={locked || scaffoldRequired || contextScaffoldRequired || submitting ? 'true' : undefined} inert={locked || scaffoldRequired || contextScaffoldRequired || submitting ? '' : undefined} style={{ pointerEvents: locked || scaffoldRequired || contextScaffoldRequired || submitting ? 'none' : 'auto', opacity: locked ? 0.72 : scaffoldRequired || contextScaffoldRequired ? 0.5 : 1 }}>
             <QuestionModuleBoundary

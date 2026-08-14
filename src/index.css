@@ -204,3 +204,76 @@ math-field:focus-within {
   outline: 4px solid rgba(26,115,232,0.28);
   outline-offset: 3px;
 }
+
+/* Reference hierarchy: the task stays compact, while scenario/data the student
+   must repeatedly use becomes the strongest visual reference immediately before
+   the work. Guided Notes live with the work instead of separating task from data. */
+.mathmaster-reference-info-card {
+  max-width: 860px;
+  margin: 0 auto 14px;
+  padding: 15px 18px 16px;
+  border: 2px solid #f4b400;
+  border-left: 8px solid #f29900;
+  border-radius: 13px;
+  background: #fff8df;
+  color: #202124;
+  text-align: left;
+  box-shadow: 0 5px 16px rgba(153, 92, 0, 0.10);
+}
+
+.mathmaster-reference-info-kicker {
+  margin-bottom: 7px;
+  color: #8a4b00;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.mathmaster-reference-info-title {
+  margin-bottom: 7px;
+  color: #5f3700;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.mathmaster-reference-info-statements {
+  display: grid;
+  gap: 8px;
+}
+
+.mathmaster-reference-statement {
+  color: #202124;
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1.55;
+}
+
+.mathmaster-reference-statement.is-emphasis {
+  font-size: 19px;
+  font-weight: 760;
+}
+
+.mathmaster-reference-statement-label {
+  display: inline-block;
+  margin-right: 7px;
+  color: #8a4b00;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+@media (max-width: 768px), (pointer: coarse) {
+  .mathmaster-reference-info-card {
+    margin: 8px 0 10px;
+    padding: 12px 13px 13px;
+    border-left-width: 6px;
+    box-shadow: none;
+  }
+
+  .mathmaster-reference-statement,
+  .mathmaster-reference-statement.is-emphasis {
+    font-size: 16px;
+    line-height: 1.48;
+  }
+}

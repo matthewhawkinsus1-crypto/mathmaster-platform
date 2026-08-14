@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const read = (path) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
 
-test('QuestionEngine owns one prominent prompt and exposes a large next-question action', async () => {
+test('QuestionEngine owns a compact task prompt and exposes a large next-question action', async () => {
   const [engine, prompt, css] = await Promise.all([
     read('src/QuestionEngine.jsx'),
     read('src/QuestionPrompt.jsx'),
@@ -14,16 +14,18 @@ test('QuestionEngine owns one prominent prompt and exposes a large next-question
   assert.match(engine, /mathmaster-question-tool-workspace/);
   assert.match(engine, /mathmaster-success-next-question/);
   assert.match(engine, /Next Question/);
-  assert.match(prompt, /Your question/);
-  assert.match(prompt, /borderLeft: isProminent \? '7px solid #1a73e8'/);
+  assert.match(engine, /variant="task"/);
+  assert.match(prompt, /Your task/);
+  assert.match(prompt, /borderLeft: isTask \? '5px solid #5f8fd8'/);
   assert.match(css, /mathmaster-question-engine-has-anchor[\s\S]*mathmaster-question-prompt-prominent/);
 });
 
-test('assignment current-section strip reports completion and remaining question count', async () => {
+test('unified assignment navigator reports section completion and supports section/question navigation', async () => {
   const app = await read('src/App.jsx');
   assert.match(app, /currentSectionCompletedCount/);
   assert.match(app, /currentSectionRemainingCount/);
-  assert.match(app, /remaining/);
-  assert.match(app, /section-progress-/);
-  assert.match(app, /onNextQuestion=\{nextQuestionEntry/);
+  assert.match(app, /mathmaster-assignment-unified-nav/);
+  assert.match(app, /mathmaster-section-tab/);
+  assert.match(app, /currentNavigationSection\?\.entries/);
+  assert.match(app, /mathmaster-unified-next/);
 });

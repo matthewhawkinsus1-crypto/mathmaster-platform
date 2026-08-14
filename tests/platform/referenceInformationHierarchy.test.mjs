@@ -1,0 +1,67 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { readFile } from 'node:fs/promises';
+import { resolveReferenceInfo } from '../../src/referenceInfo.js';
+import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
+
+const read = (path) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
+
+test('scenario automatically becomes prominent reference information', () => {
+  const info = resolveReferenceInfo({
+    prompt: 'Build a model for the money collected.',
+    scenario: 'A student group sells chocolate bars for $2 each. M(x) gives the money collected after selling x bars.',
+  });
+  assert.equal(info.source, 'scenario');
+  assert.match(info.statements[0].text, /\$2 each/);
+});
+
+test('authored referenceInfo overrides scenario fallback', () => {
+  const info = resolveReferenceInfo({
+    scenario: 'Long scenario fallback.',
+    referenceInfo: {
+      title: 'Chocolate Bar Sales',
+      statements: ['Chocolate bars sell for $2 each.', 'M(x) is money collected.'],
+    },
+  });
+  assert.equal(info.source, 'authored');
+  assert.equal(info.title, 'Chocolate Bar Sales');
+  assert.equal(info.statements.length, 2);
+});
+
+test('V5 compiler preserves authored referenceInfo', () => {
+  const compiled = compileAuthoringIntentV5({
+    schemaVersion: 5,
+    assignment: { title: 'Reference Test', courseId: 'algebra1' },
+    activities: [{
+      role: 'classwork',
+      questions: [{
+        standard: 'A.3C',
+        prompt: 'Identify the input and output.',
+        scenario: 'Tickets cost $5 each.',
+        referenceInfo: { statements: ['Tickets cost $5 each.'] },
+        studentActions: ['identifyQuantities'],
+        quantities: [{ id: 'tickets', label: 'Tickets' }, { id: 'cost', label: 'Cost' }],
+        correctIndependentId: 'tickets',
+        correctDependentId: 'cost',
+      }],
+    }],
+  });
+  assert.equal(compiled.package.activities[0].questions[0].referenceInfo.statements[0], 'Tickets cost $5 each.');
+});
+
+test('QuestionEngine places reference before work and Guided Notes inside the work area', async () => {
+  const engine = await read('src/QuestionEngine.jsx');
+  const referenceIndex = engine.indexOf('<ReferenceInfoCard referenceInfo={referenceInfo} />');
+  const workspaceIndex = engine.indexOf('className="mathmaster-question-tool-workspace"');
+  const guidedIndex = engine.indexOf('<GuidedClassworkCoach', workspaceIndex);
+  assert.ok(referenceIndex > 0);
+  assert.ok(workspaceIndex > referenceIndex);
+  assert.ok(guidedIndex > workspaceIndex);
+  assert.match(engine, /suppressScenarioDisplay/);
+});
+
+test('Guided Notes are collapsed by default and offered as optional help', async () => {
+  const coach = await read('src/GuidedClassworkCoach.jsx');
+  assert.match(coach, /guided-collapsed` : null, true/);
+  assert.match(coach, /Need help\? Guided Notes/);
+});

@@ -13,7 +13,7 @@ export default function GuidedClassworkCoach({
 }) {
   const steps = useMemo(() => resolveGuidedNotes(question, { mode }), [question, mode]);
   const [manualStepIndex, setManualStepIndex] = useLocalDraftState(draftKey ? `${draftKey}:guided-step` : null, 0);
-  const [collapsed, setCollapsed] = useLocalDraftState(draftKey ? `${draftKey}:guided-collapsed` : null, false);
+  const [collapsed, setCollapsed] = useLocalDraftState(draftKey ? `${draftKey}:guided-collapsed` : null, true);
 
   const synchronizedIndex = activeStageId
     ? steps.findIndex((step) => step.stageId === activeStageId)
@@ -32,18 +32,18 @@ export default function GuidedClassworkCoach({
   const synchronized = synchronizedIndex >= 0;
   const headerLabel = workflowComplete
     ? '✓ Guided Notes complete'
-    : `Guided Notes · Step ${safeIndex + 1} of ${steps.length}`;
+    : `Need help? Guided Notes · Step ${safeIndex + 1} of ${steps.length}`;
 
   return (
     <aside
       className={`mathmaster-guided-notes ${collapsed ? 'is-collapsed' : 'is-expanded'}`}
-      style={{ maxWidth: '860px', margin: '0 auto 14px', borderRadius: '11px', border: '1px solid #8ab4f8', background: '#f8fbff', textAlign: 'left', overflow: 'hidden' }}
+      style={{ maxWidth: '860px', margin: '0 auto 12px', borderRadius: '11px', border: '1px solid #8ab4f8', background: '#f8fbff', textAlign: 'left', overflow: 'hidden' }}
     >
       <button
         type="button"
         onClick={() => setCollapsed(!collapsed)}
         aria-expanded={!collapsed}
-        style={{ width: '100%', minHeight: '46px', padding: '10px 13px', border: 0, background: workflowComplete ? '#e6f4ea' : '#edf4ff', color: workflowComplete ? '#137333' : '#174ea6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', cursor: 'pointer', textAlign: 'left', fontWeight: 900 }}
+        style={{ width: '100%', minHeight: '46px', padding: '10px 13px', border: 0, background: workflowComplete ? '#e6f4ea' : '#f8fbff', color: workflowComplete ? '#137333' : '#174ea6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', cursor: 'pointer', textAlign: 'left', fontWeight: 900 }}
       >
         <span>
           <span style={{ display: 'block', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{headerLabel}</span>

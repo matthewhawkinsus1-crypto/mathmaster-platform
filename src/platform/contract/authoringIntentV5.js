@@ -57,7 +57,7 @@ const normalizeActions = (question = {}) => {
 };
 
 const copyCommon = (source, target = {}) => {
-  ['prompt','activityRole','dok','difficultyBand','calculator','assessmentContext','context','familyId','assessedConstruct','guidedNotes','guidedSteps'].forEach((key) => {
+  ['prompt','activityRole','dok','difficultyBand','calculator','assessmentContext','context','familyId','assessedConstruct','guidedNotes','guidedSteps','referenceInfo'].forEach((key) => {
     if (source[key] != null) target[key] = source[key];
   });
   if (source.standard) target.standard = source.standard;

@@ -34,31 +34,33 @@ export default function QuestionPrompt({
   const text = String(children ?? '');
   const segments = text.split(MATH_DELIMITER_PATTERN).filter(Boolean);
 
-  const isProminent = variant !== 'plain';
+  const isPlain = variant === 'plain';
+  const isTask = variant === 'task';
+  const isProminent = !isPlain;
 
   return (
     <div
       className={`mathmaster-question-prompt ${isProminent ? 'mathmaster-question-prompt-prominent' : 'mathmaster-question-prompt-plain'}`}
       style={{
-        fontSize: isProminent ? '20px' : '18px',
+        fontSize: isTask ? '17px' : isProminent ? '20px' : '18px',
         color: isProminent ? '#202124' : '#5f6368',
-        fontWeight: isProminent ? 760 : 400,
-        lineHeight: isProminent ? 1.5 : 1.65,
-        margin: '0 auto 18px',
+        fontWeight: isTask ? 720 : isProminent ? 760 : 400,
+        lineHeight: isTask ? 1.45 : isProminent ? 1.5 : 1.65,
+        margin: isTask ? '0 auto 10px' : '0 auto 18px',
         maxWidth: isProminent ? '860px' : '820px',
-        padding: isProminent ? '16px 18px 17px' : 0,
+        padding: isTask ? '11px 15px 12px' : isProminent ? '16px 18px 17px' : 0,
         borderRadius: isProminent ? '12px' : 0,
-        border: isProminent ? '2px solid #c7d8f4' : 0,
-        borderLeft: isProminent ? '7px solid #1a73e8' : 0,
-        background: isProminent ? '#f8fbff' : 'transparent',
-        boxShadow: isProminent ? '0 4px 12px rgba(26,115,232,0.08)' : 'none',
+        border: isTask ? '1px solid #c7d8f4' : isProminent ? '2px solid #c7d8f4' : 0,
+        borderLeft: isTask ? '5px solid #5f8fd8' : isProminent ? '7px solid #1a73e8' : 0,
+        background: isTask ? '#fbfdff' : isProminent ? '#f8fbff' : 'transparent',
+        boxShadow: isTask ? 'none' : isProminent ? '0 4px 12px rgba(26,115,232,0.08)' : 'none',
         textAlign: isProminent ? 'left' : undefined,
         ...style,
       }}
     >
       {isProminent && (
         <div style={{ marginBottom: '7px', color: '#174ea6', fontSize: '11px', fontWeight: 950, letterSpacing: '0.09em', textTransform: 'uppercase' }}>
-          Your question
+          {isTask ? 'Your task' : 'Your question'}
         </div>
       )}
       {segments.map((segment, index) => {

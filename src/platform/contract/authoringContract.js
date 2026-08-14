@@ -836,6 +836,8 @@ export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = nu
   '',
   'Optional Guided Notes for Classwork:',
   '- Add `guidedNotes.steps` only when you can provide question-specific mathematical instruction that teaches the process without giving away a future answer.',
+  '- Keep the task/direction in `prompt`. When students need to repeatedly reference scenario facts, equations, data, or definitions, use optional `referenceInfo` for those reusable facts. If `referenceInfo` is omitted, MathMaster automatically promotes `scenario` into the prominent reference card.',
+  '- Preferred reference format: `referenceInfo: { title: "Information you need", statements: ["Chocolate bars sell for $2 each.", "M(x) represents money collected after selling x bars."] }`.',
   '- Each step may use `{ "title":"...", "instruction":"...", "stageId":"..." }`. `stageId` is optional; MathMaster automatically derives stage-aware notes for composed workflows when authored notes are absent.',
   '- Good notes name a mathematical idea, relationship, representation strategy, decision, misconception, or connection to earlier student work.',
   '- Never author filler such as "Read the question", "Identify what is being asked", "Solve the problem", "Enter your answer", "Think carefully", or "Check your answer". MathMaster suppresses those notes rather than showing an empty-feeling panel.',

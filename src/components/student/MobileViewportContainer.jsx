@@ -121,7 +121,7 @@ export const MobileViewportContainer = ({
     <div ref={rootRef} onFocusCapture={handleFocusCapture} className={`mathmaster-question-container ${isLandscape ? 'mode-landscape' : 'mode-portrait'} ${numericTarget ? 'numeric-keypad-open' : ''}`}>
       <section className="question-prompt-panel" aria-label="Question prompt and response controls">
         <div className="question-prompt-heading">
-          <span>QUESTION</span>
+          <span>YOUR TASK</span>
           {!isLandscape && <button type="button" onClick={() => setIsPromptCollapsed((current) => !current)}>{isPromptCollapsed ? 'Show Prompt ▼' : 'Minimize ▲'}</button>}
         </div>
         {!isPromptCollapsed && <div className="prompt-body"><QuestionPrompt variant="plain" style={{ color: '#202124', fontWeight: 800, fontSize: 18, margin: 0 }}>{promptText || 'Complete the math task.'}</QuestionPrompt>{contextPanel}</div>}

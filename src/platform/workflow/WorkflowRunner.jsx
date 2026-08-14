@@ -662,7 +662,7 @@ export default function WorkflowRunner({
           <QuestionPrompt>{content.prompt}</QuestionPrompt>
         </div>
       )}
-      {content?.scenario && content.scenario !== content?.prompt && (
+      {content?.scenario && !question?.suppressScenarioDisplay && content.scenario !== content?.prompt && (
         <div style={{ ...panel, background: '#f8f9fa' }}>
           <QuestionPrompt variant="plain">{content.scenario}</QuestionPrompt>
         </div>

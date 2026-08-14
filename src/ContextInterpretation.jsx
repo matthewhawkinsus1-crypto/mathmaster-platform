@@ -43,7 +43,7 @@ export default function ContextInterpretation({
     <div style={{ textAlign: 'left', maxWidth: '920px', margin: '0 auto' }}>
       <h2 style={{ marginTop: 0, textAlign: 'center' }}>Interpret a Point in Context</h2>
       <QuestionPrompt>{question.prompt || 'Interpret the highlighted point in this situation.'}</QuestionPrompt>
-      {question.scenario && <div style={{ padding: '18px', borderRadius: '12px', background: '#f8fbff', border: '1px solid #cbd9ec', lineHeight: 1.6, fontSize: '17px' }}>{question.scenario}</div>}
+      {question.scenario && !question.suppressScenarioDisplay && <div style={{ padding: '18px', borderRadius: '12px', background: '#f8fbff', border: '1px solid #cbd9ec', lineHeight: 1.6, fontSize: '17px' }}>{question.scenario}</div>}
       <PointMeaningBuilder
         config={question}
         values={values}
