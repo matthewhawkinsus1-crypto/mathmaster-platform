@@ -39,6 +39,7 @@ import { ToolRuntimeProvider } from './tools/shared/ToolRuntimeContext';
 import InteractiveModelingLabPlayer from './components/labs/InteractiveModelingLabPlayer.jsx';
 import { useToast } from './ui/Toast';
 import QuestionModuleBoundary from './QuestionModuleBoundary';
+import QuestionPrompt from './QuestionPrompt';
 import {
   getAttemptsRemaining,
   MAX_ATTEMPTS_PER_QUESTION,
