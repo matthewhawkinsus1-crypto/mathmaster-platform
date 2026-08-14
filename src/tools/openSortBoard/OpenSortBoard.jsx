@@ -4,12 +4,13 @@ import CoordinatePlane from '../shared/CoordinatePlane';
 import { evaluateFunctionSpec } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
 import { scoreOpenSort } from './openSortMath';
+import { readGraphPointCoordinates } from '../../graphPointUtils.js';
 
 const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid #c9d6e8', background: '#fff', fontWeight: 800, cursor: 'pointer' };
 const input = { width: '100%', boxSizing: 'border-box', minHeight: 42, padding: 9, border: '1px solid #c9d6e8', borderRadius: 8, fontSize: 15 };
 
 const functionFor = (spec) => (x) => evaluateFunctionSpec(spec || {}, x);
-const pointPair = (point) => Array.isArray(point) ? point : [Number(point?.x), Number(point?.y)];
+const pointPair = (point) => readGraphPointCoordinates(point) || [Number.NaN, Number.NaN];
 
 const previewLayers = (spec = {}) => {
   const type = spec.type || 'linear';

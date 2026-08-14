@@ -1,3 +1,4 @@
+import { readGraphPointCoordinates, validateGraphPoint } from './graphPointUtils.js';
 const hasOwn = (object, key) => Object.prototype.hasOwnProperty.call(object || {}, key);
 const finite = (value) => Number.isFinite(Number(value));
 
@@ -157,8 +158,8 @@ export const fitStaticGraphViewport = (graph = {}, { sampleCount = 160, paddingR
 
   const finitePointXs = [];
   (Array.isArray(graph.points) ? graph.points : []).forEach((point) => {
-    const x = Array.isArray(point) ? Number(point[0]) : Number(point?.x);
-    if (Number.isFinite(x)) finitePointXs.push(x);
+    const coordinates = readGraphPointCoordinates(point);
+    if (coordinates) finitePointXs.push(coordinates[0]);
   });
 
   // If the author did not choose an x-window, select one from the mathematical
@@ -209,8 +210,8 @@ export const fitStaticGraphViewport = (graph = {}, { sampleCount = 160, paddingR
   });
 
   (Array.isArray(graph.points) ? graph.points : []).forEach((point) => {
-    const y = Array.isArray(point) ? Number(point[1]) : Number(point?.y);
-    if (Number.isFinite(y)) yValues.push(y);
+    const coordinates = readGraphPointCoordinates(point);
+    if (coordinates) yValues.push(coordinates[1]);
   });
   (Array.isArray(graph.segments) ? graph.segments : []).forEach((segment) => {
     const endpoints = [segment?.start, segment?.end, segment?.from, segment?.to];
@@ -271,6 +272,9 @@ export const auditStaticGraphViewport = (graph = {}, { label = 'graph', strictBo
   const functions = Array.isArray(graph.functions) ? graph.functions : [];
   const points = Array.isArray(graph.points) ? graph.points : [];
   const segments = Array.isArray(graph.segments) ? graph.segments : [];
+  points.forEach((point, index) => {
+    errors.push(...validateGraphPoint(point, { label: `${label}.points[${index}]` }));
+  });
   if (!functions.length && !points.length && !segments.length && !graph.line && !finite(graph.m) && !finite(graph.b)) {
     errors.push(`${label} contains no drawable function, points, or segments`);
     return { errors, warnings };

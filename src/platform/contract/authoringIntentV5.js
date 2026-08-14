@@ -1,4 +1,5 @@
 import { looksLikeFiniteSetNotation } from '../../../functions/shared/answerEquivalence.mjs';
+import { normalizeStaticGraphPoints } from '../../graphPointUtils.js';
 
 const asArray = (value) => Array.isArray(value) ? value : value == null ? [] : [value];
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
@@ -110,8 +111,8 @@ const staticFunctionSpec = (raw = {}) => {
 };
 
 const graphFromIntent = (q = {}) => {
-  if (isObject(q.graph)) return q.graph;
-  if (isObject(q.visual?.graph)) return q.visual.graph;
+  if (isObject(q.graph)) return normalizeStaticGraphPoints(q.graph);
+  if (isObject(q.visual?.graph)) return normalizeStaticGraphPoints(q.visual.graph);
   if (isObject(q.function) || isObject(q.functionSpec)) {
     return { functions: [staticFunctionSpec(q.function || q.functionSpec)] };
   }
@@ -186,7 +187,7 @@ const fieldFromIntent = (field, index) => {
 const normalizeGraphChoices = (choices = []) => asArray(choices).map((item, index) => {
   if (!isObject(item)) return item;
   const id = item.id || `g${index + 1}`;
-  if (item.graph) return { ...item, id };
+  if (item.graph) return { ...item, id, graph: normalizeStaticGraphPoints(item.graph) };
   if (item.function || item.functionSpec) return { id, label: item.label, graph: { functions: [staticFunctionSpec(item.function || item.functionSpec)] } };
   return { ...item, id };
 });
@@ -560,7 +561,7 @@ const compileOne = (q, index, repairs) => {
       out = compileFunctionWorkflow(q, actions);
       break;
     case 'functionGraph':
-      out = copyCommon(q, { type, functionSpec: coreFunctionSpec(q.function || q.functionSpec), graph: q.graph, studentChoosesX: q.studentChoosesX ?? true, showCoordinates: q.showCoordinates });
+      out = copyCommon(q, { type, functionSpec: coreFunctionSpec(q.function || q.functionSpec), graph: normalizeStaticGraphPoints(q.graph), studentChoosesX: q.studentChoosesX ?? true, showCoordinates: q.showCoordinates });
       break;
     case 'functionInvestigation2': {
       const requests = analysisRequestsFromActions(actions, q);
@@ -579,17 +580,17 @@ const compileOne = (q, index, repairs) => {
       out = copyCommon(q, { type, equation: q.equation, solveFor: q.solveFor, answer: answerOf(q) });
       break;
     case 'system':
-      out = copyCommon(q, { type, equations: q.equations, answer: answerOf(q), graph: q.graph, showGraph: q.showGraph });
+      out = copyCommon(q, { type, equations: q.equations, answer: answerOf(q), graph: normalizeStaticGraphPoints(q.graph), showGraph: q.showGraph });
       break;
     case 'table':
       out = copyCommon(q, { type, table: q.table, functionSpec: q.function ? coreFunctionSpec(q.function) : q.functionSpec });
       break;
     case 'orderedPair':
-      out = copyCommon(q, { type, answer: answerOf(q) || q.point, graph: q.graph });
+      out = copyCommon(q, { type, answer: answerOf(q) || q.point, graph: normalizeStaticGraphPoints(q.graph) });
       break;
     case 'multiAnswer': {
       const fields = q.answerFields || q.responses || q.response?.fields || [];
-      out = copyCommon(q, { type, answerFields: fields.map(fieldFromIntent), table: q.table, graph: q.graph, visual: q.visual, mathDisplay: q.mathDisplay });
+      out = copyCommon(q, { type, answerFields: fields.map(fieldFromIntent), table: q.table, graph: normalizeStaticGraphPoints(q.graph), visual: q.visual, mathDisplay: q.mathDisplay });
       break;
     }
     case 'relationshipModel':
@@ -718,7 +719,7 @@ const compileOne = (q, index, repairs) => {
         constraints: q.constraints || builder.constraints,
         allowedFamilies: q.allowedFamilies || builder.allowedFamilies,
         initialModel: q.initialModel || builder.initialModel,
-        graph: q.graph || builder.graph,
+        graph: normalizeStaticGraphPoints(q.graph || builder.graph),
         hints: q.hints || builder.hints,
       });
       break;

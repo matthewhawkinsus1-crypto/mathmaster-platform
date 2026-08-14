@@ -1,5 +1,6 @@
 import QuestionPrompt from './QuestionPrompt';
 import { evaluateStaticGraphFunction, fitStaticGraphViewport, resolvePointFill, resolvePointRadius } from './graphSpecUtils';
+import { readGraphPointCoordinates } from './graphPointUtils.js';
 
 const DEFAULT_WIDTH = 620;
 const DEFAULT_HEIGHT = 430;
@@ -287,10 +288,9 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph' }) {
         })}
 
         {points.map((point, index) => {
-          const coordinates = Array.isArray(point) ? point : point.coordinates;
-          if (!Array.isArray(coordinates)) return null;
-          const [x, y] = coordinates.map(Number);
-          if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+          const coordinates = readGraphPointCoordinates(point);
+          if (!coordinates) return null;
+          const [x, y] = coordinates;
           return (
             <g key={`point-${index}`}>
               <circle cx={toScreenX(x)} cy={toScreenY(y)} r={resolvePointRadius(point, 5)} fill={resolvePointFill(point, '#d93025')} stroke="#fff" strokeWidth="2" />
