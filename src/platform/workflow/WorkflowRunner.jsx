@@ -12,6 +12,7 @@ import { readComposedQuestion, resolveStageInput, summarizeWorkflowProgress } fr
 import { checkTableConsistency, gradeWorkflow } from './workflowGrading';
 import { buildExpressionFunctionSpec, evaluateModelAt, evaluateNumericValue } from './modelExpression';
 import { evaluateGraphFunction } from '../../functionGraphUtils';
+import { buildStudentTableMagneticTargets } from '../../graphInteractionPrecision';
 
 // Renders a question composed from interaction primitives.
 //
@@ -387,6 +388,11 @@ const DELEGATES = {
       expected: point,
       lockedX: true,
     }));
+    const magneticSnapTargets = source?.[WORKFLOW_ARTIFACT] === 'table'
+      && source.isComplete
+      && source.sourceConsistent !== false
+      ? buildStudentTableMagneticTargets(pairs)
+      : [];
 
     return (
       <InteractiveGraphWorkspace
@@ -396,6 +402,7 @@ const DELEGATES = {
           plotMode: 'points',
           pointOnly: true,
           pointTasks,
+          magneticSnapTargets,
           functionSpec: { type: 'expression', expression: '0', variable: 'x', referencePoints: pairs },
           showCoordinates: true,
           requireEndpointMarkers: false,
@@ -425,6 +432,11 @@ const DELEGATES = {
       }).filter(Boolean);
     })();
     const graphWindow = expandGraphWindowToPoints(authoredGraphWindow, points);
+    const magneticSnapTargets = sourceIsTable
+      && source.isComplete
+      && source.sourceConsistent !== false
+      ? buildStudentTableMagneticTargets(points)
+      : [];
 
     // The graph must represent the student's own prior work.  For a table that
     // came from an equation, contradictory work has no single graph; make that
@@ -464,6 +476,7 @@ const DELEGATES = {
           functionSpec,
           equationLatex: sourceModel || undefined,
           graphAnswer: points.length ? { suggestedPoints: points } : undefined,
+          magneticSnapTargets,
           showCoordinates: true,
           studentChoosesX: false,
           // A modelling workflow asks for domain in its own later stage.  Do not

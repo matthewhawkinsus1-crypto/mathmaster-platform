@@ -7,6 +7,14 @@ import { POINT_FEATURES } from './analysisRequestCatalog';
 import useUndoHistory from './useUndoHistory';
 import useLocalDraftState from './useLocalDraftState';
 import {
+  MAGNETIC_POINT_SNAP_PIXELS,
+  findMagneticSnapTarget,
+  normalizeMagneticSnapTargets,
+  positiveStep,
+  resolveReachableSnapStep,
+  snapValue,
+} from './graphInteractionPrecision';
+import {
   analysisSelectionsAreCorrect,
   buildInteractiveGraphWindow,
   buildInteractivePointTasks,
@@ -36,65 +44,6 @@ const MARKER_SNAP_PIXELS = 82;
 // step of 1 across a blueprint window of -1e9..1e9 is two billion iterations,
 // which hard-freezes the tab the student is working in.
 const MAX_TICKS = 200;
-
-const positiveStep = (value, fallback) => {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) && numeric > 0 ? numeric : fallback;
-};
-
-const snap = (value, step) => Number((Math.round(value / step) * step).toFixed(6));
-
-const snapError = (point, step) => {
-  if (!Array.isArray(point) || point.length !== 2) return 0;
-  const dx = Number(point[0]) - snap(Number(point[0]), step);
-  const dy = Number(point[1]) - snap(Number(point[1]), step);
-  return Math.hypot(dx, dy);
-};
-
-// The interface must never make a valid authored function impossible to graph
-// — and must not make an easy one fiddly either. The rule is: the coarsest snap
-// that still lets the mathematics be answered.
-//
-//   1. An author's explicit snapStep is respected...
-//   2. ...unless a required point could not land close enough for credit, in
-//      which case it is halved only as far as necessary.
-//   3. When the student picks their own x-values and nothing is required,
-//      quarter units. Not tenths: on a Chromebook trackpad, tenths turn a
-//      two-second placement into a fight.
-//   4. Being continuous is not a reason to refine. Only unreachable points are.
-//   5. If the function itself makes quarter units useless — f(x) = x/3 lands on
-//      no quarter at all — refine for THAT question until enough of the visible
-//      curve is actually plottable.
-//   6. And stop at a step a hand can still hit.
-//
-// The visible grid is a separate decision, made below: the graph does not draw
-// every subdivision it will accept.
-const MIN_USABLE_SNAP = 0.05;
-const REACHABLE_SAMPLE_TARGET = 4;
-
-const resolveReachableSnapStep = (requestedStep, tasks = [], curveSamples = []) => {
-  const authored = Number(requestedStep);
-  const authorWasExplicit = Number.isFinite(authored) && authored > 0;
-  let step = positiveStep(requestedStep, 0.5);
-
-  const chooses = tasks.some((task) => task?.studentChoosesX);
-  if (chooses && !authorWasExplicit) step = Math.min(step, 0.25);
-
-  // Rule 2: a fixed required point must be reachable, whatever the author said.
-  const expectedPoints = tasks.map((task) => task?.expected).filter(Array.isArray);
-  while (step > MIN_USABLE_SNAP && expectedPoints.some((point) => snapError(point, step) > 0.2)) step /= 2;
-
-  // Rule 5: with no fixed points, the student still needs somewhere to put one.
-  // A curve that misses every gridline at this step is unplottable in practice.
-  if (chooses && expectedPoints.length === 0 && curveSamples.length) {
-    const reachable = (candidate) => curveSamples.filter((point) => snapError(point, candidate) <= 0.2).length;
-    while (step > MIN_USABLE_SNAP && reachable(step) < Math.min(REACHABLE_SAMPLE_TARGET, curveSamples.length)) {
-      step /= 2;
-    }
-  }
-
-  return Math.max(MIN_USABLE_SNAP, step);
-};
 
 const buildTicks = (minimum, maximum, step) => {
   const min = Number(minimum);
@@ -251,6 +200,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
   const [draggingMarkerType, setDraggingMarkerType] = useState(null);
   const [hoverPoint, setHoverPoint] = useState(null);
   const [dropCandidate, setDropCandidate] = useState(null);
+  const [dropMagneticTarget, setDropMagneticTarget] = useState(null);
   const [pointFeedback, setPointFeedback] = useState('');
   const [drawFeedback, setDrawFeedback] = useState('');
   const [activeMarker, setActiveMarker] = useState(null);
@@ -265,6 +215,14 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
   const pointOnly = Boolean(question.pointOnly || question.plotMode === 'points');
   const constructionEnabled = mode !== 'analysis';
   const tasks = useMemo(() => constructionEnabled ? (question.pointTasks || buildInteractivePointTasks(functionSpec, { points: question.graphAnswer?.suggestedPoints, includeUndefinedChecks: question.includeUndefinedChecks, undefinedCount: question.undefinedCount, studentChoosesX })) : [], [question, functionSpec, studentChoosesX, constructionEnabled]);
+  // Magnetic targets are NEVER inferred from task.expected. They must be
+  // explicitly supplied as student-known coordinates (for example, points from
+  // a completed/validated table stage). This keeps magnetic snapping from
+  // becoming an invisible answer-finder.
+  const magneticSnapTargets = useMemo(
+    () => normalizeMagneticSnapTargets(question.magneticSnapTargets, tasks),
+    [question.magneticSnapTargets, tasks],
+  );
   const window = useMemo(() => buildInteractiveGraphWindow(functionSpec, tasks, graph), [functionSpec, tasks, graph]);
   const xGridStep = Math.max(0.000001, Number(window.xStep ?? 1));
   const yGridStep = Math.max(0.000001, Number(window.yStep ?? 1));
@@ -348,6 +306,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
     setDraggingMarkerType(null);
     setHoverPoint(null);
     setDropCandidate(null);
+    setDropMagneticTarget(null);
     setPointFeedback('');
     setDrawFeedback('');
     setActiveMarker(null);
@@ -445,16 +404,36 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
   const eventToGraphPoint = (event) => {
     const screen = eventToScreenPoint(event);
     if (!screen || screen[0] < PADDING || screen[0] > WIDTH - PADDING || screen[1] < PADDING || screen[1] > HEIGHT - PADDING) return null;
-    return [snap(fromScreenX(screen[0]), xSnapStep), snap(fromScreenY(screen[1]), ySnapStep)];
+    return [snapValue(fromScreenX(screen[0]), xSnapStep), snapValue(fromScreenY(screen[1]), ySnapStep)];
   };
 
-  const placeTask = (taskId, point) => {
+  const eventToTaskPlacement = (event, taskId) => {
+    const screen = eventToScreenPoint(event);
+    if (!screen || screen[0] < PADDING || screen[0] > WIDTH - PADDING || screen[1] < PADDING || screen[1] > HEIGHT - PADDING) return null;
+    const latticePoint = [snapValue(fromScreenX(screen[0]), xSnapStep), snapValue(fromScreenY(screen[1]), ySnapStep)];
+    if (!taskId || !magneticSnapTargets.length) return { point: latticePoint, magnetic: null };
+    const rectangle = svgRef.current?.getBoundingClientRect?.();
+    const magnetic = findMagneticSnapTarget({
+      taskId,
+      rawScreenPoint: screen,
+      targets: magneticSnapTargets,
+      toScreenPoint: (point) => [toScreenX(point[0]), toScreenY(point[1])],
+      cssScaleX: rectangle?.width ? rectangle.width / WIDTH : 1,
+      cssScaleY: rectangle?.height ? rectangle.height / HEIGHT : 1,
+      radiusPixels: MAGNETIC_POINT_SNAP_PIXELS,
+    });
+    return { point: magnetic?.point || latticePoint, magnetic };
+  };
+
+  const placeTask = (taskId, point, options = {}) => {
     if (!taskId || !point || construction.pointsValidated) return;
     constructionHistory.setValue((current) => ({ ...current, placements: { ...current.placements, [taskId]: point } }));
+    const task = tasks.find((item) => item.id === taskId);
     setActiveTaskId(null);
     setDraggingTaskId(null);
     setDropCandidate(null);
-    setPointFeedback('');
+    setDropMagneticTarget(null);
+    setPointFeedback(options.magnetic ? `${task?.label || 'Point'} snapped to your validated coordinate ${pointLabel(point)}.` : '');
   };
 
   const nearestEndpoint = (point) => {
@@ -479,6 +458,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
     setActiveMarker(null);
     setDraggingMarkerType(null);
     setDropCandidate(null);
+    setDropMagneticTarget(null);
     setDrawFeedback(magnetic ? `The ${markerLabels[markerType]} snapped to End ${endpointRequirements.indexOf(nearest.requirement) + 1}.` : `The marker was recorded for End ${endpointRequirements.indexOf(nearest.requirement) + 1}. Its placement will be graded separately.`);
   };
 
@@ -496,7 +476,10 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
       return;
     }
     if (construction.snapped && activeMarker) placeMarkerAt(activeMarker, point);
-    else if (!construction.pointsValidated && activeTaskId) placeTask(activeTaskId, point);
+    else if (!construction.pointsValidated && activeTaskId) {
+      const placement = eventToTaskPlacement(event, activeTaskId);
+      if (placement) placeTask(activeTaskId, placement.point, { magnetic: Boolean(placement.magnetic) });
+    }
   };
 
   const checkPoints = () => {
@@ -523,8 +506,15 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
     event.currentTarget.setPointerCapture?.(event.pointerId);
   };
   const continueDrawing = (event) => {
-    const graphPoint = eventToGraphPoint(event);
+    const taskPlacement = stage === 'construct' && !construction.pointsValidated && activeTaskId
+      ? eventToTaskPlacement(event, activeTaskId)
+      : null;
+    const graphPoint = taskPlacement?.point || eventToGraphPoint(event);
     setHoverPoint(graphPoint);
+    if (taskPlacement) {
+      setDropCandidate(taskPlacement.point);
+      setDropMagneticTarget(taskPlacement.magnetic);
+    }
     if (pointOnly || !drawing || !construction.pointsValidated || construction.snapped) return;
     const point = eventToScreenPoint(event);
     if (!point) return;
@@ -553,7 +543,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
 
   const showPredrawnGraph = !pointOnly && (mode === 'analysis' || construction.snapped);
   const activePointPart = analysisParts.find((part) => part.id === activeAnalysisPartId && part.kind === 'point');
-  const dragGuideActive = Boolean(draggingTaskId && dropCandidate);
+  const dragGuideActive = Boolean((draggingTaskId || activeTaskId) && dropCandidate && !construction.pointsValidated);
   const markerGhostActive = Boolean((draggingMarkerType || activeMarker) && dropCandidate && construction.snapped);
 
   const workspaceTitle = pointOnly
@@ -586,6 +576,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
             <>
               <h3 style={{ margin: '0 0 8px', fontSize: '16px', color: '#174ea6' }}>Plotting Points</h3>
               <p style={{ margin: '0 0 10px', color: '#5f6368', fontSize: '12px' }}>Drag a point. Colored horizontal and vertical guides show the exact release location.</p>
+              {magneticSnapTargets.length > 0 && <p style={{ margin: '0 0 10px', padding: '7px 8px', borderRadius: '7px', background: '#e6f4ea', color: '#137333', fontSize: '12px', lineHeight: 1.4 }}><strong>Magnetic placement is on.</strong> Points from your completed table will gently snap to the exact coordinate when you get close.</p>}
               <div style={{ display: 'grid', gap: '8px' }}>
                 {tasks.map((task) => {
                   const placement = construction.placements[task.id];
@@ -593,7 +584,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
                   const xValue = construction.chosenXValues[task.id] ?? '';
                   const canPlace = task.expected === 'undefined' || Number.isFinite(Number(xValue));
                   return <div key={task.id} style={{ border: active ? '2px solid #1a73e8' : '1px solid #c9d4e5', borderRadius: '9px', background: placement ? '#eef5ff' : '#fff', padding: '9px' }}>
-                    <button type="button" draggable={!construction.pointsValidated && canPlace} onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-point', task.id); event.dataTransfer.setDragImage(makePointDragImage(), 22, 22); setDraggingTaskId(task.id); }} onDragEnd={() => { setDraggingTaskId(null); setDropCandidate(null); }} onClick={() => !construction.pointsValidated && canPlace && setActiveTaskId(task.id)} style={{ width: '100%', textAlign: 'left', border: 'none', background: 'transparent', padding: 0, cursor: construction.pointsValidated || !canPlace ? 'default' : 'grab' }}>
+                    <button type="button" draggable={!construction.pointsValidated && canPlace} onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-point', task.id); event.dataTransfer.setDragImage(makePointDragImage(), 22, 22); setDraggingTaskId(task.id); }} onDragEnd={() => { setDraggingTaskId(null); setDropCandidate(null); setDropMagneticTarget(null); }} onClick={() => !construction.pointsValidated && canPlace && setActiveTaskId(task.id)} style={{ width: '100%', textAlign: 'left', border: 'none', background: 'transparent', padding: 0, cursor: construction.pointsValidated || !canPlace ? 'default' : 'grab' }}>
                       <strong style={{ color: '#202124' }}>{task.label}{!['center', 'key'].includes(task.role) && task.x !== null ? `: x = ${task.x}` : ''}</strong>
                       <span style={{ display: 'block', color: placement ? '#174ea6' : '#5f6368', fontSize: '12px', marginTop: '3px' }}>{taskPlacementLabel(placement)}</span>
                     </button>
@@ -606,7 +597,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
               {construction.snapped && endpointRequirements.length > 0 && <div style={{ marginTop: '14px', borderTop: '1px solid #dfe3e7', paddingTop: '12px' }}>
                 <h3 style={{ margin: '0 0 5px', fontSize: '15px' }}>End Behavior</h3>
                 <p style={{ margin: '0 0 8px', fontSize: '11px', color: '#5f6368' }}>Drag a symbol near an end of the graph. A generous magnetic area helps it snap into place.</p>
-                {Object.entries(markerLabels).map(([type, label]) => <button key={type} type="button" draggable onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-marker', type); event.dataTransfer.setDragImage(makeMarkerDragImage(type), 26, 26); setDraggingMarkerType(type); }} onDragEnd={() => { setDraggingMarkerType(null); setDropCandidate(null); }} onClick={() => setActiveMarker(type)} style={{ width: '100%', marginTop: '6px', padding: '9px', border: activeMarker === type ? '2px solid #1a73e8' : '1px solid #c9d4e5', borderRadius: '8px', background: '#fff', fontWeight: 'bold', cursor: 'grab', display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ fontSize: '23px', color: '#1a73e8' }}>{markerSymbols[type]}</span><span><span style={{ display: 'block' }}>{label}</span><span style={{ display: 'block', fontSize: '11px', color: '#5f6368', fontWeight: 400 }}>{markerExplanations[type]}</span></span></button>)}
+                {Object.entries(markerLabels).map(([type, label]) => <button key={type} type="button" draggable onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-marker', type); event.dataTransfer.setDragImage(makeMarkerDragImage(type), 26, 26); setDraggingMarkerType(type); }} onDragEnd={() => { setDraggingMarkerType(null); setDropCandidate(null); setDropMagneticTarget(null); }} onClick={() => setActiveMarker(type)} style={{ width: '100%', marginTop: '6px', padding: '9px', border: activeMarker === type ? '2px solid #1a73e8' : '1px solid #c9d4e5', borderRadius: '8px', background: '#fff', fontWeight: 'bold', cursor: 'grab', display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ fontSize: '23px', color: '#1a73e8' }}>{markerSymbols[type]}</span><span><span style={{ display: 'block' }}>{label}</span><span style={{ display: 'block', fontSize: '11px', color: '#5f6368', fontWeight: 400 }}>{markerExplanations[type]}</span></span></button>)}
                 <div style={{ marginTop: '10px', display: 'grid', gap: '5px' }}>{endpointRequirements.map((requirement, index) => { const placement = construction.markerPlacements[requirement.id]; return <div key={requirement.id} style={{ fontSize: '12px', color: placement ? '#174ea6' : '#5f6368' }}>End {index + 1}: {placement ? markerLabels[markerValue(placement)] : 'not placed'}</div>; })}</div>
               </div>}
             </>
@@ -633,10 +624,33 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
         <figure style={{ margin: 0, width: 'min(100%, 780px)', padding: '10px', border: '1px solid #dfe3e7', borderRadius: '12px', background: '#fff', boxSizing: 'border-box' }}>
           <svg ref={svgRef} className="mathmaster-responsive-canvas mathmaster-touch-surface" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="xMidYMid meet" role="application" aria-label="Interactive function investigation coordinate plane"
             onClick={handleGridClick}
-            onDragOver={(event) => { event.preventDefault(); const candidate = eventToGraphPoint(event); setDropCandidate(candidate); setHoverPoint(candidate); }}
-            onDragLeave={() => setDropCandidate(null)}
-            onDrop={(event) => { event.preventDefault(); const point = eventToGraphPoint(event); const taskId = event.dataTransfer.getData('application/x-mathmaster-point'); const markerType = event.dataTransfer.getData('application/x-mathmaster-marker'); if (taskId) placeTask(taskId, point); else if (markerType) placeMarkerAt(markerType, point); }}
-            onPointerDown={beginDrawing} onPointerMove={continueDrawing} onPointerUp={endDrawing} onPointerCancel={endDrawing} onPointerLeave={() => setHoverPoint(null)}
+            onDragOver={(event) => {
+              event.preventDefault();
+              if (draggingTaskId) {
+                const placement = eventToTaskPlacement(event, draggingTaskId);
+                setDropCandidate(placement?.point || null);
+                setDropMagneticTarget(placement?.magnetic || null);
+                setHoverPoint(placement?.point || null);
+              } else {
+                const candidate = eventToGraphPoint(event);
+                setDropCandidate(candidate);
+                setDropMagneticTarget(null);
+                setHoverPoint(candidate);
+              }
+            }}
+            onDragLeave={() => { setDropCandidate(null); setDropMagneticTarget(null); }}
+            onDrop={(event) => {
+              event.preventDefault();
+              const taskId = event.dataTransfer.getData('application/x-mathmaster-point');
+              const markerType = event.dataTransfer.getData('application/x-mathmaster-marker');
+              if (taskId) {
+                const placement = eventToTaskPlacement(event, taskId);
+                if (placement) placeTask(taskId, placement.point, { magnetic: Boolean(placement.magnetic) });
+              } else if (markerType) {
+                placeMarkerAt(markerType, eventToGraphPoint(event));
+              }
+            }}
+            onPointerDown={beginDrawing} onPointerMove={continueDrawing} onPointerUp={endDrawing} onPointerCancel={endDrawing} onPointerLeave={() => { setHoverPoint(null); if (!draggingTaskId) { setDropCandidate(null); setDropMagneticTarget(null); } }}
             style={{ display: 'block', width: '100%', height: 'auto', touchAction: 'none', cursor: stage === 'analysis' || (!construction.pointsValidated && activeTaskId) || (construction.snapped && activeMarker) ? 'crosshair' : (!pointOnly && construction.pointsValidated && !construction.snapped ? 'crosshair' : 'default') }}>
             <rect x={PADDING} y={PADDING} width={innerWidth} height={innerHeight} fill="#fff" stroke={(draggingTaskId || draggingMarkerType) && dropCandidate ? POINT_GUIDE_COLOR : '#cfd4da'} strokeWidth={(draggingTaskId || draggingMarkerType) && dropCandidate ? 4 : 1} />
             {xTicks.map((tick) => { const x = toScreenX(tick); return <g key={`x-${tick}`}><line x1={x} y1={PADDING} x2={x} y2={HEIGHT - PADDING} stroke="#eceff1" /><text x={x} y={axisX + 20} textAnchor="middle" fontSize="12" fill="#5f6368">{tick}</text></g>; })}
@@ -649,7 +663,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
             {drawing && drawingRef.current.length > 1 && <polyline points={drawingRef.current.map((point) => point.join(',')).join(' ')} fill="none" stroke="#7baaf7" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.88" />}
 
             {constructionEnabled && tasks.filter((task) => Array.isArray(construction.placements[task.id])).map((task) => { const point = construction.placements[task.id]; const isCenter = task.role === 'center'; const x = toScreenX(point[0]); const y = toScreenY(point[1]); return <g key={task.id}><circle cx={x} cy={y} r={isCenter ? 10 : 8} fill={isCenter ? '#fff' : POINT_GUIDE_COLOR} stroke={isCenter ? '#9334e6' : '#fff'} strokeWidth="3" />{isCenter && <text x={x - 4} y={y + 5} fontSize="17" fontWeight="bold" fill="#9334e6">×</text>}<rect x={x + 8} y={y - 29} width={Math.max(36, task.label.length * 7 + 12)} height="21" rx="6" fill="rgba(255,255,255,0.58)" /><text x={x + 14} y={y - 14} fontSize="12" fontWeight="bold" fill="#174ea6">{task.label}</text></g>; })}
-            {dragGuideActive && <g pointerEvents="none"><line x1={toScreenX(dropCandidate[0])} y1={PADDING} x2={toScreenX(dropCandidate[0])} y2={HEIGHT - PADDING} stroke={POINT_GUIDE_COLOR} strokeWidth="3" strokeDasharray="8 5" opacity="0.84" /><line x1={PADDING} y1={toScreenY(dropCandidate[1])} x2={WIDTH - PADDING} y2={toScreenY(dropCandidate[1])} stroke={POINT_GUIDE_COLOR} strokeWidth="3" strokeDasharray="8 5" opacity="0.84" /><circle cx={toScreenX(dropCandidate[0])} cy={toScreenY(dropCandidate[1])} r="15" fill="rgba(0,166,166,0.22)" stroke={POINT_GUIDE_COLOR} strokeWidth="4" /><circle cx={toScreenX(dropCandidate[0])} cy={toScreenY(dropCandidate[1])} r="6" fill={POINT_GUIDE_COLOR} /></g>}
+            {dragGuideActive && <g pointerEvents="none"><line x1={toScreenX(dropCandidate[0])} y1={PADDING} x2={toScreenX(dropCandidate[0])} y2={HEIGHT - PADDING} stroke={POINT_GUIDE_COLOR} strokeWidth={dropMagneticTarget ? 4 : 3} strokeDasharray="8 5" opacity="0.84" /><line x1={PADDING} y1={toScreenY(dropCandidate[1])} x2={WIDTH - PADDING} y2={toScreenY(dropCandidate[1])} stroke={POINT_GUIDE_COLOR} strokeWidth={dropMagneticTarget ? 4 : 3} strokeDasharray="8 5" opacity="0.84" />{dropMagneticTarget && <circle cx={toScreenX(dropCandidate[0])} cy={toScreenY(dropCandidate[1])} r="24" fill="rgba(19,115,51,0.10)" stroke="#137333" strokeWidth="3" strokeDasharray="5 4" />}<circle cx={toScreenX(dropCandidate[0])} cy={toScreenY(dropCandidate[1])} r="15" fill="rgba(0,166,166,0.22)" stroke={dropMagneticTarget ? '#137333' : POINT_GUIDE_COLOR} strokeWidth="4" /><circle cx={toScreenX(dropCandidate[0])} cy={toScreenY(dropCandidate[1])} r="6" fill={dropMagneticTarget ? '#137333' : POINT_GUIDE_COLOR} />{dropMagneticTarget && <text x={toScreenX(dropCandidate[0])} y={toScreenY(dropCandidate[1]) - 31} textAnchor="middle" fontSize="12" fontWeight="bold" fill="#137333">Snap</text>}</g>}
             {stage === 'analysis' && activePointPart && (analysis.selections[activePointPart.id] || []).map((point, index) => <g key={`analysis-${index}`}><circle cx={toScreenX(point[0])} cy={toScreenY(point[1])} r="8" fill="#d93025" stroke="#fff" strokeWidth="3" /><rect x={toScreenX(point[0]) + 8} y={toScreenY(point[1]) - 29} width="82" height="22" rx="6" fill="rgba(255,255,255,0.62)" /><text x={toScreenX(point[0]) + 13} y={toScreenY(point[1]) - 14} fontSize="12" fontWeight="bold" fill="#3c4043">{pointLabel(point)}</text></g>)}
 
             {construction.snapped && endpointRequirements.map((requirement) => { const placement = construction.markerPlacements[requirement.id]; const displayPoint = markerPoint(placement) || requirement.point; const x = toScreenX(displayPoint[0]); const y = toScreenY(displayPoint[1]); const correctX = toScreenX(requirement.point[0]); const correctY = toScreenY(requirement.point[1]); const angle = (Math.atan2(toScreenY(requirement.point[1] + requirement.vector[1]) - correctY, toScreenX(requirement.point[0] + requirement.vector[0]) - correctX) * 180) / Math.PI; return <g key={requirement.id}>{!placement && <><circle cx={correctX} cy={correctY} r="25" fill="rgba(251,188,4,0.10)" stroke="#f9ab00" strokeWidth="2" strokeDasharray="6 6" className="mathmaster-endpoint-pulse" /><text x={correctX} y={correctY - 31} textAnchor="middle" fontSize="11" fontWeight="bold" fill="#8a5a00">Graph end {endpointRequirements.indexOf(requirement) + 1}</text></>}{placement && <EndpointMarker type={markerValue(placement)} x={x} y={y} angle={angle} />}</g>; })}
