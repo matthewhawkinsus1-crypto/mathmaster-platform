@@ -162,6 +162,33 @@ test('the server interval maths agrees with the tool the student used', () => {
   });
 });
 
+test('interval notation typed into a math field still grades', () => {
+  // The notation box became a MathLive field, so a student's answer arrives as
+  // LaTeX rather than as the unicode they appear to be typing. Every form below
+  // is the same interval, and the graph beside it was already correct — marking
+  // the notation wrong here fails a student who did nothing wrong.
+  const expected = [
+    { min: null, max: -3, minClosed: false, maxClosed: true },
+    { min: 2, max: null, minClosed: false, maxClosed: false },
+  ];
+  const sameAnswer = [
+    '(-\\infty, -3] \\cup (2, \\infty)',
+    '\\left(-\\infty, -3\\right] \\cup \\left(2, \\infty\\right)',
+    '(-\\infty,-3]\\cup(2,\\infty)',
+    '(-∞, -3] ∪ (2, ∞)',
+    '(-inf, -3] U (2, inf)',
+  ];
+  sameAnswer.forEach((notation) => {
+    assert.equal(pathIntervalNotationMatches(notation, expected), true, `server rejected ${notation}`);
+    assert.equal(notationMatches(notation, expected), true, `the tool rejected ${notation}`);
+  });
+
+  // And a genuinely different interval is still wrong in both.
+  const wrong = '(-\\infty, -3) \\cup (2, \\infty)';
+  assert.equal(pathIntervalNotationMatches(wrong, expected), false);
+  assert.equal(notationMatches(wrong, expected), false);
+});
+
 test('the server and the tool normalize intervals identically', () => {
   const shapes = [
     [{ min: null, max: 4, maxClosed: true }],

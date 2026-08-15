@@ -25,6 +25,7 @@
   "relationMapping": {
     "pathToolId": "relationMapping",
     "rawWork": {
+      "plottedPoints": [],
       "arrows": [
         [
           -2,
@@ -84,7 +85,7 @@
           "maxClosed": true
         }
       ],
-      "notation": "(-∞, -3] U (2, ∞)",
+      "notation": "(-\\infty, -3] \\cup (2, \\infty)",
       "inequality": ""
     }
   },

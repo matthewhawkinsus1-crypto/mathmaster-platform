@@ -20,6 +20,7 @@
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 import { writeFileSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 
 const only = process.argv[2] || null;
 const DEBUG = process.argv.includes('--debug');
@@ -95,7 +96,10 @@ const SCRIPTS = {
     await btn(page, 'Open (not included)').click();
     const right = at(5);
     await page.mouse.click(right.x, right.y);
-    await page.locator('input[placeholder="e.g. [-3, 5)"]').fill('[-3, 5)');
+    // The notation box is a MathLive field, not a plain input: what the student
+    // types is serialized as LaTeX, which is the whole reason this capture has
+    // to come from the browser rather than from a hand-written string.
+    await typeMathField(page, 'Interval notation', '[-3, 5)');
     await btn(page, 'Check').click();
   },
 
@@ -112,7 +116,7 @@ const SCRIPTS = {
     const left = at(-3);
     await page.mouse.click(left.x, left.y);
     await btn(page, /Shade left from/).click();
-    await page.locator('input[placeholder="e.g. [-3, 5)"]').fill('(-∞, -3] U (2, ∞)');
+    await typeMathField(page, 'Interval notation', '(-\\infty, -3] \\cup (2, \\infty)');
     await btn(page, 'Check').click();
   },
 
@@ -151,6 +155,13 @@ const SCRIPTS = {
       await page.locator('button', { hasText: /Check Simplification/ }).first().click();
       await page.waitForTimeout(700);
     };
+    // KNOWN GAP. The balance workspace was rebuilt around dragging an operation
+    // onto a side (`text/algebra-operation`), and this scripted click flow no
+    // longer reaches a solved equation. The WIRE FORMAT is unaffected — the
+    // response is still part `algebra-objective` carrying `equationToLatex`,
+    // and `pathToolResponses.js` still maps it to `{ finalEquation }` — so the
+    // committed stepAlgebra capture remains accurate. Rewrite this script
+    // against the new interaction before trusting a recapture of it.
     await step('+', '6', ['- 6', '+ 6'], '15');
     await btn(page, 'Submit Solved Equation').click();
   },
@@ -248,20 +259,23 @@ for (const toolId of Object.keys(SCRIPTS)) {
 
 await browser.close();
 
-const missing = Object.entries(results).filter(([, entry]) => !entry.captured);
-if (missing.length) {
-  console.error(`\nNOTHING CAPTURED for: ${missing.map(([id]) => id).join(', ')}`);
-  console.error('The fixture was left untouched rather than written half-empty.');
-  process.exit(1);
-}
+const fixturePath = new URL('../platform/fixtures/capturedToolResponses.json', import.meta.url);
+const previous = JSON.parse(await readFile(fixturePath, 'utf8').catch(() => '{}'));
 
-writeFileSync(
-  new URL('../platform/fixtures/capturedToolResponses.json', import.meta.url),
-  `${JSON.stringify(
-    Object.fromEntries(Object.entries(results)
-      .map(([id, entry]) => [id, { pathToolId: entry.captured.pathToolId, rawWork: entry.captured.rawWork }])),
-    null,
-    2,
-  )}\n`,
-);
-console.log(`\nWrote ${Object.keys(results).length} captures.`);
+// A tool this run could not drive keeps its previous capture rather than
+// disappearing: a missing entry fails the contract test outright, which would
+// read as "this tool has no server grader" instead of "the harness script is
+// out of date". Losing a capture must be a decision, not a side effect.
+const missing = Object.entries(results).filter(([, entry]) => !entry.captured).map(([id]) => id);
+const merged = { ...previous };
+Object.entries(results).forEach(([id, entry]) => {
+  if (entry.captured) merged[id] = { pathToolId: entry.captured.pathToolId, rawWork: entry.captured.rawWork };
+});
+
+writeFileSync(fixturePath, `${JSON.stringify(merged, null, 2)}\n`);
+console.log(`\nWrote ${Object.keys(results).length - missing.length} fresh captures.`);
+if (missing.length) {
+  console.error(`KEPT THE PREVIOUS CAPTURE for: ${missing.join(', ')} — the harness could not drive ${missing.length === 1 ? 'it' : 'them'}.`);
+  console.error('Confirm the wire format by hand, or fix the script, before trusting those entries.');
+  process.exitCode = 1;
+}

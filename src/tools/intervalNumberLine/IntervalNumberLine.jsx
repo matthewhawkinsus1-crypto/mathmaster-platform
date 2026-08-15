@@ -43,11 +43,16 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
 
   const chooseEndpointMode = (closed) => {
     clearFeedback();
+    // The switch arms the NEXT endpoint. It deliberately does not reach back and
+    // change one already on the line: a student building [-3, 5) places -3
+    // closed, then switches to open for 5, and a retroactive change turned that
+    // into (-3, 5) — the most common interval in the lesson, made impossible to
+    // construct, with the graph silently wrong rather than visibly refused.
+    //
+    // Correcting a misplaced endpoint is still one gesture: the pending dot is
+    // itself a button that toggles its own inclusion, which is the affordance
+    // that belongs to it.
     setClosedEnd(closed);
-    // If an endpoint is already sitting on the line, changing Open/Closed
-    // should change that endpoint immediately. The student should never have
-    // to erase and re-plot it just to change inclusion.
-    setPending((current) => (current == null ? current : { ...current, closed }));
   };
 
   const toggleBuiltEndpoint = (intervalIndex, endpoint) => {

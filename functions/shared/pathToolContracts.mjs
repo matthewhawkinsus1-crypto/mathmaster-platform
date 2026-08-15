@@ -153,11 +153,24 @@ export const samePathIntervals = (left = [], right = [], tolerance = 1e-6) => {
 };
 
 const parsePathIntervalNotation = (text) => {
+  // The notation box is a MathLive field, so what arrives is LaTeX:
+  // `(-\infty, -3] \cup (2, \infty)`. The backslash-prefixed commands have to
+  // be resolved BEFORE the bare-word rules, or `\infty` becomes `\∞` — a
+  // backslash the endpoint pattern cannot match, which marked every correct
+  // unbounded interval wrong while the number line beside it was graded right.
+  //
+  // Character for character the same normalization as `parseIntervalNotation`
+  // in src/tools/intervalNumberLine/intervalMath.js. A test asserts the two
+  // agree on every spelling; keep them identical rather than merely equivalent.
   const raw = String(text || '')
     .replace(UNICODE_MINUS, '-')
     .replace(/\\left|\\right/g, '')
-    .replace(/infinity|infty|inf/gi, '∞')
+    .replace(/\\lbrack/g, '[')
+    .replace(/\\rbrack/g, ']')
+    .replace(/\\infty/g, '∞')
     .replace(/\\cup/g, '∪')
+    .replace(/\\(?:,|;|!|quad|qquad)/g, '')
+    .replace(/infinity|infty|inf/gi, '∞')
     .replace(/\bU\b/g, '∪')
     .trim();
   if (!raw) return null;
