@@ -494,8 +494,13 @@ export const getSuggestedMove = (equationState) => {
 
 export const expressionsEquivalent = (leftExpression, rightExpression, variable = 'x') => {
   try {
-    const difference = simplifyExpression(`(${leftExpression}) - (${rightExpression})`);
+    // MathInput may return MathLive/LaTeX (for example \\frac{d}{r}) while
+    // the engine stores d/r. Normalize both before symbolic or numeric checks so
+    // a visually correct fraction is not rejected merely because of syntax.
+    const left = latexToExpression(leftExpression);
+    const right = latexToExpression(rightExpression);
+    const difference = simplifyExpression(`(${left}) - (${right})`);
     if (difference === '0') return true;
-    return [-7, -2, 0, 3, 8].every((value) => nearlyEqual(evaluateAt(leftExpression, variable, value), evaluateAt(rightExpression, variable, value)));
+    return [-7, -2, 0, 3, 8].every((value) => nearlyEqual(evaluateAt(left, variable, value), evaluateAt(right, variable, value)));
   } catch { return false; }
 };

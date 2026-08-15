@@ -81,3 +81,11 @@ test('real arithmetic reduction still creates a manual simplification target', (
 
   assert.ok(move.simplificationTargets.some((target) => target.side === 'right'));
 });
+
+test('MathLive fraction syntax is accepted as equivalent algebra', () => {
+  // A real simplification response may come back from MathInput in LaTeX.
+  // The grader must compare the mathematics, not the input serialization.
+  return import('../../src/algebraAstEngine.js').then(({ expressionsEquivalent }) => {
+    assert.equal(expressionsEquivalent('\\frac{d}{r}', 'd/r', 'd'), true);
+  });
+});

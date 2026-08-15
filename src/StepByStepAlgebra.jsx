@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
+import { ALGEBRA_DRAFT_VERSION, rehydrateAlgebraDraft } from './algebraDraftState';
 import {
   appendStrokePoint, createStroke, resolveStruckTerms, strokeLength, strokeToPath,
 } from './strokeGeometry';
@@ -231,7 +232,14 @@ export default function StepByStepAlgebra({
   const initialEquation = initialParse.equation;
   const parseError = initialParse.error;
   const localDraftKey = draftKey ? `${draftKey}:step-algebra` : null;
-  const savedDraft = useMemo(() => readQuestionDraft(localDraftKey, null), [localDraftKey]);
+  const rawSavedDraft = useMemo(() => readQuestionDraft(localDraftKey, null), [localDraftKey]);
+  // Pending moves are derived engine state. Never trust an old serialized copy
+  // after the algebra engine changes: that can resurrect UI requirements that
+  // the current engine no longer considers mathematically necessary.
+  const savedDraft = useMemo(
+    () => rehydrateAlgebraDraft({ draft: rawSavedDraft, initialEquation }),
+    [rawSavedDraft, initialEquation],
+  );
   const [equation, setEquation] = useState(savedDraft?.equation || initialEquation);
   // One 1-5 support scale. `resolveSupportLevel` also reads the old
   // rigorous/exploratory values, so saved drafts and old assignment JSON keep
@@ -335,6 +343,7 @@ export default function StepByStepAlgebra({
 
   useEffect(() => {
     writeQuestionDraft(localDraftKey, {
+      algebraDraftVersion: ALGEBRA_DRAFT_VERSION,
       equation,
       supportLevel,
       operand,
