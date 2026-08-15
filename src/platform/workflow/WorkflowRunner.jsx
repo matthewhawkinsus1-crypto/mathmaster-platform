@@ -10,7 +10,7 @@ import RelationMapping from '../../tools/relationMapping/RelationMapping';
 import { getStage } from './interactionStages';
 import { hasStageResponse, readComposedQuestion, resolveStageInput, summarizeWorkflowProgress } from './questionWorkflow';
 import { checkTableConsistency, gradeWorkflow } from './workflowGrading';
-import { buildExpressionFunctionSpec, evaluateModelAt, evaluateNumericValue } from './modelExpression';
+import { buildExpressionFunctionSpec, evaluateModelAt, evaluateNumericValue, parseIntervalDomainRestriction } from './modelExpression';
 import { evaluateGraphFunction } from '../../functionGraphUtils';
 import { buildStudentTableMagneticTargets } from '../../graphInteractionPrecision';
 
@@ -454,7 +454,7 @@ const DELEGATES = {
     }
 
     const functionSpec = sourceModel
-      ? buildExpressionFunctionSpec(sourceModel, { referencePoints: points })
+      ? buildExpressionFunctionSpec(sourceModel, { referencePoints: points, domain: stage.domainRestriction || null })
       : (sourceFunctionSpec || content?.functionSpec);
 
     if (!functionSpec) {
@@ -479,9 +479,10 @@ const DELEGATES = {
           magneticSnapTargets,
           showCoordinates: true,
           studentChoosesX: false,
-          // A modelling workflow asks for domain in its own later stage.  Do not
-          // force the graph tool to guess endpoint semantics before that answer.
-          requireEndpointMarkers: stage.requireEndpointMarkers ?? false,
+          // A restricted relationship needs explicit visual boundaries. The
+          // domain stage still asks the student to STATE the domain, but the
+          // graph itself is incomplete until its open/closed endpoints are shown.
+          requireEndpointMarkers: stage.requireEndpointMarkers ?? Boolean(stage.domainRestriction),
         }}
         mode="construct"
         onStateChange={onChange}
@@ -670,6 +671,16 @@ export default function WorkflowRunner({
 
       {workflow.map((stage, index) => {
         const definition = getStage(stage.kind);
+        // If this modelling workflow has an authored finite domain, give only
+        // its boundary semantics to the graph primitive. This lets the student
+        // explicitly mark open/closed endpoints instead of leaving a stopped
+        // segment visually ambiguous. The later domain stage remains separate.
+        const domainRestriction = stage.kind === 'functionGraph'
+          ? parseIntervalDomainRestriction(grading?.domain)
+          : null;
+        const effectiveStage = domainRestriction && !stage.domainRestriction
+          ? { ...stage, domainRestriction }
+          : stage;
         const input = resolveStageInput({ stage, responses, content });
         // A stage driven by unanswered work is waiting, not broken. Showing it
         // as an empty input would invite the student to answer it out of order
@@ -697,7 +708,7 @@ export default function WorkflowRunner({
             {stage.prompt && <QuestionPrompt variant="plain" style={{ fontSize: 16, margin: '0 0 12px' }}>{stage.prompt}</QuestionPrompt>}
             <StageSource input={input} stages={workflow} />
             <StageBody
-              stage={stage}
+              stage={effectiveStage}
               input={input}
               content={content}
               value={responses[stage.id]}

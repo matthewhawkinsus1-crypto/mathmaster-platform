@@ -897,7 +897,7 @@ export default function QuestionEngine({
           <strong>This response is closed after {resolvedMaximumAttempts} {resolvedMaximumAttempts === 1 ? 'attempt' : 'attempts'}.</strong>
           {missingToolDefinition
             ? <ToolSolutionReview question={processedQuestion} />
-            : <SolutionReview question={processedQuestion} />}
+            : <SolutionReview question={processedQuestion} incorrectParts={feedback?.incorrectParts || []} />}
           {resolvedActivityPolicy?.allowReplacement && (
             <>
               <p style={{ margin: '8px 0 14px' }}>Review the solution, then request a new problem at the same difficulty.</p>

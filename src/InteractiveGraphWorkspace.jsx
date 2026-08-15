@@ -247,6 +247,16 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
   const ySnapStep = Math.min(yGridStep, snapStep, positiveStep(graph.ySnapStep ?? window.ySnapStep, snapStep));
   const showCoordinates = skipCounting ? true : requestedShowCoordinates;
   const endpointRequirements = useMemo(() => pointOnly ? [] : (constructionEnabled ? (question.endpointRequirements || getDefaultEndpointRequirements(functionSpec, visiblePaths, { ...question, graph: window })) : getDefaultEndpointRequirements(functionSpec, visiblePaths, { ...question, graph: window })), [question, functionSpec, visiblePaths, window, constructionEnabled, pointOnly]);
+  const boundaryOnly = endpointRequirements.length > 0 && endpointRequirements.every((requirement) => requirement.marker === 'open' || requirement.marker === 'closed');
+  const continuationOnly = endpointRequirements.length > 0 && endpointRequirements.every((requirement) => requirement.marker === 'arrow');
+  const availableMarkerTypes = boundaryOnly ? ['open', 'closed'] : continuationOnly ? ['arrow'] : ['arrow', 'open', 'closed'];
+  const endpointSectionTitle = boundaryOnly ? 'Boundary Markers' : continuationOnly ? 'Continuation' : 'Graph End Markers';
+  const endpointInstruction = boundaryOnly
+    ? 'Show exactly where the relationship stops. Choose whether each boundary value is included (closed) or excluded (open).'
+    : continuationOnly
+      ? 'Show that the function continues beyond the visible coordinate plane.'
+      : 'Use arrows for continuation and open/closed circles for finite boundaries.';
+  const endpointCompletionNoun = boundaryOnly ? 'boundary marker' : continuationOnly ? 'continuation arrow' : 'end marker';
   const analysisParts = useMemo(() => normalizeAnalysisRequests(question, functionSpec, window, mode === 'analysis'), [question, functionSpec, window, mode]);
   const analysisEnabled = mode === 'analysis' || analysisParts.length > 0;
 
@@ -369,7 +379,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
       return { ...current, markerPlacements };
     }, { record: false });
     setStage('construct');
-    setDrawFeedback('One or more end-behavior responses need revision. The incorrect symbol was removed; use the highlighted graph end to try again.');
+    setDrawFeedback(`One or more ${boundaryOnly ? 'boundary markers' : 'graph-end markers'} need revision. The incorrect symbol was removed; use the highlighted graph end to try again.`);
   }, [feedback, constructionHistory]);
 
   useEffect(() => {
@@ -387,7 +397,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
       isComplete: complete,
       isCorrect: correct,
       responseKey: JSON.stringify({ construction, analysis }),
-      questionDetails: `${question.prompt || (pointOnly ? 'Plot the table points.' : 'Investigate the function.')} Points: ${Object.entries(construction.placements).map(([id, value]) => `${id}=${taskPlacementLabel(value)}`).join('; ') || 'not required'}. ${pointOnly ? 'Point-only graph.' : `Curve: ${construction.snapped ? 'complete' : 'incomplete'}. End behavior: ${Object.entries(construction.markerPlacements).map(([id, value]) => `${id}=${markerValue(value)}`).join('; ') || 'not entered'}.`} Analysis: ${analysisGradeParts.map((part) => `${part.label}=${part.response || 'blank'}`).join('; ') || 'not required'}.`,
+      questionDetails: `${question.prompt || (pointOnly ? 'Plot the table points.' : 'Investigate the function.')} Points: ${Object.entries(construction.placements).map(([id, value]) => `${id}=${taskPlacementLabel(value)}`).join('; ') || 'not required'}. ${pointOnly ? 'Point-only graph.' : `Curve: ${construction.snapped ? 'complete' : 'incomplete'}. Graph boundaries/continuation: ${Object.entries(construction.markerPlacements).map(([id, value]) => `${id}=${markerValue(value)}`).join('; ') || 'not entered'}.`} Analysis: ${analysisGradeParts.map((part) => `${part.label}=${part.response || 'blank'}`).join('; ') || 'not required'}.`,
       parts,
     });
   }, [construction, analysis, constructionEnabled, analysisEnabled, pointParts, markerParts, analysisGradeParts, allMarkersPlaced, pointOnly, question, onStateChange]);
@@ -537,7 +547,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
     const matches = roughSketchMatchesGraph({ strokes: completed, requiredScreenPoints: requiredGraphPoints, idealScreenPaths: idealScreenPointPaths, requiredStrokeCount, tolerance: 68 });
     if (matches) {
       constructionHistory.setValue((current) => ({ ...current, strokes: completed, snapped: true }));
-      setDrawFeedback('The sketch passed through the validated points and snapped to the exact function. Add an end-behavior marker at every end.');
+      setDrawFeedback(endpointRequirements.length ? `The sketch passed through the validated points and snapped to the exact function. Add the required ${endpointCompletionNoun}${endpointRequirements.length === 1 ? '' : 's'}.` : 'The sketch passed through the validated points and snapped to the exact function.');
     } else setDrawFeedback('The sketch must travel through the plotted points. Use Undo or Clear Sketch and trace the function again.');
   };
 
@@ -557,7 +567,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
   return (
     <div style={{ textAlign: 'left' }}>
       <h2 style={{ color: '#202124', marginTop: 0, textAlign: 'center' }}>{workspaceTitle}</h2>
-      <QuestionPrompt>{question.prompt || (pointOnly ? 'Plot every point from your table.' : 'Construct the function, describe its end behavior, and complete every requested analysis part.')}</QuestionPrompt>
+      <QuestionPrompt>{question.prompt || (pointOnly ? 'Plot every point from your table.' : 'Construct the function, show its boundaries or continuation clearly, and complete every requested analysis part.')}</QuestionPrompt>
       {question.showEquation !== false && question.equationLatex && <div style={{ margin: '18px auto', padding: '14px 20px', width: 'fit-content', maxWidth: '100%', borderRadius: '10px', background: '#f8f9fa', color: '#1a73e8', fontSize: '27px', fontWeight: 'bold' }}><MathDisplay value={question.equationLatex} format="latex" /></div>}
 
       <div style={{ display: 'flex', justifyContent: 'center', gap: '9px', flexWrap: 'wrap', marginBottom: '12px' }}>
@@ -595,10 +605,10 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
               {tasks.some((task) => task.expected === 'undefined') && <button type="button" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); placeTask(event.dataTransfer.getData('application/x-mathmaster-point') || activeTaskId, 'undefined'); }} onClick={() => activeTaskId && placeTask(activeTaskId, 'undefined')} style={{ width: '100%', marginTop: '12px', minHeight: '72px', border: '2px dashed #9334e6', borderRadius: '10px', background: '#f8f0ff', color: '#6f2da8', fontWeight: 'bold' }}>Not Real / Undefined</button>}
               {!construction.pointsValidated && <button type="button" onClick={checkPoints} disabled={Object.keys(construction.placements).length < tasks.length} style={{ width: '100%', marginTop: '12px', padding: '10px', border: 'none', borderRadius: '8px', background: Object.keys(construction.placements).length >= tasks.length ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 'bold' }}>Check Point Placements</button>}
               {construction.snapped && endpointRequirements.length > 0 && <div style={{ marginTop: '14px', borderTop: '1px solid #dfe3e7', paddingTop: '12px' }}>
-                <h3 style={{ margin: '0 0 5px', fontSize: '15px' }}>End Behavior</h3>
-                <p style={{ margin: '0 0 8px', fontSize: '11px', color: '#5f6368' }}>Drag a symbol near an end of the graph. A generous magnetic area helps it snap into place.</p>
-                {Object.entries(markerLabels).map(([type, label]) => <button key={type} type="button" draggable onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-marker', type); event.dataTransfer.setDragImage(makeMarkerDragImage(type), 26, 26); setDraggingMarkerType(type); }} onDragEnd={() => { setDraggingMarkerType(null); setDropCandidate(null); setDropMagneticTarget(null); }} onClick={() => setActiveMarker(type)} style={{ width: '100%', marginTop: '6px', padding: '9px', border: activeMarker === type ? '2px solid #1a73e8' : '1px solid #c9d4e5', borderRadius: '8px', background: '#fff', fontWeight: 'bold', cursor: 'grab', display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ fontSize: '23px', color: '#1a73e8' }}>{markerSymbols[type]}</span><span><span style={{ display: 'block' }}>{label}</span><span style={{ display: 'block', fontSize: '11px', color: '#5f6368', fontWeight: 400 }}>{markerExplanations[type]}</span></span></button>)}
-                <div style={{ marginTop: '10px', display: 'grid', gap: '5px' }}>{endpointRequirements.map((requirement, index) => { const placement = construction.markerPlacements[requirement.id]; return <div key={requirement.id} style={{ fontSize: '12px', color: placement ? '#174ea6' : '#5f6368' }}>End {index + 1}: {placement ? markerLabels[markerValue(placement)] : 'not placed'}</div>; })}</div>
+                <h3 style={{ margin: '0 0 5px', fontSize: '15px' }}>{endpointSectionTitle}</h3>
+                <p style={{ margin: '0 0 8px', fontSize: '11px', color: '#5f6368', lineHeight: 1.45 }}>{endpointInstruction} Drag or tap a marker, then place it near a graph end; a generous magnetic area helps it snap into place.</p>
+                {availableMarkerTypes.map((type) => { const label = markerLabels[type]; return <button key={type} type="button" draggable onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-marker', type); event.dataTransfer.setDragImage(makeMarkerDragImage(type), 26, 26); setDraggingMarkerType(type); }} onDragEnd={() => { setDraggingMarkerType(null); setDropCandidate(null); setDropMagneticTarget(null); }} onClick={() => setActiveMarker(type)} style={{ width: '100%', marginTop: '6px', padding: '9px', border: activeMarker === type ? '2px solid #1a73e8' : '1px solid #c9d4e5', borderRadius: '8px', background: '#fff', fontWeight: 'bold', cursor: 'grab', display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ fontSize: '23px', color: '#1a73e8' }}>{markerSymbols[type]}</span><span><span style={{ display: 'block' }}>{label}</span><span style={{ display: 'block', fontSize: '11px', color: '#5f6368', fontWeight: 400 }}>{markerExplanations[type]}</span></span></button>; })}
+                <div style={{ marginTop: '10px', display: 'grid', gap: '5px' }}>{endpointRequirements.map((requirement, index) => { const placement = construction.markerPlacements[requirement.id]; return <div key={requirement.id} style={{ fontSize: '12px', color: placement ? '#174ea6' : '#5f6368' }}>{boundaryOnly ? 'Boundary' : 'End'} {index + 1}: {placement ? markerLabels[markerValue(placement)] : 'not placed'}</div>; })}</div>
               </div>}
             </>
           ) : (
@@ -670,7 +680,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
             {markerGhostActive && <EndpointMarker type={draggingMarkerType || activeMarker} x={toScreenX(dropCandidate[0])} y={toScreenY(dropCandidate[1])} opacity={0.55} scale={1.15} />}
             {showCoordinates && hoverPoint && <g pointerEvents="none"><rect x={Math.min(WIDTH - 132, toScreenX(hoverPoint[0]) + 10)} y={Math.max(12, toScreenY(hoverPoint[1]) - 35)} width="116" height="27" rx="6" fill="#202124" opacity="0.66" /><text x={Math.min(WIDTH - 122, toScreenX(hoverPoint[0]) + 20)} y={Math.max(31, toScreenY(hoverPoint[1]) - 16)} fontSize="13" fill="#fff">{pointLabel(hoverPoint)}</text></g>}
           </svg>
-          <figcaption style={{ color: '#5f6368', fontSize: '13px', padding: '8px 4px 0' }}>{pointOnly ? 'Plot each ordered pair from your completed table.' : 'Curves stop inside the coordinate plane. Arrows show continuation; open and closed circles show restricted-domain boundaries.'}</figcaption>
+          <figcaption style={{ color: '#5f6368', fontSize: '13px', padding: '8px 4px 0' }}>{pointOnly ? 'Plot each ordered pair from your completed table.' : boundaryOnly ? 'This relationship has a finite domain. Its graph must stop at explicit open or closed boundary markers.' : continuationOnly ? 'Arrows show that the function continues beyond the visible coordinate plane.' : 'Arrows show continuation; open and closed circles show finite-domain boundaries.'}</figcaption>
         </figure>
       </div>
 
@@ -682,7 +692,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
           {!pointOnly && construction.pointsValidated && !construction.snapped && <button type="button" onClick={() => constructionHistory.setValue((current) => ({ ...current, strokes: [] }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>Clear Sketch</button>}
           <button type="button" onClick={() => constructionHistory.reset({ placements: {}, chosenXValues: initialChosenX, pointsValidated: false, strokes: [], snapped: false, markerPlacements: {} })} style={{ padding: '9px 14px', border: '1px solid #e0b4b0', borderRadius: '8px', background: '#fff', color: '#a50e0e', fontWeight: 'bold' }}>Reset Graph</button>
         </div>
-        {!pointOnly && construction.snapped && endpointRequirements.length > 0 && <p style={{ margin: '12px 0 0', color: allMarkersPlaced ? '#137333' : '#6f2da8', fontWeight: 'bold' }}>{allMarkersPlaced ? (analysisEnabled ? 'All end-behavior responses are entered. Continue to Analyze Function; each placement and symbol will be graded separately.' : 'All end-behavior responses are entered. You may submit even if a placement or symbol is incorrect; partial credit is calculated by part.') : `Place one end-behavior symbol for each of the ${endpointRequirements.length} graph ends.`}</p>}
+        {!pointOnly && construction.snapped && endpointRequirements.length > 0 && <p style={{ margin: '12px 0 0', color: allMarkersPlaced ? '#137333' : '#6f2da8', fontWeight: 'bold' }}>{allMarkersPlaced ? (analysisEnabled ? `All ${endpointCompletionNoun}${endpointRequirements.length === 1 ? '' : 's'} are entered. Continue to Analyze Function; each placement and symbol will be graded separately.` : `All ${endpointCompletionNoun}${endpointRequirements.length === 1 ? '' : 's'} are entered. You may submit even if a placement or symbol is incorrect; partial credit is calculated by part.`) : `Place one ${endpointCompletionNoun} at each of the ${endpointRequirements.length} graph ends.`}</p>}
       </div>}
       {stage === 'analysis' && activePointPart && activePointPart.responseMode !== 'input' && <div style={{ textAlign: 'center', marginTop: '12px' }}><p style={{ color: '#174ea6', fontWeight: 'bold' }}>Active part: {activePointPart.label}. Select {activePointPart.expected.length || 1} location(s), or choose “Does not exist.”</p>{(analysis.selections[activePointPart.id] || []).length > 0 && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, selections: { ...current.selections, [activePointPart.id]: [] } }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>Clear This Selection</button>}</div>}
     </div>

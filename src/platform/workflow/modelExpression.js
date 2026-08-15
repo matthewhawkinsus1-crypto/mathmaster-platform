@@ -1,4 +1,4 @@
-import { compile } from 'mathjs';
+import { compile, parse } from 'mathjs';
 
 // Shared parser/evaluator for a model the STUDENT wrote.  This sits below both
 // workflow grading and graph rendering so those two systems cannot drift: the
@@ -73,6 +73,90 @@ export const parseFunctionModel = (value) => {
   } catch {
     return null;
   }
+};
+
+
+/**
+ * Canonicalize a student-authored function model so arbitrary function and
+ * input-variable names do not affect correctness.  W(t)=18t, f(x)=18x and
+ * g(n)=18n all describe the same input-output rule.
+ *
+ * Only the model's declared input symbol is renamed. Other symbols remain
+ * untouched, so parameters/constants keep their mathematical meaning.
+ */
+export const canonicalizeFunctionExpression = (value) => {
+  const model = parseFunctionModel(value);
+  if (!model) return null;
+  try {
+    const replacement = parse('__mm_input__');
+    const node = parse(model.expression).transform((current) => (
+      current?.isSymbolNode && current.name === model.variable ? replacement : current
+    ));
+    return node.toString({ parenthesis: 'auto', implicit: 'hide' });
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Convert common finite-domain notation into a graph restriction.  This is
+ * intentionally conservative: when the notation is unclear, return null
+ * rather than inventing endpoint semantics.
+ */
+export const parseIntervalDomainRestriction = (value) => {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const min = Number(value.min);
+    const max = Number(value.max);
+    if (Number.isFinite(min) && Number.isFinite(max) && max >= min) {
+      return {
+        min,
+        max,
+        minInclusive: value.minInclusive !== false,
+        maxInclusive: value.maxInclusive !== false,
+      };
+    }
+  }
+
+  const text = String(value ?? '')
+    .trim()
+    .replace(/[−–—]/g, '-')
+    .replace(/\\left|\\right/g, '')
+    .replace(/\\infty/g, '∞')
+    .replace(/\\leq|≤/g, '<=')
+    .replace(/\\geq|≥/g, '>=')
+    .replace(/\s+/g, '');
+  if (!text || text.includes('∞')) return null;
+
+  const interval = text.match(/^([[(])([^,]+),([^\)\]]+)([)\]])$/);
+  if (interval) {
+    const min = Number(interval[2]);
+    const max = Number(interval[3]);
+    if (Number.isFinite(min) && Number.isFinite(max) && max >= min) {
+      return {
+        min,
+        max,
+        minInclusive: interval[1] === '[',
+        maxInclusive: interval[4] === ']',
+      };
+    }
+  }
+
+  // Examples: 0<=t<=12, -3<x<=4. The variable letter itself is irrelevant.
+  const chained = text.match(/^(-?\d+(?:\.\d+)?)(<=|<)([A-Za-z])(<|<=)(-?\d+(?:\.\d+)?)$/);
+  if (chained) {
+    const min = Number(chained[1]);
+    const max = Number(chained[5]);
+    if (Number.isFinite(min) && Number.isFinite(max) && max >= min) {
+      return {
+        min,
+        max,
+        minInclusive: chained[2] === '<=',
+        maxInclusive: chained[4] === '<=',
+      };
+    }
+  }
+
+  return null;
 };
 
 export const toEvaluableExpression = (value) => parseFunctionModel(value)?.expression || null;

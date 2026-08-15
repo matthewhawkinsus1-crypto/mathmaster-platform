@@ -2,6 +2,7 @@ import { derivative, parse, simplify } from 'mathjs';
 import MathDisplay from './MathDisplay';
 import GraphDisplay from './GraphDisplay';
 import {
+  buildInteractiveGraphWindow,
   getDefaultEndpointRequirements,
   getDomainRangeAcceptedAnswers,
   getGraphFeaturePoints,
@@ -10,6 +11,9 @@ import {
 } from './interactiveGraphEngine';
 import { formatGraphEquationLatex, getSuggestedGraphPoints } from './functionGraphUtils';
 import { normalizeInterpretationConfig } from './contextInterpretationUtils';
+import { getStage } from './platform/workflow/interactionStages';
+import { readComposedQuestion } from './platform/workflow/questionWorkflow';
+import { buildExpressionFunctionSpec, evaluateModelAt, parseIntervalDomainRestriction } from './platform/workflow/modelExpression';
 
 const asText = (value) => String(value ?? '').trim();
 const pointText = (point) => `(${point[0]}, ${point[1]})`;
@@ -209,6 +213,110 @@ const buildCompleteAnswerDetails = (question) => {
   return [];
 };
 
+
+const firstRuleValue = (rule) => {
+  if (rule === undefined || rule === null) return null;
+  if (Array.isArray(rule)) return rule[0] ?? null;
+  if (typeof rule === 'object') {
+    if (Array.isArray(rule.anyOf)) return rule.anyOf[0] ?? null;
+    if (rule.equals !== undefined) return rule.equals;
+  }
+  return rule;
+};
+
+const workflowIncorrectMatch = (entry, incorrectParts = []) => {
+  const prompt = String(entry.prompt || '').trim().replace(/[.]+$/, '').toLowerCase();
+  const title = String(entry.title || '').trim().toLowerCase();
+  return (Array.isArray(incorrectParts) ? incorrectParts : []).some((part) => {
+    const normalized = String(part || '').trim().replace(/[.]+$/, '').toLowerCase();
+    if (!normalized) return false;
+    return normalized === prompt || normalized === title || prompt.includes(normalized) || normalized.includes(prompt);
+  });
+};
+
+const buildWorkflowSolution = (question) => {
+  const composed = readComposedQuestion(question);
+  if (!composed.composed || !composed.workflow.length) return null;
+  const grading = composed.grading || {};
+  const quantities = Object.fromEntries((question.quantities || composed.content?.quantities || []).map((item) => [item.id, item.label || item.id]));
+  const equationRule = firstRuleValue(grading.equation);
+  const domainRule = firstRuleValue(grading.domain);
+  const domainRestriction = parseIntervalDomainRestriction(domainRule);
+  const tableStage = composed.workflow.find((stage) => stage.kind === 'tableInput');
+  const tableXs = Array.isArray(tableStage?.xValues) ? tableStage.xValues : [];
+  const tableRows = equationRule && tableXs.length
+    ? tableXs.map((x) => [x, evaluateModelAt(equationRule, Number(x))]).filter((row) => Number.isFinite(Number(row[1])))
+    : [];
+  const graphSpec = equationRule
+    ? buildExpressionFunctionSpec(equationRule, { referencePoints: tableRows, domain: domainRestriction })
+    : null;
+  const graphTasks = tableRows.map((point, index) => ({ id: `solution-point-${index}`, expected: point }));
+  const graphWindow = graphSpec ? buildInteractiveGraphWindow(graphSpec, graphTasks, question.graph || {}) : null;
+  const graphPaths = graphSpec && graphWindow ? sampleVisibleFunctionPaths(graphSpec, graphWindow) : [];
+  const endpointRequirements = graphSpec && graphWindow
+    ? getDefaultEndpointRequirements(graphSpec, graphPaths, { requireEndpointMarkers: true, graph: graphWindow })
+    : [];
+  const graph = graphSpec && graphWindow ? {
+    ...graphWindow,
+    functions: [graphSpec],
+    points: tableRows.map((coordinates) => ({ coordinates })),
+    endpointRequirements,
+    ariaLabel: `Correct model graph for ${equationRule}`,
+  } : null;
+
+  const entries = composed.workflow.map((stage, index) => {
+    const definition = getStage(stage.kind);
+    const title = `Step ${index + 1} — ${definition?.label || stage.kind}`;
+    const base = { id: stage.id, title, prompt: stage.prompt || '', kind: stage.kind };
+    const rule = grading[stage.id];
+
+    if (stage.kind === 'quantityRoles') {
+      return {
+        ...base,
+        lines: [
+          `Independent quantity: ${quantities[rule?.independent] || rule?.independent || 'Not provided'}`,
+          `Dependent quantity: ${quantities[rule?.dependent] || rule?.dependent || 'Not provided'}`,
+        ],
+      };
+    }
+    if (stage.kind === 'equationInput') {
+      return {
+        ...base,
+        math: firstRuleValue(rule),
+        note: 'Equivalent function names and input-variable letters are accepted unless the prompt explicitly requires particular symbols.',
+      };
+    }
+    if (stage.kind === 'tableInput') {
+      if (tableRows.length) return { ...base, table: { headers: ['Input', 'Output'], rows: tableRows } };
+      if (rule?.values) return { ...base, lines: Object.entries(rule.values).map(([cell, value]) => `${cell}: ${value}`) };
+      return { ...base, lines: ['Use the correct function model to generate each table value.'] };
+    }
+    if (stage.kind === 'functionGraph' || stage.kind === 'coordinatePlot') {
+      const boundaryNote = endpointRequirements.length
+        ? endpointRequirements.map((requirement, endpointIndex) => `${requirement.marker === 'closed' ? '●' : requirement.marker === 'open' ? '○' : '➤'} ${requirement.marker === 'arrow' ? `End ${endpointIndex + 1} continues` : `Boundary ${endpointIndex + 1} is ${requirement.marker}`}`).join(' · ')
+        : '';
+      return {
+        ...base,
+        lines: [
+          equationRule ? `Graph the same relationship represented by ${equationRule}.` : 'Graph the relationship consistently with the earlier stages.',
+          boundaryNote,
+        ].filter(Boolean),
+        showsGraph: Boolean(graph),
+      };
+    }
+    if (stage.kind === 'domainInput' || stage.kind === 'rangeInput' || stage.kind === 'intervalInput') {
+      return { ...base, math: firstRuleValue(rule) };
+    }
+    if (stage.kind === 'classification' || stage.kind === 'multipleChoice') {
+      return { ...base, lines: [String(firstRuleValue(rule) ?? 'Not provided')] };
+    }
+    if (rule !== undefined) return { ...base, lines: [String(firstRuleValue(rule) ?? '')].filter(Boolean) };
+    return { ...base, lines: ['This part is reviewed from the completed mathematical work.'] };
+  });
+
+  return { entries, graph };
+};
+
 const buildGraphAnalysisSummary = (question) => {
   const spec = question.functionSpec;
   if (!spec) return [];
@@ -229,14 +337,15 @@ const buildGraphAnalysisSummary = (question) => {
   });
 };
 
-export default function SolutionReview({ question }) {
+export default function SolutionReview({ question, incorrectParts = [] }) {
   if (!question) return null;
-  const representations = buildRepresentations(question);
+  const workflowSolution = buildWorkflowSolution(question);
+  const representations = workflowSolution ? [] : buildRepresentations(question);
   const graphSpec = question.functionSpec;
   const graphWindow = question.graph || {};
   const solutionPaths = graphSpec ? sampleVisibleFunctionPaths(graphSpec, graphWindow) : [];
   const solutionEndpoints = graphSpec ? getDefaultEndpointRequirements(graphSpec, solutionPaths, { ...question, graph: graphWindow }) : [];
-  const graph = graphSpec
+  const legacyGraph = graphSpec
     ? {
         ...graphWindow,
         functions: [graphSpec],
@@ -252,8 +361,9 @@ export default function SolutionReview({ question }) {
             : question.graph.points,
         }
       : null;
-  const analysisSummary = buildGraphAnalysisSummary(question);
-  const completeAnswerDetails = buildCompleteAnswerDetails(question);
+  const graph = workflowSolution?.graph || legacyGraph;
+  const analysisSummary = workflowSolution ? [] : buildGraphAnalysisSummary(question);
+  const completeAnswerDetails = workflowSolution ? [] : buildCompleteAnswerDetails(question);
 
   return (
     <section
@@ -272,6 +382,42 @@ export default function SolutionReview({ question }) {
       <p style={{ margin: '0 0 14px', color: '#5f6368', lineHeight: 1.5 }}>
         This problem version is closed. Review the solution before requesting another problem at the same difficulty.
       </p>
+      {workflowSolution?.entries?.length > 0 && (
+        <div style={{ display: 'grid', gap: '10px', marginBottom: '14px' }}>
+          {workflowSolution.entries.map((entry) => {
+            const needsReview = workflowIncorrectMatch(entry, incorrectParts);
+            return (
+              <section
+                key={entry.id}
+                style={{
+                  padding: '12px 13px', borderRadius: '9px', background: needsReview ? '#fff8e1' : '#fff',
+                  border: `2px solid ${needsReview ? '#f9ab00' : '#d9e2f1'}`,
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'baseline', flexWrap: 'wrap' }}>
+                  <strong style={{ color: '#202124' }}>{entry.title}</strong>
+                  {needsReview && <span style={{ color: '#8a5a00', fontSize: '12px', fontWeight: 900 }}>REVIEW THIS STEP</span>}
+                </div>
+                {entry.prompt && <p style={{ margin: '5px 0 8px', color: '#5f6368', fontSize: '13px' }}>{entry.prompt}</p>}
+                {entry.math !== undefined && entry.math !== null && String(entry.math).trim() !== '' && (
+                  <div style={{ padding: '9px 11px', borderRadius: '7px', background: '#f8fbff', color: '#174ea6', fontSize: '20px' }}>
+                    <MathDisplay value={String(entry.math)} format={String(entry.math).includes('\\') ? 'latex' : 'ascii-math'} />
+                  </div>
+                )}
+                {Array.isArray(entry.lines) && entry.lines.map((line) => <div key={line} style={{ marginTop: '6px', color: '#202124' }}>{line}</div>)}
+                {entry.table && (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '8px', background: '#fff' }}>
+                    <thead><tr>{entry.table.headers.map((header) => <th key={header} style={{ padding: '7px 9px', border: '1px solid #d9e2f1', background: '#f8f9fa' }}>{header}</th>)}</tr></thead>
+                    <tbody>{entry.table.rows.map((row, rowIndex) => <tr key={`${entry.id}-${rowIndex}`}>{row.map((cell, cellIndex) => <td key={`${rowIndex}-${cellIndex}`} style={{ padding: '7px 9px', textAlign: 'center', border: '1px solid #d9e2f1' }}>{String(cell)}</td>)}</tr>)}</tbody>
+                  </table>
+                )}
+                {entry.note && <p style={{ margin: '8px 0 0', color: '#174ea6', fontSize: '12px', lineHeight: 1.45 }}>{entry.note}</p>}
+                {entry.showsGraph && graph && <div style={{ marginTop: '10px' }}><GraphDisplay graph={graph} title="Correct graph" /></div>}
+              </section>
+            );
+          })}
+        </div>
+      )}
       {question.equationLatex && (
         <div style={{ padding: '12px', borderRadius: '9px', background: '#fff', marginBottom: '12px', fontSize: '23px', color: '#174ea6', textAlign: 'center' }}>
           <MathDisplay value={question.equationLatex} format="latex" />
@@ -297,7 +443,7 @@ export default function SolutionReview({ question }) {
           {completeAnswerDetails.map((item) => <div key={item} style={{ padding: '9px 11px', borderRadius: '7px', background: '#fff', border: '1px solid #d9e2f1' }}>{item}</div>)}
         </div>
       )}
-      {graph && <GraphDisplay graph={graph} title="Correct graph" />}
+      {graph && !workflowSolution && <GraphDisplay graph={graph} title="Correct graph" />}
       {analysisSummary.length > 0 && (
         <div style={{ display: 'grid', gap: '7px', marginTop: '12px' }}>
           {analysisSummary.map((item) => <div key={item} style={{ padding: '9px 11px', borderRadius: '7px', background: '#fff' }}>{item}</div>)}

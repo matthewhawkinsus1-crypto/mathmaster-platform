@@ -20,7 +20,7 @@
 import { compareMathAnswer, looksLikeFiniteSetNotation, normalizeMathAnswer } from '../../answerUtils.js';
 import { isAlgebraicallyEquivalent } from '../../grading/equivalence.js';
 import { hasStageResponse } from './questionWorkflow.js';
-import { evaluateModelAt, evaluateNumericValue, toEvaluableExpression } from './modelExpression.js';
+import { canonicalizeFunctionExpression, evaluateModelAt, evaluateNumericValue, toEvaluableExpression } from './modelExpression.js';
 export { evaluateModelAt, evaluateNumericValue, toEvaluableExpression } from './modelExpression.js';
 
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
@@ -113,8 +113,11 @@ const matchesAnswer = (stage, response, expected) => {
   if (ALGEBRAIC_KINDS.has(stage.kind)) {
     if (isAlgebraicallyEquivalent(response, expected)) return true;
     if (stage.kind === 'equationInput' && definesAFunction(response) && definesAFunction(expected)) {
-      const student = toEvaluableExpression(response);
-      const key = toEvaluableExpression(expected);
+      // A modelling prompt asks for the relationship, not a particular choice
+      // of letters. Canonicalize the declared input variable before comparing:
+      // W(t)=18t, f(x)=18x and g(n)=18n are the same function model.
+      const student = canonicalizeFunctionExpression(response);
+      const key = canonicalizeFunctionExpression(expected);
       return Boolean(student && key) && isAlgebraicallyEquivalent(student, key);
     }
     return false;
