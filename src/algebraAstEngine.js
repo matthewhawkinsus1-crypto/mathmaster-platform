@@ -17,6 +17,27 @@ const nodeComplexity = (expression) => {
   }
 };
 
+// Count mathematical AST nodes without letting harmless presentation changes
+// (extra parentheses, spacing, implicit-multiplication formatting) masquerade as
+// student work. This is deliberately separate from nodeComplexity: complexity is
+// still useful for deciding whether a move made algebraic progress, while a
+// manual simplification box should appear only when the mathematical structure
+// itself actually shrinks.
+const mathematicalNodeCount = (expression) => {
+  try {
+    // ParenthesisNode is presentation/grouping structure, not additional
+    // mathematics. MathJS preserves explicit parentheses in the unsimplified
+    // operation, so counting them made (d)/(r) look more complex than d/r and
+    // incorrectly opened a manual simplification box. Count only meaningful
+    // operators, symbols, constants, functions, etc.
+    return parse(String(expression))
+      .filter((node) => node.type !== 'ParenthesisNode')
+      .length;
+  } catch {
+    return String(expression).replace(/[\s()]/g, '').length;
+  }
+};
+
 const symbolsIn = (expression) => {
   try {
     return [...new Set(parse(String(expression)).filter((node) => node.isSymbolNode).map((node) => node.name))];
@@ -183,6 +204,46 @@ export const splitAdditiveTerms = (expression) => {
   }
 };
 
+
+// Multiplicative counterpart to splitAdditiveTerms. This is presentation-only
+// and exists so the algebra workspace can put cancellation hit targets on the
+// ACTUAL numerator/denominator factors rather than re-rendering a duplicate
+// equation in a separate cancellation box. A grouped sum such as (x + 2)
+// stays one factor; only top-level multiplication/division is flattened.
+const flattenMultiplicativeChain = (node, inDenominator, factors) => {
+  if (node?.type === 'ParenthesisNode') {
+    flattenMultiplicativeChain(node.content, inDenominator, factors);
+  } else if (node?.type === 'OperatorNode' && node.fn === 'multiply' && Array.isArray(node.args)) {
+    node.args.forEach((arg) => flattenMultiplicativeChain(arg, inDenominator, factors));
+  } else if (node?.type === 'OperatorNode' && node.fn === 'divide' && node.args?.length === 2) {
+    flattenMultiplicativeChain(node.args[0], inDenominator, factors);
+    flattenMultiplicativeChain(node.args[1], !inDenominator, factors);
+  } else {
+    factors.push({ node, denominator: inDenominator });
+  }
+  return factors;
+};
+
+const multiplicativeFactorDescriptor = ({ node }) => {
+  const text = node.toString({ parenthesis: 'auto', implicit: 'hide' });
+  let latex = cleanImplicitMultiplicationLatex(node.toTex({ parenthesis: 'keep', implicit: 'hide' }));
+  if (node?.type === 'OperatorNode' && ['add', 'subtract'].includes(node.fn)) {
+    latex = `\\left(${latex}\\right)`;
+  }
+  return { text, latex };
+};
+
+export const splitMultiplicativeFactors = (expression) => {
+  try {
+    const factors = flattenMultiplicativeChain(parse(String(expression)), false, []);
+    const numerator = factors.filter((factor) => !factor.denominator).map(multiplicativeFactorDescriptor);
+    const denominator = factors.filter((factor) => factor.denominator).map(multiplicativeFactorDescriptor);
+    return { numerator, denominator };
+  } catch {
+    return null;
+  }
+};
+
 const evaluateAt = (expression, variable, value) => {
   const node = parse(String(expression));
   const unexpectedSymbols = node.filter((child) => child.isSymbolNode).map((child) => child.name).filter((name) => name !== variable && name !== 'e' && name !== 'pi');
@@ -336,12 +397,20 @@ export const applyBalancedOperation = ({ equationState, operation, operand: rawO
   const analysisAfter = getEquationAnalysis(simplified);
   const cancellationTargets = ['left', 'right'].map((side) => {
     const beforeComplexity = nodeComplexity(equationState[side]);
+    const unsimplifiedComplexity = nodeComplexity(unsimplified[side]);
     const afterComplexity = nodeComplexity(simplified[side]);
     const sideHasAlgebraicTerm = symbolsIn(equationState[side]).length > 0;
     // A cancellation mark is only appropriate where an inverse/identity pair actually
     // removes algebraic structure. Pure arithmetic on the opposite side must be simplified,
     // not crossed out.
     const canCancel = sideHasAlgebraicTerm && afterComplexity + 0.18 < beforeComplexity;
+    // Do not make a student retype a side that is already as simple as the
+    // operation leaves it. Example: dividing d = rt by r should display d/r
+    // on the left; asking the student to re-enter d/r in a second box adds no
+    // algebra and wastes workspace.
+    const unsimplifiedNodeCount = mathematicalNodeCount(unsimplified[side]);
+    const simplifiedNodeCount = mathematicalNodeCount(simplified[side]);
+    const needsSimplification = !canCancel && simplifiedNodeCount < unsimplifiedNodeCount;
     return {
       side,
       label: side === 'left' ? 'Left side' : 'Right side',
@@ -349,9 +418,10 @@ export const applyBalancedOperation = ({ equationState, operation, operand: rawO
       simplifiedExpression: simplified[side],
       simplifiedLatex: expressionToLatex(simplified[side]),
       canCancel,
+      needsSimplification,
     };
   });
-  const simplificationTargets = cancellationTargets.filter((target) => !target.canCancel);
+  const simplificationTargets = cancellationTargets.filter((target) => target.needsSimplification);
   const targetBefore = isSolvedEquation(equationState);
   const targetAfter = isSolvedEquation(simplified);
   // Reported so callers can tell PROGRESS (the equation got simpler) apart from

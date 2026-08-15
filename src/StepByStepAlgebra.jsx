@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
 import {
-  appendStrokePoint, createStroke, evaluateStroke, strokeToPath,
+  appendStrokePoint, createStroke, resolveStruckTerms, strokeLength, strokeToPath,
 } from './strokeGeometry';
 import { motionDuration, prefersReducedMotion, watchReducedMotion } from './motionPreference';
 import MathDisplay from './MathDisplay';
@@ -21,6 +21,7 @@ import {
   parseEquationInput,
   parseOperationOperand,
   splitAdditiveTerms,
+  splitMultiplicativeFactors,
 } from './algebraAstEngine';
 import { getAttemptsRemaining, normalizeQuestionRecord } from './attemptPolicy';
 import {
@@ -59,8 +60,8 @@ const isFactorOperation = (operation) => operation === 'multiply' || operation =
 // as cancellable and the known "after" simplified expression, find which two
 // terms combine away. Falls back gracefully (returns null) for anything this
 // simple search can't confirm — the caller then just skips the per-term
-// strike decoration and keeps the existing whole-box cancellation gesture,
-// which always works regardless of this helper's result.
+// strike decoration. The direct equation overlay falls back to a clear
+// message when a safe token-level cancellation cannot be identified.
 const findCancellingPairIndices = (terms, targetExpression, variable) => {
   if (!terms || terms.length < 2) return null;
   for (let i = 0; i < terms.length; i += 1) {
@@ -78,6 +79,121 @@ const findCancellingPairIndices = (terms, targetExpression, variable) => {
   }
   return null;
 };
+
+
+// Build the cancellation targets from the mathematics that is ALREADY in the
+// balance workspace. The old UI rendered a second copy of the expression in a
+// dashed box and measured strokes there. Besides wasting space, that failed for
+// products such as rt/r because splitAdditiveTerms sees the whole quotient as
+// one term. Here numerator/denominator factors are individually addressable.
+const buildCancellationModel = (expression, targetExpression, variable) => {
+  const factorParts = splitMultiplicativeFactors(expression);
+  if (factorParts?.denominator?.length) {
+    const numerator = factorParts.numerator || [];
+    const denominator = factorParts.denominator || [];
+    const usedNumerator = new Set();
+    const pairs = [];
+    denominator.forEach((denominatorFactor, denominatorIndex) => {
+      const numeratorIndex = numerator.findIndex((numeratorFactor, index) => (
+        !usedNumerator.has(index)
+        && expressionsEquivalent(numeratorFactor.text, denominatorFactor.text, variable)
+      ));
+      if (numeratorIndex < 0) return;
+      usedNumerator.add(numeratorIndex);
+      pairs.push({
+        id: `factor-${pairs.length}`,
+        indices: [numeratorIndex, numerator.length + denominatorIndex],
+      });
+    });
+    if (pairs.length) {
+      return {
+        kind: 'fraction',
+        numerator,
+        denominator,
+        pairs,
+        tokenCount: numerator.length + denominator.length,
+      };
+    }
+  }
+
+  const terms = splitAdditiveTerms(expression);
+  const additivePair = findCancellingPairIndices(terms, targetExpression, variable);
+  if (terms && additivePair) {
+    return {
+      kind: 'additive',
+      terms,
+      pairs: [{ id: 'additive-0', indices: additivePair }],
+      tokenCount: terms.length,
+    };
+  }
+  return null;
+};
+
+const pairForToken = (model, index) => model?.pairs?.find((pair) => pair.indices.includes(index)) || null;
+
+const factorNeedsDot = (left, right) => /^-?\d+(?:\.\d+)?$/.test(left?.text || '') && /^-?\d+(?:\.\d+)?$/.test(right?.text || '');
+
+function CancellationFactorRow({
+  factors,
+  offset,
+  model,
+  selectedIndex,
+  crossedIndices,
+  onTokenClick,
+}) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: '58px' }}>
+      {factors.map((factor, localIndex) => {
+        const index = offset + localIndex;
+        const cancellable = Boolean(pairForToken(model, index));
+        const selected = selectedIndex === index;
+        const crossed = crossedIndices.includes(index);
+        const previous = localIndex > 0 ? factors[localIndex - 1] : null;
+        return (
+          <span key={`${offset}-${localIndex}`} style={{ display: 'inline-flex', alignItems: 'center' }}>
+            {previous && factorNeedsDot(previous, factor) && <span aria-hidden="true" style={{ margin: '0 2px', fontSize: '22px' }}>·</span>}
+            <span
+              data-cancel-index={index}
+              onClick={cancellable ? () => onTokenClick(index) : undefined}
+              role={cancellable ? 'button' : undefined}
+              tabIndex={cancellable ? 0 : undefined}
+              onKeyDown={cancellable ? (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  onTokenClick(index);
+                }
+              } : undefined}
+              aria-label={cancellable ? `${factor.text}, mark this factor for cancellation` : undefined}
+              aria-pressed={cancellable ? selected || crossed : undefined}
+              style={{
+                position: 'relative',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: '42px',
+                minHeight: '52px',
+                padding: '9px 12px',
+                margin: '0 1px',
+                borderRadius: '8px',
+                cursor: cancellable ? 'crosshair' : 'default',
+                background: selected ? 'rgba(26,115,232,.10)' : 'transparent',
+                outline: selected ? '2px solid #1a73e8' : 'none',
+                outlineOffset: '-2px',
+                opacity: crossed ? 0.58 : 1,
+                transition: 'opacity .2s ease, background .15s ease, outline-color .15s ease',
+              }}
+            >
+              <MathDisplay value={factor.latex} format="latex" inline style={{ fontSize: '30px' }} ariaLabel={factor.text} />
+              {(selected || crossed) && (
+                <span aria-hidden="true" style={{ position: 'absolute', left: '7%', right: '7%', top: '52%', height: '4px', borderRadius: '999px', background: '#c5221f', transform: 'rotate(-12deg)', boxShadow: '0 0 0 2px rgba(255,255,255,.78)' }} />
+              )}
+            </span>
+          </span>
+        );
+      })}
+    </span>
+  );
+}
 
 /**
  * The chip a student drags. A fraction is stacked with a real horizontal rule
@@ -124,9 +240,15 @@ export default function StepByStepAlgebra({
     () => resolveSupportLevel({ workspaceDifficulty: savedDraft?.supportLevel ?? savedDraft?.mode ?? question.workspaceDifficulty ?? question.mode }),
   );
   const supportPolicy = getSupportPolicy(supportLevel);
-  const [operand, setOperand] = useState(savedDraft?.operand || '2');
+  const allowAutoApply = Boolean(question?.supportPresentation?.algebraAutoApply);
+  const allowPrefillFirstStep = Boolean(question?.supportEntitlements?.prefillFirstStep);
+  // The operation value must begin blank. Carrying a default 2 into every new
+  // operation encouraged accidental moves and made symbolic literal equations
+  // look numeric before the student had chosen anything.
+  const [operand, setOperand] = useState(savedDraft?.operand ?? '');
   const [pendingMove, setPendingMove] = useState(savedDraft?.pendingMove || null);
   const [crossedSides, setCrossedSides] = useState(savedDraft?.crossedSides || []);
+  const [cancelledPairIds, setCancelledPairIds] = useState(savedDraft?.cancelledPairIds || {});
   const [simplificationAnswers, setSimplificationAnswers] = useState(savedDraft?.simplificationAnswers || {});
   const [promptAnswers, setPromptAnswers] = useState(savedDraft?.promptAnswers || {});
   // The whole drawn path, in coordinates local to the strike box, so the live
@@ -183,8 +305,10 @@ export default function StepByStepAlgebra({
     // first — and the workspace rendered empty.
     setEquation(getInitialEquation(question, normalizeQuestionRecord(questionRecord)).equation);
     setSupportLevel(resolveSupportLevel({ workspaceDifficulty: question.workspaceDifficulty ?? question.mode }));
+    setOperand('');
     setPendingMove(null);
     setCrossedSides([]);
+    setCancelledPairIds({});
     setSimplificationAnswers({});
     setPromptAnswers({});
     setManualSelection(null);
@@ -193,7 +317,10 @@ export default function StepByStepAlgebra({
   }, [question, savedDraft]);
 
   useEffect(() => {
-    if (!question.prefillFirstStep || savedDraft || prefillAppliedRef.current || disabled) return;
+    // A JSON author cannot turn this on for the whole class. The automatic
+    // first-step support only runs when the student's support profile granted
+    // the matching entitlement.
+    if (!question.prefillFirstStep || !allowPrefillFirstStep || savedDraft || prefillAppliedRef.current || disabled) return;
     const suggestion = getSuggestedMove(initialEquation);
     if (!suggestion) return;
     try {
@@ -204,7 +331,7 @@ export default function StepByStepAlgebra({
     } catch {
       // A pre-filled anchor is optional and never blocks the question.
     }
-  }, [question.prefillFirstStep, savedDraft, initialEquation, disabled]);
+  }, [question.prefillFirstStep, allowPrefillFirstStep, savedDraft, initialEquation, disabled]);
 
   useEffect(() => {
     writeQuestionDraft(localDraftKey, {
@@ -213,10 +340,11 @@ export default function StepByStepAlgebra({
       operand,
       pendingMove,
       crossedSides,
+      cancelledPairIds,
       simplificationAnswers,
       promptAnswers,
     });
-  }, [localDraftKey, equation, supportLevel, operand, pendingMove, crossedSides, simplificationAnswers, promptAnswers]);
+  }, [localDraftKey, equation, supportLevel, operand, pendingMove, crossedSides, cancelledPairIds, simplificationAnswers, promptAnswers]);
 
   useEffect(() => {
     const solved = isSolvedEquation(equation);
@@ -245,19 +373,24 @@ export default function StepByStepAlgebra({
 
   useEffect(() => {
     onUndoStateChange?.({
-      canUndo: Boolean(pendingMove || crossedSides.length || Object.keys(simplificationAnswers).length),
+      canUndo: Boolean(pendingMove || crossedSides.length || Object.keys(cancelledPairIds).some((side) => cancelledPairIds[side]?.length) || Object.keys(simplificationAnswers).length),
       onUndo: () => {
         const answerKeys = Object.keys(simplificationAnswers);
+        const pairSides = Object.keys(cancelledPairIds).filter((side) => cancelledPairIds[side]?.length);
         if (answerKeys.length) setSimplificationAnswers((current) => { const next = { ...current }; delete next[answerKeys[answerKeys.length - 1]]; return next; });
-        else if (crossedSides.length) setCrossedSides((current) => current.slice(0, -1));
+        else if (manualSelection) setManualSelection(null);
+        else if (pairSides.length) {
+          const side = pairSides[pairSides.length - 1];
+          setCancelledPairIds((current) => ({ ...current, [side]: current[side].slice(0, -1) }));
+          setCrossedSides((current) => current.filter((entry) => entry !== side));
+        } else if (crossedSides.length) setCrossedSides((current) => current.slice(0, -1));
         else setPendingMove(null);
-        setManualSelection(null);
         setMessage({ tone: 'growth', text: 'The pending algebra action was undone before it changed your saved equation.' });
       },
       label: 'Undo the pending balanced operation or cancellation mark',
     });
     return () => onUndoStateChange?.(null);
-  }, [pendingMove, crossedSides, simplificationAnswers, onUndoStateChange]);
+  }, [pendingMove, crossedSides, cancelledPairIds, simplificationAnswers, manualSelection, onUndoStateChange]);
 
   const triggerShake = () => {
     setShake(false);
@@ -312,8 +445,10 @@ export default function StepByStepAlgebra({
       setEquation(resolveEquationAfterMove(move, supportLevel, crossedSides));
       setPendingMove(null);
       setCrossedSides([]);
+      setCancelledPairIds({});
       setSimplificationAnswers({});
       setManualSelection(null);
+      setOperand('');
       setCancelAnimating(false);
       setCollapsingSides([]);
       setLockedStroke(null);
@@ -324,11 +459,17 @@ export default function StepByStepAlgebra({
       setMessage({
         tone: move.productive ? 'success' : 'growth',
         text: move.solved
-          ? 'The cancellation is complete and the target form has been reached.'
+          ? (move.requiredCancellationSides?.length
+              ? 'The cancellation is complete and the target form has been reached.'
+              : 'Balanced step complete. The target form has been reached.')
           : move.productive
             ? supportPolicy.autoSimplifyOppositeSide
-              ? 'The marked terms canceled. The other side simplified automatically while the equation stayed balanced.'
-              : 'The marked terms canceled. Now simplify the other side yourself.'
+              ? (move.requiredCancellationSides?.length
+                  ? 'The marked terms canceled. The other side simplified automatically while the equation stayed balanced.'
+                  : 'Balanced step complete. The equation stayed equivalent.')
+              : (move.requiredCancellationSides?.length
+                  ? 'The marked terms canceled. Now simplify the remaining side yourself.'
+                  : 'Balanced step complete. Finish the remaining simplification yourself.')
             : verdict.message,
       });
     }, motionDuration(620, reducedMotion, { floor: 40 }));
@@ -336,6 +477,10 @@ export default function StepByStepAlgebra({
 
   const attemptMove = async (operation, originSide = 'left') => {
     if (disabled || savingStep || pendingMove || !operation) return;
+    if (!String(operand || '').trim()) {
+      setMessage({ tone: 'growth', text: 'Enter the value or expression for the operation first.' });
+      return;
+    }
     setMessage(null);
     let move;
     try {
@@ -349,6 +494,7 @@ export default function StepByStepAlgebra({
     setMirrorOrigin(originSide);
     setPendingMove(move);
     setCrossedSides([]);
+    setCancelledPairIds({});
     setSimplificationAnswers({});
     setManualSelection(null);
 
@@ -374,9 +520,20 @@ export default function StepByStepAlgebra({
     }
 
     if (move.requiredCancellationSides.length === 0) {
-      setMessage({ tone: 'growth', text: 'The operation is mirrored on both sides. No zero pair or identity pair was created, so simplify each side using the algebraic response fields.' });
+      if (move.simplificationTargets?.length) {
+        setMessage({ tone: 'growth', text: 'The operation is balanced. Finish only the side that actually needs simplification.' });
+      } else {
+        // Nothing remains to cancel or simplify: the operation itself completed
+        // this step. Commit instead of showing an empty/redundant response area.
+        await commitMove(move);
+      }
     } else {
-      setMessage({ tone: cancellationHintsEnabled ? 'success' : 'growth', text: cancellationHintsEnabled ? 'The operation appeared on both sides instantly. Draw a line only through the side containing the zero pair or identity pair. Simplify the other side in its response field.' : 'The operation appeared on both sides instantly. Look for a zero pair or identity pair and draw a line through it yourself — cancellation hints are turned off.' });
+      setMessage({
+        tone: cancellationHintsEnabled ? 'success' : 'growth',
+        text: cancellationHintsEnabled
+          ? 'The operation is balanced. Draw directly through matching factors in the equation itself.'
+          : 'The operation is balanced. Find the matching factors in the equation and cancel them directly — hints are off.',
+      });
     }
   };
 
@@ -419,16 +576,18 @@ export default function StepByStepAlgebra({
     });
   };
 
-  // The rectangles the stroke is tested against, read from the DOM at the
-  // moment the stroke ends so a reflow mid-gesture cannot leave them stale.
+  // The rectangles are read from the ACTUAL equation tokens at the moment the
+  // stroke ends. Each factor/term has a generous invisible hit area, so a
+  // Chromebook trackpad or finger does not have to pass through the exact
+  // center of a small italic letter.
   const collectTermRects = () => {
     const element = strokeBoxRef.current;
     if (!element) return [];
     const box = element.getBoundingClientRect();
-    return Array.from(element.querySelectorAll('[data-term-index]')).map((node) => {
+    return Array.from(element.querySelectorAll('[data-cancel-index]')).map((node) => {
       const rect = node.getBoundingClientRect();
       return {
-        index: Number(node.getAttribute('data-term-index')),
+        index: Number(node.getAttribute('data-cancel-index')),
         rect: {
           left: rect.left - box.left,
           right: rect.right - box.left,
@@ -439,39 +598,71 @@ export default function StepByStepAlgebra({
     });
   };
 
-  const finishStroke = async (side, expectedPair) => {
+  const registerCancellationHits = async (side, hitIndices, model) => {
+    if (!model?.pairs?.length || !hitIndices?.length) return;
+    const completed = new Set(cancelledPairIds[side] || []);
+    let selection = manualSelection?.side === side ? manualSelection : null;
+    let acceptedAny = false;
+
+    hitIndices.forEach((index) => {
+      const pair = pairForToken(model, index);
+      if (!pair || completed.has(pair.id)) return;
+      acceptedAny = true;
+      if (selection?.pairId === pair.id && selection.index !== index) {
+        completed.add(pair.id);
+        selection = null;
+      } else if (selection?.index === index) {
+        // Re-marking the same token is harmless. Keep it selected.
+      } else {
+        selection = { side, index, pairId: pair.id };
+      }
+    });
+
+    if (!acceptedAny) {
+      setMessage({ tone: 'growth', text: 'That factor is not part of a cancellation pair in this step.' });
+      return;
+    }
+
+    setCancelledPairIds((current) => ({ ...current, [side]: [...completed] }));
+    setManualSelection(selection);
+
+    const allPairsComplete = model.pairs.every((pair) => completed.has(pair.id));
+    if (allPairsComplete) {
+      setManualSelection(null);
+      setMessage({ tone: 'success', text: 'Matching factors are canceled in the equation.' });
+      await strikeSide(side);
+      return;
+    }
+
+    if (selection) {
+      setMessage({ tone: 'growth', text: 'Marked. Draw through or tap its matching factor in the same expression.' });
+    } else {
+      setMessage({ tone: 'success', text: 'That pair cancels. Continue with any remaining matching factors.' });
+    }
+  };
+
+  const finishStroke = async (side, model) => {
     const current = stroke;
     setStroke(null);
     if (!current || current.side !== side) return;
 
-    const verdict = evaluateStroke({
-      points: current.points,
-      termRects: collectTermRects(),
-      expectedPair: Array.isArray(expectedPair) && expectedPair.length ? expectedPair : null,
-    });
+    const termRects = collectTermRects();
+    const struck = resolveStruckTerms(current.points, termRects, { padding: 16 });
+    // A tiny stationary tap belongs to the token click handler. A real slash
+    // may cross ONE factor now; the matching slash can be drawn separately.
+    if (strokeLength(current.points) < 8) return;
 
-    // A tap is somebody trying to select a term, not a failed cancellation, so
-    // it costs nothing and says nothing.
-    if (verdict.tooShort) return;
-
-    if (!verdict.matched) {
+    if (!struck.length) {
       triggerShake();
       setLockedStroke(null);
       setStruckTerms(null);
-      setMessage({
-        tone: 'growth',
-        text: verdict.reason === 'missed'
-          ? 'That line did not pass through any terms. Draw through the pair that cancels.'
-          : 'Those terms do not cancel each other. Look for the pair that adds to zero, or the factor that divides out.',
-      });
+      setMessage({ tone: 'growth', text: 'That line missed the algebra. Draw directly through a factor that has a matching factor above or below the fraction bar.' });
       return;
     }
 
-    // Matched. The line stops moving and stays put, and the terms it crossed
-    // light up — the two halves of "yes, those two".
     setLockedStroke({ side, points: current.points });
-    setStruckTerms({ side, indices: verdict.struck });
-    await strikeSide(side);
+    setStruckTerms({ side, indices: struck });
+    await registerCancellationHits(side, struck, model);
   };
 
   const strikeSide = async (side) => {
@@ -481,45 +672,25 @@ export default function StepByStepAlgebra({
       triggerShake();
       if (supportPolicy.inefficientMoveCostsAttempt) {
         const result = await saveStep({ move: pendingMove, earned: 0, possible: 1, countsAttempt: true, accepted: false });
-        setMessage({ tone: 'error', text: result?.expired ? 'The third invalid cancellation used the final attempt.' : `That side simplifies, but those items do not cancel. ${result?.remainingAttempts ?? getAttemptsRemaining(normalizedRecord, maximumAttempts)} attempts remain.` });
+        setMessage({ tone: 'error', text: result?.expired ? 'The third invalid cancellation used the final attempt.' : `That side does not contain the cancellation for this move. ${result?.remainingAttempts ?? getAttemptsRemaining(normalizedRecord, maximumAttempts)} attempts remain.` });
         if (result?.expired) { setPendingMove(null); setManualSelection(null); }
-      } else setMessage({ tone: 'growth', text: 'That is not the cancellation pair. Try drawing through the inverse pair on the other side.' });
+      } else setMessage({ tone: 'growth', text: 'That side does not contain the cancellation pair. Look at the factors in the other side.' });
       return;
     }
     const next = [...new Set([...crossedSides, side])];
     setCrossedSides(next);
     const allRequired = pendingMove.requiredCancellationSides.every((requiredSide) => next.includes(requiredSide));
     if (allRequired) {
-      if (pendingMove.simplificationTargets?.length) setMessage({ tone: 'success', text: 'The cancellation is marked. Now simplify the other side using the algebraic response field.' });
+      if (pendingMove.simplificationTargets?.length) setMessage({ tone: 'success', text: 'The cancellation is complete. Finish the remaining simplification below.' });
       else await commitMove(pendingMove);
     }
   };
 
-  // Click one term, then click its match, as an always-available alternative
-  // to the swipe gesture — works whether cancellation hints are on or off,
-  // and is easier for keyboard/switch-access students than a swipe distance.
-  const handleTermClick = (side, index, pairIndices) => {
+  // Click/tap is the accessibility alternative to drawing. It uses the same
+  // pair model as the freehand stroke and therefore cannot bypass the algebra.
+  const handleTermClick = (side, index, model) => {
     if (!pendingMove || cancelAnimating) return;
-    if (!manualSelection) {
-      setManualSelection({ side, index });
-      setMessage({ tone: 'growth', text: 'Selected. Click the matching term to cancel it out.' });
-      return;
-    }
-    if (manualSelection.side === side && manualSelection.index === index) {
-      setManualSelection(null);
-      return;
-    }
-    if (manualSelection.side !== side) {
-      setMessage({ tone: 'growth', text: 'Pick two terms on the same side to cancel.' });
-      return;
-    }
-    const isMatch = Boolean(pairIndices) && pairIndices.includes(manualSelection.index) && pairIndices.includes(index);
-    setManualSelection(null);
-    if (isMatch) {
-      strikeSide(side, 999);
-    } else {
-      setMessage({ tone: 'growth', text: 'Those do not cancel — try a different pair.' });
-    }
+    registerCancellationHits(side, [index], model);
   };
 
   const checkSimplifications = async () => {
@@ -543,7 +714,7 @@ export default function StepByStepAlgebra({
     }
     const cancellationsComplete = pendingMove.requiredCancellationSides.every((side) => crossedSides.includes(side));
     if (!cancellationsComplete) {
-      setMessage({ tone: 'error', text: 'The simplification is correct. Draw through the zero pair or identity pair before completing this step.' });
+      setMessage({ tone: 'error', text: 'The simplification is correct. Finish the matching-factor cancellation directly in the equation before completing this step.' });
       return;
     }
     await commitMove(pendingMove);
@@ -633,6 +804,10 @@ export default function StepByStepAlgebra({
 
   const beginPointerDrag = (operation, event) => {
     if (disabled || savingStep || pendingMove) return;
+    if (!String(operand || '').trim()) {
+      setMessage({ tone: 'growth', text: 'Enter the operation value before placing it on the balance.' });
+      return;
+    }
     event.currentTarget.setPointerCapture?.(event.pointerId);
     // Traditional notation the moment it enters the work. The rail keeps × and
     // ÷ as action icons; the chip that flies into the equation does not.
@@ -705,15 +880,111 @@ export default function StepByStepAlgebra({
   const sideExpression = (side) => (pendingMove ? pendingMove.unsimplified[side] : equation[side]);
   const displayedSideLatex = (side) => pendingMove ? pendingMove.unsimplifiedLatex[side] : expressionToLatex(equation[side]);
 
-  const renderSide = (side) => {
+  const renderCancellationInk = (side) => {
+    const ink = stroke?.side === side && stroke.points.length > 1
+      ? { points: stroke.points, locked: false }
+      : lockedStroke?.side === side && lockedStroke.points.length > 1
+        ? { points: lockedStroke.points, locked: true }
+        : null;
+    if (!ink) return null;
+    return (
+      <svg aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5, overflow: 'visible' }}>
+        <path
+          className={ink.locked ? 'algebra-strike-lock' : ''}
+          d={strokeToPath(ink.points)}
+          fill="none"
+          stroke={ink.locked ? '#c5221f' : '#a50e0e'}
+          strokeWidth={ink.locked ? 4 : 3.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity={ink.locked ? 1 : 0.85}
+        />
+      </svg>
+    );
+  };
+
+  const renderSide = (side, cancellationModel = null) => {
+    const showFactorPreview = armedTile && !pendingMove && isFactorOperation(armedTile.operation);
+
+    if (pendingMove && cancellationModel) {
+      const completedPairs = new Set(cancelledPairIds[side] || []);
+      const completedIndices = cancellationModel.pairs
+        .filter((pair) => completedPairs.has(pair.id))
+        .flatMap((pair) => pair.indices);
+      const selectedIndex = manualSelection?.side === side ? manualSelection.index : null;
+      const markedIndices = selectedIndex == null ? completedIndices : [...new Set([...completedIndices, selectedIndex])];
+
+      const directMath = cancellationModel.kind === 'fraction'
+        ? (
+          <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', minWidth: '150px', maxWidth: '100%' }}>
+            <CancellationFactorRow
+              factors={cancellationModel.numerator}
+              offset={0}
+              model={cancellationModel}
+              selectedIndex={selectedIndex}
+              crossedIndices={completedIndices}
+              onTokenClick={(index) => handleTermClick(side, index, cancellationModel)}
+            />
+            <span aria-hidden="true" style={{ width: '100%', minWidth: '120px', height: '3px', background: '#202124', borderRadius: '999px', margin: '1px 0' }} />
+            <CancellationFactorRow
+              factors={cancellationModel.denominator}
+              offset={cancellationModel.numerator.length}
+              model={cancellationModel}
+              selectedIndex={selectedIndex}
+              crossedIndices={completedIndices}
+              onTokenClick={(index) => handleTermClick(side, index, cancellationModel)}
+            />
+          </span>
+        )
+        : (
+          <AlgebraTermRow
+            terms={cancellationModel.terms}
+            side={side}
+            crossedIndices={markedIndices}
+            selectedIndices={selectedIndex == null ? [] : [selectedIndex]}
+            highlightIndices={struckTerms?.side === side ? struckTerms.indices : []}
+            collapsingIndices={collapsingSides.includes(side) ? completedIndices : []}
+            onTermClick={(termIndex) => handleTermClick(side, termIndex, cancellationModel)}
+          />
+        );
+
+      return (
+        <div
+          key={`cancel-${side}-${sideExpression(side)}`}
+          className="algebra-equation-side algebra-reflow"
+          onPointerDown={(event) => beginStroke(side, event)}
+          onPointerMove={extendStroke}
+          onPointerUp={() => finishStroke(side, cancellationModel)}
+          onPointerCancel={() => setStroke(null)}
+          style={{
+            position: 'relative',
+            width: 'min(96%, 520px)',
+            minHeight: '132px',
+            margin: '12px auto 4px',
+            padding: '24px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: '14px',
+            background: cancellationHintsEnabled ? '#fffdf6' : '#fff',
+            outline: cancellationHintsEnabled ? '2px solid rgba(249,171,0,.32)' : 'none',
+            touchAction: 'none',
+            cursor: cancelAnimating ? 'wait' : 'crosshair',
+            userSelect: 'none',
+            overflow: 'visible',
+          }}
+          aria-label="Cancellation workspace. Draw through matching factors directly in this equation."
+        >
+          {renderCancellationInk(side)}
+          {directMath}
+        </div>
+      );
+    }
+
     const terms = splitAdditiveTerms(sideExpression(side));
     const inner = terms ? <AlgebraTermRow terms={terms} side={side} /> : <MathDisplay value={displayedSideLatex(side)} format="latex" inline />;
 
-    const showFactorPreview = armedTile && !pendingMove && isFactorOperation(armedTile.operation);
     if (!showFactorPreview) {
-      // Keying on the expression remounts the side when the equation actually
-      // changes, which is what makes the reflow animate on a real step and stay
-      // still through every other re-render.
       return (
         <div
           key={sideExpression(side)}
@@ -812,73 +1083,44 @@ export default function StepByStepAlgebra({
       <div style={{ display: 'flex', alignItems: 'stretch', gap: '10px' }}>
         <div ref={leftRailRef} className="algebra-rail" style={{ display: 'flex', flexDirection: 'column', gap: '8px', justifyContent: 'center', padding: '6px', borderRadius: '14px', background: '#0f1a2c' }}>
           {OPERATIONS.map((operation) => (
-            <button type="button" key={`left-${operation.id}`} className="algebra-rail-tile" onClick={() => setArmedTile((current) => current?.operation === operation.id && current?.side === 'left' ? null : { operation: operation.id, side: 'left' })} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`${operation.label}, applied from the left`} style={{ width: '52px', height: '52px', borderRadius: '12px', border: armedTile?.operation === operation.id && armedTile?.side === 'left' ? '2px solid #5b9bff' : '1px solid #ffffff33', background: armedTile?.operation === operation.id && armedTile?.side === 'left' ? '#1a73e8' : '#ffffff14', color: '#dbe6f7', fontSize: '22px', fontWeight: 800, cursor: disabled || savingStep || pendingMove ? 'not-allowed' : 'pointer' }}>{operation.symbol}</button>
+            <button type="button" key={`left-${operation.id}`} className="algebra-rail-tile" onClick={() => { setOperand(''); setArmedTile((current) => current?.operation === operation.id && current?.side === 'left' ? null : { operation: operation.id, side: 'left' }); }} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`${operation.label}, applied from the left`} style={{ width: '52px', height: '52px', borderRadius: '12px', border: armedTile?.operation === operation.id && armedTile?.side === 'left' ? '2px solid #5b9bff' : '1px solid #ffffff33', background: armedTile?.operation === operation.id && armedTile?.side === 'left' ? '#1a73e8' : '#ffffff14', color: '#dbe6f7', fontSize: '22px', fontWeight: 800, cursor: disabled || savingStep || pendingMove ? 'not-allowed' : 'pointer' }}>{operation.symbol}</button>
           ))}
         </div>
 
         <div aria-label="Interactive algebra balance scale" className="algebra-equation-stage" style={{ position: 'relative', flex: 1, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 76px minmax(0, 1fr)', alignItems: 'stretch', gap: '12px', padding: '20px', borderRadius: '18px', border: '2px solid #c5d5ef', background: 'linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%)', boxShadow: '0 10px 24px rgba(31,73,125,0.12)' }}>
           {['left', 'right'].map((side, index) => {
             const target = pendingMove?.cancellationTargets.find((item) => item.side === side);
-            const crossed = crossedSides.includes(side);
-            const targetTerms = target ? splitAdditiveTerms(sideExpression(side)) : null;
-            const candidatePairIndices = target?.canCancel && targetTerms ? findCancellingPairIndices(targetTerms, target.simplifiedExpression, equation.variable) : null;
-            const crossedPairIndices = crossed ? candidatePairIndices : null;
-            const selectedIndices = manualSelection?.side === side ? [manualSelection.index] : [];
+            const cancellationModel = target?.canCancel
+              ? buildCancellationModel(sideExpression(side), target.simplifiedExpression, equation.variable)
+              : null;
             return (
-              <div key={side} ref={side === 'left' ? leftSideRef : rightSideRef} className="algebra-equation-box" onDragOver={(event) => { event.preventDefault(); setDragOverSide(side); }} onDragLeave={() => setDragOverSide(null)} onDrop={(event) => { event.preventDefault(); setDragOverSide(null); const droppedOperation = event.dataTransfer.getData('text/algebra-operation'); if (droppedOperation) attemptMove(droppedOperation, side); }} style={{ gridColumn: index === 0 ? 1 : 3, gridRow: 1, minHeight: '210px', padding: '18px 12px', borderRadius: '14px', border: dragOverSide === side ? '4px solid #00a6a6' : '2px solid #9fb8dd', background: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', transition: 'all 0.18s ease', position: 'relative', overflow: 'hidden' }}>
+              <div
+                key={side}
+                ref={side === 'left' ? leftSideRef : rightSideRef}
+                className="algebra-equation-box"
+                onDragOver={(event) => { event.preventDefault(); setDragOverSide(side); }}
+                onDragLeave={() => setDragOverSide(null)}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  setDragOverSide(null);
+                  const droppedOperation = event.dataTransfer.getData('text/algebra-operation');
+                  if (droppedOperation) attemptMove(droppedOperation, side);
+                }}
+                style={{ gridColumn: index === 0 ? 1 : 3, gridRow: 1, minHeight: '238px', padding: '18px 12px', borderRadius: '14px', border: dragOverSide === side ? '4px solid #00a6a6' : '2px solid #9fb8dd', background: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', transition: 'all 0.18s ease', position: 'relative', overflow: 'visible' }}
+              >
                 <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#5f6368', textTransform: 'uppercase' }}>{side} side</div>
-                {renderSide(side)}
+                {renderSide(side, cancellationModel)}
                 {pendingMove && <div className={`algebra-mirror-chip ${mirrorOrigin !== side ? 'algebra-mirror-arrive' : ''}`}>{pendingMove.operationLabel} {pendingMove.operandExpression}</div>}
-                {pendingMove && target && (
-                  <div
-                    onPointerDown={target.canCancel ? (event) => beginStroke(side, event) : undefined}
-                    onPointerMove={target.canCancel ? extendStroke : undefined}
-                    onPointerUp={target.canCancel ? () => finishStroke(side, candidatePairIndices) : undefined}
-                    onPointerCancel={target.canCancel ? () => setStroke(null) : undefined}
-                    style={{ position: 'relative', width: 'min(92%, 360px)', marginTop: '12px', padding: '13px', borderRadius: '10px', border: target.canCancel ? '2px dashed #f9ab00' : '1px solid #d9e2f1', background: target.canCancel ? '#fff9e6' : '#f8f9fa', textAlign: 'center', touchAction: 'none', cursor: target.canCancel ? 'crosshair' : 'default', userSelect: 'none' }}>
-                    <div style={{ fontSize: '11px', color: '#5f6368', fontWeight: 'bold', marginBottom: '5px' }}>{target.canCancel ? 'Draw through the zero pair or identity pair' : 'Simplify this side in the response field below'}</div>
-                    {/* The line as it is being drawn. Ink is feedback: a
-                        student needs to see what they actually drew, not
-                        discover afterwards that it missed. */}
-                    {(() => {
-                      // The live line while drawing, then the SAME line locked
-                      // in place once it matched. Replacing it with a tidy
-                      // horizontal rule would throw away the student's own mark.
-                      const ink = stroke?.side === side && stroke.points.length > 1
-                        ? { points: stroke.points, locked: false }
-                        : lockedStroke?.side === side && lockedStroke.points.length > 1
-                          ? { points: lockedStroke.points, locked: true }
-                          : null;
-                      if (!ink) return null;
-                      return (
-                        <svg aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 3, overflow: 'visible' }}>
-                          <path
-                            className={ink.locked ? 'algebra-strike-lock' : ''}
-                            d={strokeToPath(ink.points)}
-                            fill="none"
-                            stroke={ink.locked ? '#c5221f' : '#a50e0e'}
-                            strokeWidth={ink.locked ? 4 : 3.5}
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            opacity={ink.locked ? 1 : 0.85}
-                          />
-                        </svg>
-                      );
-                    })()}
-                    {targetTerms ? (
-                      <AlgebraTermRow
-                        terms={targetTerms}
-                        side={side}
-                        crossedIndices={crossedPairIndices || []}
-                        selectedIndices={selectedIndices}
-                        highlightIndices={struckTerms?.side === side ? struckTerms.indices : []}
-                        collapsingIndices={collapsingSides.includes(side) ? (crossedPairIndices || candidatePairIndices || []) : []}
-                        onTermClick={target.canCancel && !cancelAnimating ? (termIndex) => handleTermClick(side, termIndex, candidatePairIndices) : undefined}
-                      />
-                    ) : (
-                      <MathDisplay value={target.latex} format="latex" style={{ fontSize: '22px' }} />
-                    )}
-                    {crossed && target.canCancel && !crossedPairIndices && <div className={cancelAnimating ? 'algebra-cancel-fade' : ''} style={{ position: 'absolute', left: '9%', right: '9%', top: '58%', height: '4px', borderRadius: '999px', background: '#d93025', transform: 'rotate(-5deg)', boxShadow: '0 0 0 2px rgba(255,255,255,0.7)' }} />}
+                {target?.canCancel && cancellationModel && !crossedSides.includes(side) && (
+                  <div style={{ marginTop: '7px', minHeight: '22px', fontSize: '12px', lineHeight: 1.35, color: '#7a4f00', fontWeight: 800, textAlign: 'center' }}>
+                    {cancellationHintsEnabled
+                      ? 'Cancel here: slash one factor, then its matching factor. Tap works too.'
+                      : 'Cancellation is active directly on the equation.'}
+                  </div>
+                )}
+                {target?.canCancel && !cancellationModel && (
+                  <div role="status" style={{ marginTop: '8px', padding: '8px 10px', borderRadius: '8px', background: '#fef7e0', color: '#7a4f00', fontSize: '12px', fontWeight: 800, textAlign: 'center' }}>
+                    This expression needs a cancellation pattern MathMaster cannot safely tokenize yet. Use Undo and choose an equivalent one-factor-at-a-time operation.
                   </div>
                 )}
               </div>
@@ -894,7 +1136,7 @@ export default function StepByStepAlgebra({
 
         <div ref={rightRailRef} className="algebra-rail" style={{ display: 'flex', flexDirection: 'column', gap: '8px', justifyContent: 'center', padding: '6px', borderRadius: '14px', background: '#0f1a2c' }}>
           {OPERATIONS.map((operation) => (
-            <button type="button" key={`right-${operation.id}`} className="algebra-rail-tile" onClick={() => setArmedTile((current) => current?.operation === operation.id && current?.side === 'right' ? null : { operation: operation.id, side: 'right' })} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`${operation.label}, applied from the right`} style={{ width: '52px', height: '52px', borderRadius: '12px', border: armedTile?.operation === operation.id && armedTile?.side === 'right' ? '2px solid #5b9bff' : '1px solid #ffffff33', background: armedTile?.operation === operation.id && armedTile?.side === 'right' ? '#1a73e8' : '#ffffff14', color: '#dbe6f7', fontSize: '22px', fontWeight: 800, cursor: disabled || savingStep || pendingMove ? 'not-allowed' : 'pointer' }}>{operation.symbol}</button>
+            <button type="button" key={`right-${operation.id}`} className="algebra-rail-tile" onClick={() => { setOperand(''); setArmedTile((current) => current?.operation === operation.id && current?.side === 'right' ? null : { operation: operation.id, side: 'right' }); }} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`${operation.label}, applied from the right`} style={{ width: '52px', height: '52px', borderRadius: '12px', border: armedTile?.operation === operation.id && armedTile?.side === 'right' ? '2px solid #5b9bff' : '1px solid #ffffff33', background: armedTile?.operation === operation.id && armedTile?.side === 'right' ? '#1a73e8' : '#ffffff14', color: '#dbe6f7', fontSize: '22px', fontWeight: 800, cursor: disabled || savingStep || pendingMove ? 'not-allowed' : 'pointer' }}>{operation.symbol}</button>
           ))}
         </div>
       </div>
@@ -921,15 +1163,38 @@ export default function StepByStepAlgebra({
               <MathInput
                 value={operand}
                 onChange={setOperand}
-                toolProfile="basic"
-                placeholder="2, -3, 1/2, b, 3x"
+                toolProfile="algebra-operation"
+                placeholder="2, -3, 1/2, r, Pt, 3x"
                 ariaLabel={`${armedOperationLabel} what to both sides`}
               />
             </div>
           </label>
-          <button type="button" draggable={!disabled} onDragStart={(event) => event.dataTransfer.setData('text/algebra-operation', armedTile.operation)} onClick={() => attemptMove(armedTile.operation, armedTile.side)} disabled={disabled || savingStep} style={{ padding: '13px 18px', border: 'none', borderRadius: '9px', background: disabled || savingStep ? '#dadce0' : '#1a73e8', color: '#fff', fontWeight: 'bold', cursor: disabled || savingStep ? 'not-allowed' : 'grab' }}>Apply {armedOperationLabel} {operandLabel}</button>
-          <button type="button" onPointerDown={(event) => beginPointerDrag(armedTile.operation, event)} onPointerMove={onDragPointerMove} onPointerUp={onDragPointerUp} onPointerCancel={onDragPointerCancel} disabled={disabled || savingStep} style={{ padding: '13px 18px', border: '1px dashed #1a73e8', borderRadius: '9px', background: '#fff', color: '#174ea6', fontWeight: 'bold', cursor: disabled || savingStep ? 'not-allowed' : 'grab', touchAction: 'none' }}>⠿ Pick up &amp; drag onto a side</button>
-          <button type="button" onClick={() => setArmedTile(null)} style={{ padding: '13px 14px', border: '1px solid #dadce0', borderRadius: '9px', background: '#fff', color: '#5f6368', fontWeight: 'bold' }}>Cancel</button>
+          {allowAutoApply && (
+            <button
+              type="button"
+              draggable={!disabled && Boolean(String(operand || '').trim())}
+              onDragStart={(event) => event.dataTransfer.setData('text/algebra-operation', armedTile.operation)}
+              onClick={() => attemptMove(armedTile.operation, armedTile.side)}
+              disabled={disabled || savingStep || !String(operand || '').trim()}
+              title="Accommodation shortcut: apply this operation without dragging"
+              style={{ padding: '13px 18px', border: 'none', borderRadius: '9px', background: disabled || savingStep || !String(operand || '').trim() ? '#dadce0' : '#1a73e8', color: '#fff', fontWeight: 'bold', cursor: disabled || savingStep || !String(operand || '').trim() ? 'not-allowed' : 'pointer' }}
+            >
+              Apply {armedOperationLabel} {operandLabel}
+            </button>
+          )}
+          <button
+            type="button"
+            onPointerDown={(event) => beginPointerDrag(armedTile.operation, event)}
+            onPointerMove={onDragPointerMove}
+            onPointerUp={onDragPointerUp}
+            onPointerCancel={onDragPointerCancel}
+            disabled={disabled || savingStep || !String(operand || '').trim()}
+            style={{ padding: '13px 18px', border: '1px dashed #1a73e8', borderRadius: '9px', background: '#fff', color: disabled || savingStep || !String(operand || '').trim() ? '#9aa0a6' : '#174ea6', fontWeight: 'bold', cursor: disabled || savingStep || !String(operand || '').trim() ? 'not-allowed' : 'grab', touchAction: 'none' }}
+          >
+            ⠿ Pick up &amp; place on a side
+          </button>
+          <button type="button" onClick={() => { setOperand(''); setArmedTile(null); }} style={{ padding: '13px 14px', border: '1px solid #dadce0', borderRadius: '9px', background: '#fff', color: '#5f6368', fontWeight: 'bold' }}>Cancel</button>
+          {allowAutoApply && <p style={{ flexBasis: '100%', margin: 0, fontSize: '12px', color: '#5f6368' }}>Your support plan includes the Apply shortcut. The drag-and-place method remains available.</p>}
           {isFactorOperation(armedTile.operation) && (
             <p style={{ flexBasis: '100%', margin: 0, fontSize: '13px', color: '#8a5a00' }}>
               {armedTile.operation === 'multiply'
@@ -940,12 +1205,12 @@ export default function StepByStepAlgebra({
         </div>
       )}
 
-      {!armedTile && !pendingMove && <div style={{ margin: '14px 0', padding: '13px', borderRadius: '12px', border: '2px dashed #9fb8dd', background: '#fff', textAlign: 'center', color: '#174ea6', fontWeight: 'bold' }}>Click an operation tile on either rail, enter a value, then apply it or drag it onto the equation.</div>}
+      {!armedTile && !pendingMove && <div style={{ margin: '14px 0', padding: '13px', borderRadius: '12px', border: '2px dashed #9fb8dd', background: '#fff', textAlign: 'center', color: '#174ea6', fontWeight: 'bold' }}>Choose an operation, enter the value or expression, then pick it up and place it on the balance.</div>}
 
       {pendingMove && pendingMove.simplificationTargets?.length > 0 && (
         <div style={{ margin: '16px 0', padding: '15px', borderRadius: '12px', border: '1px solid #d9e2f1', background: '#fff' }}>
-          <h3 style={{ margin: '0 0 6px', color: '#174ea6' }}>Simplify the side(s) without a cancellation pair</h3>
-          <p style={{ margin: '0 0 12px', color: '#5f6368', fontSize: '13px' }}>Enter a number or algebraic expression. Equivalent forms are accepted, including distributed or factored forms when they are equal.</p>
+          <h3 style={{ margin: '0 0 6px', color: '#174ea6' }}>Finish the remaining simplification</h3>
+          <p style={{ margin: '0 0 12px', color: '#5f6368', fontSize: '13px' }}>Only this part still changes after the balanced operation. Enter the simplified expression; equivalent distributed or factored forms are accepted.</p>
           <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(2, pendingMove.simplificationTargets.length)}, minmax(0, 1fr))`, gap: '12px' }}>
             {pendingMove.simplificationTargets.map((target) => (
               <div key={target.side} style={{ padding: '12px', borderRadius: '10px', background: '#f8fbff', border: '1px solid #c5d5ef' }}>
@@ -957,8 +1222,6 @@ export default function StepByStepAlgebra({
           <div style={{ textAlign: 'center', marginTop: '12px' }}><button type="button" onClick={checkSimplifications} disabled={savingStep} style={{ padding: '10px 17px', border: 'none', borderRadius: '8px', background: '#188038', color: '#fff', fontWeight: 'bold' }}>Check Simplification and Complete Step</button></div>
         </div>
       )}
-
-      {pendingMove?.assumption && <p style={{ color: '#8a5a00', fontWeight: 'bold' }}>Required assumption: <MathDisplay value={pendingMove.assumption} inline /></p>}
       {question.showHint !== false && suggestedMove && !solved && <details style={{ marginTop: '14px', color: '#5f6368' }}><summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Need a strategic hint?</summary><p style={{ margin: '8px 0 0' }}>Look for a move that cancels a term: {describeOperation(suggestedMove.operation, suggestedMove.operand)}.</p></details>}
       {message && <div role="status" style={{ marginTop: '16px', padding: '13px 15px', borderRadius: '10px', background: message.tone === 'success' ? '#e6f4ea' : message.tone === 'growth' ? '#fef7e0' : '#fce8e6', color: message.tone === 'success' ? '#137333' : message.tone === 'growth' ? '#8a5a00' : '#c5221f', fontWeight: 'bold' }}>{message.text}</div>}
       <p style={{ color: '#5f6368', fontSize: '13px', marginTop: '12px' }}>

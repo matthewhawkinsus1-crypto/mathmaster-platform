@@ -165,12 +165,15 @@ export const resolveEquationAfterMove = (move, level = DEFAULT_SUPPORT_LEVEL, ca
   if (policy.autoSimplifyOppositeSide) return move.simplified;
 
   const cancelled = new Set(Array.isArray(cancelledSides) ? cancelledSides : []);
+  const manualSimplificationSides = new Set((move.simplificationTargets || []).map((target) => target.side));
   // A side the student actually cancelled is simplified — that was their work.
-  // Every other side keeps the operation visible.
+  // A side that never needed simplification should also stay in its natural
+  // post-operation form. Only genuine simplification targets remain visibly
+  // unsimplified for the student to finish.
   return {
     ...move.simplified,
-    left: cancelled.has('left') ? move.simplified.left : move.unsimplified.left,
-    right: cancelled.has('right') ? move.simplified.right : move.unsimplified.right,
+    left: cancelled.has('left') || !manualSimplificationSides.has('left') ? move.simplified.left : move.unsimplified.left,
+    right: cancelled.has('right') || !manualSimplificationSides.has('right') ? move.simplified.right : move.unsimplified.right,
   };
 };
 

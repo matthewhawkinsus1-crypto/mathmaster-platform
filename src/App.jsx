@@ -3872,6 +3872,7 @@ function App() {
         ['large-text', '20% larger text'],
         ['no-countdown', 'Hide countdown clocks'],
         ['declutter-ui', 'Declutter interface'],
+        ['algebra-auto-apply', 'Algebra operation Apply shortcut'],
       ],
       modifications: [
         ['reduce-complexity', 'Reduce mathematical complexity'],

@@ -36,6 +36,18 @@ const FUNCTION_KEYS = [
   { label: 'g(x)', command: 'g(x)', ariaLabel: 'Insert g of x' },
 ];
 
+
+// Literal-equation operations need arbitrary symbolic factors on touch devices.
+// The generic basic keypad intentionally has no alphabet, so a student trying
+// to divide by r, lw, or Pt otherwise has no way to enter the operation when
+// the device keyboard is suppressed.
+const ALGEBRA_OPERATION_KEYS = [
+  ...['a', 'b', 'c', 'd', 'h', 'l', 'm', 'n', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y'].map((label) => ({ label, command: label, ariaLabel: `Insert ${label}` })),
+  ...['A', 'C', 'F', 'I', 'M', 'P', 'V'].map((label) => ({ label, command: label, ariaLabel: `Insert capital ${label}` })),
+  { label: '(', command: '(', ariaLabel: 'Insert open parenthesis' },
+  { label: ')', command: ')', ariaLabel: 'Insert close parenthesis' },
+];
+
 const INTERVAL_KEYS = [
   { label: '(', command: '(', ariaLabel: 'Insert open parenthesis' },
   { label: ')', command: ')', ariaLabel: 'Insert close parenthesis' },
@@ -70,6 +82,7 @@ const getToolKeys = (profile) => {
   if (profile === 'inequality') return INEQUALITY_KEYS;
   if (profile === 'set') return [...SET_KEYS, ...INEQUALITY_KEYS, ...INTERVAL_KEYS.filter((item) => ['(', ')', '[', ']'].includes(item.label))];
   if (profile === 'function') return [...FUNCTION_KEYS, ...BASIC_KEYS];
+  if (profile === 'algebra-operation') return [...ALGEBRA_OPERATION_KEYS, ...BASIC_KEYS];
   if (profile === 'basic+set') return [...BASIC_KEYS, ...SET_KEYS, ...INEQUALITY_KEYS];
   return BASIC_KEYS;
 };
@@ -116,7 +129,7 @@ export default function MathInput({
     // rules are different: students may legitimately need arbitrary letters
     // such as M, V, C, t or n. Keep the device keyboard available there while
     // still providing the math toolbar.
-    if (isMobile && toolProfile !== 'function') mathField.setAttribute('inputmode', 'none');
+    if (isMobile && !['function', 'algebra-operation'].includes(toolProfile)) mathField.setAttribute('inputmode', 'none');
     else mathField.removeAttribute('inputmode');
     mathField.menuItems = [];
     mathField.smartFence = true;

@@ -30,19 +30,31 @@ export const getStudentSupportPresentation = (profile) => {
     largeText: inclusion || normalized.accommodations.includes('large-text'),
     declutter: inclusion || normalized.accommodations.includes('declutter-ui'),
     textToSpeech: normalized.accommodations.includes('text-to-speech'),
+    // Algebra operation shortcuts are an explicit accommodation, not a
+    // difficulty-level feature. A student with large text, extra time, etc.
+    // should not silently receive an operation-application shortcut they were
+    // never assigned.
+    algebraAutoApply: normalized.accommodations.includes('algebra-auto-apply'),
     translationLanguage: normalized.translationLanguage,
   };
 };
 
 export const applyStudentSupportToQuestion = (question, profile) => {
   const normalized = normalizeStudentProfile(profile);
+  // Support-only capabilities are trusted profile data, never authoring data.
+  // Always overwrite these fields so assignment JSON cannot self-grant an
+  // accommodation shortcut (or a prefilled algebra step) to the whole class.
+  const trustedQuestion = {
+    ...question,
+    supportPresentation: getStudentSupportPresentation(normalized),
+    supportEntitlements: {},
+  };
   if (!normalized.inclusionStatus && !normalized.accommodations.length && !normalized.modifications.length && !normalized.translationLanguage) {
-    return { question, usage: { modified: false, accommodations: [], modifications: [] } };
+    return { question: trustedQuestion, usage: { modified: false, accommodations: [], modifications: [] } };
   }
   const next = {
-    ...question,
+    ...trustedQuestion,
     generator: question?.generator ? { ...question.generator } : question?.generator,
-    supportPresentation: getStudentSupportPresentation(normalized),
   };
   const translation = normalized.translationLanguage && normalized.translationLanguage !== 'en'
     ? question?.translations?.[normalized.translationLanguage]
@@ -77,6 +89,10 @@ export const applyStudentSupportToQuestion = (question, profile) => {
 
   if (normalized.modifications.includes('prefill-first-step')) {
     next.prefillFirstStep = true;
+    next.supportEntitlements = {
+      ...(next.supportEntitlements || {}),
+      prefillFirstStep: true,
+    };
     usedModifications.push('prefill-first-step');
   }
 

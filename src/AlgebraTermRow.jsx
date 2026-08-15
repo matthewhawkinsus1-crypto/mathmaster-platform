@@ -16,6 +16,7 @@ export default function AlgebraTermRow({
   highlightIndices = [],
   collapsingIndices = [],
   onTermClick,
+  cancelIndexOffset = 0,
 }) {
   return (
     <span
@@ -40,6 +41,7 @@ export default function AlgebraTermRow({
           <span
             key={index}
             data-term-index={index}
+            data-cancel-index={cancelIndexOffset + index}
             ref={(el) => registerTermRef?.(index, el)}
             className={effect}
             onClick={onTermClick ? () => onTermClick(index) : undefined}
@@ -59,8 +61,10 @@ export default function AlgebraTermRow({
               outline: selected ? '2px solid #1a73e8' : 'none',
               outlineOffset: '2px',
               background: selected ? 'rgba(26,115,232,0.12)' : 'transparent',
-              borderRadius: selected ? '6px' : 0,
-              padding: selected ? '1px 4px' : 0,
+              borderRadius: onTermClick ? '8px' : 0,
+              padding: onTermClick ? '7px 9px' : 0,
+              minHeight: onTermClick ? '44px' : undefined,
+              minWidth: onTermClick ? '32px' : undefined,
             }}
           >
             <MathDisplay value={term.latex} format="latex" inline style={{ fontSize: 'inherit' }} ariaLabel={term.text} />
