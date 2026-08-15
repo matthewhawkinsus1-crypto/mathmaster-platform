@@ -13,6 +13,8 @@ import { checkTableConsistency, gradeWorkflow } from './workflowGrading';
 import { buildExpressionFunctionSpec, evaluateModelAt, evaluateNumericValue, parseIntervalDomainRestriction } from './modelExpression';
 import { evaluateGraphFunction } from '../../functionGraphUtils';
 import { buildStudentTableMagneticTargets } from '../../graphInteractionPrecision';
+import { buildWorkflowSummaryItems, shouldUseWorkflowFocusMode } from './workflowFocusMode';
+import './WorkflowFocusMode.css';
 
 // Renders a question composed from interaction primitives.
 //
@@ -588,6 +590,8 @@ export default function WorkflowRunner({
 }) {
   const { content, workflow, grading } = useMemo(() => readComposedQuestion(question), [question]);
   const [responses, setResponses] = useState({});
+  const [activeStageIndex, setActiveStageIndex] = useState(0);
+  const focusMode = shouldUseWorkflowFocusMode(workflow);
   const onStateChangeRef = useRef(onStateChange);
   const onProgressChangeRef = useRef(onProgressChange);
   useEffect(() => { onStateChangeRef.current = onStateChange; }, [onStateChange]);
@@ -622,29 +626,32 @@ export default function WorkflowRunner({
   //
   // The dependency is `responses` ALONE. Depending on `workflow` looped:
   // reporting upward re-renders the parent, which rebuilds the question object,
-  // which produces a new workflow array, which re-fires the effect. The stage
-  // list is read from a ref instead, because it is not what changed.
+  // which produces a new workflow array, which re-fires the effect.
   const workflowRef = useRef(workflow);
   workflowRef.current = workflow;
   const gradingRef = useRef(grading);
   gradingRef.current = grading;
+
   useEffect(() => {
-    // What is reported is the same answer state every other tool reports, so a
-    // composed question submits, records an attempt and shows feedback through
-    // the existing path rather than a parallel one.
     const stages = workflowRef.current;
     onStateChangeRef.current?.(gradeWorkflow({
       stages,
       responses,
       grading: gradingRef.current,
     }));
+  }, [responses]);
 
-    // Guided Notes follows the first unfinished mathematical stage rather than
-    // maintaining a second, unrelated "Step 1 of 3" counter. Nothing about
-    // correctness is exposed here — only which student-facing stage is current.
+  // Focus Mode makes the current mathematical stage a real UI concept. Guided
+  // Notes follows the stage the student is actually viewing; short workflows
+  // retain the historic "first unfinished" behavior.
+  useEffect(() => {
+    const stages = workflowRef.current;
     const progressState = summarizeWorkflowProgress(stages, responses);
     const firstIncompleteIndex = stages.findIndex((stage) => !hasStageResponse(responses[stage.id]));
-    const currentIndex = firstIncompleteIndex >= 0 ? firstIncompleteIndex : Math.max(0, stages.length - 1);
+    const fallbackIndex = firstIncompleteIndex >= 0 ? firstIncompleteIndex : Math.max(0, stages.length - 1);
+    const currentIndex = focusMode
+      ? Math.min(Math.max(0, activeStageIndex), Math.max(0, stages.length - 1))
+      : fallbackIndex;
     const currentStage = stages[currentIndex] || null;
     onProgressChangeRef.current?.({
       ...progressState,
@@ -652,12 +659,83 @@ export default function WorkflowRunner({
       currentStageKind: currentStage?.kind || null,
       currentStageIndex: currentStage ? currentIndex : null,
     });
-  }, [responses]);
+  }, [responses, activeStageIndex, focusMode]);
+
+  useEffect(() => {
+    setActiveStageIndex((current) => Math.min(current, Math.max(0, workflow.length - 1)));
+  }, [workflow.length]);
 
   if (!workflow.length) return null;
 
-  return (
-    <div style={{ textAlign: 'left' }}>
+  const firstIncompleteIndex = workflow.findIndex((stage) => !hasStageResponse(responses[stage.id]));
+  const furthestReachableIndex = firstIncompleteIndex >= 0
+    ? firstIncompleteIndex
+    : Math.max(0, workflow.length - 1);
+  const safeActiveIndex = Math.min(activeStageIndex, Math.max(0, workflow.length - 1));
+  const activeStage = workflow[safeActiveIndex] || workflow[0];
+  const activeDefinition = getStage(activeStage?.kind);
+  const activeAnswered = activeStage ? hasStageResponse(responses[activeStage.id]) : false;
+  const summaryStages = workflow.slice(0, safeActiveIndex).map((stage) => ({
+    ...stage,
+    label: getStage(stage.kind)?.label || stage.kind,
+  }));
+  const summaryItems = buildWorkflowSummaryItems(summaryStages, responses);
+
+  const renderStage = (stage, index, { focused = false } = {}) => {
+    const definition = getStage(stage.kind);
+    // If this modelling workflow has an authored finite domain, give only
+    // its boundary semantics to the graph primitive. This lets the student
+    // explicitly mark open/closed endpoints instead of leaving a stopped
+    // segment visually ambiguous. The later domain stage remains separate.
+    const domainRestriction = stage.kind === 'functionGraph'
+      ? parseIntervalDomainRestriction(grading?.domain)
+      : null;
+    const effectiveStage = domainRestriction && !stage.domainRestriction
+      ? { ...stage, domainRestriction }
+      : stage;
+    const input = resolveStageInput({ stage, responses, content });
+    const waiting = Boolean(stage.sourceStageId) && !input.ready;
+    const shellClass = focusMode
+      ? `workflow-focus__stage-shell${focused ? ' workflow-focus__stage-shell--active' : ''}`
+      : '';
+
+    if (waiting) {
+      const upstream = workflow.find((entry) => entry.id === stage.sourceStageId);
+      return (
+        <section key={stage.id} className={shellClass} style={focusMode ? undefined : waitingPanel}>
+          <div style={focusMode ? waitingPanel : undefined}>
+            <h4 style={{ ...stageHeading, color: '#5f6368' }}>
+              Step {index + 1}. {definition?.label || stage.kind}
+            </h4>
+            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55 }}>
+              Finish <strong>{getStage(upstream?.kind)?.label || stage.sourceStageId}</strong> first — this step is built
+              from what you write there.
+            </p>
+          </div>
+        </section>
+      );
+    }
+
+    return (
+      <section key={stage.id} className={shellClass} style={focusMode ? undefined : panel}>
+        {focusMode ? null : <h4 style={stageHeading}>Step {index + 1}. {definition?.label || stage.kind}</h4>}
+        {stage.prompt && <QuestionPrompt variant="plain" style={{ fontSize: 16, margin: '0 0 12px' }}>{stage.prompt}</QuestionPrompt>}
+        <StageSource input={input} stages={workflow} />
+        <StageBody
+          stage={effectiveStage}
+          input={input}
+          content={content}
+          value={responses[stage.id]}
+          onChange={(value) => setResponse(stage.id, (readDelegateResponse[stage.kind] || ((raw) => raw))(value, { stage, input, content }))}
+          disabled={disabled}
+          draftKey={draftKey ? `${draftKey}:${stage.id}${stage.sourceStageId && ['functionGraph', 'coordinatePlot'].includes(stage.kind) ? `:${dependencyFingerprint(input.value)}` : ''}` : null}
+        />
+      </section>
+    );
+  };
+
+  const promptAndScenario = (
+    <>
       {content?.prompt && (
         <div style={{ ...panel, background: '#f8fbff', borderColor: '#c5d5ef' }}>
           <QuestionPrompt>{content.prompt}</QuestionPrompt>
@@ -668,61 +746,102 @@ export default function WorkflowRunner({
           <QuestionPrompt variant="plain">{content.scenario}</QuestionPrompt>
         </div>
       )}
+    </>
+  );
 
-      {workflow.map((stage, index) => {
-        const definition = getStage(stage.kind);
-        // If this modelling workflow has an authored finite domain, give only
-        // its boundary semantics to the graph primitive. This lets the student
-        // explicitly mark open/closed endpoints instead of leaving a stopped
-        // segment visually ambiguous. The later domain stage remains separate.
-        const domainRestriction = stage.kind === 'functionGraph'
-          ? parseIntervalDomainRestriction(grading?.domain)
-          : null;
-        const effectiveStage = domainRestriction && !stage.domainRestriction
-          ? { ...stage, domainRestriction }
-          : stage;
-        const input = resolveStageInput({ stage, responses, content });
-        // A stage driven by unanswered work is waiting, not broken. Showing it
-        // as an empty input would invite the student to answer it out of order
-        // and then have it rebuilt underneath them.
-        const waiting = Boolean(stage.sourceStageId) && !input.ready;
+  if (!focusMode) {
+    return (
+      <div style={{ textAlign: 'left' }}>
+        {promptAndScenario}
+        {workflow.map((stage, index) => renderStage(stage, index))}
+        <p style={{ color: '#5f6368', fontSize: 12, margin: '4px 2px 0' }}>
+          {progress.answered} of {progress.total} steps answered. Each step is marked on its own.
+        </p>
+      </div>
+    );
+  }
 
-        if (waiting) {
-          const upstream = workflow.find((entry) => entry.id === stage.sourceStageId);
+  const canGoPrevious = safeActiveIndex > 0;
+  const canGoNext = safeActiveIndex < workflow.length - 1 && safeActiveIndex < furthestReachableIndex;
+
+  return (
+    <div className="workflow-focus">
+      {promptAndScenario}
+
+      <nav className="workflow-focus__navigator" aria-label="Question steps">
+        {workflow.map((stage, index) => {
+          const definition = getStage(stage.kind);
+          const answered = hasStageResponse(responses[stage.id]);
+          const active = index === safeActiveIndex;
+          const reachable = index <= furthestReachableIndex;
+          const className = [
+            'workflow-focus__step',
+            active ? 'workflow-focus__step--active' : '',
+            answered ? 'workflow-focus__step--answered' : '',
+          ].filter(Boolean).join(' ');
           return (
-            <section key={stage.id} style={waitingPanel}>
-              <h4 style={{ ...stageHeading, color: '#5f6368' }}>
-                Step {index + 1}. {definition?.label || stage.kind}
-              </h4>
-              <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55 }}>
-                Finish <strong>{getStage(upstream?.kind)?.label || stage.sourceStageId}</strong> first — this step is built
-                from what you write there.
-              </p>
-            </section>
+            <button
+              key={stage.id}
+              type="button"
+              className={className}
+              disabled={!reachable}
+              aria-current={active ? 'step' : undefined}
+              aria-label={`Step ${index + 1}: ${definition?.label || stage.kind}${answered ? ', answered' : ''}`}
+              onClick={() => setActiveStageIndex(index)}
+            >
+              {answered ? '✓ ' : ''}{index + 1}. {definition?.label || stage.kind}
+            </button>
           );
-        }
+        })}
+      </nav>
 
-        return (
-          <section key={stage.id} style={panel}>
-            <h4 style={stageHeading}>Step {index + 1}. {definition?.label || stage.kind}</h4>
-            {stage.prompt && <QuestionPrompt variant="plain" style={{ fontSize: 16, margin: '0 0 12px' }}>{stage.prompt}</QuestionPrompt>}
-            <StageSource input={input} stages={workflow} />
-            <StageBody
-              stage={effectiveStage}
-              input={input}
-              content={content}
-              value={responses[stage.id]}
-              onChange={(value) => setResponse(stage.id, (readDelegateResponse[stage.kind] || ((raw) => raw))(value, { stage, input, content }))}
-              disabled={disabled}
-              draftKey={draftKey ? `${draftKey}:${stage.id}${stage.sourceStageId && ['functionGraph', 'coordinatePlot'].includes(stage.kind) ? `:${dependencyFingerprint(input.value)}` : ''}` : null}
-            />
-          </section>
-        );
-      })}
+      <section className="workflow-focus__summary" aria-label="Model so far">
+        <p className="workflow-focus__summary-title">Model so far</p>
+        <div className="workflow-focus__summary-items">
+          {summaryItems.length ? summaryItems.map((item, index) => (
+            <div className="workflow-focus__summary-item" key={`${item.label}-${index}`}>
+              <strong>{item.label}:</strong>
+              {item.kind === 'math' ? <MathDisplay value={item.text} inline /> : <span>{item.text}</span>}
+            </div>
+          )) : (
+            <div className="workflow-focus__summary-item">
+              <span>Your completed work will collect here as you build the model.</span>
+            </div>
+          )}
+        </div>
+      </section>
 
-      <p style={{ color: '#5f6368', fontSize: 12, margin: '4px 2px 0' }}>
-        {progress.answered} of {progress.total} steps answered. Each step is marked on its own.
-      </p>
+      <main className="workflow-focus__workspace">
+        <div className="workflow-focus__workspace-heading">
+          <h4>Step {safeActiveIndex + 1}. {activeDefinition?.label || activeStage?.kind}</h4>
+          <span className="workflow-focus__counter">{safeActiveIndex + 1} of {workflow.length}</span>
+        </div>
+        {workflow.map((stage, index) => renderStage(stage, index, { focused: index === safeActiveIndex }))}
+      </main>
+
+      <footer className="workflow-focus__footer">
+        <div className="workflow-focus__footer-group">
+          <button
+            type="button"
+            className="workflow-focus__nav-button"
+            disabled={!canGoPrevious}
+            onClick={() => setActiveStageIndex((index) => Math.max(0, index - 1))}
+          >
+            ← Previous step
+          </button>
+          <button
+            type="button"
+            className="workflow-focus__nav-button workflow-focus__nav-button--primary"
+            disabled={!canGoNext}
+            onClick={() => setActiveStageIndex((index) => Math.min(workflow.length - 1, index + 1))}
+          >
+            Next step →
+          </button>
+        </div>
+        <p className="workflow-focus__progress-text">
+          {progress.answered} of {progress.total} steps answered{activeAnswered ? ' · current step has a response' : ''}.
+        </p>
+      </footer>
     </div>
   );
 }
