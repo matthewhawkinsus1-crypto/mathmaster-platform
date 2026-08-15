@@ -13,6 +13,7 @@ const cleanTransientState = (draft, equation) => ({
   pendingMove: null,
   crossedSides: [],
   cancelledPairIds: {},
+  selectedCancellationIndices: {},
   simplificationAnswers: {},
 });
 
@@ -63,6 +64,7 @@ export const rehydrateAlgebraDraft = ({ draft, initialEquation }) => {
       pendingMove,
       crossedSides: [],
       cancelledPairIds: {},
+      selectedCancellationIndices: {},
       simplificationAnswers,
     };
   } catch {

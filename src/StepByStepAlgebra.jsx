@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
 import { ALGEBRA_DRAFT_VERSION, rehydrateAlgebraDraft } from './algebraDraftState';
+import { advanceCancellationProgress } from './algebraCancellationProgress';
 import {
   appendStrokePoint, createStroke, resolveStruckTerms, strokeLength, strokeToPath,
 } from './strokeGeometry';
@@ -138,7 +139,7 @@ function CancellationFactorRow({
   factors,
   offset,
   model,
-  selectedIndex,
+  selectedIndices,
   crossedIndices,
   onTokenClick,
 }) {
@@ -147,7 +148,7 @@ function CancellationFactorRow({
       {factors.map((factor, localIndex) => {
         const index = offset + localIndex;
         const cancellable = Boolean(pairForToken(model, index));
-        const selected = selectedIndex === index;
+        const selected = selectedIndices.includes(index);
         const crossed = crossedIndices.includes(index);
         const previous = localIndex > 0 ? factors[localIndex - 1] : null;
         return (
@@ -288,7 +289,7 @@ export default function StepByStepAlgebra({
     () => getSupportPolicy(resolveSupportLevel({ workspaceDifficulty: question.workspaceDifficulty ?? question.mode })).showCancellationHints,
   );
   const [factorZoneHint, setFactorZoneHint] = useState(null); // { side, position } | null
-  const [manualSelection, setManualSelection] = useState(null); // { side, index } | null
+  const [selectedCancellationIndices, setSelectedCancellationIndices] = useState(savedDraft?.selectedCancellationIndices || {}); // { left: number[], right: number[] }
   const prefillAppliedRef = useRef(false);
   const dragRef = useRef(null); // { operation, label, pointerId }
   const dragOverSideRef = useRef(null);
@@ -317,9 +318,10 @@ export default function StepByStepAlgebra({
     setPendingMove(null);
     setCrossedSides([]);
     setCancelledPairIds({});
+    setSelectedCancellationIndices({});
     setSimplificationAnswers({});
     setPromptAnswers({});
-    setManualSelection(null);
+    setSelectedCancellationIndices({});
     setMessage(null);
     setArmedTile(null);
   }, [question, savedDraft]);
@@ -350,10 +352,11 @@ export default function StepByStepAlgebra({
       pendingMove,
       crossedSides,
       cancelledPairIds,
+      selectedCancellationIndices,
       simplificationAnswers,
       promptAnswers,
     });
-  }, [localDraftKey, equation, supportLevel, operand, pendingMove, crossedSides, cancelledPairIds, simplificationAnswers, promptAnswers]);
+  }, [localDraftKey, equation, supportLevel, operand, pendingMove, crossedSides, cancelledPairIds, selectedCancellationIndices, simplificationAnswers, promptAnswers]);
 
   useEffect(() => {
     const solved = isSolvedEquation(equation);
@@ -387,7 +390,7 @@ export default function StepByStepAlgebra({
         const answerKeys = Object.keys(simplificationAnswers);
         const pairSides = Object.keys(cancelledPairIds).filter((side) => cancelledPairIds[side]?.length);
         if (answerKeys.length) setSimplificationAnswers((current) => { const next = { ...current }; delete next[answerKeys[answerKeys.length - 1]]; return next; });
-        else if (manualSelection) setManualSelection(null);
+        else if (Object.values(selectedCancellationIndices).some((indices) => indices?.length)) setSelectedCancellationIndices({});
         else if (pairSides.length) {
           const side = pairSides[pairSides.length - 1];
           setCancelledPairIds((current) => ({ ...current, [side]: current[side].slice(0, -1) }));
@@ -399,7 +402,7 @@ export default function StepByStepAlgebra({
       label: 'Undo the pending balanced operation or cancellation mark',
     });
     return () => onUndoStateChange?.(null);
-  }, [pendingMove, crossedSides, cancelledPairIds, simplificationAnswers, manualSelection, onUndoStateChange]);
+  }, [pendingMove, crossedSides, cancelledPairIds, selectedCancellationIndices, simplificationAnswers, onUndoStateChange]);
 
   const triggerShake = () => {
     setShake(false);
@@ -456,7 +459,7 @@ export default function StepByStepAlgebra({
       setCrossedSides([]);
       setCancelledPairIds({});
       setSimplificationAnswers({});
-      setManualSelection(null);
+      setSelectedCancellationIndices({});
       setOperand('');
       setCancelAnimating(false);
       setCollapsingSides([]);
@@ -504,8 +507,9 @@ export default function StepByStepAlgebra({
     setPendingMove(move);
     setCrossedSides([]);
     setCancelledPairIds({});
+    setSelectedCancellationIndices({});
     setSimplificationAnswers({});
-    setManualSelection(null);
+    setSelectedCancellationIndices({});
 
     if (!move.preservesSolution) {
       triggerShake();
@@ -609,44 +613,44 @@ export default function StepByStepAlgebra({
 
   const registerCancellationHits = async (side, hitIndices, model) => {
     if (!model?.pairs?.length || !hitIndices?.length) return;
-    const completed = new Set(cancelledPairIds[side] || []);
-    let selection = manualSelection?.side === side ? manualSelection : null;
-    let acceptedAny = false;
 
-    hitIndices.forEach((index) => {
-      const pair = pairForToken(model, index);
-      if (!pair || completed.has(pair.id)) return;
-      acceptedAny = true;
-      if (selection?.pairId === pair.id && selection.index !== index) {
-        completed.add(pair.id);
-        selection = null;
-      } else if (selection?.index === index) {
-        // Re-marking the same token is harmless. Keep it selected.
-      } else {
-        selection = { side, index, pairId: pair.id };
-      }
+    const progress = advanceCancellationProgress({
+      pairs: model.pairs,
+      completedPairIds: cancelledPairIds[side] || [],
+      selectedIndices: selectedCancellationIndices[side] || [],
+      hitIndices,
     });
 
-    if (!acceptedAny) {
+    if (!progress.acceptedAny) {
       setMessage({ tone: 'growth', text: 'That factor is not part of a cancellation pair in this step.' });
       return;
     }
 
-    setCancelledPairIds((current) => ({ ...current, [side]: [...completed] }));
-    setManualSelection(selection);
+    setCancelledPairIds((current) => ({ ...current, [side]: progress.completedPairIds }));
+    setSelectedCancellationIndices((current) => ({ ...current, [side]: progress.selectedIndices }));
 
-    const allPairsComplete = model.pairs.every((pair) => completed.has(pair.id));
-    if (allPairsComplete) {
-      setManualSelection(null);
-      setMessage({ tone: 'success', text: 'Matching factors are canceled in the equation.' });
+    if (progress.allPairsComplete) {
+      setSelectedCancellationIndices((current) => ({ ...current, [side]: [] }));
+      const pairCount = model.pairs.length;
+      setMessage({
+        tone: 'success',
+        text: pairCount > 1
+          ? `All ${pairCount} matching factor pairs are canceled in this step.`
+          : 'Matching factors are canceled in the equation.',
+      });
       await strikeSide(side);
       return;
     }
 
-    if (selection) {
-      setMessage({ tone: 'growth', text: 'Marked. Draw through or tap its matching factor in the same expression.' });
+    const remainingPairs = model.pairs.length - progress.completedPairIds.length;
+    if (progress.newlyCompletedPairIds.length > 1) {
+      setMessage({ tone: 'success', text: `${progress.newlyCompletedPairIds.length} factor pairs canceled together. ${remainingPairs} pair${remainingPairs === 1 ? '' : 's'} remain.` });
+    } else if (progress.newlyCompletedPairIds.length === 1) {
+      setMessage({ tone: 'success', text: `That pair cancels. ${remainingPairs} matching pair${remainingPairs === 1 ? '' : 's'} remain.` });
+    } else if (progress.selectedIndices.length > 1) {
+      setMessage({ tone: 'growth', text: 'Multiple factors are marked. Slash or tap their matching factors; you do not have to finish one pair before starting another.' });
     } else {
-      setMessage({ tone: 'success', text: 'That pair cancels. Continue with any remaining matching factors.' });
+      setMessage({ tone: 'growth', text: 'Marked. Draw through or tap its matching factor in the same expression.' });
     }
   };
 
@@ -682,7 +686,7 @@ export default function StepByStepAlgebra({
       if (supportPolicy.inefficientMoveCostsAttempt) {
         const result = await saveStep({ move: pendingMove, earned: 0, possible: 1, countsAttempt: true, accepted: false });
         setMessage({ tone: 'error', text: result?.expired ? 'The third invalid cancellation used the final attempt.' : `That side does not contain the cancellation for this move. ${result?.remainingAttempts ?? getAttemptsRemaining(normalizedRecord, maximumAttempts)} attempts remain.` });
-        if (result?.expired) { setPendingMove(null); setManualSelection(null); }
+        if (result?.expired) { setPendingMove(null); setSelectedCancellationIndices({}); }
       } else setMessage({ tone: 'growth', text: 'That side does not contain the cancellation pair. Look at the factors in the other side.' });
       return;
     }
@@ -695,8 +699,9 @@ export default function StepByStepAlgebra({
     }
   };
 
-  // Click/tap is the accessibility alternative to drawing. It uses the same
-  // pair model as the freehand stroke and therefore cannot bypass the algebra.
+  // Click/tap is the accessibility alternative to drawing. The same progress
+  // reducer supports several half-marked pairs at once, so compound factors do
+  // not force an artificial one-pair-at-a-time workflow.
   const handleTermClick = (side, index, model) => {
     if (!pendingMove || cancelAnimating) return;
     registerCancellationHits(side, [index], model);
@@ -920,8 +925,8 @@ export default function StepByStepAlgebra({
       const completedIndices = cancellationModel.pairs
         .filter((pair) => completedPairs.has(pair.id))
         .flatMap((pair) => pair.indices);
-      const selectedIndex = manualSelection?.side === side ? manualSelection.index : null;
-      const markedIndices = selectedIndex == null ? completedIndices : [...new Set([...completedIndices, selectedIndex])];
+      const selectedIndices = selectedCancellationIndices[side] || [];
+      const markedIndices = [...new Set([...completedIndices, ...selectedIndices])];
 
       const directMath = cancellationModel.kind === 'fraction'
         ? (
@@ -930,7 +935,7 @@ export default function StepByStepAlgebra({
               factors={cancellationModel.numerator}
               offset={0}
               model={cancellationModel}
-              selectedIndex={selectedIndex}
+              selectedIndices={selectedIndices}
               crossedIndices={completedIndices}
               onTokenClick={(index) => handleTermClick(side, index, cancellationModel)}
             />
@@ -939,7 +944,7 @@ export default function StepByStepAlgebra({
               factors={cancellationModel.denominator}
               offset={cancellationModel.numerator.length}
               model={cancellationModel}
-              selectedIndex={selectedIndex}
+              selectedIndices={selectedIndices}
               crossedIndices={completedIndices}
               onTokenClick={(index) => handleTermClick(side, index, cancellationModel)}
             />
@@ -950,7 +955,7 @@ export default function StepByStepAlgebra({
             terms={cancellationModel.terms}
             side={side}
             crossedIndices={markedIndices}
-            selectedIndices={selectedIndex == null ? [] : [selectedIndex]}
+            selectedIndices={selectedIndices}
             highlightIndices={struckTerms?.side === side ? struckTerms.indices : []}
             collapsingIndices={collapsingSides.includes(side) ? completedIndices : []}
             onTermClick={(termIndex) => handleTermClick(side, termIndex, cancellationModel)}
@@ -1123,7 +1128,7 @@ export default function StepByStepAlgebra({
                 {target?.canCancel && cancellationModel && !crossedSides.includes(side) && (
                   <div style={{ marginTop: '7px', minHeight: '22px', fontSize: '12px', lineHeight: 1.35, color: '#7a4f00', fontWeight: 800, textAlign: 'center' }}>
                     {cancellationHintsEnabled
-                      ? 'Cancel here: slash one factor, then its matching factor. Tap works too.'
+                      ? (cancellationModel.pairs.length > 1 ? `Cancel here: ${cancellationModel.pairs.length} matching pairs. You may mark several factors at once.` : 'Cancel here: slash one factor, then its matching factor. Tap works too.')
                       : 'Cancellation is active directly on the equation.'}
                   </div>
                 )}
