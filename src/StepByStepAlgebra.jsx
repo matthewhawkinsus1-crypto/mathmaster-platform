@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
 import { ALGEBRA_DRAFT_VERSION, rehydrateAlgebraDraft } from './algebraDraftState';
 import { advanceCancellationProgress } from './algebraCancellationProgress';
+import { stageOperationPlacement } from './algebraOperationPlacement';
 import {
   appendStrokePoint, createStroke, resolveStruckTerms, strokeLength, strokeToPath,
 } from './strokeGeometry';
@@ -10,6 +11,7 @@ import MathDisplay from './MathDisplay';
 import MathInput from './MathInput';
 import QuestionPrompt from './QuestionPrompt';
 import AlgebraTermRow from './AlgebraTermRow';
+import './StepByStepAlgebra.css';
 import {
   applyBalancedOperation,
   describeOperation,
@@ -266,7 +268,6 @@ export default function StepByStepAlgebra({
   const strokeBoxRef = useRef(null);
   const [message, setMessage] = useState(null);
   const [dragOverSide, setDragOverSide] = useState(null);
-  const [mirrorOrigin, setMirrorOrigin] = useState(null);
   const [shake, setShake] = useState(false);
   const [savingStep, setSavingStep] = useState(false);
   const [cancelAnimating, setCancelAnimating] = useState(false);
@@ -280,9 +281,11 @@ export default function StepByStepAlgebra({
   const [balancePulse, setBalancePulse] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(prefersReducedMotion);
   useEffect(() => watchReducedMotion(setReducedMotion), []);
-  const [armedTile, setArmedTile] = useState(null); // { operation, side }
+  const [armedTile, setArmedTile] = useState(null); // { operation, sourceSide }
+  const [operationFocusSignal, setOperationFocusSignal] = useState(0);
+  const [placedOperationSides, setPlacedOperationSides] = useState([]);
+  const [placedOperationPositions, setPlacedOperationPositions] = useState({});
   const [heldToken, setHeldToken] = useState(null); // { x, y, label }
-  const [mirrorToken, setMirrorToken] = useState(null); // { x, y, label } | null
   // Cues default to what the level says, and the student may still turn them
   // off. A level 4/5 workspace starts quiet rather than starting loud.
   const [cancellationHintsEnabled, setCancellationHintsEnabled] = useState(
@@ -301,10 +304,8 @@ export default function StepByStepAlgebra({
   const rightSideRef = useRef(null);
   const leftRailRef = useRef(null);
   const rightRailRef = useRef(null);
-  const leftFactorWrapRef = useRef(null);
-  const rightFactorWrapRef = useRef(null);
-  const leftFactorBarRef = useRef(null);
-  const rightFactorBarRef = useRef(null);
+  const leftExpressionRef = useRef(null);
+  const rightExpressionRef = useRef(null);
 
   useEffect(() => {
     if (savedDraft) return;
@@ -324,6 +325,8 @@ export default function StepByStepAlgebra({
     setSelectedCancellationIndices({});
     setMessage(null);
     setArmedTile(null);
+    setPlacedOperationSides([]);
+    setPlacedOperationPositions({});
   }, [question, savedDraft]);
 
   useEffect(() => {
@@ -487,7 +490,7 @@ export default function StepByStepAlgebra({
     }, motionDuration(620, reducedMotion, { floor: 40 }));
   };
 
-  const attemptMove = async (operation, originSide = 'left') => {
+  const attemptMove = async (operation, _originSide = 'left') => {
     if (disabled || savingStep || pendingMove || !operation) return;
     if (!String(operand || '').trim()) {
       setMessage({ tone: 'growth', text: 'Enter the value or expression for the operation first.' });
@@ -503,7 +506,8 @@ export default function StepByStepAlgebra({
       return;
     }
     setArmedTile(null);
-    setMirrorOrigin(originSide);
+    setPlacedOperationSides([]);
+    setPlacedOperationPositions({});
     setPendingMove(move);
     setCrossedSides([]);
     setCancelledPairIds({});
@@ -734,29 +738,37 @@ export default function StepByStepAlgebra({
     await commitMove(pendingMove);
   };
 
-  // --- Pointer-drag: a live mirror-ghost token that crosses to the opposite
-  // side as the held token nears the centerline, capped at the rail edge.
-  // This is purely a visual layer on top of attemptMove — the same function
-  // that the keyboard "Apply" button and native drag-and-drop already call.
+  // --- Semantic operation placement ---------------------------------------
+  // The operation token is placed ON the mathematics, not into a prescribed
+  // drop box. The hit zones are intentionally generous: the student must know
+  // which side (and, for multiplication/division, which mathematical region)
+  // the operation belongs to, but should not be graded on trackpad precision.
+  const expressionRectForSide = (side) => (side === 'left' ? leftExpressionRef : rightExpressionRef).current?.getBoundingClientRect();
+  const sideRectFor = (side) => (side === 'left' ? leftSideRef : rightSideRef).current?.getBoundingClientRect();
 
-  // For multiply/divide, only a specific spot solidifies the move: either
-  // edge of the parentheses for multiply, or the fraction bar itself for
-  // divide. Anywhere else on that side is "explorable" — it highlights but
-  // does not commit, so the student learns the correct target visually.
   const updateFactorZones = (clientX, clientY) => {
     const operation = dragRef.current?.operation;
-    const threshold = 42;
     const candidates = [];
     ['left', 'right'].forEach((side) => {
+      const expressionRect = expressionRectForSide(side);
+      const sideRect = sideRectFor(side);
+      if (!expressionRect || !sideRect) return;
+
       if (operation === 'multiply') {
-        const wrapRect = (side === 'left' ? leftFactorWrapRef : rightFactorWrapRef).current?.getBoundingClientRect();
-        if (wrapRect) {
-          candidates.push({ side, position: 'before', x: wrapRect.left, y: wrapRect.top + wrapRect.height / 2 });
-          candidates.push({ side, position: 'after', x: wrapRect.right, y: wrapRect.top + wrapRect.height / 2 });
-        }
-      } else {
-        const barRect = (side === 'left' ? leftFactorBarRef : rightFactorBarRef).current?.getBoundingClientRect();
-        if (barRect) candidates.push({ side, position: 'bar', x: barRect.left + barRect.width / 2, y: barRect.top + barRect.height / 2, halfWidth: barRect.width / 2 });
+        const y = expressionRect.top + expressionRect.height / 2;
+        candidates.push({ side, position: 'before', x: expressionRect.left, y, xRadius: 96, yRadius: Math.max(70, expressionRect.height * 0.9) });
+        candidates.push({ side, position: 'after', x: expressionRect.right, y, xRadius: 96, yRadius: Math.max(70, expressionRect.height * 0.9) });
+      } else if (operation === 'divide') {
+        // Division belongs beneath the whole expression. Any reasonable drop
+        // below the expression is accepted; there is no tiny fraction-bar box.
+        candidates.push({
+          side,
+          position: 'below',
+          x: expressionRect.left + expressionRect.width / 2,
+          y: Math.min(sideRect.bottom - 28, expressionRect.bottom + Math.max(42, expressionRect.height * 0.45)),
+          xRadius: Math.max(120, expressionRect.width / 2 + 80),
+          yRadius: Math.max(90, (sideRect.bottom - expressionRect.bottom) * 0.82),
+        });
       }
     });
 
@@ -765,53 +777,31 @@ export default function StepByStepAlgebra({
     candidates.forEach((candidate) => {
       const dx = Math.abs(clientX - candidate.x);
       const dy = Math.abs(clientY - candidate.y);
-      const withinX = dx < (candidate.halfWidth ?? threshold);
-      const withinY = dy < threshold;
-      if (withinX && withinY) {
-        const dist = Math.hypot(dx, dy);
+      if (dx <= candidate.xRadius && dy <= candidate.yRadius) {
+        const dist = Math.hypot(dx / candidate.xRadius, dy / candidate.yRadius);
         if (dist < nearestDist) { nearestDist = dist; nearest = candidate; }
       }
     });
+
     factorZoneRef.current = nearest;
     setFactorZoneHint(nearest);
-
-    const leftRect = leftSideRef.current?.getBoundingClientRect();
-    const rightRect = rightSideRef.current?.getBoundingClientRect();
-    const overLeft = leftRect && clientX >= leftRect.left && clientX <= leftRect.right && clientY >= leftRect.top && clientY <= leftRect.bottom;
-    const overRight = rightRect && clientX >= rightRect.left && clientX <= rightRect.right && clientY >= rightRect.top && clientY <= rightRect.bottom;
-    const side = overLeft ? 'left' : overRight ? 'right' : null;
+    const side = nearest?.side || null;
     dragOverSideRef.current = side;
     setDragOverSide(side);
   };
 
   const updateWholeSideZone = (clientX, clientY) => {
-    const leftRect = leftSideRef.current?.getBoundingClientRect();
-    const rightRect = rightSideRef.current?.getBoundingClientRect();
+    const leftRect = sideRectFor('left');
+    const rightRect = sideRectFor('right');
     const overLeft = leftRect && clientX >= leftRect.left && clientX <= leftRect.right && clientY >= leftRect.top && clientY <= leftRect.bottom;
     const overRight = rightRect && clientX >= rightRect.left && clientX <= rightRect.right && clientY >= rightRect.top && clientY <= rightRect.bottom;
     const side = overLeft ? 'left' : overRight ? 'right' : null;
     dragOverSideRef.current = side;
     setDragOverSide(side);
+    factorZoneRef.current = side ? { side, position: 'side' } : null;
   };
 
   const updatePointerVisuals = (clientX, clientY) => {
-    const equalsRect = equalsRef.current?.getBoundingClientRect();
-    const leftRailRect = leftRailRef.current?.getBoundingClientRect();
-    const rightRailRect = rightRailRef.current?.getBoundingClientRect();
-    if (equalsRect && leftRailRect && rightRailRect) {
-      const lineX = equalsRect.left + equalsRect.width / 2;
-      const heldSide = clientX < lineX ? 'left' : 'right';
-      const nearRailInner = heldSide === 'left' ? leftRailRect.right : rightRailRect.left;
-      const pastNearBorder = heldSide === 'left' ? clientX > nearRailInner : clientX < nearRailInner;
-      if (pastNearBorder) {
-        const progress = clientX - nearRailInner;
-        const mirrorX = Math.max(leftRailRect.right, Math.min(rightRailRect.left, lineX + progress));
-        setMirrorToken({ x: mirrorX, y: clientY, label: dragRef.current?.label || '' });
-      } else {
-        setMirrorToken(null);
-      }
-    }
-
     if (isFactorOperation(dragRef.current?.operation)) updateFactorZones(clientX, clientY);
     else updateWholeSideZone(clientX, clientY);
   };
@@ -819,16 +809,15 @@ export default function StepByStepAlgebra({
   const beginPointerDrag = (operation, event) => {
     if (disabled || savingStep || pendingMove) return;
     if (!String(operand || '').trim()) {
-      setMessage({ tone: 'growth', text: 'Enter the operation value before placing it on the balance.' });
+      setMessage({ tone: 'growth', text: 'Type the operation value or expression first.' });
+      setOperationFocusSignal((value) => value + 1);
       return;
     }
     event.currentTarget.setPointerCapture?.(event.pointerId);
-    // Traditional notation the moment it enters the work. The rail keeps × and
-    // ÷ as action icons; the chip that flies into the equation does not.
     const label = describeOperationToken(operation, operand);
     dragRef.current = { operation, label, pointerId: event.pointerId };
     setHeldToken({ x: event.clientX, y: event.clientY, label });
-    setMirrorToken(null);
+    setMessage(null);
   };
 
   const onDragPointerMove = (event) => {
@@ -844,6 +833,28 @@ export default function StepByStepAlgebra({
     });
   };
 
+  const stagePlacement = async (side, position = 'side') => {
+    if (!armedTile || pendingMove || disabled || savingStep) return;
+    const result = stageOperationPlacement({ placedSides: placedOperationSides, side });
+    if (result.duplicate) {
+      setMessage({ tone: 'growth', text: `That operation is already on the ${side} side. Restore the balance by placing the same move on the ${result.missingSide} side.` });
+      return;
+    }
+    if (!result.accepted) return;
+
+    setPlacedOperationSides(result.placedSides);
+    setPlacedOperationPositions((current) => ({ ...current, [side]: position }));
+
+    if (!result.ready) {
+      setMessage({ tone: 'growth', text: `The ${side} side has changed. The equation is not balanced yet — place the same operation on the ${result.missingSide} side.` });
+      return;
+    }
+
+    // Both placements are now student-authored. Only now do we invoke the
+    // balanced algebra engine and begin cancellation/simplification.
+    await attemptMove(armedTile.operation, placedOperationSides[0] || side);
+  };
+
   const endPointerDrag = (event, commit) => {
     const drag = dragRef.current;
     dragRef.current = null;
@@ -851,7 +862,6 @@ export default function StepByStepAlgebra({
     const side = dragOverSideRef.current;
     const factorZone = factorZoneRef.current;
     setHeldToken(null);
-    setMirrorToken(null);
     setDragOverSide(null);
     setFactorZoneHint(null);
     dragOverSideRef.current = null;
@@ -859,21 +869,22 @@ export default function StepByStepAlgebra({
     if (!drag || !commit) return;
 
     if (isFactorOperation(drag.operation)) {
-      if (factorZone) {
-        attemptMove(drag.operation, factorZone.side);
-      } else if (side) {
+      if (factorZone?.side) {
+        stagePlacement(factorZone.side, factorZone.position);
+      } else {
         triggerShake();
         setMessage({
           tone: 'growth',
           text: drag.operation === 'multiply'
-            ? 'That touches a term, but multiplying needs to wrap the whole expression — drop it right against either side of the parentheses.'
-            : 'That is on a term, but dividing needs to divide the whole expression — drop it on the fraction bar.',
+            ? 'Multiplication applies to the whole side. Place the factor next to the expression.'
+            : 'Division applies to the whole side. Place the divisor beneath the expression.',
         });
       }
       return;
     }
 
-    if (side) attemptMove(drag.operation, side);
+    if (side) stagePlacement(side, 'side');
+    else setMessage({ tone: 'growth', text: 'Place the operation on one side of the equation.' });
   };
 
   const onDragPointerUp = (event) => {
@@ -884,6 +895,19 @@ export default function StepByStepAlgebra({
 
   const onDragPointerCancel = (event) => endPointerDrag(event, false);
 
+  const selectOperation = (operation, sourceSide) => {
+    if (disabled || savingStep || pendingMove) return;
+    const switching = armedTile?.operation !== operation;
+    setArmedTile({ operation, sourceSide });
+    if (switching || placedOperationSides.length) {
+      setOperand('');
+      setPlacedOperationSides([]);
+      setPlacedOperationPositions({});
+    }
+    setMessage(null);
+    setOperationFocusSignal((value) => value + 1);
+  };
+
   const suggestedMove = getSuggestedMove(equation);
   const attemptsRemaining = getAttemptsRemaining(normalizedRecord, maximumAttempts);
   const solved = isSolvedEquation(equation);
@@ -893,6 +917,8 @@ export default function StepByStepAlgebra({
 
   const sideExpression = (side) => (pendingMove ? pendingMove.unsimplified[side] : equation[side]);
   const displayedSideLatex = (side) => pendingMove ? pendingMove.unsimplifiedLatex[side] : expressionToLatex(equation[side]);
+  const balanceStagingSide = !pendingMove && placedOperationSides.length === 1 ? placedOperationSides[0] : null;
+  const balanceMissingSide = balanceStagingSide === 'left' ? 'right' : balanceStagingSide === 'right' ? 'left' : null;
 
   const renderCancellationInk = (side) => {
     const ink = stroke?.side === side && stroke.points.length > 1
@@ -918,8 +944,6 @@ export default function StepByStepAlgebra({
   };
 
   const renderSide = (side, cancellationModel = null) => {
-    const showFactorPreview = armedTile && !pendingMove && isFactorOperation(armedTile.operation);
-
     if (pendingMove && cancellationModel) {
       const completedPairs = new Set(cancelledPairIds[side] || []);
       const completedIndices = cancellationModel.pairs
@@ -931,35 +955,13 @@ export default function StepByStepAlgebra({
       const directMath = cancellationModel.kind === 'fraction'
         ? (
           <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', minWidth: '150px', maxWidth: '100%' }}>
-            <CancellationFactorRow
-              factors={cancellationModel.numerator}
-              offset={0}
-              model={cancellationModel}
-              selectedIndices={selectedIndices}
-              crossedIndices={completedIndices}
-              onTokenClick={(index) => handleTermClick(side, index, cancellationModel)}
-            />
+            <CancellationFactorRow factors={cancellationModel.numerator} offset={0} model={cancellationModel} selectedIndices={selectedIndices} crossedIndices={completedIndices} onTokenClick={(index) => handleTermClick(side, index, cancellationModel)} />
             <span aria-hidden="true" style={{ width: '100%', minWidth: '120px', height: '3px', background: '#202124', borderRadius: '999px', margin: '1px 0' }} />
-            <CancellationFactorRow
-              factors={cancellationModel.denominator}
-              offset={cancellationModel.numerator.length}
-              model={cancellationModel}
-              selectedIndices={selectedIndices}
-              crossedIndices={completedIndices}
-              onTokenClick={(index) => handleTermClick(side, index, cancellationModel)}
-            />
+            <CancellationFactorRow factors={cancellationModel.denominator} offset={cancellationModel.numerator.length} model={cancellationModel} selectedIndices={selectedIndices} crossedIndices={completedIndices} onTokenClick={(index) => handleTermClick(side, index, cancellationModel)} />
           </span>
         )
         : (
-          <AlgebraTermRow
-            terms={cancellationModel.terms}
-            side={side}
-            crossedIndices={markedIndices}
-            selectedIndices={selectedIndices}
-            highlightIndices={struckTerms?.side === side ? struckTerms.indices : []}
-            collapsingIndices={collapsingSides.includes(side) ? completedIndices : []}
-            onTermClick={(termIndex) => handleTermClick(side, termIndex, cancellationModel)}
-          />
+          <AlgebraTermRow terms={cancellationModel.terms} side={side} crossedIndices={markedIndices} selectedIndices={selectedIndices} highlightIndices={struckTerms?.side === side ? struckTerms.indices : []} collapsingIndices={collapsingSides.includes(side) ? completedIndices : []} onTermClick={(termIndex) => handleTermClick(side, termIndex, cancellationModel)} />
         );
 
       return (
@@ -970,23 +972,7 @@ export default function StepByStepAlgebra({
           onPointerMove={extendStroke}
           onPointerUp={() => finishStroke(side, cancellationModel)}
           onPointerCancel={() => setStroke(null)}
-          style={{
-            position: 'relative',
-            width: 'min(96%, 520px)',
-            minHeight: '132px',
-            margin: '12px auto 4px',
-            padding: '24px 18px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: '14px',
-            background: cancellationHintsEnabled ? '#fffdf6' : '#fff',
-            outline: cancellationHintsEnabled ? '2px solid rgba(249,171,0,.32)' : 'none',
-            touchAction: 'none',
-            cursor: cancelAnimating ? 'wait' : 'crosshair',
-            userSelect: 'none',
-            overflow: 'visible',
-          }}
+          style={{ position: 'relative', width: 'min(96%, 520px)', minHeight: '132px', margin: '12px auto 4px', padding: '24px 18px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '14px', background: cancellationHintsEnabled ? '#fffdf6' : '#fff', outline: cancellationHintsEnabled ? '2px solid rgba(249,171,0,.32)' : 'none', touchAction: 'none', cursor: cancelAnimating ? 'wait' : 'crosshair', userSelect: 'none', overflow: 'visible' }}
           aria-label="Cancellation workspace. Draw through matching factors directly in this equation."
         >
           {renderCancellationInk(side)}
@@ -997,40 +983,44 @@ export default function StepByStepAlgebra({
 
     const terms = splitAdditiveTerms(sideExpression(side));
     const inner = terms ? <AlgebraTermRow terms={terms} side={side} /> : <MathDisplay value={displayedSideLatex(side)} format="latex" inline />;
-
-    if (!showFactorPreview) {
-      return (
-        <div
-          key={sideExpression(side)}
-          className="algebra-equation-side algebra-reflow"
-          style={{ fontSize: '32px', margin: '16px 0' }}
-        >
-          {inner}
-        </div>
-      );
+    if (!armedTile || pendingMove || !String(operand || '').trim()) {
+      return <div key={sideExpression(side)} className="algebra-equation-side algebra-reflow" style={{ fontSize: '34px', margin: '16px 0' }}>{inner}</div>;
     }
 
-    const factorLabel = operand.trim() || '?';
-    const zoneHere = factorZoneHint?.side === side;
+    const staged = placedOperationSides.includes(side);
+    const hovering = dragOverSide === side && (!isFactorOperation(armedTile.operation) || factorZoneHint?.side === side);
+    if (!staged && !hovering) {
+      return <div key={sideExpression(side)} className="algebra-equation-side algebra-reflow" style={{ fontSize: '34px', margin: '16px 0' }}>{inner}</div>;
+    }
+
+    let parsedOperand = operand;
+    try { parsedOperand = parseOperationOperand(operand).expression; } catch { parsedOperand = latexToExpression(operand); }
+    const operandMath = <MathDisplay value={expressionToLatex(parsedOperand)} format="latex" inline />;
+    const placementClass = staged ? 'algebra-placement-committed' : 'algebra-placement-preview';
+    const position = placedOperationPositions[side] || factorZoneHint?.position || 'side';
 
     if (armedTile.operation === 'multiply') {
       return (
-        <div
-          ref={side === 'left' ? leftFactorWrapRef : rightFactorWrapRef}
-          className={`algebra-equation-side algebra-factor-tentative ${zoneHere ? 'algebra-factor-armed' : ''}`}
-          style={{ fontSize: '32px', margin: '16px 0', display: 'inline-flex', alignItems: 'center' }}
-        >
-          <span className="algebra-factor-value">{factorLabel}</span>
-          <span className="algebra-paren-inner">({inner})</span>
+        <div className={`algebra-equation-side algebra-semantic-placement ${placementClass}`} style={{ fontSize: '34px', margin: '16px 0', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+          {position === 'after' ? <><span className="algebra-paren-inner">({inner})</span><span className="algebra-staged-operand">{operandMath}</span></> : <><span className="algebra-staged-operand">{operandMath}</span><span className="algebra-paren-inner">({inner})</span></>}
         </div>
       );
     }
 
+    if (armedTile.operation === 'divide') {
+      return (
+        <div className={`algebra-equation-side algebra-semantic-placement ${placementClass}`} style={{ fontSize: '34px', margin: '16px 0', display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', minWidth: '140px' }}>
+          <span className="algebra-div-num" style={{ textAlign: 'center' }}>{inner}</span>
+          <span aria-hidden="true" className="algebra-div-bar" style={{ width: '100%', height: '3px', background: 'currentColor', borderRadius: '2px', margin: '4px 0' }} />
+          <span className="algebra-div-den" style={{ textAlign: 'center' }}>{operandMath}</span>
+        </div>
+      );
+    }
+
+    const symbol = armedTile.operation === 'add' ? '+' : '−';
     return (
-      <div className={`algebra-equation-side algebra-factor-tentative ${zoneHere ? 'algebra-factor-armed' : ''}`} style={{ fontSize: '32px', margin: '16px 0', display: 'inline-flex', flexDirection: 'column', alignItems: 'center' }}>
-        <span className="algebra-div-num">{inner}</span>
-        <span ref={side === 'left' ? leftFactorBarRef : rightFactorBarRef} className="algebra-div-bar" style={{ width: '100%', height: '3px', background: 'currentColor', borderRadius: '2px', margin: '4px 0' }} />
-        <span className="algebra-div-den">{factorLabel}</span>
+      <div className={`algebra-equation-side algebra-semantic-placement ${placementClass}`} style={{ fontSize: '34px', margin: '16px 0', display: 'inline-flex', alignItems: 'center', gap: '12px' }}>
+        {inner}<span aria-hidden="true" style={{ fontWeight: 700 }}>{symbol}</span><span className="algebra-staged-operand">{operandMath}</span>
       </div>
     );
   };
@@ -1094,63 +1084,63 @@ export default function StepByStepAlgebra({
         </div>
       )}
 
-      <div style={{ display: 'flex', alignItems: 'stretch', gap: '10px' }}>
-        <div ref={leftRailRef} className="algebra-rail" style={{ display: 'flex', flexDirection: 'column', gap: '8px', justifyContent: 'center', padding: '6px', borderRadius: '14px', background: '#0f1a2c' }}>
+      <div className="algebra-balance-workspace-shell">
+        <div ref={leftRailRef} className="algebra-rail algebra-rail-left">
           {OPERATIONS.map((operation) => (
-            <button type="button" key={`left-${operation.id}`} className="algebra-rail-tile" onClick={() => { setOperand(''); setArmedTile((current) => current?.operation === operation.id && current?.side === 'left' ? null : { operation: operation.id, side: 'left' }); }} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`${operation.label}, applied from the left`} style={{ width: '52px', height: '52px', borderRadius: '12px', border: armedTile?.operation === operation.id && armedTile?.side === 'left' ? '2px solid #5b9bff' : '1px solid #ffffff33', background: armedTile?.operation === operation.id && armedTile?.side === 'left' ? '#1a73e8' : '#ffffff14', color: '#dbe6f7', fontSize: '22px', fontWeight: 800, cursor: disabled || savingStep || pendingMove ? 'not-allowed' : 'pointer' }}>{operation.symbol}</button>
+            <button type="button" key={`left-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'left')} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
+              {operation.symbol}
+            </button>
           ))}
         </div>
 
-        <div aria-label="Interactive algebra balance scale" className="algebra-equation-stage" style={{ position: 'relative', flex: 1, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 76px minmax(0, 1fr)', alignItems: 'stretch', gap: '12px', padding: '20px', borderRadius: '18px', border: '2px solid #c5d5ef', background: 'linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%)', boxShadow: '0 10px 24px rgba(31,73,125,0.12)' }}>
+        <div aria-label="Interactive algebra balance scale" className={`algebra-equation-stage algebra-connected-balance ${balanceStagingSide ? `is-unbalanced is-unbalanced-${balanceStagingSide}` : ''}`}>
           {['left', 'right'].map((side, index) => {
             const target = pendingMove?.cancellationTargets.find((item) => item.side === side);
-            const cancellationModel = target?.canCancel
-              ? buildCancellationModel(sideExpression(side), target.simplifiedExpression, equation.variable)
-              : null;
+            const cancellationModel = target?.canCancel ? buildCancellationModel(sideExpression(side), target.simplifiedExpression, equation.variable) : null;
+            const stagedHere = placedOperationSides.includes(side);
             return (
               <div
                 key={side}
                 ref={side === 'left' ? leftSideRef : rightSideRef}
-                className="algebra-equation-box"
-                onDragOver={(event) => { event.preventDefault(); setDragOverSide(side); }}
-                onDragLeave={() => setDragOverSide(null)}
+                className={`algebra-equation-box algebra-connected-side ${dragOverSide === side ? 'is-hovered' : ''} ${stagedHere ? 'has-staged-operation' : ''}`}
+                onDragOver={(event) => { event.preventDefault(); updatePointerVisuals(event.clientX, event.clientY); }}
+                onDragLeave={() => { setDragOverSide(null); setFactorZoneHint(null); }}
                 onDrop={(event) => {
                   event.preventDefault();
-                  setDragOverSide(null);
                   const droppedOperation = event.dataTransfer.getData('text/algebra-operation');
-                  if (droppedOperation) attemptMove(droppedOperation, side);
+                  if (!droppedOperation) return;
+                  const position = factorZoneRef.current?.side === side ? factorZoneRef.current.position : 'side';
+                  stagePlacement(side, position);
                 }}
-                style={{ gridColumn: index === 0 ? 1 : 3, gridRow: 1, minHeight: '238px', padding: '18px 12px', borderRadius: '14px', border: dragOverSide === side ? '4px solid #00a6a6' : '2px solid #9fb8dd', background: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', transition: 'all 0.18s ease', position: 'relative', overflow: 'visible' }}
+                style={{ gridColumn: index === 0 ? 1 : 3, gridRow: 1 }}
               >
-                <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#5f6368', textTransform: 'uppercase' }}>{side} side</div>
-                {renderSide(side, cancellationModel)}
-                {pendingMove && <div className={`algebra-mirror-chip ${mirrorOrigin !== side ? 'algebra-mirror-arrive' : ''}`}>{pendingMove.operationLabel} {pendingMove.operandExpression}</div>}
+                <div className="algebra-side-label">{side} side</div>
+                <div ref={side === 'left' ? leftExpressionRef : rightExpressionRef} className="algebra-expression-anchor">
+                  {renderSide(side, cancellationModel)}
+                </div>
                 {target?.canCancel && cancellationModel && !crossedSides.includes(side) && (
-                  <div style={{ marginTop: '7px', minHeight: '22px', fontSize: '12px', lineHeight: 1.35, color: '#7a4f00', fontWeight: 800, textAlign: 'center' }}>
+                  <div className="algebra-cancellation-cue">
                     {cancellationHintsEnabled
-                      ? (cancellationModel.pairs.length > 1 ? `Cancel here: ${cancellationModel.pairs.length} matching pairs. You may mark several factors at once.` : 'Cancel here: slash one factor, then its matching factor. Tap works too.')
+                      ? (cancellationModel.pairs.length > 1 ? `Cancel ${cancellationModel.pairs.length} matching pairs. You may mark several factors at once.` : 'Slash a matching numerator/denominator pair. Tap works too.')
                       : 'Cancellation is active directly on the equation.'}
                   </div>
                 )}
                 {target?.canCancel && !cancellationModel && (
-                  <div role="status" style={{ marginTop: '8px', padding: '8px 10px', borderRadius: '8px', background: '#fef7e0', color: '#7a4f00', fontSize: '12px', fontWeight: 800, textAlign: 'center' }}>
-                    This expression needs a cancellation pattern MathMaster cannot safely tokenize yet. Use Undo and choose an equivalent one-factor-at-a-time operation.
-                  </div>
+                  <div role="status" className="algebra-cancellation-fallback">This expression needs a cancellation pattern MathMaster cannot safely tokenize yet. Use Undo and choose an equivalent one-factor-at-a-time operation.</div>
                 )}
               </div>
             );
           })}
-          <div ref={equalsRef} style={{ gridColumn: 2, gridRow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '50px', fontWeight: 800, color: '#174ea6' }} aria-label="equals">=</div>
-          <div
-            aria-hidden="true"
-            className={balancePulse ? 'algebra-balance-pulse' : ''}
-            style={{ position: 'absolute', left: '8%', right: '8%', bottom: '8px', height: '8px', borderRadius: '999px', background: '#6d7f99' }}
-          />
+          <div ref={equalsRef} className={`algebra-balance-equals ${balanceStagingSide ? 'is-unbalanced' : ''}`} style={{ gridColumn: 2, gridRow: 1 }} aria-label="equals">=</div>
+          {balanceStagingSide && <div className="algebra-balance-status" aria-live="polite">Balance not restored · place the same move on the {balanceMissingSide} side</div>}
+          <div aria-hidden="true" className={`algebra-balance-beam ${balancePulse ? 'algebra-balance-pulse' : ''} ${balanceStagingSide ? `tilt-${balanceStagingSide}` : ''}`} />
         </div>
 
-        <div ref={rightRailRef} className="algebra-rail" style={{ display: 'flex', flexDirection: 'column', gap: '8px', justifyContent: 'center', padding: '6px', borderRadius: '14px', background: '#0f1a2c' }}>
+        <div ref={rightRailRef} className="algebra-rail algebra-rail-right">
           {OPERATIONS.map((operation) => (
-            <button type="button" key={`right-${operation.id}`} className="algebra-rail-tile" onClick={() => { setOperand(''); setArmedTile((current) => current?.operation === operation.id && current?.side === 'right' ? null : { operation: operation.id, side: 'right' }); }} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`${operation.label}, applied from the right`} style={{ width: '52px', height: '52px', borderRadius: '12px', border: armedTile?.operation === operation.id && armedTile?.side === 'right' ? '2px solid #5b9bff' : '1px solid #ffffff33', background: armedTile?.operation === operation.id && armedTile?.side === 'right' ? '#1a73e8' : '#ffffff14', color: '#dbe6f7', fontSize: '22px', fontWeight: 800, cursor: disabled || savingStep || pendingMove ? 'not-allowed' : 'pointer' }}>{operation.symbol}</button>
+            <button type="button" key={`right-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'right')} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
+              {operation.symbol}
+            </button>
           ))}
         </div>
       </div>
@@ -1165,61 +1155,58 @@ export default function StepByStepAlgebra({
         </p>
       )}
 
-      {armedTile && (
-        <div style={{ display: 'flex', alignItems: 'end', gap: '12px', flexWrap: 'wrap', padding: '16px', marginTop: '14px', border: '2px solid #1a73e8', borderRadius: '12px', background: '#f8fbff' }}>
-          {/* The operand is mathematics, so it is entered as mathematics. A
-              literal equation is solved by dividing by b or multiplying by
-              (x + 1), and a plain text box makes those look like typing while
-              the equation beside them looks like algebra. */}
-          <label style={{ flex: '1 1 260px', fontWeight: 'bold', color: '#3c4043' }}>
-            {armedOperationLabel} what to both sides?
-            <div style={{ marginTop: '7px' }}>
-              <MathInput
-                value={operand}
-                onChange={setOperand}
-                toolProfile="algebra-operation"
-                placeholder="2, -3, 1/2, r, Pt, 3x"
-                ariaLabel={`${armedOperationLabel} what to both sides`}
-              />
-            </div>
+      {armedTile && !pendingMove && (
+        <div className="algebra-operation-composer">
+          <div className="algebra-composer-operation" aria-hidden="true">{OPERATIONS.find((item) => item.id === armedTile.operation)?.symbol}</div>
+          <label className="algebra-composer-input-label">
+            <span>{armedOperationLabel} what?</span>
+            <MathInput
+              value={operand}
+              onChange={(value) => {
+                setOperand(value);
+                if (placedOperationSides.length) {
+                  setPlacedOperationSides([]);
+                  setPlacedOperationPositions({});
+                }
+              }}
+              toolProfile="algebra-operation"
+              placeholder="value or expression"
+              ariaLabel={`${armedOperationLabel} what to both sides`}
+              focusSignal={operationFocusSignal}
+              compact
+              maxWidth={380}
+            />
           </label>
-          {allowAutoApply && (
-            <button
-              type="button"
-              draggable={!disabled && Boolean(String(operand || '').trim())}
-              onDragStart={(event) => event.dataTransfer.setData('text/algebra-operation', armedTile.operation)}
-              onClick={() => attemptMove(armedTile.operation, armedTile.side)}
-              disabled={disabled || savingStep || !String(operand || '').trim()}
-              title="Accommodation shortcut: apply this operation without dragging"
-              style={{ padding: '13px 18px', border: 'none', borderRadius: '9px', background: disabled || savingStep || !String(operand || '').trim() ? '#dadce0' : '#1a73e8', color: '#fff', fontWeight: 'bold', cursor: disabled || savingStep || !String(operand || '').trim() ? 'not-allowed' : 'pointer' }}
-            >
-              Apply {armedOperationLabel} {operandLabel}
-            </button>
-          )}
           <button
             type="button"
+            className="algebra-pickup-button"
             onPointerDown={(event) => beginPointerDrag(armedTile.operation, event)}
             onPointerMove={onDragPointerMove}
             onPointerUp={onDragPointerUp}
             onPointerCancel={onDragPointerCancel}
             disabled={disabled || savingStep || !String(operand || '').trim()}
-            style={{ padding: '13px 18px', border: '1px dashed #1a73e8', borderRadius: '9px', background: '#fff', color: disabled || savingStep || !String(operand || '').trim() ? '#9aa0a6' : '#174ea6', fontWeight: 'bold', cursor: disabled || savingStep || !String(operand || '').trim() ? 'not-allowed' : 'grab', touchAction: 'none' }}
+            title="Drag this operation onto one side of the equation"
           >
-            ⠿ Pick up &amp; place on a side
+            ⠿ Pick up {operandLabel ? <OperationChip token={describeOperationToken(armedTile.operation, operand)} /> : 'operation'}
           </button>
-          <button type="button" onClick={() => { setOperand(''); setArmedTile(null); }} style={{ padding: '13px 14px', border: '1px solid #dadce0', borderRadius: '9px', background: '#fff', color: '#5f6368', fontWeight: 'bold' }}>Cancel</button>
-          {allowAutoApply && <p style={{ flexBasis: '100%', margin: 0, fontSize: '12px', color: '#5f6368' }}>Your support plan includes the Apply shortcut. The drag-and-place method remains available.</p>}
-          {isFactorOperation(armedTile.operation) && (
-            <p style={{ flexBasis: '100%', margin: 0, fontSize: '13px', color: '#8a5a00' }}>
-              {armedTile.operation === 'multiply'
-                ? 'Dragging: touch either side of the parentheses to lock it in. Other spots are explorable but will not solidify.'
-                : 'Dragging: drop it right on the fraction bar to lock it in. Other spots are explorable but will not solidify.'}
-            </p>
+          {allowAutoApply && (
+            <button type="button" className="algebra-auto-apply-button" onClick={() => attemptMove(armedTile.operation, armedTile.sourceSide || 'left')} disabled={disabled || savingStep || !String(operand || '').trim()} title="Accommodation shortcut: apply this operation to both sides">
+              Apply to both sides
+            </button>
           )}
+          <button type="button" className="algebra-composer-cancel" onClick={() => { setOperand(''); setArmedTile(null); setPlacedOperationSides([]); setPlacedOperationPositions({}); setMessage(null); }}>Cancel</button>
+          <div className="algebra-placement-progress" aria-live="polite">
+            {placedOperationSides.length === 0
+              ? (isFactorOperation(armedTile.operation)
+                  ? (armedTile.operation === 'divide' ? 'Place the divisor beneath one side, then do the same on the other side.' : 'Place the factor next to one side, then do the same on the other side.')
+                  : 'Place this operation on one side, then restore the balance on the other side.')
+              : `Placed on ${placedOperationSides[0]} · ${balanceMissingSide} side still needed`}
+          </div>
+          {allowAutoApply && <div className="algebra-accommodation-note">Your support plan includes the automatic Apply shortcut. Manual placement remains available.</div>}
         </div>
       )}
 
-      {!armedTile && !pendingMove && <div style={{ margin: '14px 0', padding: '13px', borderRadius: '12px', border: '2px dashed #9fb8dd', background: '#fff', textAlign: 'center', color: '#174ea6', fontWeight: 'bold' }}>Choose an operation, enter the value or expression, then pick it up and place it on the balance.</div>}
+      {!armedTile && !pendingMove && <div className="algebra-operation-idle-hint">Choose an operation. The value field will activate automatically.</div>}
 
       {pendingMove && pendingMove.simplificationTargets?.length > 0 && (
         <div style={{ margin: '16px 0', padding: '15px', borderRadius: '12px', border: '1px solid #d9e2f1', background: '#fff' }}>
@@ -1247,9 +1234,6 @@ export default function StepByStepAlgebra({
 
       {heldToken && (
         <div aria-hidden="true" style={{ position: 'fixed', left: heldToken.x, top: heldToken.y, transform: 'translate(-50%, -50%)', zIndex: 40, pointerEvents: 'none', fontFamily: 'ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace', fontWeight: 800, fontSize: '22px', color: '#174ea6', background: '#e8f0fe', borderRadius: '12px', padding: '6px 12px', boxShadow: '0 12px 26px rgba(26,115,232,0.3)', whiteSpace: 'nowrap' }}><OperationChip token={heldToken.label} /></div>
-      )}
-      {mirrorToken && (
-        <div aria-hidden="true" className="algebra-mirror-chip" style={{ position: 'fixed', left: mirrorToken.x, top: mirrorToken.y, transform: 'translate(-50%, -50%)', zIndex: 40, pointerEvents: 'none', fontFamily: 'ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace', fontWeight: 800, fontSize: '22px', color: '#174ea6', background: 'rgba(232,240,254,0.7)', border: '1px dashed #1a73e8', borderRadius: '12px', padding: '6px 12px', whiteSpace: 'nowrap' }}><OperationChip token={mirrorToken.label} /></div>
       )}
     </section>
   );

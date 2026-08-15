@@ -15,7 +15,7 @@ test('operation input starts blank and resets blank', () => {
 
 test('cancellation is performed on actual equation tokens rather than a duplicate cancellation box', () => {
   assert.match(source, /data-cancel-index/);
-  assert.match(source, /Cancel here: slash one factor, then its matching factor/);
+  assert.match(source, /Slash a matching numerator\/denominator pair/);
   assert.match(source, /Draw directly through matching factors in the equation itself/);
   assert.ok(!source.includes('Draw through the zero pair or identity pair'));
   assert.ok(!source.includes('Required assumption:'));

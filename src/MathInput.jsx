@@ -98,6 +98,9 @@ export default function MathInput({
   toolProfile = 'basic',
   onUndoStateChange = null,
   inputStatus = 'neutral',
+  focusSignal = 0,
+  compact = false,
+  maxWidth = 540,
 }) {
   const mfRef = useRef(null);
   const onChangeRef = useRef(onChange);
@@ -162,6 +165,15 @@ export default function MathInput({
     if (mfRef.current && mfRef.current.value !== value) mfRef.current.value = value || '';
   }, [value]);
 
+  // Some tools intentionally move the student's attention into a math field
+  // immediately after they choose an action. A numeric signal avoids making
+  // every MathInput autofocus on mount: only an explicit increment focuses it.
+  useEffect(() => {
+    if (!focusSignal || !mfRef.current) return undefined;
+    const frame = window.requestAnimationFrame(() => mfRef.current?.focus?.());
+    return () => window.cancelAnimationFrame(frame);
+  }, [focusSignal]);
+
   const undo = useCallback(() => {
     const mathField = mfRef.current;
     if (!mathField) return;
@@ -202,19 +214,19 @@ export default function MathInput({
       : '#1a73e8';
 
   return (
-    <div className="mathmaster-math-input" style={{ width: 'min(100%, 540px)', margin: '0 auto' }}>
+    <div className="mathmaster-math-input" style={{ width: `min(100%, ${maxWidth}px)`, margin: '0 auto' }}>
       <math-field
         ref={mfRef}
         aria-label={ariaLabel || placeholder || 'Math answer'}
         math-virtual-keyboard-policy="manual"
-        inputmode={isMobile && toolProfile !== 'function' ? 'none' : undefined}
+        inputmode={isMobile && !['function', 'algebra-operation'].includes(toolProfile) ? 'none' : undefined}
         onFocus={() => { if (isMobile) setShowTools(true); }}
         style={{
           display: 'block',
           width: '100%',
-          minHeight: '54px',
-          fontSize: '24px',
-          padding: '12px 14px',
+          minHeight: compact ? '44px' : '54px',
+          fontSize: compact ? '20px' : '24px',
+          padding: compact ? '8px 10px' : '12px 14px',
           borderRadius: '8px',
           border: `2px solid ${borderColor}`,
           background: inputStatus === 'incorrect' ? '#fff8f7' : inputStatus === 'correct' ? '#f4fbf5' : '#fff',
