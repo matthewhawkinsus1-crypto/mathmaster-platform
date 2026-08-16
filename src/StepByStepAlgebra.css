@@ -369,3 +369,173 @@
   .algebra-semantic-placement,
   .algebra-rail-tile { transition: none !important; }
 }
+
+/* --- Mobile Interaction Foundation integration ---------------------------
+   Phones use select -> arm -> tap-to-place. Drag remains available on larger
+   screens, but no required operation depends on source and destination being
+   visible at the same time. */
+.algebra-mobile-operation-palette {
+  display: none;
+}
+
+@media (max-width: 768px), (pointer: coarse) {
+  .algebra-mobile-operation-palette {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 7px;
+    width: min(100%, 520px);
+    margin: 0 auto 8px;
+    padding: 6px;
+    border: 1px solid #c5d5ef;
+    border-radius: 13px;
+    background: #f8fbff;
+  }
+
+  .algebra-mobile-operation-palette .algebra-rail-tile {
+    width: 100%;
+    height: auto;
+    min-height: 52px;
+    display: grid;
+    place-items: center;
+    gap: 1px;
+    background: #fff;
+    color: #174ea6;
+    border-color: #c5d5ef;
+    touch-action: manipulation;
+  }
+
+  .algebra-mobile-operation-palette .algebra-rail-tile span {
+    font-size: 23px;
+    line-height: 1;
+  }
+
+  .algebra-mobile-operation-palette .algebra-rail-tile small {
+    max-width: 100%;
+    overflow: hidden;
+    color: #5f6368;
+    font-size: 9px;
+    line-height: 1.05;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .algebra-mobile-operation-palette .algebra-rail-tile.is-selected {
+    background: #1a73e8;
+    color: #fff;
+  }
+
+  .algebra-mobile-operation-palette .algebra-rail-tile.is-selected small {
+    color: #fff;
+  }
+
+  .algebra-balance-workspace-shell.is-mobile-tap-layout {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .algebra-balance-workspace-shell.is-mobile-tap-layout .algebra-connected-balance {
+    width: 100%;
+    max-width: 100%;
+    grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr);
+    min-height: 220px;
+    padding: 9px 5px 28px;
+    overflow: hidden;
+  }
+
+  .algebra-balance-workspace-shell.is-mobile-tap-layout .algebra-connected-side {
+    min-height: 176px;
+    padding: 22px 4px 20px;
+    touch-action: manipulation;
+  }
+
+  .algebra-balance-workspace-shell.is-mobile-tap-layout .algebra-expression-anchor {
+    width: 100%;
+    min-height: 112px;
+  }
+
+  .algebra-balance-workspace-shell.is-mobile-tap-layout .algebra-balance-equals {
+    font-size: 38px;
+  }
+
+  .algebra-connected-side.mathmaster-tap-placement-ready {
+    cursor: pointer;
+    background: rgba(26,115,232,.025);
+  }
+
+  .algebra-connected-side.mathmaster-tap-placement-ready:active,
+  .algebra-connected-side.mathmaster-tap-placement-ready:focus-visible {
+    background: rgba(26,115,232,.08);
+    box-shadow: inset 0 0 0 3px rgba(26,115,232,.24);
+  }
+
+  .algebra-operation-composer {
+    width: 100%;
+    max-width: 100%;
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 7px;
+    margin-top: 8px;
+    padding: 8px;
+  }
+
+  .algebra-composer-input-label {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+
+  .algebra-composer-input-label > span {
+    font-size: 12px;
+  }
+
+  .algebra-pickup-button.is-tap-placement-button {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-height: 48px;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .algebra-pickup-button.is-tap-placement-button[aria-pressed="true"] {
+    border-color: #188038;
+    background: #e6f4ea;
+    color: #137333;
+    box-shadow: 0 0 0 2px rgba(24,128,56,.12);
+  }
+
+  .algebra-composer-cancel,
+  .algebra-auto-apply-button,
+  .algebra-placement-progress,
+  .algebra-accommodation-note {
+    grid-column: 1 / -1;
+  }
+
+  .algebra-placement-progress {
+    padding: 3px 2px 0;
+    font-size: 11px;
+    text-align: center;
+  }
+
+  /* The operation keypad should show the symbols needed for THIS equation,
+     not every advanced symbol MathMaster supports. Six columns keeps it to a
+     compact 2–3 rows on common phone widths. */
+  .mathmaster-math-input-tools-algebra-operation {
+    grid-template-columns: repeat(6, minmax(44px, 1fr)) !important;
+    max-height: min(28dvh, 240px) !important;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 390px) {
+  .algebra-mobile-operation-palette .algebra-rail-tile small {
+    display: none;
+  }
+
+  .algebra-mobile-operation-palette .algebra-rail-tile {
+    min-height: 48px;
+  }
+
+  .algebra-balance-workspace-shell.is-mobile-tap-layout .algebra-connected-balance {
+    grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr);
+    padding-inline: 3px;
+  }
+}

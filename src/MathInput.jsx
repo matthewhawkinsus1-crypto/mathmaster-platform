@@ -48,6 +48,21 @@ const ALGEBRA_OPERATION_KEYS = [
   { label: ')', command: ')', ariaLabel: 'Insert close parenthesis' },
 ];
 
+const algebraOperationKeysForContext = (contextSymbols = []) => {
+  const unique = [...new Set((contextSymbols || []).filter((symbol) => /^[A-Za-z]$/.test(String(symbol))))];
+  const symbolKeys = unique.map((label) => ({
+    label,
+    command: label,
+    ariaLabel: `Insert ${/[A-Z]/.test(label) ? 'capital ' : ''}${label}`,
+  }));
+  return [
+    ...symbolKeys,
+    { label: '(', command: '(', ariaLabel: 'Insert open parenthesis' },
+    { label: ')', command: ')', ariaLabel: 'Insert close parenthesis' },
+    { label: 'a⁄b', command: '\\frac{#0}{#?}', ariaLabel: 'Insert stacked fraction' },
+  ];
+};
+
 const INTERVAL_KEYS = [
   { label: '(', command: '(', ariaLabel: 'Insert open parenthesis' },
   { label: ')', command: ')', ariaLabel: 'Insert close parenthesis' },
@@ -77,12 +92,12 @@ const INEQUALITY_KEYS = [
   { label: '∪', command: '\\cup', ariaLabel: 'Insert union' },
 ];
 
-const getToolKeys = (profile) => {
+const getToolKeys = (profile, { isMobile = false, contextSymbols = [] } = {}) => {
   if (profile === 'interval') return INTERVAL_KEYS;
   if (profile === 'inequality') return INEQUALITY_KEYS;
   if (profile === 'set') return [...SET_KEYS, ...INEQUALITY_KEYS, ...INTERVAL_KEYS.filter((item) => ['(', ')', '[', ']'].includes(item.label))];
   if (profile === 'function') return [...FUNCTION_KEYS, ...BASIC_KEYS];
-  if (profile === 'algebra-operation') return [...ALGEBRA_OPERATION_KEYS, ...BASIC_KEYS];
+  if (profile === 'algebra-operation') return isMobile ? algebraOperationKeysForContext(contextSymbols) : [...ALGEBRA_OPERATION_KEYS, ...BASIC_KEYS];
   if (profile === 'basic+set') return [...BASIC_KEYS, ...SET_KEYS, ...INEQUALITY_KEYS];
   return BASIC_KEYS;
 };
@@ -101,12 +116,14 @@ export default function MathInput({
   focusSignal = 0,
   compact = false,
   maxWidth = 540,
+  contextSymbols = [],
+  collapseSignal = 0,
 }) {
   const mfRef = useRef(null);
   const onChangeRef = useRef(onChange);
   const [showTools, setShowTools] = useState(showToolsInitially);
   const [isMobile, setIsMobile] = useState(detectMobileInput);
-  const tools = useMemo(() => (isMobile ? [...MOBILE_ENTRY_KEYS, ...getToolKeys(toolProfile)] : getToolKeys(toolProfile)), [toolProfile, isMobile]);
+  const tools = useMemo(() => (isMobile ? [...MOBILE_ENTRY_KEYS, ...getToolKeys(toolProfile, { isMobile: true, contextSymbols })] : getToolKeys(toolProfile, { contextSymbols })), [toolProfile, isMobile, contextSymbols]);
 
   useEffect(() => {
     const update = () => setIsMobile(detectMobileInput());
@@ -129,10 +146,10 @@ export default function MathInput({
 
     mathField.mathVirtualKeyboardPolicy = 'manual';
     // Most math responses use MathMaster's controlled mobile keypad. Function
-    // rules are different: students may legitimately need arbitrary letters
-    // such as M, V, C, t or n. Keep the device keyboard available there while
-    // still providing the math toolbar.
-    if (isMobile && !['function', 'algebra-operation'].includes(toolProfile)) mathField.setAttribute('inputmode', 'none');
+    // rules are different: students may legitimately need arbitrary names, so
+    // keep the device keyboard there. Algebra operations now have an equation-
+    // aware symbol strip, so they no longer need the full phone keyboard.
+    if (isMobile && toolProfile !== 'function') mathField.setAttribute('inputmode', 'none');
     else mathField.removeAttribute('inputmode');
     mathField.menuItems = [];
     mathField.smartFence = true;
@@ -173,6 +190,11 @@ export default function MathInput({
     const frame = window.requestAnimationFrame(() => mfRef.current?.focus?.());
     return () => window.cancelAnimationFrame(frame);
   }, [focusSignal]);
+
+  useEffect(() => {
+    if (!collapseSignal) return;
+    setShowTools(false);
+  }, [collapseSignal]);
 
   const undo = useCallback(() => {
     const mathField = mfRef.current;
@@ -219,7 +241,7 @@ export default function MathInput({
         ref={mfRef}
         aria-label={ariaLabel || placeholder || 'Math answer'}
         math-virtual-keyboard-policy="manual"
-        inputmode={isMobile && !['function', 'algebra-operation'].includes(toolProfile) ? 'none' : undefined}
+        inputmode={isMobile && toolProfile !== 'function' ? 'none' : undefined}
         onFocus={() => { if (isMobile) setShowTools(true); }}
         style={{
           display: 'block',
@@ -255,7 +277,7 @@ export default function MathInput({
 
       {showTools && (
         <div
-          className="mathmaster-math-input-tools"
+          className={`mathmaster-math-input-tools mathmaster-math-input-tools-${toolProfile}`}
           aria-label="Math tools"
           style={{
             display: 'grid',

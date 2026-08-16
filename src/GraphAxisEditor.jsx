@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import GraphDisplay from './GraphDisplay';
+import useMobileInteractionMode from './platform/mobile/useMobileInteractionMode.js';
 
 const targetStyle = (status, active) => ({
   minHeight: '54px',
@@ -34,6 +35,7 @@ export default function GraphAxisEditor({
   title = 'Relationship graph',
 }) {
   const [selectedCard, setSelectedCard] = useState(null);
+  const mobileInteraction = useMobileInteractionMode();
   const quantityCards = useMemo(
     () => quantities.map((item) => ({ kind: 'quantity', value: item.label, label: item.label })),
     [quantities],
@@ -91,7 +93,7 @@ export default function GraphAxisEditor({
       >
         <span style={{ fontSize: '12px', color: '#5f6368', fontWeight: 800 }}>{definition.label}</span>
         <span style={{ fontSize: '15px', color: values[field] ? '#174ea6' : '#7b8797', fontWeight: 800 }}>
-          {values[field] || `Drop ${definition.kind} here`}
+          {values[field] || (mobileInteraction.isMobile ? `Tap here for ${definition.kind}` : `Drop ${definition.kind} here`)}
         </span>
       </button>
     );
@@ -122,9 +124,9 @@ export default function GraphAxisEditor({
       </div>
 
       <div style={{ marginTop: '14px', padding: '14px', borderRadius: '12px', background: '#f8fbff', border: '1px solid #d5e1ef' }}>
-        <div style={{ fontWeight: 900, color: '#174ea6', marginBottom: '8px' }}>Drag labels and units to the graph</div>
+        <div style={{ fontWeight: 900, color: '#174ea6', marginBottom: '8px' }}>{mobileInteraction.isMobile ? 'Tap labels and units into place' : 'Drag labels and units to the graph'}</div>
         <div style={{ color: '#5f6368', fontSize: '13px', marginBottom: '10px' }}>
-          Drag a card to the matching axis box. On touch devices, tap a card and then tap the destination.
+          {mobileInteraction.isMobile ? 'Tap a card, then tap the matching axis box.' : 'Drag a card to the matching axis box. You can also click a card and then click the destination.'}
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {cards.map((card) => {
@@ -134,7 +136,7 @@ export default function GraphAxisEditor({
               <button
                 key={key}
                 type="button"
-                draggable
+                draggable={!mobileInteraction.isMobile}
                 onDragStart={(event) => {
                   event.dataTransfer.setData('application/x-mathmaster-axis-card', JSON.stringify(card));
                   event.dataTransfer.effectAllowed = 'move';

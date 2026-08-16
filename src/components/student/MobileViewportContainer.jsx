@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import QuestionPrompt from '../../QuestionPrompt';
 import './MathToolMobileLayout.css';
+import '../../platform/mobile/MobileInteractionFoundation.css';
 
 const NUMERIC_SELECTOR = 'input[type="number"], input[inputmode="numeric"], input[inputmode="decimal"], input[data-mathmaster-mobile-keypad="true"]';
 const KEYS = ['7', '8', '9', '4', '5', '6', '1', '2', '3', '±', '0', '.'];
@@ -29,12 +30,22 @@ export const MobileViewportContainer = ({
   const [isMobile, setIsMobile] = useState(detectMobile);
   const [isLandscape, setIsLandscape] = useState(detectLandscape);
   const [numericTarget, setNumericTarget] = useState(null);
+  const [visualViewport, setVisualViewport] = useState(() => ({
+    width: typeof window !== 'undefined' ? Number(window.visualViewport?.width || window.innerWidth || 0) : 0,
+    height: typeof window !== 'undefined' ? Number(window.visualViewport?.height || window.innerHeight || 0) : 0,
+    offsetTop: typeof window !== 'undefined' ? Number(window.visualViewport?.offsetTop || 0) : 0,
+  }));
 
   useEffect(() => {
     const updateViewportMode = () => {
       const mobile = detectMobile();
       setIsMobile(mobile);
       setIsLandscape(detectLandscape());
+      setVisualViewport({
+        width: Number(window.visualViewport?.width || window.innerWidth || 0),
+        height: Number(window.visualViewport?.height || window.innerHeight || 0),
+        offsetTop: Number(window.visualViewport?.offsetTop || 0),
+      });
     };
     updateViewportMode();
     window.addEventListener('resize', updateViewportMode);
@@ -82,6 +93,12 @@ export const MobileViewportContainer = ({
     if (!isMobile) return;
     const target = event.target;
     if (target?.matches?.(NUMERIC_SELECTOR)) setNumericTarget(target);
+    // iOS can resize the visual viewport without moving the focused control
+    // into view. Keep the active field inside the tool-local scroll region
+    // rather than allowing the page itself to pan sideways or behind chrome.
+    window.requestAnimationFrame(() => {
+      target?.scrollIntoView?.({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+    });
   };
 
   const applyKey = (key) => {
@@ -114,11 +131,20 @@ export const MobileViewportContainer = ({
   ) : null;
 
   if (!isMobile) {
-    return <div ref={rootRef} className="mathmaster-desktop-question-content" onFocusCapture={handleFocusCapture}>{contextPanel}{responseFields}{toolWorkspace}{actionButtons}</div>;
+    return <div ref={rootRef} className="mathmaster-desktop-question-content mathmaster-mobile-interaction-root" onFocusCapture={handleFocusCapture}>{contextPanel}{responseFields}{toolWorkspace}{actionButtons}</div>;
   }
 
   return (
-    <div ref={rootRef} onFocusCapture={handleFocusCapture} className={`mathmaster-question-container ${isLandscape ? 'mode-landscape' : 'mode-portrait'} ${numericTarget ? 'numeric-keypad-open' : ''}`}>
+    <div
+      ref={rootRef}
+      onFocusCapture={handleFocusCapture}
+      className={`mathmaster-question-container mathmaster-mobile-interaction-root ${isLandscape ? 'mode-landscape' : 'mode-portrait'} ${numericTarget ? 'numeric-keypad-open' : ''}`}
+      style={{
+        '--mm-visual-viewport-width': `${visualViewport.width}px`,
+        '--mm-visual-viewport-height': `${visualViewport.height}px`,
+        '--mm-visual-viewport-offset-top': `${visualViewport.offsetTop}px`,
+      }}
+    >
       <section className="question-prompt-panel" aria-label="Question prompt and response controls">
         <div className="question-prompt-heading">
           <span>YOUR TASK</span>

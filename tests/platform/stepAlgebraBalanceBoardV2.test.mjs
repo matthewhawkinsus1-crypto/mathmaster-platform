@@ -38,6 +38,8 @@ test('regular students still do not receive automatic Apply', () => {
   assert.match(stepSource, /Apply to both sides/);
 });
 
-test('algebra-operation fields keep keyboard entry available on touch devices', () => {
-  assert.match(inputSource, /!\['function', 'algebra-operation'\]\.includes\(toolProfile\)/);
+test('algebra-operation fields use the controlled equation-aware keypad on touch devices', () => {
+  assert.match(inputSource, /toolProfile !== 'function'/);
+  assert.match(inputSource, /algebraOperationKeysForContext/);
+  assert.match(inputSource, /contextSymbols/);
 });

@@ -19,6 +19,7 @@ import OpenSortBoard from './openSortBoard/OpenSortBoard';
 import ConstraintFunctionBuilder from './constraintFunctionBuilder/ConstraintFunctionBuilder';
 import { getToolCapabilities } from './toolCapabilities';
 import { TOOL_CATALOG } from './toolCatalog';
+import { getMobileToolProfile } from '../platform/mobile/mobileToolProfiles.js';
 
 // Labels and course lists live in the React-free toolCatalog so Node-side
 // consumers can read them; this map only attaches the components.
@@ -54,7 +55,7 @@ export const TOOL_REGISTRY = Object.fromEntries(
 export const getToolDefinition = (toolId) => {
   const definition = TOOL_REGISTRY[toolId];
   if (!definition) return null;
-  return { toolId, ...definition, capabilities: getToolCapabilities(toolId) };
+  return { toolId, ...definition, capabilities: getToolCapabilities(toolId), mobileInteraction: getMobileToolProfile(toolId) };
 };
 
 export const listTools = () => Object.keys(TOOL_REGISTRY).map(getToolDefinition);

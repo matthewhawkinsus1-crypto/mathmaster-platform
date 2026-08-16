@@ -6,6 +6,7 @@ import { FUNCTION_GRAPH_LABELS } from './functionGraphUtils';
 import { POINT_FEATURES } from './analysisRequestCatalog';
 import useUndoHistory from './useUndoHistory';
 import useLocalDraftState from './useLocalDraftState';
+import useMobileInteractionMode from './platform/mobile/useMobileInteractionMode.js';
 import {
   MAGNETIC_POINT_SNAP_PIXELS,
   findMagneticSnapTarget,
@@ -192,6 +193,7 @@ const stageButtonStyle = (active, disabled = false) => ({
 });
 
 export default function InteractiveGraphWorkspace({ question, onStateChange, mode = 'investigate', onUndoStateChange = null, feedback = null, draftKey = null }) {
+  const mobileInteraction = useMobileInteractionMode();
   const svgRef = useRef(null);
   const drawingRef = useRef([]);
   const [drawing, setDrawing] = useState(false);
@@ -585,7 +587,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
           {stage === 'construct' ? (
             <>
               <h3 style={{ margin: '0 0 8px', fontSize: '16px', color: '#174ea6' }}>Plotting Points</h3>
-              <p style={{ margin: '0 0 10px', color: '#5f6368', fontSize: '12px' }}>Drag a point. Colored horizontal and vertical guides show the exact release location.</p>
+              <p style={{ margin: '0 0 10px', color: '#5f6368', fontSize: '12px' }}>{mobileInteraction.isMobile ? 'Tap a point card, then tap its location on the coordinate plane.' : 'Drag a point, or select it and click the coordinate plane. Colored guides show the exact location.'}</p>
               {magneticSnapTargets.length > 0 && <p style={{ margin: '0 0 10px', padding: '7px 8px', borderRadius: '7px', background: '#e6f4ea', color: '#137333', fontSize: '12px', lineHeight: 1.4 }}><strong>Magnetic placement is on.</strong> Points from your completed table will gently snap to the exact coordinate when you get close.</p>}
               <div style={{ display: 'grid', gap: '8px' }}>
                 {tasks.map((task) => {
@@ -594,7 +596,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
                   const xValue = construction.chosenXValues[task.id] ?? '';
                   const canPlace = task.expected === 'undefined' || Number.isFinite(Number(xValue));
                   return <div key={task.id} style={{ border: active ? '2px solid #1a73e8' : '1px solid #c9d4e5', borderRadius: '9px', background: placement ? '#eef5ff' : '#fff', padding: '9px' }}>
-                    <button type="button" draggable={!construction.pointsValidated && canPlace} onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-point', task.id); event.dataTransfer.setDragImage(makePointDragImage(), 22, 22); setDraggingTaskId(task.id); }} onDragEnd={() => { setDraggingTaskId(null); setDropCandidate(null); setDropMagneticTarget(null); }} onClick={() => !construction.pointsValidated && canPlace && setActiveTaskId(task.id)} style={{ width: '100%', textAlign: 'left', border: 'none', background: 'transparent', padding: 0, cursor: construction.pointsValidated || !canPlace ? 'default' : 'grab' }}>
+                    <button type="button" draggable={!mobileInteraction.isMobile && !construction.pointsValidated && canPlace} onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-point', task.id); event.dataTransfer.setDragImage(makePointDragImage(), 22, 22); setDraggingTaskId(task.id); }} onDragEnd={() => { setDraggingTaskId(null); setDropCandidate(null); setDropMagneticTarget(null); }} onClick={() => !construction.pointsValidated && canPlace && setActiveTaskId(task.id)} style={{ width: '100%', textAlign: 'left', border: 'none', background: 'transparent', padding: 0, cursor: construction.pointsValidated || !canPlace ? 'default' : 'grab' }}>
                       <strong style={{ color: '#202124' }}>{task.label}{!['center', 'key'].includes(task.role) && task.x !== null ? `: x = ${task.x}` : ''}</strong>
                       <span style={{ display: 'block', color: placement ? '#174ea6' : '#5f6368', fontSize: '12px', marginTop: '3px' }}>{taskPlacementLabel(placement)}</span>
                     </button>
@@ -606,8 +608,8 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
               {!construction.pointsValidated && <button type="button" onClick={checkPoints} disabled={Object.keys(construction.placements).length < tasks.length} style={{ width: '100%', marginTop: '12px', padding: '10px', border: 'none', borderRadius: '8px', background: Object.keys(construction.placements).length >= tasks.length ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 'bold' }}>Check Point Placements</button>}
               {construction.snapped && endpointRequirements.length > 0 && <div style={{ marginTop: '14px', borderTop: '1px solid #dfe3e7', paddingTop: '12px' }}>
                 <h3 style={{ margin: '0 0 5px', fontSize: '15px' }}>{endpointSectionTitle}</h3>
-                <p style={{ margin: '0 0 8px', fontSize: '11px', color: '#5f6368', lineHeight: 1.45 }}>{endpointInstruction} Drag or tap a marker, then place it near a graph end; a generous magnetic area helps it snap into place.</p>
-                {availableMarkerTypes.map((type) => { const label = markerLabels[type]; return <button key={type} type="button" draggable onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-marker', type); event.dataTransfer.setDragImage(makeMarkerDragImage(type), 26, 26); setDraggingMarkerType(type); }} onDragEnd={() => { setDraggingMarkerType(null); setDropCandidate(null); setDropMagneticTarget(null); }} onClick={() => setActiveMarker(type)} style={{ width: '100%', marginTop: '6px', padding: '9px', border: activeMarker === type ? '2px solid #1a73e8' : '1px solid #c9d4e5', borderRadius: '8px', background: '#fff', fontWeight: 'bold', cursor: 'grab', display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ fontSize: '23px', color: '#1a73e8' }}>{markerSymbols[type]}</span><span><span style={{ display: 'block' }}>{label}</span><span style={{ display: 'block', fontSize: '11px', color: '#5f6368', fontWeight: 400 }}>{markerExplanations[type]}</span></span></button>; })}
+                <p style={{ margin: '0 0 8px', fontSize: '11px', color: '#5f6368', lineHeight: 1.45 }}>{endpointInstruction} {mobileInteraction.isMobile ? 'Tap a marker, then tap near a graph end; a generous magnetic area helps it snap into place.' : 'Drag or select a marker, then place it near a graph end; a generous magnetic area helps it snap into place.'}</p>
+                {availableMarkerTypes.map((type) => { const label = markerLabels[type]; return <button key={type} type="button" draggable={!mobileInteraction.isMobile} onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-marker', type); event.dataTransfer.setDragImage(makeMarkerDragImage(type), 26, 26); setDraggingMarkerType(type); }} onDragEnd={() => { setDraggingMarkerType(null); setDropCandidate(null); setDropMagneticTarget(null); }} onClick={() => setActiveMarker(type)} style={{ width: '100%', marginTop: '6px', padding: '9px', border: activeMarker === type ? '2px solid #1a73e8' : '1px solid #c9d4e5', borderRadius: '8px', background: '#fff', fontWeight: 'bold', cursor: 'grab', display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ fontSize: '23px', color: '#1a73e8' }}>{markerSymbols[type]}</span><span><span style={{ display: 'block' }}>{label}</span><span style={{ display: 'block', fontSize: '11px', color: '#5f6368', fontWeight: 400 }}>{markerExplanations[type]}</span></span></button>; })}
                 <div style={{ marginTop: '10px', display: 'grid', gap: '5px' }}>{endpointRequirements.map((requirement, index) => { const placement = construction.markerPlacements[requirement.id]; return <div key={requirement.id} style={{ fontSize: '12px', color: placement ? '#174ea6' : '#5f6368' }}>{boundaryOnly ? 'Boundary' : 'End'} {index + 1}: {placement ? markerLabels[markerValue(placement)] : 'not placed'}</div>; })}</div>
               </div>}
             </>

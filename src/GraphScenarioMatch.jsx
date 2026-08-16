@@ -4,6 +4,7 @@ import GraphDisplay from './GraphDisplay';
 import useUndoHistory from './useUndoHistory';
 import { stableStringify } from './scenarioResponseUtils';
 import './GraphScenarioMatch.css';
+import useMobileInteractionMode from './platform/mobile/useMobileInteractionMode.js';
 
 const getPartGrade = (feedback, id) => feedback?.partGrades?.find((part) => part.id === id);
 
@@ -28,6 +29,7 @@ export default function GraphScenarioMatch({ question, onStateChange, onUndoStat
   const matches = history.value || {};
 
   const [selectedGraphId, setSelectedGraphId] = useState('');
+  const mobileInteraction = useMobileInteractionMode();
   const [draggedGraphId, setDraggedGraphId] = useState('');
   const [zoomedGraphId, setZoomedGraphId] = useState('');
   const [connectors, setConnectors] = useState([]);
@@ -319,7 +321,7 @@ export default function GraphScenarioMatch({ question, onStateChange, onUndoStat
                     else graphRefs.current.delete(graphChoice.id);
                   }}
                   className={`graph-scenario-graph-card ${stateClass}`}
-                  draggable
+                  draggable={!mobileInteraction.isMobile}
                   onDragStart={() => {
                     setDraggedGraphId(graphChoice.id);
                     setSelectedGraphId(graphChoice.id);

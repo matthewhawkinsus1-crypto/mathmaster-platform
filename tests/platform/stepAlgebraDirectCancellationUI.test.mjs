@@ -31,5 +31,6 @@ test('Apply shortcut is explicitly accommodation-gated', () => {
 test('literal-equation operation input supports symbolic factors on touch devices', () => {
   assert.match(source, /toolProfile="algebra-operation"/);
   assert.match(mathInput, /profile === 'algebra-operation'/);
-  assert.match(mathInput, /'function', 'algebra-operation'/);
+  assert.match(mathInput, /algebraOperationKeysForContext/);
+  assert.match(mathInput, /toolProfile !== 'function'/);
 });

@@ -12,6 +12,8 @@ import MathInput from './MathInput';
 import QuestionPrompt from './QuestionPrompt';
 import AlgebraTermRow from './AlgebraTermRow';
 import './StepByStepAlgebra.css';
+import useMobileInteractionMode from './platform/mobile/useMobileInteractionMode.js';
+import { extractEquationSymbols, placementInstructionForOperation, semanticPlacementFromTap } from './platform/mobile/mobileInteractionFoundation.js';
 import {
   applyBalancedOperation,
   describeOperation,
@@ -283,6 +285,9 @@ export default function StepByStepAlgebra({
   useEffect(() => watchReducedMotion(setReducedMotion), []);
   const [armedTile, setArmedTile] = useState(null); // { operation, sourceSide }
   const [operationFocusSignal, setOperationFocusSignal] = useState(0);
+  const [mathToolsCollapseSignal, setMathToolsCollapseSignal] = useState(0);
+  const [tapPlacementArmed, setTapPlacementArmed] = useState(false);
+  const mobileInteraction = useMobileInteractionMode();
   const [placedOperationSides, setPlacedOperationSides] = useState([]);
   const [placedOperationPositions, setPlacedOperationPositions] = useState({});
   const [heldToken, setHeldToken] = useState(null); // { x, y, label }
@@ -306,6 +311,13 @@ export default function StepByStepAlgebra({
   const rightRailRef = useRef(null);
   const leftExpressionRef = useRef(null);
   const rightExpressionRef = useRef(null);
+  const operationContextSymbols = useMemo(() => extractEquationSymbols(
+    question?.equation,
+    question?.formula,
+    equation ? equationToLatex(equation) : '',
+    question?.solveFor,
+    equation?.variable,
+  ), [question?.equation, question?.formula, question?.solveFor, equation]);
 
   useEffect(() => {
     if (savedDraft) return;
@@ -325,8 +337,10 @@ export default function StepByStepAlgebra({
     setSelectedCancellationIndices({});
     setMessage(null);
     setArmedTile(null);
+    setTapPlacementArmed(false);
     setPlacedOperationSides([]);
     setPlacedOperationPositions({});
+    setTapPlacementArmed(false);
   }, [question, savedDraft]);
 
   useEffect(() => {
@@ -899,6 +913,7 @@ export default function StepByStepAlgebra({
     if (disabled || savingStep || pendingMove) return;
     const switching = armedTile?.operation !== operation;
     setArmedTile({ operation, sourceSide });
+    setTapPlacementArmed(false);
     if (switching || placedOperationSides.length) {
       setOperand('');
       setPlacedOperationSides([]);
@@ -906,6 +921,31 @@ export default function StepByStepAlgebra({
     }
     setMessage(null);
     setOperationFocusSignal((value) => value + 1);
+  };
+
+  const activateTapPlacement = () => {
+    if (!mobileInteraction.isMobile || !armedTile || pendingMove || disabled || savingStep) return;
+    if (!String(operand || '').trim()) {
+      setMessage({ tone: 'growth', text: 'Type the operation value or expression first.' });
+      setOperationFocusSignal((value) => value + 1);
+      return;
+    }
+    setTapPlacementArmed(true);
+    setMathToolsCollapseSignal((value) => value + 1);
+    setMessage({ tone: 'growth', text: `${describeOperation(armedTile.operation, operand)} is ready. ${placementInstructionForOperation(armedTile.operation)}` });
+    window.requestAnimationFrame(() => {
+      equalsRef.current?.scrollIntoView?.({ block: 'center', inline: 'nearest', behavior: reducedMotion ? 'auto' : 'smooth' });
+    });
+  };
+
+  const tapPlacementOnSide = (side, event) => {
+    if (!mobileInteraction.isMobile || !tapPlacementArmed || !armedTile || pendingMove || disabled || savingStep) return;
+    const position = semanticPlacementFromTap({
+      operation: armedTile.operation,
+      clientX: event?.clientX,
+      expressionRect: expressionRectForSide(side),
+    });
+    stagePlacement(side, position);
   };
 
   const suggestedMove = getSuggestedMove(equation);
@@ -1084,14 +1124,24 @@ export default function StepByStepAlgebra({
         </div>
       )}
 
-      <div className="algebra-balance-workspace-shell">
-        <div ref={leftRailRef} className="algebra-rail algebra-rail-left">
+      {mobileInteraction.isMobile && !pendingMove && (
+        <div className="algebra-mobile-operation-palette" role="group" aria-label="Choose an algebra operation">
+          {OPERATIONS.map((operation) => (
+            <button type="button" key={`mobile-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'left')} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
+              <span aria-hidden="true">{operation.symbol}</span><small>{operation.label}</small>
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className={`algebra-balance-workspace-shell ${mobileInteraction.isMobile ? 'is-mobile-tap-layout' : ''}`}>
+        {!mobileInteraction.isMobile && <div ref={leftRailRef} className="algebra-rail algebra-rail-left">
           {OPERATIONS.map((operation) => (
             <button type="button" key={`left-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'left')} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
               {operation.symbol}
             </button>
           ))}
-        </div>
+        </div>}
 
         <div aria-label="Interactive algebra balance scale" className={`algebra-equation-stage algebra-connected-balance ${balanceStagingSide ? `is-unbalanced is-unbalanced-${balanceStagingSide}` : ''}`}>
           {['left', 'right'].map((side, index) => {
@@ -1102,7 +1152,17 @@ export default function StepByStepAlgebra({
               <div
                 key={side}
                 ref={side === 'left' ? leftSideRef : rightSideRef}
-                className={`algebra-equation-box algebra-connected-side ${dragOverSide === side ? 'is-hovered' : ''} ${stagedHere ? 'has-staged-operation' : ''}`}
+                className={`algebra-equation-box algebra-connected-side ${dragOverSide === side ? 'is-hovered' : ''} ${stagedHere ? 'has-staged-operation' : ''} ${mobileInteraction.isMobile && tapPlacementArmed ? 'mathmaster-tap-placement-ready' : ''}`}
+                role={mobileInteraction.isMobile && tapPlacementArmed ? 'button' : undefined}
+                tabIndex={mobileInteraction.isMobile && tapPlacementArmed ? 0 : undefined}
+                aria-label={mobileInteraction.isMobile && tapPlacementArmed ? `Place ${describeOperation(armedTile?.operation, operand)} on the ${side} side` : undefined}
+                onClick={(event) => tapPlacementOnSide(side, event)}
+                onKeyDown={(event) => {
+                  if (mobileInteraction.isMobile && tapPlacementArmed && (event.key === 'Enter' || event.key === ' ')) {
+                    event.preventDefault();
+                    tapPlacementOnSide(side, event);
+                  }
+                }}
                 onDragOver={(event) => { event.preventDefault(); updatePointerVisuals(event.clientX, event.clientY); }}
                 onDragLeave={() => { setDragOverSide(null); setFactorZoneHint(null); }}
                 onDrop={(event) => {
@@ -1136,13 +1196,13 @@ export default function StepByStepAlgebra({
           <div aria-hidden="true" className={`algebra-balance-beam ${balancePulse ? 'algebra-balance-pulse' : ''} ${balanceStagingSide ? `tilt-${balanceStagingSide}` : ''}`} />
         </div>
 
-        <div ref={rightRailRef} className="algebra-rail algebra-rail-right">
+        {!mobileInteraction.isMobile && <div ref={rightRailRef} className="algebra-rail algebra-rail-right">
           {OPERATIONS.map((operation) => (
             <button type="button" key={`right-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'right')} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
               {operation.symbol}
             </button>
           ))}
-        </div>
+        </div>}
       </div>
 
       {pendingMove?.assumption && (
@@ -1173,33 +1233,40 @@ export default function StepByStepAlgebra({
               placeholder="value or expression"
               ariaLabel={`${armedOperationLabel} what to both sides`}
               focusSignal={operationFocusSignal}
+              contextSymbols={operationContextSymbols}
+              collapseSignal={mathToolsCollapseSignal}
               compact
               maxWidth={380}
             />
           </label>
           <button
             type="button"
-            className="algebra-pickup-button"
-            onPointerDown={(event) => beginPointerDrag(armedTile.operation, event)}
-            onPointerMove={onDragPointerMove}
-            onPointerUp={onDragPointerUp}
-            onPointerCancel={onDragPointerCancel}
+            className={`algebra-pickup-button ${mobileInteraction.isMobile ? 'is-tap-placement-button' : ''}`}
+            onClick={mobileInteraction.isMobile ? activateTapPlacement : undefined}
+            onPointerDown={mobileInteraction.isMobile ? undefined : (event) => beginPointerDrag(armedTile.operation, event)}
+            onPointerMove={mobileInteraction.isMobile ? undefined : onDragPointerMove}
+            onPointerUp={mobileInteraction.isMobile ? undefined : onDragPointerUp}
+            onPointerCancel={mobileInteraction.isMobile ? undefined : onDragPointerCancel}
             disabled={disabled || savingStep || !String(operand || '').trim()}
-            title="Drag this operation onto one side of the equation"
+            title={mobileInteraction.isMobile ? 'Arm this operation, then tap the equation where it belongs' : 'Drag this operation onto one side of the equation'}
+            aria-pressed={mobileInteraction.isMobile ? tapPlacementArmed : undefined}
           >
-            ⠿ Pick up {operandLabel ? <OperationChip token={describeOperationToken(armedTile.operation, operand)} /> : 'operation'}
+            {mobileInteraction.isMobile ? (tapPlacementArmed ? 'Ready to place ' : 'Use ') : '⠿ Pick up '}
+            {operandLabel ? <OperationChip token={describeOperationToken(armedTile.operation, operand)} /> : 'operation'}
           </button>
           {allowAutoApply && (
             <button type="button" className="algebra-auto-apply-button" onClick={() => attemptMove(armedTile.operation, armedTile.sourceSide || 'left')} disabled={disabled || savingStep || !String(operand || '').trim()} title="Accommodation shortcut: apply this operation to both sides">
               Apply to both sides
             </button>
           )}
-          <button type="button" className="algebra-composer-cancel" onClick={() => { setOperand(''); setArmedTile(null); setPlacedOperationSides([]); setPlacedOperationPositions({}); setMessage(null); }}>Cancel</button>
+          <button type="button" className="algebra-composer-cancel" onClick={() => { setOperand(''); setArmedTile(null); setPlacedOperationSides([]); setPlacedOperationPositions({}); setTapPlacementArmed(false); setMessage(null); }}>Cancel</button>
           <div className="algebra-placement-progress" aria-live="polite">
             {placedOperationSides.length === 0
-              ? (isFactorOperation(armedTile.operation)
-                  ? (armedTile.operation === 'divide' ? 'Place the divisor beneath one side, then do the same on the other side.' : 'Place the factor next to one side, then do the same on the other side.')
-                  : 'Place this operation on one side, then restore the balance on the other side.')
+              ? (mobileInteraction.isMobile
+                  ? (tapPlacementArmed ? placementInstructionForOperation(armedTile.operation) : 'Enter the operand, choose Use, then place it on each side yourself.')
+                  : (isFactorOperation(armedTile.operation)
+                      ? (armedTile.operation === 'divide' ? 'Place the divisor beneath one side, then do the same on the other side.' : 'Place the factor next to one side, then do the same on the other side.')
+                      : 'Place this operation on one side, then restore the balance on the other side.'))
               : `Placed on ${placedOperationSides[0]} · ${balanceMissingSide} side still needed`}
           </div>
           {allowAutoApply && <div className="algebra-accommodation-note">Your support plan includes the automatic Apply shortcut. Manual placement remains available.</div>}
