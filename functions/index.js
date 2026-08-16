@@ -1126,7 +1126,7 @@ async function pathCoverage() {
 
 const COVERAGE_COLLECTION = "pathCoverage";
 
-const PATH_RUNTIME_RELEASE = "path-bank-2026-08-11-r3";
+const PATH_RUNTIME_RELEASE = "path-bank-2026-08-16-r4-self-healing";
 
 
 /**
@@ -1234,6 +1234,7 @@ exports.promoteQuestionToPathBank = onCall(async (request) => {
   });
   const bankId = promotion.pathBankIdFor({ sourceAssignmentId: assignmentId, sourceQuestionIndex: questionIndex });
   await db.collection("pathQuestionBank").doc(bankId).set(record, { merge: true });
+  await rebuildStoredPathCoverage(db);
 
   return { bankId, standards: evaluation.standards, toolId: evaluation.toolId, checks: evaluation.checks };
 });
@@ -1355,6 +1356,78 @@ function loadBuiltInStarterPathSeed() {
 }
 
 /**
+ * Rebuild stored coverage from the actual secure bank.
+ */
+async function rebuildStoredPathCoverage(db, {
+  courses = ["algebra1", "algebra2"],
+  wheelTeksByCourse = null,
+} = {}) {
+  const coverage = await pathCoverage();
+  const builtInItems = loadBuiltInStarterPathSeed();
+  const derivedWheel = { algebra1: new Set(), algebra2: new Set() };
+
+  builtInItems.forEach((item) => {
+    const courseId = String(item?.courseId || "");
+    if (!derivedWheel[courseId]) return;
+    (Array.isArray(item?.alignmentKeys) ? item.alignmentKeys : []).forEach((key) => {
+      const code = String(key || "").replace(/^texas:/i, "").trim().toUpperCase();
+      if (code) derivedWheel[courseId].add(code);
+    });
+  });
+
+  const snapshot = await db.collection("pathQuestionBank").get();
+  const bankItems = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  const plans = {};
+  for (const item of bankItems) {
+    // eslint-disable-next-line no-await-in-loop
+    plans[item.id] = await mathPath.buildIssuePlan(item);
+  }
+
+  const indexes = {};
+  for (const courseId of courses) {
+    const supplied = Array.isArray(wheelTeksByCourse?.[courseId])
+      ? wheelTeksByCourse[courseId]
+      : [];
+    const wheelTeks = supplied.length ? supplied : [...(derivedWheel[courseId] || [])];
+    if (!wheelTeks.length) {
+      throw new HttpsError("failed-precondition", `No My Math Path standards are available for ${courseId}.`);
+    }
+    const index = coverage.buildCoverageIndex({
+      courseId,
+      wheelTeks,
+      bankItems,
+      plans,
+      generatedAt: Date.now(),
+    });
+    // eslint-disable-next-line no-await-in-loop
+    await db.collection(COVERAGE_COLLECTION).doc(courseId).set(index);
+    indexes[courseId] = index;
+  }
+  return { courses, indexes };
+}
+
+async function livePathSkillIsLaunchable(db, targetAlignmentKey) {
+  const coverage = await pathCoverage();
+  const snapshot = await db.collection("pathQuestionBank")
+    .where("alignmentKeys", "array-contains", targetAlignmentKey)
+    .get();
+  const bankItems = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  const plans = {};
+  for (const item of bankItems) {
+    // eslint-disable-next-line no-await-in-loop
+    plans[item.id] = await mathPath.buildIssuePlan(item);
+  }
+  const index = coverage.buildCoverageIndex({
+    courseId: coverageCourseIdFor(targetAlignmentKey),
+    wheelTeks: [coverage.coverageKey(targetAlignmentKey)],
+    bankItems,
+    plans,
+    generatedAt: Date.now(),
+  });
+  return coverage.isSkillLaunchable(index, targetAlignmentKey);
+}
+
+/**
  * Root-admin one-click initializer for a fresh MathMaster installation.
  *
  * SECURITY: the answer-bearing starter JSON files live inside the Cloud
@@ -1376,7 +1449,10 @@ exports.initializeStarterPathQuestionBank = onCall(async (request) => {
   if (items.length > 600) {
     throw new HttpsError("failed-precondition", "The built-in starter bank exceeds the supported one-click import size.");
   }
-  return processPathSeedImport({ db, actor, items, dryRun: false });
+  const seed = await processPathSeedImport({ db, actor, items, dryRun: false });
+  if (!seed.imported) return seed;
+  const coverage = await rebuildStoredPathCoverage(db);
+  return { ...seed, coverage };
 });
 
 /** Remove a promoted question from the Path bank without touching the assignment. */
@@ -1388,6 +1464,7 @@ exports.withdrawQuestionFromPathBank = onCall(async (request) => {
   // Deactivated rather than deleted: an evidence event already recorded against
   // it should still be able to name the question a student answered.
   await db.collection("pathQuestionBank").doc(bankId).set({ active: false, withdrawnAt: Date.now() }, { merge: true });
+  await rebuildStoredPathCoverage(db);
   return { bankId, active: false };
 });
 
@@ -1413,48 +1490,15 @@ exports.withdrawQuestionFromPathBank = onCall(async (request) => {
 exports.rebuildPathCoverage = onCall(async (request) => {
   await requireTeacher(request);
   const db = getFirestore();
-  const coverage = await pathCoverage();
-
   const requestedCourses = Array.isArray(request.data?.courses) ? request.data.courses : [];
-  const wheelByCourse = request.data?.wheelTeksByCourse && typeof request.data.wheelTeksByCourse === "object"
+  const wheelByCourse = request.data?.wheelTeksByCourse && typeof request.data?.wheelTeksByCourse === "object"
     ? request.data.wheelTeksByCourse
     : {};
-  const courses = requestedCourses.length ? requestedCourses : Object.keys(wheelByCourse);
-  if (!courses.length) {
-    throw new HttpsError("invalid-argument", "Supply at least one course and its wheel standards.");
-  }
-
-  // One read of the bank for every course; a question may serve more than one.
-  const bankSnapshot = await db.collection("pathQuestionBank").get();
-  const bankItems = bankSnapshot.docs.map((questionDoc) => ({ id: questionDoc.id, ...questionDoc.data() }));
-
-  const plans = {};
-  for (const bankItem of bankItems) {
-    // eslint-disable-next-line no-await-in-loop
-    plans[bankItem.id] = await mathPath.buildIssuePlan(bankItem);
-  }
-
-  const indexes = {};
-  for (const courseId of courses) {
-    const wheelTeks = Array.isArray(wheelByCourse[courseId]) ? wheelByCourse[courseId] : [];
-    if (!wheelTeks.length) {
-      throw new HttpsError("invalid-argument", `No wheel standards were supplied for ${courseId}.`);
-    }
-    const index = coverage.buildCoverageIndex({
-      courseId: String(courseId),
-      wheelTeks,
-      bankItems,
-      plans,
-      generatedAt: Date.now(),
-    });
-    // eslint-disable-next-line no-await-in-loop
-    await db.collection(COVERAGE_COLLECTION).doc(String(courseId)).set(index);
-    indexes[courseId] = index;
-  }
-
-  return { courses, indexes };
+  const courses = requestedCourses.length
+    ? requestedCourses
+    : (Object.keys(wheelByCourse).length ? Object.keys(wheelByCourse) : ["algebra1", "algebra2"]);
+  return rebuildStoredPathCoverage(db, { courses, wheelTeksByCourse: wheelByCourse });
 });
-
 /**
  * Root-admin action: give existing evidence, mastery and scratchpad records the
  * authorization context the scoped rules read.
@@ -3381,11 +3425,20 @@ exports.startMyMathPathSession = onCall(async (request) => {
   if (coverageForCourse.exists) {
     const coverage = await pathCoverage();
     if (!coverage.isSkillLaunchable(coverageForCourse.data(), targetAlignmentKey)) {
-      throw new HttpsError(
-        "failed-precondition",
-        coverage.explainCoverage(coverageForCourse.data(), targetAlignmentKey),
-        { reason: "no-path-coverage" },
-      );
+      const liveReady = await livePathSkillIsLaunchable(db, targetAlignmentKey);
+      if (liveReady) {
+        logger.warn("Repairing stale Path coverage from the current secure bank", {
+          targetAlignmentKey,
+          courseId: coverageCourseIdFor(targetAlignmentKey),
+        });
+        await rebuildStoredPathCoverage(db);
+      } else {
+        throw new HttpsError(
+          "failed-precondition",
+          coverage.explainCoverage(coverageForCourse.data(), targetAlignmentKey),
+          { reason: "no-path-coverage" },
+        );
+      }
     }
   }
   const lockId = mathPath.opaqueId("pathlock", studentId, targetAlignmentKey);

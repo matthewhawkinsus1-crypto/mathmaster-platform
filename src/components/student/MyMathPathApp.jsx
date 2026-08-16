@@ -79,6 +79,7 @@ export const MyMathPathExperience = ({
   // the synthetic learner. Absent for a real student, who gets the live
   // secure service.
   sessionProvider = null,
+  coverageOverride = null,
   loading = false,
   error = null,
   historyError = null,
@@ -116,9 +117,14 @@ export const MyMathPathExperience = ({
   // student is never sent somewhere that ends in "No authored question ...";
   // the check happens here, before the session starts, rather than as an error
   // afterwards.
-  const [coverage, setCoverage] = useState(null);
-  const [coverageLoaded, setCoverageLoaded] = useState(false);
+  const [coverage, setCoverage] = useState(() => coverageOverride || null);
+  const [coverageLoaded, setCoverageLoaded] = useState(() => Boolean(coverageOverride));
   useEffect(() => {
+    if (coverageOverride) {
+      setCoverage(coverageOverride);
+      setCoverageLoaded(true);
+      return undefined;
+    }
     let cancelled = false;
     setCoverageLoaded(false);
     fetchPathCoverage(courseId).then((index) => {
@@ -127,7 +133,7 @@ export const MyMathPathExperience = ({
       setCoverageLoaded(true);
     });
     return () => { cancelled = true; };
-  }, [courseId]);
+  }, [courseId, coverageOverride]);
 
   const startSession = (teksCode, options = {}) => {
     // Fails closed: an index that has never been built, or a standard missing

@@ -93,7 +93,12 @@ export const seedPathQuestionBank = async (items, { chunkSize = 400, onProgress 
   }
 
   const written = await runPass(false);
-  return { imported: written.rejected.length === 0, phase: 'import', ...written };
+  if (written.rejected.length === 0) {
+    onProgress?.({ phase: 'coverage', chunk: 0, chunks: 0 });
+    const coverage = await rebuildPathCoverage(['algebra1', 'algebra2']);
+    return { imported: true, phase: 'import', ...written, coverage };
+  }
+  return { imported: false, phase: 'import', ...written };
 };
 
 /**

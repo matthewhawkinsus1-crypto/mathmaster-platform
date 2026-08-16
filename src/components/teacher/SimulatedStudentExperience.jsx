@@ -13,6 +13,7 @@ import { getQuestionCredit, normalizeQuestionRecord } from '../../attemptPolicy'
 import { matchesSmartView } from '../../assignmentSmartViews.js';
 import { createTeacherPathRuntime } from '../../platform/simulation/teacherPathRuntime.js';
 import { fetchTeacherPathBankSnapshot } from '../../platform/path/pathBankSimulationService.js';
+import { buildSimulatorCoverageIndex } from '../../platform/simulation/simulatorCoverageIndex.js';
 
 // The same arithmetic App.jsx uses for a real student's recorded grade. It is
 // three lines and lives on App's closure there; duplicating those three lines
@@ -108,6 +109,10 @@ export default function SimulatedStudentExperience({
     },
   }) : null), [assignments, pathBankQuestions, courseId, learner]);
 
+  const simulatorCoverage = useMemo(
+    () => (pathBankQuestions ? buildSimulatorCoverageIndex(pathBankQuestions, { courseId }) : null),
+    [pathBankQuestions, courseId],
+  );
   useEffect(() => { setSessionAssignments([]); }, [runtime]);
   useEffect(() => { if (!assignments.length) setView('path'); }, [assignments.length]);
 
@@ -237,6 +242,7 @@ export default function SimulatedStudentExperience({
             studentRecord={learner}
             masteryData={masteryData}
             sessionProvider={runtime}
+            coverageOverride={simulatorCoverage}
             evidenceEvents={[]}
             loading={false}
             assessmentContextOverride={assessmentContext}
