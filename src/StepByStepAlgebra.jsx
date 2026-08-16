@@ -31,7 +31,8 @@ import {
 } from './algebraAstEngine';
 import { getAttemptsRemaining, normalizeQuestionRecord } from './attemptPolicy';
 import {
-  evaluateMove, getSupportPolicy, resolveEquationAfterKeepingMove, resolveEquationAfterMove, resolveSupportLevel,
+  evaluateMove, getSupportPolicy, resolveEquationAfterKeepingMove, resolveEquationAfterMove,
+  resolveEquationAfterStudentSimplification, resolveSupportLevel,
 } from './algebraSupportLevels';
 
 const OPERATIONS = [
@@ -356,8 +357,9 @@ export default function StepByStepAlgebra({
     try {
       const move = applyBalancedOperation({ equationState: initialEquation, operation: suggestion.operation, operand: String(suggestion.operand) });
       prefillAppliedRef.current = true;
-      setEquation(move.simplified);
-      setMessage({ tone: 'growth', text: `The first balanced step was pre-filled: ${describeOperation(suggestion.operation, suggestion.operand)}. Continue from the simplified equation.` });
+      const prefilledEquation = resolveEquationAfterMove(move, 1, move.requiredCancellationSides || []);
+      setEquation(prefilledEquation);
+      setMessage({ tone: 'growth', text: `The first balanced step was pre-filled: ${describeOperation(suggestion.operation, suggestion.operand)}. Continue from the resulting equation.` });
     } catch {
       // A pre-filled anchor is optional and never blocks the question.
     }
@@ -465,8 +467,11 @@ export default function StepByStepAlgebra({
     setCollapsingSides(move.requiredCancellationSides || []);
     window.setTimeout(async () => {
       const verdict = evaluateMove(move, supportLevel);
+      const normalizedSimplificationAnswers = Object.fromEntries(
+        Object.entries(simplificationAnswers || {}).map(([side, value]) => [side, latexToExpression(value)]),
+      );
       const nextEquation = resolution === 'simplified'
-        ? move.simplified
+        ? resolveEquationAfterStudentSimplification(move, normalizedSimplificationAnswers, crossedSides)
         : resolution === 'keep'
           ? resolveEquationAfterKeepingMove(move, crossedSides)
           : resolveEquationAfterMove(move, supportLevel, crossedSides);
@@ -1187,7 +1192,7 @@ export default function StepByStepAlgebra({
         <div aria-label="Interactive algebra balance scale" className={`algebra-equation-stage algebra-connected-balance ${balanceStagingSide ? `is-unbalanced is-unbalanced-${balanceStagingSide}` : ''}`}>
           {['left', 'right'].map((side, index) => {
             const target = pendingMove?.cancellationTargets.find((item) => item.side === side);
-            const cancellationModel = target?.canCancel ? buildCancellationModel(sideExpression(side), target.simplifiedExpression, equation.variable) : null;
+            const cancellationModel = target?.canCancel ? buildCancellationModel(sideExpression(side), target.cancellationResultExpression || target.simplifiedExpression, equation.variable) : null;
             const stagedHere = placedOperationSides.includes(side);
             return (
               <div

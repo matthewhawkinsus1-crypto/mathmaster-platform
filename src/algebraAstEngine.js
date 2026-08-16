@@ -251,6 +251,103 @@ export const splitMultiplicativeFactors = (expression) => {
   }
 };
 
+// Cancellation is a student action, so detect it from the structure the student
+// can actually see rather than from MathJS's fully simplified result. In
+// particular, P*r*t + t must NOT suddenly become t(P*r + 1) merely because
+// MathJS noticed a common factor. Only factors already separated by top-level
+// multiplication/division are eligible to cancel.
+const canonicalFactorKey = (text) => {
+  try { return simplifyExpression(text); } catch { return String(text).trim(); }
+};
+
+const structuralCancellation = (expression) => {
+  const factors = splitMultiplicativeFactors(expression);
+  if (factors?.numerator?.length && factors?.denominator?.length) {
+    const usedDenominator = new Set();
+    const pairs = [];
+    factors.numerator.forEach((numeratorFactor, numeratorIndex) => {
+      const numeratorKey = canonicalFactorKey(numeratorFactor.text);
+      const denominatorIndex = factors.denominator.findIndex((denominatorFactor, index) => (
+        !usedDenominator.has(index) && canonicalFactorKey(denominatorFactor.text) === numeratorKey
+      ));
+      if (denominatorIndex < 0) return;
+      usedDenominator.add(denominatorIndex);
+      pairs.push({ numeratorIndex, denominatorIndex, key: numeratorKey });
+    });
+
+    if (pairs.length) {
+      const cancelledNumerators = new Set(pairs.map((pair) => pair.numeratorIndex));
+      const cancelledDenominators = new Set(pairs.map((pair) => pair.denominatorIndex));
+      const remainingNumerator = factors.numerator.filter((_, index) => !cancelledNumerators.has(index));
+      const remainingDenominator = factors.denominator.filter((_, index) => !cancelledDenominators.has(index));
+
+      const multiply = (items) => {
+        if (!items.length) return '1';
+        if (items.length === 1) return items[0].text;
+        return items.map((item) => `(${item.text})`).join(' * ');
+      };
+      const numeratorText = multiply(remainingNumerator);
+      const denominatorText = multiply(remainingDenominator);
+      const resultExpression = remainingDenominator.length
+        ? `(${numeratorText}) / (${denominatorText})`
+        : numeratorText;
+
+      return {
+        kind: 'multiplicative',
+        pairs,
+        resultExpression,
+        numerator: factors.numerator,
+        denominator: factors.denominator,
+      };
+    }
+  }
+
+  // Additive inverse pairs are also true cancellation the student can see:
+  // 3x + 6 - 6 -> 3x. This is different from factoring P*r*t + t into
+  // t(P*r + 1); the terms already appear as opposites before any rewrite.
+  const terms = splitAdditiveTerms(expression) || [];
+  const used = new Set();
+  const additivePairs = [];
+  for (let i = 0; i < terms.length; i += 1) {
+    if (used.has(i)) continue;
+    const leftMagnitude = String(terms[i].text).replace(/^[+-]\s*/, '');
+    const leftKey = canonicalFactorKey(leftMagnitude);
+    for (let j = i + 1; j < terms.length; j += 1) {
+      if (used.has(j) || terms[i].sign === terms[j].sign) continue;
+      const rightMagnitude = String(terms[j].text).replace(/^[+-]\s*/, '');
+      if (canonicalFactorKey(rightMagnitude) !== leftKey) continue;
+      used.add(i);
+      used.add(j);
+      additivePairs.push({ firstIndex: i, secondIndex: j, key: leftKey });
+      break;
+    }
+  }
+
+  if (additivePairs.length) {
+    const remaining = terms.filter((_, index) => !used.has(index));
+    let resultExpression = remaining.map((term) => term.text).join(' ').trim() || '0';
+    resultExpression = resultExpression.replace(/^\+\s*/, '');
+    return {
+      kind: 'additive',
+      pairs: additivePairs,
+      resultExpression,
+      terms,
+      numerator: factors?.numerator || [],
+      denominator: factors?.denominator || [],
+    };
+  }
+
+  return {
+    kind: null,
+    pairs: [],
+    resultExpression: String(expression),
+    numerator: factors?.numerator || [],
+    denominator: factors?.denominator || [],
+  };
+};
+
+const containsSymbols = (expression) => symbolsIn(expression).length > 0;
+
 const evaluateAt = (expression, variable, value) => {
   const node = parse(String(expression));
   const unexpectedSymbols = node.filter((child) => child.isSymbolNode).map((child) => child.name).filter((name) => name !== variable && name !== 'e' && name !== 'pi');
@@ -353,7 +450,10 @@ export const parseOperationOperand = (rawValue) => {
   if (!text) throw new Error('Enter a number, variable term, or expression for the operation.');
   if (/[=;\[\]{}]/.test(text)) throw new Error('Enter only the expression being applied, without an equals sign.');
   const node = parse(text);
-  const expression = simplify(node).toString({ parenthesis: 'auto', implicit: 'hide' });
+  // Parsing validates the operand, but do not simplify/factor/reorder what the
+  // student typed. The operation composer should preserve the student's
+  // mathematical structure just like the main workspace does.
+  const expression = node.toString({ parenthesis: 'keep', implicit: 'hide' });
   const symbols = symbolsIn(expression).filter((name) => !['e', 'pi'].includes(name));
   let numericValue = null;
   if (!symbols.length) {
@@ -408,29 +508,39 @@ export const applyBalancedOperation = ({ equationState, operation, operand: rawO
   const simplified = { ...equationState, left: simplifyExpression(unsimplified.left), right: simplifyExpression(unsimplified.right) };
   const analysisAfter = getEquationAnalysis(simplified);
   const cancellationTargets = ['left', 'right'].map((side) => {
-    const beforeComplexity = nodeComplexity(equationState[side]);
-    const unsimplifiedComplexity = nodeComplexity(unsimplified[side]);
-    const afterComplexity = nodeComplexity(simplified[side]);
-    const sideHasAlgebraicTerm = symbolsIn(equationState[side]).length > 0;
-    // A cancellation mark is only appropriate where an inverse/identity pair actually
-    // removes algebraic structure. Pure arithmetic on the opposite side must be simplified,
-    // not crossed out.
-    const canCancel = sideHasAlgebraicTerm && afterComplexity + 0.18 < beforeComplexity;
-    // Do not make a student retype a side that is already as simple as the
-    // operation leaves it. Example: dividing d = rt by r should display d/r
-    // on the left; asking the student to re-enter d/r in a second box adds no
-    // algebra and wastes workspace.
+    const structural = structuralCancellation(unsimplified[side]);
+    const canCancel = structural.pairs.length > 0;
+
+    // MathJS's simplified form is retained strictly as an INTERNAL reference
+    // for equivalence, progress, and optional simplification grading. It is not
+    // automatically substituted into the student's visible equation because it
+    // may factor, distribute, reorder, or combine symbolic terms the student
+    // never changed.
     const unsimplifiedNodeCount = mathematicalNodeCount(unsimplified[side]);
     const simplifiedNodeCount = mathematicalNodeCount(simplified[side]);
-    const needsSimplification = !canCancel && simplifiedNodeCount < unsimplifiedNodeCount;
+    const pureArithmetic = !containsSymbols(unsimplified[side]);
+    // Routine number arithmetic can be offered as a cleanup step. Generic
+    // symbolic rewrites are NOT auto-generated as "simplification" tasks:
+    // MathJS may choose to factor P*r*t + t into t(P*r + 1), distribute, or
+    // reorder terms. Those are different algebraic choices, not silent cleanup.
+    // A strict final-form question may still request symbolic simplification.
+    const strictFinalForm = equationState.objective?.requireSimplifiedFinalForm === true;
+    const needsSimplification = !canCancel
+      && simplifiedNodeCount < unsimplifiedNodeCount
+      && (pureArithmetic || strictFinalForm);
+
     return {
       side,
       label: side === 'left' ? 'Left side' : 'Right side',
       latex: operationSideLatex(equationState[side], operation, operand.expression),
+      unsimplifiedExpression: unsimplified[side],
       simplifiedExpression: simplified[side],
       simplifiedLatex: expressionToLatex(simplified[side]),
       canCancel,
+      cancellationPairs: structural.pairs,
+      cancellationResultExpression: structural.resultExpression,
       needsSimplification,
+      pureArithmetic,
     };
   });
   const simplificationTargets = cancellationTargets.filter((target) => target.needsSimplification);

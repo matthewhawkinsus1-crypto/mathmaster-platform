@@ -162,18 +162,33 @@ export const evaluateMove = (move, level = DEFAULT_SUPPORT_LEVEL) => {
 export const resolveEquationAfterMove = (move, level = DEFAULT_SUPPORT_LEVEL, cancelledSides = []) => {
   const policy = getSupportPolicy(level);
   if (!move) return null;
-  if (policy.autoSimplifyOppositeSide) return move.simplified;
 
   const cancelled = new Set(Array.isArray(cancelledSides) ? cancelledSides : []);
-  const manualSimplificationSides = new Set((move.simplificationTargets || []).map((target) => target.side));
-  // A side the student actually cancelled is simplified — that was their work.
-  // A side that never needed simplification should also stay in its natural
-  // post-operation form. Only genuine simplification targets remain visibly
-  // unsimplified for the student to finish.
+  const targetBySide = new Map((move.cancellationTargets || []).map((target) => [target.side, target]));
+
+  const sideValue = (side) => {
+    const target = targetBySide.get(side);
+    // Explicit cancellation is the student's work, so apply only the factors
+    // they actually canceled. Never use the global MathJS simplified form here;
+    // it can factor or reorder unrelated symbolic structure.
+    if (cancelled.has(side) && target?.cancellationResultExpression) {
+      return target.cancellationResultExpression;
+    }
+
+    // Guided level may still do routine arithmetic for the student, but only
+    // when the entire visible side is numeric. Symbolic factoring, combining,
+    // distribution, and reordering are never automatic support behaviors.
+    if (policy.autoSimplifyOppositeSide && target?.pureArithmetic && target?.needsSimplification) {
+      return target.simplifiedExpression;
+    }
+
+    return move.unsimplified[side];
+  };
+
   return {
-    ...move.simplified,
-    left: cancelled.has('left') || !manualSimplificationSides.has('left') ? move.simplified.left : move.unsimplified.left,
-    right: cancelled.has('right') || !manualSimplificationSides.has('right') ? move.simplified.right : move.unsimplified.right,
+    ...move.unsimplified,
+    left: sideValue('left'),
+    right: sideValue('right'),
   };
 };
 
@@ -188,20 +203,62 @@ export const resolveEquationAfterMove = (move, level = DEFAULT_SUPPORT_LEVEL, ca
  * student continue from, for example, x = 21 - 6 without being forced to type
  * 15 before doing anything else.
  */
+const resolveExplicitCancellationValue = (move, side, target) => {
+  // Modern moves carry the exact token-level result of the cancellation the
+  // student performed. Prefer that so we never substitute MathJS's broader
+  // canonical/factored form into the visible equation.
+  if (target?.cancellationResultExpression) return target.cancellationResultExpression;
+
+  // Backward compatibility for pending moves/drafts created before token-level
+  // cancellation results were persisted. Those moves recorded the fact that a
+  // side required cancellation and stored the post-cancellation side only in
+  // `simplified`. Use that value *only after the student explicitly completed
+  // cancellation on that side*. This honors the student's action without
+  // allowing uncancelled sides to be rewritten automatically.
+  const legacyCancellationSide = (move?.requiredCancellationSides || []).includes(side);
+  if (legacyCancellationSide && move?.simplified?.[side] != null) return move.simplified[side];
+
+  return move?.unsimplified?.[side];
+};
+
 export const resolveEquationAfterKeepingMove = (move, cancelledSides = []) => {
   if (!move) return null;
   const cancelled = new Set(Array.isArray(cancelledSides) ? cancelledSides : []);
-  const cancellationSides = new Set(move.requiredCancellationSides || []);
-  const simplificationSides = new Set((move.simplificationTargets || []).map((target) => target.side));
+  const targetBySide = new Map((move.cancellationTargets || []).map((target) => [target.side, target]));
 
   const sideValue = (side) => {
-    if (cancelled.has(side)) return move.simplified[side];
-    if (cancellationSides.has(side) || simplificationSides.has(side)) return move.unsimplified[side];
-    return move.simplified[side];
+    const target = targetBySide.get(side);
+    if (cancelled.has(side)) return resolveExplicitCancellationValue(move, side, target);
+    return move.unsimplified[side];
   };
 
   return {
-    ...move.simplified,
+    ...move.unsimplified,
+    left: sideValue('left'),
+    right: sideValue('right'),
+  };
+};
+
+/**
+ * Commit only the simplifications the student explicitly entered. This keeps
+ * an equivalent response in the student's own form instead of replacing it
+ * with MathJS's canonical/factored version after the check passes.
+ */
+export const resolveEquationAfterStudentSimplification = (move, simplificationAnswers = {}, cancelledSides = []) => {
+  if (!move) return null;
+  const cancelled = new Set(Array.isArray(cancelledSides) ? cancelledSides : []);
+  const targetBySide = new Map((move.cancellationTargets || []).map((target) => [target.side, target]));
+
+  const sideValue = (side) => {
+    const answer = String(simplificationAnswers?.[side] ?? '').trim();
+    if (answer) return answer;
+    const target = targetBySide.get(side);
+    if (cancelled.has(side)) return resolveExplicitCancellationValue(move, side, target);
+    return move.unsimplified[side];
+  };
+
+  return {
+    ...move.unsimplified,
     left: sideValue('left'),
     right: sideValue('right'),
   };
