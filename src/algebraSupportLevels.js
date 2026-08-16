@@ -177,6 +177,36 @@ export const resolveEquationAfterMove = (move, level = DEFAULT_SUPPORT_LEVEL, ca
   };
 };
 
+
+/**
+ * Preserve a mathematically valid balanced move exactly as far as the student
+ * has chosen to take it. Completed cancellations are honored, but unresolved
+ * cancellation/simplification work stays visible instead of being silently
+ * cleaned up by the engine.
+ *
+ * This is the equation used by the "Keep as written" action. It lets a
+ * student continue from, for example, x = 21 - 6 without being forced to type
+ * 15 before doing anything else.
+ */
+export const resolveEquationAfterKeepingMove = (move, cancelledSides = []) => {
+  if (!move) return null;
+  const cancelled = new Set(Array.isArray(cancelledSides) ? cancelledSides : []);
+  const cancellationSides = new Set(move.requiredCancellationSides || []);
+  const simplificationSides = new Set((move.simplificationTargets || []).map((target) => target.side));
+
+  const sideValue = (side) => {
+    if (cancelled.has(side)) return move.simplified[side];
+    if (cancellationSides.has(side) || simplificationSides.has(side)) return move.unsimplified[side];
+    return move.simplified[side];
+  };
+
+  return {
+    ...move.simplified,
+    left: sideValue('left'),
+    right: sideValue('right'),
+  };
+};
+
 export const describeSupportLevel = (level) => {
   const policy = getSupportPolicy(level);
   return `${policy.level} · ${policy.label}`;

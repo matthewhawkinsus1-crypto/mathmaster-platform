@@ -19,8 +19,9 @@ const MOBILE_ENTRY_KEYS = [
   { label: '−', command: '-', ariaLabel: 'Insert negative sign' },
   { label: '+', command: '+', ariaLabel: 'Insert plus sign' },
   { label: '=', command: '=', ariaLabel: 'Insert equals sign' },
-  { label: '⌫', action: 'deleteBackward', ariaLabel: 'Delete previous character' },
 ];
+
+const MOBILE_BACKSPACE_KEY = { label: '⌫', action: 'deleteBackward', ariaLabel: 'Delete previous character' };
 
 const FUNCTION_KEYS = [
   { label: 'x', command: 'x', ariaLabel: 'Insert x' },
@@ -123,7 +124,15 @@ export default function MathInput({
   const onChangeRef = useRef(onChange);
   const [showTools, setShowTools] = useState(showToolsInitially);
   const [isMobile, setIsMobile] = useState(detectMobileInput);
-  const tools = useMemo(() => (isMobile ? [...MOBILE_ENTRY_KEYS, ...getToolKeys(toolProfile, { isMobile: true, contextSymbols })] : getToolKeys(toolProfile, { contextSymbols })), [toolProfile, isMobile, contextSymbols]);
+  const tools = useMemo(() => {
+    if (!isMobile) return getToolKeys(toolProfile, { contextSymbols });
+    const combined = [...MOBILE_ENTRY_KEYS, ...getToolKeys(toolProfile, { isMobile: true, contextSymbols })];
+    // Backspace is deliberately appended LAST on every mobile keypad. With the
+    // grid filling left-to-right, this pins the editing control to the bottom-
+    // right instead of letting contextual equation symbols push it into a
+    // different location from question to question.
+    return [...combined.filter((tool) => tool.action !== 'deleteBackward'), MOBILE_BACKSPACE_KEY];
+  }, [toolProfile, isMobile, contextSymbols]);
 
   useEffect(() => {
     const update = () => setIsMobile(detectMobileInput());
@@ -298,6 +307,7 @@ export default function MathInput({
               title={tool.ariaLabel}
               onPointerDown={(event) => event.preventDefault()}
               onClick={() => insert(tool.command, tool.action)}
+              className={tool.action === 'deleteBackward' ? 'mathmaster-fixed-backspace' : undefined}
               style={{
                 minHeight: '44px',
                 border: '1px solid #b8c8df',
@@ -307,6 +317,12 @@ export default function MathInput({
                 fontSize: '18px',
                 fontWeight: 'bold',
                 cursor: 'pointer',
+                ...(isMobile && tool.action === 'deleteBackward' ? {
+                  gridColumn: '-2 / -1',
+                  background: '#e8f0fe',
+                  borderColor: '#8ab4f8',
+                  color: '#174ea6',
+                } : {}),
               }}
             >
               {tool.label}

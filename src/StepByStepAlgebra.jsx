@@ -31,7 +31,7 @@ import {
 } from './algebraAstEngine';
 import { getAttemptsRemaining, normalizeQuestionRecord } from './attemptPolicy';
 import {
-  evaluateMove, getSupportPolicy, resolveEquationAfterMove, resolveSupportLevel,
+  evaluateMove, getSupportPolicy, resolveEquationAfterKeepingMove, resolveEquationAfterMove, resolveSupportLevel,
 } from './algebraSupportLevels';
 
 const OPERATIONS = [
@@ -236,6 +236,9 @@ export default function StepByStepAlgebra({
   const initialParse = useMemo(() => getInitialEquation(question, normalizedRecord), [question]);
   const initialEquation = initialParse.equation;
   const parseError = initialParse.error;
+  // Reset Work must return to the authored equation for this variant, not to
+  // the latest saved server-side algebraState.
+  const pristineEquation = useMemo(() => getInitialEquation(question, null).equation, [question]);
   const localDraftKey = draftKey ? `${draftKey}:step-algebra` : null;
   const rawSavedDraft = useMemo(() => readQuestionDraft(localDraftKey, null), [localDraftKey]);
   // Pending moves are derived engine state. Never trust an old serialized copy
@@ -457,21 +460,24 @@ export default function StepByStepAlgebra({
     }
   };
 
-  const commitMove = async (move) => {
+  const commitMove = async (move, { resolution = 'normal' } = {}) => {
     setCancelAnimating(true);
-    // The pair shrinks out of the expression before the equation is replaced,
-    // so the student sees the terms leave rather than the line jump.
     setCollapsingSides(move.requiredCancellationSides || []);
     window.setTimeout(async () => {
       const verdict = evaluateMove(move, supportLevel);
-      // Valid work earns something even when it was the long way round. Only an
-      // equivalence-breaking move earns nothing, and those never reach here.
+      const nextEquation = resolution === 'simplified'
+        ? move.simplified
+        : resolution === 'keep'
+          ? resolveEquationAfterKeepingMove(move, crossedSides)
+          : resolveEquationAfterMove(move, supportLevel, crossedSides);
+      const nextSolved = isSolvedEquation(nextEquation);
       const earned = verdict.efficient ? 2 : verdict.valid ? 1 : 0;
-      await saveStep({ move, earned, possible: 2, countsAttempt: false, accepted: true, equationAfter: move.simplified });
-      // F4: above Guided, the side the student did not cancel keeps its
-      // operation visible — 21 - 6, not 15 — because doing that arithmetic for
-      // them removes the step the exercise is about.
-      setEquation(resolveEquationAfterMove(move, supportLevel, crossedSides));
+
+      // Persist the equation the student actually sees. A refresh should never
+      // silently replace their intentionally-unsimplified work with the engine's
+      // prettiest equivalent form.
+      await saveStep({ move, earned, possible: 2, countsAttempt: false, accepted: true, equationAfter: nextEquation });
+      setEquation(nextEquation);
       setPendingMove(null);
       setCrossedSides([]);
       setCancelledPairIds({});
@@ -482,26 +488,56 @@ export default function StepByStepAlgebra({
       setCollapsingSides([]);
       setLockedStroke(null);
       setStruckTerms(null);
-      // Both sides changed and the equation is still true. The beam says so.
       setBalancePulse(true);
       window.setTimeout(() => setBalancePulse(false), motionDuration(700, reducedMotion, { floor: 60 }));
       setMessage({
-        tone: move.productive ? 'success' : 'growth',
-        text: move.solved
-          ? (move.requiredCancellationSides?.length
-              ? 'The cancellation is complete and the target form has been reached.'
-              : 'Balanced step complete. The target form has been reached.')
-          : move.productive
-            ? supportPolicy.autoSimplifyOppositeSide
-              ? (move.requiredCancellationSides?.length
-                  ? 'The marked terms canceled. The other side simplified automatically while the equation stayed balanced.'
-                  : 'Balanced step complete. The equation stayed equivalent.')
-              : (move.requiredCancellationSides?.length
-                  ? 'The marked terms canceled. Now simplify the remaining side yourself.'
-                  : 'Balanced step complete. Finish the remaining simplification yourself.')
-            : verdict.message,
+        tone: nextSolved ? 'success' : move.productive ? 'success' : 'growth',
+        text: nextSolved
+          ? 'The requested variable is isolated. The equation is solved; further simplification is optional unless this question explicitly assesses final form.'
+          : resolution === 'keep'
+            ? 'Balanced move kept as written. Continue solving from this equivalent equation.'
+            : move.productive
+              ? 'Balanced step complete. Continue from the equation shown.'
+              : verdict.message,
       });
     }, motionDuration(620, reducedMotion, { floor: 40 }));
+  };
+
+  const hasPartialCancellationSelection = () => Object.values(selectedCancellationIndices || {})
+    .some((indices) => Array.isArray(indices) && indices.length > 0);
+
+  const keepPendingMoveAsWritten = async () => {
+    if (!pendingMove || savingStep || cancelAnimating) return;
+    if (hasPartialCancellationSelection()) {
+      setMessage({ tone: 'growth', text: 'Finish or undo the cancellation marks you already started before keeping this move as written.' });
+      return;
+    }
+    await commitMove(pendingMove, { resolution: 'keep' });
+  };
+
+  const resetQuestionWork = () => {
+    if (disabled || savingStep || !pristineEquation) return;
+    const confirmed = typeof window === 'undefined' || window.confirm('Start this problem over? Your current workspace work will be cleared, but your attempt count will not change.');
+    if (!confirmed) return;
+
+    setEquation(pristineEquation);
+    setOperand('');
+    setPendingMove(null);
+    setCrossedSides([]);
+    setCancelledPairIds({});
+    setSelectedCancellationIndices({});
+    setSimplificationAnswers({});
+    setPromptAnswers({});
+    setStroke(null);
+    setLockedStroke(null);
+    setStruckTerms(null);
+    setCollapsingSides([]);
+    setArmedTile(null);
+    setTapPlacementArmed(false);
+    setPlacedOperationSides([]);
+    setPlacedOperationPositions({});
+    setHeldToken(null);
+    setMessage({ tone: 'growth', text: 'Workspace reset to the original equation. Your attempt count did not change.' });
   };
 
   const attemptMove = async (operation, _originSide = 'left') => {
@@ -552,7 +588,7 @@ export default function StepByStepAlgebra({
 
     if (move.requiredCancellationSides.length === 0) {
       if (move.simplificationTargets?.length) {
-        setMessage({ tone: 'growth', text: 'The operation is balanced. Finish only the side that actually needs simplification.' });
+        setMessage({ tone: 'growth', text: 'The operation is balanced. You may simplify the remaining side(s), or keep the equivalent equation as written and continue.' });
       } else {
         // Nothing remains to cancel or simplify: the operation itself completed
         // this step. Commit instead of showing an empty/redundant response area.
@@ -650,13 +686,15 @@ export default function StepByStepAlgebra({
     if (progress.allPairsComplete) {
       setSelectedCancellationIndices((current) => ({ ...current, [side]: [] }));
       const pairCount = model.pairs.length;
-      setMessage({
-        tone: 'success',
-        text: pairCount > 1
-          ? `All ${pairCount} matching factor pairs are canceled in this step.`
-          : 'Matching factors are canceled in the equation.',
-      });
-      await strikeSide(side);
+      if (pairCount > 1) {
+        // Compound cancellation is a batch. Keep every marked pair visible until
+        // the student explicitly finishes the batch, so the first completed
+        // pair cannot trigger a re-render that removes the second target.
+        setMessage({ tone: 'success', text: `All ${pairCount} matching factor pairs are marked. Finish the cancellations to apply them together.` });
+      } else {
+        setMessage({ tone: 'success', text: 'Matching factors are canceled in the equation.' });
+        await strikeSide(side);
+      }
       return;
     }
 
@@ -712,7 +750,7 @@ export default function StepByStepAlgebra({
     setCrossedSides(next);
     const allRequired = pendingMove.requiredCancellationSides.every((requiredSide) => next.includes(requiredSide));
     if (allRequired) {
-      if (pendingMove.simplificationTargets?.length) setMessage({ tone: 'success', text: 'The cancellation is complete. Finish the remaining simplification below.' });
+      if (pendingMove.simplificationTargets?.length) setMessage({ tone: 'success', text: 'The cancellation is complete. Simplify the remaining side(s), or keep them as written and continue.' });
       else await commitMove(pendingMove);
     }
   };
@@ -749,7 +787,7 @@ export default function StepByStepAlgebra({
       setMessage({ tone: 'error', text: 'The simplification is correct. Finish the matching-factor cancellation directly in the equation before completing this step.' });
       return;
     }
-    await commitMove(pendingMove);
+    await commitMove(pendingMove, { resolution: 'simplified' });
   };
 
   // --- Semantic operation placement ---------------------------------------
@@ -953,7 +991,7 @@ export default function StepByStepAlgebra({
   const solved = isSolvedEquation(equation);
   const objectiveLabel = equation.objective?.kind === 'slopeIntercept'
     ? 'Target: y = mx + b'
-    : `Target: isolate ${equation.objective?.variable || equation.variable}${equation.objective?.simplifyRequired ? ' and simplify' : ''}`;
+    : `Target: isolate ${equation.objective?.variable || equation.variable}${equation.objective?.requireSimplifiedFinalForm ? ' in simplified final form' : ''}`;
 
   const sideExpression = (side) => (pendingMove ? pendingMove.unsimplified[side] : equation[side]);
   const displayedSideLatex = (side) => pendingMove ? pendingMove.unsimplifiedLatex[side] : expressionToLatex(equation[side]);
@@ -1105,10 +1143,13 @@ export default function StepByStepAlgebra({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '999px', background: supportPolicy.level >= 4 ? '#e8f0fe' : '#f3e8fd', color: supportPolicy.level >= 4 ? '#174ea6' : '#681da8', fontWeight: 'bold' }}>{`Support ${supportPolicy.level} · ${supportPolicy.label}`}</div>
         <div style={{ padding: '8px 12px', borderRadius: '999px', background: '#e6f4ea', color: '#137333', fontWeight: 'bold' }}>{objectiveLabel}</div>
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', fontSize: '12px', fontWeight: 'bold', color: '#5f6368' }}>
-          <input type="checkbox" checked={cancellationHintsEnabled} onChange={(event) => setCancellationHintsEnabled(event.target.checked)} style={{ width: '15px', height: '15px' }} />
-          Cancellation hints
-        </label>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', fontSize: '12px', fontWeight: 'bold', color: '#5f6368' }}>
+            <input type="checkbox" checked={cancellationHintsEnabled} onChange={(event) => setCancellationHintsEnabled(event.target.checked)} style={{ width: '15px', height: '15px' }} />
+            Cancellation hints
+          </label>
+          <button type="button" className="algebra-reset-work" onClick={resetQuestionWork} disabled={disabled || savingStep}>Reset work</button>
+        </div>
       </div>
 
       {Array.isArray(question.algebraPrompts) && question.algebraPrompts.length > 0 && (
@@ -1180,9 +1221,17 @@ export default function StepByStepAlgebra({
                 </div>
                 {target?.canCancel && cancellationModel && !crossedSides.includes(side) && (
                   <div className="algebra-cancellation-cue">
-                    {cancellationHintsEnabled
-                      ? (cancellationModel.pairs.length > 1 ? `Cancel ${cancellationModel.pairs.length} matching pairs. You may mark several factors at once.` : 'Slash a matching numerator/denominator pair. Tap works too.')
-                      : 'Cancellation is active directly on the equation.'}
+                    <div>
+                      {cancellationHintsEnabled
+                        ? (cancellationModel.pairs.length > 1 ? `Cancel ${cancellationModel.pairs.length} matching pairs. You may mark several factors at once.` : 'Slash a matching numerator/denominator pair. Tap works too.')
+                        : 'Cancellation is active directly on the equation.'}
+                    </div>
+                    {cancellationModel.pairs.length > 1
+                      && cancellationModel.pairs.every((pair) => (cancelledPairIds[side] || []).includes(pair.id)) && (
+                        <button type="button" className="algebra-finish-cancellations" onClick={() => strikeSide(side)} disabled={savingStep || cancelAnimating}>
+                          Finish {cancellationModel.pairs.length} cancellations
+                        </button>
+                      )}
                   </div>
                 )}
                 {target?.canCancel && !cancellationModel && (
@@ -1275,19 +1324,27 @@ export default function StepByStepAlgebra({
 
       {!armedTile && !pendingMove && <div className="algebra-operation-idle-hint">Choose an operation. The value field will activate automatically.</div>}
 
-      {pendingMove && pendingMove.simplificationTargets?.length > 0 && (
-        <div style={{ margin: '16px 0', padding: '15px', borderRadius: '12px', border: '1px solid #d9e2f1', background: '#fff' }}>
-          <h3 style={{ margin: '0 0 6px', color: '#174ea6' }}>Finish the remaining simplification</h3>
-          <p style={{ margin: '0 0 12px', color: '#5f6368', fontSize: '13px' }}>Only this part still changes after the balanced operation. Enter the simplified expression; equivalent distributed or factored forms are accepted.</p>
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(2, pendingMove.simplificationTargets.length)}, minmax(0, 1fr))`, gap: '12px' }}>
+      {pendingMove && pendingMove.simplificationTargets?.length > 0
+        && pendingMove.requiredCancellationSides.every((side) => crossedSides.includes(side)) && (
+        <div className="algebra-optional-simplification">
+          <h3>{equation.objective?.requireSimplifiedFinalForm ? 'Finish the required simplification' : 'Optional simplification'}</h3>
+          <p>{equation.objective?.requireSimplifiedFinalForm
+            ? 'This question specifically assesses simplified final form, so finish the remaining simplification before continuing.'
+            : 'The balanced equation is already valid. Simplify now for a cleaner form, or keep it as written and continue solving.'}</p>
+          <div className="algebra-simplification-grid">
             {pendingMove.simplificationTargets.map((target) => (
-              <div key={target.side} style={{ padding: '12px', borderRadius: '10px', background: '#f8fbff', border: '1px solid #c5d5ef' }}>
-                <strong style={{ display: 'block', marginBottom: '8px' }}>{target.label}: simplify</strong>
+              <div key={target.side} className="algebra-simplification-card">
+                <strong>{target.label}: simplify if you want</strong>
                 <MathInput value={simplificationAnswers[target.side] || ''} onChange={(value) => setSimplificationAnswers((current) => ({ ...current, [target.side]: value }))} placeholder="Simplified expression" />
               </div>
             ))}
           </div>
-          <div style={{ textAlign: 'center', marginTop: '12px' }}><button type="button" onClick={checkSimplifications} disabled={savingStep} style={{ padding: '10px 17px', border: 'none', borderRadius: '8px', background: '#188038', color: '#fff', fontWeight: 'bold' }}>Check Simplification and Complete Step</button></div>
+          <div className="algebra-simplification-actions">
+            {!equation.objective?.requireSimplifiedFinalForm && (
+              <button type="button" className="algebra-keep-written" onClick={keepPendingMoveAsWritten} disabled={savingStep || cancelAnimating}>Keep as written</button>
+            )}
+            <button type="button" className="algebra-check-simplification" onClick={checkSimplifications} disabled={savingStep}>Simplify and continue</button>
+          </div>
         </div>
       )}
       {question.showHint !== false && suggestedMove && !solved && <details style={{ marginTop: '14px', color: '#5f6368' }}><summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Need a strategic hint?</summary><p style={{ margin: '8px 0 0' }}>Look for a move that cancels a term: {describeOperation(suggestedMove.operation, suggestedMove.operand)}.</p></details>}

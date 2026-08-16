@@ -539,3 +539,125 @@
     padding-inline: 3px;
   }
 }
+
+
+/* --- Algebra workspace completion / reset / batch-cancellation upgrade --- */
+.algebra-reset-work {
+  min-height: 38px;
+  padding: 7px 12px;
+  border: 1px solid #c5d5ef;
+  border-radius: 999px;
+  background: #fff;
+  color: #174ea6;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.algebra-reset-work:hover,
+.algebra-reset-work:focus-visible {
+  background: #f1f6ff;
+  border-color: #8ab4f8;
+}
+
+.algebra-finish-cancellations {
+  margin-top: 8px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid #188038;
+  border-radius: 9px;
+  background: #e6f4ea;
+  color: #137333;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.algebra-optional-simplification {
+  margin: 16px 0;
+  padding: 15px;
+  border: 1px solid #d9e2f1;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.algebra-optional-simplification h3 {
+  margin: 0 0 6px;
+  color: #174ea6;
+}
+
+.algebra-optional-simplification > p {
+  margin: 0 0 12px;
+  color: #5f6368;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.algebra-simplification-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.algebra-simplification-card {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #c5d5ef;
+  border-radius: 10px;
+  background: #f8fbff;
+}
+
+.algebra-simplification-card > strong {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.algebra-simplification-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.algebra-keep-written,
+.algebra-check-simplification {
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.algebra-keep-written {
+  border: 1px solid #8ab4f8;
+  background: #fff;
+  color: #174ea6;
+}
+
+.algebra-check-simplification {
+  border: 1px solid #188038;
+  background: #188038;
+  color: #fff;
+}
+
+@media (max-width: 768px), (pointer: coarse) {
+  .algebra-simplification-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .algebra-simplification-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .algebra-keep-written,
+  .algebra-check-simplification,
+  .algebra-reset-work,
+  .algebra-finish-cancellations {
+    width: 100%;
+    min-height: 48px;
+  }
+
+  .algebra-optional-simplification {
+    padding: 12px;
+  }
+}

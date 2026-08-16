@@ -50,7 +50,14 @@ export const parseEquationInput = (question = {}) => {
   const objective = {
     kind: question.objective?.kind || question.objectiveKind || (question.targetForm === 'slopeIntercept' ? 'slopeIntercept' : 'isolate'),
     variable: String(question.objective?.variable || question.solveFor || question.variable || (question.targetForm === 'slopeIntercept' ? 'y' : 'x')),
+    // `simplifyRequired` is retained as a presentation/coaching preference for
+    // older authored questions. It no longer blocks completion by itself.
+    // A question must explicitly opt into STRICT final-form grading with
+    // `requireSimplifiedFinalForm: true`. This lets a student keep an
+    // equivalent unsimplified opposite side while still demonstrating the
+    // actual solving objective: isolate the requested variable.
     simplifyRequired: question.objective?.simplifyRequired ?? question.simplifyRequired ?? true,
+    requireSimplifiedFinalForm: question.objective?.requireSimplifiedFinalForm ?? question.requireSimplifiedFinalForm ?? false,
     targetForm: question.objective?.targetForm || question.targetForm || null,
   };
   if (question.leftExpression && question.rightExpression) {
@@ -295,7 +302,12 @@ export const isSolvedEquation = (equationState) => {
   const variable = objective.variable || equationState.variable || 'x';
   const leftSolved = expressionIsVariable(equationState.left, variable) && !containsVariable(equationState.right, variable);
   const rightSolved = expressionIsVariable(equationState.right, variable) && !containsVariable(equationState.left, variable);
-  const simplificationSatisfied = !objective.simplifyRequired || (
+  // Isolation is the default completion criterion. Cosmetic/arithmetical
+  // simplification is optional unless the author explicitly says the final
+  // form itself is being assessed. This avoids trapping a student at
+  // x = 21 - 6 after they have already solved for x.
+  const strictSimplification = objective.requireSimplifiedFinalForm === true;
+  const simplificationSatisfied = !strictSimplification || (
     leftSolved
       ? expressionIsSimplified(equationState.right)
       : rightSolved
