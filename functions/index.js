@@ -10,6 +10,7 @@ const { onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/
 const logger = require("firebase-functions/logger");
 
 const classroomLib = require("./lib/classroom");
+const driveResources = require("./lib/driveResources");
 const { encryptLaunchPayload, decryptLaunchToken } = require("./lib/linkToken");
 const {
   GOOGLE_API_SECRETS,
@@ -63,11 +64,44 @@ function serializableDate(value) {
 
 function cleanMaterials(materials) {
   if (!Array.isArray(materials)) return [];
-  return materials
-    .filter((item) => item && typeof item.title === "string" && typeof item.url === "string")
-    .map((item) => ({ title: item.title.trim(), url: item.url.trim() }))
-    .filter((item) => item.title && /^https?:\/\//i.test(item.url))
-    .slice(0, 20);
+  const cleaned = [];
+  for (const item of materials) {
+    if (!item) continue;
+    const title = String(item.title || "Resource").trim().slice(0, 500);
+    const driveFileId = String(item.driveFileId || "").trim();
+    if (driveFileId) {
+      cleaned.push({
+        title: title || "Google Drive resource",
+        driveFileId,
+        shareMode: "VIEW",
+      });
+      continue;
+    }
+    const url = String(item.url || "").trim();
+    if (title && /^https?:\/\//i.test(url)) {
+      cleaned.push({ title, url });
+    }
+  }
+  return cleaned.slice(0, 20);
+}
+
+function preferDriveNotesMaterial(materials, assignment) {
+  const cleaned = cleanMaterials(materials);
+  const notes = assignment?.lessonResources?.notesPdf || {};
+  const driveAsset = notes.driveAsset;
+  const driveReady = notes.driveStatus?.status === "ready";
+  if (!driveReady || !driveAsset?.driveFileId) return cleaned;
+
+  const storageUrl = String(notes.asset?.url || "");
+  const withoutStorageDuplicate = cleaned.filter((item) => (
+    item.driveFileId || !storageUrl || item.url !== storageUrl
+  ));
+  const driveMaterial = {
+    title: String(driveAsset.title || notes.title || "Student Notes").trim(),
+    driveFileId: String(driveAsset.driveFileId),
+    shareMode: "VIEW",
+  };
+  return cleanMaterials([driveMaterial, ...withoutStorageDuplicate]);
 }
 
 function safePdfFileName(value, fallback = "MathMaster_Student_Notes.pdf") {
@@ -2510,7 +2544,7 @@ exports.ensureClassroomTopics = onCall(
   }
 );
 
-exports.storeLessonNotesPdf = onCall(async (request) => {
+exports.storeLessonNotesPdf = onCall({ secrets: GOOGLE_API_SECRETS }, async (request) => {
   const { assignmentId, fileName, title, pageCount, base64 } = request.data || {};
   const cleanAssignmentId = String(assignmentId || "").trim();
   if (!cleanAssignmentId) throw new HttpsError("invalid-argument", "assignmentId is required.");
@@ -2571,8 +2605,67 @@ exports.storeLessonNotesPdf = onCall(async (request) => {
     byteLength: bytes.length,
     generatedAt: new Date().toISOString(),
   };
-  await assignmentRef.update(new FieldPath("lessonResources", "notesPdf", "asset"), asset);
-  return { ...asset };
+  const assignment = assignmentSnap.data() || {};
+  const driveScope = "https://www.googleapis.com/auth/drive.file";
+  let driveAsset = null;
+  let driveStatus = {
+    status: "not-connected",
+    message: "Reconnect the teacher Google account to place generated notes in Google Drive.",
+    checkedAt: new Date().toISOString(),
+  };
+
+  try {
+    const health = await classroomLib.getConnectionHealth(teacherUid);
+    if (health.connected && !(health.missingScopes || []).includes(driveScope)) {
+      const drive = await classroomLib.getDriveClient(teacherUid);
+      driveAsset = await driveResources.upsertLessonNotesPdf({
+        drive,
+        bytes,
+        assignmentId: cleanAssignmentId,
+        fileName: safeName,
+        title: asset.title,
+        topicName: assignment?.classroomPackage?.topic?.name || "General Resources",
+      });
+      driveStatus = {
+        status: "ready",
+        driveFileId: driveAsset.driveFileId,
+        folderName: driveAsset.folderName,
+        checkedAt: new Date().toISOString(),
+      };
+    } else if (health.connected) {
+      driveStatus = {
+        status: "reconnect-required",
+        message: "Reconnect Google once to grant MathMaster permission to create its lesson files in Drive.",
+        missingScopes: health.missingScopes || [driveScope],
+        checkedAt: new Date().toISOString(),
+      };
+    }
+  } catch (driveError) {
+    logger.error(
+      `Generated notes were saved in MathMaster but could not be copied to Google Drive for assignment ${cleanAssignmentId}`,
+      driveError
+    );
+    driveStatus = {
+      status: "failed",
+      message: String(driveError.message || driveError),
+      checkedAt: new Date().toISOString(),
+    };
+  }
+
+  const updateArgs = [
+    new FieldPath("lessonResources", "notesPdf", "asset"),
+    asset,
+    new FieldPath("lessonResources", "notesPdf", "driveStatus"),
+    driveStatus,
+  ];
+  if (driveAsset) {
+    updateArgs.push(
+      new FieldPath("lessonResources", "notesPdf", "driveAsset"),
+      driveAsset
+    );
+  }
+  await assignmentRef.update(...updateArgs);
+  return { ...asset, driveAsset, driveStatus };
 });
 
 exports.publishClassroomMaterial = onCall(
@@ -2581,7 +2674,7 @@ exports.publishClassroomMaterial = onCall(
     const teacherUid = await requireTeacher(request);
     const { title, description, topicName, materialKey } = request.data || {};
     const courseIds = [...new Set((request.data?.courseIds || []).map(String).filter(Boolean))];
-    const materials = cleanMaterials(request.data?.materials);
+    let materials = cleanMaterials(request.data?.materials);
     if (!title || !courseIds.length || !materials.length) {
       throw new HttpsError(
         "invalid-argument",
@@ -2593,6 +2686,13 @@ exports.publishClassroomMaterial = onCall(
     const classroom = await classroomLib.getClassroomClient(teacherUid);
     const results = [];
     const stableKey = String(materialKey || title);
+    const assignmentResourceMatch = stableKey.match(/^assignment:(.+):resources$/);
+    if (assignmentResourceMatch) {
+      const resourceAssignment = await db.doc(`assignments/${assignmentResourceMatch[1]}`).get();
+      if (resourceAssignment.exists) {
+        materials = preferDriveNotesMaterial(materials, resourceAssignment.data());
+      }
+    }
 
     for (const courseId of courseIds) {
       const mapping = await getTeacherClassroomMapping(db, teacherUid, courseId);
@@ -2947,7 +3047,7 @@ async function publishAssignmentBatch(request) {
   const classroom = await classroomLib.getClassroomClient(teacherUid);
   const activeCourses = await classroomLib.listCourses(classroom);
   const courseMap = new Map(activeCourses.map((course) => [String(course.id), course]));
-  const safeMaterials = cleanMaterials(materials);
+  const safeMaterials = preferDriveNotesMaterial(cleanMaterials(materials), assignment);
   const cleanTopic = String(topicName || "").trim().slice(0, 200);
   const cleanInstructions = String(instructions || "").trim().slice(0, 20000);
   const results = [];

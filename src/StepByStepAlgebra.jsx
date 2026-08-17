@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
 import { ALGEBRA_DRAFT_VERSION, rehydrateAlgebraDraft } from './algebraDraftState';
 import { advanceCancellationProgress } from './algebraCancellationProgress';
+import { buildCancellationModel } from './algebraCancellationModel';
 import { stageOperationPlacement } from './algebraOperationPlacement';
 import {
   appendStrokePoint, createStroke, resolveStruckTerms, strokeLength, strokeToPath,
@@ -27,7 +28,6 @@ import {
   parseEquationInput,
   parseOperationOperand,
   splitAdditiveTerms,
-  splitMultiplicativeFactors,
 } from './algebraAstEngine';
 import { getAttemptsRemaining, normalizeQuestionRecord } from './attemptPolicy';
 import {
@@ -62,79 +62,6 @@ export const getInitialEquation = (question, record) => {
 };
 
 const isFactorOperation = (operation) => operation === 'multiply' || operation === 'divide';
-
-// Best-effort, presentation-only: given the "before" terms of a side flagged
-// as cancellable and the known "after" simplified expression, find which two
-// terms combine away. Falls back gracefully (returns null) for anything this
-// simple search can't confirm — the caller then just skips the per-term
-// strike decoration. The direct equation overlay falls back to a clear
-// message when a safe token-level cancellation cannot be identified.
-const findCancellingPairIndices = (terms, targetExpression, variable) => {
-  if (!terms || terms.length < 2) return null;
-  for (let i = 0; i < terms.length; i += 1) {
-    for (let j = i + 1; j < terms.length; j += 1) {
-      const remainderText = terms
-        .filter((_, index) => index !== i && index !== j)
-        .map((term) => term.text)
-        .join(' ') || '0';
-      try {
-        if (expressionsEquivalent(remainderText, targetExpression, variable)) return [i, j];
-      } catch {
-        // Not a valid pairing to test; keep searching.
-      }
-    }
-  }
-  return null;
-};
-
-
-// Build the cancellation targets from the mathematics that is ALREADY in the
-// balance workspace. The old UI rendered a second copy of the expression in a
-// dashed box and measured strokes there. Besides wasting space, that failed for
-// products such as rt/r because splitAdditiveTerms sees the whole quotient as
-// one term. Here numerator/denominator factors are individually addressable.
-const buildCancellationModel = (expression, targetExpression, variable) => {
-  const factorParts = splitMultiplicativeFactors(expression);
-  if (factorParts?.denominator?.length) {
-    const numerator = factorParts.numerator || [];
-    const denominator = factorParts.denominator || [];
-    const usedNumerator = new Set();
-    const pairs = [];
-    denominator.forEach((denominatorFactor, denominatorIndex) => {
-      const numeratorIndex = numerator.findIndex((numeratorFactor, index) => (
-        !usedNumerator.has(index)
-        && expressionsEquivalent(numeratorFactor.text, denominatorFactor.text, variable)
-      ));
-      if (numeratorIndex < 0) return;
-      usedNumerator.add(numeratorIndex);
-      pairs.push({
-        id: `factor-${pairs.length}`,
-        indices: [numeratorIndex, numerator.length + denominatorIndex],
-      });
-    });
-    if (pairs.length) {
-      return {
-        kind: 'fraction',
-        numerator,
-        denominator,
-        pairs,
-        tokenCount: numerator.length + denominator.length,
-      };
-    }
-  }
-
-  const terms = splitAdditiveTerms(expression);
-  const additivePair = findCancellingPairIndices(terms, targetExpression, variable);
-  if (terms && additivePair) {
-    return {
-      kind: 'additive',
-      terms,
-      pairs: [{ id: 'additive-0', indices: additivePair }],
-      tokenCount: terms.length,
-    };
-  }
-  return null;
-};
 
 const pairForToken = (model, index) => model?.pairs?.find((pair) => pair.indices.includes(index)) || null;
 
@@ -1192,7 +1119,12 @@ export default function StepByStepAlgebra({
         <div aria-label="Interactive algebra balance scale" className={`algebra-equation-stage algebra-connected-balance ${balanceStagingSide ? `is-unbalanced is-unbalanced-${balanceStagingSide}` : ''}`}>
           {['left', 'right'].map((side, index) => {
             const target = pendingMove?.cancellationTargets.find((item) => item.side === side);
-            const cancellationModel = target?.canCancel ? buildCancellationModel(sideExpression(side), target.cancellationResultExpression || target.simplifiedExpression, equation.variable) : null;
+            const cancellationModel = target?.canCancel ? buildCancellationModel(
+              sideExpression(side),
+              target.cancellationResultExpression || target.simplifiedExpression,
+              equation.variable,
+              target.cancellationPairs,
+            ) : null;
             const stagedHere = placedOperationSides.includes(side);
             return (
               <div

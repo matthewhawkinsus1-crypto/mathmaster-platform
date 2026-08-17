@@ -18,6 +18,7 @@ const SCOPES = [
   "https://www.googleapis.com/auth/classroom.coursework.students",
   "https://www.googleapis.com/auth/classroom.topics",
   "https://www.googleapis.com/auth/classroom.courseworkmaterials",
+  "https://www.googleapis.com/auth/drive.file",
 ];
 
 function integrationDoc(teacherUid) {
@@ -153,7 +154,8 @@ function missingScopes(tokens) {
   if (!granted.size) {
     return SCOPES.filter((scope) =>
       scope.endsWith("/classroom.topics") ||
-      scope.endsWith("/classroom.courseworkmaterials")
+      scope.endsWith("/classroom.courseworkmaterials") ||
+      scope.endsWith("/drive.file")
     );
   }
   return SCOPES.filter((scope) => !granted.has(scope));
@@ -179,6 +181,21 @@ async function getClassroomClient(teacherUid) {
   });
 
   return google.classroom({ version: "v1", auth: oauth2Client });
+}
+
+async function getDriveClient(teacherUid) {
+  const tokens = await getStoredTokens(teacherUid);
+  if (!tokens || !tokens.refresh_token) {
+    throw new Error("Google Drive is not connected yet. Reconnect the teacher Google account first.");
+  }
+  const oauth2Client = createOAuthClient();
+  oauth2Client.setCredentials(tokens);
+  oauth2Client.on("tokens", (refreshed) => {
+    saveTeacherTokens(refreshed, teacherUid).catch((err) =>
+      console.error("Failed to persist refreshed Google tokens", err)
+    );
+  });
+  return google.drive({ version: "v3", auth: oauth2Client });
 }
 
 async function getConnectionHealth(teacherUid) {
@@ -281,15 +298,30 @@ function classroomDueParts(dueDate) {
   };
 }
 
+function toClassroomMaterial(material) {
+  if (material?.driveFileId) {
+    return {
+      driveFile: {
+        driveFile: { id: String(material.driveFileId) },
+        shareMode: "VIEW",
+      },
+    };
+  }
+  return {
+    link: {
+      url: String(material?.url || ""),
+      title: String(material?.title || "Resource"),
+    },
+  };
+}
+
 async function createCourseWork(
   classroom,
   { courseId, title, description, dueDate, materials, launchUrl, maxPoints, topicId }
 ) {
   const dueParts = classroomDueParts(dueDate);
   const materialItems = [
-    ...(materials || []).map((material) => ({
-      link: { url: material.url, title: material.title },
-    })),
+    ...(materials || []).map(toClassroomMaterial),
     { link: { url: launchUrl, title: "Open in MathMaster" } },
   ];
 
@@ -491,9 +523,7 @@ async function createCourseWorkMaterial(
   classroom,
   { courseId, title, description, materials, topicId }
 ) {
-  const materialItems = (materials || []).slice(0, 20).map((material) => ({
-    link: { url: material.url, title: material.title },
-  }));
+  const materialItems = (materials || []).slice(0, 20).map(toClassroomMaterial);
 
   const response = await classroom.courses.courseWorkMaterials.create({
     courseId,
@@ -518,6 +548,7 @@ module.exports = {
   isConnected,
   getConnectionHealth,
   getClassroomClient,
+  getDriveClient,
   listCourses,
   listStudents,
   createCourseWork,
