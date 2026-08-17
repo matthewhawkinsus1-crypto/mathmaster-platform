@@ -725,11 +725,13 @@ exports.listSignInAccess = onCall(async (request) => {
   const db = getFirestore();
   const isRootAdmin = request.auth?.token?.rootAdmin === true
     && authLib.isRootAdminEmail(callerEmail(request));
-
   const [roster, credentials, directory, aliases, teachers, classes] = await Promise.all([
     // Only these fields — the rest of a grades document is the student's
     // entire attempt history and has no business in this payload.
-    db.collection("grades").select("classPeriod", "classId", "status", "linkedEmail", "assignedTeacherEmail", "displayName").get(),
+    db.collection("grades").select(
+      "classPeriod", "classId", "status", "linkedEmail", "assignedTeacherEmail",
+      "displayName", "firstName", "lastName",
+    ).get(),
     db.collection(authLib.CREDENTIALS_COLLECTION).get(),
     db.collection(authLib.DIRECTORY_COLLECTION).get(),
     db.collection(authLib.ALIAS_COLLECTION).get(),
@@ -737,23 +739,34 @@ exports.listSignInAccess = onCall(async (request) => {
     loadClasses(db),
   ]);
   const model = await classModel();
-
   const canonicalByKey = {};
   aliases.docs.forEach((aliasDoc) => {
     canonicalByKey[aliasDoc.id] = aliasDoc.data()?.studentId || aliasDoc.id;
   });
-
   const emailByStudent = {};
   directory.docs.forEach((linkDoc) => {
     const studentId = linkDoc.data()?.studentId;
     if (studentId) emailByStudent[studentId] = linkDoc.id;
   });
-
   const credentialByStudent = {};
   credentials.docs.forEach((credentialDoc) => {
     const studentId = canonicalByKey[credentialDoc.id] || credentialDoc.id;
     credentialByStudent[studentId] = credentialDoc.data() || {};
   });
+
+  // MathMaster structured student names / class-centric account creation v1
+  // Structured names are preferred. Old roster rows that only have
+  // displayName remain sortable by treating the last word as the surname.
+  const sortParts = (student) => {
+    const firstName = String(student.firstName || "").trim();
+    const lastName = String(student.lastName || "").trim();
+    if (firstName || lastName) return { firstName, lastName };
+    const parts = String(student.displayName || "").trim().split(/\s+/).filter(Boolean);
+    return {
+      firstName: parts.length > 1 ? parts.slice(0, -1).join(" ") : (parts[0] || ""),
+      lastName: parts.length > 1 ? parts.at(-1) : "",
+    };
+  };
 
   const students = roster.docs
     .filter((rosterDoc) => rosterDoc.id !== "test_connection")
@@ -762,6 +775,8 @@ exports.listSignInAccess = onCall(async (request) => {
       const data = rosterDoc.data() || {};
       return {
         studentId: rosterDoc.id,
+        firstName: data.firstName || null,
+        lastName: data.lastName || null,
         displayName: data.displayName || null,
         classId: data.classId || null,
         classPeriod: data.classPeriod || "Unassigned",
@@ -772,13 +787,21 @@ exports.listSignInAccess = onCall(async (request) => {
         linkedEmail: emailByStudent[rosterDoc.id] || data.linkedEmail || null,
       };
     })
-    .sort((a, b) => a.studentId.localeCompare(b.studentId));
+    .sort((a, b) => {
+      const aName = sortParts(a);
+      const bName = sortParts(b);
+      const options = { sensitivity: "base", numeric: true };
+      return aName.lastName.localeCompare(bName.lastName, undefined, options)
+        || aName.firstName.localeCompare(bName.firstName, undefined, options)
+        || a.studentId.localeCompare(b.studentId, undefined, options);
+    });
 
   return {
     students,
     // The classes every roster row refers to, so no screen has to guess what a
     // classId means or fetch them separately.
-    classes: classes.sort((a, b) => String(a.period || "").localeCompare(String(b.period || ""))),
+    classes: classes.sort((a, b) => String(a.period || "").localeCompare(String(b.period || ""), undefined, { numeric: true })
+      || String(a.name || "").localeCompare(String(b.name || ""))),
     authority: {
       accessLevel: isRootAdmin ? "rootAdmin" : "teacher",
       isRootAdmin,
@@ -818,9 +841,25 @@ exports.createStudentAccount = onCall(async (request) => {
     throw new HttpsError("failed-precondition", "The connection-test ID is reserved.");
   }
 
-  const displayName = String(request.data?.displayName || "").trim().slice(0, 120);
-  const model = await classModel();
+  // MathMaster structured student names / class-centric account creation v1
+  // New clients send structured names. Legacy callers that only send
+  // displayName are still accepted so old records and old deployments do not
+  // become unusable during rollout.
+  const cleanName = (value, limit = 80) => String(value || "").trim().replace(/\s+/g, " ").slice(0, limit);
+  const legacyDisplayName = cleanName(request.data?.displayName, 120);
+  let firstName = cleanName(request.data?.firstName);
+  let lastName = cleanName(request.data?.lastName);
+  if ((!firstName || !lastName) && legacyDisplayName) {
+    const parts = legacyDisplayName.split(/\s+/).filter(Boolean);
+    if (!firstName) firstName = parts.length > 1 ? parts.slice(0, -1).join(" ") : (parts[0] || "");
+    if (!lastName && parts.length > 1) lastName = parts.at(-1);
+  }
+  if ((request.data?.firstName || request.data?.lastName) && (!firstName || !lastName)) {
+    throw new HttpsError("invalid-argument", "Enter both the student's first name and last name.");
+  }
+  const displayName = cleanName([firstName, lastName].filter(Boolean).join(" ") || legacyDisplayName, 120);
 
+  const model = await classModel();
   // A new student is placed by CLASS. The class carries the period and the
   // teacher, so an administrator picks one thing and the three stay consistent.
   let classRecord = null;
@@ -832,14 +871,20 @@ exports.createStudentAccount = onCall(async (request) => {
     if (classRecord.status === model.CLASS_STATUS.ARCHIVED) {
       throw new HttpsError("failed-precondition", "That class is archived. Choose an active class for a new student.");
     }
+    if (!classRecord.teacherOfRecord) {
+      throw new HttpsError("failed-precondition", "That class has no teacher of record. Assign a teacher to the class first.");
+    }
+    if (!(await isAuthorizedTeacher(db, classRecord.teacherOfRecord))) {
+      throw new HttpsError("failed-precondition", "That class's teacher of record is not an active MathMaster teacher.");
+    }
   }
+
   const membership = model.membershipFieldsFor(classRecord);
   // Legacy callers may still pass a bare period; honoured only with no class.
   const classPeriod = classRecord
     ? membership.classPeriod
     : String(request.data?.classPeriod || model.UNASSIGNED_PERIOD).trim().slice(0, 80) || model.UNASSIGNED_PERIOD;
-
-  let assignedTeacherEmail = classRecord?.teacherOfRecord || null;
+  let assignedTeacherEmail = membership.assignedTeacherEmail || null;
   if (!classRecord && request.data?.teacherEmail) {
     try {
       assignedTeacherEmail = authLib.normalizeEmail(request.data.teacherEmail);
@@ -857,11 +902,18 @@ exports.createStudentAccount = onCall(async (request) => {
   ]);
   const caseInsensitiveExisting = rosterSnapshot.docs.find((entry) => entry.id.trim().toUpperCase() === studentKey);
   if (aliasSnapshot.exists || caseInsensitiveExisting) {
-    throw new HttpsError("already-exists", "That student ID already exists in MathMaster.");
+    throw new HttpsError("already-exists", "That student ID already exists in MathMaster. Refresh the account list before creating it again.");
   }
 
+  // Creation is one atomic batch. A network or audit failure can no longer
+  // leave a roster document behind while the UI reports an INTERNAL error.
   const rosterRef = db.collection("grades").doc(studentId);
-  await rosterRef.set({
+  const aliasRef = db.collection(authLib.ALIAS_COLLECTION).doc(studentKey);
+  const auditRef = db.collection(authLib.ADMIN_AUDIT_COLLECTION).doc();
+  const batch = db.batch();
+  batch.set(rosterRef, {
+    firstName: firstName || null,
+    lastName: lastName || null,
     displayName: displayName || null,
     classId: membership.classId,
     classPeriod,
@@ -876,18 +928,53 @@ exports.createStudentAccount = onCall(async (request) => {
     createdAt: FieldValue.serverTimestamp(),
     createdBy: actor.uid,
   });
-  await db.collection(authLib.ALIAS_COLLECTION).doc(studentKey).set({
+  batch.set(aliasRef, {
     key: studentKey,
     studentId,
     createdAt: FieldValue.serverTimestamp(),
   }, { merge: true });
-  await writeAdminAudit(db, actor, "student_account_created", studentId, {
+  batch.set(auditRef, {
+    actorUid: actor.uid,
+    actorEmail: actor.email,
+    action: "student_account_created",
+    target: studentId,
+    details: {
+      classId: membership.classId,
+      classPeriod,
+      assignedTeacherEmail,
+      firstName: firstName || null,
+      lastName: lastName || null,
+      displayName: displayName || null,
+    },
+    createdAt: FieldValue.serverTimestamp(),
+  });
+
+  try {
+    await batch.commit();
+  } catch (error) {
+    logger.error("createStudentAccount atomic write failed", {
+      studentId,
+      classId: membership.classId,
+      code: error?.code || null,
+      message: error?.message || String(error),
+      stack: error?.stack || null,
+    });
+    throw new HttpsError(
+      "internal",
+      "The student account could not be created. The server logged the exact cause so it can be diagnosed without guessing.",
+    );
+  }
+
+  return {
+    studentId,
+    firstName: firstName || null,
+    lastName: lastName || null,
+    displayName: displayName || null,
     classId: membership.classId,
     classPeriod,
     assignedTeacherEmail,
-    displayName: displayName || null,
-  });
-  return { studentId, displayName: displayName || null, classId: membership.classId, classPeriod, assignedTeacherEmail, signInSetupRequired: true };
+    signInSetupRequired: true,
+  };
 });
 
 /** Root-admin action: assign/reassign a student to a teacher and class period. */

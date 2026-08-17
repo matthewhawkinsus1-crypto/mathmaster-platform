@@ -11,6 +11,7 @@ import {
   getPeriodWindow,
 } from './assignmentLifecycle';
 import { OFFLINE_AFTER_MS } from './livePresence';
+import { compareStudentsByName, formatStudentName } from './platform/studentName';
 
 const formatClock = (date) => date instanceof Date ? date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '';
 
@@ -50,7 +51,7 @@ export default function ClassesWorkspace({ allStudents = [], assignments = [], c
     );
   }
 
-  const periodStudents = allStudents.filter((student) => student.classPeriod === selectedPeriod);
+  const periodStudents = allStudents.filter((student) => student.classPeriod === selectedPeriod).sort(compareStudentsByName);
   const periodAssignments = assignments.filter((assignment) => assignmentIsForStudent(assignment, selectedPeriod));
   const currentAssignments = periodAssignments.filter((assignment) => getAssignmentLifecycle(assignment, nowValue).isOpen);
   const upcomingAssignments = periodAssignments.filter((assignment) => getAssignmentLifecycle(assignment, nowValue).isScheduled);
@@ -260,7 +261,7 @@ export default function ClassesWorkspace({ allStudents = [], assignments = [], c
               <div key={student.id} style={{ padding: '10px 14px', borderRadius: '8px', border: `1px solid ${active ? '#81c995' : '#e8eaed'}`, background: active ? '#f6fff8' : '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: 'bold' }}>{student.id}</span>
+                    <span style={{ fontWeight: 'bold' }}>{formatStudentName(student)}</span><span style={{ color: '#5f6368', fontSize: 12 }}>ID {student.id}</span>
                     <span style={{ fontSize: '11px', fontWeight: 900, padding: '3px 7px', borderRadius: '999px', background: active ? '#e6f4ea' : '#f1f3f4', color: active ? '#137333' : '#5f6368' }}>{active ? 'ACTIVE' : 'NOT ACTIVE'}</span>
                     {student.profile?.inclusionStatus && <span style={{ fontSize: '11px', fontWeight: 900, padding: '3px 7px', borderRadius: '999px', background: '#efe4ff', color: '#6f2da8' }}>INCLUSION</span>}
                   </div>

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { deriveDomainReadiness, resolveAdaptiveRigor } from '../../platform/rigor/courseRigor.js';
+import { compareStudentsByName, formatStudentName, studentSearchText } from '../../platform/studentName';
 
 const tabButton = (active) => ({
   padding: '8px 11px', border: active ? '1px solid #1a73e8' : '1px solid #dadce0', borderRadius: 8,
@@ -22,13 +23,13 @@ export default function StudentsRoster({
   onOpenAdministration,
 }) {
   const [search, setSearch] = useState('');
-  const [sort, setSort] = useState('id');
+  const [sort, setSort] = useState('name');
   const [selectedId, setSelectedId] = useState(null);
   const [detailTab, setDetailTab] = useState('overview');
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase();
     const matches = needle
-      ? students.filter((student) => `${student.id} ${student.classPeriod || ''}`.toLowerCase().includes(needle))
+      ? students.filter((student) => studentSearchText(student).includes(needle))
       : students;
     return matches.slice().sort((a, b) => {
       if (sort === 'period') {
@@ -42,7 +43,8 @@ export default function StudentsRoster({
         const flagB = b.profile?.inclusionStatus ? 0 : 1;
         if (flagA !== flagB) return flagA - flagB;
       }
-      return String(a.id).localeCompare(String(b.id), undefined, { numeric: true });
+      if (sort === 'id') return String(a.id).localeCompare(String(b.id), undefined, { numeric: true });
+      return compareStudentsByName(a, b);
     });
   }, [students, search, sort]);
   const selected = students.find((student) => student.id === selectedId) || null;
@@ -65,7 +67,7 @@ export default function StudentsRoster({
       <div style={{ textAlign: 'left' }}>
         <button type="button" onClick={() => setSelectedId(null)} style={{ border: 0, background: 'transparent', color: '#1a73e8', fontWeight: 900, padding: 0, cursor: 'pointer' }}>← All students</button>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap', margin: '10px 0 16px' }}>
-          <div><h2 style={{ margin: 0 }}>{selected.id}</h2><div style={{ marginTop: 5, color: '#5f6368' }}>{selected.classPeriod || 'Unassigned'} · {classProfile.courseLabel || classProfile.course || 'Algebra I'} · <strong>{classProfile.courseLevel === 'honors' ? 'Honors' : 'Standard'}</strong></div></div>
+          <div><h2 style={{ margin: 0 }}>{formatStudentName(selected)}</h2><div style={{ marginTop: 5, color: '#5f6368' }}>ID {selected.id} · {selected.classPeriod || 'Unassigned'} · {classProfile.courseLabel || classProfile.course || 'Algebra I'} · <strong>{classProfile.courseLevel === 'honors' ? 'Honors' : 'Standard'}</strong></div></div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}><label style={{ fontSize: 12, fontWeight: 800 }}>Class <select value={selected.classPeriod || 'Unassigned'} onChange={(event) => onChangeClassPeriod(selected.id, event.target.value)} style={{ marginLeft: 5, padding: '8px 9px', border: '1px solid #c7cdd6', borderRadius: 7 }}><option value="Unassigned">Unassigned</option>{classPeriods.map((period) => <option key={period} value={period}>{period}</option>)}</select></label><button type="button" onClick={() => onGenerateIEPReport(selected)} style={{ padding: '9px 13px', border: '1px solid #6f2da8', borderRadius: 8, background: '#fff', color: '#6f2da8', fontWeight: 900 }}>Generate IEP Report</button></div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
@@ -94,13 +96,14 @@ export default function StudentsRoster({
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#5f6368', fontWeight: 700 }}>
           Sort
           <select value={sort} onChange={(event) => setSort(event.target.value)} style={{ padding: '9px 10px', border: '1px solid #c7cdd6', borderRadius: 8 }}>
+            <option value="name">Last name</option>
             <option value="id">Student ID</option>
             <option value="period">Class period</option>
             <option value="inclusion">Inclusion first</option>
           </select>
         </label>
       </div></div>
-      <div style={{ overflowX: 'auto', border: '1px solid #d8dde6', borderRadius: 10 }}><table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr style={{ background: '#f8f9fa' }}><th style={{ textAlign: 'left', padding: 11 }}>Student</th><th style={{ textAlign: 'left' }}>Class</th><th>Mastery</th><th>Supports</th><th style={{ textAlign: 'left' }}>Math Path</th><th></th></tr></thead><tbody>{filtered.map((student) => { const mastery = masterySummary(student); const classProfile = courseProfiles?.[student.classPeriod] || {}; return <tr key={student.id} style={{ borderTop: '1px solid #eef0f2' }}><td style={{ padding: 11, fontWeight: 900 }}>{student.id}</td><td><div>{student.classPeriod || 'Unassigned'}</div><div style={{ color: '#5f6368', fontSize: 11 }}>{classProfile.courseLabel || 'Algebra I'} {classProfile.courseLevel === 'honors' ? '· Honors' : ''}</div></td><td style={{ textAlign: 'center' }}><span style={pill('#e8f0fe', '#174ea6')}>{mastery.overall?.performance?.shortLabel || 'Insufficient'}</span></td><td style={{ textAlign: 'center' }}>{student.profile?.inclusionStatus ? <span style={pill('#efe4ff', '#6f2da8')}>Active</span> : '—'}</td><td style={{ fontSize: 12 }}>{pathLabel(student)}</td><td style={{ textAlign: 'right', paddingRight: 10 }}><button type="button" onClick={() => { setSelectedId(student.id); setDetailTab('overview'); }} style={{ padding: '8px 11px', border: '1px solid #1a73e8', borderRadius: 7, background: '#fff', color: '#174ea6', fontWeight: 900 }}>Open</button></td></tr>; })}</tbody></table></div>
+      <div style={{ overflowX: 'auto', border: '1px solid #d8dde6', borderRadius: 10 }}><table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr style={{ background: '#f8f9fa' }}><th style={{ textAlign: 'left', padding: 11 }}>Student</th><th style={{ textAlign: 'left' }}>Class</th><th>Mastery</th><th>Supports</th><th style={{ textAlign: 'left' }}>Math Path</th><th></th></tr></thead><tbody>{filtered.map((student) => { const mastery = masterySummary(student); const classProfile = courseProfiles?.[student.classPeriod] || {}; return <tr key={student.id} style={{ borderTop: '1px solid #eef0f2' }}><td style={{ padding: 11 }}><div style={{ fontWeight: 900 }}>{formatStudentName(student)}</div><div style={{ color: '#5f6368', fontSize: 11 }}>ID {student.id}</div></td><td><div>{student.classPeriod || 'Unassigned'}</div><div style={{ color: '#5f6368', fontSize: 11 }}>{classProfile.courseLabel || 'Algebra I'} {classProfile.courseLevel === 'honors' ? '· Honors' : ''}</div></td><td style={{ textAlign: 'center' }}><span style={pill('#e8f0fe', '#174ea6')}>{mastery.overall?.performance?.shortLabel || 'Insufficient'}</span></td><td style={{ textAlign: 'center' }}>{student.profile?.inclusionStatus ? <span style={pill('#efe4ff', '#6f2da8')}>Active</span> : '—'}</td><td style={{ fontSize: 12 }}>{pathLabel(student)}</td><td style={{ textAlign: 'right', paddingRight: 10 }}><button type="button" onClick={() => { setSelectedId(student.id); setDetailTab('overview'); }} style={{ padding: '8px 11px', border: '1px solid #1a73e8', borderRadius: 7, background: '#fff', color: '#174ea6', fontWeight: 900 }}>Open</button></td></tr>; })}</tbody></table></div>
       {!filtered.length && <p style={{ color: '#5f6368' }}>No students match that search.</p>}
     </div>
   );

@@ -169,8 +169,20 @@ export const teacherAdmin = {
     callable('resetStudentPasscode')({ studentId }).then((result) => result.data || {}),
   unlinkStudentAccount: (studentId) =>
     callable('unlinkStudentAccount')({ studentId }).then((result) => result.data || {}),
-  createStudentAccount: ({ studentId, displayName = '', classId = '', classPeriod = 'Unassigned', teacherEmail = '' }) =>
-    callable('createStudentAccount')({ studentId, displayName, classId, classPeriod, teacherEmail }).then((result) => result.data || {}),
+  createStudentAccount: ({ studentId, firstName = '', lastName = '', displayName = '', classId = '', classPeriod = 'Unassigned', teacherEmail = '' }) => {
+    const cleanFirstName = String(firstName || '').trim();
+    const cleanLastName = String(lastName || '').trim();
+    const cleanDisplayName = String(displayName || [cleanFirstName, cleanLastName].filter(Boolean).join(' ')).trim();
+    return callable('createStudentAccount')({
+      studentId,
+      firstName: cleanFirstName,
+      lastName: cleanLastName,
+      displayName: cleanDisplayName,
+      classId,
+      classPeriod,
+      teacherEmail,
+    }).then((result) => result.data || {});
+  },
   assignStudentToTeacher: ({ studentId, teacherEmail = '', classPeriod = 'Unassigned' }) =>
     callable('assignStudentToTeacher')({ studentId, teacherEmail, classPeriod }).then((result) => result.data || {}),
   setTeacherAccess: (email, active) =>
@@ -221,6 +233,7 @@ const FRIENDLY_ERRORS = {
   'functions/unauthenticated': 'Sign in again to continue.',
   'functions/permission-denied': 'Those sign-in details are not correct.',
   'functions/resource-exhausted': 'Too many attempts. Wait a few minutes and try again.',
+  'functions/internal': 'The server could not finish that request. Refresh and try once more; if it repeats, check the Firebase Functions log for the failing action.',
 };
 
 /** Turns any auth failure into something worth showing a student or teacher. */

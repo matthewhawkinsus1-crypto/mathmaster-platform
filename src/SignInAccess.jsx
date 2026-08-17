@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CLASS_PERIODS } from './assignmentLifecycle';
 import { describeAuthError, teacherAdmin } from './auth/authService';
+import { compareStudentsByName, formatStudentName, studentSearchText } from './platform/studentName';
 
 const card = {
   border: '1px solid #d8dde6',
@@ -62,7 +63,7 @@ const pill = (background, color) => ({
  * request, so both are one click away here.
  */
 export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
-  const [access, setAccess] = useState({ students: [], teachers: [], bootstrapTeachers: [], authority: {} });
+  const [access, setAccess] = useState({ students: [], classes: [], teachers: [], bootstrapTeachers: [], authority: {} });
   const [codes, setCodes] = useState([]);
   const [auditEvents, setAuditEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -71,7 +72,7 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
   const [pendingAction, setPendingAction] = useState(null);
   const [search, setSearch] = useState('');
   const [teacherEmail, setTeacherEmail] = useState('');
-  const [newStudent, setNewStudent] = useState({ studentId: '', displayName: '', classPeriod: 'Unassigned', teacherEmail: '' });
+  const [newStudent, setNewStudent] = useState({ studentId: '', firstName: '', lastName: '', classId: '' });
   const [assignmentDrafts, setAssignmentDrafts] = useState({});
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
@@ -86,6 +87,7 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
       ]);
       setAccess({
         students: accessResult.students || [],
+        classes: accessResult.classes || [],
         teachers: accessResult.teachers || [],
         bootstrapTeachers: accessResult.bootstrapTeachers || [],
         authority: accessResult.authority || {},
@@ -136,25 +138,23 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
 
   const filteredStudents = useMemo(() => {
     const needle = search.trim().toLowerCase();
-    if (!needle) return access.students;
-    return access.students.filter(
-      (student) =>
-        student.studentId.toLowerCase().includes(needle)
-        || (student.displayName || '').toLowerCase().includes(needle)
-        || (student.linkedEmail || '').toLowerCase().includes(needle)
-        || (student.assignedTeacherEmail || '').toLowerCase().includes(needle)
-        || (student.classPeriod || '').toLowerCase().includes(needle),
-    );
+    const matches = needle
+      ? access.students.filter((student) => studentSearchText(student).includes(needle))
+      : access.students;
+    return matches.slice().sort(compareStudentsByName);
   }, [access.students, search]);
 
   const needingSetup = access.students.filter((student) => !student.hasPasscode).length;
   const isRootAdmin = access.authority?.isRootAdmin === true;
   const adminMode = mode === 'admin';
-  const teacherOptions = useMemo(() => [...new Set([
-    ...(signedInEmail ? [signedInEmail.toLowerCase()] : []),
-    ...access.teachers.filter((teacher) => teacher.active).map((teacher) => teacher.email),
-    ...access.bootstrapTeachers,
-  ].filter(Boolean))].sort(), [access.teachers, access.bootstrapTeachers, signedInEmail]);
+  const activeClasses = useMemo(
+    () => access.classes
+      .filter((entry) => entry.status !== 'archived')
+      .slice()
+      .sort((a, b) => String(a.period || '').localeCompare(String(b.period || ''), undefined, { numeric: true })
+        || String(a.name || '').localeCompare(String(b.name || ''))),
+    [access.classes],
+  );
 
   const confirmPermanentDeletion = async () => {
     if (!deleteTarget || !isRootAdmin) return;
@@ -194,22 +194,23 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
 
       {adminMode && isRootAdmin && <section style={{ ...card, borderColor: '#aecbfa', background: '#f8fbff' }}>
         <h3 style={{ margin: '0 0 6px' }}>Create student account</h3>
-        <p style={{ margin: '0 0 14px', color: '#5f6368', fontSize: 14, lineHeight: 1.55 }}>Create the roster/sign-in shell here, then assign the student to a teacher and class period. The student chooses a PIN with the class join code or links a school Google account; the administrator never needs to know the student&apos;s password.</p>
+        <p style={{ margin: '0 0 14px', color: '#5f6368', fontSize: 14, lineHeight: 1.55 }}>Enter the student&apos;s first and last name exactly as you want it shown in teacher rosters and the gradebook, then place the student in a class. The class already carries its period and teacher of record, so those fields cannot drift apart.</p>
         <form onSubmit={(event) => {
           event.preventDefault();
-          if (!newStudent.studentId.trim()) return;
+          if (!newStudent.studentId.trim() || !newStudent.firstName.trim() || !newStudent.lastName.trim() || !newStudent.classId) return;
           runAction(
             'student:create',
             () => teacherAdmin.createStudentAccount(newStudent),
-            (result) => `${result.studentId} was created and is ready for sign-in setup.`,
-          ).then((result) => { if (result) setNewStudent({ studentId: '', displayName: '', classPeriod: 'Unassigned', teacherEmail: '' }); });
-        }} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 10, alignItems: 'end' }}>
-          <label style={{ fontSize: 12, fontWeight: 900, color: '#3c4043' }}>Student ID<input value={newStudent.studentId} onChange={(event) => setNewStudent((current) => ({ ...current, studentId: event.target.value }))} placeholder="S1042" style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', marginTop: 5 }} /></label>
-          <label style={{ fontSize: 12, fontWeight: 900, color: '#3c4043' }}>Student name (optional)<input value={newStudent.displayName} onChange={(event) => setNewStudent((current) => ({ ...current, displayName: event.target.value }))} placeholder="Student name" style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', marginTop: 5 }} /></label>
-          <label style={{ fontSize: 12, fontWeight: 900, color: '#3c4043' }}>Class period<select value={newStudent.classPeriod} onChange={(event) => setNewStudent((current) => ({ ...current, classPeriod: event.target.value }))} style={{ ...inputStyle, width: '100%', marginTop: 5 }}><option value="Unassigned">Unassigned</option>{CLASS_PERIODS.map((period) => <option key={period} value={period}>{period}</option>)}</select></label>
-          <label style={{ fontSize: 12, fontWeight: 900, color: '#3c4043' }}>Assign teacher<select value={newStudent.teacherEmail} onChange={(event) => setNewStudent((current) => ({ ...current, teacherEmail: event.target.value }))} style={{ ...inputStyle, width: '100%', marginTop: 5 }}><option value="">Unassigned</option>{teacherOptions.map((email) => <option key={email} value={email}>{email}</option>)}</select></label>
-          <button type="submit" disabled={pendingAction === 'student:create' || !newStudent.studentId.trim()} style={{ ...primaryButton, opacity: pendingAction === 'student:create' || !newStudent.studentId.trim() ? 0.55 : 1 }}>{pendingAction === 'student:create' ? 'Creating…' : 'Create Student Account'}</button>
+            (result) => `${formatStudentName(result)} · ${result.studentId} was created and is ready for sign-in setup.`,
+          ).then((result) => { if (result) setNewStudent({ studentId: '', firstName: '', lastName: '', classId: '' }); });
+        }} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))', gap: 10, alignItems: 'end' }}>
+          <label style={{ fontSize: 12, fontWeight: 900, color: '#3c4043' }}>Student ID<input required value={newStudent.studentId} onChange={(event) => setNewStudent((current) => ({ ...current, studentId: event.target.value }))} placeholder="S1042" style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', marginTop: 5 }} /></label>
+          <label style={{ fontSize: 12, fontWeight: 900, color: '#3c4043' }}>First name<input required value={newStudent.firstName} onChange={(event) => setNewStudent((current) => ({ ...current, firstName: event.target.value }))} placeholder="Matthew" style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', marginTop: 5 }} /></label>
+          <label style={{ fontSize: 12, fontWeight: 900, color: '#3c4043' }}>Last name<input required value={newStudent.lastName} onChange={(event) => setNewStudent((current) => ({ ...current, lastName: event.target.value }))} placeholder="Hawkins" style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', marginTop: 5 }} /></label>
+          <label style={{ fontSize: 12, fontWeight: 900, color: '#3c4043' }}>Class<select required value={newStudent.classId} onChange={(event) => setNewStudent((current) => ({ ...current, classId: event.target.value }))} style={{ ...inputStyle, width: '100%', marginTop: 5 }}><option value="">Choose a class…</option>{activeClasses.map((entry) => <option key={entry.classId} value={entry.classId}>{entry.name} · {entry.period}{entry.teacherOfRecord ? ` · ${entry.teacherOfRecord}` : ''}</option>)}</select></label>
+          <button type="submit" disabled={pendingAction === 'student:create' || !newStudent.studentId.trim() || !newStudent.firstName.trim() || !newStudent.lastName.trim() || !newStudent.classId} style={{ ...primaryButton, opacity: pendingAction === 'student:create' || !newStudent.studentId.trim() || !newStudent.firstName.trim() || !newStudent.lastName.trim() || !newStudent.classId ? 0.55 : 1 }}>{pendingAction === 'student:create' ? 'Creating…' : 'Create Student Account'}</button>
         </form>
+        {!activeClasses.length && <p style={{ margin: '12px 0 0', color: '#a15c00', fontSize: 13, fontWeight: 700 }}>Create an active class under Classes &amp; rosters before adding a student.</p>}
       </section>}
 
       {!adminMode && <section style={card}>
@@ -292,8 +293,7 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
             const unlinking = pendingAction === `unlink:${student.studentId}`;
             const assigning = pendingAction === `assign:${student.studentId}`;
             const assignmentDraft = assignmentDrafts[student.studentId] || {
-              teacherEmail: student.assignedTeacherEmail || '',
-              classPeriod: student.classPeriod || 'Unassigned',
+              classId: student.classId || '',
             };
             return (
               <div
@@ -310,7 +310,7 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
                 }}
               >
                 <div style={{ minWidth: 0 }}>
-                  <strong style={{ fontSize: '16px' }}>{student.displayName ? `${student.displayName} · ${student.studentId}` : student.studentId}</strong>
+                  <strong style={{ fontSize: '16px' }}>{formatStudentName(student)}</strong><span style={{ color: '#5f6368', fontSize: 13 }}> · ID {student.studentId}</span>
                   <div style={{ color: '#5f6368', fontSize: '13px', marginTop: '3px', wordBreak: 'break-word' }}>
                     {student.classPeriod}
                     {student.assignedTeacherEmail && <> · Teacher: {student.assignedTeacherEmail}</>}
@@ -319,9 +319,8 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
                 </div>
 
                 {adminMode && isRootAdmin && <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'end', flex: '1 1 390px' }}>
-                  <label style={{ fontSize: 10, fontWeight: 900, color: '#5f6368', flex: '1 1 180px' }}>TEACHER<select value={assignmentDraft.teacherEmail} onChange={(event) => setAssignmentDrafts((current) => ({ ...current, [student.studentId]: { ...assignmentDraft, teacherEmail: event.target.value } }))} style={{ ...inputStyle, display: 'block', width: '100%', marginTop: 3, minHeight: 36, fontSize: 12 }}><option value="">Unassigned</option>{teacherOptions.map((email) => <option key={email} value={email}>{email}</option>)}</select></label>
-                  <label style={{ fontSize: 10, fontWeight: 900, color: '#5f6368', flex: '0 1 150px' }}>CLASS<select value={assignmentDraft.classPeriod} onChange={(event) => setAssignmentDrafts((current) => ({ ...current, [student.studentId]: { ...assignmentDraft, classPeriod: event.target.value } }))} style={{ ...inputStyle, display: 'block', width: '100%', marginTop: 3, minHeight: 36, fontSize: 12 }}><option value="Unassigned">Unassigned</option>{CLASS_PERIODS.map((period) => <option key={period} value={period}>{period}</option>)}</select></label>
-                  <button type="button" disabled={assigning} onClick={() => runAction(`assign:${student.studentId}`, () => teacherAdmin.assignStudentToTeacher({ studentId: student.studentId, ...assignmentDraft }), `${student.studentId} was assigned to ${assignmentDraft.teacherEmail || 'no teacher'} · ${assignmentDraft.classPeriod}.`)} style={{ ...quietButton, minHeight: 36, color: '#174ea6', opacity: assigning ? 0.6 : 1 }}>{assigning ? 'Saving…' : 'Save assignment'}</button>
+                  <label style={{ fontSize: 10, fontWeight: 900, color: '#5f6368', flex: '1 1 250px' }}>CLASS<select value={assignmentDraft.classId} onChange={(event) => setAssignmentDrafts((current) => ({ ...current, [student.studentId]: { classId: event.target.value } }))} style={{ ...inputStyle, display: 'block', width: '100%', marginTop: 3, minHeight: 36, fontSize: 12 }}><option value="">No class</option>{activeClasses.map((entry) => <option key={entry.classId} value={entry.classId}>{entry.name} · {entry.period}{entry.teacherOfRecord ? ` · ${entry.teacherOfRecord}` : ''}</option>)}</select></label>
+                  <button type="button" disabled={assigning} onClick={() => runAction(`assign:${student.studentId}`, () => teacherAdmin.setStudentClass({ studentId: student.studentId, classId: assignmentDraft.classId }), () => { const target = activeClasses.find((entry) => entry.classId === assignmentDraft.classId); return `${formatStudentName(student)} was ${target ? `moved to ${target.name}` : 'removed from their class'}.`; })} style={{ ...quietButton, minHeight: 36, color: '#174ea6', opacity: assigning ? 0.6 : 1 }}>{assigning ? 'Saving…' : 'Save class'}</button>
                 </div>}
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '9px', flexWrap: 'wrap' }}>

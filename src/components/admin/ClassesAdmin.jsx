@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { describeAuthError, teacherAdmin } from '../../auth/authService';
+import { compareStudentsByName, formatStudentName } from '../../platform/studentName';
 import {
   COURSES, COURSE_LEVELS, DEFAULT_PERIODS, REMOVAL_KINDS,
   courseLabel, courseLevelLabel, describeRemovalKinds,
@@ -87,11 +88,11 @@ export default function ClassesAdmin() {
 
   // Students with no class at all. An administrator has to be able to find
   // these: a student nobody put in a class gets no assignments and no course.
-  const unassigned = useMemo(() => students.filter((student) => !student.classId), [students]);
+  const unassigned = useMemo(() => students.filter((student) => !student.classId).sort(compareStudentsByName), [students]);
 
   const selectedClass = classes.find((entry) => entry.classId === selectedClassId) || null;
   const roster = useMemo(
-    () => students.filter((student) => student.classId === selectedClassId),
+    () => students.filter((student) => student.classId === selectedClassId).sort(compareStudentsByName),
     [students, selectedClassId],
   );
 
@@ -408,7 +409,7 @@ function StudentRow({ student, classes, busy, onMove, onRemove, onSetActive, con
   return (
     <div data-student-row={student.studentId} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center', padding: '10px 12px', border: '1px solid #e0e4ea', borderRadius: 9, background: disabled ? '#f8f9fa' : '#fff' }}>
       <div style={{ minWidth: 0 }}>
-        <strong>{student.displayName ? `${student.displayName} · ${student.studentId}` : student.studentId}</strong>
+        <strong>{formatStudentName(student)}</strong><span style={{ color: '#5f6368', fontSize: 12 }}> · ID {student.studentId}</span>
         {disabled && <span style={{ ...pill('#f1f3f4', '#3c4043'), marginLeft: 8 }}>Deactivated</span>}
         <div style={{ color: '#5f6368', fontSize: 12, marginTop: 2 }}>{student.classPeriod}{student.assignedTeacherEmail ? ` · ${student.assignedTeacherEmail}` : ''}</div>
       </div>
