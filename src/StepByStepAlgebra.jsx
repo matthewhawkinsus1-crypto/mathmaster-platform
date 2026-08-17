@@ -196,6 +196,9 @@ export default function StepByStepAlgebra({
   const [cancelledPairIds, setCancelledPairIds] = useState(savedDraft?.cancelledPairIds || {});
   const [simplificationAnswers, setSimplificationAnswers] = useState(savedDraft?.simplificationAnswers || {});
   const [promptAnswers, setPromptAnswers] = useState(savedDraft?.promptAnswers || {});
+  const [rewriteOpen, setRewriteOpen] = useState(false);
+  const [rewriteScope, setRewriteScope] = useState('left');
+  const [rewriteAnswers, setRewriteAnswers] = useState({ left: '', right: '' });
   // The whole drawn path, in coordinates local to the strike box, so the live
   // ink and the term rectangles share one space.
   const [stroke, setStroke] = useState(null); // { side, points: [{x,y}] } | null
@@ -266,6 +269,9 @@ export default function StepByStepAlgebra({
     setSelectedCancellationIndices({});
     setSimplificationAnswers({});
     setPromptAnswers({});
+    setRewriteOpen(false);
+    setRewriteScope('left');
+    setRewriteAnswers({ left: '', right: '' });
     setSelectedCancellationIndices({});
     setMessage(null);
     setArmedTile(null);
@@ -448,6 +454,145 @@ export default function StepByStepAlgebra({
     await commitMove(pendingMove, { resolution: 'keep' });
   };
 
+  const rewriteSidesForScope = (scope = rewriteScope) => (
+    scope === 'both' ? ['left', 'right'] : [scope]
+  );
+
+  const closeRewriteTool = () => {
+    setRewriteOpen(false);
+    setRewriteAnswers({ left: '', right: '' });
+  };
+
+  const openRewriteTool = () => {
+    if (disabled || savingStep || cancelAnimating) return;
+    if (pendingMove) {
+      setMessage({
+        tone: 'growth',
+        text: 'Finish the balanced operation already in progress first. After that, Rewrite / Simplify is available again.',
+      });
+      return;
+    }
+    setArmedTile(null);
+    setTapPlacementArmed(false);
+    setPlacedOperationSides([]);
+    setPlacedOperationPositions({});
+    setOperand('');
+    setRewriteAnswers({ left: '', right: '' });
+    setRewriteOpen((current) => !current);
+    setMessage(null);
+  };
+
+  const persistStudentRewrite = async (beforeEquation, nextEquation, changedSides) => {
+    if (!onStepGrade) return null;
+    setSavingStep(true);
+    try {
+      return await onStepGrade({
+        stepGrade: {
+          kind: 'student-rewrite',
+          label: `Rewrite / simplify ${changedSides.join(' and ')}`,
+          supportLevel,
+          productive: true,
+          accepted: true,
+          earned: 1,
+          possible: 1,
+          equationBefore: equationToLatex(beforeEquation),
+          equationAfter: equationToLatex(nextEquation),
+          expectedTotalPoints: Number(question.expectedStepPoints || 6),
+        },
+        countsAttempt: false,
+        statePatch: {
+          algebraState: {
+            equation: nextEquation,
+            supportLevel,
+            stepNumber: Number(normalizedRecord.algebraState?.stepNumber || 0) + 1,
+          },
+          questionDetails: `Current equation: ${equationToLatex(nextEquation)}`,
+        },
+      });
+    } finally {
+      setSavingStep(false);
+    }
+  };
+
+  const checkStudentRewrite = async () => {
+    if (!equation || disabled || savingStep || cancelAnimating || pendingMove) return;
+
+    const sides = rewriteSidesForScope();
+    const enteredSides = sides.filter((side) => String(rewriteAnswers[side] || '').trim());
+
+    if (!enteredSides.length) {
+      setMessage({
+        tone: 'growth',
+        text: 'Enter the expression you want MathMaster to check. The platform will not generate the simplification for you.',
+      });
+      return;
+    }
+
+    const parsed = {};
+    try {
+      enteredSides.forEach((side) => {
+        parsed[side] = latexToExpression(rewriteAnswers[side]);
+      });
+    } catch {
+      triggerShake();
+      setMessage({
+        tone: 'error',
+        text: 'MathMaster could not read that expression yet. Enter only the expression for that side, not an equals sign.',
+      });
+      return;
+    }
+
+    const incorrect = enteredSides.filter((side) => {
+      try {
+        return !expressionsEquivalent(parsed[side], equation[side], equation.variable);
+      } catch {
+        return true;
+      }
+    });
+
+    if (incorrect.length) {
+      triggerShake();
+      setMessage({
+        tone: 'growth',
+        text: `That rewrite is not equivalent on the ${incorrect.join(' and ')} side${incorrect.length > 1 ? 's' : ''}. Your equation has not been changed.`,
+      });
+      return;
+    }
+
+    const nextEquation = { ...equation };
+    const changedSides = [];
+    enteredSides.forEach((side) => {
+      const before = String(equation[side] || '').replace(/\s+/g, '');
+      const after = String(parsed[side] || '').replace(/\s+/g, '');
+      if (before !== after) {
+        nextEquation[side] = parsed[side];
+        changedSides.push(side);
+      }
+    });
+
+    if (!changedSides.length) {
+      setMessage({
+        tone: 'growth',
+        text: 'That is equivalent, but it is already the expression shown. Enter a different equivalent rewrite if you want to change the workspace.',
+      });
+      return;
+    }
+
+    await persistStudentRewrite(equation, nextEquation, changedSides);
+    setEquation(nextEquation);
+    setRewriteAnswers({ left: '', right: '' });
+    setRewriteOpen(false);
+    setBalancePulse(true);
+    window.setTimeout(
+      () => setBalancePulse(false),
+      motionDuration(650, reducedMotion, { floor: 60 }),
+    );
+    setMessage({
+      tone: 'success',
+      text: `Rewrite accepted. You supplied the ${changedSides.join(' and ')} expression${changedSides.length > 1 ? 's' : ''}; MathMaster only checked equivalence.`,
+    });
+  };
+
   const resetQuestionWork = () => {
     if (disabled || savingStep || !pristineEquation) return;
     const confirmed = typeof window === 'undefined' || window.confirm('Start this problem over? Your current workspace work will be cleared, but your attempt count will not change.');
@@ -461,6 +606,9 @@ export default function StepByStepAlgebra({
     setSelectedCancellationIndices({});
     setSimplificationAnswers({});
     setPromptAnswers({});
+    setRewriteOpen(false);
+    setRewriteScope('left');
+    setRewriteAnswers({ left: '', right: '' });
     setStroke(null);
     setLockedStroke(null);
     setStruckTerms(null);
@@ -999,6 +1147,8 @@ export default function StepByStepAlgebra({
 
   const selectOperation = (operation, sourceSide) => {
     if (disabled || savingStep || pendingMove) return;
+    setRewriteOpen(false);
+    setRewriteAnswers({ left: '', right: '' });
     const switching = armedTile?.operation !== operation;
     setArmedTile({ operation, sourceSide });
     setTapPlacementArmed(false);
@@ -1223,6 +1373,26 @@ export default function StepByStepAlgebra({
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '999px', background: supportPolicy.level >= 4 ? '#e8f0fe' : '#f3e8fd', color: supportPolicy.level >= 4 ? '#174ea6' : '#681da8', fontWeight: 'bold' }}>{`Support ${supportPolicy.level} · ${supportPolicy.label}`}</div>
         <div style={{ padding: '8px 12px', borderRadius: '999px', background: '#e6f4ea', color: '#137333', fontWeight: 'bold' }}>{objectiveLabel}</div>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="algebra-rewrite-toggle"
+            onClick={openRewriteTool}
+            disabled={disabled || savingStep || cancelAnimating}
+            aria-expanded={rewriteOpen}
+            title={pendingMove ? 'Finish the current balanced operation first' : 'Enter your own equivalent rewrite of either or both sides'}
+            style={{
+              minHeight: 40,
+              padding: '8px 14px',
+              borderRadius: 999,
+              border: rewriteOpen ? '2px solid #174ea6' : '1px solid #b8c8e3',
+              background: rewriteOpen ? '#e8f0fe' : '#fff',
+              color: '#174ea6',
+              fontWeight: 800,
+              cursor: disabled || savingStep || cancelAnimating ? 'not-allowed' : 'pointer',
+            }}
+          >
+            Rewrite / Simplify
+          </button>
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', fontSize: '12px', fontWeight: 'bold', color: '#5f6368' }}>
             <input type="checkbox" checked={cancellationHintsEnabled} onChange={(event) => setCancellationHintsEnabled(event.target.checked)} style={{ width: '15px', height: '15px' }} />
             Cancellation hints
@@ -1231,6 +1401,112 @@ export default function StepByStepAlgebra({
         </div>
       </div>
 
+      {rewriteOpen && (
+        <div
+          className="algebra-rewrite-tool"
+          style={{
+            margin: '0 0 16px',
+            padding: '14px',
+            borderRadius: '14px',
+            border: '1px solid #b8c8e3',
+            background: '#f8fbff',
+            boxShadow: '0 4px 14px rgba(23,78,166,.08)',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+            <div>
+              <h3 style={{ margin: 0, color: '#174ea6' }}>Rewrite / Simplify</h3>
+              <p style={{ margin: '5px 0 0', color: '#5f6368', fontSize: 13, lineHeight: 1.45 }}>
+                You write the equivalent expression. MathMaster only checks it. Use this to combine like terms, distribute, reorder, evaluate arithmetic, or make another equivalent rewrite.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={closeRewriteTool}
+              disabled={savingStep}
+              style={{ border: 0, background: 'transparent', color: '#5f6368', fontWeight: 800, cursor: 'pointer' }}
+            >
+              Close
+            </button>
+          </div>
+
+          <div role="group" aria-label="Choose which side to rewrite" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '12px 0' }}>
+            {[
+              ['left', 'Left side'],
+              ['right', 'Right side'],
+              ['both', 'Both sides'],
+            ].map(([value, label]) => (
+              <button
+                type="button"
+                key={value}
+                onClick={() => {
+                  setRewriteScope(value);
+                  setRewriteAnswers({ left: '', right: '' });
+                  setMessage(null);
+                }}
+                aria-pressed={rewriteScope === value}
+                style={{
+                  minHeight: 38,
+                  padding: '7px 13px',
+                  borderRadius: 999,
+                  border: rewriteScope === value ? '2px solid #174ea6' : '1px solid #c7d7f4',
+                  background: rewriteScope === value ? '#e8f0fe' : '#fff',
+                  color: rewriteScope === value ? '#174ea6' : '#3c4043',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: rewriteScope === 'both' ? 'repeat(auto-fit, minmax(260px, 1fr))' : 'minmax(0, 1fr)', gap: 12 }}>
+            {rewriteSidesForScope().map((side) => (
+              <div key={side} style={{ padding: 12, borderRadius: 12, background: '#fff', border: '1px solid #d9e2f1' }}>
+                <strong style={{ display: 'block', marginBottom: 6 }}>{side === 'left' ? 'Left side' : 'Right side'}</strong>
+                <div style={{ marginBottom: 10, minHeight: 40, display: 'flex', alignItems: 'center', fontSize: 24 }}>
+                  <MathDisplay value={expressionToLatex(equation[side])} format="latex" inline />
+                </div>
+                <MathInput
+                  value={rewriteAnswers[side] || ''}
+                  onChange={(value) => setRewriteAnswers((current) => ({ ...current, [side]: value }))}
+                  placeholder="Enter your equivalent expression"
+                  ariaLabel={`Your rewritten ${side} side`}
+                  contextSymbols={operationContextSymbols}
+                  maxWidth={520}
+                />
+              </div>
+            ))}
+          </div>
+
+          {rewriteScope === 'both' && (
+            <p style={{ margin: '9px 0 0', color: '#5f6368', fontSize: 12 }}>
+              If one side is already exactly how you want it, you may leave that side blank. At least one side must contain your rewrite.
+            </p>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+            <button
+              type="button"
+              onClick={closeRewriteTool}
+              disabled={savingStep}
+              style={{ minHeight: 40, padding: '8px 14px', borderRadius: 9, border: '1px solid #c5d5ef', background: '#fff', fontWeight: 800 }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="algebra-check-rewrite"
+              onClick={checkStudentRewrite}
+              disabled={savingStep || cancelAnimating}
+              style={{ minHeight: 40, padding: '8px 15px', borderRadius: 9, border: 0, background: '#174ea6', color: '#fff', fontWeight: 800 }}
+            >
+              Check my rewrite
+            </button>
+          </div>
+        </div>
+      )}
       {Array.isArray(question.algebraPrompts) && question.algebraPrompts.length > 0 && (
         <div style={{ marginBottom: '16px', padding: '15px', borderRadius: '12px', border: '1px solid #d9e2f1', background: '#fff' }}>
           <h3 style={{ margin: '0 0 6px', color: '#174ea6' }}>Algebraic micro-questions</h3>
