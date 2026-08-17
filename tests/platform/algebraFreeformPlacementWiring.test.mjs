@@ -2,13 +2,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-test('workspace exposes explicit simplify controls', () => {
+test('workspace keeps simplification student-entered instead of one-click calculated', () => {
   const src = fs.readFileSync('src/StepByStepAlgebra.jsx', 'utf8');
-  assert.match(src, /Student-controlled simplification/);
-  assert.match(src, /Simplify left/);
-  assert.match(src, /Simplify right/);
-  assert.match(src, /Simplify both/);
-  assert.match(src, /simplifyChosenSides/);
+
+  // The student must enter the simplified expression. MathMaster checks it.
+  assert.match(src, /className="algebra-optional-simplification"/);
+  assert.match(src, /<MathInput value=\{simplificationAnswers\[target\.side\]/);
+  assert.match(src, /checkSimplifications/);
+
+  // These V1.3 auto-calculation controls are intentionally gone.
+  assert.doesNotMatch(src, /Student-controlled simplification/);
+  assert.doesNotMatch(src, />Simplify left</);
+  assert.doesNotMatch(src, />Simplify right</);
+  assert.doesNotMatch(src, />Simplify both</);
+  assert.doesNotMatch(src, /simplifyChosenSides/);
 });
 
 test('workspace resolves additive placement around individual terms', () => {

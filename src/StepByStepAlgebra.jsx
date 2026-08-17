@@ -28,7 +28,6 @@ import {
   parseEquationInput,
   parseOperationOperand,
   splitAdditiveTerms,
-  simplifyStudentExpression,
   applyAdditiveOperationAtPlacement,
 } from './algebraAstEngine';
 import { getAttemptsRemaining, normalizeQuestionRecord } from './attemptPolicy';
@@ -447,108 +446,6 @@ export default function StepByStepAlgebra({
       return;
     }
     await commitMove(pendingMove, { resolution: 'keep' });
-  };
-
-  const equationSideForStudentSimplify = (side) => {
-    if (!pendingMove) return equation?.[side] || '';
-    const target = pendingMove.cancellationTargets?.find((item) => item.side === side);
-    if (crossedSides.includes(side) && target?.cancellationResultExpression) {
-      return target.cancellationResultExpression;
-    }
-    return pendingMove.unsimplified?.[side] ?? equation?.[side] ?? '';
-  };
-  const cleanupPendingMoveUi = () => {
-    setPendingMove(null);
-    setCrossedSides([]);
-    setCancelledPairIds({});
-    setSelectedCancellationIndices({});
-    setSimplificationAnswers({});
-    setOperand('');
-    setStroke(null);
-    setLockedStroke(null);
-    setStruckTerms(null);
-    setCollapsingSides([]);
-    setPlacedOperationSides([]);
-    setPlacedOperationPositions({});
-    setArmedTile(null);
-    setTapPlacementArmed(false);
-  };
-  const persistStandaloneSimplification = async (beforeEquation, nextEquation, sides) => {
-    if (!onStepGrade) return null;
-    setSavingStep(true);
-    try {
-      return await onStepGrade({
-        stepGrade: {
-          kind: 'student-simplification',
-          label: `Simplify ${sides.join(' and ')}`,
-          supportLevel,
-          productive: true,
-          accepted: true,
-          earned: 1,
-          possible: 1,
-          equationBefore: equationToLatex(beforeEquation),
-          equationAfter: equationToLatex(nextEquation),
-          expectedTotalPoints: Number(question.expectedStepPoints || 6),
-        },
-        countsAttempt: false,
-        statePatch: {
-          algebraState: {
-            equation: nextEquation,
-            supportLevel,
-            stepNumber: Number(normalizedRecord.algebraState?.stepNumber || 0) + 1,
-          },
-          questionDetails: `Current equation: ${equationToLatex(nextEquation)}`,
-        },
-      });
-    } finally {
-      setSavingStep(false);
-    }
-  };
-  const simplifyChosenSides = async (requestedSides) => {
-    if (!equation || disabled || savingStep || cancelAnimating) return;
-    const sides = [...new Set((Array.isArray(requestedSides) ? requestedSides : [requestedSides])
-      .filter((side) => side === 'left' || side === 'right'))];
-    if (!sides.length) return;
-
-    const beforeEquation = {
-      ...(pendingMove?.unsimplified || equation),
-      left: equationSideForStudentSimplify('left'),
-      right: equationSideForStudentSimplify('right'),
-    };
-    const nextEquation = { ...beforeEquation };
-    const changed = [];
-    sides.forEach((side) => {
-      const simplified = simplifyStudentExpression(beforeEquation[side], equation.variable);
-      if (String(simplified).replace(/\s+/g, '') !== String(beforeEquation[side]).replace(/\s+/g, '')) {
-        nextEquation[side] = simplified;
-        changed.push(side);
-      }
-    });
-    if (!changed.length) {
-      setMessage({ tone: 'growth', text: 'That side is already as simple as this workspace can safely make it.' });
-      return;
-    }
-
-    if (pendingMove) {
-      await saveStep({
-        move: pendingMove,
-        earned: 2,
-        possible: 2,
-        countsAttempt: false,
-        accepted: true,
-        equationAfter: nextEquation,
-      });
-      cleanupPendingMoveUi();
-    } else {
-      await persistStandaloneSimplification(equation, nextEquation, changed);
-    }
-    setEquation(nextEquation);
-    setBalancePulse(true);
-    window.setTimeout(() => setBalancePulse(false), motionDuration(600, reducedMotion, { floor: 60 }));
-    setMessage({
-      tone: 'success',
-      text: `Simplified the ${changed.length === 2 ? 'left and right sides' : `${changed[0]} side`} because you chose to. Nothing is simplified automatically.`,
-    });
   };
 
   const resetQuestionWork = () => {
@@ -1085,11 +982,6 @@ export default function StepByStepAlgebra({
   const suggestedMove = getSuggestedMove(equation);
   const attemptsRemaining = getAttemptsRemaining(normalizedRecord, maximumAttempts);
   const solved = isSolvedEquation(equation);
-  const studentSimplifiableSides = ['left', 'right'].filter((side) => {
-    const before = equationSideForStudentSimplify(side);
-    const after = simplifyStudentExpression(before, equation.variable);
-    return String(after).replace(/\s+/g, '') !== String(before).replace(/\s+/g, '');
-  });
   const objectiveLabel = equation.objective?.kind === 'slopeIntercept'
     ? 'Target: y = mx + b'
     : `Target: isolate ${equation.objective?.variable || equation.variable}${equation.objective?.requireSimplifiedFinalForm ? ' in simplified final form' : ''}`;
@@ -1387,42 +1279,6 @@ export default function StepByStepAlgebra({
         </div>}
       </div>
 
-      {studentSimplifiableSides.length > 0 && (
-        <div
-          className="algebra-student-simplify-toolbar"
-          style={{
-            margin: '12px auto 4px',
-            padding: '10px 12px',
-            maxWidth: '760px',
-            borderRadius: '12px',
-            border: '1px solid #c7d7f4',
-            background: '#f8fbff',
-            display: 'flex',
-            gap: '8px',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexWrap: 'wrap',
-          }}
-        >
-          <strong style={{ color: '#174ea6', marginRight: '4px' }}>Student-controlled simplification</strong>
-          {studentSimplifiableSides.includes('left') && (
-            <button type="button" className="algebra-check-simplification" onClick={() => simplifyChosenSides(['left'])} disabled={savingStep || cancelAnimating}>
-              Simplify left
-            </button>
-          )}
-          {studentSimplifiableSides.includes('right') && (
-            <button type="button" className="algebra-check-simplification" onClick={() => simplifyChosenSides(['right'])} disabled={savingStep || cancelAnimating}>
-              Simplify right
-            </button>
-          )}
-          {studentSimplifiableSides.length === 2 && (
-            <button type="button" className="algebra-check-simplification" onClick={() => simplifyChosenSides(['left', 'right'])} disabled={savingStep || cancelAnimating}>
-              Simplify both
-            </button>
-          )}
-          <span style={{ color: '#5f6368', fontSize: '12px' }}>Nothing changes unless the student presses a Simplify button.</span>
-        </div>
-      )}
       {pendingMove?.assumption && (
         // Dividing a formula by a letter is only legitimate while that letter
         // is not zero. Solving A = bh for h is not the same statement as
@@ -1499,11 +1355,11 @@ export default function StepByStepAlgebra({
           <h3>{equation.objective?.requireSimplifiedFinalForm ? 'Finish the required simplification' : 'Optional simplification'}</h3>
           <p>{equation.objective?.requireSimplifiedFinalForm
             ? 'This question specifically assesses simplified final form, so finish the remaining simplification before continuing.'
-            : 'The balanced equation is already valid. Simplify now for a cleaner form, or keep it as written and continue solving.'}</p>
+            : 'The balanced equation is already valid. If you want to simplify, enter the simplified expression yourself below. MathMaster will check your work; it will not calculate the simplification for you. You may also keep it as written and continue solving.'}</p>
           <div className="algebra-simplification-grid">
             {pendingMove.simplificationTargets.map((target) => (
               <div key={target.side} className="algebra-simplification-card">
-                <strong>{target.label}: simplify if you want</strong>
+                <strong>{target.label}: enter your simplification</strong>
                 <MathInput value={simplificationAnswers[target.side] || ''} onChange={(value) => setSimplificationAnswers((current) => ({ ...current, [target.side]: value }))} placeholder="Simplified expression" />
               </div>
             ))}
@@ -1512,7 +1368,7 @@ export default function StepByStepAlgebra({
             {!equation.objective?.requireSimplifiedFinalForm && (
               <button type="button" className="algebra-keep-written" onClick={keepPendingMoveAsWritten} disabled={savingStep || cancelAnimating}>Keep as written</button>
             )}
-            <button type="button" className="algebra-check-simplification" onClick={checkSimplifications} disabled={savingStep}>Simplify and continue</button>
+            <button type="button" className="algebra-check-simplification" onClick={checkSimplifications} disabled={savingStep}>Check my simplification</button>
           </div>
         </div>
       )}
