@@ -11,6 +11,8 @@ import MultiAnswerGrader from './MultiAnswerGrader';
 import FunctionGraphBuilder from './FunctionGraphBuilder';
 import GraphAnalysis from './GraphAnalysis';
 import StepByStepAlgebra from './StepByStepAlgebra';
+import MultiRelationAlgebra from './MultiRelationAlgebra';
+import { needsMultiRelationWorkspace } from './algebraRelationFoundation.js';
 import ScratchpadOverlay from './ScratchpadOverlay';
 import SolutionReview from './SolutionReview';
 import ToolSolutionReview from './tools/shared/ToolSolutionReview';
@@ -547,6 +549,15 @@ export default function QuestionEngine({
       case 'graphAnalysis':
         return <GraphAnalysis {...commonModuleProps} />;
       case 'stepAlgebra':
+        if (needsMultiRelationWorkspace(processedQuestion)) {
+          return (
+            <MultiRelationAlgebra
+              {...commonModuleProps}
+              questionRecord={record}
+              onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
+            />
+          );
+        }
         return (
           <StepByStepAlgebra
             {...commonModuleProps}
