@@ -16,7 +16,14 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { getAssignmentByLaunchId } from './classroomApi';
+import {
+  getAssignmentByLaunchId,
+  listClassroomCourseMappings,
+  publishAssignmentToClassrooms,
+  publishClassroomMaterial,
+  storeLessonNotesPdf,
+  updateAssignmentClassroomPublications,
+} from './classroomApi';
 import ClassroomManagerV2 from './ClassroomManagerV2';
 import AssignmentQuestionEditor from './AssignmentQuestionEditor';
 import QuestionEngine from './QuestionEngine';
@@ -123,6 +130,15 @@ import SignInAccess from './SignInAccess.jsx';
 import ClassesAdmin from './components/admin/ClassesAdmin.jsx';
 import PathCoverageAudit from './components/teacher/PathCoverageAudit.jsx';
 import PromoteToPathBank from './components/teacher/PromoteToPathBank.jsx';
+import {
+  blobToBase64,
+  generateLessonNotesPdfBlob,
+} from './platform/resources/lessonNotesPdf.js';
+import {
+  classroomPostingMode,
+  mappedCourseIdsForAssignment,
+  shouldAutoPublishClassroomPackage,
+} from './platform/classroom/automaticClassroomPublishing.js';
 import { resolveStudentCourseContext } from '../functions/shared/classModel.mjs';
 import {
   buildHonorsEnrichmentQuestion,
@@ -576,6 +592,110 @@ function App() {
     fetchedAssignments.sort((a, b) => String(a.dueAt || a.dueDate || '').localeCompare(String(b.dueAt || b.dueDate || '')));
     setAssignments(fetchedAssignments);
     return fetchedAssignments;
+  };
+
+  /**
+   * Publish one already-saved MathMaster assignment to every Google Classroom
+   * course mapped to one of its assigned class periods.
+   *
+   * MathMaster assignment creation is authoritative. Classroom is a downstream
+   * publication target, so a Classroom failure never rolls back the assignment.
+   */
+  const autoPublishAssignmentPackageToClassroom = async (assignment) => {
+    if (!shouldAutoPublishClassroomPackage(assignment)) {
+      return { status: 'skipped', reason: 'not-auto-publishable', published: 0, failed: 0 };
+    }
+
+    const mappingResult = await listClassroomCourseMappings();
+    const mappings = Array.isArray(mappingResult?.mappings) ? mappingResult.mappings : [];
+    const courseIds = mappedCourseIdsForAssignment(assignment, mappings);
+    if (!courseIds.length) {
+      return {
+        status: 'needs-mapping',
+        reason: 'No Google Classroom course is mapped to the assignment’s MathMaster class period.',
+        published: 0,
+        failed: 0,
+      };
+    }
+
+    const classroom = assignment.classroomPackage || {};
+    const notesPdf = assignment.lessonResources?.notesPdf || null;
+    const resourceLinks = Array.isArray(classroom.additionalLinks)
+      ? classroom.additionalLinks
+        .map((link) => ({ title: String(link?.title || '').trim(), url: String(link?.url || '').trim() }))
+        .filter((link) => link.title && /^https?:\/\//i.test(link.url))
+      : [];
+
+    if (notesPdf?.enabled) {
+      let notesUrl = notesPdf?.asset?.url || null;
+      if (!notesUrl) {
+        const generated = await generateLessonNotesPdfBlob({ assignment, notesPdf });
+        const stored = await storeLessonNotesPdf({
+          assignmentId: assignment.id,
+          fileName: notesPdf.fileName,
+          title: notesPdf.title,
+          pageCount: generated.pageCount,
+          base64: await blobToBase64(generated.blob),
+        });
+        notesUrl = stored?.url || null;
+      }
+      if (notesUrl) {
+        resourceLinks.unshift({
+          title: notesPdf.title || `${assignment.title} — Student Notes`,
+          url: notesUrl,
+        });
+      }
+    }
+
+    const dedupedLinks = [
+      ...new Map(resourceLinks.map((item) => [item.url, item])).values(),
+    ];
+    const postingMode = classroomPostingMode(assignment);
+
+    if (
+      classroom?.resourcesPost?.enabled !== false
+      && postingMode === 'separateMaterial'
+      && dedupedLinks.length
+    ) {
+      const materialResult = await publishClassroomMaterial({
+        courseIds,
+        materialKey: `assignment:${assignment.id}:resources`,
+        title: classroom?.resourcesPost?.title || `${assignment.title} — Notes & Resources`,
+        description: classroom?.resourcesPost?.description || `Reference materials for ${assignment.title}.`,
+        topicName: classroom?.topic?.name || '',
+        materials: dedupedLinks,
+      });
+      const failedMaterials = (materialResult?.results || []).filter((item) => item.status === 'failed');
+      if (failedMaterials.length) {
+        console.warn('Some Classroom resource posts failed:', failedMaterials);
+      }
+    }
+
+    const response = await publishAssignmentToClassrooms({
+      courseIds,
+      assignmentId: assignment.id,
+      classroomTitle: classroom?.assignmentPost?.title || assignment.title,
+      maxPoints: Number(classroom?.assignmentPost?.maxPoints) || 100,
+      gradePassbackEnabled: classroom?.gradePassback?.enabled !== false,
+      topicName: classroom?.topic?.name || '',
+      instructions: classroom?.assignmentPost?.instructions
+        || `Complete “${assignment.title}” in MathMaster.`,
+      materials: (
+        classroom?.resourcesPost?.enabled !== false
+        && postingMode === 'attachToAssignment'
+      ) ? dedupedLinks : [],
+    });
+
+    const summary = response?.summary || {};
+    const published = Number(summary.published || 0) + Number(summary.alreadyPublished || 0);
+    const failed = Number(summary.failed || 0);
+    return {
+      status: failed ? (published ? 'partial' : 'failed') : 'published',
+      published,
+      failed,
+      courseIds,
+      results: response?.results || [],
+    };
   };
 
   /**
@@ -2182,6 +2302,7 @@ function App() {
         } else {
           await setDoc(assignmentRef, payload);
         }
+        return { id: assignmentRef.id, ...payload };
       };
 
       const destinationVariants = destinationGroups.map((destination) => {
@@ -2207,22 +2328,59 @@ function App() {
         return { destination, questions: destinationQuestions };
       });
 
+      const createdAssignments = [];
       if (creationMode === 'library') {
         // ONE canonical document, deliberately without a course/rigor variant.
         // Choosing a destination now would be guessing: the teacher has not said
         // which classes get it, and materialising a Standard variant today would
         // be wrong the moment they assign it to an Honors class. The split runs
         // when the assignment is actually assigned, through the same helper.
-        await writeAssignmentVariant({
+        createdAssignments.push(await writeAssignmentVariant({
           destination: { course: null, courseLevel: null, periods: [] },
           questions: parsedQuestions,
-        });
+        }));
       } else {
         for (const variant of destinationVariants) {
           // Sequential writes keep the destination variants and their private lab
           // definitions easy to audit. A normal assignment creates one group.
           // eslint-disable-next-line no-await-in-loop
-          await writeAssignmentVariant(variant);
+          createdAssignments.push(await writeAssignmentVariant(variant));
+        }
+      }
+
+      // "Publish" in Preflight now means publish the whole authored package:
+      // MathMaster assignment + mapped Google Classroom post + optional notes
+      // material. Classroom is downstream, so a failure is surfaced but never
+      // deletes the MathMaster assignment that was just created.
+      if (creationMode !== 'library') {
+        for (const createdAssignment of createdAssignments) {
+          if (!shouldAutoPublishClassroomPackage(createdAssignment)) continue;
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            const classroomResult = await autoPublishAssignmentPackageToClassroom(createdAssignment);
+            if (classroomResult.status === 'needs-mapping') {
+              toastWarning(
+                'MathMaster assignment published; Classroom needs a mapping',
+                `${createdAssignment.title} was assigned in MathMaster, but no saved Google Classroom mapping matches ${createdAssignment.assignedClassPeriods.join(', ')}. Map that class once in Google Classroom Manager and publish/retry there.`,
+              );
+            } else if (classroomResult.status === 'failed' || classroomResult.status === 'partial') {
+              toastWarning(
+                'MathMaster assignment published; Classroom needs attention',
+                `${createdAssignment.title} is live in MathMaster. Google Classroom published ${classroomResult.published || 0} destination(s) and failed ${classroomResult.failed || 0}. Open Google Classroom Manager for details/retry.`,
+              );
+            } else if (classroomResult.status === 'published') {
+              toastSuccess(
+                'Google Classroom published',
+                `${createdAssignment.title} was posted automatically to ${classroomResult.published} mapped Classroom destination${classroomResult.published === 1 ? '' : 's'}.`,
+              );
+            }
+          } catch (classroomError) {
+            console.error('Automatic Google Classroom publication failed:', classroomError);
+            toastWarning(
+              'MathMaster assignment published; Classroom did not post',
+              `${createdAssignment.title} is live in MathMaster, but Google Classroom returned: ${classroomError.message}`,
+            );
+          }
         }
       }
 
@@ -2731,6 +2889,54 @@ function App() {
       };
     }
     await updateDoc(doc(db, 'assignments', assignmentId), patch);
+
+    const nextAssignment = {
+      ...assignment,
+      ...patch,
+      dol: patch.dol || assignment?.dol,
+    };
+    const wasAssigned = Array.isArray(assignment?.assignedClassPeriods)
+      && assignment.assignedClassPeriods.length > 0;
+    const isNowAssigned = Array.isArray(nextAssignment.assignedClassPeriods)
+      && nextAssignment.assignedClassPeriods.length > 0;
+
+    // Assigning a previously-library-only V5 package should post it to the
+    // mapped Classroom automatically. Existing Classroom posts only need their
+    // due-date synchronization updated.
+    if (!wasAssigned && isNowAssigned && shouldAutoPublishClassroomPackage(nextAssignment)) {
+      try {
+        const classroomResult = await autoPublishAssignmentPackageToClassroom(nextAssignment);
+        if (classroomResult.status === 'published') {
+          toastSuccess(
+            'Google Classroom published',
+            `${nextAssignment.title} was posted to ${classroomResult.published} mapped Classroom destination${classroomResult.published === 1 ? '' : 's'}.`,
+          );
+        } else if (classroomResult.status === 'needs-mapping') {
+          toastWarning(
+            'Assignment saved; Classroom needs a mapping',
+            'The MathMaster assignment is assigned, but its class period is not mapped to a Google Classroom course yet.',
+          );
+        } else if (classroomResult.status === 'failed' || classroomResult.status === 'partial') {
+          toastWarning(
+            'Assignment saved; Classroom needs attention',
+            `Google Classroom published ${classroomResult.published || 0} destination(s) and failed ${classroomResult.failed || 0}.`,
+          );
+        }
+      } catch (classroomError) {
+        console.error('Automatic Classroom publication after assignment failed:', classroomError);
+        toastWarning(
+          'Assignment saved; Classroom did not post',
+          classroomError.message,
+        );
+      }
+    } else if (wasAssigned && isNowAssigned && shouldAutoPublishClassroomPackage(nextAssignment)) {
+      try {
+        await updateAssignmentClassroomPublications({ assignmentId });
+      } catch (classroomError) {
+        console.warn('Classroom due-date sync after assignment edit failed:', classroomError);
+      }
+    }
+
     setEditingAssignmentId(null);
   };
 
