@@ -4,7 +4,7 @@ import fs from 'node:fs';
 
 const src = fs.readFileSync('src/StepByStepAlgebra.jsx', 'utf8');
 
-test('Rewrite / Simplify is a permanent manual toolbar control', () => {
+test('Rewrite / Simplify remains a permanent student-authored toolbar control', () => {
   assert.match(src, /Rewrite \/ Simplify/);
   assert.match(src, /algebra-rewrite-toggle/);
   assert.match(src, /aria-expanded=\{rewriteOpen\}/);
@@ -12,19 +12,34 @@ test('Rewrite / Simplify is a permanent manual toolbar control', () => {
   assert.match(src, /Reset work/);
 });
 
-test('student chooses left, right, or both sides', () => {
-  assert.match(src, /\['left', 'Left side'\]/);
-  assert.match(src, /\['right', 'Right side'\]/);
-  assert.match(src, /\['both', 'Both sides'\]/);
+test('student can still choose left right or both sides in the compact tool', () => {
+  assert.match(src, /\['left', 'Left'\]/);
+  assert.match(src, /\['right', 'Right'\]/);
+  assert.match(src, /\['both', 'Both'\]/);
   assert.match(src, /rewriteSidesForScope/);
 });
 
 test('student supplies the rewrite and MathMaster checks equivalence', () => {
   assert.match(src, /checkStudentRewrite/);
   assert.match(src, /rewriteAnswers\[side\]/);
-  assert.match(src, /expressionsEquivalent\(parsed\[side\], equation\[side\], equation\.variable\)/);
-  assert.match(src, /Check my rewrite/);
-  assert.match(src, /MathMaster only checked equivalence/);
+  assert.match(
+    src,
+    /expressionsEquivalent\(parsed\[side\], equation\[side\], equation\.variable\)/,
+  );
+  assert.match(src, /className="algebra-check-rewrite"/);
+  assert.match(src, />\s*Check\s*<\/button>/);
+  assert.match(src, /MathMaster checks it; it does not generate it\./);
+});
+
+test('rewrite tool is compact and focuses the active math input', () => {
+  assert.match(src, /algebra-rewrite-tool-compact/);
+  assert.match(src, /rewriteFocusSignal/);
+  assert.match(
+    src,
+    /focusSignal=\{side === primarySide \? rewriteFocusSignal : 0\}/,
+  );
+  assert.match(src, /toolProfile="algebra-operation"/);
+  assert.match(src, /compact/);
 });
 
 test('rewrite does not call an automatic simplify function', () => {
@@ -35,7 +50,7 @@ test('rewrite does not call an automatic simplify function', () => {
   assert.doesNotMatch(src, />Simplify both</);
 });
 
-test('rewrite is separated from an unfinished balanced operation', () => {
+test('rewrite remains separated from an unfinished balanced operation', () => {
   assert.match(src, /Finish the balanced operation already in progress first/);
   assert.match(src, /if \(pendingMove\)/);
 });
