@@ -4,18 +4,44 @@ import {
   splitMultiplicativeFactors,
 } from './algebraAstEngine.js';
 
-/**
- * Presentation model for cancellation marks.
- *
- * The algebra engine already detects exact structural cancellation pairs.
- * Prefer those indices instead of attempting to rediscover them from a
- * simplified expression. This matters for additive inverses such as
- *   2x + 9 - 2x
- * where the engine knows terms 0 and 2 cancel.
- *
- * targetExpression remains as a backwards-compatible fallback for old saved
- * pending moves that predate cancellationPairs.
- */
+const termMagnitude = (term) => String(term?.text ?? '').replace(/^[+-]\s*/, '');
+
+const additiveResultExpression = (terms, pairs) => {
+  const cancelled = new Set((pairs || []).flatMap((pair) => pair.indices || []));
+  const remaining = (terms || []).filter((_, index) => !cancelled.has(index));
+  let result = remaining.map((term) => term.text).join(' ').trim() || '0';
+  result = result.replace(/^\+\s*/, '');
+  return result;
+};
+
+const fractionResultExpression = (numerator, denominator, pairs) => {
+  const numeratorCount = numerator.length;
+  const cancelledNumerator = new Set();
+  const cancelledDenominator = new Set();
+
+  (pairs || []).forEach((pair) => {
+    const [first, second] = pair.indices || [];
+    [first, second].forEach((index) => {
+      if (!Number.isInteger(index)) return;
+      if (index < numeratorCount) cancelledNumerator.add(index);
+      else cancelledDenominator.add(index - numeratorCount);
+    });
+  });
+
+  const remainingNumerator = numerator.filter((_, index) => !cancelledNumerator.has(index));
+  const remainingDenominator = denominator.filter((_, index) => !cancelledDenominator.has(index));
+
+  const multiply = (items) => {
+    if (!items.length) return '1';
+    if (items.length === 1) return items[0].text;
+    return items.map((item) => `(${item.text})`).join(' * ');
+  };
+
+  const numeratorText = multiply(remainingNumerator);
+  if (!remainingDenominator.length) return numeratorText;
+  return `(${numeratorText}) / (${multiply(remainingDenominator)})`;
+};
+
 export const buildCancellationModel = (
   expression,
   targetExpression,
@@ -41,11 +67,10 @@ export const buildCancellationModel = (
         denominator,
         pairs: structuralFactorPairs,
         tokenCount: numerator.length + denominator.length,
+        resultExpression: fractionResultExpression(numerator, denominator, structuralFactorPairs),
       };
     }
 
-    // Backwards-compatible fallback for an old saved pending move that does
-    // not contain structural pair metadata.
     const usedNumerator = new Set();
     const pairs = [];
     denominator.forEach((denominatorFactor, denominatorIndex) => {
@@ -60,6 +85,7 @@ export const buildCancellationModel = (
         indices: [numeratorIndex, numerator.length + denominatorIndex],
       });
     });
+
     if (pairs.length) {
       return {
         kind: 'fraction',
@@ -67,6 +93,7 @@ export const buildCancellationModel = (
         denominator,
         pairs,
         tokenCount: numerator.length + denominator.length,
+        resultExpression: fractionResultExpression(numerator, denominator, pairs),
       };
     }
   }
@@ -93,28 +120,63 @@ export const buildCancellationModel = (
       terms,
       pairs: structuralAdditivePairs,
       tokenCount: terms.length,
+      resultExpression: additiveResultExpression(terms, structuralAdditivePairs),
     };
   }
 
-  // Old-draft fallback only. New moves should always carry the structural
-  // indices from algebraAstEngine.
+  const used = new Set();
+  const visiblePairs = [];
+
   for (let i = 0; i < terms.length; i += 1) {
+    if (used.has(i)) continue;
     for (let j = i + 1; j < terms.length; j += 1) {
-      const remainderText = terms
-        .filter((_, index) => index !== i && index !== j)
-        .map((term) => term.text)
-        .join(' ') || '0';
-      try {
-        if (expressionsEquivalent(remainderText, targetExpression, variable)) {
-          return {
-            kind: 'additive',
-            terms,
-            pairs: [{ id: 'additive-0', indices: [i, j] }],
-            tokenCount: terms.length,
-          };
+      if (used.has(j) || terms[i].sign === terms[j].sign) continue;
+
+      const leftMagnitude = termMagnitude(terms[i]);
+      const rightMagnitude = termMagnitude(terms[j]);
+      if (!expressionsEquivalent(leftMagnitude, rightMagnitude, variable)) continue;
+
+      used.add(i);
+      used.add(j);
+      visiblePairs.push({
+        id: `additive-${visiblePairs.length}`,
+        indices: [i, j],
+      });
+      break;
+    }
+  }
+
+  if (visiblePairs.length) {
+    return {
+      kind: 'additive',
+      terms,
+      pairs: visiblePairs,
+      tokenCount: terms.length,
+      resultExpression: additiveResultExpression(terms, visiblePairs),
+    };
+  }
+
+  if (targetExpression != null) {
+    for (let i = 0; i < terms.length; i += 1) {
+      for (let j = i + 1; j < terms.length; j += 1) {
+        const remainderText = terms
+          .filter((_, index) => index !== i && index !== j)
+          .map((term) => term.text)
+          .join(' ') || '0';
+        try {
+          if (expressionsEquivalent(remainderText, targetExpression, variable)) {
+            const pair = { id: 'additive-0', indices: [i, j] };
+            return {
+              kind: 'additive',
+              terms,
+              pairs: [pair],
+              tokenCount: terms.length,
+              resultExpression: additiveResultExpression(terms, [pair]),
+            };
+          }
+        } catch {
+          // Keep searching.
         }
-      } catch {
-        // Keep searching.
       }
     }
   }

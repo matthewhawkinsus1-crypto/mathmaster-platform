@@ -548,7 +548,7 @@ export default function StepByStepAlgebra({
   };
 
   const beginStroke = (side, event) => {
-    if (!pendingMove || cancelAnimating || disabled) return;
+    if (cancelAnimating || disabled) return;
     const element = event.currentTarget;
     strokeBoxRef.current = element;
     // Capture is taken in extendStroke, not here. Capturing on pointerdown
@@ -598,6 +598,64 @@ export default function StepByStepAlgebra({
     });
   };
 
+  const commitStandaloneCancellation = async (side, model) => {
+    if (!model?.resultExpression || savingStep || cancelAnimating) return;
+
+    const beforeEquation = equation;
+    const nextEquation = { ...equation, [side]: model.resultExpression };
+
+    setCancelAnimating(true);
+    setCollapsingSides([side]);
+
+    window.setTimeout(async () => {
+      try {
+        if (onStepGrade) {
+          setSavingStep(true);
+          await onStepGrade({
+            stepGrade: {
+              kind: 'student-cancellation',
+              label: `Cancel matching terms on the ${side} side`,
+              supportLevel,
+              productive: true,
+              accepted: true,
+              earned: 1,
+              possible: 1,
+              equationBefore: equationToLatex(beforeEquation),
+              equationAfter: equationToLatex(nextEquation),
+              expectedTotalPoints: Number(question.expectedStepPoints || 6),
+            },
+            countsAttempt: false,
+            statePatch: {
+              algebraState: {
+                equation: nextEquation,
+                supportLevel,
+                stepNumber: Number(normalizedRecord.algebraState?.stepNumber || 0) + 1,
+              },
+              questionDetails: `Current equation: ${equationToLatex(nextEquation)}`,
+            },
+          });
+        }
+
+        setEquation(nextEquation);
+        setCancelledPairIds((current) => ({ ...current, [side]: [] }));
+        setSelectedCancellationIndices((current) => ({ ...current, [side]: [] }));
+        setLockedStroke(null);
+        setStruckTerms(null);
+        setCollapsingSides([]);
+        setCancelAnimating(false);
+        setBalancePulse(true);
+        window.setTimeout(() => setBalancePulse(false), motionDuration(650, reducedMotion, { floor: 60 }));
+        setMessage({
+          tone: 'success',
+          text: 'Cancellation complete. Continue from the equation shown.',
+        });
+      } finally {
+        setSavingStep(false);
+        setCancelAnimating(false);
+      }
+    }, motionDuration(420, reducedMotion, { floor: 40 }));
+  };
+
   const registerCancellationHits = async (side, hitIndices, model) => {
     if (!model?.pairs?.length || !hitIndices?.length) return;
 
@@ -625,8 +683,9 @@ export default function StepByStepAlgebra({
         // pair cannot trigger a re-render that removes the second target.
         setMessage({ tone: 'success', text: `All ${pairCount} matching factor pairs are marked. Finish the cancellations to apply them together.` });
       } else {
-        setMessage({ tone: 'success', text: 'Matching factors are canceled in the equation.' });
-        await strikeSide(side);
+        setMessage({ tone: 'success', text: 'Matching terms are canceled in the equation.' });
+        if (pendingMove) await strikeSide(side);
+        else await commitStandaloneCancellation(side, model);
       }
       return;
     }
@@ -692,7 +751,7 @@ export default function StepByStepAlgebra({
   // reducer supports several half-marked pairs at once, so compound factors do
   // not force an artificial one-pair-at-a-time workflow.
   const handleTermClick = (side, index, model) => {
-    if (!pendingMove || cancelAnimating) return;
+    if (cancelAnimating) return;
     registerCancellationHits(side, [index], model);
   };
 
@@ -1015,7 +1074,7 @@ export default function StepByStepAlgebra({
   };
 
   const renderSide = (side, cancellationModel = null) => {
-    if (pendingMove && cancellationModel) {
+    if (cancellationModel) {
       const completedPairs = new Set(cancelledPairIds[side] || []);
       const completedIndices = cancellationModel.pairs
         .filter((pair) => completedPairs.has(pair.id))
@@ -1207,12 +1266,18 @@ export default function StepByStepAlgebra({
         <div aria-label="Interactive algebra balance scale" className={`algebra-equation-stage algebra-connected-balance ${balanceStagingSide ? `is-unbalanced is-unbalanced-${balanceStagingSide}` : ''}`}>
           {['left', 'right'].map((side, index) => {
             const target = pendingMove?.cancellationTargets.find((item) => item.side === side);
-            const cancellationModel = target?.canCancel ? buildCancellationModel(
+            const pendingCancellationModel = target?.canCancel ? buildCancellationModel(
               sideExpression(side),
               target.cancellationResultExpression || target.simplifiedExpression,
               equation.variable,
               target.cancellationPairs,
             ) : null;
+            const visibleCancellationModel = !pendingMove
+              ? buildCancellationModel(sideExpression(side), null, equation.variable, [])
+              : null;
+            const cancellationModel = pendingCancellationModel
+              || (visibleCancellationModel?.pairs?.length ? visibleCancellationModel : null);
+            const cancellationActive = Boolean(cancellationModel?.pairs?.length);
             const stagedHere = placedOperationSides.includes(side);
             return (
               <div
@@ -1244,16 +1309,22 @@ export default function StepByStepAlgebra({
                 <div ref={side === 'left' ? leftExpressionRef : rightExpressionRef} className="algebra-expression-anchor">
                   {renderSide(side, cancellationModel)}
                 </div>
-                {target?.canCancel && cancellationModel && !crossedSides.includes(side) && (
+                {cancellationActive && !crossedSides.includes(side) && (
                   <div className="algebra-cancellation-cue">
                     <div>
                       {cancellationHintsEnabled
-                        ? (cancellationModel.pairs.length > 1 ? `Cancel ${cancellationModel.pairs.length} matching pairs. You may mark several factors at once.` : 'Slash a matching numerator/denominator pair. Tap works too.')
+                        ? (cancellationModel.kind === 'additive'
+                          ? (cancellationModel.pairs.length > 1
+                            ? `Cancel ${cancellationModel.pairs.length} matching opposite-term pairs. You may mark several pairs at once.`
+                            : 'Cancel the matching opposite terms directly in the equation. Tap each term or draw through them.')
+                          : (cancellationModel.pairs.length > 1
+                            ? `Cancel ${cancellationModel.pairs.length} matching factor pairs. You may mark several factors at once.`
+                            : 'Slash a matching numerator/denominator pair. Tap works too.'))
                         : 'Cancellation is active directly on the equation.'}
                     </div>
                     {cancellationModel.pairs.length > 1
                       && cancellationModel.pairs.every((pair) => (cancelledPairIds[side] || []).includes(pair.id)) && (
-                        <button type="button" className="algebra-finish-cancellations" onClick={() => strikeSide(side)} disabled={savingStep || cancelAnimating}>
+                        <button type="button" className="algebra-finish-cancellations" onClick={() => pendingMove ? strikeSide(side) : commitStandaloneCancellation(side, cancellationModel)} disabled={savingStep || cancelAnimating}>
                           Finish {cancellationModel.pairs.length} cancellations
                         </button>
                       )}
