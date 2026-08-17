@@ -117,7 +117,9 @@ export const assignmentIsForStudent = (assignment, classPeriod) => {
   const assigned = Array.isArray(assignment?.assignedClassPeriods)
     ? assignment.assignedClassPeriods.filter(Boolean)
     : [];
-  return assigned.length === 0 || assigned.includes(classPeriod);
+  // Student audience is explicit: an empty period list means Library / Not assigned.
+  // It must never behave as a wildcard, or Library items leak onto every student dashboard.
+  return assigned.length > 0 && assigned.includes(classPeriod);
 };
 
 const VERSION_MODES = new Set(['shared', 'personalized']);

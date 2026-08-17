@@ -2057,7 +2057,8 @@ exports.oauthCallback = onRequest({ secrets: GOOGLE_API_SECRETS }, async (req, r
   const db = getFirestore();
   const stateRef = db.doc(`oauthStates/${state}`);
   const stateSnap = await stateRef.get();
-  if (!stateSnap.exists || stateSnap.data().expiresAt < Date.now()) {
+  const stateData = stateSnap.exists ? stateSnap.data() : null;
+  if (!stateData || stateData.expiresAt < Date.now()) {
     res.status(400).send("Invalid or expired OAuth state.");
     return;
   }
@@ -2065,7 +2066,7 @@ exports.oauthCallback = onRequest({ secrets: GOOGLE_API_SECRETS }, async (req, r
 
   try {
     const tokens = await classroomLib.exchangeCodeForTokens(String(code));
-    await classroomLib.saveTeacherTokens(tokens);
+    await classroomLib.saveTeacherTokens(tokens, stateData.createdBy);
     res.redirect(302, `${appBaseUrl}?classroomConnected=1`);
   } catch (err) {
     logger.error("OAuth token exchange failed", err);
@@ -2073,15 +2074,18 @@ exports.oauthCallback = onRequest({ secrets: GOOGLE_API_SECRETS }, async (req, r
   }
 });
 
-exports.getClassroomConnectionStatus = onCall(async (request) => {
-  await requireTeacher(request);
-  return { connected: await classroomLib.isConnected() };
-});
+exports.getClassroomConnectionStatus = onCall(
+  { secrets: GOOGLE_API_SECRETS },
+  async (request) => {
+    const teacherUid = await requireTeacher(request);
+    return classroomLib.getConnectionHealth(teacherUid);
+  }
+);
 
 exports.getGoogleClassroomDiagnostics = onCall(
   { secrets: GOOGLE_AND_LINK_SECRETS },
   async (request) => {
-    await requireTeacher(request);
+    const teacherUid = await requireTeacher(request);
     const problems = [];
     const checks = {};
 
@@ -2133,7 +2137,7 @@ exports.getGoogleClassroomDiagnostics = onCall(
     }
 
     try {
-      await getFirestore().doc("teacherIntegrations/default").get();
+      await getFirestore().doc(`teacherIntegrations/${teacherUid}`).get();
       checks.firestoreAvailable = true;
     } catch (err) {
       checks.firestoreAvailable = false;
@@ -2157,22 +2161,125 @@ exports.getGoogleClassroomDiagnostics = onCall(
 // --- Courses and course-specific roster links -------------------------------
 
 exports.listGoogleCourses = onCall({ secrets: GOOGLE_API_SECRETS }, async (request) => {
-  await requireTeacher(request);
-  const classroom = await classroomLib.getClassroomClient();
+  const teacherUid = await requireTeacher(request);
+  const classroom = await classroomLib.getClassroomClient(teacherUid);
   return { courses: await classroomLib.listCourses(classroom) };
 });
 
 exports.listClassroomStudents = onCall({ secrets: GOOGLE_API_SECRETS }, async (request) => {
-  await requireTeacher(request);
+  const teacherUid = await requireTeacher(request);
   const { courseId } = request.data || {};
   if (!courseId) throw new HttpsError("invalid-argument", "courseId is required.");
-  const classroom = await classroomLib.getClassroomClient();
+  const classroom = await classroomLib.getClassroomClient(teacherUid);
   return { students: await classroomLib.listStudents(classroom, String(courseId)) };
 });
 
+function classroomMappingDocumentId(teacherUid, courseId) {
+  return crypto
+    .createHash("sha256")
+    .update(`${teacherUid}|${courseId}`)
+    .digest("hex")
+    .slice(0, 32);
+}
+
+function classroomMaterialDocumentId(teacherUid, courseId, materialKey) {
+  return crypto
+    .createHash("sha256")
+    .update(`${teacherUid}|${courseId}|${materialKey}`)
+    .digest("hex")
+    .slice(0, 32);
+}
+
+async function getTeacherClassroomMapping(db, teacherUid, courseId) {
+  const mappingId = classroomMappingDocumentId(teacherUid, String(courseId));
+  const snap = await db.doc(`classroomCourseMappings/${mappingId}`).get();
+  return snap.exists ? { id: snap.id, ...snap.data() } : null;
+}
+
+function studentBelongsToMappedClass(student, classRecord, classId) {
+  if (!student || !classRecord) return false;
+  if (student.classId) return String(student.classId) === String(classId);
+  return String(student.classPeriod || "") === String(classRecord.period || "");
+}
+
+async function assertMappedStudent(db, teacherUid, courseId, classId, studentId) {
+  const mapping = await getTeacherClassroomMapping(db, teacherUid, courseId);
+  if (!mapping || String(mapping.classId) !== String(classId)) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Map this Google Classroom course to the MathMaster class before linking students."
+    );
+  }
+
+  const [classSnap, studentSnap] = await Promise.all([
+    db.doc(`classes/${String(classId)}`).get(),
+    db.doc(`grades/${String(studentId)}`).get(),
+  ]);
+  if (!classSnap.exists) throw new HttpsError("not-found", "The mapped MathMaster class no longer exists.");
+  if (!studentSnap.exists) throw new HttpsError("not-found", `MathMaster student ${studentId} does not exist.`);
+  if (!studentBelongsToMappedClass(studentSnap.data(), classSnap.data(), classId)) {
+    throw new HttpsError(
+      "failed-precondition",
+      `MathMaster student ${studentId} is not enrolled in the mapped class.`
+    );
+  }
+  return { mapping, classRecord: classSnap.data(), student: studentSnap.data() };
+}
+
+exports.listClassroomCourseMappings = onCall(async (request) => {
+  const teacherUid = await requireTeacher(request);
+  const snap = await getFirestore()
+    .collection("classroomCourseMappings")
+    .where("teacherUid", "==", teacherUid)
+    .limit(100)
+    .get();
+  return { mappings: snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })) };
+});
+
+exports.saveClassroomCourseMapping = onCall(async (request) => {
+  const teacherUid = await requireTeacher(request);
+  const teacherEmail = callerEmail(request);
+  const { courseId, courseName, courseSection, classId } = request.data || {};
+  if (!courseId || !classId) {
+    throw new HttpsError("invalid-argument", "courseId and classId are required.");
+  }
+
+  const db = getFirestore();
+  const classRef = db.doc(`classes/${String(classId)}`);
+  const classSnap = await classRef.get();
+  if (!classSnap.exists) throw new HttpsError("not-found", "That MathMaster class does not exist.");
+  const classRecord = classSnap.data() || {};
+  const teacherOfRecord = String(classRecord.teacherOfRecord || "").trim().toLowerCase();
+  const rootAdmin = teacherEmail ? authLib.isRootAdminEmail(teacherEmail) : false;
+  if (!rootAdmin && (!teacherEmail || teacherOfRecord !== teacherEmail.toLowerCase())) {
+    throw new HttpsError(
+      "permission-denied",
+      "Only the class's teacher of record or the root administrator can map this class to Google Classroom."
+    );
+  }
+
+  const id = classroomMappingDocumentId(teacherUid, String(courseId));
+  await db.doc(`classroomCourseMappings/${id}`).set(
+    {
+      mappingId: id,
+      teacherUid,
+      teacherEmail: teacherEmail || null,
+      courseId: String(courseId),
+      courseName: courseName || String(courseId),
+      courseSection: courseSection || "",
+      classId: String(classId),
+      className: classRecord.name || null,
+      classPeriod: classRecord.period || null,
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+  return { saved: true, mappingId: id };
+});
+
 exports.linkStudentToClassroom = onCall(async (request) => {
-  await requireTeacher(request);
-  const { courseId, studentId, googleUserId, email, name } = request.data || {};
+  const teacherUid = await requireTeacher(request);
+  const { courseId, studentId, googleUserId, email, name, classId } = request.data || {};
   if (!courseId || !studentId || !googleUserId) {
     throw new HttpsError(
       "invalid-argument",
@@ -2180,15 +2287,25 @@ exports.linkStudentToClassroom = onCall(async (request) => {
     );
   }
 
-  const cleanCourseId = String(courseId);
-  const cleanStudentId = String(studentId).trim();
   const db = getFirestore();
-  const rosterLinkId = rosterLinkDocumentId(cleanCourseId, cleanStudentId);
+  const mapping = await getTeacherClassroomMapping(db, teacherUid, String(courseId));
+  const effectiveClassId = String(classId || mapping?.classId || "");
+  if (!effectiveClassId) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Map this Google Classroom course to a MathMaster class before linking students."
+    );
+  }
+  const cleanStudentId = String(studentId).trim();
+  await assertMappedStudent(db, teacherUid, String(courseId), effectiveClassId, cleanStudentId);
 
+  const rosterLinkId = rosterLinkDocumentId(String(courseId), cleanStudentId);
   await db.doc(`classroomRosterLinks/${rosterLinkId}`).set(
     {
       rosterLinkId,
-      courseId: cleanCourseId,
+      teacherUid,
+      classId: effectiveClassId,
+      courseId: String(courseId),
       studentId: cleanStudentId,
       googleUserId: String(googleUserId),
       email: email || null,
@@ -2197,33 +2314,250 @@ exports.linkStudentToClassroom = onCall(async (request) => {
     },
     { merge: true }
   );
-
-  const gradeRef = db.doc(`grades/${cleanStudentId}`);
-  const gradeSnap = await gradeRef.get();
-  await gradeRef.set(
+  await db.doc(`grades/${cleanStudentId}`).set(
     {
-      ...(gradeSnap.exists
-        ? {}
-        : {
-            classPeriod: "Unassigned",
-            gradesByAssignment: {},
-            assignmentActivity: {},
-            dolGradesByAssignment: {},
-            classworkGradesByAssignment: {},
-            supportUsageByAssignment: {},
-          }),
-      // Retained only for backward compatibility with a legacy single-course
-      // publication. New grade passback uses classroomRosterLinks by course.
       googleUserId: String(googleUserId),
       googleEmail: email || null,
       googleName: name || null,
-      classroomCourseIds: FieldValue.arrayUnion(cleanCourseId),
+      classroomCourseIds: FieldValue.arrayUnion(String(courseId)),
     },
     { merge: true }
   );
-
-  return { linked: true, rosterLinkId, courseId: cleanCourseId, studentId: cleanStudentId };
+  return {
+    linked: true,
+    rosterLinkId,
+    courseId: String(courseId),
+    classId: effectiveClassId,
+    studentId: cleanStudentId,
+  };
 });
+
+exports.linkClassroomRosterBatch = onCall(async (request) => {
+  const teacherUid = await requireTeacher(request);
+  const { courseId, classId, links } = request.data || {};
+  const cleanCourseId = String(courseId || "");
+  const cleanClassId = String(classId || "");
+  if (!cleanCourseId || !cleanClassId || !Array.isArray(links) || !links.length) {
+    throw new HttpsError(
+      "invalid-argument",
+      "courseId, classId and at least one roster link are required."
+    );
+  }
+  if (links.length > 200) {
+    throw new HttpsError("invalid-argument", "Link at most 200 students at a time.");
+  }
+
+  const db = getFirestore();
+  const mapping = await getTeacherClassroomMapping(db, teacherUid, cleanCourseId);
+  if (!mapping || String(mapping.classId) !== cleanClassId) {
+    throw new HttpsError(
+      "failed-precondition",
+      "This Google Classroom course is not mapped to that MathMaster class."
+    );
+  }
+
+  const classSnap = await db.doc(`classes/${cleanClassId}`).get();
+  if (!classSnap.exists) throw new HttpsError("not-found", "The mapped MathMaster class no longer exists.");
+  const classRecord = classSnap.data();
+
+  const prepared = [];
+  for (const item of links) {
+    const studentId = String(item?.studentId || "").trim();
+    const googleUserId = String(item?.googleUserId || "").trim();
+    if (!studentId || !googleUserId) continue;
+    // eslint-disable-next-line no-await-in-loop
+    const studentSnap = await db.doc(`grades/${studentId}`).get();
+    if (!studentSnap.exists) {
+      throw new HttpsError("not-found", `MathMaster student ${studentId} does not exist.`);
+    }
+    if (!studentBelongsToMappedClass(studentSnap.data(), classRecord, cleanClassId)) {
+      throw new HttpsError(
+        "failed-precondition",
+        `MathMaster student ${studentId} is not enrolled in the mapped class.`
+      );
+    }
+    prepared.push({
+      studentId,
+      googleUserId,
+      email: item.email || null,
+      name: item.name || null,
+    });
+  }
+
+  const batch = db.batch();
+  for (const item of prepared) {
+    const rosterLinkId = rosterLinkDocumentId(cleanCourseId, item.studentId);
+    batch.set(
+      db.doc(`classroomRosterLinks/${rosterLinkId}`),
+      {
+        rosterLinkId,
+        teacherUid,
+        classId: cleanClassId,
+        courseId: cleanCourseId,
+        studentId: item.studentId,
+        googleUserId: item.googleUserId,
+        email: item.email,
+        name: item.name,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+    batch.set(
+      db.doc(`grades/${item.studentId}`),
+      {
+        googleUserId: item.googleUserId,
+        googleEmail: item.email,
+        googleName: item.name,
+        classroomCourseIds: FieldValue.arrayUnion(cleanCourseId),
+      },
+      { merge: true }
+    );
+  }
+  if (prepared.length) await batch.commit();
+  return { linked: prepared.length };
+});
+
+exports.ensureClassroomTopics = onCall(
+  { secrets: GOOGLE_API_SECRETS },
+  async (request) => {
+    const teacherUid = await requireTeacher(request);
+    const courseIds = [...new Set((request.data?.courseIds || []).map(String).filter(Boolean))];
+    const topicNames = [...new Set(
+      (request.data?.topicNames || []).map((value) => String(value).trim()).filter(Boolean)
+    )];
+    if (!courseIds.length || !topicNames.length) {
+      throw new HttpsError("invalid-argument", "Select at least one course and one topic.");
+    }
+
+    const db = getFirestore();
+    const classroom = await classroomLib.getClassroomClient(teacherUid);
+    const results = [];
+    for (const courseId of courseIds) {
+      // eslint-disable-next-line no-await-in-loop
+      const mapping = await getTeacherClassroomMapping(db, teacherUid, courseId);
+      if (!mapping) {
+        results.push({
+          courseId,
+          topicName: null,
+          status: "failed",
+          error: "Map this Google Classroom course to a MathMaster class first.",
+        });
+        continue;
+      }
+      for (const topicName of topicNames) {
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          const topic = await classroomLib.ensureTopic(classroom, courseId, topicName);
+          results.push({
+            courseId,
+            topicName,
+            topicId: topic?.topicId || null,
+            status: "ready",
+          });
+        } catch (error) {
+          results.push({
+            courseId,
+            topicName,
+            status: "failed",
+            error: String(error.message || error),
+          });
+        }
+      }
+    }
+    return { results };
+  }
+);
+
+exports.publishClassroomMaterial = onCall(
+  { secrets: GOOGLE_API_SECRETS },
+  async (request) => {
+    const teacherUid = await requireTeacher(request);
+    const { title, description, topicName, materialKey } = request.data || {};
+    const courseIds = [...new Set((request.data?.courseIds || []).map(String).filter(Boolean))];
+    const materials = cleanMaterials(request.data?.materials);
+    if (!title || !courseIds.length || !materials.length) {
+      throw new HttpsError(
+        "invalid-argument",
+        "title, courseIds and at least one material link are required."
+      );
+    }
+
+    const db = getFirestore();
+    const classroom = await classroomLib.getClassroomClient(teacherUid);
+    const results = [];
+    const stableKey = String(materialKey || title);
+
+    for (const courseId of courseIds) {
+      const mapping = await getTeacherClassroomMapping(db, teacherUid, courseId);
+      if (!mapping) {
+        results.push({
+          courseId,
+          status: "failed",
+          error: "Map this Google Classroom course to a MathMaster class first.",
+        });
+        continue;
+      }
+
+      const id = classroomMaterialDocumentId(teacherUid, courseId, stableKey);
+      const ref = db.doc(`classroomMaterialLinks/${id}`);
+      // eslint-disable-next-line no-await-in-loop
+      const existing = await ref.get();
+      if (existing.exists && existing.data().googleMaterialId) {
+        results.push({
+          courseId,
+          status: "already-published",
+          googleMaterialId: existing.data().googleMaterialId,
+        });
+        continue;
+      }
+
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const topic = topicName
+          ? await classroomLib.ensureTopic(classroom, courseId, topicName)
+          : null;
+        // eslint-disable-next-line no-await-in-loop
+        const item = await classroomLib.createCourseWorkMaterial(classroom, {
+          courseId,
+          title: String(title).trim(),
+          description: String(description || "").trim(),
+          materials,
+          topicId: topic?.topicId || null,
+        });
+        // eslint-disable-next-line no-await-in-loop
+        await ref.set(
+          {
+            materialPublicationId: id,
+            teacherUid,
+            courseId,
+            classId: mapping.classId,
+            title: String(title).trim(),
+            topicName: topicName || null,
+            topicId: topic?.topicId || null,
+            googleMaterialId: item.id,
+            alternateLink: item.alternateLink || null,
+            status: "published",
+            publishedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+        results.push({
+          courseId,
+          status: "published",
+          googleMaterialId: item.id,
+          classroomUrl: item.alternateLink || null,
+        });
+      } catch (error) {
+        results.push({
+          courseId,
+          status: "failed",
+          error: String(error.message || error),
+        });
+      }
+    }
+    return { results };
+  }
+);
 
 // --- Multi-course publication ----------------------------------------------
 
@@ -2301,10 +2635,14 @@ async function finishPublication(ref, attemptId, patch) {
 
 async function publishOneCourse({
   classroom,
+  teacherUid,
   assignmentId,
   assignment,
   course,
+  mapping,
   materials,
+  topicName,
+  instructions,
 }) {
   const db = getFirestore();
   const courseId = String(course.id);
@@ -2312,15 +2650,19 @@ async function publishOneCourse({
   const publicationId = linkRef.id;
   const dueAtValue = assignment.dueAt || assignment.dueDate || null;
   const baseRecord = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     publicationId,
+    teacherUid,
     assignmentId,
+    classId: mapping.classId,
+    classPeriod: mapping.classPeriod || null,
     courseId,
     courseName: course.name || courseId,
     courseSection: course.section || "",
     title: assignment.title,
     dueAt: serializableDate(dueAtValue),
     materials,
+    topicName: topicName || null,
   };
 
   const claim = await claimPublication(linkRef, baseRecord);
@@ -2356,7 +2698,6 @@ async function publishOneCourse({
   )}`;
 
   try {
-    // First recover an already-created item from an ambiguous prior attempt.
     let courseWork = null;
     const priorCourseworkId = claim.current.courseworkId;
     if (priorCourseworkId) {
@@ -2378,27 +2719,35 @@ async function publishOneCourse({
       );
     }
 
+    const topic = topicName
+      ? await classroomLib.ensureTopic(classroom, courseId, topicName)
+      : null;
+
     if (!courseWork) {
+      const defaultInstructions = `Complete "${assignment.title}" in MathMaster.`;
       courseWork = await classroomLib.createCourseWork(classroom, {
         courseId,
         title: assignment.title,
-        description: `Complete "${assignment.title}" in MathMaster.\n\n${marker}`,
+        description: `${String(instructions || defaultInstructions).trim()}\n\n${marker}`,
         dueDate: toDate(dueAtValue) || undefined,
         materials,
         launchUrl,
         maxPoints: 100,
+        topicId: topic?.topicId || null,
       });
     }
 
     await finishPublication(linkRef, attemptId, {
       status: "published",
+      teacherUid,
+      classId: mapping.classId,
+      classPeriod: mapping.classPeriod || null,
       courseworkId: courseWork.id,
       classroomUrl: courseWork.alternateLink || null,
       launchUrl,
+      topicId: topic?.topicId || null,
+      topicName: topic?.name || topicName || null,
       publishedAt: FieldValue.serverTimestamp(),
-      // What was actually sent to Google. Staleness is derived by comparing
-      // this with the assignment's current dueAt, so a fresh publish has to
-      // record it or the post reads as out of date the moment it is created.
       syncedDueAt: serializableDate(dueAtValue),
       lastSyncedAt: FieldValue.serverTimestamp(),
       syncStatus: "in-sync",
@@ -2413,6 +2762,7 @@ async function publishOneCourse({
       courseworkId: courseWork.id,
       classroomUrl: courseWork.alternateLink || null,
       launchUrl,
+      topicId: topic?.topicId || null,
     };
   } catch (err) {
     logger.error(
@@ -2435,8 +2785,8 @@ async function publishOneCourse({
 }
 
 async function publishAssignmentBatch(request) {
-  await requireTeacher(request);
-  const { assignmentId, materials } = request.data || {};
+  const teacherUid = await requireTeacher(request);
+  const { assignmentId, materials, topicName, instructions } = request.data || {};
   const rawCourseIds = request.data?.courseIds ||
     (request.data?.courseId ? [request.data.courseId] : []);
   const courseIds = [...new Set(rawCourseIds.map((value) => String(value)).filter(Boolean))];
@@ -2460,14 +2810,27 @@ async function publishAssignmentBatch(request) {
     throw new HttpsError("not-found", "Assignment not found.");
   }
   const assignment = assignmentSnap.data();
-  const classroom = await classroomLib.getClassroomClient();
+  const assignedPeriods = new Set(
+    (Array.isArray(assignment.assignedClassPeriods)
+      ? assignment.assignedClassPeriods
+      : []
+    ).map(String)
+  );
+  if (!assignedPeriods.size) {
+    throw new HttpsError(
+      "failed-precondition",
+      "This MathMaster assignment is still in the library. Assign it to a class before publishing it to Google Classroom."
+    );
+  }
+
+  const classroom = await classroomLib.getClassroomClient(teacherUid);
   const activeCourses = await classroomLib.listCourses(classroom);
   const courseMap = new Map(activeCourses.map((course) => [String(course.id), course]));
   const safeMaterials = cleanMaterials(materials);
+  const cleanTopic = String(topicName || "").trim().slice(0, 200);
+  const cleanInstructions = String(instructions || "").trim().slice(0, 20000);
   const results = [];
 
-  // Publish sequentially. This avoids a burst of duplicate create calls and
-  // gives the caller a complete per-course result even when one course fails.
   for (const courseId of courseIds) {
     const course = courseMap.get(courseId);
     if (!course) {
@@ -2475,17 +2838,46 @@ async function publishAssignmentBatch(request) {
         courseId,
         courseName: courseId,
         status: "failed",
-        error: "The connected teacher is not an active teacher in this course.",
+        error: "The connected teacher is not an active teacher in this Google Classroom course.",
       });
       continue;
     }
+
+    // The MathMaster class mapping is the audience boundary. A teacher can
+    // never accidentally publish Period 2 work into a mapped Period 5 course.
+    // eslint-disable-next-line no-await-in-loop
+    const mapping = await getTeacherClassroomMapping(db, teacherUid, courseId);
+    if (!mapping) {
+      results.push({
+        courseId,
+        courseName: course.name || courseId,
+        status: "failed",
+        error: "Map this Google Classroom course to a MathMaster class first.",
+      });
+      continue;
+    }
+    if (!assignedPeriods.has(String(mapping.classPeriod || ""))) {
+      results.push({
+        courseId,
+        courseName: course.name || courseId,
+        status: "failed",
+        error: `This assignment is not assigned to ${mapping.classPeriod || "the mapped MathMaster class"}.`,
+      });
+      continue;
+    }
+
+    // eslint-disable-next-line no-await-in-loop
     results.push(
       await publishOneCourse({
         classroom,
+        teacherUid,
         assignmentId: String(assignmentId),
         assignment,
         course,
+        mapping,
         materials: safeMaterials,
+        topicName: cleanTopic,
+        instructions: cleanInstructions,
       })
     );
   }
@@ -2522,7 +2914,7 @@ exports.publishAssignmentToClassrooms = onCall(
 // flag. A failure on one course leaves the others updated and retryable.
 
 async function updateAssignmentClassroomPublications(request) {
-  await requireTeacher(request);
+  const teacherUid = await requireTeacher(request);
 
   const { assignmentId, courseIds } = request.data || {};
   if (!assignmentId) {
@@ -2559,13 +2951,14 @@ async function updateAssignmentClassroomPublications(request) {
   const publications = linkSnap.docs
     .map((doc) => ({ ref: doc.ref, data: doc.data() }))
     .filter((entry) => entry.data.status === "published" && entry.data.courseworkId)
+    .filter((entry) => !entry.data.teacherUid || entry.data.teacherUid === teacherUid)
     .filter((entry) => !requested || requested.has(String(entry.data.courseId)));
 
   if (!publications.length) {
     return { assignmentId: String(assignmentId), results: [], summary: { updated: 0, failed: 0, skipped: 0 } };
   }
 
-  const classroom = await classroomLib.getClassroomClient();
+  const classroom = await classroomLib.getClassroomClient(teacherUid);
   const results = [];
 
   for (const { ref, data } of publications) {
@@ -2673,11 +3066,12 @@ exports.publishAssignmentToClassroom = onCall(
 );
 
 exports.listPublishedAssignments = onCall(async (request) => {
-  await requireTeacher(request);
+  const teacherUid = await requireTeacher(request);
   const db = getFirestore();
-  const snap = await db.collection("classroomLinks").limit(250).get();
+  const snap = await db.collection("classroomLinks").limit(500).get();
   const links = snap.docs
     .map((doc) => ({ id: doc.id, ...doc.data() }))
+    .filter((item) => !item.teacherUid || item.teacherUid === teacherUid)
     .sort((a, b) => {
       const aDate = toDate(a.publishedAt || a.updatedAt || a.createdAt)?.getTime() || 0;
       const bDate = toDate(b.publishedAt || b.updatedAt || b.createdAt)?.getTime() || 0;
@@ -2739,6 +3133,67 @@ async function writeGradeSyncAudit(db, publicationId, studentId, patch) {
   );
 }
 
+exports.listClassroomGradeSyncs = onCall(async (request) => {
+  const teacherUid = await requireTeacher(request);
+  const db = getFirestore();
+  const publicationSnap = await db.collection("classroomLinks").limit(500).get();
+  const publicationIds = new Set(
+    publicationSnap.docs
+      .filter((doc) => !doc.data().teacherUid || doc.data().teacherUid === teacherUid)
+      .map((doc) => doc.id)
+  );
+  if (!publicationIds.size) return { syncs: [] };
+
+  const syncSnap = await db.collection("classroomGradeSyncs").limit(500).get();
+  const syncs = syncSnap.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() }))
+    .filter((item) => publicationIds.has(String(item.publicationId)))
+    .map((item) => ({
+      ...item,
+      updatedAt: serializableDate(item.updatedAt),
+      syncedAt: serializableDate(item.syncedAt),
+    }))
+    .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
+  return { syncs };
+});
+
+exports.retryClassroomGradeSync = onCall(async (request) => {
+  const teacherUid = await requireTeacher(request);
+  const { publicationId, studentId, assignmentId } = request.data || {};
+  if (!publicationId || !studentId || !assignmentId) {
+    throw new HttpsError(
+      "invalid-argument",
+      "publicationId, studentId and assignmentId are required."
+    );
+  }
+
+  const db = getFirestore();
+  const publication = await db.doc(`classroomLinks/${String(publicationId)}`).get();
+  if (!publication.exists) {
+    throw new HttpsError("not-found", "Classroom publication not found.");
+  }
+  if (
+    publication.data().teacherUid &&
+    publication.data().teacherUid !== teacherUid
+  ) {
+    throw new HttpsError(
+      "permission-denied",
+      "That Classroom publication belongs to another teacher."
+    );
+  }
+
+  const gradeRef = db.doc(`grades/${String(studentId)}`);
+  const gradeSnap = await gradeRef.get();
+  if (!gradeSnap.exists) {
+    throw new HttpsError("not-found", "Student grade record not found.");
+  }
+  await gradeRef.update(
+    new FieldPath("classroomReleaseSignals", String(assignmentId)),
+    new Date().toISOString()
+  );
+  return { queued: true };
+});
+
 exports.syncGradeToClassroom = onDocumentWritten(
   {
     document: "grades/{studentId}",
@@ -2771,7 +3226,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
     if (changedAssignmentIds.length === 0) return;
 
     const db = getFirestore();
-    let classroom = null;
+    const classroomByTeacher = new Map();
 
     for (const assignmentId of changedAssignmentIds) {
       const assignmentSnap = await db.doc(`assignments/${assignmentId}`).get();
@@ -2792,12 +3247,35 @@ exports.syncGradeToClassroom = onDocumentWritten(
         (doc) => doc.data().status === "published" && doc.data().courseworkId
       );
       if (publications.length === 0) continue;
-      if (!classroom) classroom = await classroomLib.getClassroomClient();
 
       for (const publicationDoc of publications) {
         const publication = publicationDoc.data();
         const courseId = String(publication.courseId || "");
         if (!courseId) continue;
+
+        const publicationTeacherUid = publication.teacherUid || null;
+        const classroomKey = publicationTeacherUid || "__legacy__";
+        let classroom = classroomByTeacher.get(classroomKey);
+        if (!classroom) {
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            classroom = await classroomLib.getClassroomClient(publicationTeacherUid);
+            classroomByTeacher.set(classroomKey, classroom);
+          } catch (err) {
+            // Keep an auth failure visible per publication instead of aborting
+            // the whole grade-trigger run for every other Classroom course.
+            // eslint-disable-next-line no-await-in-loop
+            await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+              assignmentId,
+              courseId,
+              courseworkId: publication.courseworkId,
+              status: "auth-error",
+              grade,
+              message: String(err.message || err),
+            });
+            continue;
+          }
+        }
 
         const rosterLinkId = rosterLinkDocumentId(
           courseId,
@@ -2807,7 +3285,9 @@ exports.syncGradeToClassroom = onDocumentWritten(
           .doc(`classroomRosterLinks/${rosterLinkId}`)
           .get();
         const isLegacyPublication =
-          publication.schemaVersion !== 2 || publicationDoc.id === assignmentId;
+          publication.schemaVersion == null ||
+          Number(publication.schemaVersion) < 2 ||
+          publicationDoc.id === assignmentId;
         const googleUserId = rosterLinkSnap.exists
           ? rosterLinkSnap.data().googleUserId
           : isLegacyPublication

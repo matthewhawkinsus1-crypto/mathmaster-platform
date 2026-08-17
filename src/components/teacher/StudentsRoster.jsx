@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react';
 import { deriveDomainReadiness, resolveAdaptiveRigor } from '../../platform/rigor/courseRigor.js';
 import { compareStudentsByName, formatStudentName, studentSearchText } from '../../platform/studentName';
+import MyMathPathApp from '../student/MyMathPathApp.jsx';
+import { buildStudentPathOptions } from '../../platform/path/studentPathOptions.js';
+import { normalizePacingByClass, overridesForClass } from '../../platform/path/pathStore.js';
 
 const tabButton = (active) => ({
   padding: '8px 11px', border: active ? '1px solid #1a73e8' : '1px solid #dadce0', borderRadius: 8,
@@ -15,6 +18,9 @@ export default function StudentsRoster({
   courseProfiles = {},
   masteryProfilesByStudentId = {},
   supportOptions = {},
+  assignments = [],
+  pacingByClass = {},
+  skillOverrides = [],
   onChangeClassPeriod,
   onUpdateStudentProfile,
   onToggleStudentSupport,
@@ -62,7 +68,16 @@ export default function StudentsRoster({
   if (selected) {
     const mastery = masterySummary(selected);
     const domains = deriveDomainReadiness(mastery);
-    const classProfile = courseProfiles?.[selected.classPeriod] || { courseLabel: 'Algebra I', courseLevel: 'standard' };
+    const classProfile = courseProfiles?.[selected.classPeriod] || { courseLabel: 'Algebra I', course: 'algebra1', courseLevel: 'standard' };
+    const courseId = classProfile.course || 'algebra1';
+    const pacing = normalizePacingByClass(pacingByClass)[selected.classPeriod] || null;
+    const selectedPathOptions = pacing ? buildStudentPathOptions({
+      student: selected,
+      assignments,
+      courseId,
+      pacing,
+      teacherOverrides: overridesForClass(skillOverrides, selected.classPeriod),
+    }) : null;
     return (
       <div style={{ textAlign: 'left' }}>
         <button type="button" onClick={() => setSelectedId(null)} style={{ border: 0, background: 'transparent', color: '#1a73e8', fontWeight: 900, padding: 0, cursor: 'pointer' }}>← All students</button>
@@ -80,7 +95,7 @@ export default function StudentsRoster({
 
         {detailTab === 'assignments' && <section style={{ padding: 18, border: '1px solid #d8dde6', borderRadius: 10 }}><h3 style={{ marginTop: 0 }}>Assignment evidence</h3><p style={{ color: '#5f6368' }}>{Object.keys(selected.gradesByAssignment || {}).length} assignment record(s). Use Grades for question-level evidence and saved work.</p></section>}
 
-        {detailTab === 'path' && <section style={{ padding: 18, border: '1px solid #d8dde6', borderRadius: 10 }}><h3 style={{ marginTop: 0 }}>My Math Path</h3><p style={{ color: '#5f6368' }}>Current adaptive posture: <strong>{pathLabel(selected)}</strong>.</p>{classProfile.courseLevel === 'honors' && domains.some((domain) => domain.readiness === 'developing') && <div style={{ padding: 12, borderRadius: 8, background: '#fff4ce', color: '#6b4c00' }}><strong>Honors target preserved.</strong> Prerequisite repair can run before the student returns to Honors-level work.</div>}{classProfile.courseLevel !== 'honors' && domains.some((domain) => domain.readiness === 'advanced') && <div style={{ padding: 12, borderRadius: 8, background: '#e6f4ea', color: '#137333' }}><strong>Individual enrichment active.</strong> This student can receive CCMR/deeper work without being relabeled as Honors.</div>}</section>}
+        {detailTab === 'path' && <section style={{ padding: 18, border: '1px solid #d8dde6', borderRadius: 10 }}><h3 style={{ marginTop: 0 }}>My Math Path</h3><p style={{ color: '#5f6368' }}>Current adaptive posture: <strong>{pathLabel(selected)}</strong>. The panel below is the student&apos;s real Path and mastery view in teacher read-only mode.</p>{classProfile.courseLevel === 'honors' && domains.some((domain) => domain.readiness === 'developing') && <div style={{ padding: 12, marginBottom: 12, borderRadius: 8, background: '#fff4ce', color: '#6b4c00' }}><strong>Honors target preserved.</strong> Prerequisite repair can run before the student returns to Honors-level work.</div>}{classProfile.courseLevel !== 'honors' && domains.some((domain) => domain.readiness === 'advanced') && <div style={{ padding: 12, marginBottom: 12, borderRadius: 8, background: '#e6f4ea', color: '#137333' }}><strong>Individual enrichment active.</strong> This student can receive CCMR/deeper work without being relabeled as Honors.</div>}<div style={{ marginTop: 14, overflow: 'hidden', border: '1px solid #e1e5ea', borderRadius: 12 }}><MyMathPathApp key={selected.id} readOnly initialTab="dashboard" studentId={selected.id} studentName={formatStudentName(selected)} studentProfile={{ ...(selected.profile || {}), course: courseId, courseLevel: classProfile.courseLevel || 'standard' }} assignments={assignments} pathOptions={selectedPathOptions} courseId={courseId} studentRecord={selected} /></div></section>}
 
         {detailTab === 'supports' && <section style={{ padding: 18, border: '1px solid #d8dde6', borderRadius: 10 }}><h3 style={{ marginTop: 0 }}>Supports</h3><label style={{ display: 'inline-flex', gap: 7, alignItems: 'center', padding: '8px 11px', borderRadius: 999, background: selected.profile?.inclusionStatus ? '#efe4ff' : '#f1f3f4', fontWeight: 900 }}><input type="checkbox" checked={Boolean(selected.profile?.inclusionStatus)} onChange={(event) => onUpdateStudentProfile(selected.id, { inclusionStatus: event.target.checked })} /> Inclusion</label><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 12, marginTop: 15 }}>{Object.entries(supportOptions).map(([group, options]) => <fieldset key={group} style={{ border: '1px solid #d8dde6', borderRadius: 8, padding: 12 }}><legend style={{ fontWeight: 900, textTransform: 'capitalize' }}>{group}</legend>{options.map(([value, label]) => <label key={value} style={{ display: 'block', margin: '8px 0' }}><input type="checkbox" checked={(selected.profile?.[group] || []).includes(value)} onChange={() => onToggleStudentSupport(selected, group, value)} /> {label}</label>)}</fieldset>)}</div></section>}
 

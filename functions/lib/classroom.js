@@ -6,17 +6,25 @@ const {
   readPublicEnv,
 } = require("./config");
 
-// Classroom OAuth currently uses one connected instructional Google account.
-// Firebase Authentication and role/admin authorization are enforced by the
-// callable layer before Classroom operations reach this helper.
-const TEACHER_INTEGRATION_DOC = "teacherIntegrations/default";
+// Classroom V2 stores one OAuth connection per MathMaster teacher. The legacy
+// default document is retained only as a one-time migration source for the
+// first teacher who upgrades from the original single-teacher integration.
+const LEGACY_TEACHER_INTEGRATION_DOC = "teacherIntegrations/default";
 
 const SCOPES = [
   "https://www.googleapis.com/auth/classroom.courses.readonly",
   "https://www.googleapis.com/auth/classroom.rosters.readonly",
   "https://www.googleapis.com/auth/classroom.profile.emails",
   "https://www.googleapis.com/auth/classroom.coursework.students",
+  "https://www.googleapis.com/auth/classroom.topics",
+  "https://www.googleapis.com/auth/classroom.courseworkmaterials",
 ];
+
+function integrationDoc(teacherUid) {
+  return teacherUid
+    ? `teacherIntegrations/${String(teacherUid)}`
+    : LEGACY_TEACHER_INTEGRATION_DOC;
+}
 
 function requiredPublicEnv(name) {
   const value = readPublicEnv(name);
@@ -50,9 +58,9 @@ async function exchangeCodeForTokens(code) {
   return tokens;
 }
 
-async function saveTeacherTokens(tokens) {
+async function saveTeacherTokens(tokens, teacherUid) {
   const db = getFirestore();
-  const ref = db.doc(TEACHER_INTEGRATION_DOC);
+  const ref = db.doc(integrationDoc(teacherUid));
   const existing = await ref.get();
   const existingTokens = existing.exists ? existing.data().googleTokens || {} : {};
   const merged = { ...existingTokens, ...tokens };
@@ -66,26 +74,98 @@ async function saveTeacherTokens(tokens) {
   await ref.set(
     {
       googleTokens: merged,
+      connectionState: "connected",
+      lastError: null,
       updatedAt: new Date().toISOString(),
     },
     { merge: true }
   );
 }
 
-async function getStoredTokens() {
-  const db = getFirestore();
-  const snap = await db.doc(TEACHER_INTEGRATION_DOC).get();
-  if (!snap.exists) return null;
-  return snap.data().googleTokens || null;
+async function migrateLegacyTokensToTeacher(db, teacherUid) {
+  if (!teacherUid) return null;
+  const legacyRef = db.doc(LEGACY_TEACHER_INTEGRATION_DOC);
+  return db.runTransaction(async (transaction) => {
+    const legacy = await transaction.get(legacyRef);
+    if (!legacy.exists) return null;
+    const data = legacy.data() || {};
+    const tokens = data.googleTokens || null;
+    if (!tokens?.refresh_token) return null;
+
+    // Never copy one teacher's Classroom credentials into multiple MathMaster
+    // accounts. The original integration was global, so the first teacher to
+    // upgrade claims that legacy connection and everyone else reconnects.
+    if (data.migratedToUid && data.migratedToUid !== teacherUid) return null;
+
+    const teacherRef = db.doc(integrationDoc(teacherUid));
+    transaction.set(
+      teacherRef,
+      {
+        googleTokens: tokens,
+        connectionState: "connected",
+        migratedFromLegacy: true,
+        migratedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+    transaction.set(
+      legacyRef,
+      {
+        migratedToUid: teacherUid,
+        migratedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+    return tokens;
+  });
 }
 
-async function isConnected() {
-  const tokens = await getStoredTokens();
+async function getStoredTokens(teacherUid) {
+  const db = getFirestore();
+  const ref = db.doc(integrationDoc(teacherUid));
+  const snap = await ref.get();
+  if (snap.exists && snap.data().googleTokens) return snap.data().googleTokens;
+  return migrateLegacyTokensToTeacher(db, teacherUid);
+}
+
+async function markConnectionProblem(teacherUid, error) {
+  if (!teacherUid) return;
+  await getFirestore().doc(integrationDoc(teacherUid)).set(
+    {
+      connectionState: "reconnect_required",
+      lastError: String(
+        error?.response?.data?.error_description ||
+        error?.response?.data?.error ||
+        error?.message ||
+        error ||
+        ""
+      ),
+      updatedAt: new Date().toISOString(),
+    },
+    { merge: true }
+  );
+}
+
+function missingScopes(tokens) {
+  const granted = new Set(String(tokens?.scope || "").split(/\s+/).filter(Boolean));
+  // Older stored tokens did not always retain the granted scope string. In that
+  // case force one reconnect so Topics and Materials are explicitly consented.
+  if (!granted.size) {
+    return SCOPES.filter((scope) =>
+      scope.endsWith("/classroom.topics") ||
+      scope.endsWith("/classroom.courseworkmaterials")
+    );
+  }
+  return SCOPES.filter((scope) => !granted.has(scope));
+}
+
+async function isConnected(teacherUid) {
+  const tokens = await getStoredTokens(teacherUid);
   return Boolean(tokens && tokens.refresh_token);
 }
 
-async function getClassroomClient() {
-  const tokens = await getStoredTokens();
+async function getClassroomClient(teacherUid) {
+  const tokens = await getStoredTokens(teacherUid);
   if (!tokens || !tokens.refresh_token) {
     throw new Error("Google Classroom is not connected yet. Connect the teacher account first.");
   }
@@ -93,12 +173,49 @@ async function getClassroomClient() {
   const oauth2Client = createOAuthClient();
   oauth2Client.setCredentials(tokens);
   oauth2Client.on("tokens", (refreshed) => {
-    saveTeacherTokens(refreshed).catch((err) =>
+    saveTeacherTokens(refreshed, teacherUid).catch((err) =>
       console.error("Failed to persist refreshed Google tokens", err)
     );
   });
 
   return google.classroom({ version: "v1", auth: oauth2Client });
+}
+
+async function getConnectionHealth(teacherUid) {
+  const tokens = await getStoredTokens(teacherUid);
+  if (!tokens?.refresh_token) {
+    return { connected: false, needsReconnect: false, missingScopes: [] };
+  }
+
+  const missing = missingScopes(tokens);
+  try {
+    const classroom = await getClassroomClient(teacherUid);
+    await classroom.courses.list({
+      teacherId: "me",
+      courseStates: ["ACTIVE"],
+      pageSize: 1,
+    });
+    return {
+      connected: true,
+      needsReconnect: missing.length > 0,
+      missingScopes: missing,
+    };
+  } catch (error) {
+    const code = String(error?.response?.data?.error || "");
+    const description = String(
+      error?.response?.data?.error_description || error?.message || ""
+    );
+    if (code === "invalid_grant" || /expired|revoked|invalid_grant/i.test(description)) {
+      await markConnectionProblem(teacherUid, error);
+      return {
+        connected: false,
+        needsReconnect: true,
+        missingScopes: missing,
+        error: "Google Classroom authorization expired or was revoked. Reconnect the teacher account.",
+      };
+    }
+    throw error;
+  }
 }
 
 async function listCourses(classroom) {
@@ -166,7 +283,7 @@ function classroomDueParts(dueDate) {
 
 async function createCourseWork(
   classroom,
-  { courseId, title, description, dueDate, materials, launchUrl, maxPoints }
+  { courseId, title, description, dueDate, materials, launchUrl, maxPoints, topicId }
 ) {
   const dueParts = classroomDueParts(dueDate);
   const materialItems = [
@@ -185,6 +302,7 @@ async function createCourseWork(
       workType: "ASSIGNMENT",
       state: "PUBLISHED",
       maxPoints: maxPoints ?? 100,
+      topicId: topicId || undefined,
       dueDate: dueParts.dueDate,
       dueTime: dueParts.dueTime,
     },
@@ -308,12 +426,67 @@ async function patchGrade(
   return res.data;
 }
 
+
+async function listTopics(classroom, courseId) {
+  const topics = [];
+  let pageToken;
+  do {
+    const response = await classroom.courses.topics.list({
+      courseId,
+      pageSize: 100,
+      pageToken,
+    });
+    topics.push(...(response.data.topic || []));
+    pageToken = response.data.nextPageToken;
+  } while (pageToken);
+  return topics;
+}
+
+async function ensureTopic(classroom, courseId, name) {
+  const cleanName = String(name || "").trim();
+  if (!cleanName) return null;
+  const topics = await listTopics(classroom, courseId);
+  const existing = topics.find(
+    (topic) => String(topic.name || "").trim().toLowerCase() === cleanName.toLowerCase()
+  );
+  if (existing) return existing;
+
+  const response = await classroom.courses.topics.create({
+    courseId,
+    requestBody: { name: cleanName },
+  });
+  return response.data;
+}
+
+async function createCourseWorkMaterial(
+  classroom,
+  { courseId, title, description, materials, topicId }
+) {
+  const materialItems = (materials || []).slice(0, 20).map((material) => ({
+    link: { url: material.url, title: material.title },
+  }));
+
+  const response = await classroom.courses.courseWorkMaterials.create({
+    courseId,
+    requestBody: {
+      title,
+      description: description || "",
+      materials: materialItems,
+      state: "PUBLISHED",
+      topicId: topicId || undefined,
+    },
+  });
+  return response.data;
+}
+
 module.exports = {
   SCOPES,
   buildAuthUrl,
   exchangeCodeForTokens,
   saveTeacherTokens,
+  getStoredTokens,
   isConnected,
+  getConnectionHealth,
   getClassroomClient,
   listCourses,
   listStudents,
@@ -323,4 +496,7 @@ module.exports = {
   findCourseWorkByPublicationMarker,
   findSubmissionForStudent,
   patchGrade,
+  listTopics,
+  ensureTopic,
+  createCourseWorkMaterial,
 };

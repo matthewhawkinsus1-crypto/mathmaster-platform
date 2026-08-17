@@ -82,17 +82,20 @@ export const MyMathPathExperience = ({
   coverageOverride = null,
   onSimulationController = null,
   onSimulationEvent = null,
+  readOnly = false,
+  initialTab = 'path',
   loading = false,
   error = null,
   historyError = null,
   onReload = null,
   onExit = null,
 }) => {
-  // The path is the default view. The mastery wheel is an overview of what has
-  // been learned; the path is what to do next, which is the question a student
-  // arrives with.
-  const [activeTab, setActiveTab] = useState('path');
+  // The live student opens on Path. A teacher inspecting an actual student can
+  // choose Mastery Overview first, but the same component stays the source of truth.
+  const [activeTab, setActiveTab] = useState(() => initialTab);
   const [sessionConfig, setSessionConfig] = useState(null);
+  const teacherReadOnlyNotice = 'Teacher view is read-only. Use Path Simulator to test questions or routing without changing this student.';
+  const visibleTabs = readOnly ? TABS.filter(([tab]) => tab !== 'ccmr') : TABS;
 
   const recommendedTeks = useMemo(
     () => chooseRecommendedTeks({ profiles: masteryData.masteryProfilesByTEKS, pathOptions, courseId }),
@@ -111,9 +114,13 @@ export const MyMathPathExperience = ({
     teacherPriorities: teacherAssessmentPriorities,
   })), [assessmentContextOverride, studentRecord, assignments, goals, teacherAssessmentPriorities]);
   const changeGoals = useCallback((next) => {
+    if (readOnly) {
+      setCoverageNotice(teacherReadOnlyNotice);
+      return;
+    }
     setGoals(next);
     writeCcmrGoals(studentId, next);
-  }, [studentId]);
+  }, [studentId, readOnly]);
 
   // Whether the secure bank can actually issue a question for a standard. A
   // student is never sent somewhere that ends in "No authored question ...";
@@ -138,6 +145,10 @@ export const MyMathPathExperience = ({
   }, [courseId, coverageOverride]);
 
   const startSession = (teksCode, options = {}) => {
+    if (readOnly) {
+      setCoverageNotice(teacherReadOnlyNotice);
+      return;
+    }
     // Fails closed: an index that has never been built, or a standard missing
     // from it, means MathMaster has not confirmed there is anything to practise.
     if (!isSkillLaunchable(coverage, teksCode)) {
@@ -178,10 +189,10 @@ export const MyMathPathExperience = ({
     <div style={{ minHeight: '100%', background: '#f8f9fa' }}>
       {activeTab !== 'session' && (
         <header style={{ minHeight: '60px', padding: '0 20px', borderBottom: '1px solid #dadce0', background: '#fff', display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span aria-hidden="true">📐</span><strong>My Math Path</strong></div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}><span aria-hidden="true">📐</span><strong>{readOnly ? `${studentName || studentId || 'Student'} · My Math Path` : 'My Math Path'}</strong>{readOnly && <span style={{ padding: '3px 7px', borderRadius: 999, background: '#fef7e0', color: '#7a4f00', fontSize: 10, fontWeight: 900 }}>TEACHER · READ ONLY</span>}</div>
           <nav aria-label="My Math Path navigation" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            {TABS.map(([tab, label]) => <button key={tab} type="button" onClick={() => setActiveTab(tab)} style={{ padding: '19px 8px 16px', border: 0, borderBottom: `3px solid ${activeTab === tab ? '#1a73e8' : 'transparent'}`, background: 'transparent', color: activeTab === tab ? '#174ea6' : '#5f6368', fontWeight: 900, cursor: 'pointer' }}>{label}</button>)}
-            {onExit && <button type="button" onClick={onExit} style={{ marginLeft: '6px', padding: '8px 11px', border: '1px solid #bdc1c6', borderRadius: '7px', background: '#fff', color: '#3c4043', fontWeight: 800, cursor: 'pointer' }}>Assignments</button>}
+            {visibleTabs.map(([tab, label]) => <button key={tab} type="button" onClick={() => setActiveTab(tab)} style={{ padding: '19px 8px 16px', border: 0, borderBottom: `3px solid ${activeTab === tab ? '#1a73e8' : 'transparent'}`, background: 'transparent', color: activeTab === tab ? '#174ea6' : '#5f6368', fontWeight: 900, cursor: 'pointer' }}>{label}</button>)}
+            {onExit && <button type="button" onClick={onExit} style={{ marginLeft: '6px', padding: '8px 11px', border: '1px solid #bdc1c6', borderRadius: '7px', background: '#fff', color: '#3c4043', fontWeight: 800, cursor: 'pointer' }}>{readOnly ? 'Back to student' : 'Assignments'}</button>}
           </nav>
         </header>
       )}

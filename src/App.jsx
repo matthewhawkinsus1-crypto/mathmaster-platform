@@ -17,7 +17,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { getAssignmentByLaunchId } from './classroomApi';
-import ClassroomSync from './ClassroomSync';
+import ClassroomManagerV2 from './ClassroomManagerV2';
 import AssignmentQuestionEditor from './AssignmentQuestionEditor';
 import QuestionEngine from './QuestionEngine';
 import {
@@ -362,7 +362,22 @@ function App() {
   useEffect(() => {
     if (!pendingLaunchAssignmentId) return;
     if (user?.role !== 'student') return;
-    if (!assignments.some((assignment) => assignment.id === pendingLaunchAssignmentId)) return;
+    const targetAssignment = assignments.find(
+      (assignment) => assignment.id === pendingLaunchAssignmentId
+    );
+    if (!targetAssignment) return;
+
+    // A Google Classroom launch link is a doorway, not authorization. The
+    // signed-in MathMaster student must still belong to an assigned class.
+    if (!assignmentIsForStudent(targetAssignment, user.classPeriod)) {
+      toastWarning(
+        'Assignment not available',
+        'This Google Classroom assignment is not assigned to your MathMaster class.',
+      );
+      setPendingLaunchAssignmentId(null);
+      return;
+    }
+
     startAssignment(pendingLaunchAssignmentId);
     setPendingLaunchAssignmentId(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -4181,6 +4196,9 @@ function App() {
                 courseProfiles={courseProfiles}
                 masteryProfilesByStudentId={teacherMasteryProfilesByStudentId}
                 supportOptions={supportOptions}
+                assignments={assignments}
+                pacingByClass={pacingByClass}
+                skillOverrides={skillOverrides}
                 onChangeClassPeriod={handleChangeClassPeriod}
                 onUpdateStudentProfile={handleUpdateStudentProfile}
                 onToggleStudentSupport={toggleStudentSupport}
@@ -4299,7 +4317,7 @@ function App() {
 
             {teacherTab === 'access' && <SignInAccess signedInEmail={user.email} />}
 
-            {teacherTab === 'classroom' && <ClassroomSync assignments={assignments} />}
+            {teacherTab === 'classroom' && <ClassroomManagerV2 assignments={assignments} classes={classes} students={allStudents} teacherEmail={user.email} />}
 
             {teacherTab === 'access' && <SignInAccess signedInEmail={user.email} mode="teacher" />}
           </div>
