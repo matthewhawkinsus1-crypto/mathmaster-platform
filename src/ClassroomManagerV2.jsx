@@ -10,6 +10,8 @@ import {
   listGoogleCourses,
   listClassroomStudents,
   listPublishedAssignments,
+  inspectClassroomPublication,
+  removeAssignmentClassroomPackage,
   publishAssignmentToClassrooms,
   publishClassroomMaterial,
   storeLessonNotesPdf,
@@ -593,10 +595,52 @@ export default function ClassroomManagerV2({
               <div key={assignment.id} style={{ border: '1px solid #edf0f2', borderRadius: 8, padding: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
                   <span><strong>{assignment.title}</strong><div style={{ color: '#5f6368', fontSize: 12 }}>{sync.message}</div></span>
-                  {sync.needsUpdate && <button style={secondary} onClick={() => run(async () => {
-                    await updateAssignmentClassroomPublications({ assignmentId: assignment.id });
-                    setLinks((await listPublishedAssignments()).links || []);
-                  })}>Update Classroom due date</button>}
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <button style={secondary} disabled={busy} onClick={() => run(async () => {
+                      const inspection = await inspectClassroomPublication({
+                        assignmentId: assignment.id,
+                        repairAudience: true,
+                      });
+                      const summary = inspection?.summary || {};
+                      const failed = Number(summary.failed || 0);
+                      const rosterStudents = Number(summary.rosterStudents || 0);
+                      if (failed) {
+                        throw new Error(`Classroom audience check had ${failed} failure${failed === 1 ? '' : 's'}.`);
+                      }
+                      setStatus(
+                        rosterStudents > 0
+                          ? `Google Classroom reports ${rosterStudents} enrolled student${rosterStudents === 1 ? '' : 's'}. The MathMaster post is assigned to ALL_STUDENTS.`
+                          : 'Google Classroom reports 0 enrolled students for this destination. The post is set to ALL_STUDENTS, but students must first be enrolled in that Google Classroom course.'
+                      );
+                    })}>Check / repair students</button>
+
+                    {sync.needsUpdate && <button style={secondary} disabled={busy} onClick={() => run(async () => {
+                      await updateAssignmentClassroomPublications({ assignmentId: assignment.id });
+                      setLinks((await listPublishedAssignments()).links || []);
+                      setStatus('Google Classroom due date updated.');
+                    })}>Update Classroom due date</button>}
+
+                    <button style={danger} disabled={busy} onClick={() => {
+                      const confirmed = window.confirm(
+                        `Remove "${assignment.title}" and its linked Notes & Resources post from Google Classroom?
+
+The MathMaster assignment, student work, and MathMaster grades will remain.`
+                      );
+                      if (!confirmed) return;
+                      run(async () => {
+                        const response = await removeAssignmentClassroomPackage({
+                          assignmentId: assignment.id,
+                        });
+                        const failed = Number(response?.summary?.failed || 0);
+                        if (failed) {
+                          throw new Error(`Classroom removal finished with ${failed} failure${failed === 1 ? '' : 's'}.`);
+                        }
+                        setLinks((await listPublishedAssignments()).links || []);
+                        setGradeSyncs((await listClassroomGradeSyncs()).syncs || []);
+                        setStatus('Removed the MathMaster-created assignment and Notes & Resources post from Google Classroom. The MathMaster assignment remains.');
+                      });
+                    }}>Remove from Classroom</button>
+                  </div>
                 </div>
               </div>
             ))}

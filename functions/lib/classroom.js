@@ -301,6 +301,7 @@ async function createCourseWork(
       materials: materialItems,
       workType: "ASSIGNMENT",
       state: "PUBLISHED",
+      assigneeMode: "ALL_STUDENTS",
       maxPoints: maxPoints ?? 100,
       topicId: topicId || undefined,
       dueDate: dueParts.dueDate,
@@ -357,6 +358,34 @@ async function patchCourseWork(
   });
 
   return res.data;
+}
+
+async function modifyCourseWorkAssignees(
+  classroom,
+  { courseId, courseWorkId, assigneeMode = "ALL_STUDENTS" }
+) {
+  const response = await classroom.courses.courseWork.modifyAssignees({
+    courseId,
+    id: courseWorkId,
+    requestBody: { assigneeMode },
+  });
+  return response.data;
+}
+
+async function deleteCourseWork(classroom, courseId, courseWorkId) {
+  await classroom.courses.courseWork.delete({
+    courseId,
+    id: courseWorkId,
+  });
+  return true;
+}
+
+async function deleteCourseWorkMaterial(classroom, courseId, materialId) {
+  await classroom.courses.courseWorkMaterials.delete({
+    courseId,
+    id: materialId,
+  });
+  return true;
 }
 
 async function getCourseWork(classroom, courseId, courseWorkId) {
@@ -473,6 +502,7 @@ async function createCourseWorkMaterial(
       description: description || "",
       materials: materialItems,
       state: "PUBLISHED",
+      assigneeMode: "ALL_STUDENTS",
       topicId: topicId || undefined,
     },
   });
@@ -492,6 +522,9 @@ module.exports = {
   listStudents,
   createCourseWork,
   patchCourseWork,
+  modifyCourseWorkAssignees,
+  deleteCourseWork,
+  deleteCourseWorkMaterial,
   getCourseWork,
   findCourseWorkByPublicationMarker,
   findSubmissionForStudent,

@@ -3189,6 +3189,228 @@ exports.publishAssignmentToClassroom = onCall(
   }
 );
 
+function classroomDeleteAlreadyGone(error) {
+  const status = Number(error?.response?.status || error?.code || 0);
+  const message = String(
+    error?.response?.data?.error?.message || error?.message || error || ""
+  );
+  return status === 404
+    || /already deleted|already been deleted|not found|failed[_ -]?precondition/i.test(message);
+}
+
+// Read the live Google Classroom roster and the live coursework audience.
+// Setting repairAudience=true also resets MathMaster-created coursework to
+// ALL_STUDENTS through Classroom's modifyAssignees endpoint.
+exports.inspectClassroomPublication = onCall(
+  { secrets: GOOGLE_API_SECRETS },
+  async (request) => {
+    const teacherUid = await requireTeacher(request);
+    const assignmentId = String(request.data?.assignmentId || "").trim();
+    const repairAudience = request.data?.repairAudience === true;
+    if (!assignmentId) {
+      throw new HttpsError("invalid-argument", "assignmentId is required.");
+    }
+
+    const db = getFirestore();
+    const snap = await db
+      .collection("classroomLinks")
+      .where("assignmentId", "==", assignmentId)
+      .get();
+
+    const publications = snap.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .filter((item) => !item.teacherUid || item.teacherUid === teacherUid)
+      .filter((item) => item.courseId && item.courseworkId && item.status === "published");
+
+    if (!publications.length) {
+      return { assignmentId, results: [], summary: { courses: 0, rosterStudents: 0, failed: 0 } };
+    }
+
+    const classroom = await classroomLib.getClassroomClient(teacherUid);
+    const results = [];
+
+    for (const publication of publications) {
+      const courseId = String(publication.courseId);
+      try {
+        let courseWork = await classroomLib.getCourseWork(
+          classroom,
+          courseId,
+          String(publication.courseworkId)
+        );
+
+        if (repairAudience && courseWork.assigneeMode !== "ALL_STUDENTS") {
+          courseWork = await classroomLib.modifyCourseWorkAssignees(classroom, {
+            courseId,
+            courseWorkId: String(publication.courseworkId),
+            assigneeMode: "ALL_STUDENTS",
+          });
+        }
+
+        const students = await classroomLib.listStudents(classroom, courseId);
+
+        results.push({
+          courseId,
+          courseName: publication.courseName || courseId,
+          courseworkId: String(publication.courseworkId),
+          classroomUrl: courseWork.alternateLink || publication.classroomUrl || null,
+          state: courseWork.state || null,
+          assigneeMode: courseWork.assigneeMode || "ALL_STUDENTS",
+          individualStudentCount: Array.isArray(courseWork.individualStudentsOptions?.studentIds)
+            ? courseWork.individualStudentsOptions.studentIds.length
+            : 0,
+          rosterStudentCount: students.length,
+          status: "ok",
+        });
+      } catch (error) {
+        results.push({
+          courseId,
+          courseName: publication.courseName || courseId,
+          status: "failed",
+          error: String(error.message || error),
+        });
+      }
+    }
+
+    return {
+      assignmentId,
+      results,
+      summary: {
+        courses: results.length,
+        rosterStudents: results
+          .filter((item) => item.status === "ok")
+          .reduce((sum, item) => sum + Number(item.rosterStudentCount || 0), 0),
+        failed: results.filter((item) => item.status === "failed").length,
+      },
+    };
+  }
+);
+
+exports.removeAssignmentClassroomPackage = onCall(
+  { secrets: GOOGLE_API_SECRETS },
+  async (request) => {
+    const teacherUid = await requireTeacher(request);
+    const assignmentId = String(request.data?.assignmentId || "").trim();
+    if (!assignmentId) {
+      throw new HttpsError("invalid-argument", "assignmentId is required.");
+    }
+
+    const db = getFirestore();
+    const classroom = await classroomLib.getClassroomClient(teacherUid);
+    const snap = await db
+      .collection("classroomLinks")
+      .where("assignmentId", "==", assignmentId)
+      .get();
+
+    const publications = snap.docs
+      .map((doc) => ({ ref: doc.ref, data: doc.data() }))
+      .filter((entry) => !entry.data.teacherUid || entry.data.teacherUid === teacherUid)
+      .filter((entry) => entry.data.courseId);
+
+    const results = [];
+
+    for (const { ref, data } of publications) {
+      const courseId = String(data.courseId);
+      const result = {
+        courseId,
+        courseName: data.courseName || courseId,
+        assignment: "not-published",
+        material: "not-published",
+      };
+
+      if (data.courseworkId) {
+        try {
+          await classroomLib.deleteCourseWork(
+            classroom,
+            courseId,
+            String(data.courseworkId)
+          );
+          result.assignment = "removed";
+        } catch (error) {
+          if (classroomDeleteAlreadyGone(error)) {
+            result.assignment = "already-removed";
+          } else {
+            result.assignment = "failed";
+            result.assignmentError = String(error.message || error);
+          }
+        }
+      }
+
+      const materialKey = `assignment:${assignmentId}:resources`;
+      const materialId = classroomMaterialDocumentId(teacherUid, courseId, materialKey);
+      const materialRef = db.doc(`classroomMaterialLinks/${materialId}`);
+      const materialSnap = await materialRef.get();
+
+      if (
+        materialSnap.exists
+        && materialSnap.data().teacherUid === teacherUid
+        && materialSnap.data().googleMaterialId
+      ) {
+        try {
+          await classroomLib.deleteCourseWorkMaterial(
+            classroom,
+            courseId,
+            String(materialSnap.data().googleMaterialId)
+          );
+          result.material = "removed";
+        } catch (error) {
+          if (classroomDeleteAlreadyGone(error)) {
+            result.material = "already-removed";
+          } else {
+            result.material = "failed";
+            result.materialError = String(error.message || error);
+          }
+        }
+
+        await materialRef.set(
+          {
+            status: result.material === "failed" ? "remove-failed" : "removed",
+            googleMaterialId: result.material === "failed"
+              ? materialSnap.data().googleMaterialId
+              : FieldValue.delete(),
+            alternateLink: result.material === "failed"
+              ? materialSnap.data().alternateLink || null
+              : FieldValue.delete(),
+            removedAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
+
+      const assignmentFailed = result.assignment === "failed";
+      const failed = assignmentFailed || result.material === "failed";
+
+      await ref.set(
+        {
+          status: failed ? "remove-failed" : "removed",
+          courseworkId: assignmentFailed ? data.courseworkId : FieldValue.delete(),
+          classroomUrl: assignmentFailed ? data.classroomUrl || null : FieldValue.delete(),
+          launchUrl: assignmentFailed ? data.launchUrl || null : FieldValue.delete(),
+          removedAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      results.push(result);
+    }
+
+    return {
+      assignmentId,
+      results,
+      summary: {
+        destinations: results.length,
+        removed: results.filter(
+          (item) => item.assignment === "removed" || item.assignment === "already-removed"
+        ).length,
+        failed: results.filter(
+          (item) => item.assignment === "failed" || item.material === "failed"
+        ).length,
+      },
+    };
+  }
+);
+
 exports.listPublishedAssignments = onCall(async (request) => {
   const teacherUid = await requireTeacher(request);
   const db = getFirestore();
