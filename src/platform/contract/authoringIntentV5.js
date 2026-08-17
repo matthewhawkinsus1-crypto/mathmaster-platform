@@ -1,6 +1,7 @@
 import { validateInstructionalScopeV5 } from '../curriculum/instructionalScope.js';
 import { looksLikeFiniteSetNotation } from '../../../functions/shared/answerEquivalence.mjs';
 import { normalizeStaticGraphPoints } from '../../graphPointUtils.js';
+import { normalizeLessonPublishingIntentV5 } from '../authoring/lessonPublishingIntent.js';
 
 const asArray = (value) => Array.isArray(value) ? value : value == null ? [] : [value];
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
@@ -753,6 +754,9 @@ export const compileAuthoringIntentV5 = (input = {}) => {
   const repairs = [];
   const decisions = [];
   const assignment = { ...(input.assignment || {}) };
+  const publishingIntent = normalizeLessonPublishingIntentV5(input, assignment, repairs);
+  assignment.classroomPackage = publishingIntent.classroomPackage;
+  assignment.lessonResources = publishingIntent.lessonResources;
   const compileQuestions = (questions = [], role = null) => asArray(questions).map((question, index) => {
     const source = role && isObject(question) && !question.activityRole ? { ...question, activityRole: role } : question;
     const compiled = compileOne(source, index, repairs);
@@ -771,6 +775,8 @@ export const compileAuthoringIntentV5 = (input = {}) => {
     packageOut = { ...input, schemaVersion: 4, assignment, questions: compileQuestions(input.questions || []) };
   }
   delete packageOut.authoringIntent;
+  delete packageOut.classroom;
+  delete packageOut.lessonResources;
   repairs.unshift('compiled Authoring Intent V5 into canonical MathMaster V4 runtime questions');
   return { package: packageOut, repairs, decisions };
 };

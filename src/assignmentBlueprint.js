@@ -1149,6 +1149,8 @@ export const normalizeAssignmentPackageMetadata = (rawAssignment = {}, questions
       completionRule: Object.prototype.hasOwnProperty.call(source, 'completionRule') || Boolean(templateKey),
       dol: Object.prototype.hasOwnProperty.call(source, 'dol') || Boolean(templateKey),
       warmup: Object.prototype.hasOwnProperty.call(source, 'warmup') || Boolean(template?.warmup),
+      classroomPackage: Object.prototype.hasOwnProperty.call(source, 'classroomPackage'),
+      lessonResources: Object.prototype.hasOwnProperty.call(source, 'lessonResources'),
     },
     schemaVersion: Number(merged.schemaVersion) || 2,
     template: templateKey || null,
@@ -1190,6 +1192,12 @@ export const normalizeAssignmentPackageMetadata = (rawAssignment = {}, questions
     standards: Array.isArray(merged.standards) ? merged.standards.map(String) : [],
     curriculum: merged.curriculum && typeof merged.curriculum === 'object' && !Array.isArray(merged.curriculum)
       ? merged.curriculum
+      : null,
+    classroomPackage: merged.classroomPackage && typeof merged.classroomPackage === 'object' && !Array.isArray(merged.classroomPackage)
+      ? merged.classroomPackage
+      : null,
+    lessonResources: merged.lessonResources && typeof merged.lessonResources === 'object' && !Array.isArray(merged.lessonResources)
+      ? merged.lessonResources
       : null,
   };
 };

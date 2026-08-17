@@ -12,6 +12,7 @@ import {
   listPublishedAssignments,
   publishAssignmentToClassrooms,
   publishClassroomMaterial,
+  storeLessonNotesPdf,
   retryClassroomGradeSync,
   saveClassroomCourseMapping,
   updateAssignmentClassroomPublications,
@@ -25,6 +26,7 @@ import {
   studentsForClass,
   suggestClassroomTopic,
 } from './classroomRosterMatching';
+import { blobToBase64, generateLessonNotesPdfBlob, notesPdfSummary } from './platform/resources/lessonNotesPdf';
 
 const card = { background: '#fff', border: '1px solid #e0e3e7', borderRadius: 12, padding: 16 };
 const label = { display: 'block', fontSize: 12, fontWeight: 800, color: '#5f6368', marginBottom: 6 };
@@ -223,10 +225,22 @@ export default function ClassroomManagerV2({
   const handleAssignmentChange = (value) => {
     setAssignmentId(value);
     const assignment = assignments.find((item) => String(item.id) === String(value));
-    setTopicName(assignment ? suggestClassroomTopic(assignment) : '');
-    setInstructions(assignment ? `Complete "${assignment.title}" in MathMaster. Use the Open in MathMaster link below.` : '');
+    const classroom = assignment?.classroomPackage || {};
+    const notes = assignment?.lessonResources?.notesPdf || null;
+    setTopicName(classroom?.topic?.name || (assignment ? suggestClassroomTopic(assignment) : ''));
+    setInstructions(classroom?.assignmentPost?.instructions
+      || (assignment ? `Complete "${assignment.title}" in MathMaster. Use the Open in MathMaster link below.` : ''));
+    const postingMode = classroom?.resourcesPost?.postingMode;
+    setResourceMode(postingMode === 'attachToAssignment' ? 'attach' : postingMode === 'none' ? 'none' : 'separate');
+    setMaterialTitle(classroom?.resourcesPost?.title || (assignment ? `${assignment.title} — Notes & Resources` : 'Lesson Notes & Resources'));
+    setMaterialDescription(classroom?.resourcesPost?.description || (assignment ? `Reference materials for ${assignment.title}.` : ''));
+    const authoredLinks = Array.isArray(classroom?.additionalLinks) ? classroom.additionalLinks : [];
+    setMaterials(authoredLinks.length ? authoredLinks.map((item) => ({ title: item.title || '', url: item.url || '' })) : [{ title: '', url: '' }]);
     const suggested = assignment ? matchingCoursesForAssignment(assignment, mappings, classes) : [];
-    if (suggested.length) setSelectedCourseIds(suggested);
+    setSelectedCourseIds(suggested);
+    if (notes?.enabled) {
+      setStatus(`AI prepared ${notes.title || 'student notes'} (${Number(notes.targetPages) === 1 ? 1 : 2} page target) and Classroom publishing information.`);
+    }
   };
 
   const cleanMaterials = () => materials
@@ -236,26 +250,60 @@ export default function ClassroomManagerV2({
   const handlePublishAssignment = () => run(async () => {
     assertPublishable(selectedAssignment);
     if (!selectedCourseIds.length) throw new Error('Select at least one mapped Google Classroom course.');
+
+    const classroom = selectedAssignment?.classroomPackage || {};
+    const notesPdf = selectedAssignment?.lessonResources?.notesPdf || null;
     const resourceLinks = cleanMaterials();
-    if (resourceMode === 'separate' && resourceLinks.length) {
+
+    // The V5 JSON contains structured notes, not a binary file. Generate the
+    // 1–2 page PDF only when the teacher actually publishes, then store it once
+    // and reuse its public-by-token Firebase Storage link in Classroom.
+    if (notesPdf?.enabled && !notesPdf?.asset?.url) {
+      setStatus(`Generating ${notesPdf.title || 'student notes'}…`);
+      const generated = await generateLessonNotesPdfBlob({ assignment: selectedAssignment, notesPdf });
+      const base64 = await blobToBase64(generated.blob);
+      const stored = await storeLessonNotesPdf({
+        assignmentId: selectedAssignment.id,
+        fileName: notesPdf.fileName,
+        title: notesPdf.title,
+        pageCount: generated.pageCount,
+        base64,
+      });
+      resourceLinks.unshift({
+        title: notesPdf.title || `${selectedAssignment.title} — Student Notes`,
+        url: stored.url,
+      });
+    } else if (notesPdf?.asset?.url) {
+      resourceLinks.unshift({
+        title: notesPdf.title || `${selectedAssignment.title} — Student Notes`,
+        url: notesPdf.asset.url,
+      });
+    }
+
+    const dedupedLinks = [...new Map(resourceLinks.map((item) => [item.url, item])).values()];
+    const resourcesEnabled = classroom?.resourcesPost?.enabled !== false && resourceMode !== 'none';
+    if (resourcesEnabled && resourceMode === 'separate' && dedupedLinks.length) {
       await publishClassroomMaterial({
         courseIds: selectedCourseIds,
         materialKey: `assignment:${selectedAssignment.id}:resources`,
-        title: `${selectedAssignment.title} — Notes & Resources`,
-        description: `Reference materials for ${selectedAssignment.title}.`,
+        title: classroom?.resourcesPost?.title || materialTitle || `${selectedAssignment.title} — Notes & Resources`,
+        description: classroom?.resourcesPost?.description || materialDescription || `Reference materials for ${selectedAssignment.title}.`,
         topicName,
-        materials: resourceLinks,
+        materials: dedupedLinks,
       });
     }
     const response = await publishAssignmentToClassrooms({
       courseIds: selectedCourseIds,
       assignmentId: selectedAssignment.id,
+      classroomTitle: classroom?.assignmentPost?.title || selectedAssignment.title,
+      maxPoints: Number(classroom?.assignmentPost?.maxPoints) || 100,
+      gradePassbackEnabled: classroom?.gradePassback?.enabled !== false,
       topicName,
       instructions,
-      materials: resourceMode === 'attach' ? resourceLinks : [],
+      materials: resourcesEnabled && resourceMode === 'attach' ? dedupedLinks : [],
     });
     const summary = response.summary || {};
-    setStatus(`Published/connected ${Number(summary.published || 0) + Number(summary.alreadyPublished || 0)} Classroom post(s).`);
+    setStatus(`Published/connected ${Number(summary.published || 0) + Number(summary.alreadyPublished || 0)} Classroom assignment post(s)${dedupedLinks.length ? ' with the AI-prepared resources package' : ''}.`);
     setLinks((await listPublishedAssignments()).links || []);
     setGradeSyncs((await listClassroomGradeSyncs()).syncs || []);
   });
@@ -485,6 +533,18 @@ export default function ClassroomManagerV2({
               ))}
             </select>
           </div>
+          {selectedAssignment && (selectedAssignment.classroomPackage || selectedAssignment.lessonResources?.notesPdf) && (() => {
+            const notes = notesPdfSummary(selectedAssignment.lessonResources?.notesPdf || {});
+            return (
+              <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 9, background: '#eef6ff', border: '1px solid #c5d9f7', fontSize: 12, lineHeight: 1.5 }}>
+                <strong style={{ color: '#174ea6' }}>AI-prepared publishing package</strong>
+                <div>Topic: {selectedAssignment.classroomPackage?.topic?.name || topicName || 'MathMaster will infer it'}</div>
+                <div>Classroom instructions: {selectedAssignment.classroomPackage?.assignmentPost?.instructions ? 'prepared' : 'MathMaster default'}</div>
+                <div>Student notes PDF: {notes.enabled ? `${notes.title || 'prepared'} · ${notes.targetPages} page target · ${notes.sectionCount} section${notes.sectionCount === 1 ? '' : 's'}` : 'not requested'}</div>
+                <div>Destination courses are selected automatically from the assignment's MathMaster class periods and your saved class mappings.</div>
+              </div>
+            );
+          })()}
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px,1fr) minmax(220px,1fr)', gap: 10, marginTop: 10 }}>
             <div><label style={label}>Classroom topic</label><input style={input} value={topicName} onChange={(e) => setTopicName(e.target.value)} /></div>
             <div>
@@ -492,6 +552,7 @@ export default function ClassroomManagerV2({
               <select style={input} value={resourceMode} onChange={(e) => setResourceMode(e.target.value)}>
                 <option value="separate">Separate Notes & Resources post (recommended)</option>
                 <option value="attach">Attach links inside the graded assignment post</option>
+                <option value="none">Do not publish a resources post</option>
               </select>
             </div>
           </div>

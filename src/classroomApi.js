@@ -36,6 +36,7 @@ export const listClassroomCourseMappings = call("listClassroomCourseMappings");
 export const saveClassroomCourseMapping = call("saveClassroomCourseMapping");
 export const ensureClassroomTopics = call("ensureClassroomTopics");
 export const publishClassroomMaterial = call("publishClassroomMaterial");
+export const storeLessonNotesPdf = call("storeLessonNotesPdf");
 export const publishAssignmentToClassrooms = call("publishAssignmentToClassrooms");
 export const updateAssignmentClassroomPublications = call("updateAssignmentClassroomPublications");
 export const publishAssignmentToClassroom = call("publishAssignmentToClassroom");

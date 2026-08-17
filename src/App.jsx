@@ -1876,6 +1876,10 @@ function App() {
         publicationStrategy: 'hybrid',
         includeWarmupInClassroom: false,
         homeworkDueAt: '',
+        // Authoring Intent V5 may carry the complete Classroom/resource plan.
+        // Preflight shows it for review but does not need the teacher to retype it.
+        classroomPackage: metadata?.classroomPackage || null,
+        lessonResources: metadata?.lessonResources || null,
       };
       setAssignmentPreflight({
         lessonBundle,
@@ -2107,6 +2111,8 @@ function App() {
           includeWarmupInClassroom: teacherReview.includeWarmupInClassroom === true,
           homeworkDueAt: teacherReview.homeworkDueAt ? new Date(teacherReview.homeworkDueAt).toISOString() : null,
         } : null,
+        classroomPackage: teacherReview?.classroomPackage || packageMetadata?.classroomPackage || null,
+        lessonResources: teacherReview?.lessonResources || packageMetadata?.lessonResources || null,
         createdAt: new Date(),
       };
 

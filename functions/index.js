@@ -4,6 +4,7 @@ const path = require("path");
 const { initializeApp } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
 const { getFirestore, FieldPath, FieldValue } = require("firebase-admin/firestore");
+const { getStorage } = require("firebase-admin/storage");
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 const { onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/firestore");
 const logger = require("firebase-functions/logger");
@@ -67,6 +68,47 @@ function cleanMaterials(materials) {
     .map((item) => ({ title: item.title.trim(), url: item.url.trim() }))
     .filter((item) => item.title && /^https?:\/\//i.test(item.url))
     .slice(0, 20);
+}
+
+function safePdfFileName(value, fallback = "MathMaster_Student_Notes.pdf") {
+  const cleaned = String(value || "")
+    .trim()
+    .replace(/[^A-Za-z0-9._-]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 120);
+  const base = cleaned || fallback;
+  return /\.pdf$/i.test(base) ? base : `${base}.pdf`;
+}
+
+async function assertTeacherMayManageAssignment(request, assignmentSnap) {
+  const teacherUid = await requireTeacher(request);
+  const teacherEmail = callerEmail(request);
+  if (!teacherEmail) {
+    throw new HttpsError("permission-denied", "A verified teacher email is required.");
+  }
+  if (authLib.isRootAdminEmail(teacherEmail)) return { teacherUid, teacherEmail };
+
+  const assignment = assignmentSnap.data() || {};
+  const periods = [...new Set((assignment.assignedClassPeriods || []).map(String).filter(Boolean))];
+  if (!periods.length) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Assign this lesson to a MathMaster class before publishing its Classroom resource package."
+    );
+  }
+  const classes = await getFirestore()
+    .collection("classes")
+    .where("teacherOfRecord", "==", teacherEmail)
+    .get();
+  const ownedPeriods = new Set(classes.docs.map((doc) => String(doc.data()?.period || "")).filter(Boolean));
+  if (!periods.every((period) => ownedPeriods.has(period))) {
+    throw new HttpsError(
+      "permission-denied",
+      "Only the teacher of record for every assigned class may publish this lesson's generated resources."
+    );
+  }
+  return { teacherUid, teacherEmail };
 }
 
 const clampPercent = (value) =>
@@ -2468,6 +2510,71 @@ exports.ensureClassroomTopics = onCall(
   }
 );
 
+exports.storeLessonNotesPdf = onCall(async (request) => {
+  const { assignmentId, fileName, title, pageCount, base64 } = request.data || {};
+  const cleanAssignmentId = String(assignmentId || "").trim();
+  if (!cleanAssignmentId) throw new HttpsError("invalid-argument", "assignmentId is required.");
+  if (typeof base64 !== "string" || !base64.trim()) {
+    throw new HttpsError("invalid-argument", "The generated PDF content is missing.");
+  }
+  // Callable payloads are not a file-transfer API. One or two student-note
+  // pages should be comfortably below this guard; reject accidental huge data.
+  if (base64.length > 12_000_000) {
+    throw new HttpsError("invalid-argument", "The generated notes PDF is too large. Keep it to one or two pages.");
+  }
+
+  const db = getFirestore();
+  const assignmentRef = db.doc(`assignments/${cleanAssignmentId}`);
+  const assignmentSnap = await assignmentRef.get();
+  if (!assignmentSnap.exists) throw new HttpsError("not-found", "Assignment not found.");
+  const { teacherUid } = await assertTeacherMayManageAssignment(request, assignmentSnap);
+
+  let bytes;
+  try {
+    bytes = Buffer.from(base64, "base64");
+  } catch {
+    throw new HttpsError("invalid-argument", "The generated PDF could not be decoded.");
+  }
+  if (bytes.length < 8 || bytes.length > 8 * 1024 * 1024 || bytes.subarray(0, 5).toString("ascii") !== "%PDF-") {
+    throw new HttpsError("invalid-argument", "The generated notes attachment is not a valid small PDF.");
+  }
+
+  const safeName = safePdfFileName(fileName || `${title || "MathMaster Student Notes"}.pdf`);
+  const storagePath = `classroomResources/${teacherUid}/${cleanAssignmentId}/${safeName}`;
+  const downloadToken = crypto.randomUUID();
+  const bucket = getStorage().bucket();
+  const file = bucket.file(storagePath);
+  await file.save(bytes, {
+    resumable: false,
+    validation: "md5",
+    metadata: {
+      contentType: "application/pdf",
+      contentDisposition: `inline; filename="${safeName.replace(/"/g, "")}"`,
+      cacheControl: "private, max-age=0, no-transform",
+      metadata: {
+        firebaseStorageDownloadTokens: downloadToken,
+        mathMasterAssignmentId: cleanAssignmentId,
+        mathMasterTeacherUid: teacherUid,
+      },
+    },
+  });
+
+  const encodedPath = encodeURIComponent(storagePath);
+  const url = `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket.name)}/o/${encodedPath}?alt=media&token=${encodeURIComponent(downloadToken)}`;
+  const asset = {
+    provider: "firebaseStorage",
+    path: storagePath,
+    url,
+    fileName: safeName,
+    title: String(title || "Student Notes").trim(),
+    pageCount: Number(pageCount) === 1 ? 1 : 2,
+    byteLength: bytes.length,
+    generatedAt: new Date().toISOString(),
+  };
+  await assignmentRef.update(new FieldPath("lessonResources", "notesPdf", "asset"), asset);
+  return { ...asset };
+});
+
 exports.publishClassroomMaterial = onCall(
   { secrets: GOOGLE_API_SECRETS },
   async (request) => {
@@ -2643,6 +2750,9 @@ async function publishOneCourse({
   materials,
   topicName,
   instructions,
+  classroomTitle,
+  maxPoints,
+  gradePassbackEnabled,
 }) {
   const db = getFirestore();
   const courseId = String(course.id);
@@ -2659,8 +2769,10 @@ async function publishOneCourse({
     courseId,
     courseName: course.name || courseId,
     courseSection: course.section || "",
-    title: assignment.title,
+    title: classroomTitle || assignment.title,
     dueAt: serializableDate(dueAtValue),
+    maxPoints: Number.isFinite(Number(maxPoints)) ? Math.max(1, Math.min(1000, Number(maxPoints))) : 100,
+    gradePassbackEnabled: gradePassbackEnabled !== false,
     materials,
     topicName: topicName || null,
   };
@@ -2724,15 +2836,16 @@ async function publishOneCourse({
       : null;
 
     if (!courseWork) {
-      const defaultInstructions = `Complete "${assignment.title}" in MathMaster.`;
+      const resolvedTitle = String(classroomTitle || assignment.title || 'MathMaster Assignment').trim();
+      const defaultInstructions = `Complete "${resolvedTitle}" in MathMaster.`;
       courseWork = await classroomLib.createCourseWork(classroom, {
         courseId,
-        title: assignment.title,
+        title: resolvedTitle,
         description: `${String(instructions || defaultInstructions).trim()}\n\n${marker}`,
         dueDate: toDate(dueAtValue) || undefined,
         materials,
         launchUrl,
-        maxPoints: 100,
+        maxPoints: Number.isFinite(Number(maxPoints)) ? Math.max(1, Math.min(1000, Number(maxPoints))) : 100,
         topicId: topic?.topicId || null,
       });
     }
@@ -2786,7 +2899,15 @@ async function publishOneCourse({
 
 async function publishAssignmentBatch(request) {
   const teacherUid = await requireTeacher(request);
-  const { assignmentId, materials, topicName, instructions } = request.data || {};
+  const {
+    assignmentId,
+    materials,
+    topicName,
+    instructions,
+    classroomTitle,
+    maxPoints,
+    gradePassbackEnabled,
+  } = request.data || {};
   const rawCourseIds = request.data?.courseIds ||
     (request.data?.courseId ? [request.data.courseId] : []);
   const courseIds = [...new Set(rawCourseIds.map((value) => String(value)).filter(Boolean))];
@@ -2878,6 +2999,9 @@ async function publishAssignmentBatch(request) {
         materials: safeMaterials,
         topicName: cleanTopic,
         instructions: cleanInstructions,
+        classroomTitle: String(classroomTitle || assignment.title || '').trim().slice(0, 300),
+        maxPoints,
+        gradePassbackEnabled,
       })
     );
   }
@@ -3250,6 +3374,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
 
       for (const publicationDoc of publications) {
         const publication = publicationDoc.data();
+        if (publication.gradePassbackEnabled === false) continue;
         const courseId = String(publication.courseId || "");
         if (!courseId) continue;
 

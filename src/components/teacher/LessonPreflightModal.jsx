@@ -307,7 +307,15 @@ export const LessonPreflightModal = ({
       <SectionBalanceRigorAudit lessonBundle={effectiveBundle} />
 
       <div style={{ padding: '12px 14px', marginBottom: 16, background: '#e8f0fe', color: '#174ea6', border: '1px solid #aecbfa', borderRadius: 9, fontSize: 13, lineHeight: 1.5 }}>
-        <strong>Nothing is published from JSON automatically.</strong> The values on these screens override the file when you create the assignment.
+        <strong>AI-prepared Classroom and notes package.</strong> MathMaster carries the AI-written topic, post text, grade-passback settings, and 1–2 page student-notes plan into the saved lesson. The teacher still chooses classes and dates here before anything is published.
+        {(draft.classroomPackage || draft.lessonResources?.notesPdf) && (
+          <div style={{ marginTop: 9, padding: '9px 10px', borderRadius: 8, background: '#fff', border: '1px solid #c5d5ef', color: '#3c4043' }}>
+            <div><strong>Classroom topic:</strong> {draft.classroomPackage?.topic?.name || 'MathMaster will infer this from the folder.'}</div>
+            <div><strong>Assignment post:</strong> {draft.classroomPackage?.assignmentPost?.title || draft.title || 'Prepared from the lesson title'}</div>
+            {draft.lessonResources?.notesPdf && <div><strong>Student notes PDF:</strong> {draft.lessonResources.notesPdf.title || 'Student Notes'} · {Number(draft.lessonResources.notesPdf.targetPages) === 1 ? 1 : 2} page target · {(draft.lessonResources.notesPdf.sections || []).length} authored section{(draft.lessonResources.notesPdf.sections || []).length === 1 ? '' : 's'}</div>}
+            {draft.classroomPackage?.resourcesPost?.enabled !== false && <div><strong>Resources post:</strong> {draft.classroomPackage?.resourcesPost?.postingMode === 'attachToAssignment' ? 'attach resources to the graded assignment' : 'separate Notes & Resources material post'}</div>}
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
