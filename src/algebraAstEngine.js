@@ -166,6 +166,46 @@ const cleanImplicitMultiplicationLatex = (latex) => {
 };
 
 export const simplifyExpression = (expression) => simplify(parse(String(expression))).toString({ parenthesis: 'auto', implicit: 'hide' });
+// Student-controlled cleanup. This is intentionally narrower than MathJS's
+// general simplify(): clicking Simplify may combine a one-variable linear
+// expression, perform arithmetic, or honor a visible cancellation, but it does
+// not unexpectedly factor/rearrange an unrelated multi-symbol expression.
+const formatStudentLinearExpression = ({ coefficient, constant }, variable) => {
+  const pieces = [];
+  if (!nearlyEqual(coefficient, 0)) {
+    if (nearlyEqual(coefficient, 1)) pieces.push(variable);
+    else if (nearlyEqual(coefficient, -1)) pieces.push(`-${variable}`);
+    else pieces.push(`${cleanNumber(coefficient)} * ${variable}`);
+  }
+  if (!nearlyEqual(constant, 0)) {
+    if (!pieces.length) pieces.push(String(cleanNumber(constant)));
+    else if (constant > 0) pieces.push(`+ ${cleanNumber(constant)}`);
+    else pieces.push(`- ${Math.abs(cleanNumber(constant))}`);
+  }
+  return pieces.join(' ') || '0';
+};
+
+export const simplifyStudentExpression = (expression, variable = 'x') => {
+  const original = String(expression ?? '').trim();
+  if (!original) return original;
+  const symbols = symbolsIn(original).filter((name) => !['e', 'pi'].includes(name));
+  if (!symbols.length) {
+    try { return simplifyExpression(original); } catch { return original; }
+  }
+  if (symbols.length === 1 && symbols[0] === variable) {
+    try { return formatStudentLinearExpression(getLinearForm(original, variable), variable); } catch { /* fall through */ }
+  }
+  try {
+    const structural = structuralCancellation(original);
+    if (structural?.pairs?.length && structural.resultExpression !== original) {
+      return simplifyStudentExpression(structural.resultExpression, variable);
+    }
+  } catch {
+    // Preserve the student's expression if a safe cleanup cannot be identified.
+  }
+  return original;
+};
+
 export const expressionToLatex = (expression) => cleanImplicitMultiplicationLatex(parse(String(expression)).toTex({ parenthesis: 'keep', implicit: 'hide' }));
 export const equationToLatex = ({ left, right }) => `${expressionToLatex(left)} = ${expressionToLatex(right)}`;
 
@@ -471,11 +511,55 @@ export const parseNumericOperand = (rawValue) => {
 
 const OPERATION_SYMBOLS = { add: '+', subtract: '-', multiply: '*', divide: '/' };
 const OPERATION_LABELS = { add: 'Add', subtract: 'Subtract', multiply: 'Multiply by', divide: 'Divide by' };
-const applyOperationToExpression = (expression, operation, operandExpression) => operation === 'multiply'
-  ? `(${operandExpression}) * (${expression})`
-  : operation === 'divide'
-    ? `(${expression}) / (${operandExpression})`
-    : `(${expression}) ${OPERATION_SYMBOLS[operation]} (${operandExpression})`;
+// Addition/subtraction can be written where the student places it. "under"
+// means the handwritten operation was aligned beneath that term; once the
+// balanced step becomes an equation, it is inserted immediately after that
+// target term. This preserves the student's chosen order instead of forcing
+// every operation to the far right.
+export const applyAdditiveOperationAtPlacement = (
+  expression,
+  operation,
+  operandExpression,
+  placement = null,
+) => {
+  if (!['add', 'subtract'].includes(operation)) return String(expression);
+  const terms = splitAdditiveTerms(expression);
+  if (!terms?.length || !placement || typeof placement !== 'object') {
+    return `(${expression}) ${OPERATION_SYMBOLS[operation]} (${operandExpression})`;
+  }
+
+  const items = terms.map((term) => ({
+    sign: term.sign < 0 ? -1 : 1,
+    magnitude: String(term.text).replace(/^[+-]\s*/, ''),
+  }));
+  const inserted = {
+    sign: operation === 'subtract' ? -1 : 1,
+    magnitude: String(operandExpression),
+  };
+  const termIndex = Math.max(0, Math.min(items.length - 1, Number(placement.termIndex) || 0));
+  const slot = placement.kind === 'before'
+    ? termIndex
+    : placement.kind === 'after' || placement.kind === 'under'
+      ? termIndex + 1
+      : items.length;
+  items.splice(Math.max(0, Math.min(items.length, slot)), 0, inserted);
+
+  return items.map((item, index) => {
+    const body = `(${item.magnitude})`;
+    if (index === 0) return item.sign < 0 ? `-${body}` : body;
+    return `${item.sign < 0 ? '-' : '+'} ${body}`;
+  }).join(' ');
+};
+
+const applyOperationToExpression = (expression, operation, operandExpression, placement = null) => (
+  ['add', 'subtract'].includes(operation) && placement && typeof placement === 'object'
+    ? applyAdditiveOperationAtPlacement(expression, operation, operandExpression, placement)
+    : operation === 'multiply'
+      ? `(${operandExpression}) * (${expression})`
+      : operation === 'divide'
+        ? `(${expression}) / (${operandExpression})`
+        : `(${expression}) ${OPERATION_SYMBOLS[operation]} (${operandExpression})`
+);
 
 const operationSideLatex = (expression, operation, operandExpression) => {
   const expressionLatex = expressionToLatex(expression);
@@ -494,7 +578,7 @@ const numericProductive = (analysis, operation, operand) => {
   return forms.some((form) => !nearlyEqual(form.coefficient, 0) && nearlyEqual(form.constant, 0) && nearlyEqual(operation === 'multiply' ? form.coefficient * operand : form.coefficient / operand, 1));
 };
 
-export const applyBalancedOperation = ({ equationState, operation, operand: rawOperand }) => {
+export const applyBalancedOperation = ({ equationState, operation, operand: rawOperand, placementBySide = {} }) => {
   if (!OPERATION_SYMBOLS[operation]) throw new Error('Choose a supported operation.');
   const operand = parseOperationOperand(rawOperand);
   if ((operation === 'multiply' || operation === 'divide') && operand.numericValue !== null && nearlyEqual(operand.numericValue, 0)) throw new Error('Multiplying or dividing both sides by zero is not allowed.');
@@ -502,8 +586,8 @@ export const applyBalancedOperation = ({ equationState, operation, operand: rawO
   const analysisBefore = getEquationAnalysis(equationState);
   const unsimplified = {
     ...equationState,
-    left: applyOperationToExpression(equationState.left, operation, operand.expression),
-    right: applyOperationToExpression(equationState.right, operation, operand.expression),
+    left: applyOperationToExpression(equationState.left, operation, operand.expression, placementBySide?.left),
+    right: applyOperationToExpression(equationState.right, operation, operand.expression, placementBySide?.right),
   };
   const simplified = { ...equationState, left: simplifyExpression(unsimplified.left), right: simplifyExpression(unsimplified.right) };
   const analysisAfter = getEquationAnalysis(simplified);
@@ -562,7 +646,14 @@ export const applyBalancedOperation = ({ equationState, operation, operand: rawO
     operandSymbols: operand.symbols,
     assumption: operand.symbols.length && ['multiply', 'divide'].includes(operation) ? `${operand.expression} ≠ 0` : null,
     unsimplified,
-    unsimplifiedLatex: { left: operationSideLatex(equationState.left, operation, operand.expression), right: operationSideLatex(equationState.right, operation, operand.expression) },
+    unsimplifiedLatex: {
+      left: placementBySide?.left && ['add', 'subtract'].includes(operation)
+        ? expressionToLatex(unsimplified.left)
+        : operationSideLatex(equationState.left, operation, operand.expression),
+      right: placementBySide?.right && ['add', 'subtract'].includes(operation)
+        ? expressionToLatex(unsimplified.right)
+        : operationSideLatex(equationState.right, operation, operand.expression),
+    },
     simplified,
     productive,
     preservesSolution,

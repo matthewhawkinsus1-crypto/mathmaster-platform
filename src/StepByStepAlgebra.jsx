@@ -28,6 +28,8 @@ import {
   parseEquationInput,
   parseOperationOperand,
   splitAdditiveTerms,
+  simplifyStudentExpression,
+  applyAdditiveOperationAtPlacement,
 } from './algebraAstEngine';
 import { getAttemptsRemaining, normalizeQuestionRecord } from './attemptPolicy';
 import {
@@ -447,6 +449,108 @@ export default function StepByStepAlgebra({
     await commitMove(pendingMove, { resolution: 'keep' });
   };
 
+  const equationSideForStudentSimplify = (side) => {
+    if (!pendingMove) return equation?.[side] || '';
+    const target = pendingMove.cancellationTargets?.find((item) => item.side === side);
+    if (crossedSides.includes(side) && target?.cancellationResultExpression) {
+      return target.cancellationResultExpression;
+    }
+    return pendingMove.unsimplified?.[side] ?? equation?.[side] ?? '';
+  };
+  const cleanupPendingMoveUi = () => {
+    setPendingMove(null);
+    setCrossedSides([]);
+    setCancelledPairIds({});
+    setSelectedCancellationIndices({});
+    setSimplificationAnswers({});
+    setOperand('');
+    setStroke(null);
+    setLockedStroke(null);
+    setStruckTerms(null);
+    setCollapsingSides([]);
+    setPlacedOperationSides([]);
+    setPlacedOperationPositions({});
+    setArmedTile(null);
+    setTapPlacementArmed(false);
+  };
+  const persistStandaloneSimplification = async (beforeEquation, nextEquation, sides) => {
+    if (!onStepGrade) return null;
+    setSavingStep(true);
+    try {
+      return await onStepGrade({
+        stepGrade: {
+          kind: 'student-simplification',
+          label: `Simplify ${sides.join(' and ')}`,
+          supportLevel,
+          productive: true,
+          accepted: true,
+          earned: 1,
+          possible: 1,
+          equationBefore: equationToLatex(beforeEquation),
+          equationAfter: equationToLatex(nextEquation),
+          expectedTotalPoints: Number(question.expectedStepPoints || 6),
+        },
+        countsAttempt: false,
+        statePatch: {
+          algebraState: {
+            equation: nextEquation,
+            supportLevel,
+            stepNumber: Number(normalizedRecord.algebraState?.stepNumber || 0) + 1,
+          },
+          questionDetails: `Current equation: ${equationToLatex(nextEquation)}`,
+        },
+      });
+    } finally {
+      setSavingStep(false);
+    }
+  };
+  const simplifyChosenSides = async (requestedSides) => {
+    if (!equation || disabled || savingStep || cancelAnimating) return;
+    const sides = [...new Set((Array.isArray(requestedSides) ? requestedSides : [requestedSides])
+      .filter((side) => side === 'left' || side === 'right'))];
+    if (!sides.length) return;
+
+    const beforeEquation = {
+      ...(pendingMove?.unsimplified || equation),
+      left: equationSideForStudentSimplify('left'),
+      right: equationSideForStudentSimplify('right'),
+    };
+    const nextEquation = { ...beforeEquation };
+    const changed = [];
+    sides.forEach((side) => {
+      const simplified = simplifyStudentExpression(beforeEquation[side], equation.variable);
+      if (String(simplified).replace(/\s+/g, '') !== String(beforeEquation[side]).replace(/\s+/g, '')) {
+        nextEquation[side] = simplified;
+        changed.push(side);
+      }
+    });
+    if (!changed.length) {
+      setMessage({ tone: 'growth', text: 'That side is already as simple as this workspace can safely make it.' });
+      return;
+    }
+
+    if (pendingMove) {
+      await saveStep({
+        move: pendingMove,
+        earned: 2,
+        possible: 2,
+        countsAttempt: false,
+        accepted: true,
+        equationAfter: nextEquation,
+      });
+      cleanupPendingMoveUi();
+    } else {
+      await persistStandaloneSimplification(equation, nextEquation, changed);
+    }
+    setEquation(nextEquation);
+    setBalancePulse(true);
+    window.setTimeout(() => setBalancePulse(false), motionDuration(600, reducedMotion, { floor: 60 }));
+    setMessage({
+      tone: 'success',
+      text: `Simplified the ${changed.length === 2 ? 'left and right sides' : `${changed[0]} side`} because you chose to. Nothing is simplified automatically.`,
+    });
+  };
+
   const resetQuestionWork = () => {
     if (disabled || savingStep || !pristineEquation) return;
     const confirmed = typeof window === 'undefined' || window.confirm('Start this problem over? Your current workspace work will be cleared, but your attempt count will not change.');
@@ -472,7 +576,7 @@ export default function StepByStepAlgebra({
     setMessage({ tone: 'growth', text: 'Workspace reset to the original equation. Your attempt count did not change.' });
   };
 
-  const attemptMove = async (operation, _originSide = 'left') => {
+  const attemptMove = async (operation, _originSide = 'left', placementBySideOverride = null) => {
     if (disabled || savingStep || pendingMove || !operation) return;
     if (!String(operand || '').trim()) {
       setMessage({ tone: 'growth', text: 'Enter the value or expression for the operation first.' });
@@ -481,7 +585,7 @@ export default function StepByStepAlgebra({
     setMessage(null);
     let move;
     try {
-      move = applyBalancedOperation({ equationState: equation, operation, operand });
+      move = applyBalancedOperation({ equationState: equation, operation, operand, placementBySide: placementBySideOverride || placedOperationPositions });
     } catch (error) {
       triggerShake();
       setMessage({ tone: 'error', text: error.message });
@@ -774,22 +878,79 @@ export default function StepByStepAlgebra({
     setDragOverSide(side);
   };
 
-  const updateWholeSideZone = (clientX, clientY) => {
-    const leftRect = sideRectFor('left');
-    const rightRect = sideRectFor('right');
-    const overLeft = leftRect && clientX >= leftRect.left && clientX <= leftRect.right && clientY >= leftRect.top && clientY <= leftRect.bottom;
-    const overRight = rightRect && clientX >= rightRect.left && clientX <= rightRect.right && clientY >= rightRect.top && clientY <= rightRect.bottom;
-    const side = overLeft ? 'left' : overRight ? 'right' : null;
+  const resolveAdditivePlacementFromPoint = (side, clientX, clientY) => {
+    const expressionRoot = (side === 'left' ? leftExpressionRef : rightExpressionRef).current;
+    const sideRect = sideRectFor(side);
+    if (!expressionRoot || !sideRect) return null;
+    if (clientX < sideRect.left || clientX > sideRect.right || clientY < sideRect.top || clientY > sideRect.bottom) return null;
+
+    const nodes = Array.from(expressionRoot.querySelectorAll('[data-term-index]'));
+    if (!nodes.length) return { side, position: { kind: 'end', termIndex: 0 } };
+    const candidates = [];
+    nodes.forEach((node) => {
+      const termIndex = Number(node.getAttribute('data-term-index'));
+      if (!Number.isInteger(termIndex)) return;
+      const rect = node.getBoundingClientRect();
+      const y = rect.top + rect.height / 2;
+      candidates.push({
+        side,
+        position: { kind: 'before', termIndex },
+        x: rect.left,
+        y,
+        xRadius: 48,
+        yRadius: Math.max(58, rect.height * 1.2),
+      });
+      candidates.push({
+        side,
+        position: { kind: 'after', termIndex },
+        x: rect.right,
+        y,
+        xRadius: 48,
+        yRadius: Math.max(58, rect.height * 1.2),
+      });
+      candidates.push({
+        side,
+        position: { kind: 'under', termIndex },
+        x: rect.left + rect.width / 2,
+        y: Math.min(sideRect.bottom - 22, rect.bottom + 42),
+        xRadius: Math.max(52, rect.width * 0.8),
+        yRadius: 70,
+      });
+    });
+    let nearest = null;
+    let nearestDistance = Infinity;
+    candidates.forEach((candidate) => {
+      const dx = Math.abs(clientX - candidate.x);
+      const dy = Math.abs(clientY - candidate.y);
+      if (dx > candidate.xRadius || dy > candidate.yRadius) return;
+      const distance = Math.hypot(dx / candidate.xRadius, dy / candidate.yRadius);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearest = candidate;
+      }
+    });
+    return nearest || {
+      side,
+      position: {
+        kind: 'end',
+        termIndex: Math.max(0, nodes.length - 1),
+      },
+    };
+  };
+  const updateAdditiveZones = (clientX, clientY) => {
+    const left = resolveAdditivePlacementFromPoint('left', clientX, clientY);
+    const right = resolveAdditivePlacementFromPoint('right', clientX, clientY);
+    const nearest = left || right;
+    factorZoneRef.current = nearest;
+    setFactorZoneHint(nearest);
+    const side = nearest?.side || null;
     dragOverSideRef.current = side;
     setDragOverSide(side);
-    factorZoneRef.current = side ? { side, position: 'side' } : null;
   };
-
   const updatePointerVisuals = (clientX, clientY) => {
     if (isFactorOperation(dragRef.current?.operation)) updateFactorZones(clientX, clientY);
-    else updateWholeSideZone(clientX, clientY);
+    else updateAdditiveZones(clientX, clientY);
   };
-
   const beginPointerDrag = (operation, event) => {
     if (disabled || savingStep || pendingMove) return;
     if (!String(operand || '').trim()) {
@@ -826,8 +987,9 @@ export default function StepByStepAlgebra({
     }
     if (!result.accepted) return;
 
+    const nextPositions = { ...placedOperationPositions, [side]: position };
     setPlacedOperationSides(result.placedSides);
-    setPlacedOperationPositions((current) => ({ ...current, [side]: position }));
+    setPlacedOperationPositions(nextPositions);
 
     if (!result.ready) {
       setMessage({ tone: 'growth', text: `The ${side} side has changed. The equation is not balanced yet — place the same operation on the ${result.missingSide} side.` });
@@ -836,7 +998,7 @@ export default function StepByStepAlgebra({
 
     // Both placements are now student-authored. Only now do we invoke the
     // balanced algebra engine and begin cancellation/simplification.
-    await attemptMove(armedTile.operation, placedOperationSides[0] || side);
+    await attemptMove(armedTile.operation, result.placedSides[0] || side, nextPositions);
   };
 
   const endPointerDrag = (event, commit) => {
@@ -867,7 +1029,7 @@ export default function StepByStepAlgebra({
       return;
     }
 
-    if (side) stagePlacement(side, 'side');
+    if (side) stagePlacement(side, factorZone?.position || { kind: 'end', termIndex: 0 });
     else setMessage({ tone: 'growth', text: 'Place the operation on one side of the equation.' });
   };
 
@@ -910,17 +1072,24 @@ export default function StepByStepAlgebra({
 
   const tapPlacementOnSide = (side, event) => {
     if (!mobileInteraction.isMobile || !tapPlacementArmed || !armedTile || pendingMove || disabled || savingStep) return;
-    const position = semanticPlacementFromTap({
+    const additiveTarget = !isFactorOperation(armedTile.operation)
+      ? resolveAdditivePlacementFromPoint(side, event?.clientX, event?.clientY)
+      : null;
+    const position = additiveTarget?.position || semanticPlacementFromTap({
       operation: armedTile.operation,
       clientX: event?.clientX,
       expressionRect: expressionRectForSide(side),
     });
     stagePlacement(side, position);
   };
-
   const suggestedMove = getSuggestedMove(equation);
   const attemptsRemaining = getAttemptsRemaining(normalizedRecord, maximumAttempts);
   const solved = isSolvedEquation(equation);
+  const studentSimplifiableSides = ['left', 'right'].filter((side) => {
+    const before = equationSideForStudentSimplify(side);
+    const after = simplifyStudentExpression(before, equation.variable);
+    return String(after).replace(/\s+/g, '') !== String(before).replace(/\s+/g, '');
+  });
   const objectiveLabel = equation.objective?.kind === 'slopeIntercept'
     ? 'Target: y = mx + b'
     : `Target: isolate ${equation.objective?.variable || equation.variable}${equation.objective?.requireSimplifiedFinalForm ? ' in simplified final form' : ''}`;
@@ -1028,13 +1197,40 @@ export default function StepByStepAlgebra({
     }
 
     const symbol = armedTile.operation === 'add' ? '+' : '−';
+    const additivePosition = position && typeof position === 'object'
+      ? position
+      : { kind: 'end', termIndex: Math.max(0, (terms?.length || 1) - 1) };
+    const operationPreview = (
+      <span className="algebra-staged-operand" style={{ display: 'inline-flex', gap: '5px', alignItems: 'center' }}>
+        <span aria-hidden="true" style={{ fontWeight: 700 }}>{symbol}</span>{operandMath}
+      </span>
+    );
+    if (additivePosition.kind === 'under' && terms?.length) {
+      return (
+        <div className={`algebra-equation-side algebra-semantic-placement ${placementClass}`} style={{ fontSize: '34px', margin: '16px 0', display: 'inline-flex', alignItems: 'center' }}>
+          <AlgebraTermRow
+            terms={terms}
+            side={side}
+            underTermPreview={{ termIndex: additivePosition.termIndex, content: operationPreview }}
+          />
+        </div>
+      );
+    }
+    const previewExpression = applyAdditiveOperationAtPlacement(
+      sideExpression(side),
+      armedTile.operation,
+      parsedOperand,
+      additivePosition,
+    );
+    const previewTerms = splitAdditiveTerms(previewExpression);
     return (
-      <div className={`algebra-equation-side algebra-semantic-placement ${placementClass}`} style={{ fontSize: '34px', margin: '16px 0', display: 'inline-flex', alignItems: 'center', gap: '12px' }}>
-        {inner}<span aria-hidden="true" style={{ fontWeight: 700 }}>{symbol}</span><span className="algebra-staged-operand">{operandMath}</span>
+      <div className={`algebra-equation-side algebra-semantic-placement ${placementClass}`} style={{ fontSize: '34px', margin: '16px 0', display: 'inline-flex', alignItems: 'center' }}>
+        {previewTerms
+          ? <AlgebraTermRow terms={previewTerms} side={side} />
+          : <><span>{inner}</span>{operationPreview}</>}
       </div>
     );
   };
-
   const armedOperationLabel = armedTile ? OPERATIONS.find((item) => item.id === armedTile.operation)?.label : null;
   // What the button says it will apply. The field now holds LaTeX, and
   // "Apply Divide by \\frac{1}{2}" is not a sentence a student should read.
@@ -1191,6 +1387,42 @@ export default function StepByStepAlgebra({
         </div>}
       </div>
 
+      {studentSimplifiableSides.length > 0 && (
+        <div
+          className="algebra-student-simplify-toolbar"
+          style={{
+            margin: '12px auto 4px',
+            padding: '10px 12px',
+            maxWidth: '760px',
+            borderRadius: '12px',
+            border: '1px solid #c7d7f4',
+            background: '#f8fbff',
+            display: 'flex',
+            gap: '8px',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexWrap: 'wrap',
+          }}
+        >
+          <strong style={{ color: '#174ea6', marginRight: '4px' }}>Student-controlled simplification</strong>
+          {studentSimplifiableSides.includes('left') && (
+            <button type="button" className="algebra-check-simplification" onClick={() => simplifyChosenSides(['left'])} disabled={savingStep || cancelAnimating}>
+              Simplify left
+            </button>
+          )}
+          {studentSimplifiableSides.includes('right') && (
+            <button type="button" className="algebra-check-simplification" onClick={() => simplifyChosenSides(['right'])} disabled={savingStep || cancelAnimating}>
+              Simplify right
+            </button>
+          )}
+          {studentSimplifiableSides.length === 2 && (
+            <button type="button" className="algebra-check-simplification" onClick={() => simplifyChosenSides(['left', 'right'])} disabled={savingStep || cancelAnimating}>
+              Simplify both
+            </button>
+          )}
+          <span style={{ color: '#5f6368', fontSize: '12px' }}>Nothing changes unless the student presses a Simplify button.</span>
+        </div>
+      )}
       {pendingMove?.assumption && (
         // Dividing a formula by a letter is only legitimate while that letter
         // is not zero. Solving A = bh for h is not the same statement as

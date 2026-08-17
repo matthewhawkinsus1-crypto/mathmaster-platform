@@ -17,6 +17,7 @@ export default function AlgebraTermRow({
   collapsingIndices = [],
   onTermClick,
   cancelIndexOffset = 0,
+  underTermPreview = null,
 }) {
   return (
     <span
@@ -25,6 +26,7 @@ export default function AlgebraTermRow({
         flexWrap: 'nowrap',
         alignItems: 'center',
         justifyContent: side === 'left' ? 'flex-end' : 'flex-start',
+        paddingBottom: underTermPreview ? '52px' : 0,
       }}
     >
       {terms.map((term, index) => {
@@ -68,6 +70,28 @@ export default function AlgebraTermRow({
             }}
           >
             <MathDisplay value={term.latex} format="latex" inline style={{ fontSize: 'inherit' }} ariaLabel={term.text} />
+            {underTermPreview?.termIndex === index && (
+              <span
+                className="algebra-under-term-operation"
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  whiteSpace: 'nowrap',
+                  color: '#174ea6',
+                  fontWeight: 800,
+                  fontSize: '0.88em',
+                  padding: '3px 7px',
+                  borderRadius: '7px',
+                  background: 'rgba(232,240,254,.96)',
+                  boxShadow: '0 1px 0 rgba(23,78,166,.15)',
+                }}
+              >
+                {underTermPreview.content}
+              </span>
+            )}
             {crossed && (
               <span
                 aria-hidden="true"
