@@ -64,6 +64,9 @@ export default function SimulatedStudentExperience({
   // handed back so the slot's learner — and therefore the Path, the wheel and
   // the recommendation panel — moves with it.
   onSimulatedEvidence = null,
+  onPathBankLoaded = null,
+  onSimulationController = null,
+  onSimulationEvent = null,
 }) {
   const [view, setView] = useState(() => (assignments.length ? 'assignments' : 'path'));
   const availableViews = assignments.length ? VIEWS : VIEWS.filter(([id]) => id === 'path');
@@ -73,6 +76,8 @@ export default function SimulatedStudentExperience({
 
   const evidenceRef = useRef(onSimulatedEvidence);
   evidenceRef.current = onSimulatedEvidence;
+  const bankLoadedRef = useRef(onPathBankLoaded);
+  bankLoadedRef.current = onPathBankLoaded;
 
   // Student Experience uses the ACTUAL secure Path bank, not whatever classroom
   // assignments happen to exist. This is the critical distinction: a student
@@ -85,7 +90,10 @@ export default function SimulatedStudentExperience({
     setPathBankQuestions(null);
     setPathBankError(null);
     fetchTeacherPathBankSnapshot().then((records) => {
-      if (!cancelled) setPathBankQuestions(records);
+      if (!cancelled) {
+        setPathBankQuestions(records);
+        bankLoadedRef.current?.(records);
+      }
     }).catch((error) => {
       if (!cancelled) setPathBankError(error?.message || 'Could not read the secure Path bank.');
     });
@@ -243,6 +251,8 @@ export default function SimulatedStudentExperience({
             masteryData={masteryData}
             sessionProvider={runtime}
             coverageOverride={simulatorCoverage}
+            onSimulationController={onSimulationController}
+            onSimulationEvent={onSimulationEvent}
             evidenceEvents={[]}
             loading={false}
             assessmentContextOverride={assessmentContext}

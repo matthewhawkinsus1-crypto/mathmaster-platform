@@ -20,6 +20,7 @@ import { getDirectAlignmentIndex } from '../../platform/ccmr/assessmentCrosswalk
 import { normalizeAssessmentContext, normalizeQuestionAlignments } from '../../platform/contract/alignments';
 import AssessmentSkillInspector from './AssessmentSkillInspector';
 import SimulatedStudentExperience from './SimulatedStudentExperience';
+import { auditPathQuestionQuality, summarizePathBankQuality, buildPathQuestionRevisionBrief } from '../../platform/path/pathQuestionQuality.js';
 import {
   createSlot, describeSimulatedDate, duplicateSlot, removeSlot, renameSlot, resolveSimulatedNow,
   restoreSnapshot, rewindTo, saveSnapshot, setSimulatedDate, simulatedDateInputValue, updateSlot,
@@ -101,6 +102,22 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
   const [activeSlotId, setActiveSlotId] = useState(() => null);
   const [snapshotLabel, setSnapshotLabel] = useState('');
   const [slotNotice, setSlotNotice] = useState('');
+  const [pathController, setPathController] = useState(null);
+  const [pathBankRecords, setPathBankRecords] = useState([]);
+  const [simulationEvents, setSimulationEvents] = useState([]);
+  const pathBankQuality = useMemo(() => summarizePathBankQuality(pathBankRecords), [pathBankRecords]);
+  const activeBankQuestion = useMemo(() => {
+    const id = pathController?.question?.sourceBankQuestionId;
+    return id ? pathBankRecords.find((item) => item?.id === id) || null : null;
+  }, [pathController, pathBankRecords]);
+  const activeQuestionAudit = useMemo(
+    () => (activeBankQuestion ? auditPathQuestionQuality(activeBankQuestion) : null),
+    [activeBankQuestion],
+  );
+  const pushSimulationEvent = (event) => {
+    if (!event) return;
+    setSimulationEvents((current) => [event, ...current].slice(0, 12));
+  };
 
   const activeSlot = slots.find((slot) => slot.id === activeSlotId) || slots[0];
   // Every existing control below still speaks in terms of one `session`. Slots
@@ -139,6 +156,8 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
   // assignment exists. Question Bench still uses the selected assignment when
   // there is one.
   const startSession = (nextProfileId = profileId) => {
+    setPathController(null);
+    setSimulationEvents([]);
     const seedCodes = mode === 'bench' && teksCodes.length
       ? teksCodes
       : (simulationTargetTeks ? [simulationTargetTeks] : []);
@@ -300,6 +319,20 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
 
   const runOutcome = (outcomeId) => {
     if (!session) return;
+    if (mode === 'experience' && !outcomeId.startsWith('forceSkill')) {
+      if (!pathController?.canForce || typeof pathController.forceOutcome !== 'function') {
+        notify('Start a My Math Path practice question first. The force controls act on the question currently visible to the simulated student.');
+        return;
+      }
+      pathController.forceOutcome(outcomeId).then((result) => {
+        if (!result?.ok) {
+          notify(result?.reason || 'That simulator action could not be applied.');
+          return;
+        }
+        notify(result.event?.label || 'Simulator outcome applied.');
+      });
+      return;
+    }
     if (outcomeId === 'forceSkillMastery' || outcomeId === 'forceSkillFailure') {
       const forced = forceSkillState({
         learner: session.learner,
@@ -318,6 +351,8 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
         ],
         timeline: [...current.timeline, forced.event],
       }));
+      pushSimulationEvent(forced.event);
+      notify(forced.event?.label || 'Forced skill state applied.');
       return;
     }
 
@@ -412,6 +447,9 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                 nowValue={simulatedNow}
                 assessmentEvidence={assessmentEvidence}
                 directIndex={directIndex}
+                onPathBankLoaded={setPathBankRecords}
+                onSimulationController={setPathController}
+                onSimulationEvent={pushSimulationEvent}
                 onChooseSkill={(card) => {
                   // The dashboard's Recommended for You cards are real doors
                   // here too: choosing one opens My Math Path on that skill,
@@ -536,14 +574,86 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                       title={control.hint}
                       disabled={(control.id.startsWith('forceSkill')
                         ? (!teksCodes.length && !simulationTargetTeks)
-                        : (!assignment || !question))}
+                        : !pathController?.canForce)}
                       style={{ ...smallButton, textAlign: 'left', opacity: (control.id.startsWith('forceSkill')
                         ? (!teksCodes.length && !simulationTargetTeks)
-                        : (!assignment || !question)) ? 0.5 : 1 }}
+                        : !pathController?.canForce) ? 0.5 : 1 }}
                     >
                       {control.label}
                     </button>
                   ))}
+                </div>
+
+                <div style={{ margin: '0 0 14px', padding: 11, border: '1px solid #d2e3fc', borderRadius: 9, background: '#f8fbff' }}>
+                  <p style={{ margin: '0 0 7px', fontWeight: 900, fontSize: 13, color: '#174ea6' }}>Current Path question QA</p>
+                  <p style={{ margin: '0 0 8px', fontSize: 11, color: '#5f6368', lineHeight: 1.45 }}>
+                    Bank quality: {pathBankQuality.ready} ready · {pathBankQuality.candidate} candidates · {pathBankQuality.blocked} blocked · {pathBankQuality.total} total
+                  </p>
+                  {pathController?.question ? (
+                    <>
+                      <div style={{ fontSize: 12, lineHeight: 1.5, color: '#3c4043' }}>
+                        <strong>{pathController.question.teksCode || pathController.question.alignmentKey || 'Current skill'}</strong>
+                        {pathController.question.sourceBankQuestionId && <> · <code>{pathController.question.sourceBankQuestionId}</code></>}
+                      </div>
+                      {activeQuestionAudit && (
+                        <div style={{ marginTop: 7 }}>
+                          <span style={pill(activeQuestionAudit.level === 'ready' ? '#137333' : activeQuestionAudit.level === 'blocked' ? '#a50e0e' : '#7a4f00')}>
+                            {activeQuestionAudit.level.toUpperCase()} · {activeQuestionAudit.score}/100
+                          </span>
+                        </div>
+                      )}
+                      {activeBankQuestion?.responseFields?.some((field) => Object.prototype.hasOwnProperty.call(field || {}, 'expected')) && (
+                        <div style={{ marginTop: 8, padding: '8px 9px', borderRadius: 7, background: '#fff', border: '1px solid #e0e4e9', fontSize: 12 }}>
+                          <strong>Secure expected answer</strong>
+                          {activeBankQuestion.responseFields.filter((field) => Object.prototype.hasOwnProperty.call(field || {}, 'expected')).map((field) => (
+                            <div key={field.id || field.label} style={{ marginTop: 4 }}>{field.label || field.id || 'Answer'}: <code>{String(field.expected)}</code></div>
+                          ))}
+                        </div>
+                      )}
+                      {activeQuestionAudit?.issues?.length > 0 && (
+                        <ul style={{ margin: '8px 0 0', paddingLeft: 17, fontSize: 11, color: '#5f6368', lineHeight: 1.45 }}>
+                          {activeQuestionAudit.issues.slice(0, 4).map((issue) => <li key={issue.code}>{issue.message}</li>)}
+                        </ul>
+                      )}
+                      {activeBankQuestion && (
+                        <button
+                          type="button"
+                          style={{ ...smallButton, minHeight: 34, padding: '5px 9px', marginTop: 8, width: '100%' }}
+                          onClick={async () => {
+                            const text = buildPathQuestionRevisionBrief(activeBankQuestion, activeQuestionAudit);
+                            try {
+                              await navigator.clipboard.writeText(text);
+                              notify('Copied a revision brief for this secure bank question.');
+                            } catch {
+                              onCopyText?.(text);
+                              notify('Opened the revision brief so you can copy it.');
+                            }
+                          }}
+                        >
+                          Copy AI revision brief
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <p style={{ margin: 0, fontSize: 12, color: '#5f6368' }}>Start practice to inspect the exact secure bank item being shown.</p>
+                  )}
+                </div>
+
+                <div style={{ margin: '0 0 14px', padding: 11, border: '1px solid #dadce0', borderRadius: 9, background: '#fff' }}>
+                  <p style={{ margin: '0 0 7px', fontWeight: 900, fontSize: 13, color: '#174ea6' }}>Simulation event log</p>
+                  {simulationEvents.length ? (
+                    <ol style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 7 }}>
+                      {simulationEvents.slice(0, 6).map((event) => (
+                        <li key={event.id} style={{ padding: '7px 8px', borderRadius: 7, background: event.kind === 'error' ? '#fce8e6' : event.isCorrect === true ? '#e6f4ea' : '#f8f9fa', fontSize: 11, lineHeight: 1.45 }}>
+                          <strong style={{ color: event.kind === 'error' ? '#a50e0e' : event.isCorrect === true ? '#137333' : '#3c4043' }}>{event.label}</strong>
+                          <div style={{ color: '#5f6368', marginTop: 2 }}>{event.detail}</div>
+                          {event.decision?.explanation && <div style={{ color: '#174ea6', marginTop: 3 }}><strong>Why next:</strong> {event.decision.explanation}</div>}
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p style={{ margin: 0, fontSize: 12, color: '#5f6368' }}>Answer a Path question or use a force control. Every result and route decision will appear here.</p>
+                  )}
                 </div>
 
                 <p style={{ margin: '0 0 6px', fontWeight: 800, fontSize: 13 }}>Snapshots</p>

@@ -19,9 +19,16 @@ export const MyMathPathProductionContainer = ({
   sessionProvider = null,
   onReturnToDashboard,
   onSessionComplete,
+  onSimulationController = null,
+  onSimulationEvent = null,
 }) => {
   const provider = sessionProvider || liveSessionService;
-  const { startOrResumePathSession, fetchNextSanitizedQuestion, submitStudentResponse } = provider;
+  const {
+    startOrResumePathSession,
+    fetchNextSanitizedQuestion,
+    submitStudentResponse,
+    forceCurrentQuestionOutcome = null,
+  } = provider;
   const [session, setSession] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -95,6 +102,25 @@ export const MyMathPathProductionContainer = ({
       } else {
         setCurrentQuestion(null);
       }
+      onSimulationEvent?.({
+        id: `path-event-${Date.now()}`,
+        at: Date.now(),
+        kind: 'student-response',
+        label: result.grading?.isCorrect
+          ? 'Answered correctly'
+          : result.grading?.questionFinalized ? 'Question finalized incorrect' : 'Incorrect attempt',
+        detail: `${currentQuestion.teksCode || currentQuestion.alignmentKey || 'Path skill'} · attempt ${result.grading?.attemptNumber || 0}${result.decision?.explanation ? ` · ${result.decision.explanation}` : ''}`,
+        isCorrect: Boolean(result.grading?.isCorrect),
+        grading: result.grading || null,
+        decision: result.decision || result.session?.lastDecision || null,
+        question: {
+          questionInstanceId: currentQuestion.questionInstanceId,
+          sourceBankQuestionId: currentQuestion.sourceBankQuestionId || null,
+          teksCode: currentQuestion.teksCode || null,
+          prompt: currentQuestion.tool?.prompt || currentQuestion.canonicalQuestion?.prompt || currentQuestion.prompt || '',
+        },
+        session: result.session,
+      });
       // The server's verdict, in the shape QuestionEngine renders feedback
       // from. Under secure grading this is the only verdict that exists.
       return {
@@ -112,6 +138,92 @@ export const MyMathPathProductionContainer = ({
       setSubmitting(false);
     }
   };
+
+  const forceOutcomeFromSimulator = useCallback(async (outcomeId) => {
+    if (!session || !currentQuestion) {
+      return { ok: false, reason: 'Start or open a Path practice question first.' };
+    }
+    if (typeof forceCurrentQuestionOutcome !== 'function') {
+      return { ok: false, reason: 'This runtime does not support teacher force controls.' };
+    }
+    if (submitting) return { ok: false, reason: 'Wait for the current submission to finish.' };
+
+    setSubmitting(true);
+    setSubmissionError(null);
+    try {
+      const before = session;
+      const forced = await forceCurrentQuestionOutcome({
+        sessionId: session.sessionId,
+        questionInstanceId: currentQuestion.questionInstanceId,
+        outcomeId,
+      });
+      setSession(forced.session);
+      setLastGradingResult(forced.grading || null);
+      setCurrentQuestion(forced.questionInstance || null);
+      const event = {
+        id: `path-force-${Date.now()}`,
+        at: Date.now(),
+        kind: 'forced-outcome',
+        outcomeId,
+        label: forced.grading?.skipped
+          ? 'Skipped / abandoned'
+          : forced.grading?.isCorrect ? 'Forced correct' : forced.grading?.questionFinalized ? 'Forced incorrect — finalized' : 'Forced incorrect attempt',
+        detail: `${currentQuestion.teksCode || currentQuestion.alignmentKey || 'Path skill'} · ${before.summary?.completedQuestions || 0} → ${forced.session?.summary?.completedQuestions || 0} completed${forced.decision?.explanation ? ` · ${forced.decision.explanation}` : ''}`,
+        isCorrect: forced.grading?.isCorrect === true,
+        grading: forced.grading || null,
+        decision: forced.decision || forced.session?.lastDecision || null,
+        question: {
+          questionInstanceId: currentQuestion.questionInstanceId,
+          sourceBankQuestionId: currentQuestion.sourceBankQuestionId || null,
+          teksCode: currentQuestion.teksCode || null,
+          prompt: currentQuestion.tool?.prompt || currentQuestion.canonicalQuestion?.prompt || currentQuestion.prompt || '',
+        },
+        nextQuestion: forced.questionInstance ? {
+          sourceBankQuestionId: forced.questionInstance.sourceBankQuestionId || null,
+          teksCode: forced.questionInstance.teksCode || null,
+        } : null,
+        session: forced.session,
+      };
+      onSimulationEvent?.(event);
+      return { ok: true, event };
+    } catch (caught) {
+      const reason = caught?.message || 'The simulator force action failed.';
+      onSimulationEvent?.({
+        id: `path-force-error-${Date.now()}`,
+        at: Date.now(),
+        kind: 'error',
+        label: 'Simulator force action failed',
+        detail: reason,
+        isCorrect: null,
+        question: {
+          sourceBankQuestionId: currentQuestion.sourceBankQuestionId || null,
+          teksCode: currentQuestion.teksCode || null,
+        },
+      });
+      return { ok: false, reason };
+    } finally {
+      setSubmitting(false);
+    }
+  }, [session, currentQuestion, submitting, forceCurrentQuestionOutcome, onSimulationEvent]);
+
+  useEffect(() => {
+    if (!onSimulationController) return undefined;
+    onSimulationController({
+      canForce: Boolean(session && currentQuestion && typeof forceCurrentQuestionOutcome === 'function' && !submitting),
+      session,
+      question: currentQuestion ? {
+        questionInstanceId: currentQuestion.questionInstanceId,
+        sourceBankQuestionId: currentQuestion.sourceBankQuestionId || null,
+        teksCode: currentQuestion.teksCode || null,
+        alignmentKey: currentQuestion.alignmentKey || null,
+        prompt: currentQuestion.tool?.prompt || currentQuestion.canonicalQuestion?.prompt || currentQuestion.prompt || '',
+        attemptsUsed: currentQuestion.attemptsUsed || 0,
+        attemptsAllowed: currentQuestion.attemptsAllowed || 0,
+      } : null,
+      forceOutcome: forceOutcomeFromSimulator,
+    });
+    return () => onSimulationController(null);
+  }, [onSimulationController, session, currentQuestion, submitting, forceCurrentQuestionOutcome, forceOutcomeFromSimulator]);
 
   if (loading) return <div style={{ padding: '60px', textAlign: 'center', color: '#174ea6' }}>Loading your personalized path…</div>;
   if (error) return <div style={{ maxWidth: '560px', margin: '40px auto', padding: '22px', borderRadius: '10px', background: '#fce8e6', color: '#a50e0e', textAlign: 'center' }}><strong>My Math Path could not start</strong><p>{error}</p><button type="button" onClick={initializeSession} style={{ padding: '9px 15px' }}>Retry</button></div>;

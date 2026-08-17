@@ -340,7 +340,7 @@ export const createTeacherPathRuntime = ({
    * student's raw work and the private definition. `isCorrect` in the arguments
    * is only read for a canonical question, which has no contract to grade it.
    */
-  const submitStudentResponse = async ({ sessionId, questionInstanceId, isCorrect, supportUsage = {}, responsePayload = null }) => {
+  const submitStudentResponse = async ({ sessionId, questionInstanceId, isCorrect, supportUsage = {}, responsePayload = null, forcedVerdict = null }) => {
     const session = sessions.get(sessionId);
     if (!session || session.currentQuestion?.questionInstanceId !== questionInstanceId) {
       throw new Error('That simulated question is no longer active.');
@@ -348,7 +348,14 @@ export const createTeacherPathRuntime = ({
     const instance = session.currentQuestion;
 
     let graded = null;
-    if (instance.pathToolId) {
+    if (typeof forcedVerdict === 'boolean') {
+      // Teacher Simulator only: the teacher is explicitly forcing the outcome
+      // of the CURRENT secure Path question. The real session/attempt/routing
+      // machinery still processes the evidence; only answer evaluation is
+      // bypassed for this synthetic action.
+      isCorrect = forcedVerdict;
+      graded = { isCorrect, score: isCorrect ? 1 : 0, parts: [], forced: true };
+    } else if (instance.pathToolId) {
       graded = gradePathResponse({
         privateGrading: session.privateGrading,
         raw: responsePayload?.raw && typeof responsePayload.raw === 'object' ? responsePayload.raw : responsePayload,
@@ -455,10 +462,103 @@ export const createTeacherPathRuntime = ({
     };
   };
 
+  const forceCurrentQuestionOutcome = async ({ sessionId, questionInstanceId = null, outcomeId }) => {
+    const session = sessions.get(sessionId);
+    if (!session) throw new Error('That simulated Path session no longer exists.');
+
+    const ensureQuestion = () => {
+      if (session.currentQuestion) return session.currentQuestion;
+      if (session.status !== 'active') return null;
+      return issue(session, session.currentSkillId, session.lastDecision?.action || PATH_ACTION.CONTINUE);
+    };
+
+    const runAttempt = async (isCorrect, supportUsage = {}) => {
+      const instance = ensureQuestion();
+      if (!instance) throw new Error('There is no active Path question to force.');
+      if (questionInstanceId && instance.questionInstanceId !== questionInstanceId && session.summary.completedQuestions === 0) {
+        throw new Error('The displayed Path question changed before the force action was applied.');
+      }
+      return submitStudentResponse({
+        sessionId,
+        questionInstanceId: instance.questionInstanceId,
+        forcedVerdict: isCorrect,
+        supportUsage,
+        responsePayload: null,
+      });
+    };
+
+    if (outcomeId === 'skip') {
+      const skipped = ensureQuestion();
+      if (!skipped) throw new Error('There is no active Path question to skip.');
+      session.route.push({
+        at: `question ${session.summary.completedQuestions + 1}`,
+        action: PATH_ACTION.CONTINUE,
+        skillId: skipped.skillId,
+        reason: 'teacher_simulator_skip',
+        explanation: 'Teacher Simulator skipped this item without adding mastery evidence.',
+        wasCorrect: null,
+      });
+      session.currentQuestion = null;
+      session.privateGrading = null;
+      session.privateGradingMode = null;
+      const next = session.status === 'active'
+        ? issue(session, session.currentSkillId, PATH_ACTION.CONTINUE)
+        : null;
+      publish(session);
+      return {
+        success: true,
+        grading: { isCorrect: false, skipped: true, questionFinalized: true, attemptNumber: 0, attemptsRemaining: 0 },
+        session: publicSession(session),
+        decision: { action: PATH_ACTION.CONTINUE, reason: 'teacher_simulator_skip', explanation: 'Skipped without evidence.' },
+        needsNextQuestion: Boolean(next),
+        questionInstance: next,
+        forcedOutcomeId: outcomeId,
+      };
+    }
+
+    let result = null;
+    if (outcomeId === 'forceCorrect') {
+      result = await runAttempt(true);
+    } else if (outcomeId === 'forceIncorrect') {
+      result = await runAttempt(false);
+    } else if (outcomeId === 'forceHinted') {
+      result = await runAttempt(true, { hintUsed: true, isMathematicallyIndependent: false });
+    } else if (outcomeId === 'repeatedError') {
+      let guard = 0;
+      do {
+        result = await runAttempt(false);
+        guard += 1;
+      } while (result?.grading && !result.grading.questionFinalized && guard < 6);
+    } else if (outcomeId === 'repeatedSuccess') {
+      let guard = 0;
+      while (session.status === 'active' && session.summary.completedQuestions < session.requiredQuestions && guard < 12) {
+        result = await runAttempt(true);
+        guard += 1;
+        if (session.status === 'active' && !session.currentQuestion) {
+          issue(session, session.currentSkillId, session.lastDecision?.action || PATH_ACTION.CONTINUE);
+        }
+      }
+    } else {
+      throw new Error(`Unsupported Path force outcome: ${outcomeId}`);
+    }
+
+    if (session.status === 'active' && !session.currentQuestion) {
+      issue(session, session.currentSkillId, session.lastDecision?.action || PATH_ACTION.CONTINUE);
+    }
+    publish(session);
+    return {
+      ...result,
+      session: publicSession(session),
+      questionInstance: session.currentQuestion,
+      forcedOutcomeId: outcomeId,
+    };
+  };
+
   return {
     startOrResumePathSession,
     fetchNextSanitizedQuestion,
     submitStudentResponse,
+    forceCurrentQuestionOutcome,
     getLearner: () => learner,
     getSessionAssignments: () => [...sessions.values()].map((session) => sessionAssignment(session.sessionId, session.issued)),
     hasQuestionsFor: (skillId) => bankHasSkill(bank, skillId),
