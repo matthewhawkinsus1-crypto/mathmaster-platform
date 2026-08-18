@@ -27,10 +27,12 @@ test('compound inequalities keep three expressions and two relations', () => {
   assert.deepEqual(state.branches[0].relations, ['<', '<=']);
 });
 
-test('negative division reverses every inequality in a compound chain', () => {
+test('negative division requires the student to choose reversed inequality symbols', () => {
   const state = parseRelationSource('-6 < -2*x <= 10', 'x');
   const result = applyBalancedOperationToRelation(state, 'divide', '-2');
-  assert.deepEqual(result.state.branches[0].relations, ['>', '>=']);
+  assert.deepEqual(result.state.branches[0].relations, ['<', '<=']);
+  assert.equal(result.requiresInequalityFlip, true);
+  assert.deepEqual(result.expectedRelations, ['>', '>=']);
 });
 
 test('ordinary subtraction does not reverse inequality signs', () => {
@@ -58,7 +60,7 @@ test('an explicit negative one before absolute value is recognized', () => {
 });
 
 test('absolute value equality splits into two OR equation branches', () => {
-  const split = buildAbsoluteValueSplit(parseRelationSource('|2*x - 3| = 7', 'x'));
+  const split = buildAbsoluteValueSplit(parseRelationSource('|2*x - 3| = 7', 'x'), 0, 'or');
   assert.equal(split.ready, true);
   assert.equal(split.state.connective, 'OR');
   assert.equal(split.state.branches.length, 2);
@@ -66,7 +68,7 @@ test('absolute value equality splits into two OR equation branches', () => {
 });
 
 test('absolute value less-than becomes one three-part between inequality', () => {
-  const split = buildAbsoluteValueSplit(parseRelationSource('|2*x - 3| < 7', 'x'));
+  const split = buildAbsoluteValueSplit(parseRelationSource('|2*x - 3| < 7', 'x'), 0, 'and');
   assert.equal(split.ready, true);
   assert.equal(split.state.branches.length, 1);
   assert.equal(split.state.branches[0].expressions.length, 3);
@@ -74,7 +76,7 @@ test('absolute value less-than becomes one three-part between inequality', () =>
 });
 
 test('absolute value greater-than becomes two outside OR branches', () => {
-  const split = buildAbsoluteValueSplit(parseRelationSource('|2*x - 3| >= 7', 'x'));
+  const split = buildAbsoluteValueSplit(parseRelationSource('|2*x - 3| >= 7', 'x'), 0, 'or');
   assert.equal(split.ready, true);
   assert.equal(split.state.connective, 'OR');
   assert.equal(split.state.branches.length, 2);
@@ -82,7 +84,7 @@ test('absolute value greater-than becomes two outside OR branches', () => {
 });
 
 test('invisible negative one must be handled before reversing the bars', () => {
-  const split = buildAbsoluteValueSplit(parseRelationSource('-|x - 1| > -5', 'x'));
+  const split = buildAbsoluteValueSplit(parseRelationSource('-|x - 1| > -5', 'x'), 0, 'or');
   assert.equal(split.ready, false);
   assert.match(split.reason, /negative one/i);
 });

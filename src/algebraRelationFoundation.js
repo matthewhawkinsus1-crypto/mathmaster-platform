@@ -1,8 +1,13 @@
 import { evaluate, parse } from 'mathjs';
 import {
+  applyAdditiveOperationAtPlacement,
   expressionToLatex,
+  expressionsEquivalent,
   latexToExpression,
   parseOperationOperand,
+  simplifyStudentExpression,
+  splitAdditiveTerms,
+  splitMultiplicativeFactors,
 } from './algebraAstEngine.js';
 
 const RELATION_LATEX = { '=': '=', '<': '<', '<=': '\\le', '>': '>', '>=': '\\ge' };
@@ -97,6 +102,48 @@ const parseBranch = (raw) => {
   return { expressions, relations };
 };
 
+export const relationSourceFromQuestion = (question = {}) => {
+  const direct = [
+    question.equation,
+    question.equationAscii,
+    question.initialEquation,
+    question.formula,
+    question.equationLatex,
+  ].find((value) => String(value ?? '').trim());
+
+  if (direct) return String(direct).trim();
+
+  const left = String(question.leftExpression ?? '').trim();
+  const right = String(question.rightExpression ?? '').trim();
+  if (left && right) {
+    const relation = String(
+      question.relation
+      || question.comparator
+      || question.inequalitySymbol
+      || '=',
+    ).trim() || '=';
+    return `${left} ${relation} ${right}`;
+  }
+
+  const expressions = Array.isArray(question.expressions)
+    ? question.expressions.map((value) => String(value ?? '').trim()).filter(Boolean)
+    : [];
+  const relations = Array.isArray(question.relations)
+    ? question.relations.map((value) => String(value ?? '').trim()).filter(Boolean)
+    : [];
+
+  if (expressions.length >= 2 && relations.length === expressions.length - 1) {
+    const pieces = [];
+    expressions.forEach((expression, index) => {
+      pieces.push(expression);
+      if (index < relations.length) pieces.push(relations[index]);
+    });
+    return pieces.join(' ');
+  }
+
+  return '';
+};
+
 export const parseRelationSource = (raw, variable = 'x') => {
   const original = normalizeRelationSource(raw);
   const branches = splitBranches(original).map(parseBranch);
@@ -141,10 +188,16 @@ export const relationStateToText = (state) => {
   }).join(state.connective === 'OR' ? ' OR ' : ' ');
 };
 
-const operationExpression = (expression, operation, operand) => {
-  if (operation === 'add') return `(${expression}) + (${operand})`;
-  if (operation === 'subtract') return `(${expression}) - (${operand})`;
-  if (operation === 'multiply') return `(${expression}) * (${operand})`;
+const operationExpression = (expression, operation, operand, placement = null) => {
+  if (operation === 'add' || operation === 'subtract') {
+    if (placement && typeof placement === 'object') {
+      return applyAdditiveOperationAtPlacement(expression, operation, operand, placement);
+    }
+    return operation === 'add'
+      ? `(${expression}) + (${operand})`
+      : `(${expression}) - (${operand})`;
+  }
+  if (operation === 'multiply') return `(${operand}) * (${expression})`;
   if (operation === 'divide') return `(${expression}) / (${operand})`;
   throw new Error('Choose add, subtract, multiply, or divide.');
 };
@@ -153,7 +206,11 @@ export const applyBalancedOperationToRelation = (
   state,
   operation,
   rawOperand,
-  { branchIndex = 0 } = {},
+  {
+    branchIndex = 0,
+    placementByExpression = {},
+    requireExplicitPlacement = false,
+  } = {},
 ) => {
   if (!state || state.special) throw new Error('This solution state cannot receive another balanced operation.');
   const operand = parseOperationOperand(rawOperand);
@@ -167,8 +224,39 @@ export const applyBalancedOperationToRelation = (
   const branch = next.branches[branchIndex];
   if (!branch) throw new Error('Choose a valid branch first.');
 
-  branch.expressions = branch.expressions.map((expression) => (
-    operationExpression(expression, operation, operand.expression)
+  if (requireExplicitPlacement) {
+    const missing = branch.expressions
+      .map((_, expressionIndex) => expressionIndex)
+      .filter((expressionIndex) => {
+        const placement = placementByExpression?.[expressionIndex];
+        if (!placement) return true;
+        if (['multiply', 'divide'].includes(operation)) {
+          return placement.kind !== 'whole-operation';
+        }
+        return !['before', 'under', 'after', 'end'].includes(placement.kind);
+      });
+
+    if (missing.length) {
+      const operationName = operation === 'divide'
+        ? 'division'
+        : operation === 'multiply'
+          ? 'multiplication'
+          : operation === 'subtract'
+            ? 'subtraction'
+            : 'addition';
+      throw new Error(
+        `Place the ${operationName} on every expression region before committing the balanced step.`,
+      );
+    }
+  }
+
+  branch.expressions = branch.expressions.map((expression, expressionIndex) => (
+    operationExpression(
+      expression,
+      operation,
+      operand.expression,
+      placementByExpression?.[expressionIndex] || null,
+    )
   ));
 
   const flip = (
@@ -176,11 +264,18 @@ export const applyBalancedOperationToRelation = (
     && operand.numericValue !== null
     && operand.numericValue < 0
   );
-  if (flip) branch.relations = branch.relations.map(reverseRelation);
+  const requiresInequalityFlip = flip && branch.relations.some((relation) => relation !== '=');
+  const expectedRelations = requiresInequalityFlip
+    ? branch.relations.map(reverseRelation)
+    : null;
 
+  // Do NOT change the visible inequality signs for the student. A negative
+  // multiply/divide creates a pending relation-symbol step in the workspace.
+  // The student must choose the equivalent symbol(s) themselves.
   return {
     state: next,
-    flippedInequality: flip && branch.relations.some((relation) => relation !== '='),
+    requiresInequalityFlip,
+    expectedRelations,
     operand,
   };
 };
@@ -262,6 +357,141 @@ export const describeAbsoluteValueExpression = (expression) => {
   return null;
 };
 
+
+const normalizeSimpleSignedFractionInput = (raw) => {
+  const source = String(raw ?? '').trim().replace(/[−–—]/g, '-');
+
+  // MathLive may put the negative sign beside the whole fraction, in the
+  // numerator, or in the denominator. All are the same number.
+  const match = source.match(
+    /^([+-]?)\s*\\(?:dfrac|tfrac|frac)\{\s*([+-]?\d+(?:\.\d+)?)\s*\}\{\s*([+-]?\d+(?:\.\d+)?)\s*\}$/,
+  );
+  if (!match) return source;
+
+  const outerSign = match[1] === '-' ? -1 : 1;
+  const numerator = Number(match[2]);
+  const denominator = Number(match[3]);
+  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator === 0) {
+    return source;
+  }
+
+  const sign = outerSign * Math.sign(numerator || 1) * Math.sign(denominator || 1);
+  return `${sign < 0 ? '-' : ''}(${Math.abs(numerator)})/(${Math.abs(denominator)})`;
+};
+
+const simpleSignedNumericFractionParts = (expression) => {
+  try {
+    let node = parse(String(expression));
+    while (node?.isParenthesisNode) node = node.content;
+
+    let outerSign = 1;
+    if (node?.isOperatorNode && node.fn === 'unaryMinus' && node.args?.length === 1) {
+      outerSign = -1;
+      node = node.args[0];
+      while (node?.isParenthesisNode) node = node.content;
+    }
+
+    if (!(node?.isOperatorNode && node.fn === 'divide' && node.args?.length === 2)) return null;
+
+    const signedNumeric = (rawNode) => {
+      let child = rawNode;
+      while (child?.isParenthesisNode) child = child.content;
+      let sign = 1;
+      if (child?.isOperatorNode && child.fn === 'unaryMinus' && child.args?.length === 1) {
+        sign = -1;
+        child = child.args[0];
+      }
+      if (!child?.isConstantNode) return null;
+      const value = Number(child.value);
+      return Number.isFinite(value) ? { sign, magnitude: Math.abs(value) } : null;
+    };
+
+    const numerator = signedNumeric(node.args[0]);
+    const denominator = signedNumeric(node.args[1]);
+    if (!numerator || !denominator || denominator.magnitude === 0) return null;
+
+    return {
+      negative: outerSign * numerator.sign * denominator.sign < 0,
+      numerator: numerator.magnitude,
+      denominator: denominator.magnitude,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const unwrapParenthesisNode = (input) => {
+  let node = input;
+  while (node?.isParenthesisNode) node = node.content;
+  return node;
+};
+
+export const relationExpressionToLatex = (expression) => {
+  const fraction = simpleSignedNumericFractionParts(expression);
+  if (fraction) {
+    return `${fraction.negative ? '-' : ''}\\frac{${fraction.numerator}}{${fraction.denominator}}`;
+  }
+
+  // IMPORTANT: for a top-level quotient, keep the parsed mathjs tree intact
+  // and let mathjs render that tree directly to TeX. The previous renderer
+  // converted the numerator node back to a string with implicit
+  // multiplication hidden, then reparsed that string. A numerator such as
+  // -2 * (4*x - 1) could become text like "-2 (4 x - 1)", which the
+  // secondary renderer did not reliably understand and could display as an
+  // empty numerator. That is why the middle of a three-part inequality
+  // appeared to disappear after division.
+  try {
+    let node = unwrapParenthesisNode(parse(String(expression)));
+    let sign = '';
+
+    if (node?.isOperatorNode && node.fn === 'unaryMinus' && node.args?.length === 1) {
+      sign = '-';
+      node = unwrapParenthesisNode(node.args[0]);
+    }
+
+    if (node?.isOperatorNode && node.fn === 'divide' && node.args?.length === 2) {
+      const numerator = unwrapParenthesisNode(node.args[0]);
+      const denominator = unwrapParenthesisNode(node.args[1]);
+
+      const numeratorLatex = numerator.toTex({
+        parenthesis: 'keep',
+        implicit: 'show',
+      });
+      const denominatorLatex = denominator.toTex({
+        parenthesis: 'keep',
+        implicit: 'show',
+      });
+
+      return `${sign}\\frac{${numeratorLatex}}{${denominatorLatex}}`;
+    }
+  } catch {
+    // Fall back to the established display engine below.
+  }
+
+  return expressionToLatex(expression);
+};
+
+export const normalizeRelationExpressionInput = (raw) => {
+  const normalized = normalizeRelationSource(normalizeSimpleSignedFractionInput(raw));
+  if (!normalized) throw new Error('Enter an expression first.');
+  if (/(?:<=|>=|=|<|>)/.test(normalized)) {
+    throw new Error('Enter only one expression here, without a relation symbol.');
+  }
+  return canonicalExpression(normalized);
+};
+
+export const relationExpressionsEquivalent = (left, right, variable = 'x') => {
+  try {
+    return expressionsEquivalent(
+      normalizeRelationExpressionInput(left),
+      normalizeRelationExpressionInput(right),
+      variable,
+    );
+  } catch {
+    return false;
+  }
+};
+
 export const relationContainsInvisibleNegativeAbsolute = (state) => (
   (state?.branches || []).some((branch) => (
     branch.expressions.some((expression) => describeAbsoluteValueExpression(expression)?.coefficient === -1)
@@ -284,7 +514,7 @@ const orientAbsoluteBranch = (branch) => {
 
 const negativeBound = (bound) => `-(${bound})`;
 
-export const buildAbsoluteValueSplit = (state, branchIndex = 0) => {
+export const buildAbsoluteValueSplit = (state, branchIndex = 0, requestedStructure = null) => {
   const oriented = orientAbsoluteBranch(state?.branches?.[branchIndex]);
   if (!oriented) return { ready: false, reason: 'An isolated absolute-value expression is required.' };
 
@@ -295,6 +525,26 @@ export const buildAbsoluteValueSplit = (state, branchIndex = 0) => {
       reason: abs.coefficient === -1
         ? 'The absolute-value bars have an invisible negative one in front. Remove that coefficient first.'
         : 'Isolate the absolute-value expression before reversing the bars.',
+    };
+  }
+
+  const expectedStructure = relation === '=' || relation === '>' || relation === '>='
+    ? 'or'
+    : 'and';
+
+  if (!requestedStructure) {
+    return {
+      ready: false,
+      needsStructureChoice: true,
+      reason: 'Choose the solution structure before reversing the absolute-value bars.',
+    };
+  }
+
+  if (requestedStructure !== expectedStructure) {
+    return {
+      ready: false,
+      needsStructureChoice: true,
+      reason: 'That OR/AND structure is not equivalent to the current absolute-value relation.',
     };
   }
 
@@ -432,6 +682,43 @@ const isVariableExpression = (expression, variable) => {
   }
 };
 
+const expressionContainsVariable = (expression, variable) => {
+  try {
+    const node = parse(String(expression));
+    return node
+      .filter((child) => child?.isSymbolNode && child.name === variable)
+      .length > 0;
+  } catch {
+    // If MathMaster cannot read the expression, do not call the branch solved.
+    return true;
+  }
+};
+
+const isolatedEquationValue = (branch, variable) => {
+  if (
+    !branch
+    || branch.expressions.length !== 2
+    || branch.relations.length !== 1
+    || branch.relations[0] !== '='
+  ) return null;
+
+  const [left, right] = branch.expressions;
+  const leftVar = isVariableExpression(left, variable);
+  const rightVar = isVariableExpression(right, variable);
+
+  // Exactly one side must be the isolated target variable.
+  if (leftVar === rightVar) return null;
+
+  const expression = leftVar ? right : left;
+  if (expressionContainsVariable(expression, variable)) return null;
+
+  return {
+    expression: String(expression).trim(),
+    variableOn: leftVar ? 'left' : 'right',
+  };
+};
+
+
 const relationAsVariable = (branch, variable) => {
   if (!branch || branch.expressions.length !== 2 || branch.relations.length !== 1) return null;
   const [left, right] = branch.expressions;
@@ -459,16 +746,37 @@ const intervalForVariableRelation = ({ relation, bound }) => {
 const chainInterval = (branch, variable) => {
   if (!branch || branch.expressions.length !== 3 || branch.relations.length !== 2) return null;
   if (!isVariableExpression(branch.expressions[1], variable)) return null;
-  const low = numericValue(branch.expressions[0]);
-  const high = numericValue(branch.expressions[2]);
-  if (low === null || high === null) return null;
-  if (!['<', '<='].includes(branch.relations[0]) || !['<', '<='].includes(branch.relations[1])) return null;
-  return {
-    min: low,
-    max: high,
-    minClosed: branch.relations[0] === '<=',
-    maxClosed: branch.relations[1] === '<=',
-  };
+
+  const leftBound = numericValue(branch.expressions[0]);
+  const rightBound = numericValue(branch.expressions[2]);
+  if (leftBound === null || rightBound === null) return null;
+
+  const [leftRelation, rightRelation] = branch.relations;
+
+  // Increasing chain: -4/3 <= x < 13/8.
+  if (['<', '<='].includes(leftRelation) && ['<', '<='].includes(rightRelation)) {
+    if (leftBound > rightBound) return null;
+    return {
+      min: leftBound,
+      max: rightBound,
+      minClosed: leftRelation === '<=',
+      maxClosed: rightRelation === '<=',
+    };
+  }
+
+  // Decreasing chain: 14/3 >= x >= -4/3.
+  // Keep the student's visible orientation. Normalize only the solution interval.
+  if (['>', '>='].includes(leftRelation) && ['>', '>='].includes(rightRelation)) {
+    if (rightBound > leftBound) return null;
+    return {
+      min: rightBound,
+      max: leftBound,
+      minClosed: rightRelation === '>=',
+      maxClosed: leftRelation === '>=',
+    };
+  }
+
+  return null;
 };
 
 export const relationSolutionSummary = (state) => {
@@ -477,28 +785,41 @@ export const relationSolutionSummary = (state) => {
   if (state.special === 'allReals') return { solved: true, kind: 'special', special: 'allReals' };
 
   const variable = state.variable || 'x';
-  const values = [];
+  const isolatedValues = [];
   let equationsOnly = true;
 
   for (const branch of state.branches || []) {
-    if (branch.expressions.length !== 2 || branch.relations.length !== 1 || branch.relations[0] !== '=') {
+    const isolated = isolatedEquationValue(branch, variable);
+    if (!isolated) {
       equationsOnly = false;
       break;
     }
-    const leftVar = isVariableExpression(branch.expressions[0], variable);
-    const rightVar = isVariableExpression(branch.expressions[1], variable);
-    let value = null;
-    if (leftVar) value = numericValue(branch.expressions[1]);
-    else if (rightVar) value = numericValue(branch.expressions[0]);
-    if (value === null) {
-      equationsOnly = false;
-      break;
-    }
-    values.push(value);
+    isolatedValues.push(isolated.expression);
   }
 
-  if (equationsOnly && values.length) {
-    return { solved: true, kind: 'values', values: [...new Set(values)].sort((a, b) => a - b) };
+  if (equationsOnly && isolatedValues.length) {
+    // Preserve the established numeric result shape for ordinary solutions
+    // such as x = 5 OR x = -2.
+    const numericValues = isolatedValues.map((expression) => numericValue(expression));
+    if (numericValues.every((value) => value !== null)) {
+      return {
+        solved: true,
+        kind: 'values',
+        values: [...new Set(numericValues)].sort((a, b) => a - b),
+      };
+    }
+
+    // Exact/symbolic solutions are already finished algebra. Do not require
+    // a student to rationalize, decimalize, simplify radicals, or rewrite a
+    // literal formula merely to make the completion detector happy.
+    const exactValues = [...new Set(isolatedValues)];
+
+    return {
+      solved: true,
+      kind: 'exactValues',
+      exactValues,
+      branchCount: exactValues.length,
+    };
   }
 
   const intervals = [];
@@ -534,10 +855,254 @@ export const obviousSpecialClaim = (state) => {
   return null;
 };
 
+
+const additiveMagnitude = (term) => String(term?.text ?? '').replace(/^[+-]\s*/, '');
+
+const joinAdditiveTermsAfterCancellation = (terms, removedIndices) => {
+  const removed = new Set(removedIndices || []);
+  const remaining = (terms || []).filter((_, index) => !removed.has(index));
+  let result = remaining.map((term) => term.text).join(' ').trim() || '0';
+  result = result.replace(/^\+\s*/, '');
+  return result;
+};
+
+const multiplyFactorTexts = (items) => {
+  if (!items?.length) return '1';
+  if (items.length === 1) return items[0].text;
+  return items.map((item) => `(${item.text})`).join(' * ');
+};
+
+const stripUnaryNegative = (expression) => {
+  try {
+    let node = parse(String(expression));
+    while (node?.isParenthesisNode) node = node.content;
+    if (node?.isOperatorNode && node.fn === 'unaryMinus' && node.args?.length === 1) {
+      return node.args[0].toString({ parenthesis: 'keep', implicit: 'hide' });
+    }
+  } catch {
+    return null;
+  }
+  return null;
+};
+
+export const relationCancellationCandidates = (expression, variable = 'x') => {
+  const terms = splitAdditiveTerms(expression);
+  if (terms?.length > 1) {
+    const pairs = [];
+    for (let first = 0; first < terms.length; first += 1) {
+      for (let second = first + 1; second < terms.length; second += 1) {
+        if (terms[first].sign === terms[second].sign) continue;
+        try {
+          if (expressionsEquivalent(
+            additiveMagnitude(terms[first]),
+            additiveMagnitude(terms[second]),
+            variable,
+          )) {
+            pairs.push({ firstIndex: first, secondIndex: second });
+          }
+        } catch {
+          // Keep looking.
+        }
+      }
+    }
+    if (pairs.length) {
+      return {
+        kind: 'additive',
+        terms,
+        tokenCount: terms.length,
+        pairs,
+      };
+    }
+  }
+
+  const factors = splitMultiplicativeFactors(expression);
+  if (factors?.denominator?.length) {
+    const numerator = factors.numerator || [];
+    const denominator = factors.denominator || [];
+    const pairs = [];
+
+    numerator.forEach((numeratorFactor, numeratorIndex) => {
+      denominator.forEach((denominatorFactor, denominatorIndex) => {
+        try {
+          if (expressionsEquivalent(numeratorFactor.text, denominatorFactor.text, variable)) {
+            pairs.push({
+              firstIndex: numeratorIndex,
+              secondIndex: numerator.length + denominatorIndex,
+              mode: 'factor',
+            });
+            return;
+          }
+
+          // A visible leading minus sign may cancel with a visible denominator
+          // factor of -1: -|3x-7| / -1 -> |3x-7|. Treat the signs as the
+          // cancellable structure instead of demanding identical whole factors.
+          const positiveNumerator = stripUnaryNegative(numeratorFactor.text);
+          if (positiveNumerator && numericValue(denominatorFactor.text) === -1) {
+            pairs.push({
+              firstIndex: numeratorIndex,
+              secondIndex: numerator.length + denominatorIndex,
+              mode: 'sign',
+              numeratorIndex,
+              denominatorIndex,
+              positiveNumerator,
+            });
+          }
+        } catch {
+          // Keep looking.
+        }
+      });
+    });
+
+    if (pairs.length) {
+      return {
+        kind: 'fraction',
+        numerator,
+        denominator,
+        tokenCount: numerator.length + denominator.length,
+        pairs,
+      };
+    }
+  }
+
+  return null;
+};
+
+export const cancelRelationExpressionPair = (
+  expression,
+  firstIndex,
+  secondIndex,
+  variable = 'x',
+) => {
+  const model = relationCancellationCandidates(expression, variable);
+  if (!model) {
+    return { accepted: false, reason: 'Those visible terms or factors do not form a cancellable pair.' };
+  }
+
+  const first = Number(firstIndex);
+  const second = Number(secondIndex);
+  const pair = model.pairs.find((candidate) => (
+    (candidate.firstIndex === first && candidate.secondIndex === second)
+    || (candidate.firstIndex === second && candidate.secondIndex === first)
+  ));
+
+  if (!pair) {
+    return { accepted: false, reason: 'Those two items do not cancel each other.' };
+  }
+
+  if (model.kind === 'additive') {
+    return {
+      accepted: true,
+      kind: 'additive',
+      resultExpression: joinAdditiveTermsAfterCancellation(
+        model.terms,
+        [pair.firstIndex, pair.secondIndex],
+      ),
+      pair,
+    };
+  }
+
+  if (model.kind === 'fraction' && pair.mode === 'sign') {
+    const remainingNumerator = model.numerator.map((factor, index) => (
+      index === pair.numeratorIndex
+        ? { ...factor, text: pair.positiveNumerator }
+        : factor
+    ));
+    const remainingDenominator = model.denominator.filter((_, index) => index !== pair.denominatorIndex);
+    const numeratorText = multiplyFactorTexts(remainingNumerator);
+    const resultExpression = remainingDenominator.length
+      ? `(${numeratorText}) / (${multiplyFactorTexts(remainingDenominator)})`
+      : numeratorText;
+
+    return {
+      accepted: true,
+      kind: 'fraction-sign',
+      resultExpression,
+      pair,
+    };
+  }
+
+  const numeratorCount = model.numerator.length;
+  const numeratorRemoved = new Set();
+  const denominatorRemoved = new Set();
+
+  [pair.firstIndex, pair.secondIndex].forEach((index) => {
+    if (index < numeratorCount) numeratorRemoved.add(index);
+    else denominatorRemoved.add(index - numeratorCount);
+  });
+
+  const remainingNumerator = model.numerator.filter((_, index) => !numeratorRemoved.has(index));
+  const remainingDenominator = model.denominator.filter((_, index) => !denominatorRemoved.has(index));
+
+  const numeratorText = multiplyFactorTexts(remainingNumerator);
+  const resultExpression = remainingDenominator.length
+    ? `(${numeratorText}) / (${multiplyFactorTexts(remainingDenominator)})`
+    : numeratorText;
+
+  return {
+    accepted: true,
+    kind: 'fraction',
+    resultExpression,
+    pair,
+  };
+};
+
+const nearlyInteger = (value) => Math.abs(value - Math.round(value)) < 1e-7;
+
+export const resolveRelationNumberLineConfig = (intervals = [], question = {}) => {
+  const explicitStep = Number(question.numberLineStep);
+  const finiteEndpoints = (intervals || [])
+    .flatMap((interval) => [interval.min, interval.max])
+    .map(Number)
+    .filter(Number.isFinite);
+
+  const candidates = [1, 0.5, 0.25, 0.2, 0.125, 0.1, 0.05, 0.025, 0.02, 0.01];
+  const step = Number.isFinite(explicitStep) && explicitStep > 0
+    ? explicitStep
+    : (candidates.find((candidate) => (
+      finiteEndpoints.every((value) => nearlyInteger(value / candidate))
+    )) || 0.01);
+
+  const explicitMin = Number(question.numberLineMin);
+  const explicitMax = Number(question.numberLineMax);
+  if (Number.isFinite(explicitMin) && Number.isFinite(explicitMax) && explicitMax > explicitMin) {
+    return { min: explicitMin, max: explicitMax, step };
+  }
+
+  if (!finiteEndpoints.length) return { min: -10, max: 10, step };
+
+  const low = Math.min(...finiteEndpoints);
+  const high = Math.max(...finiteEndpoints);
+  const span = Math.max(0, high - low);
+  const padding = span > 0
+    ? Math.max(step * 4, Math.min(2, span * 0.35))
+    : Math.max(step * 4, 3);
+
+  let min = Math.floor((low - padding) / step) * step;
+  let max = Math.ceil((high + padding) / step) * step;
+
+  // Keep the existing number-line component below its 60-tick safety cap while
+  // preserving every required endpoint as a reachable snap location.
+  if ((max - min) / step > 60) {
+    min = Math.floor((low - step * 2) / step) * step;
+    max = Math.ceil((high + step * 2) / step) * step;
+  }
+
+  return {
+    min: Number(min.toFixed(6)),
+    max: Number(max.toFixed(6)),
+    step: Number(step.toFixed(6)),
+  };
+};
+
+export const simplifyRelationExpression = (expression, variable = 'x') => (
+  simplifyStudentExpression(expression, variable)
+);
+
+
 export const needsMultiRelationWorkspace = (question = {}) => {
   if (question.relationWorkspace === true || question.workspaceMode === 'relations') return true;
   if (question.relationWorkspace === false) return false;
-  const source = String(question.equation || question.formula || '');
+  const source = relationSourceFromQuestion(question);
   return /(?:<=|>=|≤|≥|<|>|\||\babs\s*\(|\^\s*\{?2\}?)/i.test(source);
 };
 
