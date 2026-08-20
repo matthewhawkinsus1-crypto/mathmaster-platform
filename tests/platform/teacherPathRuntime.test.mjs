@@ -257,3 +257,93 @@ test('secure bank mode never falls back to classroom assignment questions when t
     /secure Path bank has no issuable question/i,
   );
 });
+
+// --- One selection engine, shared with production ---------------------------
+//
+// The simulator used to pick questions with its own round-robin. That made it a
+// second recommendation engine: a teacher could watch a session that no student
+// would ever be given. These tests pin the simulator to the SAME
+// `selectNextFamily` the Cloud Function calls, and require the reason to be
+// visible rather than inferred.
+
+const bankFamily = (slug, overrides = {}) => ({
+  id: `sel_A_5C_${slug}`,
+  active: true,
+  alignmentKeys: ['texas:A.5C'],
+  courseId: 'algebra1',
+  familyId: `path:A.5C:${slug}`,
+  familyVersion: 1,
+  questionType: 'response',
+  activityRole: 'practice',
+  difficultyBand: 3,
+  dok: 2,
+  taskType: 'procedural',
+  representation: 'symbolic',
+  prompt: `Solve the equation in family ${slug}.`,
+  responseFields: [{ id: 'answer', label: 'Answer', inputProfile: 'number', expected: '4' }],
+  ...overrides,
+});
+
+const selectionRuntime = (bankRecords) => createTeacherPathRuntime({
+  assignments: [],
+  pathBankQuestions: bankRecords,
+  courseId: 'algebra1',
+  learner: { id: 'teacherSimulation:T1:selection', gradesByAssignment: {} },
+});
+
+test('a simulated session does not repeat a family while unused families remain', async () => {
+  const runtime = selectionRuntime([
+    bankFamily('a'),
+    bankFamily('b', { representation: 'table', taskType: 'interpretation' }),
+    bankFamily('c', { representation: 'context', taskType: 'application', difficultyBand: 4 }),
+    bankFamily('d', { representation: 'verbal', taskType: 'errorAnalysis' }),
+  ]);
+  const { session } = await runtime.startOrResumePathSession({ targetAlignmentKey: ORIGIN, requiredQuestions: 4 });
+
+  const issuedIds = [];
+  for (let i = 0; i < 4; i += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    const { questionInstance } = await runtime.fetchNextSanitizedQuestion({ sessionId: session.sessionId });
+    issuedIds.push(questionInstance.sourceBankQuestionId);
+    // eslint-disable-next-line no-await-in-loop
+    await runtime.submitStudentResponse({
+      sessionId: session.sessionId,
+      questionInstanceId: questionInstance.questionInstanceId,
+      responsePayload: { responses: { answer: '4' } },
+      supportUsage: { isMathematicallyIndependent: true },
+    });
+  }
+
+  assert.equal(new Set(issuedIds).size, 4, 'four questions from four families must be four distinct items');
+});
+
+test('a simulated session varies representation before it varies difficulty', async () => {
+  const runtime = selectionRuntime([
+    bankFamily('same-rep-1'),
+    bankFamily('same-rep-2'),
+    bankFamily('other-rep', { representation: 'table', taskType: 'interpretation' }),
+  ]);
+  const { session } = await runtime.startOrResumePathSession({ targetAlignmentKey: ORIGIN, requiredQuestions: 2 });
+
+  const first = await runtime.fetchNextSanitizedQuestion({ sessionId: session.sessionId });
+  await runtime.submitStudentResponse({
+    sessionId: session.sessionId,
+    questionInstanceId: first.questionInstance.questionInstanceId,
+    responsePayload: { responses: { answer: '4' } },
+    supportUsage: { isMathematicallyIndependent: true },
+  });
+  const second = await runtime.fetchNextSanitizedQuestion({ sessionId: session.sessionId });
+
+  assert.notEqual(second.questionInstance.selectedRepresentation, first.questionInstance.selectedRepresentation);
+});
+
+test('the simulator can say why a question was chosen without revealing anything about the answer', async () => {
+  const runtime = selectionRuntime([bankFamily('only')]);
+  const { session } = await runtime.startOrResumePathSession({ targetAlignmentKey: ORIGIN, requiredQuestions: 1 });
+  const { questionInstance } = await runtime.fetchNextSanitizedQuestion({ sessionId: session.sessionId });
+
+  assert.ok(questionInstance.selectionReason, 'a chosen question must carry the reason it was chosen');
+  assert.ok(questionInstance.contentQuality, 'a chosen question must carry its content-quality state');
+  assert.equal(typeof questionInstance.selectedBand, 'number');
+  assert.equal(JSON.stringify(questionInstance).includes('"expected"'), false, 'selection metadata must not smuggle the answer key');
+});

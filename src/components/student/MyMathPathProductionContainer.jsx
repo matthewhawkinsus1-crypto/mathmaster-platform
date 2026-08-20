@@ -304,6 +304,17 @@ export const MyMathPathProductionContainer = ({
         representation: currentQuestion.representation || null,
         attemptsUsed: currentQuestion.attemptsUsed || 0,
         attemptsAllowed: currentQuestion.attemptsAllowed || 0,
+        // Teacher-facing selection provenance. The student's own UI never
+        // renders any of this; it exists so "why this question?" is
+        // answerable in the simulator without guessing.
+        selectionReason: currentQuestion.selectionReason || null,
+        contentQuality: currentQuestion.contentQuality || null,
+        selectedTaskType: currentQuestion.selectedTaskType || currentQuestion.taskType || null,
+        selectedBand: currentQuestion.selectedBand ?? currentQuestion.difficultyBand ?? null,
+        preferredBand: currentQuestion.preferredBand ?? null,
+        unusedFamiliesRemaining: currentQuestion.unusedFamiliesRemaining ?? null,
+        isRepeatFamily: currentQuestion.isRepeatFamily ?? null,
+        pathRole: currentQuestion.pathRole || currentQuestion.activityRole || null,
       } : null,
       forceOutcome: forceOutcomeFromSimulator,
     });

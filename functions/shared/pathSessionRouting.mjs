@@ -368,6 +368,15 @@ export const explainStepForStudent = (decision) => {
         message: 'Your work is saved. Check in with your teacher before you carry on with this skill.',
         tone: 'teacher',
       };
+    case PATH_ACTION.COMPLETE:
+      return {
+        headline,
+        message: 'You finished this set. Your work is saved and it counts toward what you have shown you can do.',
+        tone: 'complete',
+      };
+    // CONTINUE deliberately falls through to null. A banner that says "the
+    // session continues" after every correct answer is noise, and noise is how
+    // real explanations stop being read.
     default:
       return null;
   }

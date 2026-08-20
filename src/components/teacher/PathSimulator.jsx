@@ -62,6 +62,15 @@ const input = {
   border: '1px solid #c9ced6', borderRadius: 8, boxSizing: 'border-box', background: '#fff', color: '#202124',
 };
 
+// Plain English for the selector's own reason codes. Teacher-facing only.
+const SELECTION_REASON_LABEL = {
+  production_family_with_a_new_representation: 'Polished family showing a representation this session has not used yet',
+  production_family: 'Polished family — quality outranks a closer difficulty band',
+  unused_family_in_preferred_band: 'Unused family at this student\'s readiness band',
+  unused_family_in_adjacent_band: 'Unused family one band away — nothing left at the exact band',
+  all_families_used_repeating_least_used: 'Every family has been used; repeating the least-used one',
+};
+
 const STRENGTH_COLOR = { hard: '#a50e0e', soft: '#7a4f00', reinforcement: '#5f6368' };
 const STRENGTH_LABEL = { hard: 'Required', soft: 'Helpful', reinforcement: 'Related' };
 
@@ -601,6 +610,58 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                             {activeQuestionAudit.level.toUpperCase()} · {activeQuestionAudit.score}/100
                           </span>
                         </div>
+                      )}
+                      {/* Why the engine chose THIS family. The student never
+                          sees any of it; a teacher asking "why this question?"
+                          should not have to infer the answer. */}
+                      {(pathController.question.selectionReason
+                        || pathController.question.selectedBand !== null
+                        || pathController.question.representation) && (
+                        <dl style={{ margin: '8px 0 0', padding: '8px 9px', borderRadius: 7, background: '#fff', border: '1px solid #e0e4e9', fontSize: 11, lineHeight: 1.5, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '3px 8px' }}>
+                          {pathController.question.selectionReason && (
+                            <>
+                              <dt style={{ fontWeight: 800, color: '#5f6368' }}>Chosen because</dt>
+                              <dd style={{ margin: 0 }}>{SELECTION_REASON_LABEL[pathController.question.selectionReason] || pathController.question.selectionReason.replace(/_/g, ' ')}</dd>
+                            </>
+                          )}
+                          {pathController.question.selectedBand !== null && pathController.question.selectedBand !== undefined && (
+                            <>
+                              <dt style={{ fontWeight: 800, color: '#5f6368' }}>Band</dt>
+                              <dd style={{ margin: 0 }}>
+                                {pathController.question.selectedBand}
+                                {pathController.question.preferredBand !== null && pathController.question.preferredBand !== undefined
+                                  && ` (readiness band ${pathController.question.preferredBand})`}
+                              </dd>
+                            </>
+                          )}
+                          {pathController.question.representation && (
+                            <>
+                              <dt style={{ fontWeight: 800, color: '#5f6368' }}>Representation</dt>
+                              <dd style={{ margin: 0 }}>{pathController.question.representation}</dd>
+                            </>
+                          )}
+                          {pathController.question.selectedTaskType && (
+                            <>
+                              <dt style={{ fontWeight: 800, color: '#5f6368' }}>Thinking</dt>
+                              <dd style={{ margin: 0 }}>{pathController.question.selectedTaskType}</dd>
+                            </>
+                          )}
+                          {pathController.question.contentQuality && (
+                            <>
+                              <dt style={{ fontWeight: 800, color: '#5f6368' }}>Content state</dt>
+                              <dd style={{ margin: 0 }}>{pathController.question.contentQuality}</dd>
+                            </>
+                          )}
+                          {pathController.question.unusedFamiliesRemaining !== null && pathController.question.unusedFamiliesRemaining !== undefined && (
+                            <>
+                              <dt style={{ fontWeight: 800, color: '#5f6368' }}>Unused families left</dt>
+                              <dd style={{ margin: 0 }}>
+                                {pathController.question.unusedFamiliesRemaining}
+                                {pathController.question.isRepeatFamily ? ' · this one is a repeat' : ''}
+                              </dd>
+                            </>
+                          )}
+                        </dl>
                       )}
                       {activeBankQuestion?.responseFields?.some((field) => Object.prototype.hasOwnProperty.call(field || {}, 'expected')) && (
                         <div style={{ marginTop: 8, padding: '8px 9px', borderRadius: 7, background: '#fff', border: '1px solid #e0e4e9', fontSize: 12 }}>

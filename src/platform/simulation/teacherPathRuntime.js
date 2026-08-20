@@ -31,6 +31,7 @@ import {
 import { buildFieldGradingDefinition, hasFieldGradableDefinition } from '../../../functions/shared/legacyFieldGrading.mjs';
 import { buildAttemptSupportPayload, buildPrivateSupport } from '../../../functions/shared/pathSolutionSupport.mjs';
 import { sameValue } from '../../../functions/shared/answerEquivalence.mjs';
+import { selectNextFamily, recordFamilyUse } from '../../../functions/shared/pathQuestionSelection.mjs';
 import { getQuestionPrimaryTeksCodes } from '../../questionMetadata.js';
 import { teksSkillId, teksCodeFromSkillId, describeSkill } from '../path/skillGraph.js';
 import { buildMasteryBySkillForStudent } from '../path/masteryAdapter.js';
@@ -230,12 +231,28 @@ export const createTeacherPathRuntime = ({
     simulated: true,
   });
 
-  /** Pick the next authored question for a skill, avoiding immediate repeats. */
+  /**
+   * Pick the next authored question for a skill.
+   *
+   * This is the PRODUCTION selector — the same `selectNextFamily` the Cloud
+   * Function calls, over the same session-usage state. A teacher simulating a
+   * student must be shown the item that student would actually be issued; a
+   * simulator with its own cheaper rule (the round-robin that used to live
+   * here) quietly becomes a second recommendation engine, which is the one
+   * thing this architecture is not allowed to grow.
+   */
   const chooseQuestion = (session, skillId) => {
     const candidates = bank.get(skillId) || [];
     if (!candidates.length) return null;
-    const seen = session.issued.filter((entry) => entry.skillId === skillId).length;
-    return candidates[seen % candidates.length];
+    const byQuestion = new Map(candidates.map((entry) => [entry.question, entry]));
+    const choice = selectNextFamily(candidates.map((entry) => entry.question), {
+      preferredBand: session.preferredBand || 3,
+      usage: session.familyUsage || {},
+      usedRepresentations: session.usedRepresentations || [],
+      usedTaskTypes: session.usedTaskTypes || [],
+    });
+    if (!choice) return null;
+    return { ...byQuestion.get(choice.question), selection: choice };
   };
 
   const issue = (session, skillId, role) => {
@@ -245,6 +262,7 @@ export const createTeacherPathRuntime = ({
       session.blockedSkillId = skillId;
       return null;
     }
+    const selection = chosen.selection || null;
     const questionInstanceId = uid('qi');
     // The secure payload if this tool has a contract, and nothing at all if it
     // does not — the same allowlist the server applies.
@@ -279,7 +297,26 @@ export const createTeacherPathRuntime = ({
       sourceAssignmentId: chosen.sourceAssignmentId,
       sourceQuestionIndex: chosen.sourceQuestionIndex,
       sourceBankQuestionId: chosen.sourceBankQuestionId,
+      // Why THIS item, in the same fields production returns. Teacher-facing
+      // only — none of it identifies the answer.
+      selectionReason: selection?.reason || null,
+      contentQuality: selection?.quality || null,
+      selectedRepresentation: selection?.representation || null,
+      selectedTaskType: selection?.taskType || null,
+      selectedBand: selection?.band ?? null,
+      preferredBand: selection?.preferredBand ?? null,
+      unusedFamiliesRemaining: selection?.unusedRemaining ?? null,
+      isRepeatFamily: selection?.isRepeat ?? null,
     };
+    // Session-level usage, so the next pick can prefer an unused family and a
+    // representation this session has not shown yet.
+    session.familyUsage = recordFamilyUse(session.familyUsage || {}, chosen.question?.id, session.issued.length + 1);
+    if (selection?.representation) {
+      session.usedRepresentations = [...new Set([...(session.usedRepresentations || []), selection.representation])];
+    }
+    if (selection?.taskType) {
+      session.usedTaskTypes = [...new Set([...(session.usedTaskTypes || []), selection.taskType])];
+    }
     // The grading definition stays here, alongside the session, exactly as the
     // server keeps it in `session.currentQuestion`. It is never part of the
     // instance handed to the renderer.
@@ -332,9 +369,17 @@ export const createTeacherPathRuntime = ({
       lastDecision: null,
       summary: { completedQuestions: 0, correctQuestions: 0, independentSuccesses: 0 },
       evidenceBySkill: { [skillId]: emptyEvidence() },
+      // Selection state, identical in shape to the live session document.
+      preferredBand: 3,
+      familyUsage: {},
+      usedRepresentations: [],
+      usedTaskTypes: [],
       issued: [],
       route: [{ at: 'start', skillId, reason: 'session_target', explanation: `Session started on ${describeSkill(skillId).shortLabel || code}.` }],
       currentQuestion: null,
+      // submissionId -> the result that submission produced. Bounded by the
+      // handful of questions in a session, so it needs no eviction.
+      submissions: new Map(),
     };
     sessions.set(session.sessionId, session);
     publish(session);
@@ -363,12 +408,32 @@ export const createTeacherPathRuntime = ({
    * student's raw work and the private definition. `isCorrect` in the arguments
    * is only read for a canonical question, which has no contract to grade it.
    */
-  const submitStudentResponse = async ({ sessionId, questionInstanceId, isCorrect, supportUsage = {}, responsePayload = null, forcedVerdict = null }) => {
+  const submitStudentResponse = async ({ sessionId, questionInstanceId, submissionId = null, isCorrect, supportUsage = {}, responsePayload = null, forcedVerdict = null }) => {
     const session = sessions.get(sessionId);
-    if (!session || session.currentQuestion?.questionInstanceId !== questionInstanceId) {
+    if (!session) throw new Error('That simulated session no longer exists.');
+
+    // Idempotency, exactly as production does it. A dropped response on a
+    // Chromebook makes the container retry with the SAME submission id; that
+    // retry must return the first result rather than burn a second attempt.
+    // The simulator has to honour this too, or a teacher testing a flaky
+    // network watches behaviour no student would get.
+    if (submissionId && session.submissions?.has(submissionId)) {
+      return session.submissions.get(submissionId);
+    }
+
+    if (session.currentQuestion?.questionInstanceId !== questionInstanceId) {
       throw new Error('That simulated question is no longer active.');
     }
     const instance = session.currentQuestion;
+    // Every return path below goes through this, so a replay of any of them —
+    // rejected, mid-question, or finalized — replays identically.
+    const remember = (result) => {
+      if (submissionId) {
+        if (!session.submissions) session.submissions = new Map();
+        session.submissions.set(submissionId, result);
+      }
+      return result;
+    };
 
     let graded = null;
     if (typeof forcedVerdict === 'boolean') {
@@ -385,14 +450,14 @@ export const createTeacherPathRuntime = ({
       });
       if (graded.rejected) {
         // Not marked wrong — not marked at all. The attempt does not count.
-        return {
+        return remember({
           success: false,
           rejected: true,
           reason: graded.reason,
           grading: { isCorrect: false, attemptNumber: instance.attemptsUsed || 0, attemptsRemaining: instance.attemptsAllowed - (instance.attemptsUsed || 0), questionFinalized: false, rejected: true, reason: graded.reason },
           session: publicSession(session),
           needsNextQuestion: false,
-        };
+        });
       }
       isCorrect = graded.isCorrect;
     } else if (session.privateGradingMode === 'fields') {
@@ -417,7 +482,7 @@ export const createTeacherPathRuntime = ({
     if (!finalized) {
       // Attempts within a question are for assistance, not evidence of a gap.
       publish(session);
-      return {
+      return remember({
         success: true,
         grading: { isCorrect: false, score: graded?.score ?? 0, parts: graded?.parts || [], attemptNumber: instance.attemptsUsed, attemptsRemaining: instance.attemptsAllowed - instance.attemptsUsed, questionFinalized: false },
         feedback: attemptSupport.feedback,
@@ -425,7 +490,7 @@ export const createTeacherPathRuntime = ({
         solutionReview: null,
         session: publicSession(session),
         needsNextQuestion: false,
-      };
+      });
     }
 
     // Finalized: this is now evidence.
@@ -506,7 +571,7 @@ export const createTeacherPathRuntime = ({
     session.privateSupport = null;
     publish(session);
 
-    return {
+    return remember({
       success: true,
       grading: { isCorrect: isCorrect === true, score: graded?.score ?? (isCorrect ? 1 : 0), parts: graded?.parts || [], attemptNumber: instance.attemptsUsed, attemptsRemaining: 0, questionFinalized: true },
       feedback: attemptSupport.feedback,
@@ -515,7 +580,7 @@ export const createTeacherPathRuntime = ({
       session: publicSession(session),
       decision,
       needsNextQuestion: session.status === 'active',
-    };
+    });
   };
 
   const forceCurrentQuestionOutcome = async ({ sessionId, questionInstanceId = null, outcomeId }) => {
