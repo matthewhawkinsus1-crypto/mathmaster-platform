@@ -55,6 +55,37 @@ export const MISSES_BEFORE_ROUTING = 2;
 // Past this many excursions deep, the answer is a person.
 export const MAX_EXCURSION_DEPTH = 2;
 
+// How many finalized misses on ONE skill before the session stops trying to
+// solve this by itself.
+//
+// THE PATHOLOGY THIS CLOSES. The depth limit only counts DESCENTS. A student
+// who descended once into a repair skill and then kept missing THAT skill sat
+// at depth 1 forever: the planner found its prerequisites intact, returned
+// "reteach in place", and the session answered SUPPORTED_RETRY on the same
+// skill indefinitely. The excursion never closed, the student never went home,
+// and the teacher escalation could never fire — in an 840-learner sweep, 42
+// runs ended this way and TEACHER_SUPPORT fired zero times.
+//
+// Inside an excursion the threshold is tighter: the student is already away
+// from the work they came to do, so a stall there costs them more.
+export const STALL_MISSES_IN_EXCURSION = 4;
+export const STALL_MISSES_ON_TARGET = 6;
+
+// The longest a repair excursion may run before the student goes home anyway.
+//
+// THE SECOND PATHOLOGY. Consecutive-miss counting closes the "always failing"
+// case, but not the "roughly half right" one: a student answering the repair
+// skill at about a coin flip never accumulates enough misses in a row to stall,
+// and never lifts the blended mastery to the return threshold either. In the
+// sweep those learners sat in the repair skill indefinitely — never failing
+// badly enough to escalate, never succeeding well enough to leave.
+//
+// An excursion is a detour, and a detour has a length. Past this, the student
+// is brought back to the work they actually came to do, with support, rather
+// than being left living in the prerequisite. That is the "do not strand the
+// student in remediation" rule made enforceable.
+export const MAX_EXCURSION_QUESTIONS = 6;
+
 export const MASTERY_FOR_ENRICHMENT = 0.9;
 
 const clamp01 = (value) => Math.max(0, Math.min(1, Number(value) || 0));
@@ -124,6 +155,14 @@ export const decideNextStep = ({
     return detail.studentLabel || detail.shortLabel || skillId;
   };
 
+  // An excursion that has gone on long enough. The student goes home with
+  // support even though the repair has not fully held — staying is worse. This
+  // is checked BEFORE the satisfaction test only in the sense that both are
+  // exits; satisfaction is the good exit and is tried first below.
+  const questionsInExcursion = excursion && currentSkillId === excursion.targetSkillId
+    ? Number(sessionEvidence?.finalized) || 0
+    : 0;
+
   // On an excursion and the repair has held: bridge back rather than dropping
   // the student straight into the skill that defeated them.
   if (excursion && excursionSatisfied({ excursion, masteryBySkill })) {
@@ -136,8 +175,34 @@ export const decideNextStep = ({
     });
   }
 
-  // The session's work is done.
+  // The detour has run its length. Home, with support.
+  if (excursion && questionsInExcursion >= MAX_EXCURSION_QUESTIONS) {
+    return step(PATH_ACTION.RETURN_TO_ORIGIN, {
+      skillId: excursion.originSkillId,
+      returnTo: excursion.originSkillId,
+      excursion: null,
+      reason: 'excursion_length_limit',
+      explanation: `That is enough time on ${described(excursion.targetSkillId)} for now. The next question goes back to ${described(excursion.originSkillId)} with more support.`,
+    });
+  }
+
+  // The session's work is done — if it actually gathered anything.
   if (completedQuestions >= requiredQuestions && !excursion) {
+    // A student who answered the full set and got none of it right has not
+    // produced "the evidence it needed"; they have produced evidence that
+    // something is wrong. Closing the session with a cheerful summary here both
+    // misleads the student and hides them from their teacher — and it was
+    // reachable whenever the skill had no routable prerequisite to descend to,
+    // so the stall guard below never got a turn.
+    const missedThisSession = Number(sessionEvidence?.missed) || 0;
+    const correctThisSession = Math.max(0, completedQuestions - missedThisSession);
+    if (correctThisSession === 0 && missedThisSession >= requiredQuestions) {
+      return step(PATH_ACTION.TEACHER_SUPPORT, {
+        skillId: currentSkillId,
+        reason: 'full_session_without_a_success',
+        explanation: 'A full set of questions went by without one landing, and there is no earlier skill to drop back to. A teacher should look at this rather than the session starting again.',
+      });
+    }
     return step(PATH_ACTION.COMPLETE, {
       skillId: currentSkillId,
       reason: 'required_questions_met',
@@ -236,7 +301,33 @@ export const decideNextStep = ({
   }
 
   // Prerequisites are solid, or there is nothing underneath. The work belongs
-  // here, supported.
+  // here, supported — UNLESS the student has been here long enough that
+  // "supported retry" has stopped being a plan.
+  //
+  // This is the guard that was missing. Without it the two branches above are
+  // the only exits, and neither can be reached by a student who is failing a
+  // skill whose prerequisites are already intact: the depth limit counts
+  // descents, and no descent is happening. The session simply repeated itself.
+  // CONSECUTIVE misses, deliberately, not total ones. A student who has missed
+  // four questions spread across a long session is having a normal time of it
+  // and may well be improving; a student who has missed four in a row is stuck.
+  // Counting totals would escalate — and therefore END the session for — a
+  // student who started badly and was getting better, which is the opposite of
+  // helping them.
+  const consecutive = Number(sessionEvidence?.consecutiveMisses) || 0;
+  const stallLimit = excursion ? STALL_MISSES_IN_EXCURSION : STALL_MISSES_ON_TARGET;
+  if (consecutive >= stallLimit) {
+    return step(PATH_ACTION.TEACHER_SUPPORT, {
+      skillId: currentSkillId,
+      excursion,
+      plan,
+      reason: excursion ? 'stalled_in_remediation' : 'stalled_on_target',
+      explanation: excursion
+        ? 'This repair has not started to hold, and routing deeper is not the answer. A teacher should look at it before the student goes further.'
+        : 'The prerequisites for this skill are in place and it is still not holding. A teacher should look at it rather than the session repeating itself.',
+    });
+  }
+
   return step(PATH_ACTION.SUPPORTED_RETRY, {
     skillId: currentSkillId,
     excursion,
