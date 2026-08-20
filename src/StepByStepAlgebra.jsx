@@ -1168,7 +1168,9 @@ export default function StepByStepAlgebra({
   };
 
   const activateTapPlacement = () => {
-    if (!mobileInteraction.isMobile || !armedTile || pendingMove || disabled || savingStep) return;
+    // The `isMobile` guard used to live here too, so even a caller that reached
+    // this function on a desktop was turned away at the door.
+    if (!armedTile || pendingMove || disabled || savingStep) return;
     if (!String(operand || '').trim()) {
       setMessage({ tone: 'growth', text: 'Type the operation value or expression first.' });
       setOperationFocusSignal((value) => value + 1);
@@ -1183,7 +1185,7 @@ export default function StepByStepAlgebra({
   };
 
   const tapPlacementOnSide = (side, event) => {
-    if (!mobileInteraction.isMobile || !tapPlacementArmed || !armedTile || pendingMove || disabled || savingStep) return;
+    if (!tapPlacementArmed || !armedTile || pendingMove || disabled || savingStep) return;
     const additiveTarget = !isFactorOperation(armedTile.operation)
       ? resolveAdditivePlacementFromPoint(side, event?.clientX, event?.clientY)
       : null;
@@ -1609,12 +1611,15 @@ export default function StepByStepAlgebra({
                 key={side}
                 ref={side === 'left' ? leftSideRef : rightSideRef}
                 className={`algebra-equation-box algebra-connected-side ${dragOverSide === side ? 'is-hovered' : ''} ${stagedHere ? 'has-staged-operation' : ''} ${mobileInteraction.isMobile && tapPlacementArmed ? 'mathmaster-tap-placement-ready' : ''}`}
-                role={mobileInteraction.isMobile && tapPlacementArmed ? 'button' : undefined}
-                tabIndex={mobileInteraction.isMobile && tapPlacementArmed ? 0 : undefined}
-                aria-label={mobileInteraction.isMobile && tapPlacementArmed ? `Place ${describeOperation(armedTile?.operation, operand)} on the ${side} side` : undefined}
+                role={tapPlacementArmed ? 'button' : undefined}
+                tabIndex={tapPlacementArmed ? 0 : undefined}
+                aria-label={tapPlacementArmed ? `Place ${describeOperation(armedTile?.operation, operand)} on the ${side} side` : undefined}
                 onClick={(event) => tapPlacementOnSide(side, event)}
                 onKeyDown={(event) => {
-                  if (mobileInteraction.isMobile && tapPlacementArmed && (event.key === 'Enter' || event.key === ' ')) {
+                  /* Not gated on isMobile any more. A student on a Chromebook
+                     with a keyboard is not a mobile user, and was the one group
+                     this workspace locked out entirely. */
+                  if (tapPlacementArmed && (event.key === 'Enter' || event.key === ' ')) {
                     event.preventDefault();
                     tapPlacementOnSide(side, event);
                   }
@@ -1712,14 +1717,22 @@ export default function StepByStepAlgebra({
           <button
             type="button"
             className={`algebra-pickup-button ${mobileInteraction.isMobile ? 'is-tap-placement-button' : ''}`}
-            onClick={mobileInteraction.isMobile ? activateTapPlacement : undefined}
+            /* Tap-or-keyboard placement used to be gated on `isMobile`, which
+               meant a DESKTOP keyboard user found `onClick` undefined: pressing
+               Enter on "Pick up" did nothing at all, and dragging was the only
+               way to apply an operation. The select-then-place route is now
+               available to everyone; pointer dragging still works exactly as
+               before for anyone who prefers it. */
+            onClick={activateTapPlacement}
             onPointerDown={mobileInteraction.isMobile ? undefined : (event) => beginPointerDrag(armedTile.operation, event)}
             onPointerMove={mobileInteraction.isMobile ? undefined : onDragPointerMove}
             onPointerUp={mobileInteraction.isMobile ? undefined : onDragPointerUp}
             onPointerCancel={mobileInteraction.isMobile ? undefined : onDragPointerCancel}
             disabled={disabled || savingStep || !String(operand || '').trim()}
-            title={mobileInteraction.isMobile ? 'Arm this operation, then tap the equation where it belongs' : 'Drag this operation onto one side of the equation'}
-            aria-pressed={mobileInteraction.isMobile ? tapPlacementArmed : undefined}
+            title={mobileInteraction.isMobile
+              ? 'Arm this operation, then tap the equation where it belongs'
+              : 'Drag this operation onto one side of the equation, or press Enter and then choose a side'}
+            aria-pressed={tapPlacementArmed}
           >
             {mobileInteraction.isMobile ? (tapPlacementArmed ? 'Ready to place ' : 'Use ') : '⠿ Pick up '}
             {operandLabel ? <OperationChip token={describeOperationToken(armedTile.operation, operand)} /> : 'operation'}

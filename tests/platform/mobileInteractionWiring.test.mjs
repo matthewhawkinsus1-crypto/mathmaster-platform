@@ -8,13 +8,20 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../..');
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 
-test('Step Algebra uses tap-to-place on mobile instead of requiring a cross-viewport drag', () => {
+test('Step Algebra offers select-then-place instead of requiring a cross-viewport drag', () => {
   const src = read('src/StepByStepAlgebra.jsx');
   assert.match(src, /tapPlacementArmed/);
   assert.match(src, /tapPlacementOnSide/);
   assert.match(src, /semanticPlacementFromTap/);
   assert.match(src, /algebra-mobile-operation-palette/);
-  assert.match(src, /mobileInteraction\.isMobile \? activateTapPlacement/);
+  // This assertion used to pin `mobileInteraction.isMobile ? activateTapPlacement`
+  // — the very gating that locked keyboard users out on a desktop. The
+  // select-then-place route is now available to EVERY device, which satisfies
+  // the original intent more strongly rather than less.
+  assert.match(src, /onClick=\{activateTapPlacement\}/,
+    'the non-drag route must not be gated behind a device check');
+  assert.ok(!/onClick=\{mobileInteraction\.isMobile \? activateTapPlacement : undefined\}/.test(src),
+    'a desktop keyboard user must not find onClick undefined');
   assert.match(src, /contextSymbols=\{operationContextSymbols\}/);
   assert.match(src, /collapseSignal=\{mathToolsCollapseSignal\}/);
 });

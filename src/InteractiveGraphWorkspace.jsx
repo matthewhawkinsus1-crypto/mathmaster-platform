@@ -437,6 +437,33 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
     return { point: magnetic?.point || latticePoint, magnetic };
   };
 
+  // KEYBOARD ACCESS TO THE PLANE.
+  //
+  // This workspace renders the largest group of tool-backed Path questions, and
+  // it had no keyboard path of any kind — no tabIndex, no onKeyDown. Every
+  // placement was a drag, or a click-the-card-then-click-the-pixel. A student
+  // who cannot use a trackpad accurately, or cannot use one at all, could not
+  // answer these questions.
+  //
+  // Two routes are added, and they are alternatives to the mouse rather than
+  // replacements for the thinking: the student still has to decide WHICH point
+  // to place. Nothing here computes a coordinate for them.
+  const [keyboardCursor, setKeyboardCursor] = useState(null);
+  const [typedX, setTypedX] = useState('');
+  const [typedY, setTypedY] = useState('');
+  const [keyboardAnnouncement, setKeyboardAnnouncement] = useState('');
+
+  /** Where an arrow-key cursor should start: the middle of the visible plane. */
+  const defaultCursor = () => [
+    Number((((window.xMin + window.xMax) / 2)).toFixed(4)),
+    Number((((window.yMin + window.yMax) / 2)).toFixed(4)),
+  ];
+
+  const clampToWindow = ([x, y]) => [
+    Math.min(window.xMax, Math.max(window.xMin, x)),
+    Math.min(window.yMax, Math.max(window.yMin, y)),
+  ];
+
   const placeTask = (taskId, point, options = {}) => {
     if (!taskId || !point || construction.pointsValidated) return;
     constructionHistory.setValue((current) => ({ ...current, placements: { ...current.placements, [taskId]: point } }));
@@ -491,6 +518,88 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
     else if (!construction.pointsValidated && activeTaskId) {
       const placement = eventToTaskPlacement(event, activeTaskId);
       if (placement) placeTask(activeTaskId, placement.point, { magnetic: Boolean(placement.magnetic) });
+    }
+  };
+
+  /**
+   * Place at an explicit coordinate — the shared destination for the arrow-key
+   * cursor and the typed-entry box.
+   *
+   * Deliberately the SAME code path the mouse uses (placeTask / placeMarkerAt /
+   * the analysis selection), so a keyboard student's answer is graded by the
+   * same rules and cannot drift from the pointer student's.
+   */
+  const placeAtCoordinate = (point) => {
+    if (!point || !Number.isFinite(point[0]) || !Number.isFinite(point[1])) return false;
+    const target = clampToWindow(point);
+    if (stage === 'analysis') {
+      const part = analysisParts.find((item) => item.id === activeAnalysisPartId && item.kind === 'point');
+      if (!part || part.responseMode === 'input') {
+        setKeyboardAnnouncement('Choose which part you are answering first.');
+        return false;
+      }
+      analysisHistory.setValue((current) => {
+        const existing = current.selections[part.id] || [];
+        const selected = existing.length >= Math.max(1, part.expected.length) ? [target] : [...existing, target];
+        return {
+          ...current,
+          noneSelections: { ...current.noneSelections, [part.id]: false },
+          selections: { ...current.selections, [part.id]: selected },
+        };
+      });
+      setKeyboardAnnouncement(`Selected ${pointLabel(target)} for ${part.label}.`);
+      return true;
+    }
+    if (construction.snapped && activeMarker) {
+      placeMarkerAt(activeMarker, target);
+      setKeyboardAnnouncement(`Placed ${markerLabels[activeMarker] || 'marker'} at ${pointLabel(target)}.`);
+      return true;
+    }
+    if (!construction.pointsValidated && activeTaskId) {
+      const task = tasks.find((item) => item.id === activeTaskId);
+      placeTask(activeTaskId, target);
+      setKeyboardAnnouncement(`Placed ${task?.label || 'point'} at ${pointLabel(target)}.`);
+      return true;
+    }
+    setKeyboardAnnouncement('Choose which point you are placing first, then press Enter on the grid.');
+    return false;
+  };
+
+  /**
+   * Arrow keys move a cursor; Enter places at it.
+   *
+   * One snap step per press, five with Shift, so a student can cross the plane
+   * without hundreds of keystrokes but can still land on an exact lattice
+   * point.
+   */
+  const handleGridKeyDown = (event) => {
+    const STEP_KEYS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] };
+    const delta = STEP_KEYS[event.key];
+    if (delta) {
+      event.preventDefault();
+      const step = (Number(snapStep) || 0.5) * (event.shiftKey ? 5 : 1);
+      setKeyboardCursor((current) => {
+        const base = current || defaultCursor();
+        const next = clampToWindow([
+          Number((base[0] + delta[0] * step).toFixed(4)),
+          Number((base[1] + delta[1] * step).toFixed(4)),
+        ]);
+        setKeyboardAnnouncement(pointLabel(next));
+        return next;
+      });
+      return;
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      const cursor = keyboardCursor || defaultCursor();
+      if (!keyboardCursor) setKeyboardCursor(cursor);
+      placeAtCoordinate(cursor);
+      return;
+    }
+    if (event.key === 'Escape') {
+      setActiveTaskId(null);
+      setKeyboardCursor(null);
+      setKeyboardAnnouncement('Cursor cleared.');
     }
   };
 
@@ -596,7 +705,9 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
                   const xValue = construction.chosenXValues[task.id] ?? '';
                   const canPlace = task.expected === 'undefined' || Number.isFinite(Number(xValue));
                   return <div key={task.id} style={{ border: active ? '2px solid #1a73e8' : '1px solid #c9d4e5', borderRadius: '9px', background: placement ? '#eef5ff' : '#fff', padding: '9px' }}>
-                    <button type="button" draggable={!mobileInteraction.isMobile && !construction.pointsValidated && canPlace} onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-point', task.id); event.dataTransfer.setDragImage(makePointDragImage(), 22, 22); setDraggingTaskId(task.id); }} onDragEnd={() => { setDraggingTaskId(null); setDropCandidate(null); setDropMagneticTarget(null); }} onClick={() => !construction.pointsValidated && canPlace && setActiveTaskId(task.id)} style={{ width: '100%', textAlign: 'left', border: 'none', background: 'transparent', padding: 0, cursor: construction.pointsValidated || !canPlace ? 'default' : 'grab' }}>
+                    <button type="button" draggable={!mobileInteraction.isMobile && !construction.pointsValidated && canPlace} onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-point', task.id); event.dataTransfer.setDragImage(makePointDragImage(), 22, 22); setDraggingTaskId(task.id); }} onDragEnd={() => { setDraggingTaskId(null); setDropCandidate(null); setDropMagneticTarget(null); }} aria-pressed={active}
+                    aria-label={`${task.label}${active ? ' — selected. Move the cursor on the plane and press Enter, or type an exact coordinate.' : ''}`}
+                    onClick={() => { if (!construction.pointsValidated && canPlace) { setActiveTaskId(task.id); setKeyboardAnnouncement(`${task.label} selected. Use the arrow keys on the plane and press Enter, or type an exact coordinate below.`); } }} style={{ width: '100%', textAlign: 'left', border: 'none', background: 'transparent', padding: 0, cursor: construction.pointsValidated || !canPlace ? 'default' : 'grab' }}>
                       <strong style={{ color: '#202124' }}>{task.label}{!['center', 'key'].includes(task.role) && task.x !== null ? `: x = ${task.x}` : ''}</strong>
                       <span style={{ display: 'block', color: placement ? '#174ea6' : '#5f6368', fontSize: '12px', marginTop: '3px' }}>{taskPlacementLabel(placement)}</span>
                     </button>
@@ -609,7 +720,8 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
               {construction.snapped && endpointRequirements.length > 0 && <div style={{ marginTop: '14px', borderTop: '1px solid #dfe3e7', paddingTop: '12px' }}>
                 <h3 style={{ margin: '0 0 5px', fontSize: '15px' }}>{endpointSectionTitle}</h3>
                 <p style={{ margin: '0 0 8px', fontSize: '11px', color: '#5f6368', lineHeight: 1.45 }}>{endpointInstruction} {mobileInteraction.isMobile ? 'Tap a marker, then tap near a graph end; a generous magnetic area helps it snap into place.' : 'Drag or select a marker, then place it near a graph end; a generous magnetic area helps it snap into place.'}</p>
-                {availableMarkerTypes.map((type) => { const label = markerLabels[type]; return <button key={type} type="button" draggable={!mobileInteraction.isMobile} onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-marker', type); event.dataTransfer.setDragImage(makeMarkerDragImage(type), 26, 26); setDraggingMarkerType(type); }} onDragEnd={() => { setDraggingMarkerType(null); setDropCandidate(null); setDropMagneticTarget(null); }} onClick={() => setActiveMarker(type)} style={{ width: '100%', marginTop: '6px', padding: '9px', border: activeMarker === type ? '2px solid #1a73e8' : '1px solid #c9d4e5', borderRadius: '8px', background: '#fff', fontWeight: 'bold', cursor: 'grab', display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ fontSize: '23px', color: '#1a73e8' }}>{markerSymbols[type]}</span><span><span style={{ display: 'block' }}>{label}</span><span style={{ display: 'block', fontSize: '11px', color: '#5f6368', fontWeight: 400 }}>{markerExplanations[type]}</span></span></button>; })}
+                {availableMarkerTypes.map((type) => { const label = markerLabels[type]; return <button key={type} type="button" draggable={!mobileInteraction.isMobile} onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-marker', type); event.dataTransfer.setDragImage(makeMarkerDragImage(type), 26, 26); setDraggingMarkerType(type); }} onDragEnd={() => { setDraggingMarkerType(null); setDropCandidate(null); setDropMagneticTarget(null); }} aria-pressed={activeMarker === type}
+                  onClick={() => { setActiveMarker(type); setKeyboardAnnouncement(`${label} selected. Use the arrow keys on the plane and press Enter, or type an exact coordinate.`); }} style={{ width: '100%', marginTop: '6px', padding: '9px', border: activeMarker === type ? '2px solid #1a73e8' : '1px solid #c9d4e5', borderRadius: '8px', background: '#fff', fontWeight: 'bold', cursor: 'grab', display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ fontSize: '23px', color: '#1a73e8' }}>{markerSymbols[type]}</span><span><span style={{ display: 'block' }}>{label}</span><span style={{ display: 'block', fontSize: '11px', color: '#5f6368', fontWeight: 400 }}>{markerExplanations[type]}</span></span></button>; })}
                 <div style={{ marginTop: '10px', display: 'grid', gap: '5px' }}>{endpointRequirements.map((requirement, index) => { const placement = construction.markerPlacements[requirement.id]; return <div key={requirement.id} style={{ fontSize: '12px', color: placement ? '#174ea6' : '#5f6368' }}>{boundaryOnly ? 'Boundary' : 'End'} {index + 1}: {placement ? markerLabels[markerValue(placement)] : 'not placed'}</div>; })}</div>
               </div>}
             </>
@@ -634,7 +746,11 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
         </aside>
 
         <figure style={{ margin: 0, width: 'min(100%, 780px)', padding: '10px', border: '1px solid #dfe3e7', borderRadius: '12px', background: '#fff', boxSizing: 'border-box' }}>
-          <svg ref={svgRef} className="mathmaster-responsive-canvas mathmaster-touch-surface" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="xMidYMid meet" role="application" aria-label="Interactive function investigation coordinate plane"
+          <svg ref={svgRef} className="mathmaster-responsive-canvas mathmaster-touch-surface" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="xMidYMid meet" role="application"
+            aria-label="Coordinate plane. Use the arrow keys to move the cursor, hold Shift to move faster, and press Enter to place at the cursor."
+            tabIndex={0}
+            onKeyDown={handleGridKeyDown}
+            onFocus={() => { if (!keyboardCursor) { const start = defaultCursor(); setKeyboardCursor(start); setKeyboardAnnouncement(`Cursor at ${pointLabel(start)}. Arrow keys move, Enter places.`); } }}
             onClick={handleGridClick}
             onDragOver={(event) => {
               event.preventDefault();
@@ -669,6 +785,17 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
             {yTicks.map((tick) => { const y = toScreenY(tick); return <g key={`y-${tick}`}><line x1={PADDING} y1={y} x2={WIDTH - PADDING} y2={y} stroke="#eceff1" />{tick !== 0 && <text x={axisY - 9} y={y + 4} textAnchor="end" fontSize="12" fill="#5f6368">{tick}</text>}</g>; })}
             <line x1={PADDING} y1={axisX} x2={WIDTH - PADDING} y2={axisX} stroke="#5f6368" strokeWidth="2" /><line x1={axisY} y1={PADDING} x2={axisY} y2={HEIGHT - PADDING} stroke="#5f6368" strokeWidth="2" />
 
+            {/* The keyboard cursor. Visible, because a student navigating by
+                arrow keys still needs to see where they are. */}
+            {keyboardCursor && (
+              <g pointerEvents="none">
+                <line x1={toScreenX(keyboardCursor[0])} y1={PADDING} x2={toScreenX(keyboardCursor[0])} y2={HEIGHT - PADDING} stroke="#9334e6" strokeWidth="1.5" strokeDasharray="5 4" />
+                <line x1={PADDING} y1={toScreenY(keyboardCursor[1])} x2={WIDTH - PADDING} y2={toScreenY(keyboardCursor[1])} stroke="#9334e6" strokeWidth="1.5" strokeDasharray="5 4" />
+                <circle cx={toScreenX(keyboardCursor[0])} cy={toScreenY(keyboardCursor[1])} r="9" fill="none" stroke="#9334e6" strokeWidth="3" />
+                <text x={toScreenX(keyboardCursor[0]) + 13} y={toScreenY(keyboardCursor[1]) - 11} fontSize="13" fontWeight="700" fill="#6f2da8">{pointLabel(keyboardCursor)}</text>
+              </g>
+            )}
+
             {showPredrawnGraph && idealPaths.map((path, index) => <path key={`ideal-${index}`} className={construction.snapped ? 'mathmaster-snap-curve' : ''} d={path} fill="none" stroke="#1a73e8" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />)}
             {mode === 'analysis' && endpointRequirements.map((requirement) => { const x = toScreenX(requirement.point[0]); const y = toScreenY(requirement.point[1]); const angle = (Math.atan2(toScreenY(requirement.point[1] + requirement.vector[1]) - y, toScreenX(requirement.point[0] + requirement.vector[0]) - x) * 180) / Math.PI; return <EndpointMarker key={`analysis-${requirement.id}`} type={requirement.marker} x={x} y={y} angle={angle} color="#1a73e8" />; })}
             {!construction.snapped && construction.strokes.map((stroke, strokeIndex) => <polyline key={`stroke-${strokeIndex}`} points={stroke.map((point) => point.join(',')).join(' ')} fill="none" stroke="#7baaf7" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.88" />)}
@@ -691,11 +818,62 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
         {!pointOnly && construction.pointsValidated && !construction.snapped && <p style={{ margin: '8px 0', color: '#174ea6', fontWeight: 'bold' }}>Draw through all validated points. {requiredStrokeCount === 2 ? 'Draw both rational branches as separate strokes.' : ''}</p>}
         {drawFeedback && <p style={{ margin: '8px 0', color: construction.snapped ? '#137333' : '#8a5a00', fontWeight: 'bold' }}>{drawFeedback}</p>}
         <div style={{ display: 'flex', justifyContent: 'center', gap: '9px', flexWrap: 'wrap', marginTop: '10px' }}>
+          {/* EXACT ENTRY. The equal-precision alternative to pointing, and the
+              one that matters most: a trackpad on a school Chromebook cannot
+              reliably hit (2, -3.5), and fighting the interface is not part of
+              the mathematics. The student still has to work out the coordinate
+              — nothing here computes one. */}
+          <div style={{ display: 'flex', gap: '7px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <label style={{ fontSize: '12px', fontWeight: 700, color: '#3c4043' }}>
+              x
+              <input
+                type="number"
+                inputMode="decimal"
+                value={typedX}
+                onChange={(event) => setTypedX(event.target.value)}
+                onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); document.getElementById('graph-exact-place')?.click(); } }}
+                style={{ display: 'block', width: '84px', minHeight: '40px', marginTop: '3px', padding: '6px 8px', border: '1px solid #c9ced6', borderRadius: '7px' }}
+              />
+            </label>
+            <label style={{ fontSize: '12px', fontWeight: 700, color: '#3c4043' }}>
+              y
+              <input
+                type="number"
+                inputMode="decimal"
+                value={typedY}
+                onChange={(event) => setTypedY(event.target.value)}
+                onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); document.getElementById('graph-exact-place')?.click(); } }}
+                style={{ display: 'block', width: '84px', minHeight: '40px', marginTop: '3px', padding: '6px 8px', border: '1px solid #c9ced6', borderRadius: '7px' }}
+              />
+            </label>
+            <button
+              id="graph-exact-place"
+              type="button"
+              onClick={() => {
+                const point = [Number(typedX), Number(typedY)];
+                if (!Number.isFinite(point[0]) || !Number.isFinite(point[1])) {
+                  setKeyboardAnnouncement('Enter a number for both x and y.');
+                  return;
+                }
+                if (placeAtCoordinate(point)) { setTypedX(''); setTypedY(''); }
+              }}
+              style={{ minHeight: '40px', padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}
+            >
+              Place at this coordinate
+            </button>
+          </div>
+
           {!pointOnly && construction.pointsValidated && !construction.snapped && <button type="button" onClick={() => constructionHistory.setValue((current) => ({ ...current, strokes: [] }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>Clear Sketch</button>}
           <button type="button" onClick={() => constructionHistory.reset({ placements: {}, chosenXValues: initialChosenX, pointsValidated: false, strokes: [], snapped: false, markerPlacements: {} })} style={{ padding: '9px 14px', border: '1px solid #e0b4b0', borderRadius: '8px', background: '#fff', color: '#a50e0e', fontWeight: 'bold' }}>Reset Graph</button>
         </div>
         {!pointOnly && construction.snapped && endpointRequirements.length > 0 && <p style={{ margin: '12px 0 0', color: allMarkersPlaced ? '#137333' : '#6f2da8', fontWeight: 'bold' }}>{allMarkersPlaced ? (analysisEnabled ? `All ${endpointCompletionNoun}${endpointRequirements.length === 1 ? '' : 's'} are entered. Continue to Analyze Function; each placement and symbol will be graded separately.` : `All ${endpointCompletionNoun}${endpointRequirements.length === 1 ? '' : 's'} are entered. You may submit even if a placement or symbol is incorrect; partial credit is calculated by part.`) : `Place one ${endpointCompletionNoun} at each of the ${endpointRequirements.length} graph ends.`}</p>}
       </div>}
+      {/* Everything the keyboard route does, said out loud. Without this a
+          screen-reader student presses Enter and receives silence. */}
+      <p role="status" aria-live="polite" style={{ margin: '8px 0 0', fontSize: '13px', color: '#174ea6', minHeight: '18px', textAlign: 'center' }}>
+        {keyboardAnnouncement}
+      </p>
+
       {stage === 'analysis' && activePointPart && activePointPart.responseMode !== 'input' && <div style={{ textAlign: 'center', marginTop: '12px' }}><p style={{ color: '#174ea6', fontWeight: 'bold' }}>Active part: {activePointPart.label}. Select {activePointPart.expected.length || 1} location(s), or choose “Does not exist.”</p>{(analysis.selections[activePointPart.id] || []).length > 0 && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, selections: { ...current.selections, [activePointPart.id]: [] } }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>Clear This Selection</button>}</div>}
     </div>
   );
