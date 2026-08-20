@@ -47,6 +47,10 @@ export const estimateInstructionalPerformanceLevel = ({
   effectiveEvidence = 0,
   maxDok = null,
   highDokEvidenceCount = 0,
+  // How many of the successes the student produced without the platform
+  // supplying the mathematical idea. `null` means the caller has not measured
+  // it, and the ceiling below is skipped rather than guessed at.
+  independentSuccesses = null,
 } = {}) => {
   if (itemCount < 2 || effectiveEvidence < 1.1) {
     return {
@@ -66,6 +70,15 @@ export const estimateInstructionalPerformanceLevel = ({
   if (key === 'masters' && (!(maxDok >= 3) || highDokEvidenceCount < 1 || itemCount < 4)) {
     key = 'meets';
     ceilingReason = 'Masters estimate requires at least one DOK 3+ item and a broader evidence set.';
+  }
+
+  // The same safeguard, on the axis that matters most. A student whose every
+  // success arrived with a hint attached has shown they can follow the idea,
+  // not that they can produce it — and the top label is a claim about the
+  // second thing.
+  if (key === 'masters' && independentSuccesses !== null && independentSuccesses < 2) {
+    key = 'meets';
+    ceilingReason = 'Masters estimate requires successes the student produced without mathematical assistance.';
   }
 
   const definition = makeLevel(key);
@@ -97,7 +110,13 @@ const resolveQuestionEvidenceWeight = ({ question, assignment, standardEntry, re
   const standard = getTexasStandard(standardEntry.code);
   const dok = metadata.complexity.level;
   const modified = Boolean(record.supportUsage?.modified);
-  const scaffoldFactor = usedMathematicalAssistance(record.supportUsage) ? 0.85 : 1;
+  // The support discount used to live in the WEIGHT, which put it in both the
+  // numerator and the denominator of the estimate — so for a correct answer it
+  // cancelled out entirely and a fully-supported student scored the same as an
+  // independent one. It belongs on the CREDIT instead: a supported success is
+  // still evidence (it stays in the denominator at full weight), it is just
+  // worth less than doing it yourself.
+  const supported = usedMathematicalAssistance(record.supportUsage);
   const classificationFactor = CLASSIFICATION_WEIGHT[standard?.classification] || 1;
   const evidenceLevelFactor = EVIDENCE_LEVEL_WEIGHT[standardEntry.level] || 1;
   const dokFactor = DOK_WEIGHT[dok] || 0.9;
@@ -114,8 +133,13 @@ const resolveQuestionEvidenceWeight = ({ question, assignment, standardEntry, re
 
   return {
     rawWeight: base,
-    gradeLevelWeight: modified ? 0 : base * activityEvidenceWeight * classificationFactor * evidenceLevelFactor * dokFactor * scaffoldFactor * recency,
-    modifiedWeight: modified ? base * activityEvidenceWeight * classificationFactor * evidenceLevelFactor * dokFactor * scaffoldFactor * recency : 0,
+    gradeLevelWeight: modified ? 0 : base * activityEvidenceWeight * classificationFactor * evidenceLevelFactor * dokFactor * recency,
+    modifiedWeight: modified ? base * activityEvidenceWeight * classificationFactor * evidenceLevelFactor * dokFactor * recency : 0,
+    // Deliberately below the Mastered threshold. No number of successes that
+    // needed the platform to supply the mathematical idea adds up to a claim
+    // that the student can do it.
+    creditFactor: supported ? SUPPORTED_CREDIT : 1,
+    supported,
     activityRole,
     activityEvidenceWeight,
     activityEvidenceType: activityPolicy.mastery.evidenceType,
@@ -166,7 +190,9 @@ export const collectStudentEvidence = ({ student, assignments = [] } = {}) => {
           gradeLevelWeight: weights.gradeLevelWeight,
           modifiedWeight: weights.modifiedWeight,
           activityEvidenceWeight: weights.activityEvidenceWeight,
-          credit: getQuestionCredit(record),
+          credit: getQuestionCredit(record) * (weights.creditFactor ?? 1),
+          supported: Boolean(weights.supported),
+          independentSuccess: getQuestionCredit(record) >= 1 && !weights.supported,
           percentCredit: Math.round(getQuestionCredit(record) * 100),
           totalAttempts: record.totalAttempts,
           firstAttemptCorrect: record.status === 'correct' && record.totalAttempts === 1,
@@ -191,6 +217,11 @@ export const collectStudentEvidence = ({ student, assignments = [] } = {}) => {
   return evidence;
 };
 
+// How much a success is worth when the platform supplied the mathematical
+// idea. Shared with the server aggregator in functions/index.js, which applies
+// the same figure the same way.
+export const SUPPORTED_CREDIT = 0.75;
+
 const summarizeEvidenceRows = (rows, { includeModified = false } = {}) => {
   const applicable = rows.filter((row) => includeModified ? row.modifiedWeight > 0 : row.gradeLevelWeight > 0);
   const weightKey = includeModified ? 'modifiedWeight' : 'gradeLevelWeight';
@@ -205,6 +236,10 @@ const summarizeEvidenceRows = (rows, { includeModified = false } = {}) => {
   const eventualRate = firstAttemptRows.length
     ? firstAttemptRows.filter((row) => row.eventuallyCorrect).length / firstAttemptRows.length * 100
     : 0;
+  // Counted so a downstream label can require that the student did some of
+  // this unaided, rather than inferring it from an average.
+  const independentSuccesses = applicable.filter((row) => row.independentSuccess).length;
+  const supportedEvidenceCount = applicable.filter((row) => row.supported).length;
   const maxDok = applicable.reduce((max, row) => Math.max(max, Number(row.dok) || 0), 0) || null;
   const highDokEvidenceCount = applicable.filter((row) => Number(row.dok) >= 3).length;
   const dokLevels = applicable.map((row) => row.dok).filter(Boolean);
@@ -215,12 +250,15 @@ const summarizeEvidenceRows = (rows, { includeModified = false } = {}) => {
     effectiveEvidence: totalWeight,
     maxDok,
     highDokEvidenceCount,
+    independentSuccesses,
   });
 
   return {
     itemCount: applicable.length,
     effectiveEvidence: round(totalWeight, 2),
     score: round(weightedScore),
+    independentSuccesses,
+    supportedEvidenceCount,
     firstAttemptCorrectRate: round(firstAttemptRate),
     eventualCorrectRate: round(eventualRate),
     averageAttempts: applicable.length

@@ -4752,12 +4752,52 @@ exports.submitPathResponse = onCall(async (request) => {
       questionFinalized,
       responsePayload: request.data?.responsePayload || {},
     });
-    const supportUsage = request.data?.supportUsage && typeof request.data.supportUsage === "object" ? request.data.supportUsage : {};
+    // WHAT THE BROWSER IS ALLOWED TO SAY ABOUT SUPPORT.
+    //
+    // Correctness has never been the browser's to declare, and neither is
+    // independence: a client that simply omits the support flags used to be
+    // taken at its word, because `mathematicalIndependence({})` is true. That
+    // is the same trust bug as a browser-supplied `isCorrect`, one axis over,
+    // and it inflates mastery instead of grades.
+    //
+    // The server ISSUED the hint and RELEASED the review, so it already knows
+    // the two facts that matter. Those are recorded from server state and are
+    // not readable from the request at all. The browser keeps only the flags
+    // that describe things the server genuinely cannot observe — a human
+    // helping, a calculator on the desk, an accommodation in force — and even
+    // those are coerced rather than spread.
+    const claimed = request.data?.supportUsage && typeof request.data.supportUsage === "object"
+      ? request.data.supportUsage
+      : {};
+    const priorSupport = currentQuestion.supportReleased || {};
+    const hintReleased = Boolean(priorSupport.hintReleased) || Boolean(attemptSupport.support?.hint);
+    const reviewReleased = Boolean(priorSupport.reviewReleased) || Boolean(attemptSupport.solutionReview);
+    const supportUsage = {
+      // Server-observed. Not accepted from the request.
+      hintUsed: hintReleased,
+      workedExampleUsed: reviewReleased,
+      scaffoldUsed: hintReleased,
+      // Client-reported, but about the room rather than about the mathematics.
+      teacherAssisted: Boolean(claimed.teacherAssisted),
+      calculatorUsed: Boolean(claimed.calculatorUsed),
+      modified: Boolean(claimed.modified),
+      ...(Array.isArray(claimed.modifications) && claimed.modifications.length
+        ? { modifications: claimed.modifications.slice(0, 12).map((entry) => String(entry).slice(0, 80)) }
+        : {}),
+    };
     const independent = mathPath.mathematicalIndependence(supportUsage);
     const now = Date.now();
     const nextSummary = { ...(session.summary || {}) };
     let nextStatus = session.status;
-    let nextCurrentQuestion = { ...currentQuestion, attemptsUsed: attemptNumber };
+    // Support is sticky across attempts on the same question: a hint the
+    // student saw on attempt two is still a hint they saw on attempt three,
+    // and forgetting that between attempts would let the discount evaporate
+    // on the attempt that actually counts.
+    let nextCurrentQuestion = {
+      ...currentQuestion,
+      attemptsUsed: attemptNumber,
+      supportReleased: { hintReleased, reviewReleased },
+    };
 
     // The routing decision. Only a FINALIZED question is evidence — attempts
     // within a question are for assistance — so this runs once per question,
@@ -4851,7 +4891,15 @@ exports.submitPathResponse = onCall(async (request) => {
         difficultyBand: currentQuestion.difficultyBand,
         dok: currentQuestion.dok,
       },
-      source: { kind: "myMathPath", activityRole: "practice", activitySessionId: sessionId, sessionKind: session.sessionKind },
+      // A retention probe is not ordinary practice, and recording it as such
+      // made "has this stayed with you?" evidence indistinguishable from
+      // "are you learning this?" evidence in every downstream report.
+      source: {
+        kind: "myMathPath",
+        activityRole: session.sessionKind === "retentionProbe" ? "retention" : "practice",
+        activitySessionId: sessionId,
+        sessionKind: session.sessionKind,
+      },
       performance: { score: gradingCore.score, isCorrect: gradingCore.isCorrect, attemptNumber, status: questionFinalized ? "finalized" : "attempted", isMathematicallyIndependent: independent },
       supportUsage: { ...supportUsage, isMathematicallyIndependent: independent },
       supportTelemetry: mathPath.supportTelemetry(supportUsage),
@@ -5424,11 +5472,38 @@ exports.updateMyMathPathMasteryFromEvidence = onDocumentCreated(
     const db = getFirestore();
     const profileRef = db.collection("studentMasteryProfiles").doc(studentId);
     const applicationRef = db.collection("masteryEvidenceApplications").doc(mathPath.opaqueId("mastery", studentId, eventKey));
-    const roleWeight = { warmup: 0.8, classwork: 0.9, dol: 1.25, practice: 1, quiz: 1.35, test: 1.4 }[evidence.source?.activityRole] || 1;
+    const roleWeight = { warmup: 0.8, classwork: 0.9, dol: 1.25, practice: 1, quiz: 1.35, test: 1.4, retention: 1.15 }[evidence.source?.activityRole] || 1;
     const modified = Boolean(evidence.supportUsage?.modified) || Boolean(evidence.supportUsage?.modifications?.length);
     const independent = mathPath.mathematicalIndependence(evidence.supportUsage || {});
     const score = Math.max(0, Math.min(1, Number(evidence.performance?.score) || 0));
-    const weight = modified ? 0 : roleWeight * (independent ? 1 : 0.85);
+
+    // THE BUG THIS REPLACED, and it was not a small one.
+    //
+    // The support discount used to be folded into `weight`:
+    //
+    //     weight = roleWeight * (independent ? 1 : 0.85)
+    //     estimate = Σ(score × weight) / Σ(weight)
+    //
+    // The 0.85 appears in BOTH the numerator and the denominator, so for a
+    // correct answer (score = 1) it divides straight back out. A student who
+    // took a hint on every single question reached an estimate of 100 and was
+    // labelled Mastered — exactly the "clicking through Path inflates mastery"
+    // failure the design forbids.
+    //
+    // The fix separates two different questions that were being answered with
+    // one number:
+    //
+    //   WEIGHT  — how much this event counts as evidence at all. Stays in the
+    //             denominator. A hinted answer is still evidence.
+    //   CREDIT  — what the student actually demonstrated. Discounted for
+    //             support, so a supported success is worth less than an
+    //             independent one no matter how many of them there are.
+    const weight = modified ? 0 : roleWeight;
+    // Deliberately below the Mastered threshold: a student whose every success
+    // needed the platform to supply the mathematical idea has not shown mastery
+    // of it, and no quantity of such successes should add up to that claim.
+    const SUPPORTED_CREDIT = 0.75;
+    const creditedScore = independent ? score : score * SUPPORTED_CREDIT;
     const dok = Number(evidence.questionSnapshot?.dok) || null;
     const familyId = evidence.questionSnapshot?.familyId || null;
 
@@ -5445,15 +5520,23 @@ exports.updateMyMathPathMasteryFromEvidence = onDocumentCreated(
         const previous = profiles[code] || {};
         const accumulator = previous.accumulator || {};
         const effectiveWeight = Number(accumulator.effectiveWeight || 0) + weight;
-        const weightedScoreSum = Number(accumulator.weightedScoreSum || 0) + score * weight;
+        const weightedScoreSum = Number(accumulator.weightedScoreSum || 0) + creditedScore * weight;
         const eligibleEvents = Number(accumulator.eligibleEvents || 0) + (weight > 0 ? 1 : 0);
         const modifiedEvents = Number(accumulator.modifiedEvents || 0) + (modified ? 1 : 0);
+        // Independent successes are counted separately, because "can do this"
+        // and "can do this when the platform supplies the idea" are different
+        // claims and the mastery label is only allowed to make the first one.
+        const independentSuccesses = Number(accumulator.independentSuccesses || 0)
+          + (evidence.performance?.isCorrect && independent && weight > 0 ? 1 : 0);
         const dokRepresented = [...new Set([...(previous.dimensions?.dokRepresented || []), ...(dok ? [dok] : [])])].sort();
         const familiesRepresented = [...new Set([...(previous.dimensions?.familiesRepresented || []), ...(familyId ? [familyId] : [])])];
         const estimate = effectiveWeight > 0 ? Math.round((weightedScoreSum / effectiveWeight) * 100) : null;
         let status = "Not Enough Evidence";
         if (eligibleEvents >= 2 && effectiveWeight >= 1.1) {
-          if (estimate >= 85 && eligibleEvents >= 4 && dokRepresented.some((value) => Number(value) >= 3)) status = "Mastered";
+          // Mastered additionally requires evidence the student did the
+          // mathematics themselves. Without this, a high estimate assembled
+          // entirely from supported successes would still read as mastery.
+          if (estimate >= 85 && eligibleEvents >= 4 && independentSuccesses >= 2 && dokRepresented.some((value) => Number(value) >= 3)) status = "Mastered";
           else if (estimate >= 70) status = "Secure";
           else if (estimate >= 50) status = "Developing";
           else status = "Needs Attention";
@@ -5467,8 +5550,8 @@ exports.updateMyMathPathMasteryFromEvidence = onDocumentCreated(
           teksCode: code,
           mastery: { estimate, observedPerformance: estimate, status, confidence },
           signals: { ...(previous.signals || {}), breadth: dokRepresented.length >= 2 ? "broad" : "developing", retention: previous.signals?.retention || "stable" },
-          dimensions: { eligibleGradeLevelEvents: eligibleEvents, modifiedEvidenceEvents: modifiedEvents, dokRepresented, familiesRepresented, lastIndependentSuccessAt },
-          accumulator: { effectiveWeight, weightedScoreSum, eligibleEvents, modifiedEvents },
+          dimensions: { eligibleGradeLevelEvents: eligibleEvents, modifiedEvidenceEvents: modifiedEvents, independentSuccesses, dokRepresented, familiesRepresented, lastIndependentSuccessAt },
+          accumulator: { effectiveWeight, weightedScoreSum, eligibleEvents, modifiedEvents, independentSuccesses },
           recommendation: { reason: status === "Needs Attention" ? "Rebuild this skill with targeted grade-level support." : "Continue building independent accuracy and breadth." },
           updatedAt: Date.now(),
         };
