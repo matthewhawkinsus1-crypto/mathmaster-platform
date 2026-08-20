@@ -16,6 +16,10 @@ import { ALGEBRA1_POLYNOMIAL_STANDARDS } from './algebra1PolynomialsAndFunctions
 import { ALGEBRA1_FUNCTION_STANDARDS } from './algebra1Functions.mjs';
 import { ALGEBRA2_FUNCTION_STANDARDS } from './algebra2Functions.mjs';
 import { ALGEBRA2_SYSTEMS_QUADRATIC_STANDARDS } from './algebra2SystemsQuadratics.mjs';
+import { ALGEBRA2_RADICAL_LOG_STANDARDS } from './algebra2RadicalsAndLogs.mjs';
+import { ALGEBRA2_LOG_PARENT_STANDARDS } from './algebra2LogsAndParents.mjs';
+import { ALGEBRA2_RATIONAL_STANDARDS } from './algebra2Rational.mjs';
+import { ALGEBRA2_NUMBER_DATA_STANDARDS } from './algebra2NumberAndData.mjs';
 
 export const ALL_AUTHORED_STANDARDS = [
   ...GRADE_6_7_STANDARDS,
@@ -31,6 +35,10 @@ export const ALL_AUTHORED_STANDARDS = [
   ...ALGEBRA1_FUNCTION_STANDARDS,
   ...ALGEBRA2_FUNCTION_STANDARDS,
   ...ALGEBRA2_SYSTEMS_QUADRATIC_STANDARDS,
+  ...ALGEBRA2_RADICAL_LOG_STANDARDS,
+  ...ALGEBRA2_LOG_PARENT_STANDARDS,
+  ...ALGEBRA2_RATIONAL_STANDARDS,
+  ...ALGEBRA2_NUMBER_DATA_STANDARDS,
 ];
 
 export default ALL_AUTHORED_STANDARDS;
