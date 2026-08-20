@@ -58,6 +58,12 @@ export default function SimulatedStudentExperience({
   nowValue = Date.now(),
   assessmentEvidence = {},
   directIndex = null,
+  // Retention schedules the teacher has forced on. These used to be hardcoded
+  // empty, which pinned `retentionSignal` to 'stable' forever: no retention
+  // state was reachable in the simulator at all, so a teacher could not verify
+  // the one behaviour they most need to trust — that previously mastered work
+  // gets re-checked rather than assumed.
+  retentionSchedulesByTEKS = {},
   onStartAssignment = null,
   onChooseSkill = null,
   // Evidence the simulated student produces by actually answering questions,
@@ -103,11 +109,20 @@ export default function SimulatedStudentExperience({
   // One runtime per learner/bank snapshot. The student's own container calls it
   // exactly as it calls the live service, so the renderer below does not know
   // whether the learner is synthetic or real.
+  // The learner is read through a ref at construction time and SYNCED
+  // afterwards, deliberately. It used to sit in the dependency array — but the
+  // runtime mutates the learner on every recorded attempt and publishes it back
+  // up, so the learner prop changed after every answer, the memo re-ran, and a
+  // brand-new runtime with an empty session map replaced the one the student
+  // container was still holding a session id for. The second question of every
+  // simulated session died on "That simulated session no longer exists."
+  const learnerRef = useRef(learner);
+  learnerRef.current = learner;
   const runtime = useMemo(() => (pathBankQuestions ? createTeacherPathRuntime({
     assignments,
     pathBankQuestions,
     courseId,
-    learner,
+    learner: learnerRef.current,
     onChange: ({ learner: nextLearner, sessionAssignment }) => {
       setSessionAssignments((current) => [
         ...current.filter((entry) => entry.id !== sessionAssignment.id),
@@ -115,7 +130,46 @@ export default function SimulatedStudentExperience({
       ]);
       evidenceRef.current?.({ learner: nextLearner, sessionAssignment });
     },
-  }) : null), [assignments, pathBankQuestions, courseId, learner]);
+    // A deliberate reset (new slot, or "Reset simulated student") DOES replace
+    // the runtime, because the learner identity changed.
+  }) : null), [assignments, pathBankQuestions, courseId, learner?.id]);
+
+  // Teacher force-skill actions rewrite the learner without changing its id.
+  // Hand those through rather than rebuilding.
+  useEffect(() => { runtime?.syncLearner?.(learner); }, [runtime, learner]);
+
+  // Flatten the synthetic learner's recorded attempts into the evidence-event
+  // shape the practice-history timeline reads.
+  const simulatedEvidenceEvents = useMemo(() => {
+    const events = [];
+    sessionAssignments.forEach((assignment) => {
+      const grades = learner?.gradesByAssignment?.[assignment.id] || {};
+      Object.entries(grades).forEach(([index, record]) => {
+        const question = assignment.questions?.[Number(index)];
+        if (!question) return;
+        events.push({
+          eventKey: `${assignment.id}:${index}`,
+          occurredAt: record?.lastAttemptAt || record?.recordedAt || nowValue,
+          alignmentKeys: question.alignmentKeys || [],
+          questionSnapshot: {
+            familyId: question.familyId || null,
+            dok: question.dok || null,
+            difficultyBand: question.difficultyBand || null,
+          },
+          source: { kind: 'myMathPath', activityRole: 'practice', activitySessionId: assignment.id },
+          performance: {
+            score: record?.status === 'correct' ? 1 : 0,
+            isCorrect: record?.status === 'correct',
+            attemptNumber: record?.totalAttempts || 1,
+            status: 'finalized',
+            isMathematicallyIndependent: record?.supportUsage?.isMathematicallyIndependent !== false,
+          },
+          supportUsage: record?.supportUsage || {},
+        });
+      });
+    });
+    return events;
+  }, [sessionAssignments, learner, nowValue]);
 
   const simulatorCoverage = useMemo(
     () => (pathBankQuestions ? buildSimulatorCoverageIndex(pathBankQuestions, { courseId }) : null),
@@ -145,10 +199,10 @@ export default function SimulatedStudentExperience({
     const legacyProfile = buildStudentMasteryProfile({ student: learner, assignments: allAssignments });
     const evidenceRows = collectStudentEvidence({ student: learner, assignments: allAssignments });
     return {
-      masteryProfilesByTEKS: adaptLegacyMasteryToPhase5({ legacyProfile, evidenceRows, retentionSchedulesByTEKS: {} }),
-      retentionSchedulesByTEKS: {},
+      masteryProfilesByTEKS: adaptLegacyMasteryToPhase5({ legacyProfile, evidenceRows, retentionSchedulesByTEKS }),
+      retentionSchedulesByTEKS,
     };
-  }, [learner, allAssignments]);
+  }, [learner, allAssignments, retentionSchedulesByTEKS]);
 
   const dashboard = useMemo(() => buildStudentDashboardModel({
     assignments,
@@ -253,7 +307,11 @@ export default function SimulatedStudentExperience({
             coverageOverride={simulatorCoverage}
             onSimulationController={onSimulationController}
             onSimulationEvent={onSimulationEvent}
-            evidenceEvents={[]}
+            // The simulated learner's OWN evidence, so the practice-history
+            // timeline shows a teacher what each forced outcome actually
+            // recorded. Hardcoding this empty meant "Force Hint Usage" could
+            // not be checked against the evidence it produced.
+            evidenceEvents={simulatedEvidenceEvents}
             loading={false}
             assessmentContextOverride={assessmentContext}
             onExit={assignments.length ? () => setView('assignments') : null}

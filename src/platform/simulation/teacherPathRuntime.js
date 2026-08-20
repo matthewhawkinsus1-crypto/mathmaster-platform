@@ -593,12 +593,28 @@ export const createTeacherPathRuntime = ({
       return issue(session, session.currentSkillId, session.lastDecision?.action || PATH_ACTION.CONTINUE);
     };
 
+    // The instance the teacher was looking at when they pressed the button.
+    // A multi-attempt control (repeatedError, repeatedSuccess) legitimately
+    // moves on to the next question mid-run, so the check is against what the
+    // FIRST attempt of this action saw, not against the button's argument
+    // forever.
+    let expectedInstanceId = questionInstanceId || null;
+
     const runAttempt = async (isCorrect, supportUsage = {}) => {
       const instance = ensureQuestion();
       if (!instance) throw new Error('There is no active Path question to force.');
-      if (questionInstanceId && instance.questionInstanceId !== questionInstanceId && session.summary.completedQuestions === 0) {
-        throw new Error('The displayed Path question changed before the force action was applied.');
+      // The guard used to carry `&& session.summary.completedQuestions === 0`,
+      // which meant it only ever fired on the very first question of a session.
+      // From question two onward a force action aimed at a stale instance was
+      // silently applied to whatever was current instead, and the teacher got a
+      // success notice for an action taken against a different question than
+      // the one on their screen.
+      if (expectedInstanceId && instance.questionInstanceId !== expectedInstanceId) {
+        throw new Error('The displayed Path question changed before the force action was applied. Nothing was recorded — try again on the question now on screen.');
       }
+      // Subsequent attempts in the same multi-attempt action follow the
+      // session wherever routing takes it.
+      expectedInstanceId = null;
       return submitStudentResponse({
         sessionId,
         questionInstanceId: instance.questionInstanceId,
@@ -681,6 +697,26 @@ export const createTeacherPathRuntime = ({
     submitStudentResponse,
     forceCurrentQuestionOutcome,
     getLearner: () => learner,
+    /**
+     * Take an updated synthetic learner WITHOUT tearing the runtime down.
+     *
+     * The container used to re-create the runtime whenever the learner prop
+     * changed — but this runtime mutates `learner` on every recorded attempt
+     * and publishes it back up, so the learner prop changed after every single
+     * answer. A new runtime means a new empty `sessions` map, while the
+     * student container is still holding the old session id: the next call
+     * threw "That simulated session no longer exists." Multi-question routing
+     * — descent, bridge-back, extension — was unreachable through the UI even
+     * though it passed when tests drove the runtime directly.
+     *
+     * An echo of the runtime's own object is ignored, so publishing does not
+     * loop.
+     */
+    syncLearner: (nextLearner) => {
+      if (!nextLearner || nextLearner === learner) return false;
+      learner = nextLearner;
+      return true;
+    },
     getSessionAssignments: () => [...sessions.values()].map((session) => sessionAssignment(session.sessionId, session.issued)),
     hasQuestionsFor: (skillId) => bankHasSkill(bank, skillId),
     alignedSkillIds: () => [...bank.keys()],

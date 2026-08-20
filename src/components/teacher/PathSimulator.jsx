@@ -5,7 +5,7 @@ import { getTexasStandard } from '../../texasStandards';
 import {
   OUTCOME_CONTROLS, STARTING_PROFILES,
   applySimulationOutcome, buildDebugPackage, createSimulatedLearner,
-  evaluateSimulation, explainRouting, forceSkillState, isRoutingMismatch,
+  evaluateSimulation, explainRouting, forceRetentionDue, forceSkillState, isRoutingMismatch,
 } from '../../platform/simulation/simulatedLearner';
 import { buildMasteryBySkillForStudent } from '../../platform/path/masteryAdapter';
 import { getSkillGraph, teksSkillId } from '../../platform/path/skillGraph';
@@ -70,6 +70,11 @@ const SELECTION_REASON_LABEL = {
   unused_family_in_adjacent_band: 'Unused family one band away — nothing left at the exact band',
   all_families_used_repeating_least_used: 'Every family has been used; repeating the least-used one',
 };
+
+// Controls that act on a whole SKILL rather than on the question currently on
+// screen. They stay available without an open Path question, which is what the
+// disabled-state logic below keys off.
+const SKILL_LEVEL_CONTROLS = new Set(['forceSkillMastery', 'forceSkillFailure', 'forceRetentionDue']);
 
 const STRENGTH_COLOR = { hard: '#a50e0e', soft: '#7a4f00', reinforcement: '#5f6368' };
 const STRENGTH_LABEL = { hard: 'Required', soft: 'Helpful', reinforcement: 'Related' };
@@ -342,13 +347,39 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
       });
       return;
     }
+    if (outcomeId === 'forceRetentionDue') {
+      const codes = teksCodes.length ? teksCodes : (simulationTargetTeks ? [simulationTargetTeks] : []);
+      const forced = forceRetentionDue({
+        schedules: session.retentionSchedulesByTEKS || {},
+        teksCodes: codes,
+        nowValue: simulatedNow,
+      });
+      if (!forced.event) {
+        notify('Choose a starting skill first — a retention check has to be due on something.');
+        return;
+      }
+      setSession((current) => ({
+        ...current,
+        retentionSchedulesByTEKS: forced.schedules,
+        timeline: [...current.timeline, forced.event],
+      }));
+      pushSimulationEvent(forced.event);
+      notify(forced.event.label);
+      return;
+    }
+
     if (outcomeId === 'forceSkillMastery' || outcomeId === 'forceSkillFailure') {
       const forced = forceSkillState({
         learner: session.learner,
         targetKey: outcomeId === 'forceSkillMastery' ? 'masters' : 'didNotMeet',
         teksCodes: teksCodes.length ? teksCodes : (simulationTargetTeks ? [simulationTargetTeks] : []),
       });
-      if (!forced.seedAssignment) return;
+      if (!forced.seedAssignment) {
+        // Used to return silently, so a teacher pressing a live-looking button
+        // saw nothing at all and could not tell whether it had worked.
+        notify('That skill could not be seeded — it has no evidence template. Choose a different starting skill.');
+        return;
+      }
       setSession((current) => ({
         ...current,
         learner: forced.learner,
@@ -367,7 +398,10 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
 
     // Force Correct/Incorrect/etc. are Question Bench controls and need a real
     // assignment question. Whole-skill force controls above do not.
-    if (!assignment || !question) return;
+    if (!assignment || !question) {
+      notify('Open a question in the Question Bench first — this control acts on the question currently loaded there.');
+      return;
+    }
 
     const applied = applySimulationOutcome({
       learner: session.learner,
@@ -381,6 +415,10 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
       learner: applied.learner,
       timeline: [...current.timeline, applied.event],
     }));
+    // Bench outcomes used to change nothing a teacher could see without
+    // scrolling to panel 7. Every force control now confirms itself.
+    pushSimulationEvent(applied.event);
+    notify(applied.event?.label || 'Question Bench outcome applied.');
   };
 
   const copyDebugPackage = async () => {
@@ -454,6 +492,9 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                 courseId={inspectionCourseId}
                 pacing={simulationPacing}
                 nowValue={simulatedNow}
+                // Retention schedules the teacher has forced due. Without this
+                // the simulator could never reach a retention state at all.
+                retentionSchedulesByTEKS={session.retentionSchedulesByTEKS || {}}
                 assessmentEvidence={assessmentEvidence}
                 directIndex={directIndex}
                 onPathBankLoaded={setPathBankRecords}
@@ -581,10 +622,10 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                       type="button"
                       onClick={() => runOutcome(control.id)}
                       title={control.hint}
-                      disabled={(control.id.startsWith('forceSkill')
+                      disabled={(SKILL_LEVEL_CONTROLS.has(control.id)
                         ? (!teksCodes.length && !simulationTargetTeks)
                         : !pathController?.canForce)}
-                      style={{ ...smallButton, textAlign: 'left', opacity: (control.id.startsWith('forceSkill')
+                      style={{ ...smallButton, textAlign: 'left', opacity: (SKILL_LEVEL_CONTROLS.has(control.id)
                         ? (!teksCodes.length && !simulationTargetTeks)
                         : !pathController?.canForce) ? 0.5 : 1 }}
                     >

@@ -83,6 +83,7 @@ export const OUTCOME_CONTROLS = Object.freeze([
   { id: 'skip', label: 'Skip / Abandon', hint: 'Leave the question unanswered and move on.' },
   { id: 'forceSkillMastery', label: 'Force Skill Mastery', hint: 'Seed enough successful evidence to push this skill to Masters, then re-route.' },
   { id: 'forceSkillFailure', label: 'Force Skill Failure', hint: 'Seed enough failed evidence to cross the remediation threshold, then re-route.' },
+  { id: 'forceRetentionDue', label: 'Make Retention Due', hint: 'Backdate this skill so a retention check comes due, then watch the Path offer one.' },
 ]);
 
 const OUTCOME_IDS = new Set(OUTCOME_CONTROLS.map((control) => control.id));
@@ -213,6 +214,9 @@ export const createSimulatedLearner = ({
     learner,
     seedAssignments,
     profileId: profile.id,
+    // Retention state the teacher has forced. Starts empty — a fresh synthetic
+    // student has nothing due — and is written by `forceRetentionDue`.
+    retentionSchedulesByTEKS: {},
     createdAt: Date.now(),
     timeline: seed.assignment
       ? [{
@@ -317,6 +321,41 @@ export const forceSkillState = ({ learner, targetKey, teksCodes, slotId = 'defau
       kind: 'force',
       label: targetKey === 'didNotMeet' ? 'Forced skill failure' : 'Forced skill mastery',
       detail: `Seeded ${seed.assignment.questions.length} responses on ${teksCodes.join(', ')} targeting ${targetKey}.`,
+    },
+  };
+};
+
+/**
+ * Backdate a skill so retention comes due on it.
+ *
+ * Retention was the one §12 capability with no way to reach it: the simulator
+ * hardcoded an empty schedule map, so `retentionSignal` was pinned to 'stable'
+ * and VERIFY_RETENTION could never fire. This writes the schedule shape the
+ * real scheduler reads, with the due date already in the past.
+ */
+export const forceRetentionDue = ({ schedules = {}, teksCodes = [], nowValue = Date.now() }) => {
+  const codes = (Array.isArray(teksCodes) ? teksCodes : [teksCodes]).filter(Boolean);
+  if (!codes.length) return { schedules, event: null };
+  const DAY = 24 * 60 * 60 * 1000;
+  const next = { ...schedules };
+  codes.forEach((code) => {
+    next[code] = {
+      ...(schedules[code] || {}),
+      status: 'due',
+      // Verified a while ago, and the next check was due yesterday.
+      lastVerifiedAt: nowValue - 30 * DAY,
+      nextCheckDueAt: nowValue - DAY,
+      successfulCheckCount: Number(schedules[code]?.successfulCheckCount || 0),
+    };
+  });
+  return {
+    schedules: next,
+    event: {
+      id: `retention:${codes.join(',')}:${nowValue}`,
+      at: nowValue,
+      kind: 'force',
+      label: 'Retention check made due',
+      detail: `Backdated ${codes.join(', ')} so a retention check is now due. The Path should offer a short verification.`,
     },
   };
 };

@@ -347,3 +347,85 @@ test('the simulator can say why a question was chosen without revealing anything
   assert.equal(typeof questionInstance.selectedBand, 'number');
   assert.equal(JSON.stringify(questionInstance).includes('"expected"'), false, 'selection metadata must not smuggle the answer key');
 });
+
+// --- The simulator must survive its own session ------------------------------
+//
+// THE BUG. The container rebuilt the runtime whenever the learner prop changed
+// — but this runtime mutates the learner on every recorded attempt and
+// publishes it back up, so the learner changed after every single answer. A new
+// runtime meant a new empty `sessions` map while the student container was
+// still holding the old session id, and question two of every simulated session
+// died on "That simulated session no longer exists." Multi-question routing was
+// unreachable through the UI while passing in tests that drove the runtime
+// directly.
+
+test('an updated learner is absorbed without destroying the running session', async () => {
+  const runtime = selectionRuntime([bankFamily('a'), bankFamily('b'), bankFamily('c')]);
+  const { session } = await runtime.startOrResumePathSession({ targetAlignmentKey: ORIGIN, requiredQuestions: 3 });
+
+  const first = await runtime.fetchNextSanitizedQuestion({ sessionId: session.sessionId });
+  await runtime.submitStudentResponse({
+    sessionId: session.sessionId,
+    questionInstanceId: first.questionInstance.questionInstanceId,
+    responsePayload: { responses: { answer: '4' } },
+    supportUsage: { isMathematicallyIndependent: true },
+  });
+
+  // What the container does when a teacher force-seeds skill state: the learner
+  // is rewritten under the runtime's feet.
+  const changed = runtime.syncLearner({ ...runtime.getLearner(), displayName: 'Edited by the teacher' });
+  assert.equal(changed, true);
+  assert.equal(runtime.getLearner().displayName, 'Edited by the teacher');
+
+  // The session must still be there.
+  const second = await runtime.fetchNextSanitizedQuestion({ sessionId: session.sessionId });
+  assert.ok(second.questionInstance, 'the session survived the learner update');
+  assert.notEqual(second.questionInstance.sourceBankQuestionId, first.questionInstance.sourceBankQuestionId);
+});
+
+test('syncLearner ignores an echo of the runtime\'s own learner object', () => {
+  const runtime = selectionRuntime([bankFamily('a')]);
+  assert.equal(runtime.syncLearner(runtime.getLearner()), false, 'publishing must not loop');
+  assert.equal(runtime.syncLearner(null), false);
+});
+
+test('a force action aimed at a stale question is refused on every question, not just the first', async () => {
+  const runtime = selectionRuntime([bankFamily('a'), bankFamily('b'), bankFamily('c')]);
+  const { session } = await runtime.startOrResumePathSession({ targetAlignmentKey: ORIGIN, requiredQuestions: 3 });
+
+  // Finish question one so `completedQuestions` is no longer zero — the state
+  // in which the old guard silently switched itself off.
+  const first = await runtime.fetchNextSanitizedQuestion({ sessionId: session.sessionId });
+  await runtime.submitStudentResponse({
+    sessionId: session.sessionId,
+    questionInstanceId: first.questionInstance.questionInstanceId,
+    responsePayload: { responses: { answer: '4' } },
+    supportUsage: { isMathematicallyIndependent: true },
+  });
+  await runtime.fetchNextSanitizedQuestion({ sessionId: session.sessionId });
+
+  await assert.rejects(
+    () => runtime.forceCurrentQuestionOutcome({
+      sessionId: session.sessionId,
+      questionInstanceId: first.questionInstance.questionInstanceId, // stale
+      outcomeId: 'forceCorrect',
+    }),
+    /displayed Path question changed/i,
+    'a teacher must not get a success notice for an action applied to a different question',
+  );
+});
+
+test('a multi-attempt force control is allowed to follow the session forward', async () => {
+  const runtime = selectionRuntime([bankFamily('a'), bankFamily('b'), bankFamily('c'), bankFamily('d')]);
+  const { session } = await runtime.startOrResumePathSession({ targetAlignmentKey: ORIGIN, requiredQuestions: 4 });
+  const { questionInstance } = await runtime.fetchNextSanitizedQuestion({ sessionId: session.sessionId });
+
+  // repeatedSuccess spans several questions on purpose. Pinning it to the
+  // instance it started on would make it fail on its own second step.
+  const result = await runtime.forceCurrentQuestionOutcome({
+    sessionId: session.sessionId,
+    questionInstanceId: questionInstance.questionInstanceId,
+    outcomeId: 'repeatedSuccess',
+  });
+  assert.ok(result, 'a multi-question force control must be able to advance past its starting question');
+});
