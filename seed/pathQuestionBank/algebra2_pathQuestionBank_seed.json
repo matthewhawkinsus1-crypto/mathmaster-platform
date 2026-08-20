@@ -9299,13 +9299,13 @@
       "misconceptions": []
     },
     {
-      "id": "mm_A2_6E_reverse-count",
+      "id": "mm_A2_6E_solutions-on-a-line",
       "active": true,
       "alignmentKeys": [
         "texas:A2.6E"
       ],
       "courseId": "algebra2",
-      "familyId": "mathmaster:A2.6E:reverse-count",
+      "familyId": "mathmaster:A2.6E:solutions-on-a-line",
       "familyVersion": 1,
       "questionType": "response",
       "activityRole": "practice",
@@ -9314,40 +9314,51 @@
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A2.6E",
       "taskType": "reverseReasoning",
-      "representation": "symbolic",
+      "representation": "numberLine",
       "authoring": {
         "source": "MathMaster production authoring",
         "kit": 1
       },
-      "prompt": "How many solutions does $|x + 2| = 0$ have?",
-      "responseFields": [
+      "type": "intervalNumberLine",
+      "prompt": "Graph the SOLUTION SET of $|x - 4| \\le 6$ on the number line, then write it in interval notation.",
+      "min": -6,
+      "max": 14,
+      "step": 1,
+      "variable": "x",
+      "ask": [
+        "graph",
+        "interval"
+      ],
+      "inequalityText": null,
+      "expectedIntervals": [
         {
-          "id": "answer",
-          "label": "Answer",
-          "inputProfile": "number",
-          "unit": null,
-          "responseHint": null,
-          "placeholder": null,
-          "expected": "1"
+          "start": -2,
+          "end": 10,
+          "startClosed": true,
+          "endClosed": true
         }
       ],
       "solutionReview": {
-        "headline": "Zero is the one right-hand value that gives a single solution.",
+        "headline": "An absolute value bound is a distance, and a distance bound is an interval.",
         "reasoning": [
-          "$|A| = 0$ only when $A = 0$.",
-          "So $x + 2 = 0$ and $x = -2$ is the only solution."
+          "The statement says the input is no further than 6 from 4, in either direction.",
+          "That is 4 plus and minus 6, and because the bound allows equality both ends are filled."
         ],
-        "answerSummary": "One.",
+        "answerSummary": "From 4 minus 6 to 4 plus 6, both ends included.",
         "commonError": null,
-        "connection": "A positive right side gives two solutions, zero gives one, and a negative gives none."
+        "connection": null
       },
       "attemptFeedback": [
-        "How many values have absolute value zero?"
+        "The absolute value is measuring a distance from what number?"
       ],
       "supportHints": [
-        "What is the only number whose distance from zero is zero?"
+        "Identify the centre and the allowed distance separately, then step that distance out from the centre in both directions."
       ],
-      "misconceptions": []
+      "misconceptions": [
+        {
+          "match": []
+        }
+      ]
     },
     {
       "id": "mm_A2_6E_two-cases",

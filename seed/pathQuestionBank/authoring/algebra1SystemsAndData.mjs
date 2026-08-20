@@ -634,23 +634,29 @@ export const ALGEBRA1_SYSTEMS_STANDARDS = [
       hints: ['What is $3.2 \\times 25$?'],
     }),
 
-    equation({
-      code: 'A.4C', slug: 'fit-from-table', band: 3, dok: 2, taskType: 'representationTranslation', representation: 'table',
-      prompt: 'The data below lies exactly on a line. Write its equation in slope-intercept form.',
-      stimulus: table(['$x$', '$y$'], [['0', '24'], ['5', '39'], ['10', '54'], ['15', '69']]),
-      expected: 'y=3x+24',
-      accepted: ['y = 3x + 24', 'y=24+3x', 'y = 24 + 3x'],
-      responseHint: 'Write it in the form y = mx + b.',
+
+    graphWorkspace({
+      code: 'A.4C', slug: 'plot-the-fit', band: 3, dok: 2, taskType: 'representationTranslation',
+      prompt: 'A line of best fit for some sales data is $y = 6x + 10$, where $x$ is weeks. Plot the points where $x = 0$ and $x = 5$, then give the predicted value at week 5.',
+      functionSpec: { type: 'linear', m: 6, b: 10 },
+      graph: { xMin: -1, xMax: 9, yMin: 0, yMax: 60 },
+      pointTasks: [
+        { id: 'start', label: 'Plot the point where $x = 0$', x: 0, expected: [0, 10] },
+        { id: 'five', label: 'Plot the point where $x = 5$', x: 5, expected: [5, 40] },
+      ],
+      analysisRequests: [
+        { id: 'predict', label: 'What does the model predict at week 5?', kind: 'increasing', responseMode: 'text', expected: ['40'], accepted: ['40', '40 sales'] },
+      ],
       review: {
-        headline: 'The intercept is in the table; the slope is the step.',
+        headline: 'A model is used by substituting, not by eyeballing the picture.',
         reasoning: [
-          'At $x = 0$, $y = 24$.',
-          '$y$ rises 15 for every 5 in $x$, which is 3 per unit.',
+          'Substituting 5 weeks gives $30 + 10$.',
+          'The intercept is what the model says was already happening before week one, which is why the line does not start at zero.',
         ],
-        answer: '$y = 3x + 24$',
+        answer: '40 at week 5.',
       },
-      feedback: ['The rows step by 5, so divide the rise by 5.'],
-      hints: ['What is $39 - 24$?'],
+      feedback: ['Put the week number into the equation rather than reading it off the graph.'],
+      hints: ['Substitute the week number for $x$ and evaluate. Use the graph afterwards to check your answer looks right.'],
     }),
 
     numeric({

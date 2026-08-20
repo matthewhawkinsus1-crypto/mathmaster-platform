@@ -9,23 +9,30 @@ export const GRADE_8_STANDARDS_B = [
 
   // --- 8.5B Non-proportional relationships (y = mx + b) ---------------------------
   standard('8.5B', [
-    equation({
-      code: '8.5B', slug: 'from-table', band: 2, dok: 1, taskType: 'procedural', representation: 'table',
-      prompt: 'Write an equation in the form $y = mx + b$ for the table.',
-      stimulus: table(['$x$', '$y$'], [['0', '4'], ['1', '9'], ['2', '14'], ['3', '19']]),
-      expected: 'y=5x+4',
-      accepted: ['y = 5x + 4', 'y=4+5x', 'y = 4 + 5x'],
-      responseHint: 'Write the whole equation, starting with y =',
+
+    graphWorkspace({
+      code: '8.5B', slug: 'graph-the-rate', band: 2, dok: 2, taskType: 'representationTranslation',
+      prompt: 'A pool already holds 6 inches of water and rises 4 inches an hour, modelled by $y = 4x + 6$. Plot the depth at $x = 0$ and at $x = 3$, then give the depth the pool started at.',
+      functionSpec: { type: 'linear', m: 4, b: 6 },
+      graph: { xMin: -1, xMax: 8, yMin: -2, yMax: 26 },
+      pointTasks: [
+        { id: 'start', label: 'Plot the depth at $x = 0$', x: 0, expected: [0, 6] },
+        { id: 'three', label: 'Plot the depth at $x = 3$', x: 3, expected: [3, 18] },
+      ],
+      analysisRequests: [
+        { id: 'start', label: 'What depth did the pool start at, in inches?', kind: 'increasing', responseMode: 'text', expected: ['6'], accepted: ['6', '6 inches'] },
+      ],
       review: {
-        headline: 'Read $b$ from the $x = 0$ row and $m$ from the step size.',
+        headline: 'This line does NOT pass through the origin, and that is the point.',
         reasoning: [
-          'When $x = 0$, $y = 4$, so $b = 4$.',
-          'Each step of 1 in $x$ raises $y$ by 5, so $m = 5$.',
+          'The pool already held water before the hose was turned on, so at zero hours the depth is not zero.',
+          'That starting amount is the $b$ in $y = mx + b$; the 4 is the rate, and the two do different jobs.',
         ],
-        answer: '$y = 5x + 4$',
+        answer: 'It started at 6 inches.',
       },
-      feedback: ['Test your equation on the last row of the table.'],
-      hints: ['Which row tells you the value before any $x$ has been added?'],
+      feedback: ['What is the depth at the moment the hose is turned on?'],
+      hints: ['Substitute zero hours into the equation. Which of the two numbers survives?'],
+      misconceptions: ['Treating every linear situation as proportional and expecting the line through the origin.'],
     }),
 
     numeric({

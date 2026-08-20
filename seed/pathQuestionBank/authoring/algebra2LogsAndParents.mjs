@@ -782,21 +782,23 @@ export const ALGEBRA2_LOG_PARENT_STANDARDS = [
       hints: ['Write the tolerance condition as an equation first.'],
     }),
 
-    numeric({
-      code: 'A2.6E', slug: 'reverse-count', band: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic',
-      prompt: 'How many solutions does $|x + 2| = 0$ have?',
-      expected: '1',
+
+    numberLine({
+      code: 'A2.6E', slug: 'solutions-on-a-line', band: 4, dok: 3, taskType: 'reverseReasoning',
+      prompt: 'Graph the SOLUTION SET of $|x - 4| \\le 6$ on the number line, then write it in interval notation.',
+      min: -6, max: 14, step: 1, variable: 'x', ask: ['graph', 'interval'],
+      intervals: [{ start: -2, end: 10, startClosed: true, endClosed: true }],
       review: {
-        headline: 'Zero is the one right-hand value that gives a single solution.',
+        headline: 'An absolute value bound is a distance, and a distance bound is an interval.',
         reasoning: [
-          '$|A| = 0$ only when $A = 0$.',
-          'So $x + 2 = 0$ and $x = -2$ is the only solution.',
+          'The statement says the input is no further than 6 from 4, in either direction.',
+          'That is 4 plus and minus 6, and because the bound allows equality both ends are filled.',
         ],
-        answer: 'One.',
-        connection: 'A positive right side gives two solutions, zero gives one, and a negative gives none.',
+        answer: 'From 4 minus 6 to 4 plus 6, both ends included.',
       },
-      feedback: ['How many values have absolute value zero?'],
-      hints: ['What is the only number whose distance from zero is zero?'],
+      feedback: ['The absolute value is measuring a distance from what number?'],
+      hints: ['Identify the centre and the allowed distance separately, then step that distance out from the centre in both directions.'],
+      misconceptions: ['Graphing only one side of the centre.'],
     }),
   ]),
 

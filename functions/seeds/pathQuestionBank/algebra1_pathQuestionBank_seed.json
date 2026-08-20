@@ -10594,13 +10594,13 @@
       "misconceptions": []
     },
     {
-      "id": "mm_A_4C_fit-from-table",
+      "id": "mm_A_4C_plot-the-fit",
       "active": true,
       "alignmentKeys": [
         "texas:A.4C"
       ],
       "courseId": "algebra1",
-      "familyId": "mathmaster:A.4C:fit-from-table",
+      "familyId": "mathmaster:A.4C:plot-the-fit",
       "familyVersion": 1,
       "questionType": "response",
       "activityRole": "practice",
@@ -10609,73 +10609,74 @@
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A.4C",
       "taskType": "representationTranslation",
-      "representation": "table",
+      "representation": "graph",
       "authoring": {
         "source": "MathMaster production authoring",
         "kit": 1
       },
-      "prompt": "The data below lies exactly on a line. Write its equation in slope-intercept form.",
-      "stimulus": {
-        "kind": "table",
-        "title": null,
-        "note": null,
-        "table": {
-          "headers": [
-            "$x$",
-            "$y$"
-          ],
-          "rows": [
-            [
-              "0",
-              "24"
-            ],
-            [
-              "5",
-              "39"
-            ],
-            [
-              "10",
-              "54"
-            ],
-            [
-              "15",
-              "69"
-            ]
+      "type": "functionInvestigation",
+      "prompt": "A line of best fit for some sales data is $y = 6x + 10$, where $x$ is weeks. Plot the points where $x = 0$ and $x = 5$, then give the predicted value at week 5.",
+      "functionSpec": {
+        "type": "linear",
+        "m": 6,
+        "b": 10
+      },
+      "graph": {
+        "xMin": -1,
+        "xMax": 9,
+        "yMin": 0,
+        "yMax": 60
+      },
+      "pointTasks": [
+        {
+          "id": "start",
+          "label": "Plot the point where $x = 0$",
+          "x": 0,
+          "expected": [
+            0,
+            10
+          ]
+        },
+        {
+          "id": "five",
+          "label": "Plot the point where $x = 5$",
+          "x": 5,
+          "expected": [
+            5,
+            40
           ]
         }
-      },
-      "responseFields": [
+      ],
+      "analysisRequests": [
         {
-          "id": "answer",
-          "label": "Answer",
-          "inputProfile": "equation",
-          "unit": null,
-          "responseHint": "Write it in the form y = mx + b.",
-          "placeholder": null,
-          "expected": "y=3x+24",
-          "accepted": [
-            "y=3x+24",
-            "y = 3x + 24",
-            "y=24+3x",
-            "y = 24 + 3x"
+          "id": "predict",
+          "label": "What does the model predict at week 5?",
+          "kind": "increasing",
+          "responseMode": "text",
+          "expected": [
+            "40"
+          ],
+          "acceptedAnswers": [
+            "40",
+            "40 sales"
           ]
         }
       ],
       "solutionReview": {
-        "headline": "The intercept is in the table; the slope is the step.",
+        "headline": "A model is used by substituting, not by eyeballing the picture.",
         "reasoning": [
-          "At $x = 0$, $y = 24$.",
-          "$y$ rises 15 for every 5 in $x$, which is 3 per unit."
+          "Substituting 5 weeks gives $30 + 10$.",
+          "The intercept is what the model says was already happening before week one, which is why the line does not start at zero."
         ],
-        "answerSummary": "$y = 3x + 24$",
+        "answerSummary": "40 at week 5.",
         "commonError": null,
         "connection": null
       },
       "attemptFeedback": [
-        "The rows step by 5, so divide the rise by 5."
+        "Put the week number into the equation rather than reading it off the graph."
       ],
       "supportHints": [
-        "What is $39 - 24$?"
+        "Substitute the week number for $x$ and evaluate. Use the graph afterwards to check your answer looks right."
       ],
       "misconceptions": []
     },
