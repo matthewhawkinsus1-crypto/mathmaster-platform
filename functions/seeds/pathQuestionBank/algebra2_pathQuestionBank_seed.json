@@ -129,13 +129,13 @@
       "misconceptions": []
     },
     {
-      "id": "mm_A2_2A_features-from-table",
+      "id": "mm_A2_2A_graph-the-parent",
       "active": true,
       "alignmentKeys": [
         "texas:A2.2A"
       ],
       "courseId": "algebra2",
-      "familyId": "mathmaster:A2.2A:features-from-table",
+      "familyId": "mathmaster:A2.2A:graph-the-parent",
       "familyVersion": 1,
       "questionType": "response",
       "activityRole": "practice",
@@ -143,79 +143,88 @@
       "dok": 2,
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A2.2A",
-      "taskType": "interpretation",
-      "representation": "table",
+      "taskType": "representationTranslation",
+      "representation": "graph",
       "authoring": {
         "source": "MathMaster production authoring",
         "kit": 1
       },
-      "prompt": "The table gives values of a cube root parent function. Give $f(8)$ and $f(-27)$.",
-      "stimulus": {
-        "kind": "table",
-        "title": null,
-        "note": null,
-        "table": {
-          "headers": [
-            "$x$",
-            "$f(x) = \\sqrt[3]{x}$"
-          ],
-          "rows": [
-            [
-              "-27",
-              "?"
-            ],
-            [
-              "-8",
-              "-2"
-            ],
-            [
-              "0",
-              "0"
-            ],
-            [
-              "1",
-              "1"
-            ],
-            [
-              "8",
-              "?"
-            ]
-          ]
-        }
+      "type": "functionInvestigation",
+      "prompt": "Graph the cube root parent function $y = \\sqrt[3]{x}$: plot the points where $x = -8$, $x = 0$ and $x = 8$, then give its domain.",
+      "functionSpec": {
+        "type": "cubeRoot",
+        "a": 1,
+        "h": 0,
+        "k": 0
       },
-      "responseFields": [
+      "graph": {
+        "xMin": -10,
+        "xMax": 10,
+        "yMin": -4,
+        "yMax": 4
+      },
+      "pointTasks": [
         {
-          "id": "eight",
-          "label": "$f(8)$",
-          "inputProfile": "number",
-          "unit": null,
-          "responseHint": null,
-          "expected": "2"
+          "id": "left",
+          "label": "Plot the point where $x = -8$",
+          "x": -8,
+          "expected": [
+            -8,
+            -2
+          ]
         },
         {
-          "id": "negative",
-          "label": "$f(-27)$",
-          "inputProfile": "number",
-          "unit": null,
-          "responseHint": null,
-          "expected": "-3"
+          "id": "origin",
+          "label": "Plot the point where $x = 0$",
+          "x": 0,
+          "expected": [
+            0,
+            0
+          ]
+        },
+        {
+          "id": "right",
+          "label": "Plot the point where $x = 8$",
+          "x": 8,
+          "expected": [
+            8,
+            2
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "domain",
+          "label": "What is the domain of this function?",
+          "kind": "increasing",
+          "responseMode": "text",
+          "expected": [
+            "all real numbers"
+          ],
+          "acceptedAnswers": [
+            "all real numbers",
+            "all reals",
+            "(-inf, inf)",
+            "(-infinity, infinity)",
+            "R"
+          ]
         }
       ],
       "solutionReview": {
-        "headline": "A cube root accepts negatives, unlike a square root.",
+        "headline": "Unlike a square root, a cube root accepts negative inputs.",
         "reasoning": [
-          "$2^{3} = 8$, so $\\sqrt[3]{8} = 2$.",
-          "$(-3)^{3} = -27$, so $\\sqrt[3]{-27} = -3$."
+          "A negative number has a real cube root, because a negative cubed is negative.",
+          "That is why this graph continues to the left of the origin while the square root graph stops there."
         ],
-        "answerSummary": "$f(8) = 2$ and $f(-27) = -3$.",
+        "answerSummary": "All real numbers.",
         "commonError": null,
-        "connection": "This is why the cube root has domain all real numbers while the square root does not."
+        "connection": null
       },
       "attemptFeedback": [
-        "What number cubed gives each value?"
+        "Is there any input you could not take the cube root of?"
       ],
       "supportHints": [
-        "For each row, ask what number multiplied by itself three times gives that value."
+        "Try cubing a negative number and see whether the result is a legal input for this function."
       ],
       "misconceptions": []
     },
@@ -505,13 +514,13 @@
       "misconceptions": []
     },
     {
-      "id": "mm_A2_2B_from-table",
+      "id": "mm_A2_2B_graph-then-invert",
       "active": true,
       "alignmentKeys": [
         "texas:A2.2B"
       ],
       "courseId": "algebra2",
-      "familyId": "mathmaster:A2.2B:from-table",
+      "familyId": "mathmaster:A2.2B:graph-then-invert",
       "familyVersion": 1,
       "questionType": "response",
       "activityRole": "practice",
@@ -519,68 +528,76 @@
       "dok": 2,
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A2.2B",
-      "taskType": "interpretation",
-      "representation": "table",
+      "taskType": "representationTranslation",
+      "representation": "graph",
       "authoring": {
         "source": "MathMaster production authoring",
         "kit": 1
       },
-      "prompt": "The table defines $f$. What is $f^{-1}(7)$?",
-      "stimulus": {
-        "kind": "table",
-        "title": null,
-        "note": null,
-        "table": {
-          "headers": [
-            "$x$",
-            "$f(x)$"
-          ],
-          "rows": [
-            [
-              "-1",
-              "1"
-            ],
-            [
-              "0",
-              "3"
-            ],
-            [
-              "2",
-              "7"
-            ],
-            [
-              "5",
-              "13"
-            ]
+      "type": "functionInvestigation",
+      "prompt": "Graph $f(x) = 2x - 4$: plot the points where $x = 0$ and $x = 3$, then give the point on the graph of $f^{-1}$ that corresponds to your second point.",
+      "functionSpec": {
+        "type": "linear",
+        "m": 2,
+        "b": -4
+      },
+      "graph": {
+        "xMin": -4,
+        "xMax": 8,
+        "yMin": -8,
+        "yMax": 6
+      },
+      "pointTasks": [
+        {
+          "id": "yint",
+          "label": "Plot the point where $x = 0$",
+          "x": 0,
+          "expected": [
+            0,
+            -4
+          ]
+        },
+        {
+          "id": "three",
+          "label": "Plot the point where $x = 3$",
+          "x": 3,
+          "expected": [
+            3,
+            2
           ]
         }
-      },
-      "responseFields": [
+      ],
+      "analysisRequests": [
         {
-          "id": "answer",
-          "label": "Answer",
-          "inputProfile": "number",
-          "unit": null,
-          "responseHint": null,
-          "placeholder": null,
-          "expected": "2"
+          "id": "inverse",
+          "label": "Give the corresponding point on the inverse, as (x, y).",
+          "kind": "increasing",
+          "responseMode": "text",
+          "expected": [
+            "(2,3)"
+          ],
+          "acceptedAnswers": [
+            "(2,3)",
+            "(2, 3)",
+            "2,3"
+          ]
         }
       ],
       "solutionReview": {
-        "headline": "Read the table backwards.",
+        "headline": "An inverse swaps the two coordinates of every point.",
         "reasoning": [
-          "$f^{-1}(7)$ asks: which input produced 7?",
-          "The table shows $f(2) = 7$, so $f^{-1}(7) = 2$."
+          "If a function sends an input to an output, its inverse sends that output back to the input.",
+          "Graphically this is a reflection across the line $y = x$, which is exactly what swapping coordinates does."
         ],
-        "answerSummary": "$2$",
-        "commonError": "Reading $f(7)$ instead answers the forward question, and 7 is not even in the input column.",
+        "answerSummary": "The coordinates of your second point, in the other order.",
+        "commonError": null,
         "connection": null
       },
       "attemptFeedback": [
-        "Search the OUTPUT column for 7."
+        "What does an inverse do to an ordered pair?"
       ],
       "supportHints": [
-        "Which row has 7 in the second column?"
+        "Take the point you just plotted and ask which coordinate the inverse treats as the input."
       ],
       "misconceptions": []
     },
@@ -767,70 +784,79 @@
       "misconceptions": []
     },
     {
-      "id": "mm_A2_2C_pairs",
+      "id": "mm_A2_2C_inverse-mapping",
       "active": true,
       "alignmentKeys": [
         "texas:A2.2C"
       ],
       "courseId": "algebra2",
-      "familyId": "mathmaster:A2.2C:pairs",
+      "familyId": "mathmaster:A2.2C:inverse-mapping",
       "familyVersion": 1,
       "questionType": "response",
       "activityRole": "practice",
-      "difficultyBand": 2,
-      "dok": 1,
+      "difficultyBand": 3,
+      "dok": 2,
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A2.2C",
       "taskType": "conceptual",
-      "representation": "symbolic",
+      "representation": "orderedPairs",
       "authoring": {
         "source": "MathMaster production authoring",
         "kit": 1
       },
-      "prompt": "Which pair of functions are inverses of each other on suitable domains?",
-      "choices": [
+      "type": "relationMapping",
+      "prompt": "These ordered pairs come from the INVERSE of $f(x) = x^2$ with no domain restriction. Map each input to its output, give the domain and range, and decide whether this inverse is itself a function.",
+      "pairs": [
         {
-          "id": "opt-1",
-          "label": "$y = x^{3}$ and $y = 3x$"
+          "x": 0,
+          "y": 0
         },
         {
-          "id": "opt-2",
-          "label": "$y = x^{2}$ and $y = 2x$"
+          "x": 1,
+          "y": 1
         },
         {
-          "id": "opt-3",
-          "label": "$y = |x|$ and $y = -|x|$"
+          "x": 1,
+          "y": -1
         },
         {
-          "id": "opt-4",
-          "label": "$y = 10^{x}$ and $y = \\log_{10} x$"
+          "x": 4,
+          "y": 2
+        },
+        {
+          "x": 4,
+          "y": -2
         }
       ],
-      "responseFields": [
-        {
-          "id": "answer",
-          "label": "Choose the correct answer",
-          "inputProfile": "choice",
-          "expected": "opt-4"
-        }
+      "ask": [
+        "mapping",
+        "domain",
+        "range",
+        "isFunction"
       ],
+      "domainLabel": "Input",
+      "rangeLabel": "Output",
       "solutionReview": {
-        "headline": "Exponential and logarithm undo each other.",
+        "headline": "The inverse of an unrestricted quadratic is not a function.",
         "reasoning": [
-          "$\\log_{10}(10^{x}) = x$ for every real $x$.",
-          "Squaring and doubling are unrelated, and negating an absolute value does not undo it."
+          "Two different outputs share the same input, which is exactly what a function is not allowed to do.",
+          "This is why $y = \\sqrt{x}$ restricts to the non-negative branch — the restriction is what rescues the inverse."
         ],
-        "answerSummary": "$y = 10^{x}$ and $y = \\log_{10} x$.",
+        "answerSummary": "Not a function; some inputs map to two outputs.",
         "commonError": null,
         "connection": null
       },
       "attemptFeedback": [
-        "Compose each pair and see whether you get back to $x$."
+        "Look for an input with more than one arrow leaving it."
       ],
       "supportHints": [
-        "What undoes raising 10 to a power?"
+        "A relation fails to be a function the moment one input is paired with two different outputs. Check the repeated inputs."
       ],
-      "misconceptions": []
+      "misconceptions": [
+        {
+          "match": []
+        }
+      ]
     },
     {
       "id": "mm_A2_2C_restricted-domain",
@@ -4488,13 +4514,13 @@
       "misconceptions": []
     },
     {
-      "id": "mm_A2_4C_from-table",
+      "id": "mm_A2_4C_graph-the-shift",
       "active": true,
       "alignmentKeys": [
         "texas:A2.4C"
       ],
       "courseId": "algebra2",
-      "familyId": "mathmaster:A2.4C:from-table",
+      "familyId": "mathmaster:A2.4C:graph-the-shift",
       "familyVersion": 1,
       "questionType": "response",
       "activityRole": "practice",
@@ -4502,75 +4528,79 @@
       "dok": 2,
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A2.4C",
-      "taskType": "interpretation",
-      "representation": "table",
+      "taskType": "representationTranslation",
+      "representation": "graph",
       "authoring": {
         "source": "MathMaster production authoring",
         "kit": 1
       },
-      "prompt": "The table gives values of a transformed square root function. Give the $x$ and $y$ coordinates of its endpoint.",
-      "stimulus": {
-        "kind": "table",
-        "title": null,
-        "note": null,
-        "table": {
-          "headers": [
-            "$x$",
-            "$y$"
-          ],
-          "rows": [
-            [
-              "4",
-              "2"
-            ],
-            [
-              "5",
-              "3"
-            ],
-            [
-              "8",
-              "4"
-            ],
-            [
-              "13",
-              "5"
-            ]
-          ]
-        }
+      "type": "functionInvestigation",
+      "prompt": "Graph $y = \\sqrt{x - 2} + 1$: plot the endpoint and the point where $x = 6$, then give the domain.",
+      "functionSpec": {
+        "type": "squareRoot",
+        "a": 1,
+        "h": 2,
+        "k": 1
       },
-      "responseFields": [
+      "graph": {
+        "xMin": -2,
+        "xMax": 12,
+        "yMin": -2,
+        "yMax": 6
+      },
+      "pointTasks": [
         {
-          "id": "x",
-          "label": "Endpoint $x$",
-          "inputProfile": "number",
-          "unit": null,
-          "responseHint": null,
-          "expected": "4"
+          "id": "start",
+          "label": "Plot the endpoint of the graph",
+          "x": 2,
+          "expected": [
+            2,
+            1
+          ]
         },
         {
-          "id": "y",
-          "label": "Endpoint $y$",
-          "inputProfile": "number",
-          "unit": null,
-          "responseHint": null,
-          "expected": "2"
+          "id": "later",
+          "label": "Plot the point where $x = 6$",
+          "x": 6,
+          "expected": [
+            6,
+            3
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "domain",
+          "label": "What is the domain of this function?",
+          "kind": "increasing",
+          "responseMode": "text",
+          "expected": [
+            "x >= 2"
+          ],
+          "acceptedAnswers": [
+            "x >= 2",
+            "x>=2",
+            "[2, inf)",
+            "[2,inf)",
+            "x is greater than or equal to 2"
+          ]
         }
       ],
       "solutionReview": {
-        "headline": "The endpoint is where the graph starts.",
+        "headline": "The graph starts where the radicand stops being negative.",
         "reasoning": [
-          "No values are listed below $x = 4$, and the outputs increase from there.",
-          "The function is $y = \\sqrt{x - 4} + 2$, whose endpoint is $(4, 2)$."
+          "Requiring the expression under the radical to be at least zero gives the leftmost input.",
+          "The $+1$ moves the whole graph up but changes nothing about which inputs are allowed."
         ],
-        "answerSummary": "$(4, 2)$",
+        "answerSummary": "Every input from 2 rightward.",
         "commonError": null,
         "connection": null
       },
       "attemptFeedback": [
-        "Which row is the smallest input in the table?"
+        "Which of the two numbers in this equation restricts the INPUTS?"
       ],
       "supportHints": [
-        "A square root graph has one end and no other."
+        "Set the expression under the radical greater than or equal to zero and solve. The constant outside does not affect that."
       ],
       "misconceptions": []
     },
@@ -4754,82 +4784,6 @@
       "misconceptions": []
     },
     {
-      "id": "mm_A2_4D_from-table",
-      "active": true,
-      "alignmentKeys": [
-        "texas:A2.4D"
-      ],
-      "courseId": "algebra2",
-      "familyId": "mathmaster:A2.4D:from-table",
-      "familyVersion": 1,
-      "questionType": "response",
-      "activityRole": "practice",
-      "difficultyBand": 3,
-      "dok": 2,
-      "calculatorPolicy": "inherit",
-      "assessedConstruct": "A2.4D",
-      "taskType": "interpretation",
-      "representation": "table",
-      "authoring": {
-        "source": "MathMaster production authoring",
-        "kit": 1
-      },
-      "prompt": "Each row rewrites a quadratic in vertex form. What constant belongs in place of the question mark?",
-      "stimulus": {
-        "kind": "table",
-        "title": null,
-        "note": null,
-        "table": {
-          "headers": [
-            "Standard form",
-            "Vertex form"
-          ],
-          "rows": [
-            [
-              "$x^{2} + 2x + 5$",
-              "$(x+1)^{2} + 4$"
-            ],
-            [
-              "$x^{2} + 6x + 5$",
-              "$(x+3)^{2} - 4$"
-            ],
-            [
-              "$x^{2} + 10x + 5$",
-              "$(x+5)^{2} + \\; ?$"
-            ]
-          ]
-        }
-      },
-      "responseFields": [
-        {
-          "id": "answer",
-          "label": "Answer",
-          "inputProfile": "number",
-          "unit": null,
-          "responseHint": null,
-          "placeholder": null,
-          "expected": "-20"
-        }
-      ],
-      "solutionReview": {
-        "headline": "Completing the square adds a square, so the same amount comes back out.",
-        "reasoning": [
-          "$(x+5)^{2} = x^{2} + 10x + 25$, which is 20 more than $x^{2} + 10x + 5$.",
-          "So 20 must be subtracted: the constant is $-20$."
-        ],
-        "answerSummary": "$-20$",
-        "commonError": null,
-        "connection": "Reading down the table, the constant is always the original constant minus the square of half the middle coefficient."
-      },
-      "attemptFeedback": [
-        "Expand the squared bracket and compare it with the standard form beside it."
-      ],
-      "supportHints": [
-        "What does $(x+5)^{2}$ expand to?"
-      ],
-      "misconceptions": []
-    },
-    {
       "id": "mm_A2_4D_read-vertex",
       "active": true,
       "alignmentKeys": [
@@ -4935,6 +4889,95 @@
       ],
       "supportHints": [
         "What is $-\\frac{b}{2a}$ here?"
+      ],
+      "misconceptions": []
+    },
+    {
+      "id": "mm_A2_4D_vertex-on-the-graph",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4D:vertex-on-the-graph",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4D",
+      "taskType": "interpretation",
+      "representation": "graph",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "type": "functionInvestigation",
+      "prompt": "Completing the square turns $y = x^{2} - 6x + 5$ into $y = (x - 3)^{2} - 4$. Plot the vertex and the point where $x = 5$, then give the minimum value of the function.",
+      "functionSpec": {
+        "type": "quadratic",
+        "a": 1,
+        "h": 3,
+        "k": -4
+      },
+      "graph": {
+        "xMin": -2,
+        "xMax": 8,
+        "yMin": -6,
+        "yMax": 8
+      },
+      "pointTasks": [
+        {
+          "id": "vertex",
+          "label": "Plot the vertex",
+          "x": 3,
+          "expected": [
+            3,
+            -4
+          ]
+        },
+        {
+          "id": "right",
+          "label": "Plot the point where $x = 5$",
+          "x": 5,
+          "expected": [
+            5,
+            0
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "min",
+          "label": "What is the minimum value of the function?",
+          "kind": "increasing",
+          "responseMode": "text",
+          "expected": [
+            "-4"
+          ],
+          "acceptedAnswers": [
+            "-4",
+            "y=-4",
+            "-4 at x=3"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Vertex form puts the turning point in plain sight.",
+        "reasoning": [
+          "The squared term is never negative, so the whole expression is smallest when that term is zero.",
+          "That happens at one input, and there the output is whatever constant sits outside the square."
+        ],
+        "answerSummary": "The output at the vertex.",
+        "commonError": null,
+        "connection": null
+      },
+      "attemptFeedback": [
+        "Which coordinate of the vertex is the minimum VALUE — the input or the output?"
+      ],
+      "supportHints": [
+        "The minimum value is an output. Find the input that makes the squared term vanish, then read what is left."
       ],
       "misconceptions": []
     },
@@ -5563,6 +5606,68 @@
       "misconceptions": []
     },
     {
+      "id": "mm_A2_4G_domain-on-a-line",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4G"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4G:domain-on-a-line",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4G",
+      "taskType": "representationTranslation",
+      "representation": "numberLine",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "type": "intervalNumberLine",
+      "prompt": "Before solving $\\sqrt{2x - 6} = x - 7$, graph the set of inputs for which the LEFT side is even defined, then write that set in interval notation.",
+      "min": -2,
+      "max": 12,
+      "step": 1,
+      "variable": "x",
+      "ask": [
+        "graph",
+        "interval"
+      ],
+      "inequalityText": null,
+      "expectedIntervals": [
+        {
+          "start": 3,
+          "end": null,
+          "startClosed": true,
+          "endClosed": false
+        }
+      ],
+      "solutionReview": {
+        "headline": "Knowing the legal inputs first is what makes an extraneous solution obvious.",
+        "reasoning": [
+          "The expression under the radical must be at least zero, which cuts the line at one point.",
+          "Any candidate the algebra produces outside this set was manufactured by squaring, not by the original equation."
+        ],
+        "answerSummary": "Every input from the boundary rightward, boundary included.",
+        "commonError": null,
+        "connection": null
+      },
+      "attemptFeedback": [
+        "What has to be true of the expression under the radical?"
+      ],
+      "supportHints": [
+        "Set the radicand greater than or equal to zero and solve it. Do not solve the whole equation yet."
+      ],
+      "misconceptions": [
+        {
+          "match": []
+        }
+      ]
+    },
+    {
       "id": "mm_A2_4G_error-analysis",
       "active": true,
       "alignmentKeys": [
@@ -5676,99 +5781,6 @@
       ],
       "supportHints": [
         "What does the left side evaluate to at $x = -2$?"
-      ],
-      "misconceptions": []
-    },
-    {
-      "id": "mm_A2_4G_from-table",
-      "active": true,
-      "alignmentKeys": [
-        "texas:A2.4G"
-      ],
-      "courseId": "algebra2",
-      "familyId": "mathmaster:A2.4G:from-table",
-      "familyVersion": 1,
-      "questionType": "response",
-      "activityRole": "practice",
-      "difficultyBand": 3,
-      "dok": 2,
-      "calculatorPolicy": "inherit",
-      "assessedConstruct": "A2.4G",
-      "taskType": "interpretation",
-      "representation": "table",
-      "authoring": {
-        "source": "MathMaster production authoring",
-        "kit": 1
-      },
-      "prompt": "The table checks two candidate solutions of $\\sqrt{2x + 3} = x$. Which is extraneous?",
-      "stimulus": {
-        "kind": "table",
-        "title": null,
-        "note": null,
-        "table": {
-          "headers": [
-            "$x$",
-            "Left side",
-            "Right side",
-            "Equal?"
-          ],
-          "rows": [
-            [
-              "3",
-              "3",
-              "3",
-              "yes"
-            ],
-            [
-              "-1",
-              "1",
-              "-1",
-              "no"
-            ]
-          ]
-        }
-      },
-      "choices": [
-        {
-          "id": "opt-1",
-          "label": "Neither"
-        },
-        {
-          "id": "opt-2",
-          "label": "Both"
-        },
-        {
-          "id": "opt-3",
-          "label": "$x = -1$"
-        },
-        {
-          "id": "opt-4",
-          "label": "$x = 3$"
-        }
-      ],
-      "responseFields": [
-        {
-          "id": "answer",
-          "label": "Choose the correct answer",
-          "inputProfile": "choice",
-          "expected": "opt-3"
-        }
-      ],
-      "solutionReview": {
-        "headline": "An extraneous solution fails the check.",
-        "reasoning": [
-          "At $x = -1$ the two sides give 1 and $-1$, which are not equal.",
-          "A square root cannot be negative, which is why this candidate could never work."
-        ],
-        "answerSummary": "$x = -1$ is extraneous.",
-        "commonError": null,
-        "connection": null
-      },
-      "attemptFeedback": [
-        "Look for the row where the two sides disagree."
-      ],
-      "supportHints": [
-        "Read the last column."
       ],
       "misconceptions": []
     },
@@ -6409,13 +6421,13 @@
       "misconceptions": []
     },
     {
-      "id": "mm_A2_5A_log-domain-shift",
+      "id": "mm_A2_5A_graph-the-log-shift",
       "active": true,
       "alignmentKeys": [
         "texas:A2.5A"
       ],
       "courseId": "algebra2",
-      "familyId": "mathmaster:A2.5A:log-domain-shift",
+      "familyId": "mathmaster:A2.5A:graph-the-log-shift",
       "familyVersion": 1,
       "questionType": "response",
       "activityRole": "practice",
@@ -6423,83 +6435,78 @@
       "dok": 2,
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A2.5A",
-      "taskType": "interpretation",
-      "representation": "table",
+      "taskType": "representationTranslation",
+      "representation": "graph",
       "authoring": {
         "source": "MathMaster production authoring",
         "kit": 1
       },
-      "prompt": "Which function has a vertical asymptote at $x = 4$?",
-      "stimulus": {
-        "kind": "table",
-        "title": null,
-        "note": null,
-        "table": {
-          "headers": [
-            "Option",
-            "Function"
-          ],
-          "rows": [
-            [
-              "A",
-              "$y = \\log(x - 4)$"
-            ],
-            [
-              "B",
-              "$y = \\log(x) - 4$"
-            ],
-            [
-              "C",
-              "$y = \\log(x + 4)$"
-            ],
-            [
-              "D",
-              "$y = 4\\log(x)$"
-            ]
+      "type": "functionInvestigation",
+      "prompt": "Graph $y = \\log_{2}(x - 3)$: plot the points where $x = 4$ and $x = 7$, then give the equation of the vertical asymptote.",
+      "functionSpec": {
+        "type": "logarithmic",
+        "a": 1,
+        "base": 2,
+        "h": 3,
+        "k": 0
+      },
+      "graph": {
+        "xMin": 0,
+        "xMax": 12,
+        "yMin": -5,
+        "yMax": 5
+      },
+      "pointTasks": [
+        {
+          "id": "one",
+          "label": "Plot the point where $x = 4$",
+          "x": 4,
+          "expected": [
+            4,
+            0
+          ]
+        },
+        {
+          "id": "two",
+          "label": "Plot the point where $x = 7$",
+          "x": 7,
+          "expected": [
+            7,
+            2
           ]
         }
-      },
-      "choices": [
-        {
-          "id": "opt-1",
-          "label": "Option D"
-        },
-        {
-          "id": "opt-2",
-          "label": "Option B"
-        },
-        {
-          "id": "opt-3",
-          "label": "Option C"
-        },
-        {
-          "id": "opt-4",
-          "label": "Option A"
-        }
       ],
-      "responseFields": [
+      "analysisRequests": [
         {
-          "id": "answer",
-          "label": "Choose the correct answer",
-          "inputProfile": "choice",
-          "expected": "opt-4"
+          "id": "asymptote",
+          "label": "What is the equation of the vertical asymptote?",
+          "kind": "increasing",
+          "responseMode": "text",
+          "expected": [
+            "x=3"
+          ],
+          "acceptedAnswers": [
+            "x=3",
+            "x = 3",
+            "3"
+          ]
         }
       ],
       "solutionReview": {
-        "headline": "A logarithm blows up where its argument reaches zero.",
+        "headline": "A logarithm has a vertical asymptote where its argument reaches zero.",
         "reasoning": [
-          "$\\log(x - 4)$ is undefined when $x - 4 = 0$, so the asymptote is $x = 4$.",
-          "Option C has its asymptote at $x = -4$, and the others at $x = 0$."
+          "The argument $x - 3$ is zero at one input, and a logarithm is undefined there and to the left of it.",
+          "Shifting the parent function right carries its asymptote along with it."
         ],
-        "answerSummary": "Option A.",
+        "answerSummary": "The asymptote is the vertical line at that input.",
         "commonError": null,
         "connection": null
       },
       "attemptFeedback": [
-        "Where does each argument become zero?"
+        "Which input makes the expression inside the logarithm equal zero?"
       ],
       "supportHints": [
-        "Set the inside of each logarithm to zero."
+        "Set the argument of the logarithm equal to zero and solve. That input is where the graph runs off downward."
       ],
       "misconceptions": []
     },
@@ -7932,13 +7939,13 @@
       "misconceptions": []
     },
     {
-      "id": "mm_A2_6A_from-table",
+      "id": "mm_A2_6A_graph-the-transformation",
       "active": true,
       "alignmentKeys": [
         "texas:A2.6A"
       ],
       "courseId": "algebra2",
-      "familyId": "mathmaster:A2.6A:from-table",
+      "familyId": "mathmaster:A2.6A:graph-the-transformation",
       "familyVersion": 1,
       "questionType": "response",
       "activityRole": "practice",
@@ -7946,72 +7953,88 @@
       "dok": 2,
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A2.6A",
-      "taskType": "interpretation",
-      "representation": "table",
+      "taskType": "representationTranslation",
+      "representation": "graph",
       "authoring": {
         "source": "MathMaster production authoring",
         "kit": 1
       },
-      "prompt": "The table gives a transformed cubic $y = (x - h)^{3}$. What is $h$?",
-      "stimulus": {
-        "kind": "table",
-        "title": null,
-        "note": null,
-        "table": {
-          "headers": [
-            "$x$",
-            "$y$"
-          ],
-          "rows": [
-            [
-              "1",
-              "-8"
-            ],
-            [
-              "2",
-              "-1"
-            ],
-            [
-              "3",
-              "0"
-            ],
-            [
-              "4",
-              "1"
-            ],
-            [
-              "5",
-              "8"
-            ]
+      "type": "functionInvestigation",
+      "prompt": "Graph $y = 2\\sqrt[3]{x} - 1$: plot the points where $x = -8$, $x = 0$ and $x = 8$, then give the range.",
+      "functionSpec": {
+        "type": "cubeRoot",
+        "a": 2,
+        "h": 0,
+        "k": -1
+      },
+      "graph": {
+        "xMin": -10,
+        "xMax": 10,
+        "yMin": -7,
+        "yMax": 5
+      },
+      "pointTasks": [
+        {
+          "id": "left",
+          "label": "Plot the point where $x = -8$",
+          "x": -8,
+          "expected": [
+            -8,
+            -5
+          ]
+        },
+        {
+          "id": "middle",
+          "label": "Plot the point where $x = 0$",
+          "x": 0,
+          "expected": [
+            0,
+            -1
+          ]
+        },
+        {
+          "id": "right",
+          "label": "Plot the point where $x = 8$",
+          "x": 8,
+          "expected": [
+            8,
+            3
           ]
         }
-      },
-      "responseFields": [
+      ],
+      "analysisRequests": [
         {
-          "id": "answer",
-          "label": "Answer",
-          "inputProfile": "number",
-          "unit": null,
-          "responseHint": null,
-          "placeholder": null,
-          "expected": "3"
+          "id": "range",
+          "label": "What is the range of this function?",
+          "kind": "increasing",
+          "responseMode": "text",
+          "expected": [
+            "all real numbers"
+          ],
+          "acceptedAnswers": [
+            "all real numbers",
+            "all reals",
+            "(-inf, inf)",
+            "(-infinity, infinity)",
+            "R"
+          ]
         }
       ],
       "solutionReview": {
-        "headline": "The point of inflection is where the output is zero and the curve flattens.",
+        "headline": "A cube root climbs without bound in both directions.",
         "reasoning": [
-          "The outputs are symmetric about $x = 3$, where $y = 0$.",
-          "So $h = 3$ and the function is $(x - 3)^{3}$."
+          "Stretching and shifting a cube root changes where it sits, not how far it reaches.",
+          "Because the parent function already covers every output, so does every transformation of it."
         ],
-        "answerSummary": "$h = 3$",
+        "answerSummary": "All real numbers.",
         "commonError": null,
         "connection": null
       },
       "attemptFeedback": [
-        "Which row has an output of zero?"
+        "Does this graph ever stop rising, or ever stop falling?"
       ],
       "supportHints": [
-        "A cubic of this form is zero exactly at its centre."
+        "Think about what happens to the outputs as the inputs run far in each direction."
       ],
       "misconceptions": []
     },
@@ -8585,13 +8608,13 @@
       "misconceptions": []
     },
     {
-      "id": "mm_A2_6C_from-table",
+      "id": "mm_A2_6C_graph-the-vertex",
       "active": true,
       "alignmentKeys": [
         "texas:A2.6C"
       ],
       "courseId": "algebra2",
-      "familyId": "mathmaster:A2.6C:from-table",
+      "familyId": "mathmaster:A2.6C:graph-the-vertex",
       "familyVersion": 1,
       "questionType": "response",
       "activityRole": "practice",
@@ -8599,72 +8622,88 @@
       "dok": 2,
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A2.6C",
-      "taskType": "interpretation",
-      "representation": "table",
+      "taskType": "representationTranslation",
+      "representation": "graph",
       "authoring": {
         "source": "MathMaster production authoring",
         "kit": 1
       },
-      "prompt": "The table shows an absolute value function. What is the $x$ value of its vertex?",
-      "stimulus": {
-        "kind": "table",
-        "title": null,
-        "note": null,
-        "table": {
-          "headers": [
-            "$x$",
-            "$y$"
-          ],
-          "rows": [
-            [
-              "-3",
-              "7"
-            ],
-            [
-              "-1",
-              "3"
-            ],
-            [
-              "0",
-              "1"
-            ],
-            [
-              "1",
-              "3"
-            ],
-            [
-              "3",
-              "7"
-            ]
+      "type": "functionInvestigation",
+      "prompt": "Graph $y = |x - 3| + 2$: plot the vertex and the points where $x = 1$ and $x = 5$, then give the range.",
+      "functionSpec": {
+        "type": "absolute",
+        "a": 1,
+        "h": 3,
+        "k": 2
+      },
+      "graph": {
+        "xMin": -3,
+        "xMax": 9,
+        "yMin": -1,
+        "yMax": 8
+      },
+      "pointTasks": [
+        {
+          "id": "vertex",
+          "label": "Plot the vertex",
+          "x": 3,
+          "expected": [
+            3,
+            2
+          ]
+        },
+        {
+          "id": "left",
+          "label": "Plot the point where $x = 1$",
+          "x": 1,
+          "expected": [
+            1,
+            4
+          ]
+        },
+        {
+          "id": "right",
+          "label": "Plot the point where $x = 5$",
+          "x": 5,
+          "expected": [
+            5,
+            4
           ]
         }
-      },
-      "responseFields": [
+      ],
+      "analysisRequests": [
         {
-          "id": "answer",
-          "label": "Answer",
-          "inputProfile": "number",
-          "unit": null,
-          "responseHint": null,
-          "placeholder": null,
-          "expected": "0"
+          "id": "range",
+          "label": "What is the range of this function?",
+          "kind": "increasing",
+          "responseMode": "text",
+          "expected": [
+            "y >= 2"
+          ],
+          "acceptedAnswers": [
+            "y >= 2",
+            "y>=2",
+            "[2, inf)",
+            "[2,inf)",
+            "y is greater than or equal to 2"
+          ]
         }
       ],
       "solutionReview": {
-        "headline": "A V-shape is symmetric about its vertex.",
+        "headline": "The vertex of an upward V is its lowest output.",
         "reasoning": [
-          "The outputs mirror around $x = 0$, where the smallest value 1 occurs.",
-          "So the vertex is $(0, 1)$ and the function is $y = 2|x| + 1$."
+          "An absolute value is never negative, so the smallest the expression inside the bars can contribute is zero.",
+          "At that input the output is whatever constant was added outside, and everywhere else it is larger."
         ],
-        "answerSummary": "$x = 0$",
+        "answerSummary": "Every output from the vertex value upward.",
         "commonError": null,
         "connection": null
       },
       "attemptFeedback": [
-        "Where is the smallest output, and where do values repeat either side?"
+        "At what input does the expression inside the bars vanish, and what is the output there?"
       ],
       "supportHints": [
-        "Which $x$ has equal neighbours on both sides?"
+        "Find the input that makes the inside of the absolute value zero, then read the output at that input."
       ],
       "misconceptions": []
     },
@@ -8851,90 +8890,6 @@
       "misconceptions": []
     },
     {
-      "id": "mm_A2_6D_from-table",
-      "active": true,
-      "alignmentKeys": [
-        "texas:A2.6D"
-      ],
-      "courseId": "algebra2",
-      "familyId": "mathmaster:A2.6D:from-table",
-      "familyVersion": 1,
-      "questionType": "response",
-      "activityRole": "practice",
-      "difficultyBand": 3,
-      "dok": 2,
-      "calculatorPolicy": "inherit",
-      "assessedConstruct": "A2.6D",
-      "taskType": "interpretation",
-      "representation": "table",
-      "authoring": {
-        "source": "MathMaster production authoring",
-        "kit": 1
-      },
-      "prompt": "The table shows acceptable and unacceptable readings for a target of 20 with some tolerance. What is the tolerance?",
-      "stimulus": {
-        "kind": "table",
-        "title": null,
-        "note": null,
-        "table": {
-          "headers": [
-            "Reading",
-            "Acceptable?"
-          ],
-          "rows": [
-            [
-              "16",
-              "no"
-            ],
-            [
-              "17",
-              "yes"
-            ],
-            [
-              "20",
-              "yes"
-            ],
-            [
-              "23",
-              "yes"
-            ],
-            [
-              "24",
-              "no"
-            ]
-          ]
-        }
-      },
-      "responseFields": [
-        {
-          "id": "answer",
-          "label": "Answer",
-          "inputProfile": "number",
-          "unit": null,
-          "responseHint": null,
-          "placeholder": null,
-          "expected": "3"
-        }
-      ],
-      "solutionReview": {
-        "headline": "The tolerance is the largest accepted distance from the target.",
-        "reasoning": [
-          "17 and 23 are accepted and are 3 away from 20.",
-          "16 and 24 are 4 away and are rejected, so the tolerance is 3."
-        ],
-        "answerSummary": "$3$, so $|x - 20| \\le 3$.",
-        "commonError": null,
-        "connection": null
-      },
-      "attemptFeedback": [
-        "How far from 20 is the furthest accepted reading?"
-      ],
-      "supportHints": [
-        "Work out the distance from 20 for each row."
-      ],
-      "misconceptions": []
-    },
-    {
       "id": "mm_A2_6D_from-tolerance",
       "active": true,
       "alignmentKeys": [
@@ -9111,6 +9066,68 @@
         "What is the midpoint of 2 and 12?"
       ],
       "misconceptions": []
+    },
+    {
+      "id": "mm_A2_6D_tolerance-on-a-line",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6D:tolerance-on-a-line",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6D",
+      "taskType": "representationTranslation",
+      "representation": "numberLine",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "type": "intervalNumberLine",
+      "prompt": "A machined part must measure 50 mm, and the specification allows an error of at most 0.4 mm, written $|x - 50| \\le 0.4$. Graph the set of ACCEPTABLE measurements on the number line, then write it in interval notation.",
+      "min": 49,
+      "max": 51,
+      "step": 0.1,
+      "variable": "x",
+      "ask": [
+        "graph",
+        "interval"
+      ],
+      "inequalityText": null,
+      "expectedIntervals": [
+        {
+          "start": 49.6,
+          "end": 50.4,
+          "startClosed": true,
+          "endClosed": true
+        }
+      ],
+      "solutionReview": {
+        "headline": "An absolute value bound is a distance, and a distance bound is an interval.",
+        "reasoning": [
+          "The statement says the measurement is no further than the tolerance from the target, in either direction.",
+          "That is the target plus and minus the tolerance, and because the bound allows equality, both ends are included."
+        ],
+        "answerSummary": "The target, plus or minus the allowed error, ends included.",
+        "commonError": null,
+        "connection": null
+      },
+      "attemptFeedback": [
+        "The absolute value is measuring a distance from what number?"
+      ],
+      "supportHints": [
+        "Identify the target and the allowed error separately, then step that error out from the target in both directions."
+      ],
+      "misconceptions": [
+        {
+          "match": []
+        }
+      ]
     },
     {
       "id": "mm_A2_6E_context",
@@ -9827,13 +9844,13 @@
       ]
     },
     {
-      "id": "mm_A2_6G_from-table",
+      "id": "mm_A2_6G_graph-the-shift",
       "active": true,
       "alignmentKeys": [
         "texas:A2.6G"
       ],
       "courseId": "algebra2",
-      "familyId": "mathmaster:A2.6G:from-table",
+      "familyId": "mathmaster:A2.6G:graph-the-shift",
       "familyVersion": 1,
       "questionType": "response",
       "activityRole": "practice",
@@ -9842,86 +9859,85 @@
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A2.6G",
       "taskType": "representationTranslation",
-      "representation": "table",
+      "representation": "graph",
       "authoring": {
         "source": "MathMaster production authoring",
         "kit": 1
       },
-      "prompt": "A reciprocal function is sampled in the table. The outputs are growing without bound near one input. Which function does the table describe?",
-      "stimulus": {
-        "kind": "table",
-        "title": null,
-        "note": null,
-        "table": {
-          "headers": [
-            "$x$",
-            "$g(x)$"
-          ],
-          "rows": [
-            [
-              "1",
-              "-1"
-            ],
-            [
-              "1.9",
-              "-10"
-            ],
-            [
-              "1.99",
-              "-100"
-            ],
-            [
-              "2.01",
-              "100"
-            ],
-            [
-              "3",
-              "1"
-            ]
+      "type": "functionInvestigation",
+      "prompt": "Graph $y = \\dfrac{1}{x - 2}$: plot the points where $x = 1$, $x = 3$ and $x = 4$, then give the equation of the vertical asymptote.",
+      "functionSpec": {
+        "type": "rational",
+        "a": 1,
+        "h": 2,
+        "k": 0
+      },
+      "graph": {
+        "xMin": -4,
+        "xMax": 8,
+        "yMin": -6,
+        "yMax": 6
+      },
+      "pointTasks": [
+        {
+          "id": "left",
+          "label": "Plot the point where $x = 1$",
+          "x": 1,
+          "expected": [
+            1,
+            -1
+          ]
+        },
+        {
+          "id": "near",
+          "label": "Plot the point where $x = 3$",
+          "x": 3,
+          "expected": [
+            3,
+            1
+          ]
+        },
+        {
+          "id": "far",
+          "label": "Plot the point where $x = 4$",
+          "x": 4,
+          "expected": [
+            4,
+            0.5
           ]
         }
-      },
-      "choices": [
-        {
-          "id": "opt-1",
-          "label": "$g(x) = \\dfrac{1}{x + 2}$"
-        },
-        {
-          "id": "opt-2",
-          "label": "$g(x) = \\dfrac{1}{x} - 2$"
-        },
-        {
-          "id": "opt-3",
-          "label": "$g(x) = \\dfrac{1}{x - 2}$"
-        },
-        {
-          "id": "opt-4",
-          "label": "$g(x) = \\dfrac{2}{x}$"
-        }
       ],
-      "responseFields": [
+      "analysisRequests": [
         {
-          "id": "answer",
-          "label": "Choose the correct answer",
-          "inputProfile": "choice",
-          "expected": "opt-3"
+          "id": "asymptote",
+          "label": "What is the equation of the vertical asymptote?",
+          "kind": "decreasing",
+          "responseMode": "text",
+          "expected": [
+            "x=2"
+          ],
+          "acceptedAnswers": [
+            "x=2",
+            "x = 2",
+            "2"
+          ]
         }
       ],
       "solutionReview": {
-        "headline": "Find the input the table is avoiding.",
+        "headline": "The vertical asymptote sits where the denominator is zero.",
         "reasoning": [
-          "The outputs run off toward large negative values from one side and large positive values from the other.",
-          "That behaviour surrounds the input that makes the denominator zero."
+          "The two points either side of the gap have outputs of opposite sign, which is the graph passing around the asymptote rather than through it.",
+          "No input produces an output there, which is exactly what an asymptote means."
         ],
-        "answerSummary": "$g(x) = \\dfrac{1}{x - 2}$",
+        "answerSummary": "The vertical line at the excluded input.",
         "commonError": null,
         "connection": null
       },
       "attemptFeedback": [
-        "Between which two table rows do the outputs flip sign and explode?"
+        "Which input would make the denominator zero?"
       ],
       "supportHints": [
-        "The values on either side of the blow-up tell you the input the function cannot accept."
+        "Set the denominator equal to zero and solve. The graph cannot exist at that input."
       ],
       "misconceptions": []
     },
@@ -11047,13 +11063,13 @@
       "misconceptions": []
     },
     {
-      "id": "mm_A2_6K_domain-interval",
+      "id": "mm_A2_6K_domain-on-a-line",
       "active": true,
       "alignmentKeys": [
         "texas:A2.6K"
       ],
       "courseId": "algebra2",
-      "familyId": "mathmaster:A2.6K:domain-interval",
+      "familyId": "mathmaster:A2.6K:domain-on-a-line",
       "familyVersion": 1,
       "questionType": "response",
       "activityRole": "practice",
@@ -11061,37 +11077,44 @@
       "dok": 2,
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A2.6K",
-      "taskType": "procedural",
-      "representation": "symbolic",
+      "taskType": "representationTranslation",
+      "representation": "numberLine",
       "authoring": {
         "source": "MathMaster production authoring",
         "kit": 1
       },
-      "prompt": "Write the domain of $f(x) = \\dfrac{x}{x - 6}$ in interval notation.",
-      "responseFields": [
+      "type": "intervalNumberLine",
+      "prompt": "Graph the DOMAIN of $f(x) = \\dfrac{x}{x - 6}$ on the number line, then write it in interval notation.",
+      "min": -10,
+      "max": 12,
+      "step": 1,
+      "variable": "x",
+      "ask": [
+        "graph",
+        "interval"
+      ],
+      "inequalityText": null,
+      "expectedIntervals": [
         {
-          "id": "answer",
-          "label": "Answer",
-          "inputProfile": "interval",
-          "unit": null,
-          "responseHint": "Use U to join intervals and inf for infinity.",
-          "placeholder": null,
-          "expected": "(-inf, 6) U (6, inf)",
-          "accepted": [
-            "(-inf, 6) U (6, inf)",
-            "(-infinity, 6) U (6, infinity)",
-            "(-∞,6)∪(6,∞)",
-            "(-inf,6)U(6,inf)"
-          ]
+          "start": null,
+          "end": 6,
+          "startClosed": false,
+          "endClosed": false
+        },
+        {
+          "start": 6,
+          "end": null,
+          "startClosed": false,
+          "endClosed": false
         }
       ],
       "solutionReview": {
-        "headline": "Remove the forbidden input and keep everything else.",
+        "headline": "Everything is allowed except where the denominator dies.",
         "reasoning": [
-          "The denominator is zero at one input, and the function says nothing there.",
-          "Every other real number is allowed, which is two open intervals joined together."
+          "The function says nothing at the input that makes the denominator zero.",
+          "Removing one point from the line leaves two open pieces, which is why the interval form needs a union."
         ],
-        "answerSummary": "$(-\\infty, 6) \\cup (6, \\infty)$",
+        "answerSummary": "The whole line with one point punched out.",
         "commonError": null,
         "connection": null
       },
@@ -11099,7 +11122,7 @@
         "Which single input has to be cut out of the number line?"
       ],
       "supportHints": [
-        "Find the input that makes the denominator zero, then describe the number line with that point punched out."
+        "Set the denominator equal to zero and solve. That input is the one place the graph cannot exist."
       ],
       "misconceptions": []
     },
@@ -14183,6 +14206,64 @@
       "misconceptions": []
     },
     {
+      "id": "mm_A2_7I_domain-on-a-line",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7I"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7I:domain-on-a-line",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7I",
+      "taskType": "representationTranslation",
+      "representation": "numberLine",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "type": "intervalNumberLine",
+      "prompt": "Graph the DOMAIN of $f(x) = \\sqrt{x - 7}$ on the number line, then write it in interval notation.",
+      "min": -2,
+      "max": 15,
+      "step": 1,
+      "variable": "x",
+      "ask": [
+        "graph",
+        "interval"
+      ],
+      "inequalityText": null,
+      "expectedIntervals": [
+        {
+          "start": 7,
+          "end": null,
+          "startClosed": true,
+          "endClosed": false
+        }
+      ],
+      "solutionReview": {
+        "headline": "A square root refuses a negative radicand.",
+        "reasoning": [
+          "Requiring the expression under the radical to be at least zero gives a single inequality.",
+          "The boundary value itself is allowed, because the square root of zero is defined — so the endpoint is filled."
+        ],
+        "answerSummary": "From the boundary value rightward, boundary included.",
+        "commonError": null,
+        "connection": null
+      },
+      "attemptFeedback": [
+        "Is the boundary value itself allowed? That decides whether the endpoint is filled or open."
+      ],
+      "supportHints": [
+        "Set the expression under the radical greater than or equal to zero and solve it."
+      ],
+      "misconceptions": []
+    },
+    {
       "id": "mm_A2_7I_error-analysis",
       "active": true,
       "alignmentKeys": [
@@ -14308,63 +14389,6 @@
           "match": []
         }
       ]
-    },
-    {
-      "id": "mm_A2_7I_radical-domain",
-      "active": true,
-      "alignmentKeys": [
-        "texas:A2.7I"
-      ],
-      "courseId": "algebra2",
-      "familyId": "mathmaster:A2.7I:radical-domain",
-      "familyVersion": 1,
-      "questionType": "response",
-      "activityRole": "practice",
-      "difficultyBand": 3,
-      "dok": 2,
-      "calculatorPolicy": "inherit",
-      "assessedConstruct": "A2.7I",
-      "taskType": "procedural",
-      "representation": "symbolic",
-      "authoring": {
-        "source": "MathMaster production authoring",
-        "kit": 1
-      },
-      "prompt": "Write the domain of $f(x) = \\sqrt{x - 7}$ in interval notation.",
-      "responseFields": [
-        {
-          "id": "answer",
-          "label": "Answer",
-          "inputProfile": "interval",
-          "unit": null,
-          "responseHint": "Use [ or ( for the endpoint and inf for infinity.",
-          "placeholder": null,
-          "expected": "[7, inf)",
-          "accepted": [
-            "[7, inf)",
-            "[7,inf)",
-            "[7, infinity)",
-            "[7,∞)"
-          ]
-        }
-      ],
-      "solutionReview": {
-        "headline": "The radicand cannot be negative.",
-        "reasoning": [
-          "Requiring the inside of the square root to be at least zero gives a single inequality.",
-          "The boundary value itself is allowed, because the square root of zero is defined."
-        ],
-        "answerSummary": "$[7, \\infty)$",
-        "commonError": null,
-        "connection": null
-      },
-      "attemptFeedback": [
-        "Is the endpoint itself allowed? That decides the bracket."
-      ],
-      "supportHints": [
-        "Set the expression under the radical greater than or equal to zero and solve it."
-      ],
-      "misconceptions": []
     },
     {
       "id": "mm_A2_7I_set-notation",

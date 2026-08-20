@@ -9,7 +9,7 @@
 
 import {
   standard, choice, numeric, expression, equation, interval, shortText, parts,
-  table, steps, expressions, itemList,
+  numberLine, table, steps, expressions, itemList,
 } from './kit.mjs';
 
 export const ALGEBRA2_NUMBER_DATA_STANDARDS = [
@@ -801,21 +801,21 @@ export const ALGEBRA2_NUMBER_DATA_STANDARDS = [
 
   // --- A2.7I Domain and range in three notations -----------------------------
   standard('A2.7I', [
-    interval({
-      code: 'A2.7I', slug: 'radical-domain', band: 3, dok: 2, taskType: 'procedural', representation: 'symbolic',
-      prompt: 'Write the domain of $f(x) = \\sqrt{x - 7}$ in interval notation.',
-      expected: '[7, inf)',
-      accepted: ['[7,inf)', '[7, infinity)', '[7,∞)'],
-      responseHint: 'Use [ or ( for the endpoint and inf for infinity.',
+
+    numberLine({
+      code: 'A2.7I', slug: 'domain-on-a-line', band: 3, dok: 2, taskType: 'representationTranslation',
+      prompt: 'Graph the DOMAIN of $f(x) = \\sqrt{x - 7}$ on the number line, then write it in interval notation.',
+      min: -2, max: 15, step: 1, variable: 'x', ask: ['graph', 'interval'],
+      intervals: [{ start: 7, end: Infinity, startClosed: true, endClosed: false }],
       review: {
-        headline: 'The radicand cannot be negative.',
+        headline: 'A square root refuses a negative radicand.',
         reasoning: [
-          'Requiring the inside of the square root to be at least zero gives a single inequality.',
-          'The boundary value itself is allowed, because the square root of zero is defined.',
+          'Requiring the expression under the radical to be at least zero gives a single inequality.',
+          'The boundary value itself is allowed, because the square root of zero is defined — so the endpoint is filled.',
         ],
-        answer: '$[7, \\infty)$',
+        answer: 'From the boundary value rightward, boundary included.',
       },
-      feedback: ['Is the endpoint itself allowed? That decides the bracket.'],
+      feedback: ['Is the boundary value itself allowed? That decides whether the endpoint is filled or open.'],
       hints: ['Set the expression under the radical greater than or equal to zero and solve it.'],
     }),
 

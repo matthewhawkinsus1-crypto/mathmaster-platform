@@ -3,7 +3,7 @@
 
 import {
   choice, equation, expression, inequality, interval, numeric, parts, standard,
-  numberLine, steps, table,
+  graphWorkspace, numberLine, steps, table,
 } from './kit.mjs';
 
 export const ALGEBRA2_LOG_PARENT_STANDARDS = [
@@ -341,21 +341,30 @@ export const ALGEBRA2_LOG_PARENT_STANDARDS = [
       hints: ['Is the minus inside or outside?'],
     }),
 
-    numeric({
-      code: 'A2.6A', slug: 'from-table', band: 3, dok: 2, taskType: 'interpretation', representation: 'table',
-      prompt: 'The table gives a transformed cubic $y = (x - h)^{3}$. What is $h$?',
-      stimulus: table(['$x$', '$y$'], [['1', '-8'], ['2', '-1'], ['3', '0'], ['4', '1'], ['5', '8']]),
-      expected: '3',
+
+    graphWorkspace({
+      code: 'A2.6A', slug: 'graph-the-transformation', band: 3, dok: 2, taskType: 'representationTranslation',
+      prompt: 'Graph $y = 2\\sqrt[3]{x} - 1$: plot the points where $x = -8$, $x = 0$ and $x = 8$, then give the range.',
+      functionSpec: { type: 'cubeRoot', a: 2, h: 0, k: -1 },
+      graph: { xMin: -10, xMax: 10, yMin: -7, yMax: 5 },
+      pointTasks: [
+        { id: 'left', label: 'Plot the point where $x = -8$', x: -8, expected: [-8, -5] },
+        { id: 'middle', label: 'Plot the point where $x = 0$', x: 0, expected: [0, -1] },
+        { id: 'right', label: 'Plot the point where $x = 8$', x: 8, expected: [8, 3] },
+      ],
+      analysisRequests: [
+        { id: 'range', label: 'What is the range of this function?', kind: 'increasing', responseMode: 'text', expected: ['all real numbers'], accepted: ['all real numbers', 'all reals', '(-inf, inf)', '(-infinity, infinity)', 'R'] },
+      ],
       review: {
-        headline: 'The point of inflection is where the output is zero and the curve flattens.',
+        headline: 'A cube root climbs without bound in both directions.',
         reasoning: [
-          'The outputs are symmetric about $x = 3$, where $y = 0$.',
-          'So $h = 3$ and the function is $(x - 3)^{3}$.',
+          'Stretching and shifting a cube root changes where it sits, not how far it reaches.',
+          'Because the parent function already covers every output, so does every transformation of it.',
         ],
-        answer: '$h = 3$',
+        answer: 'All real numbers.',
       },
-      feedback: ['Which row has an output of zero?'],
-      hints: ['A cubic of this form is zero exactly at its centre.'],
+      feedback: ['Does this graph ever stop rising, or ever stop falling?'],
+      hints: ['Think about what happens to the outputs as the inputs run far in each direction.'],
     }),
 
     choice({
@@ -534,21 +543,30 @@ export const ALGEBRA2_LOG_PARENT_STANDARDS = [
       hints: ['The vertex sits at the input that makes the expression inside the absolute value bars equal zero. Set that expression equal to zero and solve.'],
     }),
 
-    numeric({
-      code: 'A2.6C', slug: 'from-table', band: 3, dok: 2, taskType: 'interpretation', representation: 'table',
-      prompt: 'The table shows an absolute value function. What is the $x$ value of its vertex?',
-      stimulus: table(['$x$', '$y$'], [['-3', '7'], ['-1', '3'], ['0', '1'], ['1', '3'], ['3', '7']]),
-      expected: '0',
+
+    graphWorkspace({
+      code: 'A2.6C', slug: 'graph-the-vertex', band: 3, dok: 2, taskType: 'representationTranslation',
+      prompt: 'Graph $y = |x - 3| + 2$: plot the vertex and the points where $x = 1$ and $x = 5$, then give the range.',
+      functionSpec: { type: 'absolute', a: 1, h: 3, k: 2 },
+      graph: { xMin: -3, xMax: 9, yMin: -1, yMax: 8 },
+      pointTasks: [
+        { id: 'vertex', label: 'Plot the vertex', x: 3, expected: [3, 2] },
+        { id: 'left', label: 'Plot the point where $x = 1$', x: 1, expected: [1, 4] },
+        { id: 'right', label: 'Plot the point where $x = 5$', x: 5, expected: [5, 4] },
+      ],
+      analysisRequests: [
+        { id: 'range', label: 'What is the range of this function?', kind: 'increasing', responseMode: 'text', expected: ['y >= 2'], accepted: ['y >= 2', 'y>=2', '[2, inf)', '[2,inf)', 'y is greater than or equal to 2'] },
+      ],
       review: {
-        headline: 'A V-shape is symmetric about its vertex.',
+        headline: 'The vertex of an upward V is its lowest output.',
         reasoning: [
-          'The outputs mirror around $x = 0$, where the smallest value 1 occurs.',
-          'So the vertex is $(0, 1)$ and the function is $y = 2|x| + 1$.',
+          'An absolute value is never negative, so the smallest the expression inside the bars can contribute is zero.',
+          'At that input the output is whatever constant was added outside, and everywhere else it is larger.',
         ],
-        answer: '$x = 0$',
+        answer: 'Every output from the vertex value upward.',
       },
-      feedback: ['Where is the smallest output, and where do values repeat either side?'],
-      hints: ['Which $x$ has equal neighbours on both sides?'],
+      feedback: ['At what input does the expression inside the bars vanish, and what is the output there?'],
+      hints: ['Find the input that makes the inside of the absolute value zero, then read the output at that input.'],
     }),
 
     choice({
@@ -633,21 +651,23 @@ export const ALGEBRA2_LOG_PARENT_STANDARDS = [
       hints: ['How far is each solution from the midpoint?'],
     }),
 
-    numeric({
-      code: 'A2.6D', slug: 'from-table', band: 3, dok: 2, taskType: 'interpretation', representation: 'table',
-      prompt: 'The table shows acceptable and unacceptable readings for a target of 20 with some tolerance. What is the tolerance?',
-      stimulus: table(['Reading', 'Acceptable?'], [['16', 'no'], ['17', 'yes'], ['20', 'yes'], ['23', 'yes'], ['24', 'no']]),
-      expected: '3',
+
+    numberLine({
+      code: 'A2.6D', slug: 'tolerance-on-a-line', band: 4, dok: 2, taskType: 'representationTranslation',
+      prompt: 'A machined part must measure 50 mm, and the specification allows an error of at most 0.4 mm, written $|x - 50| \\le 0.4$. Graph the set of ACCEPTABLE measurements on the number line, then write it in interval notation.',
+      min: 49, max: 51, step: 0.1, variable: 'x', ask: ['graph', 'interval'],
+      intervals: [{ start: 49.6, end: 50.4, startClosed: true, endClosed: true }],
       review: {
-        headline: 'The tolerance is the largest accepted distance from the target.',
+        headline: 'An absolute value bound is a distance, and a distance bound is an interval.',
         reasoning: [
-          '17 and 23 are accepted and are 3 away from 20.',
-          '16 and 24 are 4 away and are rejected, so the tolerance is 3.',
+          'The statement says the measurement is no further than the tolerance from the target, in either direction.',
+          'That is the target plus and minus the tolerance, and because the bound allows equality, both ends are included.',
         ],
-        answer: '$3$, so $|x - 20| \\le 3$.',
+        answer: 'The target, plus or minus the allowed error, ends included.',
       },
-      feedback: ['How far from 20 is the furthest accepted reading?'],
-      hints: ['Work out the distance from 20 for each row.'],
+      feedback: ['The absolute value is measuring a distance from what number?'],
+      hints: ['Identify the target and the allowed error separately, then step that error out from the target in both directions.'],
+      misconceptions: ['Graphing only one side of the target.'],
     }),
 
     choice({

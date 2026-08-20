@@ -2,14 +2,14 @@
 
 import {
   choice, equation, expression, interval, numeric, orderedPair, parts, standard,
-  graphWorkspace, steps, table,
+  graphWorkspace, numberLine, steps, table,
 } from './kit.mjs';
 
 export const ALGEBRA1_QUADRATIC_STANDARDS = [
 
   // --- A.6A Domain and range of quadratic functions --------------------------------
   standard('A.6A', [
-    inequalityRange(),
+    rangeOnANumberLine(),
 
     choice({
       code: 'A.6A', slug: 'why-domain-is-all-reals', band: 2, dok: 1, taskType: 'conceptual', representation: 'symbolic',
@@ -133,21 +133,29 @@ export const ALGEBRA1_QUADRATIC_STANDARDS = [
       hints: ['What is $(x - 1)(x - 1)$?'],
     }),
 
-    numeric({
-      code: 'A.6B', slug: 'from-table', band: 3, dok: 2, taskType: 'interpretation', representation: 'table',
-      prompt: 'The table shows a quadratic. What is the $x$ value of its vertex?',
-      stimulus: table(['$x$', '$y$'], [['-2', '13'], ['-1', '4'], ['0', '1'], ['1', '4'], ['2', '13']]),
-      expected: '0',
+
+    graphWorkspace({
+      code: 'A.6B', slug: 'vertex-on-the-graph', band: 3, dok: 2, taskType: 'representationTranslation',
+      prompt: 'The parabola $y = 2(x - 2)^{2} - 3$ has vertex $(2, -3)$. Plot the vertex and the point where $x = 4$, then give the value of $a$ in vertex form.',
+      functionSpec: { type: 'quadratic', a: 2, h: 2, k: -3 },
+      graph: { xMin: -2, xMax: 7, yMin: -6, yMax: 10 },
+      pointTasks: [
+        { id: 'vertex', label: 'Plot the vertex', x: 2, expected: [2, -3] },
+        { id: 'other', label: 'Plot the point where $x = 4$', x: 4, expected: [4, 5] },
+      ],
+      analysisRequests: [
+        { id: 'a', label: 'What is the value of $a$?', kind: 'increasing', responseMode: 'text', expected: ['2'], accepted: ['2', 'a=2', 'a = 2'] },
+      ],
       review: {
-        headline: 'Symmetry points at the vertex.',
+        headline: 'The vertex fixes $h$ and $k$; a second point fixes $a$.',
         reasoning: [
-          'The outputs repeat either side of $x = 0$: 4 at both $-1$ and 1, 13 at both $-2$ and 2.',
-          'So the axis of symmetry is $x = 0$ and the vertex is $(0, 1)$.',
+          'Substituting the second point into $y = a(x - 2)^{2} - 3$ gives $5 = 4a - 3$.',
+          'Solving that leaves one value of $a$, which is what makes the parabola pass through both plotted points.',
         ],
-        answer: '$x = 0$',
+        answer: '$a = 2$.',
       },
-      feedback: ['Look for pairs of rows with equal outputs.'],
-      hints: ['Which $x$ value sits exactly between $-1$ and 1?'],
+      feedback: ['Substitute the coordinates of the second point into vertex form and solve for the one unknown.'],
+      hints: ['Write vertex form with $a$ still unknown, then put the second point in and solve the resulting equation.'],
     }),
 
     choice({
@@ -227,26 +235,29 @@ export const ALGEBRA1_QUADRATIC_STANDARDS = [
       hints: ['Work out what each bracket equals when $x = 4$, then multiply them.'],
     }),
 
-    choice({
-      code: 'A.6C', slug: 'from-graph-description', band: 3, dok: 2, taskType: 'interpretation', representation: 'table',
-      prompt: 'The table gives some values of a quadratic. Where are its zeros?',
-      stimulus: table(['$x$', '$y$'], [['-1', '-8'], ['0', '-5'], ['1', '0'], ['3', '8'], ['5', '0'], ['6', '-7']]),
-      options: [
-        ['At $x = 1$ and $x = 5$', true],
-        ['At $x = 0$ and $x = 6$', false],
-        ['At $x = -1$ and $x = 3$', false],
-        ['At $y = 0$ and $y = 8$', false],
+
+    graphWorkspace({
+      code: 'A.6C', slug: 'graph-from-zeros', band: 3, dok: 2, taskType: 'representationTranslation',
+      prompt: 'The quadratic $y = (x - 1)^{2} - 4$ has zeros at $x = -1$ and $x = 3$. Plot its vertex and the point where $x = 3$, then give the $y$-intercept.',
+      functionSpec: { type: 'quadratic', a: 1, h: 1, k: -4 },
+      graph: { xMin: -5, xMax: 7, yMin: -6, yMax: 10 },
+      pointTasks: [
+        { id: 'vertex', label: 'Plot the vertex', x: 1, expected: [1, -4] },
+        { id: 'zero', label: 'Plot the point where $x = 3$', x: 3, expected: [3, 0] },
+      ],
+      analysisRequests: [
+        { id: 'yint', label: 'What is the $y$ value where the parabola crosses the $y$-axis?', kind: 'decreasing', responseMode: 'text', expected: ['-3'], accepted: ['-3', '(0,-3)', '(0, -3)'] },
       ],
       review: {
-        headline: 'A zero is an $x$ value where the output is 0.',
+        headline: 'The $y$-intercept is the output at $x = 0$.',
         reasoning: [
-          'The table shows $y = 0$ at $x = 1$ and again at $x = 5$.',
-          'Those are the two points where the parabola crosses the $x$-axis.',
+          'Substituting 0 gives $(0 - 1)^{2} - 4 = 1 - 4$.',
+          'The vertex sits halfway between the two zeros, which is why the axis of symmetry is $x = 1$.',
         ],
-        answer: '$x = 1$ and $x = 5$.',
+        answer: 'The $y$-intercept is $-3$.',
       },
-      feedback: ['Scan the output column for zeros.'],
-      hints: ['Which rows have $y = 0$?'],
+      feedback: ['Substitute $x = 0$ into the equation rather than reading it off the picture.'],
+      hints: ['The $y$-intercept happens where the input is zero. Put that input into the equation and evaluate.'],
     }),
 
     choice({
@@ -522,22 +533,29 @@ export const ALGEBRA1_QUADRATIC_STANDARDS = [
       hints: ['What value of $x$ makes the bracket zero?'],
     }),
 
-    choice({
-      code: 'A.7C', slug: 'compare-widths', band: 3, dok: 2, taskType: 'comparison', representation: 'table',
-      prompt: 'Which parabola is the narrowest?',
-      stimulus: table(['Option', 'Equation'], [['E', '$y = 0.2x^{2}$'], ['F', '$y = -4x^{2}$'], ['G', '$y = x^{2}$'], ['H', '$y = -0.5x^{2}$']]),
-      options: [['Option F', true], ['Option G', false], ['Option E', false], ['Option H', false]],
+
+    graphWorkspace({
+      code: 'A.7C', slug: 'graph-the-transformation', band: 3, dok: 2, taskType: 'representationTranslation',
+      prompt: 'The parent function $y = x^{2}$ has been transformed into $y = -2(x + 1)^{2} + 8$. Plot its vertex and the point where $x = 1$, then say whether the parabola opens upward or downward.',
+      functionSpec: { type: 'quadratic', a: -2, h: -1, k: 8 },
+      graph: { xMin: -7, xMax: 5, yMin: -10, yMax: 10 },
+      pointTasks: [
+        { id: 'vertex', label: 'Plot the vertex', x: -1, expected: [-1, 8] },
+        { id: 'right', label: 'Plot the point where $x = 1$', x: 1, expected: [1, 0] },
+      ],
+      analysisRequests: [
+        { id: 'opens', label: 'Does this parabola open upward or downward?', kind: 'decreasing', responseMode: 'text', expected: ['downward'], accepted: ['downward', 'down', 'opens down', 'opens downward'] },
+      ],
       review: {
-        headline: 'The size of $a$ sets the width; its sign only sets the direction.',
+        headline: 'The sign of $a$ decides the direction; its size decides the width.',
         reasoning: [
-          '$|-4| = 4$ is the largest, so option F rises (in fact falls) fastest and is narrowest.',
-          'Option E, with $|a| = 0.2$, is the widest.',
+          'A negative leading coefficient reflects the parent parabola across a horizontal line, turning the minimum into a maximum.',
+          'The factor of 2 also makes it narrower than the parent, because every output is doubled before the reflection.',
         ],
-        answer: 'Option F.',
-        commonError: 'Discarding the negative options because they open downward confuses direction with width.',
+        answer: 'It opens downward, with a maximum at the vertex.',
       },
-      feedback: ['Ignore the signs and compare the sizes of the coefficients.'],
-      hints: ['Which coefficient is furthest from zero?'],
+      feedback: ['Look at the sign in front of the squared bracket.'],
+      hints: ['Ask what the coefficient in front of the bracket does to a large positive output from the squared term.'],
     }),
 
     equation({
@@ -795,29 +813,28 @@ export const ALGEBRA1_QUADRATIC_STANDARDS = [
   ]),
 ];
 
-// A.6A's fifth family: the range written as an inequality, which is the form the
-// TEKS names explicitly.
-function inequalityRange() {
-  return choice({
-    code: 'A.6A', slug: 'range-as-inequality', band: 3, dok: 2, taskType: 'comparison', representation: 'symbolic',
-    prompt: 'Which inequality describes the range of $f(x) = x^{2} - 6x + 11$?',
-    options: [
-      ['$y \\ge 2$', true],
-      ['$y \\le 2$', false],
-      ['$y \\ge 3$', false],
-      ['$y \\ge 11$', false],
-    ],
+// A.6A's fifth family: the range, graphed on a number line and then written as
+// an inequality. The TEKS names the inequality form explicitly, and asking the
+// student to place it on a line first is what stops "range" from collapsing
+// into a symbol they recognise without picturing.
+function rangeOnANumberLine() {
+  return numberLine({
+    code: 'A.6A', slug: 'range-on-a-line', band: 3, dok: 2, taskType: 'representationTranslation',
+    prompt: 'The quadratic $f(x) = x^{2} - 6x + 11$ opens upward. Graph its RANGE on the number line, then write that range as an inequality in $y$.',
+    min: -6, max: 12, step: 1, variable: 'y', ask: ['graph', 'inequality'],
+    intervals: [{ start: 2, end: Infinity, startClosed: true, endClosed: false }],
     review: {
-      headline: 'Find the vertex, then decide which side of it the outputs live on.',
+      headline: 'The range starts at the minimum output and never stops.',
       reasoning: [
-        'The axis of symmetry is $x = -\\frac{-6}{2} = 3$, and $f(3) = 9 - 18 + 11 = 2$.',
-        'The parabola opens upward, so 2 is the minimum and every output is at least 2.',
+        'The axis of symmetry is $x = 3$, and $f(3) = 9 - 18 + 11 = 2$.',
+        'The parabola opens upward, so that output is a floor the graph actually touches — which is why the endpoint is filled rather than open.',
       ],
-      answer: '$y \\ge 2$',
-      commonError: 'Answering $y \\ge 3$ reports the $x$ value of the vertex instead of the $y$ value.',
+      answer: 'Every output from 2 upward, 2 included.',
+      commonError: 'Graphing from 3 reports the $x$ value of the vertex instead of the $y$ value.',
     },
     feedback: ['Find the vertex first. Which of its two coordinates does the range depend on?'],
-    hints: ['What is $f(3)$?'],
+    hints: ['Locate the axis of symmetry, substitute it back into the function, and ask whether the parabola touches that output or only approaches it.'],
+    misconceptions: ['Graphing the axis of symmetry (an input) instead of the range (outputs).'],
   });
 }
 

@@ -230,26 +230,21 @@ export const ALGEBRA1_SYSTEMS_STANDARDS = [
       misconceptions: [{ when: ['24'], say: 'That divides the setup cost by the selling price, but each drink also costs $\\$2$ to make.' }],
     }),
 
-    choice({
-      code: 'A.3G', slug: 'estimate-from-table', band: 3, dok: 2, taskType: 'interpretation', representation: 'table',
-      prompt: 'Between which two $x$ values does the solution of this system lie?',
-      stimulus: table(['$x$', 'Line 1', 'Line 2'], [['1', '3.0', '9.0'], ['2', '5.5', '7.5'], ['3', '8.0', '6.0'], ['4', '10.5', '4.5']]),
-      options: [
-        ['Between 2 and 3', true],
-        ['Between 1 and 2', false],
-        ['Between 3 and 4', false],
-        ['Beyond 4', false],
-      ],
+
+    linearSystem({
+      code: 'A.3G', slug: 'estimate-graphically', band: 3, dok: 2, taskType: 'representationTranslation',
+      prompt: 'A pool is draining while a second pool fills. Graph both lines in the workspace, then give the point where the two pools hold the same amount and say how many such moments there are.',
+      m1: -3, b1: 18, m2: 1, b2: 2,
       review: {
-        headline: 'The crossing is where the larger column swaps over.',
+        headline: 'The lines cross where the two quantities are equal.',
         reasoning: [
-          'At $x = 2$ Line 2 is higher; at $x = 3$ Line 1 is.',
-          'So the two must be equal somewhere between them — in fact at $x = 2.4$.',
+          'One line falls and the other rises, so they must meet exactly once.',
+          'Setting $-3x + 18 = x + 2$ gives $16 = 4x$, and substituting back gives the shared amount.',
         ],
-        answer: 'Between 2 and 3.',
+        answer: 'One moment, at $(4, 6)$.',
       },
-      feedback: ['Find the row where the bigger of the two values changes.'],
-      hints: ['Which line is higher at $x = 2$, and which at $x = 3$?'],
+      feedback: ['A falling line and a rising line — how many times can they cross?'],
+      hints: ['Read roughly where the lines meet on the graph first, then set the two expressions equal to confirm it exactly.'],
     }),
 
     numeric({
@@ -920,22 +915,22 @@ export const ALGEBRA1_SYSTEMS_STANDARDS = [
 
   // --- A.5C Solving systems of equations -----------------------------------------------------
   standard('A.5C', [
-    orderedPair({
-      code: 'A.5C', slug: 'substitution', band: 3, dok: 2, taskType: 'procedural', representation: 'symbolic',
-      prompt: 'Solve the system $y = 2x - 1$ and $3x + y = 14$. Give the solution as an ordered pair.',
-      expected: '(3,5)',
-      accepted: ['(3, 5)', '3,5'],
-      responseHint: 'Write your answer as an ordered pair, for example (2, -4).',
+
+    linearSystem({
+      code: 'A.5C', slug: 'workspace-solve', band: 3, dok: 2, taskType: 'procedural',
+      prompt: 'Graph both lines in the workspace, then give the point where they meet and say how many solutions the system has.',
+      m1: 2, b1: -1, m2: -1, b2: 5,
       review: {
-        headline: 'One equation already gives $y$, so substitute it into the other.',
+        headline: 'Two lines with different slopes cross exactly once.',
         reasoning: [
-          '$3x + (2x - 1) = 14$ gives $5x = 15$, so $x = 3$.',
-          'Substituting back gives $y = 5$, and $3(3) + 5 = 14$ checks.',
+          'Setting the two expressions equal gives $2x - 1 = -x + 5$, so $3x = 6$.',
+          'That input produces the same output in both equations, which is what "the solution of the system" means.',
         ],
-        answer: '$(3, 5)$',
+        answer: 'One solution, at $(2, 3)$.',
       },
-      feedback: ['Substitute the whole expression for $y$, brackets included.'],
-      hints: ['What does the second equation become once $y$ is replaced?'],
+      feedback: ['Compare the two slopes. Different slopes means the lines cannot stay apart.'],
+      hints: ['Set the two right-hand sides equal to each other and solve for $x$, then substitute back to get $y$.'],
+      misconceptions: ['Reporting only the $x$ value as "the solution" when a system asks for a point.'],
     }),
 
     orderedPair({

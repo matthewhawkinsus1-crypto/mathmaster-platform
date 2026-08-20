@@ -8,7 +8,7 @@
 
 import {
   standard, choice, numeric, expression, equation, interval, parts,
-  table, steps, itemList,
+  graphWorkspace, numberLine, table, steps, itemList,
 } from './kit.mjs';
 
 export const ALGEBRA2_RATIONAL_STANDARDS = [
@@ -53,26 +53,30 @@ export const ALGEBRA2_RATIONAL_STANDARDS = [
       hints: ['Imagine substituting an enormous value of $x$. The fraction becomes almost nothing — what term survives?'],
     }),
 
-    choice({
-      code: 'A2.6G', slug: 'from-table', band: 3, dok: 2, taskType: 'representationTranslation', representation: 'table',
-      prompt: 'A reciprocal function is sampled in the table. The outputs are growing without bound near one input. Which function does the table describe?',
-      stimulus: table(['$x$', '$g(x)$'], [['1', '-1'], ['1.9', '-10'], ['1.99', '-100'], ['2.01', '100'], ['3', '1']]),
-      options: [
-        ['$g(x) = \\dfrac{1}{x - 2}$', true],
-        ['$g(x) = \\dfrac{1}{x + 2}$', false],
-        ['$g(x) = \\dfrac{1}{x} - 2$', false],
-        ['$g(x) = \\dfrac{2}{x}$', false],
+
+    graphWorkspace({
+      code: 'A2.6G', slug: 'graph-the-shift', band: 3, dok: 2, taskType: 'representationTranslation',
+      prompt: 'Graph $y = \\dfrac{1}{x - 2}$: plot the points where $x = 1$, $x = 3$ and $x = 4$, then give the equation of the vertical asymptote.',
+      functionSpec: { type: 'rational', a: 1, h: 2, k: 0 },
+      graph: { xMin: -4, xMax: 8, yMin: -6, yMax: 6 },
+      pointTasks: [
+        { id: 'left', label: 'Plot the point where $x = 1$', x: 1, expected: [1, -1] },
+        { id: 'near', label: 'Plot the point where $x = 3$', x: 3, expected: [3, 1] },
+        { id: 'far', label: 'Plot the point where $x = 4$', x: 4, expected: [4, 0.5] },
+      ],
+      analysisRequests: [
+        { id: 'asymptote', label: 'What is the equation of the vertical asymptote?', kind: 'decreasing', responseMode: 'text', expected: ['x=2'], accepted: ['x=2', 'x = 2', '2'] },
       ],
       review: {
-        headline: 'Find the input the table is avoiding.',
+        headline: 'The vertical asymptote sits where the denominator is zero.',
         reasoning: [
-          'The outputs run off toward large negative values from one side and large positive values from the other.',
-          'That behaviour surrounds the input that makes the denominator zero.',
+          'The two points either side of the gap have outputs of opposite sign, which is the graph passing around the asymptote rather than through it.',
+          'No input produces an output there, which is exactly what an asymptote means.',
         ],
-        answer: '$g(x) = \\dfrac{1}{x - 2}$',
+        answer: 'The vertical line at the excluded input.',
       },
-      feedback: ['Between which two table rows do the outputs flip sign and explode?'],
-      hints: ['The values on either side of the blow-up tell you the input the function cannot accept.'],
+      feedback: ['Which input would make the denominator zero?'],
+      hints: ['Set the denominator equal to zero and solve. The graph cannot exist at that input.'],
     }),
 
     choice({
@@ -422,22 +426,25 @@ export const ALGEBRA2_RATIONAL_STANDARDS = [
 
   // --- A2.6K Asymptotic restrictions, domain and range -----------------------
   standard('A2.6K', [
-    interval({
-      code: 'A2.6K', slug: 'domain-interval', band: 3, dok: 2, taskType: 'procedural', representation: 'symbolic',
-      prompt: 'Write the domain of $f(x) = \\dfrac{x}{x - 6}$ in interval notation.',
-      expected: '(-inf, 6) U (6, inf)',
-      accepted: ['(-infinity, 6) U (6, infinity)', '(-∞,6)∪(6,∞)', '(-inf,6)U(6,inf)'],
-      responseHint: 'Use U to join intervals and inf for infinity.',
+
+    numberLine({
+      code: 'A2.6K', slug: 'domain-on-a-line', band: 3, dok: 2, taskType: 'representationTranslation',
+      prompt: 'Graph the DOMAIN of $f(x) = \\dfrac{x}{x - 6}$ on the number line, then write it in interval notation.',
+      min: -10, max: 12, step: 1, variable: 'x', ask: ['graph', 'interval'],
+      intervals: [
+        { start: -Infinity, end: 6, startClosed: false, endClosed: false },
+        { start: 6, end: Infinity, startClosed: false, endClosed: false },
+      ],
       review: {
-        headline: 'Remove the forbidden input and keep everything else.',
+        headline: 'Everything is allowed except where the denominator dies.',
         reasoning: [
-          'The denominator is zero at one input, and the function says nothing there.',
-          'Every other real number is allowed, which is two open intervals joined together.',
+          'The function says nothing at the input that makes the denominator zero.',
+          'Removing one point from the line leaves two open pieces, which is why the interval form needs a union.',
         ],
-        answer: '$(-\\infty, 6) \\cup (6, \\infty)$',
+        answer: 'The whole line with one point punched out.',
       },
       feedback: ['Which single input has to be cut out of the number line?'],
-      hints: ['Find the input that makes the denominator zero, then describe the number line with that point punched out.'],
+      hints: ['Set the denominator equal to zero and solve. That input is the one place the graph cannot exist.'],
     }),
 
     choice({

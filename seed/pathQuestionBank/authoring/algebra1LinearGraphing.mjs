@@ -50,27 +50,29 @@ export const ALGEBRA1_GRAPHING_STANDARDS = [
       hints: ['Which line has a rise of zero?'],
     }),
 
-    parts({
-      code: 'A.2G', slug: 'from-table', band: 3, dok: 2, taskType: 'interpretation', representation: 'table',
-      prompt: 'Each table lists points on one line. Write the equation of line P and the equation of line Q.',
-      stimulus: table(['Line', 'Points'], [
-        ['P', '$(2, -4)$, $(2, 0)$, $(2, 9)$'],
-        ['Q', '$(-5, 3)$, $(1, 3)$, $(6, 3)$'],
-      ]),
-      fields: [
-        { id: 'p', label: 'Equation of line P', profile: 'equation', expected: 'x=2', accepted: ['x = 2'] },
-        { id: 'q', label: 'Equation of line Q', profile: 'equation', expected: 'y=3', accepted: ['y = 3'] },
+
+    graphWorkspace({
+      code: 'A.2G', slug: 'graph-horizontal', band: 2, dok: 2, taskType: 'representationTranslation',
+      prompt: 'Graph the horizontal line through $(0, -3)$: plot the points where $x = -2$ and $x = 4$, then give the slope of the line.',
+      functionSpec: { type: 'linear', m: 0, b: -3 },
+      graph: { xMin: -6, xMax: 6, yMin: -8, yMax: 4 },
+      pointTasks: [
+        { id: 'left', label: 'Plot the point where $x = -2$', x: -2, expected: [-2, -3] },
+        { id: 'right', label: 'Plot the point where $x = 4$', x: 4, expected: [4, -3] },
+      ],
+      analysisRequests: [
+        { id: 'slope', label: 'What is the slope of this line?', kind: 'constant', responseMode: 'text', expected: ['0'], accepted: ['0', 'zero', 'm=0'] },
       ],
       review: {
-        headline: 'Look for the coordinate that never changes.',
+        headline: 'A horizontal line rises by nothing, so its slope is zero — not undefined.',
         reasoning: [
-          'Line P always has $x = 2$, so it is vertical.',
-          'Line Q always has $y = 3$, so it is horizontal.',
+          'Both plotted points have the same output, so the rise between them is 0.',
+          'Zero divided by any non-zero run is 0. Undefined slope belongs to VERTICAL lines, where the run is zero instead.',
         ],
-        answer: 'P: $x = 2$. Q: $y = 3$.',
+        answer: 'The slope is 0.',
       },
-      feedback: ['In each list, which coordinate is the same in every point?'],
-      hints: ['Compare the first coordinates, then the second ones.'],
+      feedback: ['How much does the output change as you move from one point to the other?'],
+      hints: ['Work out the rise and the run separately, then decide which of them is zero and what that does to the quotient.'],
     }),
 
     choice({
@@ -363,22 +365,29 @@ export const ALGEBRA1_GRAPHING_STANDARDS = [
       misconceptions: [{ when: ['6', '-2'], say: 'Divide every term by the coefficient of $y$, and keep track of the negative sign.' }],
     }),
 
-    numeric({
-      code: 'A.3A', slug: 'from-table', band: 2, dok: 1, taskType: 'interpretation', representation: 'table',
-      prompt: 'What is the slope of the line described by the table?',
-      stimulus: table(['$x$', '$y$'], [['-6', '10'], ['-2', '7'], ['6', '1']]),
-      expected: '-0.75',
-      accepted: ['-3/4'], tolerance: 0.005,
+
+    graphWorkspace({
+      code: 'A.3A', slug: 'slope-from-graph', band: 2, dok: 2, taskType: 'representationTranslation',
+      prompt: 'Graph $y = -\\frac{3}{2}x + 4$: plot the points where $x = 0$ and $x = 2$, then give the slope.',
+      functionSpec: { type: 'linear', m: -1.5, b: 4 },
+      graph: { xMin: -4, xMax: 8, yMin: -6, yMax: 8 },
+      pointTasks: [
+        { id: 'yint', label: 'Plot the point where $x = 0$', x: 0, expected: [0, 4] },
+        { id: 'second', label: 'Plot the point where $x = 2$', x: 2, expected: [2, 1] },
+      ],
+      analysisRequests: [
+        { id: 'slope', label: 'What is the slope of this line?', kind: 'decreasing', responseMode: 'text', expected: ['-3/2'], accepted: ['-3/2', '-1.5', '-1 1/2', 'm=-3/2'] },
+      ],
       review: {
-        headline: 'Any two rows give the same slope, so choose the easiest pair.',
+        headline: 'A falling line has a negative slope.',
         reasoning: [
-          'From the first row to the second, $y$ falls 3 while $x$ rises 4.',
-          '$-3 \\div 4 = -0.75$, and the last pair of rows gives $-6 \\div 8$, which is the same.',
+          'Moving 2 to the right drops the output by 3, so the rise is negative while the run is positive.',
+          'A quotient with one negative and one positive is negative, which matches the direction the line travels.',
         ],
-        answer: '$-\\frac{3}{4}$',
+        answer: 'The slope is $-\\frac{3}{2}$.',
       },
-      feedback: ['Check your slope against a second pair of rows.'],
-      hints: ['How much does $y$ change between the first two rows?'],
+      feedback: ['Your two points should be 2 apart horizontally. How far apart are they vertically, and in which direction?'],
+      hints: ['Decide the SIGN first by looking at whether the line rises or falls, then work out the size from rise over run.'],
     }),
 
     choice({
@@ -466,23 +475,29 @@ export const ALGEBRA1_GRAPHING_STANDARDS = [
       hints: ['Work out $T$ at $m = 0$ and at $m = 1$ and compare.'],
     }),
 
-    numeric({
-      code: 'A.3B', slug: 'from-table', band: 3, dok: 2, taskType: 'comparison', representation: 'table',
-      prompt: 'The table shows two hikers\' distances from base camp. How many kilometres per hour faster is the faster hiker?',
-      stimulus: table(['Hours', 'Hiker A (km)', 'Hiker B (km)'], [['1', '4', '6'], ['3', '14', '13'], ['5', '24', '20']]),
-      expected: '1.5', unit: 'km/h', tolerance: 0.005,
+
+    graphWorkspace({
+      code: 'A.3B', slug: 'rate-from-graph', band: 3, dok: 2, taskType: 'interpretation',
+      prompt: 'A tank drains according to $V = -4t + 30$, where $V$ is litres and $t$ is minutes. Plot the volume at $t = 0$ and at $t = 5$, then say how many litres the tank loses each minute.',
+      functionSpec: { type: 'linear', m: -4, b: 30 },
+      graph: { xMin: -1, xMax: 9, yMin: -5, yMax: 35 },
+      pointTasks: [
+        { id: 'start', label: 'Plot the volume at $t = 0$', x: 0, expected: [0, 30] },
+        { id: 'five', label: 'Plot the volume at $t = 5$', x: 5, expected: [5, 10] },
+      ],
+      analysisRequests: [
+        { id: 'rate', label: 'How many litres does the tank lose each minute?', kind: 'decreasing', responseMode: 'text', expected: ['4'], accepted: ['4', '4 litres', '4 liters', '-4'] },
+      ],
       review: {
-        headline: 'Two rates, then one comparison.',
+        headline: 'Rate of change is the slope, read in the units of the situation.',
         reasoning: [
-          'Hiker A covers 20 km in 4 hours, which is 5 km/h.',
-          'Hiker B covers 14 km in 4 hours, which is 3.5 km/h.',
-          'The difference is 1.5 km/h.',
+          'Between the two plotted points the volume falls 20 litres over 5 minutes.',
+          'Dividing gives the loss per minute, which is why the slope is negative: the tank is emptying.',
         ],
-        answer: '$1.5$ km/h',
-        commonError: 'Comparing the last row alone says B is behind, but that is a distance, not a rate.',
+        answer: '4 litres per minute.',
       },
-      feedback: ['Work out each hiker\'s rate before comparing them.'],
-      hints: ['How far does each hiker travel between hour 1 and hour 5?'],
+      feedback: ['Find the change in volume between your two points and divide by the change in time.'],
+      hints: ['Work out the total change in litres and the total change in minutes separately, then divide one by the other.'],
     }),
 
     choice({

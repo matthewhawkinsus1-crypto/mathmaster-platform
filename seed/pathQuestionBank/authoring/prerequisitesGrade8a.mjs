@@ -442,24 +442,29 @@ export const GRADE_8_STANDARDS_A = [
 
   // --- 8.4C Rate of change from a table or graph ------------------------------------------
   standard('8.4C', [
-    parts({
-      code: '8.4C', slug: 'slope-and-intercept', band: 2, dok: 1, taskType: 'procedural', representation: 'table',
-      prompt: 'Find the rate of change and the $y$-intercept of the relationship in the table.',
-      stimulus: table(['$x$', '$y$'], [['0', '-3'], ['2', '1'], ['4', '5']]),
-      fields: [
-        { id: 'slope', label: 'Rate of change', profile: 'number', expected: '2' },
-        { id: 'intercept', label: '$y$-intercept', profile: 'number', expected: '-3' },
+
+    graphWorkspace({
+      code: '8.4C', slug: 'slope-from-graph', band: 2, dok: 2, taskType: 'representationTranslation',
+      prompt: 'Graph $y = 3x - 4$: plot the point where $x = 0$ and the point where $x = 2$, then give the slope of the line.',
+      functionSpec: { type: 'linear', m: 3, b: -4 },
+      graph: { xMin: -3, xMax: 6, yMin: -8, yMax: 8 },
+      pointTasks: [
+        { id: 'yint', label: 'Plot the point where $x = 0$', x: 0, expected: [0, -4] },
+        { id: 'second', label: 'Plot the point where $x = 2$', x: 2, expected: [2, 2] },
+      ],
+      analysisRequests: [
+        { id: 'slope', label: 'What is the slope of this line?', kind: 'increasing', responseMode: 'text', expected: ['3'], accepted: ['3', '3/1', 'm=3'] },
       ],
       review: {
-        headline: 'The intercept is the value at $x = 0$; the rate is how fast it changes.',
+        headline: 'Slope is the rise between two plotted points divided by the run.',
         reasoning: [
-          'From $x = 0$ to $x = 2$, $y$ rises by 4, so the rate is $4 \\div 2 = 2$.',
-          'The first row already gives $y = -3$ when $x = 0$, which is the intercept.',
+          'From the first point to the second the line runs across 2 and rises 6.',
+          'Dividing the rise by the run gives the same number that multiplies $x$ in the equation.',
         ],
-        answer: 'Rate of change $2$, $y$-intercept $-3$.',
+        answer: 'The slope is 3.',
       },
-      feedback: ['One of these two numbers can be read straight off the table. Which one?'],
-      hints: ['Look for the row where $x$ is zero.'],
+      feedback: ['Count the vertical change between your two points, then the horizontal change.'],
+      hints: ['Slope is rise over run. Use the two points you just plotted rather than guessing from the picture.'],
     }),
 
     numeric({

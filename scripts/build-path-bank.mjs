@@ -58,6 +58,28 @@ async function main() {
   const standardRows = [];
   const seenIds = new Set();
 
+// Standards whose mathematics IS an interaction the platform already renders.
+//
+// This list is not "standards where a tool would be nice". It is the set where
+// typing a value into a box replaces the assessed act — graphing, placing a
+// solution set on a line, finding an intersection, mapping a relation, or
+// working an equation step by step. Everything else stays free to use whichever
+// interaction fits the individual question.
+const INTERACTION_REQUIRED = new Set([
+  // Graph it.
+  '8.4C', '8.5I', 'A.2C', 'A.2G', 'A.3A', 'A.3B', 'A.3C', 'A.6B', 'A.6C', 'A.7A', 'A.7C',
+  'A.9D', 'A2.2A', 'A2.2B', 'A2.4C', 'A2.4D', 'A2.5A', 'A2.6A', 'A2.6C', 'A2.6G',
+  // Place it on a number line.
+  '7.11A', 'A.2A', 'A.3D', 'A.5B', 'A.6A', 'A.9A', 'A2.4G', 'A2.4H', 'A2.6D', 'A2.6F',
+  'A2.6K', 'A2.7I',
+  // Find where the lines meet.
+  '8.9', 'A.3F', 'A.3G', 'A.5C',
+  // Map the relation.
+  '8.5G', 'A.12A', 'A2.2C',
+  // Work the equation on the balance.
+  '8.8C', 'A.5A',
+]);
+
   for (const entry of ALL_AUTHORED_STANDARDS) {
     const { code, families } = entry;
     const plans = {};
@@ -100,6 +122,21 @@ async function main() {
     standardRows.push({ code, analysis });
     if (analysis.state !== CONTENT_STATE.PRODUCTION_READY) {
       problems.push(`${code}: standard is ${CONTENT_STATE_LABELS[analysis.state]} — ${[...analysis.blockers, ...analysis.warnings].join(' ')}`);
+    }
+
+    // Gate 3 — the interaction gate.
+    //
+    // Some standards ARE the interaction. "Graph the parent function", "graph
+    // the solution set", "estimate the intersection graphically", "identify
+    // functions using mappings" — for these, asking a student to type an answer
+    // into a box measures whether they can recall a rule, not whether they can
+    // do the thing the standard names. The tool exists; a standard in this list
+    // has to use it at least once.
+    if (INTERACTION_REQUIRED.has(code) && analysis.toolBackedCount === 0) {
+      problems.push(
+        `${code}: this standard is about an interaction the platform already has a tool for, `
+        + 'but every family asks for a typed answer. Convert at least one family to the real interaction.',
+      );
     }
   }
 

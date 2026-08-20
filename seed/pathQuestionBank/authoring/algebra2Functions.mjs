@@ -2,7 +2,7 @@
 
 import {
   choice, equation, expression, interval, numeric, orderedPair, parts, standard,
-  graphWorkspace, linearSystem, steps, table,
+  graphWorkspace, linearSystem, relation, steps, table,
 } from './kit.mjs';
 
 export const ALGEBRA2_FUNCTION_STANDARDS = [
@@ -48,25 +48,30 @@ export const ALGEBRA2_FUNCTION_STANDARDS = [
       hints: ['Where can a denominator cause trouble?'],
     }),
 
-    parts({
-      code: 'A2.2A', slug: 'features-from-table', band: 3, dok: 2, taskType: 'interpretation', representation: 'table',
-      prompt: 'The table gives values of a cube root parent function. Give $f(8)$ and $f(-27)$.',
-      stimulus: table(['$x$', '$f(x) = \\sqrt[3]{x}$'], [['-27', '?'], ['-8', '-2'], ['0', '0'], ['1', '1'], ['8', '?']]),
-      fields: [
-        { id: 'eight', label: '$f(8)$', profile: 'number', expected: '2' },
-        { id: 'negative', label: '$f(-27)$', profile: 'number', expected: '-3' },
+
+    graphWorkspace({
+      code: 'A2.2A', slug: 'graph-the-parent', band: 3, dok: 2, taskType: 'representationTranslation',
+      prompt: 'Graph the cube root parent function $y = \\sqrt[3]{x}$: plot the points where $x = -8$, $x = 0$ and $x = 8$, then give its domain.',
+      functionSpec: { type: 'cubeRoot', a: 1, h: 0, k: 0 },
+      graph: { xMin: -10, xMax: 10, yMin: -4, yMax: 4 },
+      pointTasks: [
+        { id: 'left', label: 'Plot the point where $x = -8$', x: -8, expected: [-8, -2] },
+        { id: 'origin', label: 'Plot the point where $x = 0$', x: 0, expected: [0, 0] },
+        { id: 'right', label: 'Plot the point where $x = 8$', x: 8, expected: [8, 2] },
+      ],
+      analysisRequests: [
+        { id: 'domain', label: 'What is the domain of this function?', kind: 'increasing', responseMode: 'text', expected: ['all real numbers'], accepted: ['all real numbers', 'all reals', '(-inf, inf)', '(-infinity, infinity)', 'R'] },
       ],
       review: {
-        headline: 'A cube root accepts negatives, unlike a square root.',
+        headline: 'Unlike a square root, a cube root accepts negative inputs.',
         reasoning: [
-          '$2^{3} = 8$, so $\\sqrt[3]{8} = 2$.',
-          '$(-3)^{3} = -27$, so $\\sqrt[3]{-27} = -3$.',
+          'A negative number has a real cube root, because a negative cubed is negative.',
+          'That is why this graph continues to the left of the origin while the square root graph stops there.',
         ],
-        answer: '$f(8) = 2$ and $f(-27) = -3$.',
-        connection: 'This is why the cube root has domain all real numbers while the square root does not.',
+        answer: 'All real numbers.',
       },
-      feedback: ['What number cubed gives each value?'],
-      hints: ['For each row, ask what number multiplied by itself three times gives that value.'],
+      feedback: ['Is there any input you could not take the cube root of?'],
+      hints: ['Try cubing a negative number and see whether the result is a legal input for this function.'],
     }),
 
     choice({
@@ -147,22 +152,29 @@ export const ALGEBRA2_FUNCTION_STANDARDS = [
       hints: ['Reflect the point across $y = x$.'],
     }),
 
-    numeric({
-      code: 'A2.2B', slug: 'from-table', band: 3, dok: 2, taskType: 'interpretation', representation: 'table',
-      prompt: 'The table defines $f$. What is $f^{-1}(7)$?',
-      stimulus: table(['$x$', '$f(x)$'], [['-1', '1'], ['0', '3'], ['2', '7'], ['5', '13']]),
-      expected: '2',
+
+    graphWorkspace({
+      code: 'A2.2B', slug: 'graph-then-invert', band: 3, dok: 2, taskType: 'representationTranslation',
+      prompt: 'Graph $f(x) = 2x - 4$: plot the points where $x = 0$ and $x = 3$, then give the point on the graph of $f^{-1}$ that corresponds to your second point.',
+      functionSpec: { type: 'linear', m: 2, b: -4 },
+      graph: { xMin: -4, xMax: 8, yMin: -8, yMax: 6 },
+      pointTasks: [
+        { id: 'yint', label: 'Plot the point where $x = 0$', x: 0, expected: [0, -4] },
+        { id: 'three', label: 'Plot the point where $x = 3$', x: 3, expected: [3, 2] },
+      ],
+      analysisRequests: [
+        { id: 'inverse', label: 'Give the corresponding point on the inverse, as (x, y).', kind: 'increasing', responseMode: 'text', expected: ['(2,3)'], accepted: ['(2,3)', '(2, 3)', '2,3'] },
+      ],
       review: {
-        headline: 'Read the table backwards.',
+        headline: 'An inverse swaps the two coordinates of every point.',
         reasoning: [
-          '$f^{-1}(7)$ asks: which input produced 7?',
-          'The table shows $f(2) = 7$, so $f^{-1}(7) = 2$.',
+          'If a function sends an input to an output, its inverse sends that output back to the input.',
+          'Graphically this is a reflection across the line $y = x$, which is exactly what swapping coordinates does.',
         ],
-        answer: '$2$',
-        commonError: 'Reading $f(7)$ instead answers the forward question, and 7 is not even in the input column.',
+        answer: 'The coordinates of your second point, in the other order.',
       },
-      feedback: ['Search the OUTPUT column for 7.'],
-      hints: ['Which row has 7 in the second column?'],
+      feedback: ['What does an inverse do to an ordered pair?'],
+      hints: ['Take the point you just plotted and ask which coordinate the inverse treats as the input.'],
     }),
 
     choice({
@@ -208,25 +220,25 @@ export const ALGEBRA2_FUNCTION_STANDARDS = [
 
   // --- A2.2C Functions and their inverses ------------------------------------------------
   standard('A2.2C', [
-    choice({
-      code: 'A2.2C', slug: 'pairs', band: 2, dok: 1, taskType: 'conceptual', representation: 'symbolic',
-      prompt: 'Which pair of functions are inverses of each other on suitable domains?',
-      options: [
-        ['$y = 10^{x}$ and $y = \\log_{10} x$', true],
-        ['$y = x^{2}$ and $y = 2x$', false],
-        ['$y = x^{3}$ and $y = 3x$', false],
-        ['$y = |x|$ and $y = -|x|$', false],
-      ],
+
+    relation({
+      code: 'A2.2C', slug: 'inverse-mapping', band: 3, dok: 2, taskType: 'conceptual',
+      prompt: 'These ordered pairs come from the INVERSE of $f(x) = x^2$ with no domain restriction. Map each input to its output, give the domain and range, and decide whether this inverse is itself a function.',
+      pairs: [[0, 0], [1, 1], [1, -1], [4, 2], [4, -2]],
+      ask: ['mapping', 'domain', 'range', 'isFunction'],
+      domainLabel: 'Input',
+      rangeLabel: 'Output',
       review: {
-        headline: 'Exponential and logarithm undo each other.',
+        headline: 'The inverse of an unrestricted quadratic is not a function.',
         reasoning: [
-          '$\\log_{10}(10^{x}) = x$ for every real $x$.',
-          'Squaring and doubling are unrelated, and negating an absolute value does not undo it.',
+          'Two different outputs share the same input, which is exactly what a function is not allowed to do.',
+          'This is why $y = \\sqrt{x}$ restricts to the non-negative branch — the restriction is what rescues the inverse.',
         ],
-        answer: '$y = 10^{x}$ and $y = \\log_{10} x$.',
+        answer: 'Not a function; some inputs map to two outputs.',
       },
-      feedback: ['Compose each pair and see whether you get back to $x$.'],
-      hints: ['What undoes raising 10 to a power?'],
+      feedback: ['Look for an input with more than one arrow leaving it.'],
+      hints: ['A relation fails to be a function the moment one input is paired with two different outputs. Check the repeated inputs.'],
+      misconceptions: ['Assuming every inverse is automatically a function.'],
     }),
 
     interval({

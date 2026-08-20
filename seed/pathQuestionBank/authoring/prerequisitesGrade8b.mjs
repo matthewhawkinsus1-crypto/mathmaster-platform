@@ -719,23 +719,29 @@ export const GRADE_8_STANDARDS_B = [
       hints: ['How much is in the tank before any time passes?'],
     }),
 
-    equation({
-      code: '8.5I', slug: 'from-two-points', band: 3, dok: 2, taskType: 'procedural', representation: 'table',
-      prompt: 'Write an equation in the form $y = mx + b$ for the relationship in the table.',
-      stimulus: table(['$x$', '$y$'], [['2', '13'], ['5', '25'], ['8', '37']]),
-      expected: 'y=4x+5',
-      accepted: ['y = 4x + 5', 'y=5+4x', 'y = 5 + 4x'],
-      responseHint: 'Write the whole equation, starting with y =',
+
+    graphWorkspace({
+      code: '8.5I', slug: 'model-from-graph', band: 2, dok: 2, taskType: 'representationTranslation',
+      prompt: 'A phone plan costs $y$ dollars for $x$ gigabytes and is modelled by $y = 5x + 20$. Plot the points where $x = 0$ and $x = 4$, then give the monthly cost when no data is used.',
+      functionSpec: { type: 'linear', m: 5, b: 20 },
+      graph: { xMin: -1, xMax: 8, yMin: 0, yMax: 60 },
+      pointTasks: [
+        { id: 'start', label: 'Plot the point where $x = 0$', x: 0, expected: [0, 20] },
+        { id: 'four', label: 'Plot the point where $x = 4$', x: 4, expected: [4, 40] },
+      ],
+      analysisRequests: [
+        { id: 'fixed', label: 'What is the cost in dollars when $x = 0$?', kind: 'increasing', responseMode: 'text', expected: ['20'], accepted: ['20', '$20', '20 dollars'] },
+      ],
       review: {
-        headline: 'Find the rate, then work back to $x = 0$.',
+        headline: 'The $y$-intercept is the cost before any data is used.',
         reasoning: [
-          '$y$ rises 12 over 3 steps of $x$, so $m = 4$.',
-          'Stepping back from $(2, 13)$ by 2 units of $x$ removes 8, giving $b = 5$.',
+          'Substituting zero gigabytes leaves only the constant term.',
+          'The other number is a rate: it says what each additional gigabyte adds, not what the plan starts at.',
         ],
-        answer: '$y = 4x + 5$',
+        answer: 'The plan costs $20 before any data.',
       },
-      feedback: ['The table does not include $x = 0$. Work backwards to find it.'],
-      hints: ['What is $y$ when $x = 1$?'],
+      feedback: ['Which of the two numbers in the equation survives when $x$ is zero?'],
+      hints: ['Substitute zero for the number of gigabytes and evaluate. Do not read the value off the picture.'],
     }),
 
     choice({

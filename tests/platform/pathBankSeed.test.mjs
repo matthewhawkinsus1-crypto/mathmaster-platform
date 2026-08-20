@@ -315,3 +315,65 @@ test('the shipped manifest matches what the documents actually contain', async (
     assert.equal(manifest.standards[code].familyCount, count, `${code} is miscounted in the manifest`);
   });
 });
+
+// --- The interaction gate ------------------------------------------------------
+//
+// The starter bank had 0 of 515 items on a real interaction: a student asked to
+// "graph the parent function" typed a letter into a box. These tests pin the
+// repair. They are deliberately about the STANDARDS that are an interaction,
+// not about a raw count — a bank can hit any count by bolting graphs onto
+// arithmetic, and that would be worse content, not better.
+
+test('standards whose mathematics IS an interaction actually use the interaction', async () => {
+  const { ALL_AUTHORED_STANDARDS } = await import('../../seed/pathQuestionBank/authoring/index.mjs');
+  // Same list the build gate enforces, restated here so a silent edit to the
+  // build script cannot quietly drop a standard out of the requirement.
+  const required = [
+    '8.4C', '8.5I', 'A.2C', 'A.2G', 'A.3A', 'A.3B', 'A.3C', 'A.6B', 'A.6C', 'A.7A', 'A.7C',
+    'A.9D', 'A2.2A', 'A2.2B', 'A2.4C', 'A2.4D', 'A2.5A', 'A2.6A', 'A2.6C', 'A2.6G',
+    '7.11A', 'A.2A', 'A.3D', 'A.5B', 'A.6A', 'A.9A', 'A2.4G', 'A2.4H', 'A2.6D', 'A2.6F',
+    'A2.6K', 'A2.7I',
+    '8.9', 'A.3F', 'A.3G', 'A.5C',
+    '8.5G', 'A.12A', 'A2.2C',
+    '8.8C', 'A.5A',
+  ];
+  const byCode = new Map(ALL_AUTHORED_STANDARDS.map((entry) => [entry.code, entry]));
+  const missing = required.filter((code) => {
+    const entry = byCode.get(code);
+    return !entry || !entry.families.some((family) => Boolean(family.type));
+  });
+  assert.deepEqual(missing, [], 'these standards ask a student to type an answer the platform could have them build');
+});
+
+test('every tool-backed item declares a tool the server can actually grade', async () => {
+  const { PATH_TOOL_IDS } = await import('../../functions/shared/pathToolContracts.mjs');
+  const supported = new Set(PATH_TOOL_IDS);
+  // functionGraph is a documented alias for functionInvestigation.
+  supported.add('functionGraph');
+  const { ALL_AUTHORED_STANDARDS } = await import('../../seed/pathQuestionBank/authoring/index.mjs');
+  const unsupported = [];
+  ALL_AUTHORED_STANDARDS.forEach((entry) => {
+    entry.families.forEach((family) => {
+      if (family.type && !supported.has(family.type)) unsupported.push(`${entry.code}/${family.id}: ${family.type}`);
+    });
+  });
+  assert.deepEqual(unsupported, [], 'a tool with no contract must fail closed, so it must never be authored into the bank');
+});
+
+test('a tool-backed item never ships the answer inside its public payload', async () => {
+  const { buildPublicToolPayload } = await import('../../functions/shared/pathToolContracts.mjs');
+  const { ALL_AUTHORED_STANDARDS } = await import('../../seed/pathQuestionBank/authoring/index.mjs');
+  const leaks = [];
+  ALL_AUTHORED_STANDARDS.forEach((entry) => {
+    entry.families.filter((family) => family.type).forEach((family) => {
+      const payload = buildPublicToolPayload(family);
+      if (!payload) return;
+      const serialized = JSON.stringify(payload);
+      // A number-line key, a systems solution, and a balance answer are the
+      // three shapes that would give the whole question away.
+      ['expectedIntervals', 'expectedNotation', 'expectedInequality', 'acceptedAnswers', '"answer"', '"solution"']
+        .forEach((key) => { if (serialized.includes(key)) leaks.push(`${family.id}: ${key}`); });
+    });
+  });
+  assert.deepEqual(leaks, [], 'the public tool payload is what the browser receives — no answer key belongs in it');
+});

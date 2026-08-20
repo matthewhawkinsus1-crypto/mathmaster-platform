@@ -1,7 +1,7 @@
 // Algebra I, the A.2 strand: writing linear equations and inequalities.
 
 import {
-  choice, equation, expression, interval, numeric, parts, standard,
+  numberLine, choice, equation, expression, interval, numeric, parts, standard,
   graphWorkspace, relation, steps, table,
 } from './kit.mjs';
 
@@ -49,25 +49,23 @@ export const ALGEBRA1_A2_STANDARDS = [
       hints: ['Could the shop sell 7.5 notebooks?'],
     }),
 
-    parts({
-      code: 'A.2A', slug: 'from-table', band: 2, dok: 1, taskType: 'interpretation', representation: 'table',
-      prompt: 'The table lists every ordered pair of a function. Give the smallest and largest values of the range.',
-      stimulus: table(['$x$', '$f(x)$'], [['-4', '9'], ['-1', '3'], ['2', '-3'], ['5', '-9']]),
-      fields: [
-        { id: 'min', label: 'Smallest range value', profile: 'number', expected: '-9' },
-        { id: 'max', label: 'Largest range value', profile: 'number', expected: '9' },
-      ],
+
+    numberLine({
+      code: 'A.2A', slug: 'domain-on-a-line', band: 3, dok: 2, taskType: 'representationTranslation',
+      prompt: 'A candle burns according to $h(t) = 20 - 2.5t$ centimetres, and it burns out when the height reaches zero. Graph the reasonable DOMAIN of $t$ on the number line, then write it in interval notation.',
+      min: -2, max: 12, step: 1, variable: 't', ask: ['graph', 'interval'],
+      intervals: [{ start: 0, end: 8, startClosed: true, endClosed: true }],
       review: {
-        headline: 'The range is the set of outputs, so read the second column.',
+        headline: 'The context, not the algebra, is what ends this domain.',
         reasoning: [
-          'The outputs are 9, 3, $-3$ and $-9$.',
-          'The smallest is $-9$ and the largest is 9.',
+          'Time cannot run backwards, so the left end is closed at zero.',
+          'Setting the height to zero gives the moment the candle is gone, and that instant really happens — so the right end is closed too.',
         ],
-        answer: 'From $-9$ to $9$.',
-        commonError: 'Reading the first column gives the domain instead.',
+        answer: 'From the moment it is lit to the moment it burns out, both included.',
       },
-      feedback: ['Which column holds the outputs?'],
-      hints: ['Range comes from $f(x)$, not from $x$.'],
+      feedback: ['Solve for the time when the height reaches zero. Does the candle exist after that?'],
+      hints: ['Find both ends separately: one comes from "time starts now", the other from setting the height expression equal to zero.'],
+      misconceptions: ['Reporting all real numbers because the equation itself accepts them.'],
     }),
 
     choice({

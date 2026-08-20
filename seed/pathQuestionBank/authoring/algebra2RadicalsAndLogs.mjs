@@ -3,7 +3,7 @@
 
 import {
   choice, equation, expression, inequality, interval, numeric, parts, standard,
-  numberLine, steps, table,
+  graphWorkspace, numberLine, steps, table,
 } from './kit.mjs';
 
 export const ALGEBRA2_RADICAL_LOG_STANDARDS = [
@@ -48,24 +48,29 @@ export const ALGEBRA2_RADICAL_LOG_STANDARDS = [
       hints: ['What must $2x - 6$ be at minimum?'],
     }),
 
-    parts({
-      code: 'A2.4C', slug: 'from-table', band: 3, dok: 2, taskType: 'interpretation', representation: 'table',
-      prompt: 'The table gives values of a transformed square root function. Give the $x$ and $y$ coordinates of its endpoint.',
-      stimulus: table(['$x$', '$y$'], [['4', '2'], ['5', '3'], ['8', '4'], ['13', '5']]),
-      fields: [
-        { id: 'x', label: 'Endpoint $x$', profile: 'number', expected: '4' },
-        { id: 'y', label: 'Endpoint $y$', profile: 'number', expected: '2' },
+
+    graphWorkspace({
+      code: 'A2.4C', slug: 'graph-the-shift', band: 3, dok: 2, taskType: 'representationTranslation',
+      prompt: 'Graph $y = \\sqrt{x - 2} + 1$: plot the endpoint and the point where $x = 6$, then give the domain.',
+      functionSpec: { type: 'squareRoot', a: 1, h: 2, k: 1 },
+      graph: { xMin: -2, xMax: 12, yMin: -2, yMax: 6 },
+      pointTasks: [
+        { id: 'start', label: 'Plot the endpoint of the graph', x: 2, expected: [2, 1] },
+        { id: 'later', label: 'Plot the point where $x = 6$', x: 6, expected: [6, 3] },
+      ],
+      analysisRequests: [
+        { id: 'domain', label: 'What is the domain of this function?', kind: 'increasing', responseMode: 'text', expected: ['x >= 2'], accepted: ['x >= 2', 'x>=2', '[2, inf)', '[2,inf)', 'x is greater than or equal to 2'] },
       ],
       review: {
-        headline: 'The endpoint is where the graph starts.',
+        headline: 'The graph starts where the radicand stops being negative.',
         reasoning: [
-          'No values are listed below $x = 4$, and the outputs increase from there.',
-          'The function is $y = \\sqrt{x - 4} + 2$, whose endpoint is $(4, 2)$.',
+          'Requiring the expression under the radical to be at least zero gives the leftmost input.',
+          'The $+1$ moves the whole graph up but changes nothing about which inputs are allowed.',
         ],
-        answer: '$(4, 2)$',
+        answer: 'Every input from 2 rightward.',
       },
-      feedback: ['Which row is the smallest input in the table?'],
-      hints: ['A square root graph has one end and no other.'],
+      feedback: ['Which of the two numbers in this equation restricts the INPUTS?'],
+      hints: ['Set the expression under the radical greater than or equal to zero and solve. The constant outside does not affect that.'],
     }),
 
     choice({
@@ -149,26 +154,29 @@ export const ALGEBRA2_RADICAL_LOG_STANDARDS = [
       hints: ['Solve $x + 2 = 0$.'],
     }),
 
-    numeric({
-      code: 'A2.4D', slug: 'from-table', band: 3, dok: 2, taskType: 'interpretation', representation: 'table',
-      prompt: 'Each row rewrites a quadratic in vertex form. What constant belongs in place of the question mark?',
-      stimulus: table(['Standard form', 'Vertex form'], [
-        ['$x^{2} + 2x + 5$', '$(x+1)^{2} + 4$'],
-        ['$x^{2} + 6x + 5$', '$(x+3)^{2} - 4$'],
-        ['$x^{2} + 10x + 5$', '$(x+5)^{2} + \\; ?$'],
-      ]),
-      expected: '-20',
+
+    graphWorkspace({
+      code: 'A2.4D', slug: 'vertex-on-the-graph', band: 3, dok: 2, taskType: 'interpretation',
+      prompt: 'Completing the square turns $y = x^{2} - 6x + 5$ into $y = (x - 3)^{2} - 4$. Plot the vertex and the point where $x = 5$, then give the minimum value of the function.',
+      functionSpec: { type: 'quadratic', a: 1, h: 3, k: -4 },
+      graph: { xMin: -2, xMax: 8, yMin: -6, yMax: 8 },
+      pointTasks: [
+        { id: 'vertex', label: 'Plot the vertex', x: 3, expected: [3, -4] },
+        { id: 'right', label: 'Plot the point where $x = 5$', x: 5, expected: [5, 0] },
+      ],
+      analysisRequests: [
+        { id: 'min', label: 'What is the minimum value of the function?', kind: 'increasing', responseMode: 'text', expected: ['-4'], accepted: ['-4', 'y=-4', '-4 at x=3'] },
+      ],
       review: {
-        headline: 'Completing the square adds a square, so the same amount comes back out.',
+        headline: 'Vertex form puts the turning point in plain sight.',
         reasoning: [
-          '$(x+5)^{2} = x^{2} + 10x + 25$, which is 20 more than $x^{2} + 10x + 5$.',
-          'So 20 must be subtracted: the constant is $-20$.',
+          'The squared term is never negative, so the whole expression is smallest when that term is zero.',
+          'That happens at one input, and there the output is whatever constant sits outside the square.',
         ],
-        answer: '$-20$',
-        connection: 'Reading down the table, the constant is always the original constant minus the square of half the middle coefficient.',
+        answer: 'The output at the vertex.',
       },
-      feedback: ['Expand the squared bracket and compare it with the standard form beside it.'],
-      hints: ['What does $(x+5)^{2}$ expand to?'],
+      feedback: ['Which coordinate of the vertex is the minimum VALUE — the input or the output?'],
+      hints: ['The minimum value is an output. Find the input that makes the squared term vanish, then read what is left.'],
     }),
 
     choice({
@@ -437,24 +445,23 @@ export const ALGEBRA2_RADICAL_LOG_STANDARDS = [
       hints: ['Is squaring a reversible operation?'],
     }),
 
-    choice({
-      code: 'A2.4G', slug: 'from-table', band: 3, dok: 2, taskType: 'interpretation', representation: 'table',
-      prompt: 'The table checks two candidate solutions of $\\sqrt{2x + 3} = x$. Which is extraneous?',
-      stimulus: table(['$x$', 'Left side', 'Right side', 'Equal?'], [
-        ['3', '3', '3', 'yes'],
-        ['-1', '1', '-1', 'no'],
-      ]),
-      options: [['$x = -1$', true], ['$x = 3$', false], ['Both', false], ['Neither', false]],
+
+    numberLine({
+      code: 'A2.4G', slug: 'domain-on-a-line', band: 3, dok: 2, taskType: 'representationTranslation',
+      prompt: 'Before solving $\\sqrt{2x - 6} = x - 7$, graph the set of inputs for which the LEFT side is even defined, then write that set in interval notation.',
+      min: -2, max: 12, step: 1, variable: 'x', ask: ['graph', 'interval'],
+      intervals: [{ start: 3, end: Infinity, startClosed: true, endClosed: false }],
       review: {
-        headline: 'An extraneous solution fails the check.',
+        headline: 'Knowing the legal inputs first is what makes an extraneous solution obvious.',
         reasoning: [
-          'At $x = -1$ the two sides give 1 and $-1$, which are not equal.',
-          'A square root cannot be negative, which is why this candidate could never work.',
+          'The expression under the radical must be at least zero, which cuts the line at one point.',
+          'Any candidate the algebra produces outside this set was manufactured by squaring, not by the original equation.',
         ],
-        answer: '$x = -1$ is extraneous.',
+        answer: 'Every input from the boundary rightward, boundary included.',
       },
-      feedback: ['Look for the row where the two sides disagree.'],
-      hints: ['Read the last column.'],
+      feedback: ['What has to be true of the expression under the radical?'],
+      hints: ['Set the radicand greater than or equal to zero and solve it. Do not solve the whole equation yet.'],
+      misconceptions: ['Solving first and only afterwards wondering which answers were legal.'],
     }),
 
     choice({
@@ -638,26 +645,29 @@ export const ALGEBRA2_RADICAL_LOG_STANDARDS = [
       hints: ['What does $5(3)^{x}$ approach on the far left?'],
     }),
 
-    choice({
-      code: 'A2.5A', slug: 'log-domain-shift', band: 4, dok: 2, taskType: 'interpretation', representation: 'table',
-      prompt: 'Which function has a vertical asymptote at $x = 4$?',
-      stimulus: table(['Option', 'Function'], [
-        ['A', '$y = \\log(x - 4)$'],
-        ['B', '$y = \\log(x) - 4$'],
-        ['C', '$y = \\log(x + 4)$'],
-        ['D', '$y = 4\\log(x)$'],
-      ]),
-      options: [['Option A', true], ['Option B', false], ['Option C', false], ['Option D', false]],
+
+    graphWorkspace({
+      code: 'A2.5A', slug: 'graph-the-log-shift', band: 4, dok: 2, taskType: 'representationTranslation',
+      prompt: 'Graph $y = \\log_{2}(x - 3)$: plot the points where $x = 4$ and $x = 7$, then give the equation of the vertical asymptote.',
+      functionSpec: { type: 'logarithmic', a: 1, base: 2, h: 3, k: 0 },
+      graph: { xMin: 0, xMax: 12, yMin: -5, yMax: 5 },
+      pointTasks: [
+        { id: 'one', label: 'Plot the point where $x = 4$', x: 4, expected: [4, 0] },
+        { id: 'two', label: 'Plot the point where $x = 7$', x: 7, expected: [7, 2] },
+      ],
+      analysisRequests: [
+        { id: 'asymptote', label: 'What is the equation of the vertical asymptote?', kind: 'increasing', responseMode: 'text', expected: ['x=3'], accepted: ['x=3', 'x = 3', '3'] },
+      ],
       review: {
-        headline: 'A logarithm blows up where its argument reaches zero.',
+        headline: 'A logarithm has a vertical asymptote where its argument reaches zero.',
         reasoning: [
-          '$\\log(x - 4)$ is undefined when $x - 4 = 0$, so the asymptote is $x = 4$.',
-          'Option C has its asymptote at $x = -4$, and the others at $x = 0$.',
+          'The argument $x - 3$ is zero at one input, and a logarithm is undefined there and to the left of it.',
+          'Shifting the parent function right carries its asymptote along with it.',
         ],
-        answer: 'Option A.',
+        answer: 'The asymptote is the vertical line at that input.',
       },
-      feedback: ['Where does each argument become zero?'],
-      hints: ['Set the inside of each logarithm to zero.'],
+      feedback: ['Which input makes the expression inside the logarithm equal zero?'],
+      hints: ['Set the argument of the logarithm equal to zero and solve. That input is where the graph runs off downward.'],
     }),
 
     choice({

@@ -4229,6 +4229,68 @@
       "misconceptions": []
     },
     {
+      "id": "mm_A_2A_domain-on-a-line",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2A:domain-on-a-line",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2A",
+      "taskType": "representationTranslation",
+      "representation": "numberLine",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "type": "intervalNumberLine",
+      "prompt": "A candle burns according to $h(t) = 20 - 2.5t$ centimetres, and it burns out when the height reaches zero. Graph the reasonable DOMAIN of $t$ on the number line, then write it in interval notation.",
+      "min": -2,
+      "max": 12,
+      "step": 1,
+      "variable": "t",
+      "ask": [
+        "graph",
+        "interval"
+      ],
+      "inequalityText": null,
+      "expectedIntervals": [
+        {
+          "start": 0,
+          "end": 8,
+          "startClosed": true,
+          "endClosed": true
+        }
+      ],
+      "solutionReview": {
+        "headline": "The context, not the algebra, is what ends this domain.",
+        "reasoning": [
+          "Time cannot run backwards, so the left end is closed at zero.",
+          "Setting the height to zero gives the moment the candle is gone, and that instant really happens — so the right end is closed too."
+        ],
+        "answerSummary": "From the moment it is lit to the moment it burns out, both included.",
+        "commonError": null,
+        "connection": null
+      },
+      "attemptFeedback": [
+        "Solve for the time when the height reaches zero. Does the candle exist after that?"
+      ],
+      "supportHints": [
+        "Find both ends separately: one comes from \"time starts now\", the other from setting the height expression equal to zero."
+      ],
+      "misconceptions": [
+        {
+          "match": []
+        }
+      ]
+    },
+    {
       "id": "mm_A_2A_error-analysis",
       "active": true,
       "alignmentKeys": [
@@ -4308,93 +4370,6 @@
       ],
       "supportHints": [
         "Which of $9$ and $-11$ is further left on a number line?"
-      ],
-      "misconceptions": []
-    },
-    {
-      "id": "mm_A_2A_from-table",
-      "active": true,
-      "alignmentKeys": [
-        "texas:A.2A"
-      ],
-      "courseId": "algebra1",
-      "familyId": "mathmaster:A.2A:from-table",
-      "familyVersion": 1,
-      "questionType": "response",
-      "activityRole": "practice",
-      "difficultyBand": 2,
-      "dok": 1,
-      "calculatorPolicy": "inherit",
-      "assessedConstruct": "A.2A",
-      "taskType": "interpretation",
-      "representation": "table",
-      "authoring": {
-        "source": "MathMaster production authoring",
-        "kit": 1
-      },
-      "prompt": "The table lists every ordered pair of a function. Give the smallest and largest values of the range.",
-      "stimulus": {
-        "kind": "table",
-        "title": null,
-        "note": null,
-        "table": {
-          "headers": [
-            "$x$",
-            "$f(x)$"
-          ],
-          "rows": [
-            [
-              "-4",
-              "9"
-            ],
-            [
-              "-1",
-              "3"
-            ],
-            [
-              "2",
-              "-3"
-            ],
-            [
-              "5",
-              "-9"
-            ]
-          ]
-        }
-      },
-      "responseFields": [
-        {
-          "id": "min",
-          "label": "Smallest range value",
-          "inputProfile": "number",
-          "unit": null,
-          "responseHint": null,
-          "expected": "-9"
-        },
-        {
-          "id": "max",
-          "label": "Largest range value",
-          "inputProfile": "number",
-          "unit": null,
-          "responseHint": null,
-          "expected": "9"
-        }
-      ],
-      "solutionReview": {
-        "headline": "The range is the set of outputs, so read the second column.",
-        "reasoning": [
-          "The outputs are 9, 3, $-3$ and $-9$.",
-          "The smallest is $-9$ and the largest is 9."
-        ],
-        "answerSummary": "From $-9$ to $9$.",
-        "commonError": "Reading the first column gives the domain instead.",
-        "connection": null
-      },
-      "attemptFeedback": [
-        "Which column holds the outputs?"
-      ],
-      "supportHints": [
-        "Range comes from $f(x)$, not from $x$."
       ],
       "misconceptions": []
     },
@@ -6278,89 +6253,90 @@
       "misconceptions": []
     },
     {
-      "id": "mm_A_2G_from-table",
+      "id": "mm_A_2G_graph-horizontal",
       "active": true,
       "alignmentKeys": [
         "texas:A.2G"
       ],
       "courseId": "algebra1",
-      "familyId": "mathmaster:A.2G:from-table",
+      "familyId": "mathmaster:A.2G:graph-horizontal",
       "familyVersion": 1,
       "questionType": "response",
       "activityRole": "practice",
-      "difficultyBand": 3,
+      "difficultyBand": 2,
       "dok": 2,
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A.2G",
-      "taskType": "interpretation",
-      "representation": "table",
+      "taskType": "representationTranslation",
+      "representation": "graph",
       "authoring": {
         "source": "MathMaster production authoring",
         "kit": 1
       },
-      "prompt": "Each table lists points on one line. Write the equation of line P and the equation of line Q.",
-      "stimulus": {
-        "kind": "table",
-        "title": null,
-        "note": null,
-        "table": {
-          "headers": [
-            "Line",
-            "Points"
-          ],
-          "rows": [
-            [
-              "P",
-              "$(2, -4)$, $(2, 0)$, $(2, 9)$"
-            ],
-            [
-              "Q",
-              "$(-5, 3)$, $(1, 3)$, $(6, 3)$"
-            ]
-          ]
-        }
+      "type": "functionInvestigation",
+      "prompt": "Graph the horizontal line through $(0, -3)$: plot the points where $x = -2$ and $x = 4$, then give the slope of the line.",
+      "functionSpec": {
+        "type": "linear",
+        "m": 0,
+        "b": -3
       },
-      "responseFields": [
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -8,
+        "yMax": 4
+      },
+      "pointTasks": [
         {
-          "id": "p",
-          "label": "Equation of line P",
-          "inputProfile": "equation",
-          "unit": null,
-          "responseHint": null,
-          "expected": "x=2",
-          "accepted": [
-            "x=2",
-            "x = 2"
+          "id": "left",
+          "label": "Plot the point where $x = -2$",
+          "x": -2,
+          "expected": [
+            -2,
+            -3
           ]
         },
         {
-          "id": "q",
-          "label": "Equation of line Q",
-          "inputProfile": "equation",
-          "unit": null,
-          "responseHint": null,
-          "expected": "y=3",
-          "accepted": [
-            "y=3",
-            "y = 3"
+          "id": "right",
+          "label": "Plot the point where $x = 4$",
+          "x": 4,
+          "expected": [
+            4,
+            -3
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "slope",
+          "label": "What is the slope of this line?",
+          "kind": "constant",
+          "responseMode": "text",
+          "expected": [
+            "0"
+          ],
+          "acceptedAnswers": [
+            "0",
+            "zero",
+            "m=0"
           ]
         }
       ],
       "solutionReview": {
-        "headline": "Look for the coordinate that never changes.",
+        "headline": "A horizontal line rises by nothing, so its slope is zero — not undefined.",
         "reasoning": [
-          "Line P always has $x = 2$, so it is vertical.",
-          "Line Q always has $y = 3$, so it is horizontal."
+          "Both plotted points have the same output, so the rise between them is 0.",
+          "Zero divided by any non-zero run is 0. Undefined slope belongs to VERTICAL lines, where the run is zero instead."
         ],
-        "answerSummary": "P: $x = 2$. Q: $y = 3$.",
+        "answerSummary": "The slope is 0.",
         "commonError": null,
         "connection": null
       },
       "attemptFeedback": [
-        "In each list, which coordinate is the same in every point?"
+        "How much does the output change as you move from one point to the other?"
       ],
       "supportHints": [
-        "Compare the first coordinates, then the second ones."
+        "Work out the rise and the run separately, then decide which of them is zero and what that does to the quotient."
       ],
       "misconceptions": []
     },
@@ -7383,87 +7359,6 @@
       ]
     },
     {
-      "id": "mm_A_3A_from-table",
-      "active": true,
-      "alignmentKeys": [
-        "texas:A.3A"
-      ],
-      "courseId": "algebra1",
-      "familyId": "mathmaster:A.3A:from-table",
-      "familyVersion": 1,
-      "questionType": "response",
-      "activityRole": "practice",
-      "difficultyBand": 2,
-      "dok": 1,
-      "calculatorPolicy": "inherit",
-      "assessedConstruct": "A.3A",
-      "taskType": "interpretation",
-      "representation": "table",
-      "authoring": {
-        "source": "MathMaster production authoring",
-        "kit": 1
-      },
-      "prompt": "What is the slope of the line described by the table?",
-      "stimulus": {
-        "kind": "table",
-        "title": null,
-        "note": null,
-        "table": {
-          "headers": [
-            "$x$",
-            "$y$"
-          ],
-          "rows": [
-            [
-              "-6",
-              "10"
-            ],
-            [
-              "-2",
-              "7"
-            ],
-            [
-              "6",
-              "1"
-            ]
-          ]
-        }
-      },
-      "responseFields": [
-        {
-          "id": "answer",
-          "label": "Answer",
-          "inputProfile": "number",
-          "unit": null,
-          "responseHint": null,
-          "placeholder": null,
-          "expected": "-0.75",
-          "accepted": [
-            "-0.75",
-            "-3/4"
-          ],
-          "numericTolerance": 0.005
-        }
-      ],
-      "solutionReview": {
-        "headline": "Any two rows give the same slope, so choose the easiest pair.",
-        "reasoning": [
-          "From the first row to the second, $y$ falls 3 while $x$ rises 4.",
-          "$-3 \\div 4 = -0.75$, and the last pair of rows gives $-6 \\div 8$, which is the same."
-        ],
-        "answerSummary": "$-\\frac{3}{4}$",
-        "commonError": null,
-        "connection": null
-      },
-      "attemptFeedback": [
-        "Check your slope against a second pair of rows."
-      ],
-      "supportHints": [
-        "How much does $y$ change between the first two rows?"
-      ],
-      "misconceptions": []
-    },
-    {
       "id": "mm_A_3A_reverse-missing",
       "active": true,
       "alignmentKeys": [
@@ -7511,6 +7406,95 @@
       ],
       "supportHints": [
         "What is $7 - 3$?"
+      ],
+      "misconceptions": []
+    },
+    {
+      "id": "mm_A_3A_slope-from-graph",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3A:slope-from-graph",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3A",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "type": "functionInvestigation",
+      "prompt": "Graph $y = -\\frac{3}{2}x + 4$: plot the points where $x = 0$ and $x = 2$, then give the slope.",
+      "functionSpec": {
+        "type": "linear",
+        "m": -1.5,
+        "b": 4
+      },
+      "graph": {
+        "xMin": -4,
+        "xMax": 8,
+        "yMin": -6,
+        "yMax": 8
+      },
+      "pointTasks": [
+        {
+          "id": "yint",
+          "label": "Plot the point where $x = 0$",
+          "x": 0,
+          "expected": [
+            0,
+            4
+          ]
+        },
+        {
+          "id": "second",
+          "label": "Plot the point where $x = 2$",
+          "x": 2,
+          "expected": [
+            2,
+            1
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "slope",
+          "label": "What is the slope of this line?",
+          "kind": "decreasing",
+          "responseMode": "text",
+          "expected": [
+            "-3/2"
+          ],
+          "acceptedAnswers": [
+            "-3/2",
+            "-1.5",
+            "-1 1/2",
+            "m=-3/2"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "A falling line has a negative slope.",
+        "reasoning": [
+          "Moving 2 to the right drops the output by 3, so the rise is negative while the run is positive.",
+          "A quotient with one negative and one positive is negative, which matches the direction the line travels."
+        ],
+        "answerSummary": "The slope is $-\\frac{3}{2}$.",
+        "commonError": null,
+        "connection": null
+      },
+      "attemptFeedback": [
+        "Your two points should be 2 apart horizontally. How far apart are they vertically, and in which direction?"
+      ],
+      "supportHints": [
+        "Decide the SIGN first by looking at whether the line rises or falls, then work out the size from rise over run."
       ],
       "misconceptions": []
     },
@@ -7684,88 +7668,6 @@
       "misconceptions": []
     },
     {
-      "id": "mm_A_3B_from-table",
-      "active": true,
-      "alignmentKeys": [
-        "texas:A.3B"
-      ],
-      "courseId": "algebra1",
-      "familyId": "mathmaster:A.3B:from-table",
-      "familyVersion": 1,
-      "questionType": "response",
-      "activityRole": "practice",
-      "difficultyBand": 3,
-      "dok": 2,
-      "calculatorPolicy": "inherit",
-      "assessedConstruct": "A.3B",
-      "taskType": "comparison",
-      "representation": "table",
-      "authoring": {
-        "source": "MathMaster production authoring",
-        "kit": 1
-      },
-      "prompt": "The table shows two hikers' distances from base camp. How many kilometres per hour faster is the faster hiker?",
-      "stimulus": {
-        "kind": "table",
-        "title": null,
-        "note": null,
-        "table": {
-          "headers": [
-            "Hours",
-            "Hiker A (km)",
-            "Hiker B (km)"
-          ],
-          "rows": [
-            [
-              "1",
-              "4",
-              "6"
-            ],
-            [
-              "3",
-              "14",
-              "13"
-            ],
-            [
-              "5",
-              "24",
-              "20"
-            ]
-          ]
-        }
-      },
-      "responseFields": [
-        {
-          "id": "answer",
-          "label": "Answer",
-          "inputProfile": "number",
-          "unit": "km/h",
-          "responseHint": null,
-          "placeholder": null,
-          "expected": "1.5",
-          "numericTolerance": 0.005
-        }
-      ],
-      "solutionReview": {
-        "headline": "Two rates, then one comparison.",
-        "reasoning": [
-          "Hiker A covers 20 km in 4 hours, which is 5 km/h.",
-          "Hiker B covers 14 km in 4 hours, which is 3.5 km/h.",
-          "The difference is 1.5 km/h."
-        ],
-        "answerSummary": "$1.5$ km/h",
-        "commonError": "Comparing the last row alone says B is behind, but that is a distance, not a rate.",
-        "connection": null
-      },
-      "attemptFeedback": [
-        "Work out each hiker's rate before comparing them."
-      ],
-      "supportHints": [
-        "How far does each hiker travel between hour 1 and hour 5?"
-      ],
-      "misconceptions": []
-    },
-    {
       "id": "mm_A_3B_interpret-in-context",
       "active": true,
       "alignmentKeys": [
@@ -7828,6 +7730,95 @@
       ],
       "supportHints": [
         "Work out $T$ at $m = 0$ and at $m = 1$ and compare."
+      ],
+      "misconceptions": []
+    },
+    {
+      "id": "mm_A_3B_rate-from-graph",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3B:rate-from-graph",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3B",
+      "taskType": "interpretation",
+      "representation": "graph",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "type": "functionInvestigation",
+      "prompt": "A tank drains according to $V = -4t + 30$, where $V$ is litres and $t$ is minutes. Plot the volume at $t = 0$ and at $t = 5$, then say how many litres the tank loses each minute.",
+      "functionSpec": {
+        "type": "linear",
+        "m": -4,
+        "b": 30
+      },
+      "graph": {
+        "xMin": -1,
+        "xMax": 9,
+        "yMin": -5,
+        "yMax": 35
+      },
+      "pointTasks": [
+        {
+          "id": "start",
+          "label": "Plot the volume at $t = 0$",
+          "x": 0,
+          "expected": [
+            0,
+            30
+          ]
+        },
+        {
+          "id": "five",
+          "label": "Plot the volume at $t = 5$",
+          "x": 5,
+          "expected": [
+            5,
+            10
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "rate",
+          "label": "How many litres does the tank lose each minute?",
+          "kind": "decreasing",
+          "responseMode": "text",
+          "expected": [
+            "4"
+          ],
+          "acceptedAnswers": [
+            "4",
+            "4 litres",
+            "4 liters",
+            "-4"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Rate of change is the slope, read in the units of the situation.",
+        "reasoning": [
+          "Between the two plotted points the volume falls 20 litres over 5 minutes.",
+          "Dividing gives the loss per minute, which is why the slope is negative: the tank is emptying."
+        ],
+        "answerSummary": "4 litres per minute.",
+        "commonError": null,
+        "connection": null
+      },
+      "attemptFeedback": [
+        "Find the change in volume between your two points and divide by the change in time."
+      ],
+      "supportHints": [
+        "Work out the total change in litres and the total change in minutes separately, then divide one by the other."
       ],
       "misconceptions": []
     },
@@ -9354,13 +9345,13 @@
       "misconceptions": []
     },
     {
-      "id": "mm_A_3G_estimate-from-table",
+      "id": "mm_A_3G_estimate-graphically",
       "active": true,
       "alignmentKeys": [
         "texas:A.3G"
       ],
       "courseId": "algebra1",
-      "familyId": "mathmaster:A.3G:estimate-from-table",
+      "familyId": "mathmaster:A.3G:estimate-graphically",
       "familyVersion": 1,
       "questionType": "response",
       "activityRole": "practice",
@@ -9368,88 +9359,36 @@
       "dok": 2,
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A.3G",
-      "taskType": "interpretation",
-      "representation": "table",
+      "taskType": "representationTranslation",
+      "representation": "graph",
       "authoring": {
         "source": "MathMaster production authoring",
         "kit": 1
       },
-      "prompt": "Between which two $x$ values does the solution of this system lie?",
-      "stimulus": {
-        "kind": "table",
-        "title": null,
-        "note": null,
-        "table": {
-          "headers": [
-            "$x$",
-            "Line 1",
-            "Line 2"
-          ],
-          "rows": [
-            [
-              "1",
-              "3.0",
-              "9.0"
-            ],
-            [
-              "2",
-              "5.5",
-              "7.5"
-            ],
-            [
-              "3",
-              "8.0",
-              "6.0"
-            ],
-            [
-              "4",
-              "10.5",
-              "4.5"
-            ]
-          ]
-        }
+      "type": "systemsWorkspace",
+      "mode": "linear",
+      "prompt": "A pool is draining while a second pool fills. Graph both lines in the workspace, then give the point where the two pools hold the same amount and say how many such moments there are.",
+      "system": {
+        "m1": -3,
+        "b1": 18,
+        "m2": 1,
+        "b2": 2
       },
-      "choices": [
-        {
-          "id": "opt-1",
-          "label": "Between 2 and 3"
-        },
-        {
-          "id": "opt-2",
-          "label": "Between 1 and 2"
-        },
-        {
-          "id": "opt-3",
-          "label": "Beyond 4"
-        },
-        {
-          "id": "opt-4",
-          "label": "Between 3 and 4"
-        }
-      ],
-      "responseFields": [
-        {
-          "id": "answer",
-          "label": "Choose the correct answer",
-          "inputProfile": "choice",
-          "expected": "opt-1"
-        }
-      ],
       "solutionReview": {
-        "headline": "The crossing is where the larger column swaps over.",
+        "headline": "The lines cross where the two quantities are equal.",
         "reasoning": [
-          "At $x = 2$ Line 2 is higher; at $x = 3$ Line 1 is.",
-          "So the two must be equal somewhere between them — in fact at $x = 2.4$."
+          "One line falls and the other rises, so they must meet exactly once.",
+          "Setting $-3x + 18 = x + 2$ gives $16 = 4x$, and substituting back gives the shared amount."
         ],
-        "answerSummary": "Between 2 and 3.",
+        "answerSummary": "One moment, at $(4, 6)$.",
         "commonError": null,
         "connection": null
       },
       "attemptFeedback": [
-        "Find the row where the bigger of the two values changes."
+        "A falling line and a rising line — how many times can they cross?"
       ],
       "supportHints": [
-        "Which line is higher at $x = 2$, and which at $x = 3$?"
+        "Read roughly where the lines meet on the graph first, then set the two expressions equal to confirm it exactly."
       ],
       "misconceptions": []
     },
@@ -11801,13 +11740,13 @@
       "misconceptions": []
     },
     {
-      "id": "mm_A_5C_substitution",
+      "id": "mm_A_5C_workspace-solve",
       "active": true,
       "alignmentKeys": [
         "texas:A.5C"
       ],
       "courseId": "algebra1",
-      "familyId": "mathmaster:A.5C:substitution",
+      "familyId": "mathmaster:A.5C:workspace-solve",
       "familyVersion": 1,
       "questionType": "response",
       "activityRole": "practice",
@@ -11816,45 +11755,41 @@
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A.5C",
       "taskType": "procedural",
-      "representation": "symbolic",
+      "representation": "graph",
       "authoring": {
         "source": "MathMaster production authoring",
         "kit": 1
       },
-      "prompt": "Solve the system $y = 2x - 1$ and $3x + y = 14$. Give the solution as an ordered pair.",
-      "responseFields": [
-        {
-          "id": "answer",
-          "label": "Answer",
-          "inputProfile": "orderedPair",
-          "unit": null,
-          "responseHint": "Write your answer as an ordered pair, for example (2, -4).",
-          "placeholder": null,
-          "expected": "(3,5)",
-          "accepted": [
-            "(3,5)",
-            "(3, 5)",
-            "3,5"
-          ]
-        }
-      ],
+      "type": "systemsWorkspace",
+      "mode": "linear",
+      "prompt": "Graph both lines in the workspace, then give the point where they meet and say how many solutions the system has.",
+      "system": {
+        "m1": 2,
+        "b1": -1,
+        "m2": -1,
+        "b2": 5
+      },
       "solutionReview": {
-        "headline": "One equation already gives $y$, so substitute it into the other.",
+        "headline": "Two lines with different slopes cross exactly once.",
         "reasoning": [
-          "$3x + (2x - 1) = 14$ gives $5x = 15$, so $x = 3$.",
-          "Substituting back gives $y = 5$, and $3(3) + 5 = 14$ checks."
+          "Setting the two expressions equal gives $2x - 1 = -x + 5$, so $3x = 6$.",
+          "That input produces the same output in both equations, which is what \"the solution of the system\" means."
         ],
-        "answerSummary": "$(3, 5)$",
+        "answerSummary": "One solution, at $(2, 3)$.",
         "commonError": null,
         "connection": null
       },
       "attemptFeedback": [
-        "Substitute the whole expression for $y$, brackets included."
+        "Compare the two slopes. Different slopes means the lines cannot stay apart."
       ],
       "supportHints": [
-        "What does the second equation become once $y$ is replaced?"
+        "Set the two right-hand sides equal to each other and solve for $x$, then substitute back to get $y$."
       ],
-      "misconceptions": []
+      "misconceptions": [
+        {
+          "match": []
+        }
+      ]
     },
     {
       "id": "mm_A_6A_context-range",
@@ -12069,13 +12004,13 @@
       "misconceptions": []
     },
     {
-      "id": "mm_A_6A_range-as-inequality",
+      "id": "mm_A_6A_range-on-a-line",
       "active": true,
       "alignmentKeys": [
         "texas:A.6A"
       ],
       "courseId": "algebra1",
-      "familyId": "mathmaster:A.6A:range-as-inequality",
+      "familyId": "mathmaster:A.6A:range-on-a-line",
       "familyVersion": 1,
       "questionType": "response",
       "activityRole": "practice",
@@ -12083,56 +12018,52 @@
       "dok": 2,
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A.6A",
-      "taskType": "comparison",
-      "representation": "symbolic",
+      "taskType": "representationTranslation",
+      "representation": "numberLine",
       "authoring": {
         "source": "MathMaster production authoring",
         "kit": 1
       },
-      "prompt": "Which inequality describes the range of $f(x) = x^{2} - 6x + 11$?",
-      "choices": [
-        {
-          "id": "opt-1",
-          "label": "$y \\le 2$"
-        },
-        {
-          "id": "opt-2",
-          "label": "$y \\ge 3$"
-        },
-        {
-          "id": "opt-3",
-          "label": "$y \\ge 11$"
-        },
-        {
-          "id": "opt-4",
-          "label": "$y \\ge 2$"
-        }
+      "type": "intervalNumberLine",
+      "prompt": "The quadratic $f(x) = x^{2} - 6x + 11$ opens upward. Graph its RANGE on the number line, then write that range as an inequality in $y$.",
+      "min": -6,
+      "max": 12,
+      "step": 1,
+      "variable": "y",
+      "ask": [
+        "graph",
+        "inequality"
       ],
-      "responseFields": [
+      "inequalityText": null,
+      "expectedIntervals": [
         {
-          "id": "answer",
-          "label": "Choose the correct answer",
-          "inputProfile": "choice",
-          "expected": "opt-4"
+          "start": 2,
+          "end": null,
+          "startClosed": true,
+          "endClosed": false
         }
       ],
       "solutionReview": {
-        "headline": "Find the vertex, then decide which side of it the outputs live on.",
+        "headline": "The range starts at the minimum output and never stops.",
         "reasoning": [
-          "The axis of symmetry is $x = -\\frac{-6}{2} = 3$, and $f(3) = 9 - 18 + 11 = 2$.",
-          "The parabola opens upward, so 2 is the minimum and every output is at least 2."
+          "The axis of symmetry is $x = 3$, and $f(3) = 9 - 18 + 11 = 2$.",
+          "The parabola opens upward, so that output is a floor the graph actually touches — which is why the endpoint is filled rather than open."
         ],
-        "answerSummary": "$y \\ge 2$",
-        "commonError": "Answering $y \\ge 3$ reports the $x$ value of the vertex instead of the $y$ value.",
+        "answerSummary": "Every output from 2 upward, 2 included.",
+        "commonError": "Graphing from 3 reports the $x$ value of the vertex instead of the $y$ value.",
         "connection": null
       },
       "attemptFeedback": [
         "Find the vertex first. Which of its two coordinates does the range depend on?"
       ],
       "supportHints": [
-        "What is $f(3)$?"
+        "Locate the axis of symmetry, substitute it back into the function, and ask whether the parabola touches that output or only approaches it."
       ],
-      "misconceptions": []
+      "misconceptions": [
+        {
+          "match": []
+        }
+      ]
     },
     {
       "id": "mm_A_6A_why-domain-is-all-reals",
@@ -12263,90 +12194,6 @@
       ],
       "supportHints": [
         "What value of $x$ makes $(x + 5)$ equal to zero?"
-      ],
-      "misconceptions": []
-    },
-    {
-      "id": "mm_A_6B_from-table",
-      "active": true,
-      "alignmentKeys": [
-        "texas:A.6B"
-      ],
-      "courseId": "algebra1",
-      "familyId": "mathmaster:A.6B:from-table",
-      "familyVersion": 1,
-      "questionType": "response",
-      "activityRole": "practice",
-      "difficultyBand": 3,
-      "dok": 2,
-      "calculatorPolicy": "inherit",
-      "assessedConstruct": "A.6B",
-      "taskType": "interpretation",
-      "representation": "table",
-      "authoring": {
-        "source": "MathMaster production authoring",
-        "kit": 1
-      },
-      "prompt": "The table shows a quadratic. What is the $x$ value of its vertex?",
-      "stimulus": {
-        "kind": "table",
-        "title": null,
-        "note": null,
-        "table": {
-          "headers": [
-            "$x$",
-            "$y$"
-          ],
-          "rows": [
-            [
-              "-2",
-              "13"
-            ],
-            [
-              "-1",
-              "4"
-            ],
-            [
-              "0",
-              "1"
-            ],
-            [
-              "1",
-              "4"
-            ],
-            [
-              "2",
-              "13"
-            ]
-          ]
-        }
-      },
-      "responseFields": [
-        {
-          "id": "answer",
-          "label": "Answer",
-          "inputProfile": "number",
-          "unit": null,
-          "responseHint": null,
-          "placeholder": null,
-          "expected": "0"
-        }
-      ],
-      "solutionReview": {
-        "headline": "Symmetry points at the vertex.",
-        "reasoning": [
-          "The outputs repeat either side of $x = 0$: 4 at both $-1$ and 1, 13 at both $-2$ and 2.",
-          "So the axis of symmetry is $x = 0$ and the vertex is $(0, 1)$."
-        ],
-        "answerSummary": "$x = 0$",
-        "commonError": null,
-        "connection": null
-      },
-      "attemptFeedback": [
-        "Look for pairs of rows with equal outputs."
-      ],
-      "supportHints": [
-        "Which $x$ value sits exactly between $-1$ and 1?"
       ],
       "misconceptions": []
     },
@@ -12523,6 +12370,95 @@
       "misconceptions": []
     },
     {
+      "id": "mm_A_6B_vertex-on-the-graph",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6B:vertex-on-the-graph",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6B",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "type": "functionInvestigation",
+      "prompt": "The parabola $y = 2(x - 2)^{2} - 3$ has vertex $(2, -3)$. Plot the vertex and the point where $x = 4$, then give the value of $a$ in vertex form.",
+      "functionSpec": {
+        "type": "quadratic",
+        "a": 2,
+        "h": 2,
+        "k": -3
+      },
+      "graph": {
+        "xMin": -2,
+        "xMax": 7,
+        "yMin": -6,
+        "yMax": 10
+      },
+      "pointTasks": [
+        {
+          "id": "vertex",
+          "label": "Plot the vertex",
+          "x": 2,
+          "expected": [
+            2,
+            -3
+          ]
+        },
+        {
+          "id": "other",
+          "label": "Plot the point where $x = 4$",
+          "x": 4,
+          "expected": [
+            4,
+            5
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "a",
+          "label": "What is the value of $a$?",
+          "kind": "increasing",
+          "responseMode": "text",
+          "expected": [
+            "2"
+          ],
+          "acceptedAnswers": [
+            "2",
+            "a=2",
+            "a = 2"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "The vertex fixes $h$ and $k$; a second point fixes $a$.",
+        "reasoning": [
+          "Substituting the second point into $y = a(x - 2)^{2} - 3$ gives $5 = 4a - 3$.",
+          "Solving that leaves one value of $a$, which is what makes the parabola pass through both plotted points."
+        ],
+        "answerSummary": "$a = 2$.",
+        "commonError": null,
+        "connection": null
+      },
+      "attemptFeedback": [
+        "Substitute the coordinates of the second point into vertex form and solve for the one unknown."
+      ],
+      "supportHints": [
+        "Write vertex form with $a$ still unknown, then put the second point in and solve the resulting equation."
+      ],
+      "misconceptions": []
+    },
+    {
       "id": "mm_A_6C_error-analysis",
       "active": true,
       "alignmentKeys": [
@@ -12640,109 +12576,6 @@
       "misconceptions": []
     },
     {
-      "id": "mm_A_6C_from-graph-description",
-      "active": true,
-      "alignmentKeys": [
-        "texas:A.6C"
-      ],
-      "courseId": "algebra1",
-      "familyId": "mathmaster:A.6C:from-graph-description",
-      "familyVersion": 1,
-      "questionType": "response",
-      "activityRole": "practice",
-      "difficultyBand": 3,
-      "dok": 2,
-      "calculatorPolicy": "inherit",
-      "assessedConstruct": "A.6C",
-      "taskType": "interpretation",
-      "representation": "table",
-      "authoring": {
-        "source": "MathMaster production authoring",
-        "kit": 1
-      },
-      "prompt": "The table gives some values of a quadratic. Where are its zeros?",
-      "stimulus": {
-        "kind": "table",
-        "title": null,
-        "note": null,
-        "table": {
-          "headers": [
-            "$x$",
-            "$y$"
-          ],
-          "rows": [
-            [
-              "-1",
-              "-8"
-            ],
-            [
-              "0",
-              "-5"
-            ],
-            [
-              "1",
-              "0"
-            ],
-            [
-              "3",
-              "8"
-            ],
-            [
-              "5",
-              "0"
-            ],
-            [
-              "6",
-              "-7"
-            ]
-          ]
-        }
-      },
-      "choices": [
-        {
-          "id": "opt-1",
-          "label": "At $x = -1$ and $x = 3$"
-        },
-        {
-          "id": "opt-2",
-          "label": "At $x = 0$ and $x = 6$"
-        },
-        {
-          "id": "opt-3",
-          "label": "At $x = 1$ and $x = 5$"
-        },
-        {
-          "id": "opt-4",
-          "label": "At $y = 0$ and $y = 8$"
-        }
-      ],
-      "responseFields": [
-        {
-          "id": "answer",
-          "label": "Choose the correct answer",
-          "inputProfile": "choice",
-          "expected": "opt-3"
-        }
-      ],
-      "solutionReview": {
-        "headline": "A zero is an $x$ value where the output is 0.",
-        "reasoning": [
-          "The table shows $y = 0$ at $x = 1$ and again at $x = 5$.",
-          "Those are the two points where the parabola crosses the $x$-axis."
-        ],
-        "answerSummary": "$x = 1$ and $x = 5$.",
-        "commonError": null,
-        "connection": null
-      },
-      "attemptFeedback": [
-        "Scan the output column for zeros."
-      ],
-      "supportHints": [
-        "Which rows have $y = 0$?"
-      ],
-      "misconceptions": []
-    },
-    {
       "id": "mm_A_6C_from-zeros",
       "active": true,
       "alignmentKeys": [
@@ -12796,6 +12629,95 @@
       ],
       "supportHints": [
         "What must be added to $-3$ to reach zero?"
+      ],
+      "misconceptions": []
+    },
+    {
+      "id": "mm_A_6C_graph-from-zeros",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6C:graph-from-zeros",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6C",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "type": "functionInvestigation",
+      "prompt": "The quadratic $y = (x - 1)^{2} - 4$ has zeros at $x = -1$ and $x = 3$. Plot its vertex and the point where $x = 3$, then give the $y$-intercept.",
+      "functionSpec": {
+        "type": "quadratic",
+        "a": 1,
+        "h": 1,
+        "k": -4
+      },
+      "graph": {
+        "xMin": -5,
+        "xMax": 7,
+        "yMin": -6,
+        "yMax": 10
+      },
+      "pointTasks": [
+        {
+          "id": "vertex",
+          "label": "Plot the vertex",
+          "x": 1,
+          "expected": [
+            1,
+            -4
+          ]
+        },
+        {
+          "id": "zero",
+          "label": "Plot the point where $x = 3$",
+          "x": 3,
+          "expected": [
+            3,
+            0
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "yint",
+          "label": "What is the $y$ value where the parabola crosses the $y$-axis?",
+          "kind": "decreasing",
+          "responseMode": "text",
+          "expected": [
+            "-3"
+          ],
+          "acceptedAnswers": [
+            "-3",
+            "(0,-3)",
+            "(0, -3)"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "The $y$-intercept is the output at $x = 0$.",
+        "reasoning": [
+          "Substituting 0 gives $(0 - 1)^{2} - 4 = 1 - 4$.",
+          "The vertex sits halfway between the two zeros, which is why the axis of symmetry is $x = 1$."
+        ],
+        "answerSummary": "The $y$-intercept is $-3$.",
+        "commonError": null,
+        "connection": null
+      },
+      "attemptFeedback": [
+        "Substitute $x = 0$ into the equation rather than reading it off the picture."
+      ],
+      "supportHints": [
+        "The $y$-intercept happens where the input is zero. Put that input into the equation and evaluate."
       ],
       "misconceptions": []
     },
@@ -13544,101 +13466,6 @@
       "misconceptions": []
     },
     {
-      "id": "mm_A_7C_compare-widths",
-      "active": true,
-      "alignmentKeys": [
-        "texas:A.7C"
-      ],
-      "courseId": "algebra1",
-      "familyId": "mathmaster:A.7C:compare-widths",
-      "familyVersion": 1,
-      "questionType": "response",
-      "activityRole": "practice",
-      "difficultyBand": 3,
-      "dok": 2,
-      "calculatorPolicy": "inherit",
-      "assessedConstruct": "A.7C",
-      "taskType": "comparison",
-      "representation": "table",
-      "authoring": {
-        "source": "MathMaster production authoring",
-        "kit": 1
-      },
-      "prompt": "Which parabola is the narrowest?",
-      "stimulus": {
-        "kind": "table",
-        "title": null,
-        "note": null,
-        "table": {
-          "headers": [
-            "Option",
-            "Equation"
-          ],
-          "rows": [
-            [
-              "E",
-              "$y = 0.2x^{2}$"
-            ],
-            [
-              "F",
-              "$y = -4x^{2}$"
-            ],
-            [
-              "G",
-              "$y = x^{2}$"
-            ],
-            [
-              "H",
-              "$y = -0.5x^{2}$"
-            ]
-          ]
-        }
-      },
-      "choices": [
-        {
-          "id": "opt-1",
-          "label": "Option E"
-        },
-        {
-          "id": "opt-2",
-          "label": "Option F"
-        },
-        {
-          "id": "opt-3",
-          "label": "Option H"
-        },
-        {
-          "id": "opt-4",
-          "label": "Option G"
-        }
-      ],
-      "responseFields": [
-        {
-          "id": "answer",
-          "label": "Choose the correct answer",
-          "inputProfile": "choice",
-          "expected": "opt-2"
-        }
-      ],
-      "solutionReview": {
-        "headline": "The size of $a$ sets the width; its sign only sets the direction.",
-        "reasoning": [
-          "$|-4| = 4$ is the largest, so option F rises (in fact falls) fastest and is narrowest.",
-          "Option E, with $|a| = 0.2$, is the widest."
-        ],
-        "answerSummary": "Option F.",
-        "commonError": "Discarding the negative options because they open downward confuses direction with width.",
-        "connection": null
-      },
-      "attemptFeedback": [
-        "Ignore the signs and compare the sizes of the coefficients."
-      ],
-      "supportHints": [
-        "Which coefficient is furthest from zero?"
-      ],
-      "misconceptions": []
-    },
-    {
       "id": "mm_A_7C_describe",
       "active": true,
       "alignmentKeys": [
@@ -13767,6 +13594,96 @@
       ],
       "supportHints": [
         "At what $x$ does $(x - 6)^{2}$ take its smallest value?"
+      ],
+      "misconceptions": []
+    },
+    {
+      "id": "mm_A_7C_graph-the-transformation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7C:graph-the-transformation",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7C",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "type": "functionInvestigation",
+      "prompt": "The parent function $y = x^{2}$ has been transformed into $y = -2(x + 1)^{2} + 8$. Plot its vertex and the point where $x = 1$, then say whether the parabola opens upward or downward.",
+      "functionSpec": {
+        "type": "quadratic",
+        "a": -2,
+        "h": -1,
+        "k": 8
+      },
+      "graph": {
+        "xMin": -7,
+        "xMax": 5,
+        "yMin": -10,
+        "yMax": 10
+      },
+      "pointTasks": [
+        {
+          "id": "vertex",
+          "label": "Plot the vertex",
+          "x": -1,
+          "expected": [
+            -1,
+            8
+          ]
+        },
+        {
+          "id": "right",
+          "label": "Plot the point where $x = 1$",
+          "x": 1,
+          "expected": [
+            1,
+            0
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "opens",
+          "label": "Does this parabola open upward or downward?",
+          "kind": "decreasing",
+          "responseMode": "text",
+          "expected": [
+            "downward"
+          ],
+          "acceptedAnswers": [
+            "downward",
+            "down",
+            "opens down",
+            "opens downward"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "The sign of $a$ decides the direction; its size decides the width.",
+        "reasoning": [
+          "A negative leading coefficient reflects the parent parabola across a horizontal line, turning the minimum into a maximum.",
+          "The factor of 2 also makes it narrower than the parent, because every output is doubled before the reflection."
+        ],
+        "answerSummary": "It opens downward, with a maximum at the vertex.",
+        "commonError": null,
+        "connection": null
+      },
+      "attemptFeedback": [
+        "Look at the sign in front of the squared bracket."
+      ],
+      "supportHints": [
+        "Ask what the coefficient in front of the bracket does to a large positive output from the squared term."
       ],
       "misconceptions": []
     },
@@ -14666,13 +14583,13 @@
       "misconceptions": []
     },
     {
-      "id": "mm_A_9A_range-of-growth",
+      "id": "mm_A_9A_range-on-a-line",
       "active": true,
       "alignmentKeys": [
         "texas:A.9A"
       ],
       "courseId": "algebra1",
-      "familyId": "mathmaster:A.9A:range-of-growth",
+      "familyId": "mathmaster:A.9A:range-on-a-line",
       "familyVersion": 1,
       "questionType": "response",
       "activityRole": "practice",
@@ -14680,56 +14597,52 @@
       "dok": 2,
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A.9A",
-      "taskType": "conceptual",
-      "representation": "symbolic",
+      "taskType": "representationTranslation",
+      "representation": "numberLine",
       "authoring": {
         "source": "MathMaster production authoring",
         "kit": 1
       },
-      "prompt": "What is the range of $f(x) = 3 \\cdot 2^{x}$?",
-      "choices": [
-        {
-          "id": "opt-1",
-          "label": "$y > 0$"
-        },
-        {
-          "id": "opt-2",
-          "label": "All real numbers"
-        },
-        {
-          "id": "opt-3",
-          "label": "$y \\ge 0$"
-        },
-        {
-          "id": "opt-4",
-          "label": "$y \\ge 3$"
-        }
+      "type": "intervalNumberLine",
+      "prompt": "Graph the RANGE of $f(x) = 3(2)^{x}$ on the number line, then write it as an inequality in $y$.",
+      "min": -5,
+      "max": 10,
+      "step": 1,
+      "variable": "y",
+      "ask": [
+        "graph",
+        "inequality"
       ],
-      "responseFields": [
+      "inequalityText": null,
+      "expectedIntervals": [
         {
-          "id": "answer",
-          "label": "Choose the correct answer",
-          "inputProfile": "choice",
-          "expected": "opt-1"
+          "start": 0,
+          "end": null,
+          "startClosed": false,
+          "endClosed": false
         }
       ],
       "solutionReview": {
-        "headline": "An exponential approaches zero without ever reaching it.",
+        "headline": "An exponential approaches its asymptote without ever landing on it.",
         "reasoning": [
-          "$2^{x}$ is positive for every real $x$, however negative $x$ becomes.",
-          "Multiplying by 3 keeps it positive, so the outputs are every positive number and nothing else."
+          "As $x$ becomes very negative the outputs shrink toward the horizontal asymptote but never reach it.",
+          "That is why the endpoint is open: no input produces that output."
         ],
-        "answerSummary": "$y > 0$",
-        "commonError": "$y \\ge 0$ claims the function reaches zero, which it never does.",
+        "answerSummary": "Every output above the asymptote, with the asymptote itself excluded.",
+        "commonError": null,
         "connection": null
       },
       "attemptFeedback": [
-        "Can the output ever be exactly zero? Can it be negative?"
+        "Can any input make this function output exactly zero?"
       ],
       "supportHints": [
-        "What happens to $2^{x}$ as $x$ becomes very negative?"
+        "Ask what happens to the outputs as $x$ runs off to the left, and whether the value they head toward is ever actually produced."
       ],
-      "misconceptions": []
+      "misconceptions": [
+        {
+          "match": []
+        }
+      ]
     },
     {
       "id": "mm_A_9A_reverse-match",

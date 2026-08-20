@@ -2,33 +2,30 @@
 
 import {
   choice, equation, expression, interval, numeric, parts, standard,
-  graphWorkspace, steps, table,
+  graphWorkspace, numberLine, steps, table,
 } from './kit.mjs';
 
 export const ALGEBRA1_EXPONENTIAL_STANDARDS = [
 
   // --- A.9A Domain and range of exponential functions -------------------------------
   standard('A.9A', [
-    choice({
-      code: 'A.9A', slug: 'range-of-growth', band: 3, dok: 2, taskType: 'conceptual', representation: 'symbolic',
-      prompt: 'What is the range of $f(x) = 3 \\cdot 2^{x}$?',
-      options: [
-        ['$y > 0$', true],
-        ['$y \\ge 0$', false],
-        ['$y \\ge 3$', false],
-        ['All real numbers', false],
-      ],
+
+    numberLine({
+      code: 'A.9A', slug: 'range-on-a-line', band: 3, dok: 2, taskType: 'representationTranslation',
+      prompt: 'Graph the RANGE of $f(x) = 3(2)^{x}$ on the number line, then write it as an inequality in $y$.',
+      min: -5, max: 10, step: 1, variable: 'y', ask: ['graph', 'inequality'],
+      intervals: [{ start: 0, end: Infinity, startClosed: false, endClosed: false }],
       review: {
-        headline: 'An exponential approaches zero without ever reaching it.',
+        headline: 'An exponential approaches its asymptote without ever landing on it.',
         reasoning: [
-          '$2^{x}$ is positive for every real $x$, however negative $x$ becomes.',
-          'Multiplying by 3 keeps it positive, so the outputs are every positive number and nothing else.',
+          'As $x$ becomes very negative the outputs shrink toward the horizontal asymptote but never reach it.',
+          'That is why the endpoint is open: no input produces that output.',
         ],
-        answer: '$y > 0$',
-        commonError: '$y \\ge 0$ claims the function reaches zero, which it never does.',
+        answer: 'Every output above the asymptote, with the asymptote itself excluded.',
       },
-      feedback: ['Can the output ever be exactly zero? Can it be negative?'],
-      hints: ['What happens to $2^{x}$ as $x$ becomes very negative?'],
+      feedback: ['Can any input make this function output exactly zero?'],
+      hints: ['Ask what happens to the outputs as $x$ runs off to the left, and whether the value they head toward is ever actually produced.'],
+      misconceptions: ['Filling the endpoint on an asymptote the graph never touches.'],
     }),
 
     interval({
