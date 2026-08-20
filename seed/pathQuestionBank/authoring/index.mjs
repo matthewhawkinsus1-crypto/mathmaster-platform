@@ -10,6 +10,10 @@ import { GRADE_8_STANDARDS_C } from './prerequisitesGrade8c.mjs';
 import { ALGEBRA1_A2_STANDARDS } from './algebra1LinearWriting.mjs';
 import { ALGEBRA1_GRAPHING_STANDARDS } from './algebra1LinearGraphing.mjs';
 import { ALGEBRA1_SYSTEMS_STANDARDS } from './algebra1SystemsAndData.mjs';
+import { ALGEBRA1_QUADRATIC_STANDARDS } from './algebra1Quadratics.mjs';
+import { ALGEBRA1_EXPONENTIAL_STANDARDS } from './algebra1Exponentials.mjs';
+import { ALGEBRA1_POLYNOMIAL_STANDARDS } from './algebra1PolynomialsAndFunctions.mjs';
+import { ALGEBRA1_FUNCTION_STANDARDS } from './algebra1Functions.mjs';
 
 export const ALL_AUTHORED_STANDARDS = [
   ...GRADE_6_7_STANDARDS,
@@ -19,6 +23,10 @@ export const ALL_AUTHORED_STANDARDS = [
   ...ALGEBRA1_A2_STANDARDS,
   ...ALGEBRA1_GRAPHING_STANDARDS,
   ...ALGEBRA1_SYSTEMS_STANDARDS,
+  ...ALGEBRA1_QUADRATIC_STANDARDS,
+  ...ALGEBRA1_EXPONENTIAL_STANDARDS,
+  ...ALGEBRA1_POLYNOMIAL_STANDARDS,
+  ...ALGEBRA1_FUNCTION_STANDARDS,
 ];
 
 export default ALL_AUTHORED_STANDARDS;

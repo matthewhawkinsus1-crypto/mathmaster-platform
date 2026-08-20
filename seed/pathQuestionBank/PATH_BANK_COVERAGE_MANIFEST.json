@@ -4,9 +4,9 @@
   "totals": {
     "documents": 630,
     "standards": 126,
-    "authoredStandards": 29,
-    "productionQualityStandards": 29,
-    "upgradedStarterStandards": 97
+    "authoredStandards": 78,
+    "productionQualityStandards": 78,
+    "upgradedStarterStandards": 48
   },
   "standards": {
     "6.7A": {
@@ -156,248 +156,248 @@
     },
     "A.2A": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.2B": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.2C": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.2D": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.2E": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.2F": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.2G": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.2H": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.2I": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.3A": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.3B": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.3C": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.3D": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.3E": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.3F": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.3G": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.3H": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.4A": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.4B": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.4C": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.5A": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.5B": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.5C": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.6A": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.6B": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.6C": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.7A": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.7B": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.7C": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.8A": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.8B": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.9A": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.9B": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.9C": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.9D": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.9E": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.10A": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.10B": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.10C": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.10D": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.10E": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.10F": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.11A": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.11B": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.12A": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.12B": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.12C": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.12D": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.12E": {
       "familyCount": 5,
-      "authored": 0,
-      "upgradedStarter": 5
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A2.2A": {
       "familyCount": 5,
