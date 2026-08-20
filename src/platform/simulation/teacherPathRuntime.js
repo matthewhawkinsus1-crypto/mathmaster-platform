@@ -364,6 +364,24 @@ export const createTeacherPathRuntime = ({
   const startOrResumePathSession = async ({ targetAlignmentKey, sessionKind = 'practice', requiredQuestions: required = requiredQuestions }) => {
     const code = toDisplayCode(targetAlignmentKey);
     const skillId = teksSkillId(code);
+
+    // RESUME, as production does. The server keeps an `activePathLocks` entry
+    // per student and target and hands back the open session rather than
+    // starting a second one — that is what makes a refresh mid-question return
+    // the student to the question they were on. This runtime always minted a
+    // new session, so a teacher testing "what happens if a student refreshes"
+    // watched behaviour no student would get, and the current question silently
+    // became unreachable.
+    const existing = [...sessions.values()].find((candidate) => (
+      candidate.status === 'active'
+      && candidate.targetAlignmentKey === toCanonicalKey(code)
+      && candidate.sessionKind === sessionKind
+    ));
+    if (existing) {
+      publish(existing);
+      return { success: true, session: publicSession(existing), resumed: true };
+    }
+
     const session = {
       sessionId: uid('sim_path'),
       status: 'active',
