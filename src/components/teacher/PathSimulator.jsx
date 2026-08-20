@@ -614,9 +614,13 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                       {/* Why the engine chose THIS family. The student never
                           sees any of it; a teacher asking "why this question?"
                           should not have to infer the answer. */}
-                      {(pathController.question.selectionReason
-                        || pathController.question.selectedBand !== null
-                        || pathController.question.representation) && (
+                      {[
+                        pathController.question.selectionReason,
+                        pathController.question.selectedBand,
+                        pathController.question.representation,
+                        pathController.question.selectedTaskType,
+                        pathController.question.contentQuality,
+                      ].some((value) => value !== null && value !== undefined) && (
                         <dl style={{ margin: '8px 0 0', padding: '8px 9px', borderRadius: 7, background: '#fff', border: '1px solid #e0e4e9', fontSize: 11, lineHeight: 1.5, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '3px 8px' }}>
                           {pathController.question.selectionReason && (
                             <>
