@@ -10,6 +10,9 @@ import {
 import { getExecutionModeDiagnostics } from '../../config/executionMode.js';
 import { COURSES } from '../../../functions/shared/classModel.mjs';
 import { PATH_WEB_RELEASE } from '../../platform/path/pathRelease.js';
+import { COMPAT, COMPAT_LABEL, buildToolSupportMatrix } from '../../platform/supports/toolSupportMatrix.js';
+import { PATH_TOOL_IDS } from '../../../functions/shared/pathToolContracts.mjs';
+import { SUPPORT } from '../../../functions/shared/supportEntitlements.mjs';
 
 // Which standards My Math Path can actually teach.
 //
@@ -155,6 +158,11 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
   };
 
   const executionMode = getExecutionModeDiagnostics();
+  // Which authorized supports each issuable tool can actually deliver. Derived
+  // from the contracts and the review builder rather than from the per-tool
+  // capability booleans, because those were declarations nobody enforced — and
+  // they had drifted.
+  const supportMatrix = useMemo(() => buildToolSupportMatrix(PATH_TOOL_IDS), []);
   const index = indexes[courseId] || null;
   // "Gaps" now means "not finished", not merely "cannot run". A standard whose
   // five items are all placeholders is exactly the row a content lead needs to
@@ -201,6 +209,76 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
             The web app and Cloud Functions are on different Path releases. Do not troubleshoot question content yet. Deploy Functions from this project, then deploy this same project to Vercel.
           </p>
         )}
+      </section>
+
+      <section style={card}>
+        <h3 style={{ margin: 0 }}>Accommodation delivery by tool</h3>
+        <p style={{ margin: '6px 0 12px', color: '#5f6368', fontSize: 13, lineHeight: 1.55, maxWidth: 760 }}>
+          Which authorized supports each Path interaction can actually deliver. This is worked out from the tool
+          contracts and the solution-review builder, not from a per-tool setting — a support a tool cannot honour
+          should be findable here, before a student meets the question.
+        </p>
+
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+          {[
+            ['Issuable tools', supportMatrix.summary.tools, '#174ea6'],
+            ['Keyboard operable', `${supportMatrix.summary.keyboardOperable} of ${supportMatrix.summary.tools}`,
+              supportMatrix.blockers.length ? '#a50e0e' : '#137333'],
+            ['Support gaps', supportMatrix.gaps.length, supportMatrix.gaps.length ? '#7a4f00' : '#137333'],
+          ].map(([label, value, tone]) => (
+            <div key={label} style={{ flex: '1 1 150px', padding: '11px 13px', border: '1px solid #dadce0', borderRadius: 9, background: '#fff' }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: '#5f6368', textTransform: 'uppercase' }}>{label}</div>
+              <div style={{ marginTop: 3, fontSize: 20, fontWeight: 900, color: tone }}>{value}</div>
+            </div>
+          ))}
+        </div>
+
+        {supportMatrix.blockers.length > 0 && (
+          <p role="alert" style={{ margin: '0 0 12px', padding: '10px 12px', borderRadius: 8, background: '#fce8e6', color: '#a50e0e', fontSize: 13, lineHeight: 1.5 }}>
+            <strong>These interactions need a mouse.</strong>{' '}
+            {supportMatrix.blockers.map((row) => row.toolId).join(', ')} — a student who cannot use a trackpad
+            accurately cannot answer these questions at all.
+          </p>
+        )}
+
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 640 }}>
+            <thead>
+              <tr>
+                {['Interaction', 'Keyboard', 'Read aloud', 'Contrast / large text', 'Calculator', 'Solution review'].map((heading) => (
+                  <th key={heading} style={{ textAlign: 'left', padding: '7px 8px', borderBottom: '2px solid #dadce0', color: '#5f6368', fontSize: 11, textTransform: 'uppercase' }}>{heading}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {supportMatrix.rows.map((row) => {
+                const cell = (state) => {
+                  const tone = state === COMPAT.NEEDS_WORK ? '#a50e0e'
+                    : state === COMPAT.UNSAFE ? '#7a4f00'
+                      : state === COMPAT.NOT_APPLICABLE ? '#5f6368' : '#137333';
+                  return <td style={{ padding: '7px 8px', borderBottom: '1px solid #f1f3f4', color: tone, fontWeight: state === COMPAT.NEEDS_WORK ? 800 : 600 }}>{COMPAT_LABEL[state]}</td>;
+                };
+                return (
+                  <tr key={row.toolId}>
+                    <td style={{ padding: '7px 8px', borderBottom: '1px solid #f1f3f4', fontWeight: 800 }}>{row.toolId}</td>
+                    {cell(row.keyboard)}
+                    {cell(row.supports[SUPPORT.TEXT_TO_SPEECH])}
+                    {cell(row.supports[SUPPORT.HIGH_CONTRAST])}
+                    {cell(row.supports[SUPPORT.CALCULATOR])}
+                    <td style={{ padding: '7px 8px', borderBottom: '1px solid #f1f3f4', color: row.hasSolutionReview ? '#137333' : '#7a4f00', fontWeight: 600 }}>
+                      {row.hasSolutionReview ? 'Tool-generated' : 'From authored content'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <p style={{ margin: '10px 0 0', fontSize: 12, color: '#5f6368', lineHeight: 1.55 }}>
+          <strong>Unsafe here</strong> is not a defect. A calculator on the balance workspace would perform the
+          operation the question exists to assess — that is a construct decision, not a missing feature.
+        </p>
       </section>
 
       <section style={card}>
