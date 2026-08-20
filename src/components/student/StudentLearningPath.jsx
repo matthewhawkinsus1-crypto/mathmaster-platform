@@ -25,20 +25,37 @@ const sectionHeading = {
 
 const nodeRow = { display: 'flex', flexWrap: 'wrap', gap: 12 };
 
-const cardStyle = (tone, selectable) => ({
+// A card that is not a door still has to say WHY it is not a door, and the two
+// reasons must not look alike. "Your class gets here in three weeks" is a
+// calendar fact about the course; "you need an earlier skill first" is a
+// statement about the student. Rendering both in the same grey was how a
+// pacing restriction came to read as mathematical failure.
+const cardStyle = (tone, selectable, blockedBy = null) => ({
   flex: '1 1 220px', minWidth: 0, padding: '13px 14px', borderRadius: 12,
-  border: `2px solid ${selectable ? tone : '#e0e3e8'}`,
-  background: selectable ? '#fff' : '#f8f9fa',
+  border: selectable ? `2px solid ${tone}`
+    : blockedBy === 'pacing' ? '2px dashed #a8c7fa'
+      : '2px solid #e0e3e8',
+  background: selectable ? '#fff' : blockedBy === 'pacing' ? '#f6f9fe' : '#f8f9fa',
   textAlign: 'left', cursor: selectable ? 'pointer' : 'default',
   color: '#202124', font: 'inherit',
 });
+
+// What the "why" disclosure is called depends on what is actually true. A
+// REMEDIATION card has a Start button on it; labelling its disclosure
+// "Why is this locked?" told the student the opposite of what the button said.
+const whyLabel = (blockedBy) => (
+  blockedBy === 'pacing' ? 'Why is this later?'
+    : blockedBy === 'teacher' ? 'Why is this closed?'
+      : blockedBy === 'prerequisite' ? 'Why is this locked?'
+        : 'Why this comes first'
+);
 
 function PathNode({ node, onChoose, practiceAs }) {
   const [showWhy, setShowWhy] = useState(false);
   const clickable = node.selectable && typeof onChoose === 'function';
 
   return (
-    <div style={cardStyle(node.tone, node.selectable)}>
+    <div style={cardStyle(node.tone, node.selectable, node.blockedBy)}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
         <span aria-hidden="true" style={{ fontSize: 15 }}>{node.symbol}</span>
         <strong style={{ fontSize: 16 }}>{node.title}</strong>
@@ -51,6 +68,21 @@ function PathNode({ node, onChoose, practiceAs }) {
       )}
       <p style={{ margin: '0 0 10px', fontSize: 12, color: '#5f6368', lineHeight: 1.5 }}>{node.reason}</p>
 
+      {/* A calendar restriction is a date, so show the date. "Not in your
+          learning window yet" with no number is indistinguishable from a
+          verdict. */}
+      {node.blockedBy === 'pacing' && node.calendarDaysUntilStart > 0 && (
+        <p style={{ margin: '-4px 0 10px', fontSize: 12, color: '#1967d2', fontWeight: 700 }}>
+          Your class reaches this in about {node.calendarDaysUntilStart} {node.calendarDaysUntilStart === 1 ? 'day' : 'days'}.
+          {' '}Nothing is wrong — this one is simply later in the course.
+        </p>
+      )}
+      {node.blockedBy === 'pacing' && !node.calendarDaysUntilStart && (
+        <p style={{ margin: '-4px 0 10px', fontSize: 12, color: '#1967d2', fontWeight: 700 }}>
+          Your class reaches this later in the course. Nothing is wrong — this one is simply not open yet.
+        </p>
+      )}
+
       {node.lockedExplanation && (
         <div style={{ marginBottom: 10 }}>
           <button
@@ -58,7 +90,7 @@ function PathNode({ node, onChoose, practiceAs }) {
             onClick={() => setShowWhy((current) => !current)}
             style={{ padding: 0, border: 0, background: 'transparent', color: '#174ea6', fontWeight: 800, fontSize: 12, cursor: 'pointer' }}
           >
-            {showWhy ? 'Hide' : 'Why is this locked?'}
+            {showWhy ? 'Hide' : whyLabel(node.blockedBy)}
           </button>
           {showWhy && (
             <p style={{ margin: '6px 0 0', fontSize: 12, color: '#3c4043', lineHeight: 1.55 }}>{node.lockedExplanation}</p>
@@ -133,8 +165,15 @@ export const StudentLearningPath = ({
   assessmentContext = null,
   onPracticeAs = null,
   limits = undefined,
+  // Whether the secure bank can actually issue work for a skill. Without it
+  // the map happily draws a Start button in front of a standard with no
+  // content, and the student learns about it only after clicking.
+  isCovered = null,
 }) => {
-  const map = useMemo(() => buildPathMap(pathOptions, limits ? { limits } : undefined), [pathOptions, limits]);
+  const map = useMemo(
+    () => buildPathMap(pathOptions, { ...(limits ? { limits } : {}), ...(isCovered ? { isCovered } : {}) }),
+    [pathOptions, limits, isCovered],
+  );
   const practiceAs = useMemo(() => (assessmentContext && onPracticeAs ? {
     pathOptions,
     assessmentEvidence: assessmentContext.assessmentEvidence || {},
@@ -215,6 +254,23 @@ export const StudentLearningPath = ({
         title="Challenge"
         note="Ahead of your class, and earned."
         nodes={map.challenge}
+        onChoose={choose}
+        practiceAs={practiceAs}
+      />
+      {/* Retention sits between "mastered" and "current": it is work on a skill
+          the student has already shown, offered briefly and with a reason, so it
+          does not read as the platform having forgotten. */}
+      <PathSection
+        title="Quick retention check"
+        note="You have already shown these. A couple of questions is enough to keep them counted."
+        nodes={map.retentionDue}
+        onChoose={choose}
+        practiceAs={practiceAs}
+      />
+      <PathSection
+        title="Mastered"
+        note="Yours already. You can practise any of them again whenever you want to."
+        nodes={map.mastered}
         onChoose={choose}
         practiceAs={practiceAs}
       />

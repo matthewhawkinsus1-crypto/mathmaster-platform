@@ -26,8 +26,12 @@ export const PATH_MARK = Object.freeze({
   [STATUS.AVAILABLE]: { symbol: '●', label: 'Ready', tone: '#1a73e8' },
   [STATUS.EXTENSION]: { symbol: '◆', label: 'Challenge', tone: '#8430ce' },
   [STATUS.MASTERED]: { symbol: '✓', label: 'Mastered', tone: '#1e8e3e' },
-  [STATUS.FUTURE]: { symbol: '○', label: 'Coming up', tone: '#5f6368' },
-  [STATUS.LOCKED]: { symbol: '🔒', label: 'Needs support first', tone: '#5f6368' },
+  // FUTURE is a CALENDAR statement and LOCKED is a MATHEMATICAL one. They used
+  // to share a tone, which made "your class gets here in three weeks" look
+  // exactly like "you cannot do this yet" — the one confusion this palette
+  // exists to prevent.
+  [STATUS.FUTURE]: { symbol: '🗓', label: 'Coming up', tone: '#1967d2' },
+  [STATUS.LOCKED]: { symbol: '🔒', label: 'Needs support first', tone: '#b06000' },
 });
 
 // A skill MathMaster does not have practice content for yet.
@@ -38,6 +42,13 @@ export const PATH_MARK = Object.freeze({
 // It is not a door, and it never shows the student a bank error.
 export const CONTENT_PENDING_MARK = Object.freeze({
   symbol: '◌', label: 'Coming soon', tone: '#7a4f00',
+});
+
+// A skill already mastered, offered again briefly because retention is due.
+// Its own mark, because "do this again" after "you have mastered this" needs a
+// reason attached or it reads as the platform forgetting.
+export const RETENTION_MARK = Object.freeze({
+  symbol: '↻', label: 'Quick retention check', tone: '#1e8e3e',
 });
 
 const mark = (status) => PATH_MARK[status] || { symbol: '●', label: 'Available', tone: '#5f6368' };
@@ -53,10 +64,27 @@ const list = (value) => (Array.isArray(value) ? value : []);
  */
 export const explainLock = (row) => {
   const target = row?.remediationTarget || list(row?.unmetPrerequisites)[0] || null;
-  if (!target) return 'This is not open yet.';
-  const described = describeSkill(target);
-  return `Strengthen ${described.studentLabel || described.shortLabel || target} first — this skill builds on it.`;
+  if (target) {
+    const described = describeSkill(target);
+    return `Strengthen ${described.studentLabel || described.shortLabel || target} first — this skill builds on it.`;
+  }
+  // No prerequisite target means this skill was closed by a teacher decision,
+  // not by the mathematics. "This is not open yet." used to be the whole
+  // message, which reads as a mathematical verdict on the student and gives
+  // them nothing to do about it. Say who closed it and what the move is.
+  return 'Your teacher has this one closed for now. Everything else on your path is still open, and your teacher can reopen it.';
 };
+
+/**
+ * Whether a locked row is closed by mathematics or by a person.
+ *
+ * The distinction matters to the student: one is repairable by working, the
+ * other is not repairable by working at all, and telling a student to practise
+ * their way out of a teacher's decision wastes their afternoon.
+ */
+export const lockKind = (row) => (
+  row?.remediationTarget || list(row?.unmetPrerequisites)[0] ? 'prerequisite' : 'teacher'
+);
 
 const toPathNode = (row, extra = {}) => {
   if (!row) return null;
@@ -86,6 +114,12 @@ const toPathNode = (row, extra = {}) => {
     // A student may open anything they are permitted to work on. Future and
     // locked skills are shown so the path has shape, but they are not doors.
     selectable: ![STATUS.FUTURE, STATUS.LOCKED].includes(row.status),
+    // Why this one is not a door — a calendar fact, a mathematical one, or a
+    // content one. A screen must be able to tell these apart without parsing
+    // the sentence.
+    blockedBy: row.status === STATUS.FUTURE ? 'pacing'
+      : row.status === STATUS.LOCKED ? lockKind(row)
+        : null,
     supportingSkillGaps: list(row.supportingSkillGaps),
     ...extra,
   };
@@ -119,6 +153,7 @@ const isEarly = (row) => row.calendarTiming === 'upcoming';
 
 export const DEFAULT_LIMITS = Object.freeze({
   current: 3, branches: 4, comingUp: 3, needsSupport: 3, challenge: 2,
+  mastered: 6, retention: 2,
 });
 
 /**
@@ -165,6 +200,10 @@ export const buildPathMap = (options, { limits = {}, isCovered = null } = {}) =>
       return {
         ...toNode(row),
         lockedExplanation: explainLock(row),
+        // REMEDIATION is startable; LOCKED is not. Labelling both "Why is this
+        // locked?" told a student that the skill with a Start button in front
+        // of it was locked.
+        blockedBy: row.status === STATUS.LOCKED ? lockKind(row) : null,
         strengthen: described ? {
           skillId: targetId,
           code: described.code || null,
@@ -183,6 +222,22 @@ export const buildPathMap = (options, { limits = {}, isCovered = null } = {}) =>
     .map((row) => toNode(row));
 
   const mastered = rows('mastered');
+  // Section 9 names "Mastered" and "Retention check" as states of the map, not
+  // as a number in a sentence. A student who has finished eight skills should
+  // be able to see the eight.
+  const masteredNodes = mastered.slice(0, cap.mastered).map((row) => toNode(row));
+  const retentionDue = mastered
+    .filter((row) => row.retentionDue || row.retentionConcern)
+    .slice(0, cap.retention)
+    .map((row) => ({
+      ...toNode(row),
+      selectable: true,
+      symbol: RETENTION_MARK.symbol,
+      statusLabel: RETENTION_MARK.label,
+      tone: RETENTION_MARK.tone,
+      reason: 'You learned this a while ago. A couple of questions is enough to check it has stayed with you.',
+      isRetentionCheck: true,
+    }));
 
   return {
     courseId: options.courseId || null,
@@ -192,6 +247,8 @@ export const buildPathMap = (options, { limits = {}, isCovered = null } = {}) =>
     comingUp,
     needsSupport,
     challenge,
+    mastered: masteredNodes,
+    retentionDue,
     masteredCount: mastered.length,
     // What the whole course looks like, so a screen can say "8 of 48" without
     // counting rows itself.

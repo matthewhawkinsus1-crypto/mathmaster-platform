@@ -23,8 +23,14 @@ export const MAX_CHOICES = 3;
 const toCard = (row, slot) => (row ? {
   slot,
   skillId: row.skillId,
-  title: describeSkill(row.skillId).shortLabel,
-  description: describeSkill(row.skillId).label.split(' — ').slice(1).join(' — '),
+  // `shortLabel` is the TEKS code. It used to be the card title, and
+  // RecommendedSkills renders `description || title` — so any standard with an
+  // empty description showed the student a code where the mathematics should
+  // have been. The code still travels on `code` for teacher tooling.
+  code: describeSkill(row.skillId).code || null,
+  title: describeSkill(row.skillId).studentLabel || describeSkill(row.skillId).shortLabel,
+  description: describeSkill(row.skillId).description
+    || describeSkill(row.skillId).label.split(' — ').slice(1).join(' — '),
   reason: explainForStudent(row),
   status: row.status,
   mastery: row.mastery,
@@ -45,8 +51,9 @@ const repairCard = (blockedRow) => {
   return {
     slot: 'strengthen',
     skillId: target,
-    title: described.shortLabel || target,
-    description: described.label.split(' — ').slice(1).join(' — ') || described.label,
+    code: described.code || null,
+    title: described.studentLabel || described.shortLabel || target,
+    description: described.description || described.label.split(' — ').slice(1).join(' — '),
     reason: 'Strengthening this will unlock what comes next.',
     status: STATUS.REMEDIATION,
     mastery: null,

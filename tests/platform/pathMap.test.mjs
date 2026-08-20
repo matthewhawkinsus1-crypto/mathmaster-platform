@@ -100,7 +100,16 @@ test('the lock explanation says what to do, not what the graph thinks', () => {
   assert.ok(!/A\.5A/.test(sentence), 'no raw TEKS codes in student text');
   assert.match(sentence, /Strengthen/);
   assert.ok(!/prerequisite_/.test(sentence), 'no reason codes in student text');
-  assert.equal(explainLock({}), 'This is not open yet.');
+
+  // A lock with no prerequisite target is a TEACHER decision, not a
+  // mathematical one. It used to render "This is not open yet." — a verdict
+  // with nothing to act on, which is the dead-end lock the product brief
+  // forbids. It must now say who closed it, that the rest of the path is
+  // still open, and how it gets reopened.
+  const teacherLock = explainLock({});
+  assert.match(teacherLock, /teacher/i, 'a teacher-closed skill must say a person closed it');
+  assert.match(teacherLock, /still open/i, 'one closed skill must not read as the course being shut');
+  assert.notEqual(teacherLock, 'This is not open yet.');
 });
 
 // --- Timing ------------------------------------------------------------------

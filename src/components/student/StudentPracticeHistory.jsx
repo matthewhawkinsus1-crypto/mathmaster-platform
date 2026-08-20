@@ -30,7 +30,9 @@ export const StudentPracticeHistory = ({ evidenceEvents = [], availableTeks = []
           Skill
           <select value={teksFilter} onChange={(event) => setTeksFilter(event.target.value)} style={{ display: 'block', minWidth: '180px', marginTop: '5px', padding: '9px 10px', border: '1px solid #bdc1c6', borderRadius: '7px', background: '#fff' }}>
             <option value="all">All skills</option>
-            {options.map((code) => <option key={code} value={code}>{code}</option>)}
+            {/* The filter lists the mathematics, not the identifiers. The code
+                stays as the option VALUE, which is what the filter matches on. */}
+            {options.map((code) => <option key={code} value={code}>{studentLabelForTeks(code)}</option>)}
           </select>
         </label>
       </div>
@@ -68,7 +70,10 @@ export const StudentPracticeHistory = ({ evidenceEvents = [], availableTeks = []
                       <span style={{ ...chipStyle, background: item.classification.isIndependent ? '#e6f4ea' : '#fff4ce', color: item.classification.isIndependent ? '#137333' : '#7a4f00' }}>{item.classification.label}</span>
                     </div>
                     <div style={{ marginTop: '7px', color: '#5f6368', fontSize: '12px' }}>
-                      {item.dateFormatted} · Attempt {item.attemptNumber}{item.dok ? ` · DOK ${item.dok}` : ''}{item.difficultyBand ? ` · Band ${item.difficultyBand}` : ''}
+                      {/* DOK and difficulty band are how the platform reasons
+                          about a question. They tell a student nothing about
+                          their own learning and read as a grade on the work. */}
+                      {item.dateFormatted} · Attempt {item.attemptNumber}
                     </div>
                   </div>
                   <div style={{ fontSize: '20px', fontWeight: 900, color: item.isCorrect ? '#137333' : '#b3261e' }}>
@@ -77,8 +82,9 @@ export const StudentPracticeHistory = ({ evidenceEvents = [], availableTeks = []
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '8px', marginTop: '12px', paddingTop: '11px', borderTop: '1px solid #f1f3f4', fontSize: '12px', color: '#3c4043' }}>
-                  <div><strong>Question family:</strong> {item.familyId || 'Legacy assignment question'}</div>
-                  <div><strong>Question instance:</strong> {item.questionInstanceId || '—'}</div>
+                  {/* Family and instance ids are database keys. What a student
+                      wants from their own history is what kind of work it was
+                      and what help was on the table. */}
                   <div><strong>Supports presented:</strong> {item.supportsPresented.join(', ') || 'None recorded'}</div>
                   <div><strong>Supports used:</strong> {item.supportsUsed.join(', ') || 'None recorded'}</div>
                 </div>

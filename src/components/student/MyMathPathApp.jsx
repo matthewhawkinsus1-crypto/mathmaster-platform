@@ -10,7 +10,10 @@ import { toCanonicalKey, toDisplayCode } from '../../utils/teksUtils.js';
 import { fetchPathCoverage } from '../../platform/path/pathCoverageService.js';
 import { isSkillLaunchable } from '../../../functions/shared/pathCoverage.mjs';
 import { curateStudentPanel } from '../../platform/path/studentPanel.js';
-import { teksCodeFromSkillId } from '../../platform/path/skillGraph.js';
+import { teksCodeFromSkillId, teksSkillId } from '../../platform/path/skillGraph.js';
+import { statusForSkill } from '../../platform/path/pathMap.js';
+import { STATUS } from '../../platform/path/recommendationEngine.js';
+import { studentLabelForTeks } from '../../platform/path/skillLabels.js';
 import { DEFAULT_MASTERY_COURSE_ID, getWheelTeksForCourse } from '../../platform/mastery/strandConfig.js';
 import {
   buildStudentAssessmentContext, readCcmrGoals, writeCcmrGoals,
@@ -22,12 +25,24 @@ import {
 // adaptive brief warns about, so the engine is asked first and this remains
 // only as the fallback for when it has nothing to say — no pacing set, or a
 // course with no graph.
-const chooseFallbackTeks = (profiles = {}, courseId = DEFAULT_MASTERY_COURSE_ID) => {
+const chooseFallbackTeks = (profiles = {}, courseId = DEFAULT_MASTERY_COURSE_ID, pathOptions = null) => {
   const inCourse = new Set(getWheelTeksForCourse(courseId));
   const priority = ['Needs Attention', 'Developing', 'Not Enough Evidence', 'Secure', 'Mastered'];
   const entries = Object.entries(profiles).filter(([code]) => inCourse.has(toDisplayCode(code)));
+  // The fallback ranks by mastery status alone, which knows nothing about
+  // prerequisites or pacing. Without this cross-check it could headline a skill
+  // the engine has LOCKED or put beyond the class horizon — a second
+  // recommender contradicting the first, which is exactly what the one-engine
+  // rule forbids. The engine keeps the veto.
+  const engineAllows = (code) => {
+    if (!pathOptions) return true;
+    const status = statusForSkill(pathOptions, teksSkillId(code));
+    return !status || ![STATUS.LOCKED, STATUS.FUTURE].includes(status);
+  };
   for (const status of priority) {
-    const match = entries.find(([, profile]) => profile?.mastery?.status === status);
+    const match = entries.find(([code, profile]) => (
+      profile?.mastery?.status === status && engineAllows(toDisplayCode(code))
+    ));
     if (match) return toDisplayCode(match[0]);
   }
   // No standard of this course has any evidence yet. A hardcoded 'A.5A' here
@@ -47,7 +62,7 @@ const chooseRecommendedTeks = ({ profiles, pathOptions, courseId }) => {
   const panel = pathOptions ? curateStudentPanel(pathOptions) : null;
   const engineChoice = panel?.best?.skillId || panel?.strengthen?.skillId || null;
   const code = engineChoice ? teksCodeFromSkillId(engineChoice) : null;
-  return code || chooseFallbackTeks(profiles, courseId);
+  return code || chooseFallbackTeks(profiles, courseId, pathOptions);
 };
 
 export const MyMathPathExperience = ({
@@ -152,10 +167,14 @@ export const MyMathPathExperience = ({
     // Fails closed: an index that has never been built, or a standard missing
     // from it, means MathMaster has not confirmed there is anything to practise.
     if (!isSkillLaunchable(coverage, teksCode)) {
+      // Named the way the student names it. The TEKS code is a teacher/report
+      // identifier and has no business in a sentence a fifteen-year-old reads
+      // about their own afternoon.
+      const skillName = studentLabelForTeks(teksCode) || 'That skill';
       setCoverageNotice(
         coverageLoaded
-          ? `${toDisplayCode(teksCode)} does not have My Math Path practice content yet, so it cannot be started. Your teacher can see which standards are missing content.`
-          : 'MathMaster is still checking which standards have practice content. Try again in a moment.',
+          ? `${skillName} does not have practice ready yet, so it cannot be started. Everything else on your path is still open, and your teacher can see what is missing.`
+          : 'MathMaster is still checking which practice is ready. Try again in a moment.',
       );
       return;
     }
@@ -209,6 +228,12 @@ export const MyMathPathExperience = ({
       {activeTab === 'path' && (
         <StudentLearningPath
           pathOptions={pathOptions}
+          // Availability is checked BEFORE the card is drawn, not after the
+          // student clicks it. `startSession` still fails closed on top of
+          // this; a student should simply never reach that path.
+          isCovered={coverageLoaded
+            ? (skillId) => isSkillLaunchable(coverage, teksCodeFromSkillId(skillId))
+            : null}
           onChooseSkill={(card) => { const code = teksCodeFromSkillId(card.skillId); if (code) startSession(code); }}
           assessmentContext={assessmentContext}
           onPracticeAs={({ skillId, framework }) => {

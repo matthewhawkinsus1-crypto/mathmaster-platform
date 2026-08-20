@@ -65,13 +65,37 @@ export const resolvePacingProvider = ({ courseId, skills, pacing, nowValue = Dat
   return sequenceProvider({ skills, windowCount: pacing?.windowCount });
 };
 
+/**
+ * The skills a student's OPEN assigned work covers.
+ *
+ * Only assignments that are actually open count: a closed unit is history, and
+ * marking its skills "required" would tell a student to go back and redo work
+ * their teacher has already collected. An assignment with no dates is treated
+ * as open, which is how an unscheduled practice set behaves everywhere else.
+ */
+export const collectRequiredSkillIds = (assignments = [], nowValue = Date.now()) => {
+  const open = (Array.isArray(assignments) ? assignments : []).filter((assignment) => {
+    if (assignment?.simulated) return false;
+    const closesAt = Number(assignment?.closesAt || assignment?.dueAt || 0);
+    const opensAt = Number(assignment?.opensAt || assignment?.availableAt || 0);
+    if (opensAt && nowValue < opensAt) return false;
+    if (closesAt && nowValue > closesAt) return false;
+    return true;
+  });
+  return collectAssignmentSkillIds(open);
+};
+
 export const buildStudentPathOptions = ({
   student,
   assignments = [],
   courseId = 'algebra1',
   pacing = null,
   teacherOverrides = [],
-  requiredSkillIds = [],
+  // Skills the teacher has made non-optional. A caller may name them
+  // explicitly; when it does not, they are derived below from the assignments
+  // that are actually open, because "your teacher assigned this" is a fact the
+  // assignment list already knows.
+  requiredSkillIds = null,
   nowValue = Date.now(),
 } = {}) => {
   // No pacing means the teacher has not said where the class is, and the
@@ -93,7 +117,14 @@ export const buildStudentPathOptions = ({
     pacing,
     pacingProvider,
     teacherOverrides,
-    requiredSkillIds,
+    // Teacher-assigned work is the classroom contract, and the Path is
+    // supposed to say so rather than merely nudge its score. Every caller in
+    // the app omitted `requiredSkillIds`, so the REQUIRED state — and the
+    // "finish your assigned work first" rule that depends on it — could never
+    // fire for a real student.
+    requiredSkillIds: Array.isArray(requiredSkillIds)
+      ? requiredSkillIds
+      : collectRequiredSkillIds(safeAssignments, nowValue),
     assignmentSkillIds: collectAssignmentSkillIds(safeAssignments),
   });
 };

@@ -40,7 +40,12 @@ test('an uncurated standard still gets prose rather than an identifier', () => {
     deriveStudentLabel('Determine the domain and range of linear functions, including reasonable values.', 'X.1A'),
     'Domain and range of linear functions',
   );
-  assert.equal(deriveStudentLabel('', 'X.9Z'), 'Skill X.9Z');
+  // A standard with no description used to fall back to "Skill X.9Z" — which
+  // contradicted this function's own contract and put an identifier on the
+  // wheel, the skill modal and the retention banner. There is no description
+  // to derive from, so it says so in words.
+  assert.equal(deriveStudentLabel('', 'X.9Z'), 'This skill');
+  assert.ok(!/X\.9Z/.test(deriveStudentLabel('', 'X.9Z')), 'no identifier reaches a student');
 });
 
 test('the student player never renders DOK, difficulty band or a raw alignment key', () => {

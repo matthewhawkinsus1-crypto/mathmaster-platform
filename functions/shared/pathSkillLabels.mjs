@@ -262,7 +262,12 @@ const titleCaseFirst = (text) => (text ? text.charAt(0).toUpperCase() + text.sli
  */
 export const deriveStudentLabel = (description, code = '') => {
   let text = String(description || '').trim().replace(/\.$/, '');
-  if (!text) return code ? `Skill ${code}` : 'This skill';
+  // A standard with no description gets a generic phrase, NOT "Skill A.5A".
+  // The `code` parameter is kept because callers pass it, but it is used only
+  // to decide that there is nothing to derive from — never rendered. The
+  // previous fallback contradicted this function's own contract and was the
+  // one code leak that reached the wheel, the modal and the retention banner.
+  if (!text) return 'This skill';
   const lower = text.toLowerCase();
   const verb = LEADING_VERBS.find((candidate) => lower.startsWith(`${candidate} `));
   if (verb) text = text.slice(verb.length).trim();
@@ -270,7 +275,7 @@ export const deriveStudentLabel = (description, code = '') => {
   text = (head || text).trim().replace(/[,;:]$/, '');
   const words = text.split(/\s+/);
   if (words.length > 9) text = `${words.slice(0, 9).join(' ')}…`;
-  return titleCaseFirst(text) || (code ? `Skill ${code}` : 'This skill');
+  return titleCaseFirst(text) || 'This skill';
 };
 
 /**

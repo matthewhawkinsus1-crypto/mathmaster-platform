@@ -123,11 +123,14 @@ export default function RecommendedSkills({
             <li key={row.skillId}>
               <button
                 type="button"
-                onClick={() => onChooseSkill?.({ skillId: row.skillId, title: describeSkill(row.skillId).shortLabel, slot: 'all' })}
+                onClick={() => onChooseSkill?.({ skillId: row.skillId, title: describeSkill(row.skillId).studentLabel, slot: 'all' })}
                 disabled={!choiceAllowed}
                 style={{ border: 0, background: 'none', padding: 0, color: '#1a73e8', fontWeight: 700, cursor: choiceAllowed ? 'pointer' : 'not-allowed', textAlign: 'left' }}
               >
-                {describeSkill(row.skillId).label}
+                {/* `label` is code-prefixed ("A.5A — Solve linear…"), which is
+                    the teacher/report form. The student list shows the name of
+                    the mathematics. */}
+                {describeSkill(row.skillId).studentLabel || describeSkill(row.skillId).description}
               </button>
             </li>
           ))}

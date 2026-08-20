@@ -5,6 +5,8 @@ import RetentionQuickCheckBanner from './RetentionQuickCheckBanner.jsx';
 import { evaluateStudentRetentionSchedule } from '../../platform/retention/retentionScheduler.js';
 import { DEFAULT_MASTERY_COURSE_ID, masteryCourseLabel } from '../../platform/mastery/strandConfig.js';
 import { studentLabelForTeks } from '../../platform/path/skillLabels.js';
+import { curateStudentPanel } from '../../platform/path/studentPanel.js';
+import { teksCodeFromSkillId } from '../../platform/path/skillGraph.js';
 
 export const MyMathPathDashboard = ({
   studentName = 'Student',
@@ -27,6 +29,16 @@ export const MyMathPathDashboard = ({
   );
   const activeFocusTeks = retentionReport.pendingProbes[0]?.teksCode || recommendedTeks;
   const activeProfile = activeFocusTeks ? masteryProfilesByTEKS[activeFocusTeks] : null;
+  // One engine, one explanation: if the panel picked this skill, show the
+  // panel's own sentence rather than inventing a second one here.
+  const focusReason = useMemo(() => {
+    if (!pathOptions || !activeFocusTeks) return null;
+    const panel = curateStudentPanel(pathOptions);
+    const card = [panel.best, panel.strengthen, panel.challenge, ...(panel.choices || [])]
+      .filter(Boolean)
+      .find((entry) => teksCodeFromSkillId(entry.skillId) === activeFocusTeks);
+    return card?.reason || null;
+  }, [pathOptions, activeFocusTeks]);
   const courseLabel = masteryCourseLabel(courseId);
 
   return (
@@ -50,7 +62,17 @@ export const MyMathPathDashboard = ({
             {activeFocusTeks ? (
               <>
                 <h2 style={{ margin: '7px 0 5px', color: '#202124' }}>{studentLabelForTeks(activeFocusTeks)}</h2>
-                <p style={{ margin: '0 0 16px', color: '#5f6368', fontSize: '14px' }}>{activeProfile?.recommendation?.reason || 'Build independent accuracy and a broader range of evidence.'}</p>
+                {/* The sentence comes from the engine that chose the skill, or
+                    from the retention scheduler that overrode it. A hand-written
+                    fallback here would be a second voice explaining a decision
+                    it did not make. */}
+                <p style={{ margin: '0 0 16px', color: '#5f6368', fontSize: '14px' }}>
+                  {retentionReport.hasPendingProbes
+                    ? 'You learned this a while ago. A couple of questions is enough to check it has stayed with you.'
+                    : activeProfile?.recommendation?.reason
+                      || focusReason
+                      || 'Practice here builds the evidence your path is waiting on.'}
+                </p>
                 <button type="button" onClick={() => onStartSession?.(activeFocusTeks, { sessionKind: 'practice', requiredQuestions: 5 })} style={{ width: '100%', padding: '11px 15px', border: 0, borderRadius: '7px', background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Start quick practice · 5 questions</button>
               </>
             ) : (
@@ -60,7 +82,10 @@ export const MyMathPathDashboard = ({
             )}
           </div>
           <div style={{ padding: '15px', border: '1px solid #dadce0', borderRadius: '9px', background: '#fff', textAlign: 'left', fontSize: '12px', lineHeight: 1.7 }}>
-            <strong>What the colours mean</strong><br />🟢 Mastered · 🟢 Secure · 🟡 Developing · 🔴 Needs work · ⚪ Not practised yet
+            {/* The legend used the same green glyph for two different states
+                and named a fourth state ("Needs work") that never appears —
+                the wheel says "Needs Attention". */}
+            <strong>What the colours mean</strong><br />🟢 Mastered · 🔵 Secure · 🟡 Developing · 🔴 Needs Attention · ⚪ Not practised yet
           </div>
         </div>
       </div>
