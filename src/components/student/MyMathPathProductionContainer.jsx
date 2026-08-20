@@ -93,10 +93,23 @@ export const MyMathPathProductionContainer = ({
   // The banner that tells the student why the path changed direction. Built from
   // the same decision object the teacher's route trace is built from, so the two
   // cannot say different things.
-  const decisionNotice = useMemo(
-    () => explainStepForStudent(session?.lastDecision || null),
-    [session?.lastDecision],
-  );
+  const decisionNotice = useMemo(() => {
+    const decision = session?.lastDecision || null;
+    if (!decision) return null;
+    // The secure server composes the sentence itself, from the same function
+    // used here, so a browser that is a release behind cannot show a student a
+    // different explanation from the one the session recorded. When it is
+    // absent — the Teacher Path Simulator runs the engine locally — the
+    // sentence is composed from the decision.
+    if (decision.studentMessage) {
+      return {
+        headline: decision.studentHeadline || null,
+        message: decision.studentMessage,
+        tone: decision.studentTone || 'return',
+      };
+    }
+    return explainStepForStudent(decision);
+  }, [session?.lastDecision]);
 
   const advanceToNextQuestion = useCallback(async () => {
     if (!session || session.status !== 'active') return;

@@ -18,7 +18,7 @@
 
 import { getSkillGraph, describeSkill, resolveSkillAnywhere } from './skillGraph.js';
 import { TIMING, classifySkillTiming, normalizeClassPacing, resolveCoursePolicy } from './curriculumPacing.js';
-import { STRENGTH, STRENGTH_WEIGHT, canLock } from './prerequisiteStrength.js';
+import { SEVERE_GAP_MASTERY, STRENGTH, STRENGTH_WEIGHT, canLock } from './prerequisiteStrength.js';
 
 export const STATUS = Object.freeze({
   REQUIRED: 'required',
@@ -61,7 +61,10 @@ export const REASON = Object.freeze({
 
 // Mastery below this on a required prerequisite is a severe gap: the skill is
 // locked outright rather than merely discouraged.
-export const SEVERE_GAP_MASTERY = 0.4;
+// Defined in prerequisiteStrength so the shared remediation planner can read
+// it without importing this browser-only module. Re-exported so every existing
+// caller keeps working.
+export { SEVERE_GAP_MASTERY };
 export const MASTERED_THRESHOLD = 0.9;
 export const LOW_ACCURACY_THRESHOLD = 0.6;
 // Enough attempts before mastery is treated as trustworthy for acceleration.

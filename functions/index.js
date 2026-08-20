@@ -38,6 +38,10 @@ const labEvaluation = require("./lib/labEvaluation");
 const secureExam = require("./lib/secureExam");
 const adminPolicy = require("./lib/admin");
 const rigorPolicy = require("./lib/rigorPolicy");
+// Adaptive routing for live sessions. The DECISIONS come from the one shared
+// engine in functions/shared/pathSessionRouting.mjs; this seam supplies the
+// server-side facts (mastery documents, coverage indexes) it reasons over.
+const pathRouting = require("./lib/pathRouting");
 
 initializeApp();
 
@@ -4478,6 +4482,7 @@ exports.startMyMathPathSession = onCall(async (request) => {
     }
 
     const now = Date.now();
+    const targetDisplay = mathPath.displayAlignmentKey(targetAlignmentKey);
     const next = {
       sessionId: proposedSessionRef.id,
       studentId,
@@ -4487,6 +4492,22 @@ exports.startMyMathPathSession = onCall(async (request) => {
       target: { alignmentKey: targetAlignmentKey },
       summary: { completedQuestions: 0, correctQuestions: 0, independentSuccesses: 0 },
       pathState: { counters: { questionsThisSession: 0 } },
+      // The routing state. `currentSkillCode` is where the NEXT question comes
+      // from and may differ from the target once a repair excursion opens; the
+      // target never moves, which is what makes coming back possible.
+      currentSkillCode: targetDisplay,
+      excursion: null,
+      diagnosing: null,
+      lastDecision: null,
+      evidenceBySkill: {},
+      route: [{
+        at: "start",
+        action: "start",
+        skillCode: targetDisplay,
+        reason: "session_target",
+        explanation: `Session started on ${targetDisplay}.`,
+        wasCorrect: null,
+      }],
       currentQuestion: null,
       createdAt: now,
       updatedAt: now,
@@ -4515,8 +4536,14 @@ exports.issueNextQuestion = onCall(async (request) => {
   }
 
   const targetDisplayCode = mathPath.displayAlignmentKey(session.target.alignmentKey);
+  // WHERE THE NEXT QUESTION COMES FROM. Not the target — the skill routing last
+  // chose. On an ordinary session those are the same; on a repair excursion the
+  // student is working on a prerequisite, and issuing from the target anyway is
+  // exactly the bug that made live sessions non-adaptive.
+  const activeDisplayCode = mathPath.displayAlignmentKey(session.currentSkillCode || targetDisplayCode);
+  const activeAlignmentKey = mathPath.canonicalAlignmentKey(activeDisplayCode);
   const [bankSnapshot, masterySnapshot, rosterSnapshot, courseSettingsSnapshot] = await Promise.all([
-    db.collection("pathQuestionBank").where("alignmentKeys", "array-contains", session.target.alignmentKey).limit(40).get(),
+    db.collection("pathQuestionBank").where("alignmentKeys", "array-contains", activeAlignmentKey).limit(40).get(),
     db.collection("studentMasteryProfiles").doc(studentId).get(),
     db.collection("grades").doc(studentId).get(),
     db.collection("settings").doc("courseProfiles").get(),
@@ -4532,13 +4559,33 @@ exports.issueNextQuestion = onCall(async (request) => {
   const candidates = issuable.map((entry) => entry.question);
   const planByQuestionId = new Map(issuable.map((entry) => [entry.question.id, entry.plan]));
   if (!candidates.length) {
+    // NEVER STRAND. If the excursion skill turns out to have nothing issuable,
+    // the session goes back to its target rather than throwing an error at a
+    // student who has just answered badly. Only a target with no content is a
+    // genuine failure, and the wheel already hides those.
+    if (activeDisplayCode !== targetDisplayCode) {
+      logger.warn("Path excursion skill has no issuable content; returning to target", {
+        sessionId, activeDisplayCode, targetDisplayCode,
+      });
+      await sessionRef.update({
+        currentSkillCode: targetDisplayCode,
+        excursion: null,
+        diagnosing: null,
+        updatedAt: Date.now(),
+      });
+      throw new HttpsError(
+        "failed-precondition",
+        `Practice for ${activeDisplayCode} is not published yet, so this session has returned to ${targetDisplayCode}. Start it again to continue.`,
+        { reason: "excursion-content-missing" },
+      );
+    }
     const skipped = plans.length ? ` ${plans.length} question(s) were skipped: ${[...new Set(plans.map((entry) => entry.plan.reason))].join(", ")}.` : "";
     throw new HttpsError("failed-precondition", `No active secure question family is published for ${session.target.alignmentKey}.${skipped}`);
   }
 
   const classPeriod = rosterSnapshot.data()?.classPeriod || "Unassigned";
   const courseLevel = courseSettingsSnapshot.data()?.profiles?.[classPeriod]?.courseLevel || "standard";
-  const masteryProfile = masterySnapshot.data()?.profiles?.[targetDisplayCode] || {};
+  const masteryProfile = masterySnapshot.data()?.profiles?.[activeDisplayCode] || {};
   const adaptiveRigor = rigorPolicy.resolveAdaptiveRigor({ courseLevel, profile: masteryProfile });
   // Selection prefers an UNUSED family, widening to the closest adjacent band
   // before it repeats anything. Narrowing to the nearest band first and cycling
@@ -4559,7 +4606,11 @@ exports.issueNextQuestion = onCall(async (request) => {
   });
   const authored = choice.question;
   const issuePlan = planByQuestionId.get(authored.id);
-  const attemptsAllowed = session.sessionKind === "retentionProbe" ? 1 : 3;
+  // A diagnostic is ONE question with ONE attempt: it is asked to find out
+  // whether a prerequisite is the obstacle, and three tries at it would measure
+  // persistence rather than answer the question.
+  const pathRole = session.diagnosing ? "diagnose" : (session.lastDecision?.action || "continue");
+  const attemptsAllowed = session.sessionKind === "retentionProbe" || pathRole === "diagnose" ? 1 : 3;
   const questionInstanceId = mathPath.runtimeId("qi");
   const currentQuestion = {
     // The public half — the authentic tool, by allowlist — plus the private
@@ -4567,13 +4618,18 @@ exports.issueNextQuestion = onCall(async (request) => {
     ...mathPath.buildSanitizedQuestion(authored, { questionInstanceId, attemptsAllowed, attemptsUsed: 0, toolPayload: issuePlan.toolPayload }),
     bankQuestionId: authored.id,
     sourceBankQuestionId: authored.id,
+    skillCode: activeDisplayCode,
+    pathRole,
     // Teacher/QA metadata. `buildSanitizedQuestion` does not copy these onto the
     // student payload; the Path Simulator reads them from the session document.
     selectionReason: choice.reason,
     contentQuality: choice.quality,
     representation: choice.representation || null,
     taskType: choice.taskType || null,
-    alignmentKeys: [session.target.alignmentKey],
+    // Evidence is recorded against the skill the question actually came from.
+    // Recording an excursion question against the target would credit a student
+    // with mastery of a skill they were sent away from.
+    alignmentKeys: [activeAlignmentKey],
     attemptsAllowed,
     attemptsUsed: 0,
     adaptiveRigor,
@@ -4621,9 +4677,14 @@ exports.submitPathResponse = onCall(async (request) => {
   const db = getFirestore();
   const sessionRef = db.collection("pathSessions").doc(sessionId);
   const submissionRef = db.collection("pathSubmissions").doc(mathPath.opaqueId("submission", sessionId, submissionId));
-  // Load the tool contract before the transaction opens, so a cold dynamic
-  // import is never paid for inside it.
-  await mathPath.pathToolContracts();
+  // Load the tool contract and the routing engine before the transaction opens,
+  // so a cold dynamic import is never paid for inside it — and never repeated
+  // if the transaction retries.
+  await Promise.all([
+    mathPath.pathToolContracts(),
+    pathRouting.routing(),
+    pathRouting.skillGraph(),
+  ]);
 
   // The authorization context this evidence will carry, resolved from the
   // student's class before the transaction so the read is not inside it.
@@ -4634,6 +4695,23 @@ exports.submitPathResponse = onCall(async (request) => {
     student: studentRecord.data() || null,
     classRecord: await loadStudentClass(db, studentRecord.data()),
   });
+
+  // Everything routing needs to reason with, read BEFORE the transaction opens.
+  // The mastery profile is what the student knew coming in; the coverage
+  // indexes are what the bank can actually teach. Both are read-only inputs, so
+  // reading them outside keeps the transaction short.
+  const [masterySnapshot, retentionSnapshotForRouting, algebra1Coverage, algebra2Coverage] = await Promise.all([
+    db.collection("studentMasteryProfiles").doc(studentId).get(),
+    db.collection("studentRetentionSchedules").doc(studentId).get(),
+    db.collection(COVERAGE_COLLECTION).doc("algebra1").get(),
+    db.collection(COVERAGE_COLLECTION).doc("algebra2").get(),
+  ]);
+  const masteryProfiles = masterySnapshot.data()?.profiles || {};
+  const coverageIndexes = {
+    algebra1: algebra1Coverage.exists ? algebra1Coverage.data() : null,
+    algebra2: algebra2Coverage.exists ? algebra2Coverage.data() : null,
+  };
+  const retentionSchedules = retentionSnapshotForRouting.data()?.schedules || {};
 
   const transactionResult = await db.runTransaction(async (transaction) => {
     const [sessionSnapshot, submissionSnapshot] = await Promise.all([
@@ -4681,12 +4759,50 @@ exports.submitPathResponse = onCall(async (request) => {
     let nextStatus = session.status;
     let nextCurrentQuestion = { ...currentQuestion, attemptsUsed: attemptNumber };
 
+    // The routing decision. Only a FINALIZED question is evidence — attempts
+    // within a question are for assistance — so this runs once per question,
+    // never once per attempt.
+    let routed = null;
     if (questionFinalized) {
       nextSummary.completedQuestions = Number(nextSummary.completedQuestions || 0) + 1;
       nextSummary.correctQuestions = Number(nextSummary.correctQuestions || 0) + (gradingCore.isCorrect ? 1 : 0);
       nextSummary.independentSuccesses = Number(nextSummary.independentSuccesses || 0) + (gradingCore.isCorrect && independent ? 1 : 0);
       nextCurrentQuestion = null;
-      if (nextSummary.completedQuestions >= Number(session.requiredQuestions || 5)) nextStatus = "completed";
+
+      const activeSkillCode = currentQuestion.skillCode || mathPath.displayAlignmentKey(session.target.alignmentKey);
+      const schedule = retentionSchedules[activeSkillCode] || null;
+      // A retention PROBE is two questions and a verdict. Routing it into a
+      // repair excursion would turn "a quick check that this stayed with you"
+      // into a surprise unit of remediation, which is exactly what the
+      // retention design is meant to avoid — so a probe counts its questions
+      // and finishes, and any concern it raises is acted on next session.
+      if (session.sessionKind === "retentionProbe") {
+        if (nextSummary.completedQuestions >= Number(session.requiredQuestions || 2)) nextStatus = "completed";
+      } else {
+        routed = await pathRouting.routeAfterFinalizedQuestion({
+          session: { ...session, summary: nextSummary },
+          skillCode: activeSkillCode,
+          isCorrect: gradingCore.isCorrect,
+          profiles: masteryProfiles,
+          coverageIndexes,
+          // Previously strong, and overdue for a check. The engine turns this
+          // into a short verification rather than assuming the skill held.
+          retentionConcern: Boolean(
+            (schedule && ["concern", "due", "overdue"].includes(String(schedule.status || "")))
+            || (Number(schedule?.nextCheckDueAt) > 0 && Number(schedule.nextCheckDueAt) <= now),
+          ),
+        });
+        nextStatus = routed.status;
+      }
+      // Belt and braces: whatever the engine decided, a session that has met
+      // its question count and is not on an excursion is finished.
+      if (routed
+        && nextStatus === "active"
+        && !routed.excursion
+        && !routed.diagnosing
+        && nextSummary.completedQuestions >= Number(session.requiredQuestions || 5)) {
+        nextStatus = "completed";
+      }
     }
 
     let retentionSnapshot = null;
@@ -4699,6 +4815,18 @@ exports.submitPathResponse = onCall(async (request) => {
       summary: nextSummary,
       pathState: { ...(session.pathState || {}), counters: { ...(session.pathState?.counters || {}), questionsThisSession: nextSummary.completedQuestions || 0 } },
       currentQuestion: nextCurrentQuestion,
+      ...(routed ? {
+        currentSkillCode: routed.currentSkillCode,
+        excursion: routed.excursion,
+        diagnosing: routed.diagnosing,
+        lastDecision: routed.lastDecision,
+        evidenceBySkill: routed.evidenceBySkill,
+        teacherMessage: routed.teacherMessage,
+        // The whole route so far, so "why am I on this skill?" is answerable
+        // rather than assertable. Capped so a long session cannot grow the
+        // document without bound.
+        route: [...(session.route || []), routed.routeEntry].slice(-40),
+      } : {}),
       updatedAt: now,
       completedAt: nextStatus === "completed" ? now : session.completedAt || null,
     };
@@ -4768,6 +4896,7 @@ exports.submitPathResponse = onCall(async (request) => {
       support: attemptSupport.support,
       // Present only on a finalized question, by construction.
       solutionReview: attemptSupport.solutionReview,
+      decision: routed ? routed.lastDecision : null,
       session: publicPathSession(nextSession),
       needsNextQuestion: questionFinalized && nextStatus === "active",
     };

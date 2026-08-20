@@ -34,7 +34,9 @@ import { sameValue } from '../../../functions/shared/answerEquivalence.mjs';
 import { getQuestionPrimaryTeksCodes } from '../../questionMetadata.js';
 import { teksSkillId, teksCodeFromSkillId, describeSkill } from '../path/skillGraph.js';
 import { buildMasteryBySkillForStudent } from '../path/masteryAdapter.js';
-import { PATH_ACTION, decideNextStep, resolveDiagnostic } from '../path/pathSessionRouting.js';
+import {
+  PATH_ACTION, decideNextStep, explainStepForStudent, resolveDiagnostic,
+} from '../path/pathSessionRouting.js';
 import { recordQuestionAttempt } from '../../attemptPolicy.js';
 import { toCanonicalKey, toDisplayCode } from '../../utils/teksUtils.js';
 
@@ -220,6 +222,7 @@ export const createTeacherPathRuntime = ({
     excursion: session.excursion,
     diagnosing: session.diagnosing,
     lastDecision: session.lastDecision,
+    currentSkillCode: teksCodeFromSkillId(session.currentSkillId) || null,
     teacherMessage: session.teacherMessage || null,
     // The whole route so far, in the order it happened. This is what makes
     // "why am I on A.5A?" answerable rather than assertable.
@@ -451,11 +454,28 @@ export const createTeacherPathRuntime = ({
         excursion: session.excursion,
         requiredQuestions: session.requiredQuestions,
         completedQuestions: session.summary.completedQuestions,
+        // The same coverage gate the server applies, answered from the bank
+        // this simulation was actually loaded with. Without it a teacher would
+        // watch a routing decision that production would refuse to make.
+        isCovered: (skillId) => bankHasSkill(bank, skillId),
       });
 
     session.diagnosing = decision.action === PATH_ACTION.DIAGNOSE ? decision.diagnosing : null;
     session.excursion = decision.excursion ?? null;
-    session.lastDecision = { action: decision.action, reason: decision.reason, explanation: decision.explanation, skillId: decision.skillId };
+    const studentNotice = explainStepForStudent(decision);
+    session.lastDecision = {
+      action: decision.action,
+      reason: decision.reason,
+      explanation: decision.explanation,
+      skillId: decision.skillId,
+      returnTo: decision.returnTo || null,
+      excursion: decision.excursion || null,
+      // Composed here as well as on the server, from the same function, so the
+      // simulator shows a teacher the sentence a student would actually read.
+      studentHeadline: studentNotice?.headline || null,
+      studentMessage: studentNotice?.message || null,
+      studentTone: studentNotice?.tone || null,
+    };
     session.route.push({
       at: `question ${session.summary.completedQuestions}`,
       action: decision.action,
