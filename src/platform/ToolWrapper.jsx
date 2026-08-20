@@ -26,6 +26,11 @@ export const MathMasterToolWrapper = ({
   const recordRef = useRef(record);
   const questionKey = String(question?.questionId || question?.id || stableStringify(question || {}));
   const generationKey = useMemo(() => `tool-wrapper|${executionScope}|${questionKey}|variant:${record.variantIndex}`, [executionScope, questionKey, record.variantIndex]);
+  // Order matters and used to be a trap: `supportProfile` is a key production
+  // never writes, so this looked like a sensible fallback chain while actually
+  // depending on `profile` in every real case. Left in the order it was — the
+  // chain is correct — but stated, because three sibling files had the same
+  // line with `profile` missing from it.
   const studentProfile = student?.supportProfile || student?.profile || student || null;
 
   useEffect(() => {

@@ -46,11 +46,21 @@ const normalizeAssessmentContext = (value) => {
 
 const supportSettings = (profile) => {
   const source = profile && typeof profile === 'object' && !Array.isArray(profile) ? profile : {};
-  const accommodations = Array.isArray(source.accommodations)
-    ? source.accommodations.map(String)
-    : Array.isArray(source.supportProfile?.accommodations)
-      ? source.supportProfile.accommodations.map(String)
-      : [];
+  // Three shapes reach this function and all three have to work, because a
+  // student must not lose a calculator by walking into a different part of the
+  // platform:
+  //   { accommodations: [...] }               the stored profile
+  //   { supportProfile: { accommodations } }  a key several callers preferred
+  //                                           and nothing in production writes
+  //   { profile: { accommodations } }         a whole student record
+  // The middle one is the reason this comment exists: four call sites read it
+  // FIRST, so a caller passing a student record fell straight through to an
+  // empty list and the accommodation silently vanished.
+  const accommodations = [
+    source.accommodations,
+    source.supportProfile?.accommodations,
+    source.profile?.accommodations,
+  ].find(Array.isArray)?.map(String) || [];
   const calculatorAccommodation = accommodations.find((value) => [
     'calculator', 'calculator-basic', 'calculator-scientific', 'calculator-graphing',
   ].includes(value));

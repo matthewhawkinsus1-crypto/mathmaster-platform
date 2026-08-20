@@ -210,3 +210,34 @@ test('an unfulfilled authorization becomes its own telemetry stage', () => {
   assert.ok(mathPathSource.includes("stage: 'authorizedNotPresented'"),
     'a tool that cannot honour an authorized support must be discoverable');
 });
+
+// --- A student must not lose a support by changing screens ---------------------
+
+test('the calculator resolver accepts every profile shape that reaches it', async () => {
+  // THE TRAP THIS CLOSES. Four call sites read `student.supportProfile` FIRST —
+  // a key the teacher UI never writes, because it stores the profile at
+  // `profile`. A caller passing a whole student record therefore fell through
+  // to an empty accommodation list and the calculator silently disappeared.
+  const { resolveCalculatorPolicy } = await import('../../src/platform/policies/calculatorPolicy.js');
+  const shapes = [
+    ['a bare profile', { accommodations: ['calculator'] }],
+    ['the key nothing writes', { supportProfile: { accommodations: ['calculator'] } }],
+    ['a whole student record', { profile: { accommodations: ['calculator'] } }],
+  ];
+  const policies = shapes.map(([, studentSupportProfile]) => resolveCalculatorPolicy({
+    questionSpec: { assessedConstruct: 'interpreting slope' },
+    activityPolicy: { calculatorDefault: 'none' },
+    studentSupportProfile,
+  }));
+  policies.forEach((policy, index) => {
+    assert.equal(policy.available, true,
+      `${shapes[index][0]}: an authorized calculator must survive this shape`);
+  });
+});
+
+test('an unauthorized student still gets no calculator from any shape', () => {
+  // The inverse: the leniency about SHAPE must not become leniency about
+  // AUTHORIZATION.
+  const entitlements = resolveSupportEntitlements({ accommodations: [] });
+  assert.equal(isSupportAuthorized(entitlements, SUPPORT.CALCULATOR), false);
+});

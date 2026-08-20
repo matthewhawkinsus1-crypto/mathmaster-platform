@@ -63,7 +63,10 @@ export const EXAM_POLICIES = Object.freeze({
 const concreteModes = new Set([CALCULATOR_MODES.NONE, CALCULATOR_MODES.BASIC, CALCULATOR_MODES.SCIENTIFIC, CALCULATOR_MODES.GRAPHING]);
 
 const calculatorSupport = (profile) => {
-  const source = profile?.supportProfile || profile || {};
+  // `supportProfile` is a key nothing in production writes — the teacher UI
+  // stores the profile at `profile`. Preferring it first meant a student record
+  // fell through to an empty object and the accommodation disappeared.
+  const source = profile?.supportProfile || profile?.profile || profile || {};
   const accommodations = Array.isArray(source.accommodations) ? source.accommodations.map(String) : [];
   const entry = accommodations.find((value) => ['calculator', 'calculator-basic', 'calculator-scientific', 'calculator-graphing'].includes(value));
   const mode = entry === 'calculator-basic' ? CALCULATOR_MODES.BASIC : entry === 'calculator-graphing' ? CALCULATOR_MODES.GRAPHING : CALCULATOR_MODES.SCIENTIFIC;
