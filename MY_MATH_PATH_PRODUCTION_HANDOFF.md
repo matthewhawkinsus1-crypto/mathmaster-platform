@@ -65,7 +65,30 @@ asks them to do mathematics.
 - **Evidence is credited to the skill the question came from**, not to the
   target the student happened to start on.
 
-## 4. How a question gets chosen
+## 4. Real MathMaster interactions, not typed answers
+
+The starter bank had **0 of 515** items on an interactive tool: a student asked
+to "graph the parent function" typed a letter into a box. The bank now has **44
+tool-backed items across 43 standards**:
+
+| Interaction | Items | What it replaces |
+| --- | --- | --- |
+| Function investigation (graphing) | 22 | typing coordinates for a graphing task |
+| Interval number line | 12 | typing a solution set or a domain |
+| Systems workspace | 4 | typing an intersection point |
+| Relation mapping | 3 | typing "yes/no, it's a function" |
+| Step algebra (balance) | 3 | typing the final value of a solve |
+
+The rule is not "more tools is better" — a numeric or symbolic response is often
+the right interaction, and forcing a graph onto an arithmetic question would be
+worse content. The rule is that **some standards ARE the interaction**. There is
+a build gate for exactly that list: a standard about graphing, placing a
+solution set on a line, finding an intersection, mapping a relation, or working
+an equation step by step must use the real interaction at least once, or the
+build fails. A test restates the same list so a quiet edit to the build script
+cannot drop a standard out of the requirement.
+
+## 5. How a question gets chosen
 
 One selector, `selectNextFamily`, ranks in this order:
 
@@ -83,7 +106,7 @@ state. It used to have its own round-robin, which quietly made it a second
 recommendation engine showing sessions no student would be given. It does not
 any more.
 
-## 5. The content
+## 6. The content
 
 126 standards are authored to production quality — five genuinely different
 families each, with no standard falling back on carried-forward starter items.
@@ -117,7 +140,7 @@ student can exploit without doing any mathematics. Option order is now derived
 from a deterministic hash of the item id, and the build fails if any position
 exceeds 40% of items.
 
-## 6. What a teacher or administrator can verify
+## 7. What a teacher or administrator can verify
 
 **Administration → Path content coverage** shows, per standard: issuable
 items, production-quality items, representation spread, thinking spread,
@@ -133,6 +156,23 @@ content-quality state. Five states, and they mean different things:
 There is a "show only unfinished standards" filter, and an execution-mode
 panel that says out loud whether this build is configured for production.
 
+**The student's own Path home** now keeps the nine states of the learning map
+apart, which it previously did not:
+
+- A lock with no prerequisite behind it is a *teacher* decision, and says so —
+  it used to read "This is not open yet.", a verdict with nothing to act on.
+- A pacing restriction no longer wears the lock's colours. "Your class reaches
+  this in about 12 days" is a blue dashed card with a date; "this needs an
+  earlier skill first" is an amber card with the repair attached. They used to
+  be the same grey.
+- **Mastered** and **Quick retention check** are sections a student can see and
+  act on, not a number in a sentence.
+- Content availability is checked *before* a card is drawn, so a student never
+  clicks into a standard with no practice and gets an error afterwards.
+- Teacher-assigned work now actually produces the Required state. The engine
+  supported it; no caller ever passed it, so the classroom contract was only
+  ever a small scoring nudge.
+
 **Teacher Path Simulator** runs a synthetic learner through the real student
 components — the real dashboard, the real Path, the real wheels — against the
 real secure bank. Per question it now shows *why this item*: the selection
@@ -146,7 +186,7 @@ marked simulated and assigned to no class period, and it has no Firestore
 write path at all — that last one is asserted by a test that greps the module
 for `setDoc`, `updateDoc`, `addDoc`, `writeBatch` and `httpsCallable`.
 
-## 7. Security posture, unchanged and enforced
+## 8. Security posture, unchanged and enforced
 
 - Answer keys never appear in a Path payload. The sanitized question is built
   from an allowlist, and tests assert the serialized instance contains no
@@ -169,7 +209,45 @@ for `setDoc`, `updateDoc`, `addDoc`, `writeBatch` and `httpsCallable`.
   variable can no longer silently turn a live student's session into fake
   practice questions.
 
-## 8. Commands
+## 9. Mastery means the student did the mathematics
+
+The support discount used to be arithmetically inert. It was folded into the
+evidence *weight*:
+
+    weight   = roleWeight × (independent ? 1 : 0.85)
+    estimate = Σ(score × weight) / Σ(weight)
+
+The 0.85 sat in both the numerator and the denominator, so for a correct answer
+it divided straight back out. **A student who took a hint on every question
+reached an estimate of 100 and was labelled Mastered.** The discount looked
+present in the code and did nothing.
+
+The repair separates two questions that were being answered with one number:
+
+- **Weight** — how much this event counts as evidence at all. Stays in the
+  denominator. A hinted answer is still evidence.
+- **Credit** — what the student actually demonstrated. Discounted for support,
+  so a supported success is worth less than an independent one no matter how
+  many of them there are.
+
+Four supported successes now produce an estimate of 75, not 100. And the
+Mastered label additionally requires at least two successes the student produced
+without mathematical assistance, so a high estimate assembled entirely from
+supported work cannot reach it.
+
+Two related repairs:
+
+- **The browser no longer declares independence.** The server issues the hint
+  and releases the solution review, so it records those itself. A client that
+  simply omitted the support flags used to be believed — the same trust bug as a
+  browser-supplied `isCorrect`, one axis over, inflating mastery instead of
+  grades. The browser now reports only what the server cannot observe: a human
+  helping, a calculator on the desk, an accommodation in force.
+- **Retention evidence is distinguishable.** Every Path event was recorded as
+  `activityRole: "practice"`, including retention probes, so "has this stayed
+  with you?" and "are you learning this?" were the same evidence downstream.
+
+## 10. Commands
 
 Run these from the repository root.
 
@@ -195,7 +273,7 @@ Deploy is unchanged: the seed files land in both `seed/pathQuestionBank/` and
 `functions/seeds/pathQuestionBank/`, and `PATH_BANK_COVERAGE_MANIFEST.json` is
 regenerated alongside them.
 
-## 9. Adding content
+## 11. Adding content
 
 Authoring lives in `seed/pathQuestionBank/authoring/`. To add a standard:
 
