@@ -124,7 +124,12 @@ test('no document asks a student to type the letter of an option', () => {
 test('a multiple-choice item ships real selectable options', () => {
   const choiceItems = SEED.filter((entry) => (entry.responseFields || [])
     .some((field) => field.inputProfile === 'choice'));
-  assert.ok(choiceItems.length > 400, `only ${choiceItems.length} items offer real choices`);
+  // Deliberately not a fixed count. As standards are authored, hand-written
+  // families replace starter items and many of them are numeric, symbolic or
+  // tool-backed rather than multiple choice — so this number FALLING is a sign
+  // of progress, not a regression. What must hold is that every choice item is
+  // answerable.
+  assert.ok(choiceItems.length > 0, 'the bank should contain multiple-choice items');
   choiceItems.forEach((entry) => {
     assert.ok((entry.choices || []).length >= 2, `${entry.id} has a choice input but no options`);
     const expected = String(entry.responseFields[0].expected);

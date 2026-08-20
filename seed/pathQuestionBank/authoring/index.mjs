@@ -14,6 +14,8 @@ import { ALGEBRA1_QUADRATIC_STANDARDS } from './algebra1Quadratics.mjs';
 import { ALGEBRA1_EXPONENTIAL_STANDARDS } from './algebra1Exponentials.mjs';
 import { ALGEBRA1_POLYNOMIAL_STANDARDS } from './algebra1PolynomialsAndFunctions.mjs';
 import { ALGEBRA1_FUNCTION_STANDARDS } from './algebra1Functions.mjs';
+import { ALGEBRA2_FUNCTION_STANDARDS } from './algebra2Functions.mjs';
+import { ALGEBRA2_SYSTEMS_QUADRATIC_STANDARDS } from './algebra2SystemsQuadratics.mjs';
 
 export const ALL_AUTHORED_STANDARDS = [
   ...GRADE_6_7_STANDARDS,
@@ -27,6 +29,8 @@ export const ALL_AUTHORED_STANDARDS = [
   ...ALGEBRA1_EXPONENTIAL_STANDARDS,
   ...ALGEBRA1_POLYNOMIAL_STANDARDS,
   ...ALGEBRA1_FUNCTION_STANDARDS,
+  ...ALGEBRA2_FUNCTION_STANDARDS,
+  ...ALGEBRA2_SYSTEMS_QUADRATIC_STANDARDS,
 ];
 
 export default ALL_AUTHORED_STANDARDS;
