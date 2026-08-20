@@ -1,0 +1,740 @@
+{
+  "schemaVersion": 1,
+  "targetCollection": "pathQuestionBank",
+  "courseId": "grade6",
+  "generatedBy": "scripts/build-path-bank.mjs",
+  "documents": [
+    {
+      "id": "mm_6_7A_context-cost",
+      "active": true,
+      "alignmentKeys": [
+        "texas:6.7A"
+      ],
+      "courseId": "grade6",
+      "familyId": "mathmaster:6.7A:context-cost",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "6.7A",
+      "taskType": "application",
+      "representation": "context",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "prompt": "A club buys 3 boxes of shirts at $\\$18$ each and one banner for $\\$25$, then uses a $\\$20$ coupon. Write the total as a single expression and evaluate it. What is the total cost in dollars?",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "unit": "dollars",
+          "responseHint": null,
+          "placeholder": null,
+          "expected": "59"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The expression is $3 \\times 18 + 25 - 20$.",
+        "reasoning": [
+          "The three boxes cost $3 \\times 18 = 54$ dollars, and that multiplication has to happen before anything is added.",
+          "Adding the banner gives $54 + 25 = 79$ dollars.",
+          "The coupon is subtracted last: $79 - 20 = 59$ dollars."
+        ],
+        "answerSummary": "$\\$59$",
+        "commonError": "Adding 18 and 25 first, then multiplying, charges for three banners as well as three boxes.",
+        "connection": null
+      },
+      "attemptFeedback": [
+        "Write the expression before you calculate. Which quantity is repeated three times, and which happens only once?"
+      ],
+      "supportHints": [
+        "Only one of the three amounts is multiplied. Which one?"
+      ],
+      "misconceptions": []
+    },
+    {
+      "id": "mm_6_7A_error-analysis",
+      "active": true,
+      "alignmentKeys": [
+        "texas:6.7A"
+      ],
+      "courseId": "grade6",
+      "familyId": "mathmaster:6.7A:error-analysis",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "6.7A",
+      "taskType": "errorAnalysis",
+      "representation": "symbolic",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "prompt": "Jordan evaluated $20 - 4 \\times 3 + 5$. Which line contains the first mistake?",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Jordan's work",
+        "note": null,
+        "steps": [
+          {
+            "id": "step-1",
+            "label": "Line 1",
+            "work": "$20 - 4 \\times 3 + 5$"
+          },
+          {
+            "id": "step-2",
+            "label": "Line 2",
+            "work": "$16 \\times 3 + 5$"
+          },
+          {
+            "id": "step-3",
+            "label": "Line 3",
+            "work": "$48 + 5$"
+          },
+          {
+            "id": "step-4",
+            "label": "Line 4",
+            "work": "$53$"
+          }
+        ]
+      },
+      "choices": [
+        {
+          "id": "opt-1",
+          "label": "Line 4 — the addition is wrong"
+        },
+        {
+          "id": "opt-2",
+          "label": "Line 3 — the multiplication is wrong"
+        },
+        {
+          "id": "opt-3",
+          "label": "Line 1 — the expression was copied wrongly"
+        },
+        {
+          "id": "opt-4",
+          "label": "Line 2 — subtraction was done before multiplication"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "opt-4"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Multiplication happens before subtraction, whatever the reading order.",
+        "reasoning": [
+          "Line 2 subtracts $20 - 4$ first, which changes the expression being evaluated.",
+          "The multiplication $4 \\times 3 = 12$ must happen first, giving $20 - 12 + 5$.",
+          "Working left to right through what is left gives $8 + 5 = 13$."
+        ],
+        "answerSummary": "Line 2, and the correct value is $13$.",
+        "commonError": null,
+        "connection": "Reading an expression left to right is not the same as evaluating it left to right."
+      },
+      "attemptFeedback": [
+        "Look for the first line where the value of the whole expression changed, not the first line that looks unusual."
+      ],
+      "supportHints": [
+        "Compare the value of each line to the value of the line above it. Which is the first pair that are not equal?"
+      ],
+      "misconceptions": []
+    },
+    {
+      "id": "mm_6_7A_evaluate",
+      "active": true,
+      "alignmentKeys": [
+        "texas:6.7A"
+      ],
+      "courseId": "grade6",
+      "familyId": "mathmaster:6.7A:evaluate",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "6.7A",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "prompt": "Evaluate $4 + 3 \\times 2^{3} - 6$.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "unit": null,
+          "responseHint": null,
+          "placeholder": null,
+          "expected": "22"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Powers first, then multiplication, then addition and subtraction.",
+        "reasoning": [
+          "The exponent is evaluated before anything else: $2^{3} = 8$.",
+          "Multiplication comes next: $3 \\times 8 = 24$.",
+          "Finally work left to right through the addition and subtraction: $4 + 24 - 6$."
+        ],
+        "answerSummary": "$22$",
+        "commonError": "Multiplying $3 \\times 2$ before applying the exponent gives $6^{3}$, which is a different expression entirely.",
+        "connection": null
+      },
+      "attemptFeedback": [
+        "Check which operation you did first. The exponent is not optional and it does not wait its turn."
+      ],
+      "supportHints": [
+        "Which single operation in this expression has to happen before every other one?"
+      ],
+      "misconceptions": [
+        {
+          "match": [
+            "210",
+            "214"
+          ],
+          "message": "It looks like $3 \\times 2$ was evaluated before the exponent. The power applies only to the 2."
+        },
+        {
+          "match": [
+            "26"
+          ],
+          "message": "The subtraction of 6 seems to have been left out. Work left to right once the multiplication is done."
+        }
+      ]
+    },
+    {
+      "id": "mm_6_7A_reverse-brackets",
+      "active": true,
+      "alignmentKeys": [
+        "texas:6.7A"
+      ],
+      "courseId": "grade6",
+      "familyId": "mathmaster:6.7A:reverse-brackets",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "6.7A",
+      "taskType": "reverseReasoning",
+      "representation": "verbal",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "prompt": "Where must brackets be placed in $12 - 4 \\div 2$ so that the value is $4$? Type the expression with your brackets included.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "expression",
+          "unit": null,
+          "responseHint": "Type the whole expression, for example (5+1)/3.",
+          "placeholder": null,
+          "expected": "(12-4)/2",
+          "accepted": [
+            "(12-4)/2",
+            "(12 - 4) / 2",
+            "(12-4)÷2",
+            "(12 − 4) ÷ 2"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Brackets are how you overrule the usual order.",
+        "reasoning": [
+          "Without brackets the division happens first: $12 - 2 = 10$.",
+          "Putting the subtraction in brackets forces it to happen first: $(12 - 4) = 8$.",
+          "Dividing that result by 2 gives 4."
+        ],
+        "answerSummary": "$(12 - 4) \\div 2 = 4$",
+        "commonError": null,
+        "connection": "This is the same reasoning you will use in algebra when a whole numerator has to be divided at once."
+      },
+      "attemptFeedback": [
+        "Try evaluating your expression yourself. What value does it actually give?"
+      ],
+      "supportHints": [
+        "You want the subtraction to happen first. Which part of the expression needs to be wrapped?"
+      ],
+      "misconceptions": []
+    },
+    {
+      "id": "mm_6_7A_table-compare",
+      "active": true,
+      "alignmentKeys": [
+        "texas:6.7A"
+      ],
+      "courseId": "grade6",
+      "familyId": "mathmaster:6.7A:table-compare",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "6.7A",
+      "taskType": "comparison",
+      "representation": "table",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "prompt": "Each row shows an expression and a proposed value. Which row is the only correct one?",
+      "stimulus": {
+        "kind": "table",
+        "title": null,
+        "note": null,
+        "table": {
+          "headers": [
+            "Row",
+            "Expression",
+            "Proposed value"
+          ],
+          "rows": [
+            [
+              "A",
+              "$10 - 2^{2}$",
+              "$64$"
+            ],
+            [
+              "B",
+              "$(10 - 2)^{2}$",
+              "$64$"
+            ],
+            [
+              "C",
+              "$10 - 2 \\times 2$",
+              "$16$"
+            ],
+            [
+              "D",
+              "$10 \\times 2 - 2$",
+              "$16$"
+            ]
+          ]
+        }
+      },
+      "choices": [
+        {
+          "id": "opt-1",
+          "label": "Row A"
+        },
+        {
+          "id": "opt-2",
+          "label": "Row D"
+        },
+        {
+          "id": "opt-3",
+          "label": "Row B"
+        },
+        {
+          "id": "opt-4",
+          "label": "Row C"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "opt-3"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Brackets change which quantity gets squared.",
+        "reasoning": [
+          "In Row B the brackets are evaluated first: $10 - 2 = 8$, and $8^{2} = 64$.",
+          "Row A squares only the 2, giving $10 - 4 = 6$.",
+          "Row C gives $10 - 4 = 6$ and Row D gives $20 - 2 = 18$, so neither proposed value is right."
+        ],
+        "answerSummary": "Row B.",
+        "commonError": null,
+        "connection": "Two expressions can use the same symbols in the same order and still mean different things."
+      },
+      "attemptFeedback": [
+        "Evaluate each row for yourself rather than looking for the one that seems familiar."
+      ],
+      "supportHints": [
+        "Start with the rows that contain brackets. What do brackets change about the order?"
+      ],
+      "misconceptions": []
+    },
+    {
+      "id": "mm_6_7D_distribute",
+      "active": true,
+      "alignmentKeys": [
+        "texas:6.7D"
+      ],
+      "courseId": "grade6",
+      "familyId": "mathmaster:6.7D:distribute",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "6.7D",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "prompt": "Use the distributive property to write $5(x + 3)$ without brackets.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "expression",
+          "unit": null,
+          "responseHint": null,
+          "placeholder": null,
+          "expected": "5x+15",
+          "accepted": [
+            "5x+15",
+            "5x + 15",
+            "15+5x",
+            "15 + 5x"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Every term inside the brackets is multiplied by what is outside.",
+        "reasoning": [
+          "The 5 multiplies the $x$: $5 \\times x = 5x$.",
+          "The 5 also multiplies the 3: $5 \\times 3 = 15$.",
+          "The two products are added, because the original expression added $x$ and 3."
+        ],
+        "answerSummary": "$5x + 15$",
+        "commonError": "Multiplying only the first term gives $5x + 3$, which is a different expression for every value of $x$.",
+        "connection": null
+      },
+      "attemptFeedback": [
+        "Check that the 5 reached both terms inside the brackets."
+      ],
+      "supportHints": [
+        "How many terms are inside the brackets? Each one needs a partner."
+      ],
+      "misconceptions": [
+        {
+          "match": [
+            "5x+3",
+            "5x + 3"
+          ],
+          "message": "The 5 multiplied the $x$ but not the 3. Both terms inside the brackets are being multiplied."
+        }
+      ]
+    },
+    {
+      "id": "mm_6_7D_error-analysis",
+      "active": true,
+      "alignmentKeys": [
+        "texas:6.7D"
+      ],
+      "courseId": "grade6",
+      "familyId": "mathmaster:6.7D:error-analysis",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "6.7D",
+      "taskType": "errorAnalysis",
+      "representation": "symbolic",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "prompt": "Priya rewrote $4(2x - 5)$. Which line contains the first mistake?",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Priya's work",
+        "note": null,
+        "steps": [
+          {
+            "id": "step-1",
+            "label": "Line 1",
+            "work": "$4(2x - 5)$"
+          },
+          {
+            "id": "step-2",
+            "label": "Line 2",
+            "work": "$4 \\cdot 2x - 4 \\cdot 5$"
+          },
+          {
+            "id": "step-3",
+            "label": "Line 3",
+            "work": "$8x - 9$"
+          }
+        ]
+      },
+      "choices": [
+        {
+          "id": "opt-1",
+          "label": "Line 2"
+        },
+        {
+          "id": "opt-2",
+          "label": "There is no mistake"
+        },
+        {
+          "id": "opt-3",
+          "label": "Line 1"
+        },
+        {
+          "id": "opt-4",
+          "label": "Line 3"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "opt-4"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The distribution was right; the arithmetic was not.",
+        "reasoning": [
+          "Line 2 correctly multiplies both terms by 4.",
+          "Line 3 should be $8x - 20$, because $4 \\times 5 = 20$, not 9.",
+          "It looks as though 4 and 5 were added instead of multiplied."
+        ],
+        "answerSummary": "Line 3. The correct expression is $8x - 20$.",
+        "commonError": null,
+        "connection": null
+      },
+      "attemptFeedback": [
+        "Two of these lines are correct. Work out each product for yourself."
+      ],
+      "supportHints": [
+        "Check the second product on its own: what is $4 \\times 5$?"
+      ],
+      "misconceptions": []
+    },
+    {
+      "id": "mm_6_7D_reverse-factor",
+      "active": true,
+      "alignmentKeys": [
+        "texas:6.7D"
+      ],
+      "courseId": "grade6",
+      "familyId": "mathmaster:6.7D:reverse-factor",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "6.7D",
+      "taskType": "reverseReasoning",
+      "representation": "verbal",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "prompt": "Write an expression in the form $a(bx + c)$ that is equivalent to $12x + 18$ and uses the largest possible whole number for $a$.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "expression",
+          "unit": null,
+          "responseHint": "Type your expression, for example 4(x + 5).",
+          "placeholder": null,
+          "expected": "6(2x+3)",
+          "accepted": [
+            "6(2x+3)",
+            "6(2x + 3)",
+            "6*(2x+3)",
+            "6(3+2x)"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "You are undoing the distribution.",
+        "reasoning": [
+          "Both 12 and 18 are divisible by 6, and 6 is the largest number that divides both.",
+          "Dividing each term by 6 gives $2x$ and 3.",
+          "Multiplying back checks it: $6(2x + 3) = 12x + 18$."
+        ],
+        "answerSummary": "$6(2x + 3)$",
+        "commonError": "Choosing 2 or 3 gives an equivalent expression, but not with the largest possible factor.",
+        "connection": "This is factoring, and it is the same move you will use on quadratics in Algebra I."
+      },
+      "attemptFeedback": [
+        "Multiply your expression back out. Does it give $12x + 18$ exactly?"
+      ],
+      "supportHints": [
+        "What is the largest whole number that divides both 12 and 18?"
+      ],
+      "misconceptions": []
+    },
+    {
+      "id": "mm_6_7D_table-check",
+      "active": true,
+      "alignmentKeys": [
+        "texas:6.7D"
+      ],
+      "courseId": "grade6",
+      "familyId": "mathmaster:6.7D:table-check",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "6.7D",
+      "taskType": "interpretation",
+      "representation": "table",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "prompt": "The table tests whether $3(x + 2)$ and $3x + 2$ are equivalent. Complete the missing value: what is $3(x+2)$ when $x = 4$?",
+      "stimulus": {
+        "kind": "table",
+        "title": null,
+        "note": null,
+        "table": {
+          "headers": [
+            "$x$",
+            "$3(x+2)$",
+            "$3x+2$"
+          ],
+          "rows": [
+            [
+              "1",
+              "9",
+              "5"
+            ],
+            [
+              "2",
+              "12",
+              "8"
+            ],
+            [
+              "4",
+              "?",
+              "14"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "unit": null,
+          "responseHint": null,
+          "placeholder": null,
+          "expected": "18"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Equivalent expressions agree for every value, not just one.",
+        "reasoning": [
+          "Substituting $x = 4$ gives $3(4 + 2) = 3 \\times 6 = 18$.",
+          "The other expression gives $3 \\times 4 + 2 = 14$ at the same value.",
+          "Because the two columns disagree at every row, the expressions are not equivalent."
+        ],
+        "answerSummary": "$18$",
+        "commonError": null,
+        "connection": "A table is a fast way to disprove equivalence: one disagreeing row is enough."
+      },
+      "attemptFeedback": [
+        "Substitute 4 for $x$ inside the brackets first."
+      ],
+      "supportHints": [
+        "What is inside the brackets once $x = 4$ is substituted?"
+      ],
+      "misconceptions": []
+    },
+    {
+      "id": "mm_6_7D_which-property",
+      "active": true,
+      "alignmentKeys": [
+        "texas:6.7D"
+      ],
+      "courseId": "grade6",
+      "familyId": "mathmaster:6.7D:which-property",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "6.7D",
+      "taskType": "conceptual",
+      "representation": "symbolic",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "prompt": "Which property justifies rewriting $7 + (3 + x)$ as $(7 + 3) + x$?",
+      "choices": [
+        {
+          "id": "opt-1",
+          "label": "The associative property of addition"
+        },
+        {
+          "id": "opt-2",
+          "label": "The commutative property of addition"
+        },
+        {
+          "id": "opt-3",
+          "label": "The identity property of addition"
+        },
+        {
+          "id": "opt-4",
+          "label": "The distributive property"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "opt-1"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The grouping moved; the order did not.",
+        "reasoning": [
+          "The terms appear in the same order on both sides: 7, then 3, then $x$.",
+          "What changed is which pair is added first — that is regrouping, which is the associative property.",
+          "The commutative property would show terms swapping places, as in $7 + x$ becoming $x + 7$."
+        ],
+        "answerSummary": "The associative property of addition.",
+        "commonError": null,
+        "connection": "Naming the property matters later, when you have to justify a step in an algebraic proof."
+      },
+      "attemptFeedback": [
+        "Compare the two expressions term by term. Did anything change position, or only the brackets?"
+      ],
+      "supportHints": [
+        "One of these properties is about order and one is about grouping. Which one describes what happened here?"
+      ],
+      "misconceptions": []
+    }
+  ]
+}

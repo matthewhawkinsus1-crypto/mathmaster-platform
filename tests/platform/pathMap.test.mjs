@@ -94,7 +94,10 @@ test('a blocked skill is shown with the repair that opens it, not as a dead end'
 
 test('the lock explanation says what to do, not what the graph thinks', () => {
   const sentence = explainLock({ remediationTarget: teksSkillId('A.5A') });
-  assert.match(sentence, /A\.5A/);
+  // The skill is named the way a student would name it, and the TEKS code — a
+  // teacher/report identifier — does not appear on a student screen.
+  assert.match(sentence, /Solving linear equations/i);
+  assert.ok(!/A\.5A/.test(sentence), 'no raw TEKS codes in student text');
   assert.match(sentence, /Strengthen/);
   assert.ok(!/prerequisite_/.test(sentence), 'no reason codes in student text');
   assert.equal(explainLock({}), 'This is not open yet.');

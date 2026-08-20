@@ -29,6 +29,7 @@ import {
   buildPrivateToolGrading, buildPublicToolPayload, gradePathResponse,
 } from '../../../functions/shared/pathToolContracts.mjs';
 import { buildFieldGradingDefinition, hasFieldGradableDefinition } from '../../../functions/shared/legacyFieldGrading.mjs';
+import { buildAttemptSupportPayload, buildPrivateSupport } from '../../../functions/shared/pathSolutionSupport.mjs';
 import { sameValue } from '../../../functions/shared/answerEquivalence.mjs';
 import { getQuestionPrimaryTeksCodes } from '../../questionMetadata.js';
 import { teksSkillId, teksCodeFromSkillId, describeSkill } from '../path/skillGraph.js';
@@ -112,6 +113,15 @@ const sessionAssignment = (sessionId, issued) => ({
 
 const emptyEvidence = () => ({ finalized: 0, missed: 0, consecutiveMisses: 0 });
 
+const publicChoices = (choices) => (Array.isArray(choices) ? choices : []).slice(0, 12).map((choice, index) => (
+  choice && typeof choice === 'object'
+    ? { id: String(choice.id || choice.value || `choice-${index + 1}`), label: String(choice.label ?? choice.text ?? choice.value ?? '') }
+    : { id: String(choice), label: String(choice) }
+)).filter((choice) => choice.label !== '');
+
+// Deliberately the same allowlist production's `buildSanitizedQuestion` uses.
+// A teacher previewing an item must see exactly the payload a student would —
+// including which options exist, and excluding which one is right.
 const publicFieldPayload = (question = {}) => ({
   familyId: String(question.familyId || question.questionType || 'path-question'),
   familyVersion: Number(question.familyVersion) || 1,
@@ -122,11 +132,17 @@ const publicFieldPayload = (question = {}) => ({
   calculatorPolicy: String(question.calculatorPolicy || 'inherit'),
   assessedConstruct: question.assessedConstruct || null,
   prompt: String(question.prompt || ''),
+  choices: publicChoices(question.choices),
+  representation: question.representation ? String(question.representation) : null,
+  stimulus: question.stimulus && typeof question.stimulus === 'object' ? JSON.parse(JSON.stringify(question.stimulus)) : null,
   responseFields: list(question.responseFields).map((field, index) => ({
     id: String(field?.id || `response-${index + 1}`),
     label: String(field?.label || `Response ${index + 1}`),
     inputProfile: field?.inputProfile || 'text',
     unit: field?.unit || null,
+    responseHint: field?.responseHint ? String(field.responseHint) : null,
+    placeholder: field?.placeholder ? String(field.placeholder) : null,
+    ...(Array.isArray(field?.choices) ? { choices: publicChoices(field.choices) } : {}),
   })),
 });
 
@@ -268,6 +284,10 @@ export const createTeacherPathRuntime = ({
       ? buildPrivateToolGrading(chosen.question)
       : (fieldGraded ? buildFieldGradingDefinition(chosen.question) : null);
     session.privateGradingMode = toolPayload ? 'tool' : (fieldGraded ? 'fields' : 'canonical');
+    // Same rule as production: feedback, hints and the review are held beside
+    // the grading definition and released by attempt, never issued with the
+    // question.
+    session.privateSupport = buildPrivateSupport(chosen.question);
     session.issued.push({ ...instance, question: chosen.question });
     session.currentQuestion = instance;
     session.currentSkillId = skillId;
@@ -382,12 +402,24 @@ export const createTeacherPathRuntime = ({
     instance.attemptsUsed = (instance.attemptsUsed || 0) + 1;
     const finalized = isCorrect === true || instance.attemptsUsed >= instance.attemptsAllowed;
 
+    const attemptSupport = buildAttemptSupportPayload({
+      support: session.privateSupport,
+      attemptNumber: instance.attemptsUsed,
+      attemptsAllowed: instance.attemptsAllowed,
+      isCorrect: isCorrect === true,
+      questionFinalized: finalized,
+      responsePayload,
+    });
+
     if (!finalized) {
       // Attempts within a question are for assistance, not evidence of a gap.
       publish(session);
       return {
         success: true,
         grading: { isCorrect: false, score: graded?.score ?? 0, parts: graded?.parts || [], attemptNumber: instance.attemptsUsed, attemptsRemaining: instance.attemptsAllowed - instance.attemptsUsed, questionFinalized: false },
+        feedback: attemptSupport.feedback,
+        support: attemptSupport.support,
+        solutionReview: null,
         session: publicSession(session),
         needsNextQuestion: false,
       };
@@ -451,11 +483,15 @@ export const createTeacherPathRuntime = ({
     session.currentQuestion = null;
     session.privateGrading = null;
     session.privateGradingMode = null;
+    session.privateSupport = null;
     publish(session);
 
     return {
       success: true,
       grading: { isCorrect: isCorrect === true, score: graded?.score ?? (isCorrect ? 1 : 0), parts: graded?.parts || [], attemptNumber: instance.attemptsUsed, attemptsRemaining: 0, questionFinalized: true },
+      feedback: attemptSupport.feedback,
+      support: attemptSupport.support,
+      solutionReview: attemptSupport.solutionReview,
       session: publicSession(session),
       decision,
       needsNextQuestion: session.status === 'active',

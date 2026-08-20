@@ -1,31 +1,51 @@
 // Which family a five-question session asks next.
 //
-// THE BUG THIS REPLACES. Selection narrowed to the single nearest difficulty
-// band and then cycled positionally inside it. A standard with one Band 2, two
-// Band 3, one Band 4 and one Band 5 family, offered to a student whose readiness
-// says Band 3, would alternate between the same two Band 3 items for the whole
-// session — five questions, two distinct problems, and three families the
-// student never saw. The obvious workaround is five families in every band,
-// which is twenty-five items per standard. Fixing the selector is cheaper and
-// better mathematics.
+// THE FIRST BUG THIS REPLACED. Selection narrowed to the single nearest
+// difficulty band and then cycled positionally inside it. A standard with one
+// Band 2, two Band 3, one Band 4 and one Band 5 family, offered to a student
+// whose readiness says Band 3, would alternate between the same two Band 3
+// items for the whole session — five questions, two distinct problems, and
+// three families the student never saw.
+//
+// THE SECOND. Once polished content started arriving beside the placeholder
+// content it replaces, difficulty-first selection would hand a student the
+// placeholder whenever its band matched more exactly. A text box asking for a
+// letter is not a better question than a graphing task one band away, and a
+// selector that thinks it is will keep the old bank alive forever.
 //
 // THE RULE, in order:
 //
-//   1. an unused family in the preferred band;
-//   2. failing that, an unused family in the closest adjacent band — closest
-//      first, and below before above at equal distance, because dropping to
-//      easier work is the kinder direction when a student has already seen
-//      everything at their level;
-//   3. only when every family has been used, repeat — and repeat the one used
-//      least, longest ago, rather than the first one again.
+//   1. QUALITY FIRST. A production-quality family outranks a placeholder,
+//      whatever the bands say. This is the only axis that jumps the queue,
+//      because the others are all preferences and this one is the difference
+//      between practice and typing.
+//   2. Then an unused family — a student who meets the same problem twice in
+//      one session has been told the bank is thin.
+//   3. Then variety: a representation and a kind of thinking the session has
+//      not used yet. Five symbolic procedures in a row is five questions about
+//      one thing.
+//   4. Then difficulty, closest to the student's readiness band, and below
+//      before above at equal distance, because dropping to easier work is the
+//      kinder direction when everything at their level is used.
+//   5. Only when every family has been used, repeat — the least used, longest
+//      ago, rather than the first one again.
 //
-// Difficulty still leads. This never reaches past an unused family at distance
-// 1 to find a used one at distance 0, because a student meeting a genuinely new
-// problem one band away learns more than one meeting the same problem twice.
+// Secure and server-side: nothing the browser sends selects a question.
+
+import { QUESTION_QUALITY, auditPathQuestionQuality } from './pathQuestionQuality.mjs';
 
 const bandOf = (question) => {
   const band = Number(question?.difficultyBand);
   return Number.isFinite(band) ? band : 3;
+};
+
+// How much a family is worth on the quality axis. Deliberately coarse: the
+// selector needs "is this the real thing or a placeholder", not a score.
+const QUALITY_RANK = {
+  [QUESTION_QUALITY.PRODUCTION]: 0,
+  [QUESTION_QUALITY.CANDIDATE]: 1,
+  [QUESTION_QUALITY.OPERATIONAL]: 2,
+  [QUESTION_QUALITY.BLOCKED]: 3,
 };
 
 /**
@@ -33,13 +53,25 @@ const bandOf = (question) => {
  *
  * Exposed so a test — and a teacher-facing explanation — can see the whole
  * ranking rather than only the winner.
+ *
+ * `usedRepresentations` / `usedTaskTypes` are what THIS session has already
+ * asked. They are sets of strings; a plain array works too.
  */
-export const rankCandidates = (candidates = [], { preferredBand = 3, usage = {} } = {}) => (
-  [...candidates].map((question, index) => {
+export const rankCandidates = (candidates = [], {
+  preferredBand = 3,
+  usage = {},
+  usedRepresentations = [],
+  usedTaskTypes = [],
+} = {}) => {
+  const seenRepresentations = new Set(usedRepresentations);
+  const seenTaskTypes = new Set(usedTaskTypes);
+
+  return [...candidates].map((question, index) => {
     const timesUsed = Number(usage[question.id]?.timesUsed ?? usage[question.id] ?? 0) || 0;
     const lastUsedAt = Number(usage[question.id]?.lastUsedAt ?? 0) || 0;
     const band = bandOf(question);
     const distance = Math.abs(band - preferredBand);
+    const audit = auditPathQuestionQuality(question);
     return {
       question,
       index,
@@ -47,10 +79,22 @@ export const rankCandidates = (candidates = [], { preferredBand = 3, usage = {} 
       distance,
       timesUsed,
       lastUsedAt,
+      quality: audit.level,
+      qualityRank: QUALITY_RANK[audit.level] ?? 3,
+      representation: audit.representation,
+      taskType: audit.taskType,
+      representationRepeat: seenRepresentations.has(audit.representation) ? 1 : 0,
+      taskTypeRepeat: audit.taskType && seenTaskTypes.has(audit.taskType) ? 1 : 0,
     };
   }).sort((a, b) => (
-    // Unused always outranks used, whatever the band.
-    (a.timesUsed === 0 ? 0 : 1) - (b.timesUsed === 0 ? 0 : 1)
+    // Polished content before placeholders, always.
+    a.qualityRank - b.qualityRank
+    // Unused before used.
+    || (a.timesUsed === 0 ? 0 : 1) - (b.timesUsed === 0 ? 0 : 1)
+    // A representation this session has not used yet.
+    || a.representationRepeat - b.representationRepeat
+    // A kind of thinking this session has not used yet.
+    || a.taskTypeRepeat - b.taskTypeRepeat
     // Then how far from the readiness band.
     || a.distance - b.distance
     // At equal distance, the easier side first.
@@ -60,8 +104,8 @@ export const rankCandidates = (candidates = [], { preferredBand = 3, usage = {} 
     || a.lastUsedAt - b.lastUsedAt
     // Deterministic tiebreak, so the same session state gives the same question.
     || a.index - b.index
-  ))
-);
+  ));
+};
 
 /**
  * The next family, and why it was chosen.
@@ -70,25 +114,40 @@ export const rankCandidates = (candidates = [], { preferredBand = 3, usage = {} 
  * lastUsedAt } }`. A bare number is accepted too, so an older session document
  * that stored only counts still selects sensibly.
  */
-export const selectNextFamily = (candidates = [], { preferredBand = 3, usage = {} } = {}) => {
+export const selectNextFamily = (candidates = [], {
+  preferredBand = 3,
+  usage = {},
+  usedRepresentations = [],
+  usedTaskTypes = [],
+} = {}) => {
   if (!candidates.length) return null;
-  const ranked = rankCandidates(candidates, { preferredBand, usage });
+  const ranked = rankCandidates(candidates, { preferredBand, usage, usedRepresentations, usedTaskTypes });
   const chosen = ranked[0];
   const unusedRemaining = ranked.filter((entry) => entry.timesUsed === 0).length;
+
+  const reason = chosen.timesUsed > 0
+    ? 'all_families_used_repeating_least_used'
+    : chosen.quality === QUESTION_QUALITY.PRODUCTION && chosen.representationRepeat === 0
+      ? 'production_family_with_a_new_representation'
+      : chosen.quality === QUESTION_QUALITY.PRODUCTION
+        ? 'production_family'
+        : chosen.distance === 0
+          ? 'unused_family_in_preferred_band'
+          : 'unused_family_in_adjacent_band';
 
   return {
     question: chosen.question,
     band: chosen.band,
     preferredBand,
+    quality: chosen.quality,
+    representation: chosen.representation,
+    taskType: chosen.taskType,
     // Why, in terms a teacher-facing explanation can use directly.
-    reason: chosen.timesUsed > 0
-      ? 'all_families_used_repeating_least_used'
-      : chosen.distance === 0
-        ? 'unused_family_in_preferred_band'
-        : 'unused_family_in_adjacent_band',
+    reason,
     distanceFromPreferred: chosen.distance,
     unusedRemaining: Math.max(0, unusedRemaining - 1),
     isRepeat: chosen.timesUsed > 0,
+    repeatsRepresentation: chosen.representationRepeat === 1,
   };
 };
 
@@ -110,3 +169,18 @@ export const recordFamilyUse = (usage = {}, bankId, now = Date.now()) => {
 export const canFillSessionWithoutRepeats = (candidates = [], requiredQuestions = 5) => (
   candidates.length >= requiredQuestions
 );
+
+/**
+ * Can this standard supply a session that is varied as well as non-repeating?
+ *
+ * Used by the coverage audit rather than at issue time — a thin standard still
+ * runs, it is simply reported honestly.
+ */
+export const sessionVarietyAvailable = (candidates = []) => {
+  const audits = candidates.map((question) => auditPathQuestionQuality(question));
+  return {
+    representations: [...new Set(audits.map((audit) => audit.representation))],
+    taskTypes: [...new Set(audits.map((audit) => audit.taskType).filter(Boolean))],
+    productionFamilies: audits.filter((audit) => audit.level === QUESTION_QUALITY.PRODUCTION).length,
+  };
+};

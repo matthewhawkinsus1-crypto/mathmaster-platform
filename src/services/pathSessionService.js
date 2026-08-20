@@ -1,8 +1,53 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase.js';
-import { EXECUTION_MODES, getExecutionMode } from '../config/executionMode.js';
+import {
+  EXECUTION_MODES,
+  getExecutionConfigurationMessage,
+  getExecutionMode,
+  isExecutionMisconfigured,
+  isMockPathAllowed,
+} from '../config/executionMode.js';
 import { generateRuntimeUUID } from '../utils/idUtils.js';
 import { toCanonicalKey } from '../utils/teksUtils.js';
+
+// The live My Math Path runtime.
+//
+// TWO RUNTIMES, AND A REFUSAL.
+//
+//   firebaseProduction  the secure server. The only runtime a real student may
+//                       ever meet.
+//   mockLocal           a developer sandbox, available only in a build that is
+//                       allowed to have one (see config/executionMode.js).
+//   misconfigured       neither. Every entry point below throws a labelled,
+//                       recoverable configuration error.
+//
+// The third case is the point of this file's shape. Previously a deployment
+// that lost its execution-mode variable fell back to the sandbox, so students
+// were shown "enter 4 to verify the secure session flow" and the platform
+// recorded mastery for it. Nothing about that looked broken from the outside.
+// Now a build that cannot reach the secure Path says so.
+
+export class PathConfigurationError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'PathConfigurationError';
+    this.code = 'path/not-configured';
+    // Read by the session container to show a service message with a retry
+    // rather than a mathematics-looking failure.
+    this.isConfigurationError = true;
+    this.recoverable = true;
+  }
+}
+
+const assertRuntimeAvailable = () => {
+  if (!isExecutionMisconfigured()) return;
+  throw new PathConfigurationError(
+    getExecutionConfigurationMessage()
+      || 'My Math Path is not configured on this deployment.',
+  );
+};
+
+const usingMockRuntime = () => isMockPathAllowed() && getExecutionMode() === EXECUTION_MODES.MOCK_LOCAL;
 
 const mockSessions = new Map();
 const mockAnswers = new Map();
@@ -11,20 +56,25 @@ const callable = (name) => httpsCallable(functions, name);
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
+// The sandbox question is deliberately labelled as one. A developer should be
+// able to tell at a glance that they are not looking at authored content, and a
+// screenshot of it should be self-evidently not a student experience.
 const mockQuestionFor = (session) => {
   const questionNumber = session.summary.completedQuestions + 1;
   const questionInstanceId = `qi_mock_${generateRuntimeUUID()}`;
-  mockAnswers.set(questionInstanceId, '4');
+  const expected = String(3 + questionNumber);
+  mockAnswers.set(questionInstanceId, expected);
   return {
     questionInstanceId,
-    familyId: 'phase5-connectivity-sandbox',
+    familyId: 'developer-sandbox',
     familyVersion: 1,
     questionType: 'number',
     activityRole: 'practice',
     difficultyBand: 3,
     dok: 1,
     calculatorPolicy: 'none',
-    prompt: `Phase 5 local sandbox · ${session.target.alignmentKey} · check ${questionNumber}: enter 4 to verify the secure session flow.`,
+    isDevelopmentSandbox: true,
+    prompt: `Developer sandbox (not authored content). Enter ${expected}.`,
     responseFields: [{ id: 'answer', label: 'Answer', inputProfile: 'number' }],
     attemptsAllowed: 3,
     attemptsUsed: 0,
@@ -32,15 +82,17 @@ const mockQuestionFor = (session) => {
 };
 
 export const startOrResumePathSession = async ({ targetAlignmentKey, sessionKind = 'practice', requiredQuestions = 5 }) => {
+  assertRuntimeAvailable();
   const canonicalKey = toCanonicalKey(targetAlignmentKey);
   if (!canonicalKey) throw new Error('Choose a TEKS standard before starting My Math Path.');
-  if (getExecutionMode() === EXECUTION_MODES.MOCK_LOCAL) {
+  if (usingMockRuntime()) {
     const existing = [...mockSessions.values()].find((item) => item.status === 'active' && item.target.alignmentKey === canonicalKey && item.sessionKind === sessionKind);
     if (existing) return { success: true, session: clone(existing) };
     const session = {
       sessionId: `path_mock_${generateRuntimeUUID()}`,
       status: 'active',
       sessionKind,
+      isDevelopmentSandbox: true,
       requiredQuestions: Math.max(2, Math.min(10, Number(requiredQuestions) || 5)),
       target: { alignmentKey: canonicalKey },
       summary: { completedQuestions: 0, correctQuestions: 0, independentSuccesses: 0 },
@@ -59,7 +111,8 @@ export const startOrResumePathSession = async ({ targetAlignmentKey, sessionKind
 };
 
 export const fetchNextSanitizedQuestion = async ({ sessionId }) => {
-  if (getExecutionMode() === EXECUTION_MODES.MOCK_LOCAL) {
+  assertRuntimeAvailable();
+  if (usingMockRuntime()) {
     const session = mockSessions.get(sessionId);
     if (!session) throw new Error('The local My Math Path session no longer exists.');
     if (session.currentQuestion) return { questionInstance: clone(session.currentQuestion) };
@@ -78,8 +131,9 @@ export const submitStudentResponse = async ({
   supportUsage = {},
   submissionId = null,
 }) => {
+  assertRuntimeAvailable();
   const activeSubmissionId = submissionId || `sub_${generateRuntimeUUID()}`;
-  if (getExecutionMode() === EXECUTION_MODES.MOCK_LOCAL) {
+  if (usingMockRuntime()) {
     const session = mockSessions.get(sessionId);
     if (!session || session.currentQuestion?.questionInstanceId !== questionInstanceId) throw new Error('That local question is no longer active.');
     const question = session.currentQuestion;
@@ -101,6 +155,12 @@ export const submitStudentResponse = async ({
       success: true,
       submissionId: activeSubmissionId,
       grading: { isCorrect, score: isCorrect ? 1 : 0, attemptNumber: question.attemptsUsed, attemptsRemaining: Math.max(0, question.attemptsAllowed - question.attemptsUsed), questionFinalized: finalized },
+      // Parity with the secure runtime: a review exists only once the question
+      // is closed, never before.
+      solutionReview: finalized ? {
+        headline: 'Developer sandbox item',
+        reasoning: ['This is not authored mathematics. It exists so the session plumbing can be exercised locally.'],
+      } : null,
       session: clone(session),
       needsNextQuestion: finalized && session.status === 'active',
     };

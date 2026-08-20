@@ -36,6 +36,10 @@
 //
 // This is deliberately stricter than "issuableCount > 0". A standard below it
 // reads as "Coming soon" on the wheel rather than as a thin but usable skill.
+import { analyzeStandardContent, CONTENT_STATE, summarizeStandardStates } from './pathStandardQuality.mjs';
+
+export { CONTENT_STATE, CONTENT_STATE_LABELS, CONTENT_STATE_ORDER } from './pathStandardQuality.mjs';
+
 export const SESSION_QUESTION_COUNT = 5;
 export const MINIMUM_ISSUABLE_FAMILIES = SESSION_QUESTION_COUNT;
 
@@ -107,6 +111,12 @@ export const evaluateSkillCoverage = ({ displayCode, items = [], plans = {} }) =
     state = COVERAGE_STATE.AUTHORED_UNUSABLE;
   }
 
+  // ISSUABLE IS NOT FINISHED. `state` above answers "can the server serve a
+  // question here". `quality` answers "is what it would serve worth a student's
+  // time" — five text boxes asking for a letter satisfy the first and fail the
+  // second, and reporting only the first is what made 97 standards read Ready.
+  const quality = analyzeStandardContent({ displayCode, items, plans });
+
   return {
     displayCode,
     authoredCount: items.length,
@@ -120,6 +130,9 @@ export const evaluateSkillCoverage = ({ displayCode, items = [], plans = {} }) =
     state,
     // The one field the student UI and the routing engine consult.
     studentReady: issuable.length >= MINIMUM_ISSUABLE_FAMILIES,
+    // The teacher/admin view of the same standard.
+    contentState: quality.state,
+    quality,
   };
 };
 
@@ -178,6 +191,9 @@ export const buildCoverageIndex = ({ courseId, wheelTeks = [], bankItems = [], p
       none: values.filter((entry) => entry.state === COVERAGE_STATE.NONE).length,
       // The launch gate, per the coverage spec: every wheel TEKS issuable.
       fullyCovered: values.length > 0 && values.every((entry) => entry.studentReady),
+      // The quality gate, which is a different and higher bar.
+      quality: summarizeStandardStates(values.map((entry) => entry.quality)),
+      productionReady: values.filter((entry) => entry.contentState === CONTENT_STATE.PRODUCTION_READY).length,
     },
   };
 };
@@ -231,6 +247,8 @@ export const summarizeCoverage = (index, { onlyGaps = false } = {}) => {
       label: COVERAGE_STATE_LABELS[entry.state],
       byBand: entry.byBand,
       studentReady: entry.studentReady,
+      contentState: entry.contentState || null,
+      quality: entry.quality || null,
     }))
     .sort((a, b) => a.displayCode.localeCompare(b.displayCode, undefined, { numeric: true }));
   return onlyGaps ? rows.filter((row) => !row.studentReady || row.state === COVERAGE_STATE.MINIMAL) : rows;

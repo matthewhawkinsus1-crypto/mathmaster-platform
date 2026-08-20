@@ -1501,6 +1501,11 @@ exports.seedPathQuestionBank = onCall(async (request) => {
 const BUILT_IN_PATH_SEED_FILES = Object.freeze([
   "algebra1_pathQuestionBank_seed.json",
   "algebra2_pathQuestionBank_seed.json",
+  // The middle-school prerequisite packages. Grade 6 joined the list when the
+  // routing graph gained reachable grade-6 prerequisites: a repair excursion
+  // that arrives at a standard with no content strands the student it was
+  // trying to help.
+  "grade6_pathQuestionBank_seed.json",
   "grade7_pathQuestionBank_seed.json",
   "grade8_pathQuestionBank_seed.json",
 ]);
@@ -4541,9 +4546,16 @@ exports.issueNextQuestion = onCall(async (request) => {
   // in whichever one or two families happened to sit at the readiness band.
   const selection = await pathSelection();
   const familyUsage = session.familyUsage && typeof session.familyUsage === "object" ? session.familyUsage : {};
+  // What this session has already asked, so the next question is not the same
+  // idea in the same clothes. Five symbolic procedures in a row is five
+  // questions about one thing.
+  const usedRepresentations = Array.isArray(session.usedRepresentations) ? session.usedRepresentations : [];
+  const usedTaskTypes = Array.isArray(session.usedTaskTypes) ? session.usedTaskTypes : [];
   const choice = selection.selectNextFamily(candidates, {
     preferredBand: adaptiveRigor.preferredDifficultyBand,
     usage: familyUsage,
+    usedRepresentations,
+    usedTaskTypes,
   });
   const authored = choice.question;
   const issuePlan = planByQuestionId.get(authored.id);
@@ -4554,11 +4566,23 @@ exports.issueNextQuestion = onCall(async (request) => {
     // grading definition, which lives only in this session document.
     ...mathPath.buildSanitizedQuestion(authored, { questionInstanceId, attemptsAllowed, attemptsUsed: 0, toolPayload: issuePlan.toolPayload }),
     bankQuestionId: authored.id,
+    sourceBankQuestionId: authored.id,
+    // Teacher/QA metadata. `buildSanitizedQuestion` does not copy these onto the
+    // student payload; the Path Simulator reads them from the session document.
+    selectionReason: choice.reason,
+    contentQuality: choice.quality,
+    representation: choice.representation || null,
+    taskType: choice.taskType || null,
     alignmentKeys: [session.target.alignmentKey],
     attemptsAllowed,
     attemptsUsed: 0,
     adaptiveRigor,
     privateGrading: issuePlan.privateGrading,
+    // Feedback, hints and the solution review live HERE, on the session
+    // document, and are released one piece at a time by submitPathResponse.
+    // Nothing in this bundle is ever part of the sanitized question, so a
+    // student cannot read the review out of the payload before answering.
+    privateSupport: await mathPath.buildPrivateSupport(authored),
   };
 
   const issuedQuestion = await db.runTransaction(async (transaction) => {
@@ -4571,6 +4595,8 @@ exports.issueNextQuestion = onCall(async (request) => {
     transaction.update(sessionRef, {
       currentQuestion,
       familyUsage: selection.recordFamilyUse(freshData.familyUsage || {}, authored.id),
+      usedRepresentations: [...new Set([...(freshData.usedRepresentations || []), choice.representation].filter(Boolean))],
+      usedTaskTypes: [...new Set([...(freshData.usedTaskTypes || []), choice.taskType].filter(Boolean))],
       updatedAt: Date.now(),
     });
     return currentQuestion;
@@ -4637,6 +4663,17 @@ exports.submitPathResponse = onCall(async (request) => {
     const attemptNumber = Number(currentQuestion.attemptsUsed || 0) + 1;
     const attemptsRemaining = Math.max(0, Number(currentQuestion.attemptsAllowed || 1) - attemptNumber);
     const questionFinalized = gradingCore.isCorrect || attemptsRemaining === 0;
+    // What the student is told. The solution review inside this is null unless
+    // the question just closed — that rule lives in one shared module rather
+    // than in an `if` here, so the simulator cannot disagree with production.
+    const attemptSupport = await mathPath.attemptSupport({
+      support: currentQuestion.privateSupport || null,
+      attemptNumber,
+      attemptsAllowed: Number(currentQuestion.attemptsAllowed || 1),
+      isCorrect: gradingCore.isCorrect,
+      questionFinalized,
+      responsePayload: request.data?.responsePayload || {},
+    });
     const supportUsage = request.data?.supportUsage && typeof request.data.supportUsage === "object" ? request.data.supportUsage : {};
     const independent = mathPath.mathematicalIndependence(supportUsage);
     const now = Date.now();
@@ -4727,6 +4764,10 @@ exports.submitPathResponse = onCall(async (request) => {
       success: true,
       submissionId,
       grading: { ...gradingCore, attemptNumber, attemptsRemaining, questionFinalized },
+      feedback: attemptSupport.feedback,
+      support: attemptSupport.support,
+      // Present only on a finalized question, by construction.
+      solutionReview: attemptSupport.solutionReview,
       session: publicPathSession(nextSession),
       needsNextQuestion: questionFinalized && nextStatus === "active",
     };

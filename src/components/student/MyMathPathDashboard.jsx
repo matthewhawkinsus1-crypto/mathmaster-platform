@@ -4,6 +4,7 @@ import SkillDetailCardModal from './SkillDetailCardModal.jsx';
 import RetentionQuickCheckBanner from './RetentionQuickCheckBanner.jsx';
 import { evaluateStudentRetentionSchedule } from '../../platform/retention/retentionScheduler.js';
 import { DEFAULT_MASTERY_COURSE_ID, masteryCourseLabel } from '../../platform/mastery/strandConfig.js';
+import { studentLabelForTeks } from '../../platform/path/skillLabels.js';
 
 export const MyMathPathDashboard = ({
   studentName = 'Student',
@@ -32,14 +33,14 @@ export const MyMathPathDashboard = ({
     <section style={{ maxWidth: '980px', margin: '0 auto', padding: '24px 18px 42px' }}>
       <header style={{ marginBottom: '20px', textAlign: 'left' }}>
         <h1 style={{ margin: 0, fontSize: '28px', color: '#202124' }}>Welcome back, {studentName}!</h1>
-        <p style={{ margin: '5px 0 0', color: '#5f6368' }}>Track Texas {courseLabel} mastery and build long-term retention.</p>
+        <p style={{ margin: '5px 0 0', color: '#5f6368' }}>Your {courseLabel} skills, and what to work on next.</p>
       </header>
 
       <RetentionQuickCheckBanner pendingProbes={retentionReport.pendingProbes} onLaunchQuickCheck={onStartSession} />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '22px', alignItems: 'center' }}>
         <div style={{ minWidth: 0, padding: '18px', border: '1px solid #dadce0', borderRadius: '12px', background: '#fff' }}>
-          <h2 style={{ margin: '0 0 10px', fontSize: '18px', color: '#3c4043', textAlign: 'left' }}>TEKS Mastery Map</h2>
+          <h2 style={{ margin: '0 0 10px', fontSize: '18px', color: '#3c4043', textAlign: 'left' }}>Your skills map</h2>
           <MyMathPathWheel masteryProfilesByTEKS={masteryProfilesByTEKS} onSelectTEKS={setSelectedTeks} courseId={courseId} />
         </div>
 
@@ -48,7 +49,7 @@ export const MyMathPathDashboard = ({
             <div style={{ color: '#174ea6', fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>{retentionReport.hasPendingProbes ? 'Priority verification focus' : 'Recommended next focus'}</div>
             {activeFocusTeks ? (
               <>
-                <h2 style={{ margin: '7px 0 5px', color: '#202124' }}>TEKS {activeFocusTeks}</h2>
+                <h2 style={{ margin: '7px 0 5px', color: '#202124' }}>{studentLabelForTeks(activeFocusTeks)}</h2>
                 <p style={{ margin: '0 0 16px', color: '#5f6368', fontSize: '14px' }}>{activeProfile?.recommendation?.reason || 'Build independent accuracy and a broader range of evidence.'}</p>
                 <button type="button" onClick={() => onStartSession?.(activeFocusTeks, { sessionKind: 'practice', requiredQuestions: 5 })} style={{ width: '100%', padding: '11px 15px', border: 0, borderRadius: '7px', background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Start quick practice · 5 questions</button>
               </>
@@ -59,7 +60,7 @@ export const MyMathPathDashboard = ({
             )}
           </div>
           <div style={{ padding: '15px', border: '1px solid #dadce0', borderRadius: '9px', background: '#fff', textAlign: 'left', fontSize: '12px', lineHeight: 1.7 }}>
-            <strong>Status guide</strong><br />🟢 Mastered · 🟢 Secure · 🟡 Developing · 🔴 Needs Attention · ⚪ Not Enough Evidence
+            <strong>What the colours mean</strong><br />🟢 Mastered · 🟢 Secure · 🟡 Developing · 🔴 Needs work · ⚪ Not practised yet
           </div>
         </div>
       </div>

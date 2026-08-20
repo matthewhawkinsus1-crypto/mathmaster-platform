@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   DEFAULT_MASTERY_COURSE_ID, MASTERY_STATUS_COLORS, getMasteryStrands, masteryCourseLabel,
 } from '../../platform/mastery/strandConfig.js';
+import { studentLabelForTeks } from '../../platform/path/skillLabels.js';
 
 const polarToCartesian = (cx, cy, radius, angle) => ({
   x: cx + radius * Math.cos(angle),
@@ -48,6 +49,8 @@ export const MyMathPathWheel = ({
   const anglePerSegment = entries.length ? (2 * Math.PI) / entries.length : 0;
   const gapAngle = 0.012;
   const activeProfile = focusedTeks ? masteryProfilesByTEKS[focusedTeks] : null;
+  // Wrapped so a long skill name does not run off the hub of the wheel.
+  const focusedLabel = focusedTeks ? studentLabelForTeks(focusedTeks) : 'My Math Path';
 
   return (
     <div style={{ position: 'relative', width: '100%', maxWidth: `${size}px`, aspectRatio: '1', margin: '0 auto' }}>
@@ -60,15 +63,20 @@ export const MyMathPathWheel = ({
           const retentionConcern = ['concern', 'confirmedLoss'].includes(entry.profile.signals?.retention);
           const badge = polarToCartesian(center, center, outerRadius + 7, (startAngle + endAngle) / 2);
           return (
-            <g key={entry.code} role="button" tabIndex="0" aria-label={`${entry.code}: ${status}`} onClick={() => onSelectTEKS?.(entry.code)} onFocus={() => setFocusedTeks(entry.code)} onBlur={() => setFocusedTeks(null)} onMouseEnter={() => setFocusedTeks(entry.code)} onMouseLeave={() => setFocusedTeks(null)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelectTEKS?.(entry.code); } }} style={{ cursor: 'pointer' }}>
+            <g key={entry.code} role="button" tabIndex="0" aria-label={`${studentLabelForTeks(entry.code)}: ${status}`} onClick={() => onSelectTEKS?.(entry.code)} onFocus={() => setFocusedTeks(entry.code)} onBlur={() => setFocusedTeks(null)} onMouseEnter={() => setFocusedTeks(entry.code)} onMouseLeave={() => setFocusedTeks(null)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelectTEKS?.(entry.code); } }} style={{ cursor: 'pointer' }}>
               <path d={describeArc(center, center, innerRadius, active ? outerRadius + 5 : outerRadius, startAngle, endAngle)} fill={MASTERY_STATUS_COLORS[status] || MASTERY_STATUS_COLORS['Not Enough Evidence']} opacity={active ? 1 : 0.9} stroke="#fff" strokeWidth="2" />
               {retentionConcern && <circle cx={badge.x} cy={badge.y} r="5" fill="#d93025" stroke="#fff" strokeWidth="2" />}
             </g>
           );
         })}
         <circle cx={center} cy={center} r={innerRadius - 4} fill="#fff" />
-        <text x={center} y={center - 8} textAnchor="middle" style={{ fontSize: '18px', fontWeight: 900, fill: '#202124' }}>{focusedTeks || 'My Math Path'}</text>
-        <text x={center} y={center + 15} textAnchor="middle" style={{ fontSize: '12px', fill: '#5f6368' }}>{focusedTeks ? (activeProfile?.mastery?.status || 'Not Enough Evidence') : 'Choose a TEKS'}</text>
+        {/* The name of the mathematics, not its catalogue number. The code is
+            still the wheel's internal key and still what `onSelectTEKS` hands
+            back — it is simply not what a student is asked to read. */}
+        <text x={center} y={center - 6} textAnchor="middle" style={{ fontSize: '13px', fontWeight: 800, fill: '#202124' }}>
+          {focusedLabel}
+        </text>
+        <text x={center} y={center + 15} textAnchor="middle" style={{ fontSize: '12px', fill: '#5f6368' }}>{focusedTeks ? (activeProfile?.mastery?.status || 'Not practised yet') : 'Choose a skill'}</text>
       </svg>
     </div>
   );

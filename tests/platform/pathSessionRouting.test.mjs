@@ -107,7 +107,8 @@ test('a diagnostic that passes returns to the origin with support, not deeper', 
   const decision = resolveDiagnostic({ diagnosing, isCorrect: true });
   assert.equal(decision.action, PATH_ACTION.RETURN_TO_ORIGIN);
   assert.equal(decision.skillId, TARGET);
-  assert.match(decision.explanation, /not the obstacle/i);
+  assert.match(decision.explanation, /is not what is holding this up/i);
+  assert.ok(!/texas:|A\.5A|A\.5C/.test(decision.explanation), 'student-facing text names skills, not codes');
 });
 
 test('a diagnostic that fails confirms the gap and descends', () => {

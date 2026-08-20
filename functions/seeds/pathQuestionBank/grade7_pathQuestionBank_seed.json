@@ -2,170 +2,16 @@
   "schemaVersion": 1,
   "targetCollection": "pathQuestionBank",
   "courseId": "grade7",
+  "generatedBy": "scripts/build-path-bank.mjs",
   "documents": [
     {
-      "id": "seed_7_7_1",
-      "active": true,
-      "alignmentKeys": [
-        "texas:7.7"
-      ],
-      "courseId": "grade7",
-      "familyId": "path-seed:7.7:foundation",
-      "familyVersion": 1,
-      "questionType": "response",
-      "activityRole": "practice",
-      "difficultyBand": 2,
-      "dok": 1,
-      "calculatorPolicy": "inherit",
-      "assessedConstruct": "7.7",
-      "prompt": "A linear relationship follows y = 2x + 1. Which ordered pair lies on the relationship?\n\nA) (3, 7)\nB) (3, 9)\nC) (4, 7)\nD) (3, -7)\n\nType A, B, C, or D.",
-      "responseFields": [
-        {
-          "id": "answer",
-          "label": "Answer",
-          "inputProfile": "text",
-          "expected": "A"
-        }
-      ],
-      "seedMetadata": {
-        "source": "MathMaster curated starter coverage",
-        "coverageTier": "minimum-operational",
-        "familySlot": 1,
-        "reviewRequiredForHighStakesUse": true
-      }
-    },
-    {
-      "id": "seed_7_7_2",
-      "active": true,
-      "alignmentKeys": [
-        "texas:7.7"
-      ],
-      "courseId": "grade7",
-      "familyId": "path-seed:7.7:core",
-      "familyVersion": 1,
-      "questionType": "response",
-      "activityRole": "practice",
-      "difficultyBand": 3,
-      "dok": 2,
-      "calculatorPolicy": "inherit",
-      "assessedConstruct": "7.7",
-      "prompt": "A linear relationship follows y = -3x + 8. Which ordered pair lies on the relationship?\n\nA) (4, -4)\nB) (4, -2)\nC) (5, -4)\nD) (4, 4)\n\nType A, B, C, or D.",
-      "responseFields": [
-        {
-          "id": "answer",
-          "label": "Answer",
-          "inputProfile": "text",
-          "expected": "A"
-        }
-      ],
-      "seedMetadata": {
-        "source": "MathMaster curated starter coverage",
-        "coverageTier": "minimum-operational",
-        "familySlot": 2,
-        "reviewRequiredForHighStakesUse": true
-      }
-    },
-    {
-      "id": "seed_7_7_3",
-      "active": true,
-      "alignmentKeys": [
-        "texas:7.7"
-      ],
-      "courseId": "grade7",
-      "familyId": "path-seed:7.7:representation",
-      "familyVersion": 1,
-      "questionType": "response",
-      "activityRole": "practice",
-      "difficultyBand": 3,
-      "dok": 2,
-      "calculatorPolicy": "inherit",
-      "assessedConstruct": "7.7",
-      "prompt": "A linear relationship follows y = 4x - 5. Which ordered pair lies on the relationship?\n\nA) (5, 15)\nB) (5, 17)\nC) (6, 15)\nD) (5, -15)\n\nType A, B, C, or D.",
-      "responseFields": [
-        {
-          "id": "answer",
-          "label": "Answer",
-          "inputProfile": "text",
-          "expected": "A"
-        }
-      ],
-      "seedMetadata": {
-        "source": "MathMaster curated starter coverage",
-        "coverageTier": "minimum-operational",
-        "familySlot": 3,
-        "reviewRequiredForHighStakesUse": true
-      }
-    },
-    {
-      "id": "seed_7_7_4",
-      "active": true,
-      "alignmentKeys": [
-        "texas:7.7"
-      ],
-      "courseId": "grade7",
-      "familyId": "path-seed:7.7:application",
-      "familyVersion": 1,
-      "questionType": "response",
-      "activityRole": "practice",
-      "difficultyBand": 4,
-      "dok": 3,
-      "calculatorPolicy": "inherit",
-      "assessedConstruct": "7.7",
-      "prompt": "A linear relationship follows y = -2x + 3. Which ordered pair lies on the relationship?\n\nA) (6, -9)\nB) (6, -7)\nC) (7, -9)\nD) (6, 9)\n\nType A, B, C, or D.",
-      "responseFields": [
-        {
-          "id": "answer",
-          "label": "Answer",
-          "inputProfile": "text",
-          "expected": "A"
-        }
-      ],
-      "seedMetadata": {
-        "source": "MathMaster curated starter coverage",
-        "coverageTier": "minimum-operational",
-        "familySlot": 4,
-        "reviewRequiredForHighStakesUse": true
-      }
-    },
-    {
-      "id": "seed_7_7_5",
-      "active": true,
-      "alignmentKeys": [
-        "texas:7.7"
-      ],
-      "courseId": "grade7",
-      "familyId": "path-seed:7.7:challenge",
-      "familyVersion": 1,
-      "questionType": "response",
-      "activityRole": "practice",
-      "difficultyBand": 5,
-      "dok": 3,
-      "calculatorPolicy": "inherit",
-      "assessedConstruct": "7.7",
-      "prompt": "A linear relationship follows y = 5x - 7. Which ordered pair lies on the relationship?\n\nA) (7, 28)\nB) (7, 30)\nC) (8, 28)\nD) (7, -28)\n\nType A, B, C, or D.",
-      "responseFields": [
-        {
-          "id": "answer",
-          "label": "Answer",
-          "inputProfile": "text",
-          "expected": "A"
-        }
-      ],
-      "seedMetadata": {
-        "source": "MathMaster curated starter coverage",
-        "coverageTier": "minimum-operational",
-        "familySlot": 5,
-        "reviewRequiredForHighStakesUse": true
-      }
-    },
-    {
-      "id": "seed_7_11A_1",
+      "id": "mm_7_11A_balance-two-step",
       "active": true,
       "alignmentKeys": [
         "texas:7.11A"
       ],
       "courseId": "grade7",
-      "familyId": "path-seed:7.11A:foundation",
+      "familyId": "mathmaster:7.11A:balance-two-step",
       "familyVersion": 1,
       "questionType": "response",
       "activityRole": "practice",
@@ -173,30 +19,45 @@
       "dok": 1,
       "calculatorPolicy": "inherit",
       "assessedConstruct": "7.11A",
-      "prompt": "Solve the two-step equation 3x + 5 = 17.",
-      "responseFields": [
-        {
-          "id": "answer",
-          "label": "Answer",
-          "inputProfile": "text",
-          "expected": "4"
-        }
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "type": "stepAlgebra",
+      "prompt": "Solve $4x + 7 = 31$ using the balance workspace. Choose each move yourself.",
+      "equation": "4x + 7 = 31",
+      "variable": "x",
+      "workspaceDifficulty": "standard",
+      "answer": "6",
+      "solutionReview": {
+        "headline": "Undo the addition before you undo the multiplication.",
+        "reasoning": [
+          "Subtracting 7 from both sides leaves $4x = 24$.",
+          "Dividing both sides by 4 leaves $x = 6$.",
+          "Substituting back gives $4(6) + 7 = 31$, which checks."
+        ],
+        "answerSummary": "$x = 6$",
+        "commonError": "Dividing by 4 first means the 7 has to be divided too, which is more work and easy to get wrong.",
+        "connection": null
+      },
+      "attemptFeedback": [
+        "Look at what is being done to $x$, in order, and undo the outermost operation first."
       ],
-      "seedMetadata": {
-        "source": "MathMaster curated starter coverage",
-        "coverageTier": "minimum-operational",
-        "familySlot": 1,
-        "reviewRequiredForHighStakesUse": true
-      }
+      "supportHints": [
+        "Which operation is applied to $x$ last: the multiplying, or the adding?"
+      ],
+      "misconceptions": []
     },
     {
-      "id": "seed_7_11A_2",
+      "id": "mm_7_11A_context-solve",
       "active": true,
       "alignmentKeys": [
         "texas:7.11A"
       ],
       "courseId": "grade7",
-      "familyId": "path-seed:7.11A:core",
+      "familyId": "mathmaster:7.11A:context-solve",
       "familyVersion": 1,
       "questionType": "response",
       "activityRole": "practice",
@@ -204,30 +65,58 @@
       "dok": 2,
       "calculatorPolicy": "inherit",
       "assessedConstruct": "7.11A",
-      "prompt": "Solve the two-step equation 4x - 3 = -11.",
+      "taskType": "application",
+      "representation": "context",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "prompt": "A taxi charges a $\\$3.50$ pickup fee plus $\\$1.25$ per kilometre. A ride cost $\\$16$. How many kilometres was the ride?",
       "responseFields": [
         {
           "id": "answer",
           "label": "Answer",
-          "inputProfile": "text",
-          "expected": "-2"
+          "inputProfile": "number",
+          "unit": "km",
+          "responseHint": null,
+          "placeholder": null,
+          "expected": "10"
         }
       ],
-      "seedMetadata": {
-        "source": "MathMaster curated starter coverage",
-        "coverageTier": "minimum-operational",
-        "familySlot": 2,
-        "reviewRequiredForHighStakesUse": true
-      }
+      "solutionReview": {
+        "headline": "Write the equation, then undo it.",
+        "reasoning": [
+          "The cost is $3.50 + 1.25k = 16$, where $k$ is the number of kilometres.",
+          "Subtracting the pickup fee gives $1.25k = 12.50$.",
+          "Dividing by 1.25 gives $k = 10$ kilometres."
+        ],
+        "answerSummary": "$10$ km",
+        "commonError": "Dividing $\\$16$ by $\\$1.25$ forgets that part of the fare was the pickup fee.",
+        "connection": null
+      },
+      "attemptFeedback": [
+        "Write the equation before solving. Which part of the $\\$16$ was not paid per kilometre?"
+      ],
+      "supportHints": [
+        "How much of the fare had nothing to do with distance?"
+      ],
+      "misconceptions": [
+        {
+          "match": [
+            "12.8"
+          ],
+          "message": "The pickup fee was included in the $\\$16$, so it has to come out before you divide."
+        }
+      ]
     },
     {
-      "id": "seed_7_11A_3",
+      "id": "mm_7_11A_error-analysis",
       "active": true,
       "alignmentKeys": [
         "texas:7.11A"
       ],
       "courseId": "grade7",
-      "familyId": "path-seed:7.11A:representation",
+      "familyId": "mathmaster:7.11A:error-analysis",
       "familyVersion": 1,
       "questionType": "response",
       "activityRole": "practice",
@@ -235,30 +124,146 @@
       "dok": 2,
       "calculatorPolicy": "inherit",
       "assessedConstruct": "7.11A",
-      "prompt": "Solve the two-step equation 5x + 7 = 22.",
+      "taskType": "errorAnalysis",
+      "representation": "symbolic",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "prompt": "Sam solved $\\frac{x}{3} - 5 = 4$. Which line contains the first mistake?",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Sam's work",
+        "note": null,
+        "steps": [
+          {
+            "id": "step-1",
+            "label": "Line 1",
+            "work": "$\\frac{x}{3} - 5 = 4$"
+          },
+          {
+            "id": "step-2",
+            "label": "Line 2",
+            "work": "$\\frac{x}{3} = 9$"
+          },
+          {
+            "id": "step-3",
+            "label": "Line 3",
+            "work": "$x = 3$"
+          }
+        ]
+      },
+      "choices": [
+        {
+          "id": "opt-1",
+          "label": "There is no mistake"
+        },
+        {
+          "id": "opt-2",
+          "label": "Line 1"
+        },
+        {
+          "id": "opt-3",
+          "label": "Line 2"
+        },
+        {
+          "id": "opt-4",
+          "label": "Line 3 — dividing instead of multiplying"
+        }
+      ],
       "responseFields": [
         {
           "id": "answer",
-          "label": "Answer",
-          "inputProfile": "text",
-          "expected": "3"
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "opt-4"
         }
       ],
-      "seedMetadata": {
-        "source": "MathMaster curated starter coverage",
-        "coverageTier": "minimum-operational",
-        "familySlot": 3,
-        "reviewRequiredForHighStakesUse": true
-      }
+      "solutionReview": {
+        "headline": "Dividing by 3 is undone by multiplying by 3.",
+        "reasoning": [
+          "Line 2 is correct: adding 5 to both sides leaves $\\frac{x}{3} = 9$.",
+          "To undo the division by 3, both sides are multiplied by 3, giving $x = 27$.",
+          "Line 3 divided by 3 instead, which repeats the operation rather than undoing it."
+        ],
+        "answerSummary": "Line 3. The correct solution is $x = 27$.",
+        "commonError": null,
+        "connection": null
+      },
+      "attemptFeedback": [
+        "Check Line 3 by substituting the value back into the original equation."
+      ],
+      "supportHints": [
+        "What operation undoes dividing by 3?"
+      ],
+      "misconceptions": []
     },
     {
-      "id": "seed_7_11A_4",
+      "id": "mm_7_11A_inequality-graph",
       "active": true,
       "alignmentKeys": [
         "texas:7.11A"
       ],
       "courseId": "grade7",
-      "familyId": "path-seed:7.11A:application",
+      "familyId": "mathmaster:7.11A:inequality-graph",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.11A",
+      "taskType": "representationTranslation",
+      "representation": "numberLine",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "type": "intervalNumberLine",
+      "prompt": "Solve $2x - 3 \\ge 7$, then graph the solution on the number line.",
+      "min": -2,
+      "max": 12,
+      "step": 1,
+      "variable": "x",
+      "ask": [
+        "graph"
+      ],
+      "inequalityText": "2x - 3 ≥ 7",
+      "expectedIntervals": [
+        {
+          "min": 5,
+          "max": null,
+          "minClosed": true,
+          "maxClosed": false
+        }
+      ],
+      "solutionReview": {
+        "headline": "Solve it like an equation, then think about which side to shade.",
+        "reasoning": [
+          "Adding 3 to both sides gives $2x \\ge 10$.",
+          "Dividing both sides by 2 gives $x \\ge 5$.",
+          "Because 5 itself satisfies the inequality, the endpoint is closed, and the shading goes towards larger values."
+        ],
+        "answerSummary": "$x \\ge 5$",
+        "commonError": "An open circle at 5 would say that 5 is not a solution, but $2(5) - 3 = 7$, which does satisfy $\\ge 7$.",
+        "connection": null
+      },
+      "attemptFeedback": [
+        "Check two things: is your endpoint in the right place, and is it open or closed?"
+      ],
+      "supportHints": [
+        "Test $x = 5$ in the original inequality. Does it work?"
+      ],
+      "misconceptions": []
+    },
+    {
+      "id": "mm_7_11A_reverse-write",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.11A"
+      ],
+      "courseId": "grade7",
+      "familyId": "mathmaster:7.11A:reverse-write",
       "familyVersion": 1,
       "questionType": "response",
       "activityRole": "practice",
@@ -266,52 +271,1164 @@
       "dok": 3,
       "calculatorPolicy": "inherit",
       "assessedConstruct": "7.11A",
-      "prompt": "Solve the two-step equation 2x + 9 = 19.",
+      "taskType": "reverseReasoning",
+      "representation": "verbal",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "prompt": "Write a two-step equation in the form $ax + b = c$ whose solution is exactly $x = -4$, using a positive value for $a$.",
       "responseFields": [
         {
           "id": "answer",
           "label": "Answer",
-          "inputProfile": "text",
-          "expected": "5"
+          "inputProfile": "equation",
+          "unit": null,
+          "responseHint": "Any correct equation is accepted — for example 2x + 3 = -5.",
+          "placeholder": null,
+          "expected": "2x+3=-5",
+          "accepted": [
+            "2x+3=-5",
+            "2x + 3 = -5",
+            "3x+2=-10",
+            "5x+1=-19",
+            "x*2+3=-5",
+            "2x+1=-7"
+          ]
         }
       ],
-      "seedMetadata": {
-        "source": "MathMaster curated starter coverage",
-        "coverageTier": "minimum-operational",
-        "familySlot": 4,
-        "reviewRequiredForHighStakesUse": true
-      }
+      "solutionReview": {
+        "headline": "Build the equation forwards from the answer you want.",
+        "reasoning": [
+          "Choose a value for $a$ and multiply: with $a = 2$, $2 \\times (-4) = -8$.",
+          "Choose a value for $b$ and add: with $b = 3$, $-8 + 3 = -5$.",
+          "That right-hand side is your $c$, giving $2x + 3 = -5$."
+        ],
+        "answerSummary": "For example $2x + 3 = -5$. Many equations are correct here.",
+        "commonError": null,
+        "connection": "Constructing a problem with a known answer is how you check that you understand what solving actually does."
+      },
+      "attemptFeedback": [
+        "Substitute $-4$ into your equation. Do both sides come out equal?"
+      ],
+      "supportHints": [
+        "Pick your $a$ and your $b$ first, then work out what $c$ has to be."
+      ],
+      "misconceptions": []
     },
     {
-      "id": "seed_7_11A_5",
+      "id": "mm_7_3A_error-analysis",
       "active": true,
       "alignmentKeys": [
-        "texas:7.11A"
+        "texas:7.3A"
       ],
       "courseId": "grade7",
-      "familyId": "path-seed:7.11A:challenge",
+      "familyId": "mathmaster:7.3A:error-analysis",
       "familyVersion": 1,
       "questionType": "response",
       "activityRole": "practice",
-      "difficultyBand": 5,
-      "dok": 3,
+      "difficultyBand": 3,
+      "dok": 2,
       "calculatorPolicy": "inherit",
-      "assessedConstruct": "7.11A",
-      "prompt": "Solve the two-step equation 6x - 4 = 8.",
+      "assessedConstruct": "7.3A",
+      "taskType": "errorAnalysis",
+      "representation": "symbolic",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "prompt": "Marco evaluated $-2 \\times (-3) - 4$. Which line contains the first mistake?",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Marco's work",
+        "note": null,
+        "steps": [
+          {
+            "id": "step-1",
+            "label": "Line 1",
+            "work": "$-2 \\times (-3) - 4$"
+          },
+          {
+            "id": "step-2",
+            "label": "Line 2",
+            "work": "$-6 - 4$"
+          },
+          {
+            "id": "step-3",
+            "label": "Line 3",
+            "work": "$-10$"
+          }
+        ]
+      },
+      "choices": [
+        {
+          "id": "opt-1",
+          "label": "Line 3 — the subtraction is wrong"
+        },
+        {
+          "id": "opt-2",
+          "label": "Line 1"
+        },
+        {
+          "id": "opt-3",
+          "label": "Line 2 — the product of two negatives is positive"
+        },
+        {
+          "id": "opt-4",
+          "label": "There is no mistake"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "opt-3"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Two negative factors give a positive product.",
+        "reasoning": [
+          "Line 2 should read $6 - 4$, because $-2 \\times -3 = 6$.",
+          "The correct value is therefore 2, not $-10$.",
+          "Line 3 is arithmetic done correctly on the wrong expression."
+        ],
+        "answerSummary": "Line 2. The correct value is $2$.",
+        "commonError": null,
+        "connection": null
+      },
+      "attemptFeedback": [
+        "One of these lines is arithmetic done correctly on a wrong expression. Find the line above it."
+      ],
+      "supportHints": [
+        "What sign does the product of two negative numbers have?"
+      ],
+      "misconceptions": []
+    },
+    {
+      "id": "mm_7_3A_fraction-quotient-table",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.3A"
+      ],
+      "courseId": "grade7",
+      "familyId": "mathmaster:7.3A:fraction-quotient-table",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.3A",
+      "taskType": "interpretation",
+      "representation": "table",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "prompt": "The table shows four quotients. Complete the missing value. Give your answer as a decimal or a fraction.",
+      "stimulus": {
+        "kind": "table",
+        "title": null,
+        "note": null,
+        "table": {
+          "headers": [
+            "Calculation",
+            "Value"
+          ],
+          "rows": [
+            [
+              "$\\frac{1}{2} \\div \\frac{1}{4}$",
+              "$2$"
+            ],
+            [
+              "$-\\frac{1}{2} \\div \\frac{1}{4}$",
+              "$-2$"
+            ],
+            [
+              "$\\frac{3}{4} \\div \\frac{1}{2}$",
+              "$1.5$"
+            ],
+            [
+              "$-\\frac{3}{4} \\div \\frac{1}{2}$",
+              "?"
+            ]
+          ]
+        }
+      },
       "responseFields": [
         {
           "id": "answer",
           "label": "Answer",
-          "inputProfile": "text",
-          "expected": "2"
+          "inputProfile": "number",
+          "unit": null,
+          "responseHint": null,
+          "placeholder": null,
+          "expected": "-1.5",
+          "accepted": [
+            "-1.5",
+            "-3/2",
+            "-1 1/2"
+          ],
+          "numericTolerance": 0.005
         }
       ],
-      "seedMetadata": {
-        "source": "MathMaster curated starter coverage",
-        "coverageTier": "minimum-operational",
-        "familySlot": 5,
-        "reviewRequiredForHighStakesUse": true
-      }
+      "solutionReview": {
+        "headline": "Dividing by a fraction is multiplying by its reciprocal.",
+        "reasoning": [
+          "The reciprocal of $\\frac{1}{2}$ is 2, so the calculation becomes $-\\frac{3}{4} \\times 2 = -\\frac{6}{4}$.",
+          "That simplifies to $-\\frac{3}{2}$, or $-1.5$.",
+          "The table shows the pattern: the third row has the same size as this one, and only the sign differs."
+        ],
+        "answerSummary": "$-\\frac{3}{2}$",
+        "commonError": "Multiplying by $\\frac{1}{2}$ instead of by 2 gives $-\\frac{3}{8}$, which is smaller than the number you started with.",
+        "connection": "Reading down the table shows that the sign and the size are two separate decisions."
+      },
+      "attemptFeedback": [
+        "Compare your answer with the row above it. Should it have the same size and the opposite sign?"
+      ],
+      "supportHints": [
+        "Dividing by a half makes a quantity bigger, not smaller. Does your answer reflect that?"
+      ],
+      "misconceptions": []
+    },
+    {
+      "id": "mm_7_3A_sign-reasoning",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.3A"
+      ],
+      "courseId": "grade7",
+      "familyId": "mathmaster:7.3A:sign-reasoning",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.3A",
+      "taskType": "conceptual",
+      "representation": "verbal",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "prompt": "Let $a$ be a negative number and $b$ a positive number. Without choosing any particular values, which expression is guaranteed to be negative?",
+      "choices": [
+        {
+          "id": "opt-1",
+          "label": "$a \\div a$"
+        },
+        {
+          "id": "opt-2",
+          "label": "$a - b^{2}$ is guaranteed positive"
+        },
+        {
+          "id": "opt-3",
+          "label": "$a \\times b^{2}$"
+        },
+        {
+          "id": "opt-4",
+          "label": "$a^{2} \\times b$"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "opt-3"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Reason about the signs, not about particular numbers.",
+        "reasoning": [
+          "Squaring $b$ keeps it positive, so $a \\times b^{2}$ is a negative times a positive, which is negative.",
+          "Squaring $a$ makes it positive, so $a^{2} \\times b$ is a positive times a positive.",
+          "$a \\div a$ is 1 for every non-zero $a$, negative or not."
+        ],
+        "answerSummary": "$a \\times b^{2}$",
+        "commonError": "Assuming a negative number stays negative when it is squared.",
+        "connection": "This kind of reasoning is what lets you predict the shape of a graph before plotting a single point."
+      },
+      "attemptFeedback": [
+        "Try one negative value and one positive value in each option, then ask whether your conclusion would hold for every choice."
+      ],
+      "supportHints": [
+        "What happens to the sign of a negative number when it is squared?"
+      ],
+      "misconceptions": []
+    },
+    {
+      "id": "mm_7_3A_signed-arithmetic",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.3A"
+      ],
+      "courseId": "grade7",
+      "familyId": "mathmaster:7.3A:signed-arithmetic",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.3A",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "prompt": "Evaluate $-7 + 3 - (-5)$.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "unit": null,
+          "responseHint": null,
+          "placeholder": null,
+          "expected": "1"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Subtracting a negative is adding.",
+        "reasoning": [
+          "Start at $-7$ and add 3, which gives $-4$.",
+          "Subtracting $-5$ is the same as adding 5.",
+          "Adding 5 to $-4$ gives 1."
+        ],
+        "answerSummary": "$1$",
+        "commonError": "Treating $-(-5)$ as $-5$ gives $-9$.",
+        "connection": null
+      },
+      "attemptFeedback": [
+        "Look carefully at the last term. What does subtracting a negative number do to the total?"
+      ],
+      "supportHints": [
+        "Rewrite $-(-5)$ before you calculate anything."
+      ],
+      "misconceptions": [
+        {
+          "match": [
+            "-9"
+          ],
+          "message": "Subtracting $-5$ moves you in the positive direction, not the negative one."
+        }
+      ]
+    },
+    {
+      "id": "mm_7_3A_temperature-context",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.3A"
+      ],
+      "courseId": "grade7",
+      "familyId": "mathmaster:7.3A:temperature-context",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.3A",
+      "taskType": "application",
+      "representation": "context",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "prompt": "At 6 p.m. the temperature was $-3^{\\circ}$C. It fell $4.5^{\\circ}$ overnight, then rose $6^{\\circ}$ by noon. What was the temperature at noon, in degrees Celsius?",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "unit": "°C",
+          "responseHint": null,
+          "placeholder": null,
+          "expected": "-1.5"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Falling is subtracting; rising is adding.",
+        "reasoning": [
+          "Falling $4.5^{\\circ}$ from $-3^{\\circ}$ gives $-7.5^{\\circ}$.",
+          "Rising $6^{\\circ}$ from $-7.5^{\\circ}$ gives $-1.5^{\\circ}$.",
+          "The temperature ends below zero, which fits a night that fell further than it rose."
+        ],
+        "answerSummary": "$-1.5^{\\circ}$C",
+        "commonError": "Adding 4.5 because the number is positive, rather than because the temperature fell.",
+        "connection": null
+      },
+      "attemptFeedback": [
+        "Track the temperature one change at a time and check the sign of each change."
+      ],
+      "supportHints": [
+        "Which of the two changes moved the temperature down?"
+      ],
+      "misconceptions": []
+    },
+    {
+      "id": "mm_7_3B_error-analysis",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.3B"
+      ],
+      "courseId": "grade7",
+      "familyId": "mathmaster:7.3B:error-analysis",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.3B",
+      "taskType": "errorAnalysis",
+      "representation": "symbolic",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "prompt": "A student found the total cost of 4 items at $\\$6.30$ each with a $\\$5$ discount. Which line contains the first mistake?",
+      "stimulus": {
+        "kind": "steps",
+        "title": "The work",
+        "note": null,
+        "steps": [
+          {
+            "id": "step-1",
+            "label": "Line 1",
+            "work": "Total $= 4 \\times 6.30 - 5$"
+          },
+          {
+            "id": "step-2",
+            "label": "Line 2",
+            "work": "Total $= 4 \\times 1.30$"
+          },
+          {
+            "id": "step-3",
+            "label": "Line 3",
+            "work": "Total $= 5.20$"
+          }
+        ]
+      },
+      "choices": [
+        {
+          "id": "opt-1",
+          "label": "There is no mistake"
+        },
+        {
+          "id": "opt-2",
+          "label": "Line 2 — the discount was applied to each item instead of once"
+        },
+        {
+          "id": "opt-3",
+          "label": "Line 1 — the expression is set up wrongly"
+        },
+        {
+          "id": "opt-4",
+          "label": "Line 3 — the multiplication is wrong"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "opt-2"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The discount applies once, to the total.",
+        "reasoning": [
+          "Line 1 is correct: it multiplies first and subtracts once.",
+          "Line 2 subtracts the $\\$5$ from the price of a single item, which then gets multiplied by 4 — a $\\$20$ discount.",
+          "The correct total is $25.20 - 5 = \\$20.20$."
+        ],
+        "answerSummary": "Line 2. The correct total is $\\$20.20$.",
+        "commonError": null,
+        "connection": "This is exactly the distributive property: $4(6.30 - 5)$ is not the same as $4 \\times 6.30 - 5$."
+      },
+      "attemptFeedback": [
+        "Line 1 sets the problem up correctly. Compare what Line 2 does to what Line 1 says."
+      ],
+      "supportHints": [
+        "How many times should the $\\$5$ be subtracted?"
+      ],
+      "misconceptions": []
+    },
+    {
+      "id": "mm_7_3B_multistep-money",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.3B"
+      ],
+      "courseId": "grade7",
+      "familyId": "mathmaster:7.3B:multistep-money",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.3B",
+      "taskType": "application",
+      "representation": "context",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "prompt": "A savings account starts at $\\$120.50$. Three withdrawals of $\\$18.25$ are made, then a deposit of $\\$40$. What is the balance in dollars?",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "unit": "dollars",
+          "responseHint": null,
+          "placeholder": null,
+          "expected": "105.75",
+          "numericTolerance": 0.005
+        }
+      ],
+      "solutionReview": {
+        "headline": "Repeated withdrawals are a multiplication, not three separate steps to remember.",
+        "reasoning": [
+          "Three withdrawals of $\\$18.25$ total $3 \\times 18.25 = \\$54.75$.",
+          "Subtracting from the starting balance gives $120.50 - 54.75 = \\$65.75$.",
+          "The deposit adds $\\$40$, giving $\\$105.75$."
+        ],
+        "answerSummary": "$\\$105.75$",
+        "commonError": "Subtracting only one withdrawal gives $\\$142.25$.",
+        "connection": null
+      },
+      "attemptFeedback": [
+        "Check how many withdrawals were made, and whether each one was accounted for."
+      ],
+      "supportHints": [
+        "What is the total of the three withdrawals before anything else happens?"
+      ],
+      "misconceptions": []
+    },
+    {
+      "id": "mm_7_3B_reasonableness",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.3B"
+      ],
+      "courseId": "grade7",
+      "familyId": "mathmaster:7.3B:reasonableness",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.3B",
+      "taskType": "conceptual",
+      "representation": "verbal",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "prompt": "A recipe needs $\\frac{3}{4}$ cup of oil per batch. Without calculating exactly, which is the most reasonable estimate of the oil needed for $5\\frac{1}{2}$ batches?",
+      "choices": [
+        {
+          "id": "opt-1",
+          "label": "A little more than 4 cups"
+        },
+        {
+          "id": "opt-2",
+          "label": "About $\\frac{3}{4}$ of a cup"
+        },
+        {
+          "id": "opt-3",
+          "label": "A little less than 3 cups"
+        },
+        {
+          "id": "opt-4",
+          "label": "About 7 cups"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "opt-1"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Estimate before you calculate, so you can tell whether the answer is sensible.",
+        "reasoning": [
+          "Each batch needs slightly less than one cup, so 5 and a half batches need slightly less than 5 and a half cups.",
+          "Three quarters of $5\\frac{1}{2}$ is a little over 4, which matches that reasoning.",
+          "Seven cups is more than one cup per batch, which is impossible here."
+        ],
+        "answerSummary": "A little more than 4 cups — the exact value is $4\\frac{1}{8}$ cups.",
+        "commonError": null,
+        "connection": "An estimate is what tells you a calculator slip has happened."
+      },
+      "attemptFeedback": [
+        "Think about how much one batch needs, then scale up. Should the answer be more or less than 5.5 cups?"
+      ],
+      "supportHints": [
+        "Is $\\frac{3}{4}$ of a cup more or less than a whole cup?"
+      ],
+      "misconceptions": []
+    },
+    {
+      "id": "mm_7_3B_reverse-expression",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.3B"
+      ],
+      "courseId": "grade7",
+      "familyId": "mathmaster:7.3B:reverse-expression",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.3B",
+      "taskType": "reverseReasoning",
+      "representation": "verbal",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "prompt": "A phone plan charges a $\\$25$ monthly fee plus $\\$0.10$ per gigabyte. Write an equation for the monthly cost $c$ when $g$ gigabytes are used.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "equation",
+          "unit": null,
+          "responseHint": "Write a full equation starting with c =",
+          "placeholder": null,
+          "expected": "c=25+0.1g",
+          "accepted": [
+            "c=25+0.1g",
+            "c = 25 + 0.1g",
+            "c=0.1g+25",
+            "c = 0.10g + 25",
+            "c=25+0.10g"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "A fixed charge is a constant; a per-unit charge multiplies the variable.",
+        "reasoning": [
+          "The $\\$25$ is paid whether or not any data is used, so it stands alone.",
+          "The $\\$0.10$ is paid once per gigabyte, so it multiplies $g$.",
+          "The two are added, because both are part of the same bill."
+        ],
+        "answerSummary": "$c = 25 + 0.1g$",
+        "commonError": "Writing $c = 25g + 0.1$ charges $\\$25$ per gigabyte and adds ten cents once.",
+        "connection": "This is the structure of every linear model you will meet in Algebra I."
+      },
+      "attemptFeedback": [
+        "Check which of the two numbers is multiplied by $g$. Which charge depends on how much data is used?"
+      ],
+      "supportHints": [
+        "If you use zero gigabytes, what does the plan cost? That number stands alone in your equation."
+      ],
+      "misconceptions": []
+    },
+    {
+      "id": "mm_7_3B_table-total",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.3B"
+      ],
+      "courseId": "grade7",
+      "familyId": "mathmaster:7.3B:table-total",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.3B",
+      "taskType": "interpretation",
+      "representation": "table",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "prompt": "The table shows one week of changes to a diver's depth, in metres, where negative means further below the surface. What is the diver's depth at the end of the week, in metres?",
+      "stimulus": {
+        "kind": "table",
+        "title": null,
+        "note": "The diver starts at the surface, at a depth of 0 m.",
+        "table": {
+          "headers": [
+            "Day",
+            "Change (m)"
+          ],
+          "rows": [
+            [
+              "Monday",
+              "-12.5"
+            ],
+            [
+              "Tuesday",
+              "+4"
+            ],
+            [
+              "Wednesday",
+              "-6.25"
+            ],
+            [
+              "Thursday",
+              "+9.75"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "unit": "metres",
+          "responseHint": null,
+          "placeholder": null,
+          "expected": "-5",
+          "numericTolerance": 0.005
+        }
+      ],
+      "solutionReview": {
+        "headline": "Add every change to the starting value, keeping the signs.",
+        "reasoning": [
+          "The downward changes total $-12.5 + (-6.25) = -18.75$ metres.",
+          "The upward changes total $4 + 9.75 = 13.75$ metres.",
+          "Combining gives $-18.75 + 13.75 = -5$ metres, so the diver ends 5 m below the surface."
+        ],
+        "answerSummary": "$-5$ m",
+        "commonError": null,
+        "connection": "Grouping the negatives and the positives separately is often faster and less error-prone than working down the list."
+      },
+      "attemptFeedback": [
+        "Check that each row kept its sign when you added it."
+      ],
+      "supportHints": [
+        "Try totalling the downward moves and the upward moves separately."
+      ],
+      "misconceptions": []
+    },
+    {
+      "id": "mm_7_7_equation-from-table",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.7"
+      ],
+      "courseId": "grade7",
+      "familyId": "mathmaster:7.7:equation-from-table",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.7",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "prompt": "Write an equation in the form $y = mx + b$ for the relationship in the table.",
+      "stimulus": {
+        "kind": "table",
+        "title": null,
+        "note": null,
+        "table": {
+          "headers": [
+            "$x$",
+            "$y$"
+          ],
+          "rows": [
+            [
+              "0",
+              "5"
+            ],
+            [
+              "1",
+              "8"
+            ],
+            [
+              "2",
+              "11"
+            ],
+            [
+              "3",
+              "14"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "equation",
+          "unit": null,
+          "responseHint": "Write the whole equation, starting with y =",
+          "placeholder": null,
+          "expected": "y=3x+5",
+          "accepted": [
+            "y=3x+5",
+            "y = 3x + 5",
+            "y=5+3x",
+            "y = 5 + 3x"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "The table gives you both numbers directly.",
+        "reasoning": [
+          "Each time $x$ increases by 1, $y$ increases by 3, so the rate of change is 3.",
+          "When $x = 0$, $y = 5$, so 5 is the starting value.",
+          "That gives $y = 3x + 5$, and checking $x = 3$ gives $9 + 5 = 14$, which matches the table."
+        ],
+        "answerSummary": "$y = 3x + 5$",
+        "commonError": "Swapping the two numbers gives $y = 5x + 3$, which fails at every row except none.",
+        "connection": null
+      },
+      "attemptFeedback": [
+        "Check your equation against the last row of the table. Does it give the right value?"
+      ],
+      "supportHints": [
+        "What is $y$ when $x$ is zero? That number is not multiplied by anything."
+      ],
+      "misconceptions": []
+    },
+    {
+      "id": "mm_7_7_error-analysis",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.7"
+      ],
+      "courseId": "grade7",
+      "familyId": "mathmaster:7.7:error-analysis",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.7",
+      "taskType": "errorAnalysis",
+      "representation": "table",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "prompt": "A student says the table shows a linear relationship with a rate of change of 4. Are they right, and why?",
+      "stimulus": {
+        "kind": "table",
+        "title": null,
+        "note": null,
+        "table": {
+          "headers": [
+            "$x$",
+            "$y$"
+          ],
+          "rows": [
+            [
+              "1",
+              "4"
+            ],
+            [
+              "2",
+              "8"
+            ],
+            [
+              "3",
+              "16"
+            ],
+            [
+              "4",
+              "32"
+            ]
+          ]
+        }
+      },
+      "choices": [
+        {
+          "id": "opt-1",
+          "label": "No — the $y$ values double rather than increasing by a fixed amount"
+        },
+        {
+          "id": "opt-2",
+          "label": "No — the $x$ values are not evenly spaced"
+        },
+        {
+          "id": "opt-3",
+          "label": "Yes — each $y$ value is 4 times the one before"
+        },
+        {
+          "id": "opt-4",
+          "label": "Yes — the first two rows increase by 4"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "opt-1"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A linear relationship adds the same amount each step; this one multiplies.",
+        "reasoning": [
+          "From row to row, $y$ goes up by 4, then by 8, then by 16 — the increases are not equal.",
+          "What is constant is the ratio: each value is double the one before.",
+          "A relationship with a constant ratio is exponential, and its graph is a curve, not a line."
+        ],
+        "answerSummary": "No. The values double, so the relationship is not linear.",
+        "commonError": null,
+        "connection": "You will meet this distinction again in Algebra I as linear versus exponential growth."
+      },
+      "attemptFeedback": [
+        "Work out the increase between each pair of rows before deciding."
+      ],
+      "supportHints": [
+        "Is the same amount being added each time, or the same amount being multiplied?"
+      ],
+      "misconceptions": []
+    },
+    {
+      "id": "mm_7_7_graph-the-relationship",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.7"
+      ],
+      "courseId": "grade7",
+      "familyId": "mathmaster:7.7:graph-the-relationship",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.7",
+      "taskType": "interpretation",
+      "representation": "graph",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "type": "functionInvestigation",
+      "prompt": "A pool holds 300 litres and drains at 25 litres per minute. Plot the amount of water at 0 minutes and at 4 minutes, then state the rate of change.",
+      "functionSpec": {
+        "type": "linear",
+        "m": -25,
+        "b": 300
+      },
+      "graph": {
+        "xMin": 0,
+        "xMax": 12,
+        "yMin": 0,
+        "yMax": 320
+      },
+      "pointTasks": [
+        {
+          "id": "start",
+          "label": "Plot the amount of water at 0 minutes",
+          "x": 0,
+          "expected": [
+            0,
+            300
+          ]
+        },
+        {
+          "id": "four",
+          "label": "Plot the amount of water at 4 minutes",
+          "x": 4,
+          "expected": [
+            4,
+            200
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "rate",
+          "label": "How many litres does the pool lose each minute?",
+          "kind": "decreasing",
+          "responseMode": "text",
+          "expected": [
+            "25"
+          ],
+          "acceptedAnswers": [
+            "25",
+            "-25",
+            "25 litres",
+            "25 L"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "A constant rate is a straight line, and its steepness is the rate.",
+        "reasoning": [
+          "At 0 minutes nothing has drained, so the first point is at 300 litres.",
+          "After 4 minutes the pool has lost $4 \\times 25 = 100$ litres, leaving 200.",
+          "Between those two points the graph falls 100 litres over 4 minutes, which is 25 litres per minute — the rate the question started with."
+        ],
+        "answerSummary": "The points are $(0, 300)$ and $(4, 200)$, and the pool loses 25 litres per minute.",
+        "commonError": null,
+        "connection": "The steepness of the line and the rate in the sentence are the same number, seen two ways."
+      },
+      "attemptFeedback": [
+        "Check the amount of water at time zero before plotting anything else."
+      ],
+      "supportHints": [
+        "How much water has drained after 4 minutes, and how much is therefore left?"
+      ],
+      "misconceptions": []
+    },
+    {
+      "id": "mm_7_7_predict-value",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.7"
+      ],
+      "courseId": "grade7",
+      "familyId": "mathmaster:7.7:predict-value",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.7",
+      "taskType": "transfer",
+      "representation": "context",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "prompt": "A candle burns at a constant rate. After 2 hours it is 19 cm tall; after 5 hours it is 13 cm tall. How tall was the candle when it was lit, in centimetres?",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "unit": "cm",
+          "responseHint": null,
+          "placeholder": null,
+          "expected": "23"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Find the rate first, then work backwards to the start.",
+        "reasoning": [
+          "The candle shrank $19 - 13 = 6$ cm over $5 - 2 = 3$ hours, so it burns 2 cm per hour.",
+          "Two hours before the first reading is the moment it was lit, so add back $2 \\times 2 = 4$ cm.",
+          "That gives $19 + 4 = 23$ cm."
+        ],
+        "answerSummary": "$23$ cm",
+        "commonError": "Subtracting instead of adding when working backwards in time gives 15 cm, which is shorter than the candle ever was.",
+        "connection": null
+      },
+      "attemptFeedback": [
+        "You are going backwards in time here. Should the candle be taller or shorter than 19 cm?"
+      ],
+      "supportHints": [
+        "How much does the candle shrink in one hour?"
+      ],
+      "misconceptions": []
+    },
+    {
+      "id": "mm_7_7_rate-from-table",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.7"
+      ],
+      "courseId": "grade7",
+      "familyId": "mathmaster:7.7:rate-from-table",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.7",
+      "taskType": "procedural",
+      "representation": "table",
+      "authoring": {
+        "source": "MathMaster production authoring",
+        "kit": 1
+      },
+      "prompt": "The table shows the cost of buying tickets. What is the cost per ticket, in dollars?",
+      "stimulus": {
+        "kind": "table",
+        "title": null,
+        "note": null,
+        "table": {
+          "headers": [
+            "Tickets",
+            "Cost ($)"
+          ],
+          "rows": [
+            [
+              "2",
+              "17"
+            ],
+            [
+              "4",
+              "34"
+            ],
+            [
+              "6",
+              "51"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "unit": "dollars",
+          "responseHint": null,
+          "placeholder": null,
+          "expected": "8.5",
+          "numericTolerance": 0.005
+        }
+      ],
+      "solutionReview": {
+        "headline": "The rate is the change in cost divided by the change in tickets.",
+        "reasoning": [
+          "From 2 tickets to 4 tickets the cost rises by $34 - 17 = \\$17$.",
+          "That rise happened over $4 - 2 = 2$ tickets.",
+          "So each ticket costs $17 \\div 2 = \\$8.50$, and the same rate holds between every pair of rows."
+        ],
+        "answerSummary": "$\\$8.50$ per ticket",
+        "commonError": "Reading the first cost, 17, as the price of one ticket.",
+        "connection": null
+      },
+      "attemptFeedback": [
+        "Check how many tickets the first row is actually paying for."
+      ],
+      "supportHints": [
+        "Pick any two rows. How much did the cost change, and how many tickets caused that change?"
+      ],
+      "misconceptions": [
+        {
+          "match": [
+            "17"
+          ],
+          "message": "The first row is the cost of two tickets, not one."
+        }
+      ]
     }
   ]
 }

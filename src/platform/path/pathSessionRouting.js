@@ -112,7 +112,12 @@ export const decideNextStep = ({
   maxDepth = MAX_EXCURSION_DEPTH,
   missesBeforeRouting = MISSES_BEFORE_ROUTING,
 } = {}) => {
-  const described = (skillId) => describeSkill(skillId).shortLabel || skillId;
+  // Student language, always. A path that explains itself with "texas:A.5A"
+  // has not explained itself.
+  const described = (skillId) => {
+    const detail = describeSkill(skillId);
+    return detail.studentLabel || detail.shortLabel || skillId;
+  };
 
   // On an excursion and the repair has held: bridge back rather than dropping
   // the student straight into the skill that defeated them.
@@ -241,6 +246,11 @@ export const decideNextStep = ({
  * WITH support rather than deeper down, which is the whole point of diagnosing
  * before descending.
  */
+const studentName = (skillId) => {
+  const detail = describeSkill(skillId);
+  return detail.studentLabel || detail.shortLabel || skillId;
+};
+
 export const resolveDiagnostic = ({ diagnosing, isCorrect, excursion = null }) => {
   if (!diagnosing) return null;
   if (isCorrect) {
@@ -248,7 +258,7 @@ export const resolveDiagnostic = ({ diagnosing, isCorrect, excursion = null }) =
       skillId: diagnosing.originSkillId,
       excursion,
       reason: 'diagnostic_cleared_prerequisite',
-      explanation: `${describeSkill(diagnosing.targetSkillId).shortLabel || diagnosing.targetSkillId} is not the obstacle, so the work goes back to ${describeSkill(diagnosing.originSkillId).shortLabel || diagnosing.originSkillId} with support.`,
+      explanation: `${studentName(diagnosing.targetSkillId)} is not what is holding this up, so you are going back to ${studentName(diagnosing.originSkillId)} with more support.`,
     });
   }
   return step(PATH_ACTION.DESCEND, {
@@ -269,3 +279,89 @@ export const resolveDiagnostic = ({ diagnosing, isCorrect, excursion = null }) =
  * "why am I here?" would be built from.
  */
 export const explainStep = (decision) => decision?.explanation || '';
+
+// --- What the student is told -------------------------------------------------
+//
+// `explanation` above is written for the route trace a teacher reads: it names
+// the rule that fired. A student needs the same fact in the second person, with
+// the skill's own name and no engine vocabulary at all. Composing it here — off
+// the same decision object — is what keeps the two from disagreeing.
+
+const STUDENT_HEADLINE = {
+  [PATH_ACTION.DESCEND]: 'Building up to this',
+  [PATH_ACTION.DIAGNOSE]: 'Quick check first',
+  [PATH_ACTION.BRIDGE]: 'Back to where you were',
+  [PATH_ACTION.RETURN_TO_ORIGIN]: 'Back to where you were',
+  [PATH_ACTION.ENRICHMENT]: 'Challenge',
+  [PATH_ACTION.VERIFY_RETENTION]: 'Quick retention check',
+  [PATH_ACTION.SUPPORTED_RETRY]: 'Staying with this skill',
+  [PATH_ACTION.TEACHER_SUPPORT]: 'Check in with your teacher',
+  [PATH_ACTION.CONTINUE]: '',
+  [PATH_ACTION.COMPLETE]: 'Session complete',
+};
+
+/**
+ * The banner a student sees when the path changes direction.
+ *
+ * Returns null for a decision that is not a change of direction — a session
+ * that announces "the session continues on this skill" after every correct
+ * answer is noise, and noise is how real explanations stop being read.
+ */
+export const explainStepForStudent = (decision) => {
+  if (!decision?.action) return null;
+  const name = (skillId) => studentName(skillId);
+  const headline = STUDENT_HEADLINE[decision.action];
+
+  switch (decision.action) {
+    case PATH_ACTION.DESCEND:
+      return {
+        headline,
+        message: `${name(decision.skillId)} is what this builds on, so you are working on that for a few questions. You will come back to ${name(decision.excursion?.originSkillId || decision.skillId)}.`,
+        tone: 'support',
+      };
+    case PATH_ACTION.DIAGNOSE:
+      return {
+        headline,
+        message: `One question on ${name(decision.skillId)} first, to find out whether that is what is making this harder.`,
+        tone: 'support',
+      };
+    case PATH_ACTION.BRIDGE:
+      return {
+        headline,
+        message: `${name(decision.skillId)} is holding now, so this question connects it back to ${name(decision.returnTo)}.`,
+        tone: 'return',
+      };
+    case PATH_ACTION.RETURN_TO_ORIGIN:
+      return {
+        headline,
+        message: `${name(decision.skillId)} is where the work belongs, and you are going back to it with more support.`,
+        tone: 'return',
+      };
+    case PATH_ACTION.ENRICHMENT:
+      return {
+        headline,
+        message: `You have shown you can do ${name(decision.skillId)}, so the next question pushes it further instead of repeating it.`,
+        tone: 'challenge',
+      };
+    case PATH_ACTION.VERIFY_RETENTION:
+      return {
+        headline,
+        message: 'You learned this a while ago. This is a short check that it has stayed with you.',
+        tone: 'retention',
+      };
+    case PATH_ACTION.SUPPORTED_RETRY:
+      return {
+        headline,
+        message: `The next question stays on ${name(decision.skillId)}, with more support available.`,
+        tone: 'support',
+      };
+    case PATH_ACTION.TEACHER_SUPPORT:
+      return {
+        headline,
+        message: 'Your work is saved. Check in with your teacher before you carry on with this skill.',
+        tone: 'teacher',
+      };
+    default:
+      return null;
+  }
+};

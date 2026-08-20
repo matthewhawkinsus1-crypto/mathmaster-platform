@@ -29,6 +29,7 @@ import {
   getWithinCoursePrerequisites,
 } from './coursePrerequisites.js';
 import { STRENGTH, canLock, minimumMasteryFor, normalizeStrength } from './prerequisiteStrength.js';
+import { studentLabelForTeks } from './skillLabels.js';
 
 export const TEKS_SKILL_PREFIX = 'teks:';
 
@@ -156,15 +157,35 @@ export const getDependentSkills = (courseId, skillId, { strength = null } = {}) 
   )))
 );
 
+/**
+ * How a skill is named.
+ *
+ * `shortLabel` is the TEKS code and stays that way: teacher tooling, the
+ * coverage audit, the simulator's route trace and every report are keyed on it,
+ * and repurposing the field would have relabelled all of them at once.
+ *
+ * `studentLabel` is the name a student sees — "Solving linear equations", never
+ * "A.5A". Every student-facing surface reads this one.
+ */
 export const describeSkill = (skillId) => {
   const code = teksCodeFromSkillId(skillId);
   const standard = code ? getTexasStandard(code) : null;
-  if (!standard) return { skillId, label: skillId, code: null, courseId: null };
+  if (!standard) {
+    return {
+      skillId,
+      label: skillId,
+      code: null,
+      courseId: null,
+      studentLabel: 'this skill',
+    };
+  }
   return {
     skillId,
     code: standard.code,
     courseId: standard.courseId,
     label: `${standard.code} — ${standard.description}`,
     shortLabel: standard.code,
+    studentLabel: studentLabelForTeks(standard.code),
+    description: standard.description,
   };
 };

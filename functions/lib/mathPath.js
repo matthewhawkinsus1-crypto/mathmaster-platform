@@ -26,6 +26,15 @@ async function answerEquivalence() {
   return answerEquivalenceModule;
 }
 
+// Feedback, hints and the solution review. Loaded the same lazy way, and shared
+// with the Teacher Path Simulator so a teacher previewing a question sees the
+// student's actual sequence rather than a teacher-only summary.
+let solutionSupportModule = null;
+async function pathSolutionSupport() {
+  if (!solutionSupportModule) solutionSupportModule = await import('../shared/pathSolutionSupport.mjs');
+  return solutionSupportModule;
+}
+
 function canonicalAlignmentKey(value) {
   const raw = String(value || '').trim();
   if (!raw) return '';
@@ -49,13 +58,81 @@ function runtimeId(prefix) {
   return `${prefix}_${crypto.randomUUID()}`;
 }
 
+// The response fields, by allowlist.
+//
+// `choices` travels because a multiple-choice question is unanswerable without
+// the options — but only as ids and labels, never as the author wrote them. An
+// author writing `choices: [{ id: 'a', label: '…', correct: true }]` would
+// otherwise have shipped the answer key inside a field the allowlist had just
+// admitted, which is the exact hole the tool contract exists to close.
+function normalizeChoices(choices) {
+  return (Array.isArray(choices) ? choices : []).slice(0, 12).map((choice, index) => {
+    if (choice && typeof choice === 'object') {
+      return {
+        id: String(choice.id || choice.value || `choice-${index + 1}`),
+        label: String(choice.label ?? choice.text ?? choice.value ?? ''),
+      };
+    }
+    return { id: String(choice), label: String(choice) };
+  }).filter((choice) => choice.label !== '');
+}
+
 function normalizeResponseFields(fields = []) {
   return (Array.isArray(fields) ? fields : []).map((field, index) => ({
     id: String(field?.id || `response-${index + 1}`),
     label: String(field?.label || `Response ${index + 1}`),
     inputProfile: field?.inputProfile || 'text',
     unit: field?.unit || null,
+    // Short instruction rendered with the input ("Give your answer in interval
+    // notation"). Presentation only.
+    responseHint: field?.responseHint ? String(field.responseHint).slice(0, 160) : null,
+    placeholder: field?.placeholder ? String(field.placeholder).slice(0, 60) : null,
+    ...(Array.isArray(field?.choices) ? { choices: normalizeChoices(field.choices) } : {}),
   }));
+}
+
+// Question material a student must SEE to answer: the table they are reading,
+// the ordered pairs they are classifying, the worked steps in an error-analysis
+// item. Allowlisted field by field and coerced to primitives, so an authoring
+// key nobody anticipated cannot ride along.
+function sanitizeStimulus(stimulus) {
+  if (!stimulus || typeof stimulus !== 'object') return null;
+  const clean = {
+    kind: String(stimulus.kind || 'expressions'),
+    title: stimulus.title ? String(stimulus.title).slice(0, 140) : null,
+    note: stimulus.note ? String(stimulus.note).slice(0, 300) : null,
+  };
+  if (stimulus.table && typeof stimulus.table === 'object') {
+    clean.table = {
+      headers: (Array.isArray(stimulus.table.headers) ? stimulus.table.headers : []).slice(0, 8).map((value) => String(value)),
+      rows: (Array.isArray(stimulus.table.rows) ? stimulus.table.rows : []).slice(0, 20)
+        .map((row) => (Array.isArray(row) ? row : []).slice(0, 8).map((value) => String(value))),
+    };
+  }
+  if (Array.isArray(stimulus.orderedPairs)) {
+    clean.orderedPairs = stimulus.orderedPairs.slice(0, 24)
+      .map((pair) => (Array.isArray(pair)
+        ? { x: Number(pair[0]), y: Number(pair[1]) }
+        : { x: Number(pair?.x), y: Number(pair?.y) }))
+      .filter((pair) => Number.isFinite(pair.x) && Number.isFinite(pair.y));
+  }
+  if (Array.isArray(stimulus.expressions)) {
+    clean.expressions = stimulus.expressions.slice(0, 12).map((value) => String(value).slice(0, 200));
+  }
+  if (Array.isArray(stimulus.steps)) {
+    clean.steps = stimulus.steps.slice(0, 10).map((step, index) => ({
+      id: String(step?.id || `step-${index + 1}`),
+      label: String(step?.label || `Step ${index + 1}`).slice(0, 60),
+      work: String(step?.work ?? '').slice(0, 200),
+    }));
+  }
+  if (Array.isArray(stimulus.items)) {
+    clean.items = stimulus.items.slice(0, 12).map((item, index) => ({
+      id: String(item?.id || `item-${index + 1}`),
+      label: String(item?.label ?? '').slice(0, 200),
+    }));
+  }
+  return clean;
 }
 
 function sanitizeContext(context) {
@@ -110,12 +187,13 @@ function buildSanitizedQuestion(question, { questionInstanceId, attemptsAllowed,
     calculatorPolicy: String(question.calculatorPolicy || 'inherit'),
     assessedConstruct: question.assessedConstruct || null,
     prompt: String(question.prompt || ''),
-    choices: Array.isArray(question.choices) ? question.choices.slice(0, 12).map((choice, index) => {
-      if (choice && typeof choice === 'object') return { id: String(choice.id || choice.value || `choice-${index + 1}`), label: String(choice.label || choice.text || choice.value || '') };
-      return { id: String(choice), label: String(choice) };
-    }) : [],
+    choices: normalizeChoices(question.choices),
     formulaLatex: question.formulaLatex ? String(question.formulaLatex) : null,
     responseFields: normalizeResponseFields(question.responseFields),
+    // What the student has to look at to answer. Never anything they have to
+    // work out.
+    stimulus: sanitizeStimulus(question.stimulus),
+    representation: question.representation ? String(question.representation) : null,
     context: sanitizeContext(question.context),
     attemptsAllowed,
     attemptsUsed,
@@ -276,7 +354,28 @@ function nextRetentionDue(now, successfulCheckCount) {
   return now + days * DAY_MS;
 }
 
+/**
+ * The private support bundle for a question the server is about to issue.
+ *
+ * Kept next to `privateGrading` on the session document and never included in
+ * anything sanitizeQuestion returns. Released one piece at a time by
+ * `attemptSupport` below.
+ */
+async function buildPrivateSupport(question) {
+  const support = await pathSolutionSupport();
+  return support.buildPrivateSupport(question);
+}
+
+/** What the student is told about the attempt that just happened. */
+async function attemptSupport(args) {
+  const support = await pathSolutionSupport();
+  return support.buildAttemptSupportPayload(args);
+}
+
 module.exports = {
+  attemptSupport,
+  buildPrivateSupport,
+  pathSolutionSupport,
   buildIssuePlan,
   buildSanitizedQuestion,
   gradePathToolResponse,

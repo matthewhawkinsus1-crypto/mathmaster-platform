@@ -55,7 +55,7 @@ export const explainLock = (row) => {
   const target = row?.remediationTarget || list(row?.unmetPrerequisites)[0] || null;
   if (!target) return 'This is not open yet.';
   const described = describeSkill(target);
-  return `Strengthen ${described.shortLabel || target} first — this skill builds on it.`;
+  return `Strengthen ${described.studentLabel || described.shortLabel || target} first — this skill builds on it.`;
 };
 
 const toPathNode = (row, extra = {}) => {
@@ -64,8 +64,11 @@ const toPathNode = (row, extra = {}) => {
   return {
     skillId: row.skillId,
     code: described.code || null,
-    title: described.shortLabel || row.skillId,
-    description: (described.label || '').split(' — ').slice(1).join(' — '),
+    // The student reads the name of the mathematics. The TEKS code travels
+    // beside it on `code` for teacher tooling, and is never rendered by the
+    // student surfaces.
+    title: described.studentLabel || described.shortLabel || row.skillId,
+    description: described.description || (described.label || '').split(' — ').slice(1).join(' — '),
     status: row.status,
     symbol: mark(row.status).symbol,
     statusLabel: mark(row.status).label,
@@ -165,7 +168,7 @@ export const buildPathMap = (options, { limits = {}, isCovered = null } = {}) =>
         strengthen: described ? {
           skillId: targetId,
           code: described.code || null,
-          title: described.shortLabel || targetId,
+          title: described.studentLabel || described.shortLabel || targetId,
           symbol: PATH_MARK[STATUS.REMEDIATION].symbol,
           statusLabel: PATH_MARK[STATUS.REMEDIATION].label,
           tone: PATH_MARK[STATUS.REMEDIATION].tone,

@@ -1,1991 +1,643 @@
 {
-  "schemaVersion": 1,
-  "assumption": "Production pathQuestionBank is empty before this seed.",
-  "coverageUniverse": {
-    "algebra1WheelStandards": 49,
-    "algebra2WheelStandards": 48,
-    "hardPrerequisiteStandards": 6,
-    "totalRouteableStandards": 103,
-    "processStandardsExcluded": true,
-    "note": "This is the current My Math Path routeable universe. Grade 6-8 content standards outside the hard-prerequisite closure are not current wheel targets."
-  },
-  "minimumPolicy": {
-    "familiesPerStandard": 5,
-    "reason": "The default My Math Path session requires five questions; fewer than five families guarantees repetition unless the session is shortened.",
-    "difficultyBands": [
-      2,
-      3,
-      3,
-      4,
-      5
-    ],
-    "requiredIssuerBehavior": "Select an unused family from the preferred band when possible, then widen to the nearest available band. Do not restrict the whole session to one exact band.",
-    "publishRule": "Every document must pass buildIssuePlan and remain server-gradeable before it counts as coverage."
-  },
+  "schemaVersion": 2,
+  "generatedBy": "scripts/build-path-bank.mjs",
   "totals": {
-    "standards": 103,
-    "documents": 515,
-    "expectedDocuments": 515,
-    "errors": 0
+    "documents": 630,
+    "standards": 126,
+    "authoredStandards": 29,
+    "productionQualityStandards": 29,
+    "upgradedStarterStandards": 97
   },
-  "coverage": {
-    "7.7": {
-      "courseId": "grade7",
+  "standards": {
+    "6.7A": {
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:7.7:foundation",
-        "path-seed:7.7:core",
-        "path-seed:7.7:representation",
-        "path-seed:7.7:application",
-        "path-seed:7.7:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 5,
+      "upgradedStarter": 0
+    },
+    "6.7D": {
+      "familyCount": 5,
+      "authored": 5,
+      "upgradedStarter": 0
+    },
+    "7.3A": {
+      "familyCount": 5,
+      "authored": 5,
+      "upgradedStarter": 0
+    },
+    "7.3B": {
+      "familyCount": 5,
+      "authored": 5,
+      "upgradedStarter": 0
+    },
+    "7.7": {
+      "familyCount": 5,
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "7.11A": {
-      "courseId": "grade7",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:7.11A:foundation",
-        "path-seed:7.11A:core",
-        "path-seed:7.11A:representation",
-        "path-seed:7.11A:application",
-        "path-seed:7.11A:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 5,
+      "upgradedStarter": 0
+    },
+    "8.2B": {
+      "familyCount": 5,
+      "authored": 5,
+      "upgradedStarter": 0
+    },
+    "8.2C": {
+      "familyCount": 5,
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "8.4A": {
-      "courseId": "grade8",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:8.4A:foundation",
-        "path-seed:8.4A:core",
-        "path-seed:8.4A:representation",
-        "path-seed:8.4A:application",
-        "path-seed:8.4A:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 5,
+      "upgradedStarter": 0
+    },
+    "8.4B": {
+      "familyCount": 5,
+      "authored": 5,
+      "upgradedStarter": 0
+    },
+    "8.4C": {
+      "familyCount": 5,
+      "authored": 5,
+      "upgradedStarter": 0
+    },
+    "8.5A": {
+      "familyCount": 5,
+      "authored": 5,
+      "upgradedStarter": 0
+    },
+    "8.5B": {
+      "familyCount": 5,
+      "authored": 5,
+      "upgradedStarter": 0
+    },
+    "8.5C": {
+      "familyCount": 5,
+      "authored": 5,
+      "upgradedStarter": 0
+    },
+    "8.5D": {
+      "familyCount": 5,
+      "authored": 5,
+      "upgradedStarter": 0
+    },
+    "8.5E": {
+      "familyCount": 5,
+      "authored": 5,
+      "upgradedStarter": 0
+    },
+    "8.5F": {
+      "familyCount": 5,
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "8.5G": {
-      "courseId": "grade8",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:8.5G:foundation",
-        "path-seed:8.5G:core",
-        "path-seed:8.5G:representation",
-        "path-seed:8.5G:application",
-        "path-seed:8.5G:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 5,
+      "upgradedStarter": 0
+    },
+    "8.5H": {
+      "familyCount": 5,
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "8.5I": {
-      "courseId": "grade8",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:8.5I:foundation",
-        "path-seed:8.5I:core",
-        "path-seed:8.5I:representation",
-        "path-seed:8.5I:application",
-        "path-seed:8.5I:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 5,
+      "upgradedStarter": 0
+    },
+    "8.7C": {
+      "familyCount": 5,
+      "authored": 5,
+      "upgradedStarter": 0
+    },
+    "8.8A": {
+      "familyCount": 5,
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "8.8C": {
-      "courseId": "grade8",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:8.8C:foundation",
-        "path-seed:8.8C:core",
-        "path-seed:8.8C:representation",
-        "path-seed:8.8C:application",
-        "path-seed:8.8C:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 5,
+      "upgradedStarter": 0
+    },
+    "8.9": {
+      "familyCount": 5,
+      "authored": 5,
+      "upgradedStarter": 0
+    },
+    "8.10A": {
+      "familyCount": 5,
+      "authored": 5,
+      "upgradedStarter": 0
+    },
+    "8.10C": {
+      "familyCount": 5,
+      "authored": 5,
+      "upgradedStarter": 0
+    },
+    "8.11A": {
+      "familyCount": 5,
+      "authored": 5,
+      "upgradedStarter": 0
+    },
+    "8.12C": {
+      "familyCount": 5,
+      "authored": 5,
+      "upgradedStarter": 0
+    },
+    "8.12D": {
+      "familyCount": 5,
+      "authored": 5,
+      "upgradedStarter": 0
     },
     "A.2A": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.2A:foundation",
-        "path-seed:A.2A:core",
-        "path-seed:A.2A:representation",
-        "path-seed:A.2A:application",
-        "path-seed:A.2A:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.2B": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.2B:foundation",
-        "path-seed:A.2B:core",
-        "path-seed:A.2B:representation",
-        "path-seed:A.2B:application",
-        "path-seed:A.2B:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.2C": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.2C:foundation",
-        "path-seed:A.2C:core",
-        "path-seed:A.2C:representation",
-        "path-seed:A.2C:application",
-        "path-seed:A.2C:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.2D": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.2D:foundation",
-        "path-seed:A.2D:core",
-        "path-seed:A.2D:representation",
-        "path-seed:A.2D:application",
-        "path-seed:A.2D:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.2E": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.2E:foundation",
-        "path-seed:A.2E:core",
-        "path-seed:A.2E:representation",
-        "path-seed:A.2E:application",
-        "path-seed:A.2E:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.2F": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.2F:foundation",
-        "path-seed:A.2F:core",
-        "path-seed:A.2F:representation",
-        "path-seed:A.2F:application",
-        "path-seed:A.2F:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.2G": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.2G:foundation",
-        "path-seed:A.2G:core",
-        "path-seed:A.2G:representation",
-        "path-seed:A.2G:application",
-        "path-seed:A.2G:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.2H": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.2H:foundation",
-        "path-seed:A.2H:core",
-        "path-seed:A.2H:representation",
-        "path-seed:A.2H:application",
-        "path-seed:A.2H:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.2I": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.2I:foundation",
-        "path-seed:A.2I:core",
-        "path-seed:A.2I:representation",
-        "path-seed:A.2I:application",
-        "path-seed:A.2I:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.3A": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.3A:foundation",
-        "path-seed:A.3A:core",
-        "path-seed:A.3A:representation",
-        "path-seed:A.3A:application",
-        "path-seed:A.3A:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.3B": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.3B:foundation",
-        "path-seed:A.3B:core",
-        "path-seed:A.3B:representation",
-        "path-seed:A.3B:application",
-        "path-seed:A.3B:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.3C": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.3C:foundation",
-        "path-seed:A.3C:core",
-        "path-seed:A.3C:representation",
-        "path-seed:A.3C:application",
-        "path-seed:A.3C:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.3D": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.3D:foundation",
-        "path-seed:A.3D:core",
-        "path-seed:A.3D:representation",
-        "path-seed:A.3D:application",
-        "path-seed:A.3D:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.3E": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.3E:foundation",
-        "path-seed:A.3E:core",
-        "path-seed:A.3E:representation",
-        "path-seed:A.3E:application",
-        "path-seed:A.3E:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.3F": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.3F:foundation",
-        "path-seed:A.3F:core",
-        "path-seed:A.3F:representation",
-        "path-seed:A.3F:application",
-        "path-seed:A.3F:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.3G": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.3G:foundation",
-        "path-seed:A.3G:core",
-        "path-seed:A.3G:representation",
-        "path-seed:A.3G:application",
-        "path-seed:A.3G:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.3H": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.3H:foundation",
-        "path-seed:A.3H:core",
-        "path-seed:A.3H:representation",
-        "path-seed:A.3H:application",
-        "path-seed:A.3H:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.4A": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.4A:foundation",
-        "path-seed:A.4A:core",
-        "path-seed:A.4A:representation",
-        "path-seed:A.4A:application",
-        "path-seed:A.4A:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.4B": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.4B:foundation",
-        "path-seed:A.4B:core",
-        "path-seed:A.4B:representation",
-        "path-seed:A.4B:application",
-        "path-seed:A.4B:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.4C": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.4C:foundation",
-        "path-seed:A.4C:core",
-        "path-seed:A.4C:representation",
-        "path-seed:A.4C:application",
-        "path-seed:A.4C:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.5A": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.5A:foundation",
-        "path-seed:A.5A:core",
-        "path-seed:A.5A:representation",
-        "path-seed:A.5A:application",
-        "path-seed:A.5A:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.5B": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.5B:foundation",
-        "path-seed:A.5B:core",
-        "path-seed:A.5B:representation",
-        "path-seed:A.5B:application",
-        "path-seed:A.5B:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.5C": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.5C:foundation",
-        "path-seed:A.5C:core",
-        "path-seed:A.5C:representation",
-        "path-seed:A.5C:application",
-        "path-seed:A.5C:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.6A": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.6A:foundation",
-        "path-seed:A.6A:core",
-        "path-seed:A.6A:representation",
-        "path-seed:A.6A:application",
-        "path-seed:A.6A:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.6B": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.6B:foundation",
-        "path-seed:A.6B:core",
-        "path-seed:A.6B:representation",
-        "path-seed:A.6B:application",
-        "path-seed:A.6B:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.6C": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.6C:foundation",
-        "path-seed:A.6C:core",
-        "path-seed:A.6C:representation",
-        "path-seed:A.6C:application",
-        "path-seed:A.6C:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.7A": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.7A:foundation",
-        "path-seed:A.7A:core",
-        "path-seed:A.7A:representation",
-        "path-seed:A.7A:application",
-        "path-seed:A.7A:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.7B": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.7B:foundation",
-        "path-seed:A.7B:core",
-        "path-seed:A.7B:representation",
-        "path-seed:A.7B:application",
-        "path-seed:A.7B:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.7C": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.7C:foundation",
-        "path-seed:A.7C:core",
-        "path-seed:A.7C:representation",
-        "path-seed:A.7C:application",
-        "path-seed:A.7C:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.8A": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.8A:foundation",
-        "path-seed:A.8A:core",
-        "path-seed:A.8A:representation",
-        "path-seed:A.8A:application",
-        "path-seed:A.8A:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.8B": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.8B:foundation",
-        "path-seed:A.8B:core",
-        "path-seed:A.8B:representation",
-        "path-seed:A.8B:application",
-        "path-seed:A.8B:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.9A": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.9A:foundation",
-        "path-seed:A.9A:core",
-        "path-seed:A.9A:representation",
-        "path-seed:A.9A:application",
-        "path-seed:A.9A:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.9B": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.9B:foundation",
-        "path-seed:A.9B:core",
-        "path-seed:A.9B:representation",
-        "path-seed:A.9B:application",
-        "path-seed:A.9B:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.9C": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.9C:foundation",
-        "path-seed:A.9C:core",
-        "path-seed:A.9C:representation",
-        "path-seed:A.9C:application",
-        "path-seed:A.9C:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.9D": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.9D:foundation",
-        "path-seed:A.9D:core",
-        "path-seed:A.9D:representation",
-        "path-seed:A.9D:application",
-        "path-seed:A.9D:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.9E": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.9E:foundation",
-        "path-seed:A.9E:core",
-        "path-seed:A.9E:representation",
-        "path-seed:A.9E:application",
-        "path-seed:A.9E:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.10A": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.10A:foundation",
-        "path-seed:A.10A:core",
-        "path-seed:A.10A:representation",
-        "path-seed:A.10A:application",
-        "path-seed:A.10A:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.10B": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.10B:foundation",
-        "path-seed:A.10B:core",
-        "path-seed:A.10B:representation",
-        "path-seed:A.10B:application",
-        "path-seed:A.10B:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.10C": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.10C:foundation",
-        "path-seed:A.10C:core",
-        "path-seed:A.10C:representation",
-        "path-seed:A.10C:application",
-        "path-seed:A.10C:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.10D": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.10D:foundation",
-        "path-seed:A.10D:core",
-        "path-seed:A.10D:representation",
-        "path-seed:A.10D:application",
-        "path-seed:A.10D:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.10E": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.10E:foundation",
-        "path-seed:A.10E:core",
-        "path-seed:A.10E:representation",
-        "path-seed:A.10E:application",
-        "path-seed:A.10E:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.10F": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.10F:foundation",
-        "path-seed:A.10F:core",
-        "path-seed:A.10F:representation",
-        "path-seed:A.10F:application",
-        "path-seed:A.10F:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.11A": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.11A:foundation",
-        "path-seed:A.11A:core",
-        "path-seed:A.11A:representation",
-        "path-seed:A.11A:application",
-        "path-seed:A.11A:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.11B": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.11B:foundation",
-        "path-seed:A.11B:core",
-        "path-seed:A.11B:representation",
-        "path-seed:A.11B:application",
-        "path-seed:A.11B:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.12A": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.12A:foundation",
-        "path-seed:A.12A:core",
-        "path-seed:A.12A:representation",
-        "path-seed:A.12A:application",
-        "path-seed:A.12A:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.12B": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.12B:foundation",
-        "path-seed:A.12B:core",
-        "path-seed:A.12B:representation",
-        "path-seed:A.12B:application",
-        "path-seed:A.12B:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.12C": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.12C:foundation",
-        "path-seed:A.12C:core",
-        "path-seed:A.12C:representation",
-        "path-seed:A.12C:application",
-        "path-seed:A.12C:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.12D": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.12D:foundation",
-        "path-seed:A.12D:core",
-        "path-seed:A.12D:representation",
-        "path-seed:A.12D:application",
-        "path-seed:A.12D:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A.12E": {
-      "courseId": "algebra1",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A.12E:foundation",
-        "path-seed:A.12E:core",
-        "path-seed:A.12E:representation",
-        "path-seed:A.12E:application",
-        "path-seed:A.12E:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.2A": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.2A:foundation",
-        "path-seed:A2.2A:core",
-        "path-seed:A2.2A:representation",
-        "path-seed:A2.2A:application",
-        "path-seed:A2.2A:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.2B": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.2B:foundation",
-        "path-seed:A2.2B:core",
-        "path-seed:A2.2B:representation",
-        "path-seed:A2.2B:application",
-        "path-seed:A2.2B:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.2C": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.2C:foundation",
-        "path-seed:A2.2C:core",
-        "path-seed:A2.2C:representation",
-        "path-seed:A2.2C:application",
-        "path-seed:A2.2C:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.2D": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.2D:foundation",
-        "path-seed:A2.2D:core",
-        "path-seed:A2.2D:representation",
-        "path-seed:A2.2D:application",
-        "path-seed:A2.2D:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.3A": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.3A:foundation",
-        "path-seed:A2.3A:core",
-        "path-seed:A2.3A:representation",
-        "path-seed:A2.3A:application",
-        "path-seed:A2.3A:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.3B": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.3B:foundation",
-        "path-seed:A2.3B:core",
-        "path-seed:A2.3B:representation",
-        "path-seed:A2.3B:application",
-        "path-seed:A2.3B:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.3C": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.3C:foundation",
-        "path-seed:A2.3C:core",
-        "path-seed:A2.3C:representation",
-        "path-seed:A2.3C:application",
-        "path-seed:A2.3C:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.3D": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.3D:foundation",
-        "path-seed:A2.3D:core",
-        "path-seed:A2.3D:representation",
-        "path-seed:A2.3D:application",
-        "path-seed:A2.3D:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.3E": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.3E:foundation",
-        "path-seed:A2.3E:core",
-        "path-seed:A2.3E:representation",
-        "path-seed:A2.3E:application",
-        "path-seed:A2.3E:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.3F": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.3F:foundation",
-        "path-seed:A2.3F:core",
-        "path-seed:A2.3F:representation",
-        "path-seed:A2.3F:application",
-        "path-seed:A2.3F:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.3G": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.3G:foundation",
-        "path-seed:A2.3G:core",
-        "path-seed:A2.3G:representation",
-        "path-seed:A2.3G:application",
-        "path-seed:A2.3G:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.4A": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.4A:foundation",
-        "path-seed:A2.4A:core",
-        "path-seed:A2.4A:representation",
-        "path-seed:A2.4A:application",
-        "path-seed:A2.4A:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.4B": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.4B:foundation",
-        "path-seed:A2.4B:core",
-        "path-seed:A2.4B:representation",
-        "path-seed:A2.4B:application",
-        "path-seed:A2.4B:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.4C": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.4C:foundation",
-        "path-seed:A2.4C:core",
-        "path-seed:A2.4C:representation",
-        "path-seed:A2.4C:application",
-        "path-seed:A2.4C:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.4D": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.4D:foundation",
-        "path-seed:A2.4D:core",
-        "path-seed:A2.4D:representation",
-        "path-seed:A2.4D:application",
-        "path-seed:A2.4D:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.4E": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.4E:foundation",
-        "path-seed:A2.4E:core",
-        "path-seed:A2.4E:representation",
-        "path-seed:A2.4E:application",
-        "path-seed:A2.4E:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.4F": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.4F:foundation",
-        "path-seed:A2.4F:core",
-        "path-seed:A2.4F:representation",
-        "path-seed:A2.4F:application",
-        "path-seed:A2.4F:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.4G": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.4G:foundation",
-        "path-seed:A2.4G:core",
-        "path-seed:A2.4G:representation",
-        "path-seed:A2.4G:application",
-        "path-seed:A2.4G:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.4H": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.4H:foundation",
-        "path-seed:A2.4H:core",
-        "path-seed:A2.4H:representation",
-        "path-seed:A2.4H:application",
-        "path-seed:A2.4H:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.5A": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.5A:foundation",
-        "path-seed:A2.5A:core",
-        "path-seed:A2.5A:representation",
-        "path-seed:A2.5A:application",
-        "path-seed:A2.5A:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.5B": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.5B:foundation",
-        "path-seed:A2.5B:core",
-        "path-seed:A2.5B:representation",
-        "path-seed:A2.5B:application",
-        "path-seed:A2.5B:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.5C": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.5C:foundation",
-        "path-seed:A2.5C:core",
-        "path-seed:A2.5C:representation",
-        "path-seed:A2.5C:application",
-        "path-seed:A2.5C:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.5D": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.5D:foundation",
-        "path-seed:A2.5D:core",
-        "path-seed:A2.5D:representation",
-        "path-seed:A2.5D:application",
-        "path-seed:A2.5D:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.5E": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.5E:foundation",
-        "path-seed:A2.5E:core",
-        "path-seed:A2.5E:representation",
-        "path-seed:A2.5E:application",
-        "path-seed:A2.5E:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.6A": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.6A:foundation",
-        "path-seed:A2.6A:core",
-        "path-seed:A2.6A:representation",
-        "path-seed:A2.6A:application",
-        "path-seed:A2.6A:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.6B": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.6B:foundation",
-        "path-seed:A2.6B:core",
-        "path-seed:A2.6B:representation",
-        "path-seed:A2.6B:application",
-        "path-seed:A2.6B:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.6C": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.6C:foundation",
-        "path-seed:A2.6C:core",
-        "path-seed:A2.6C:representation",
-        "path-seed:A2.6C:application",
-        "path-seed:A2.6C:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.6D": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.6D:foundation",
-        "path-seed:A2.6D:core",
-        "path-seed:A2.6D:representation",
-        "path-seed:A2.6D:application",
-        "path-seed:A2.6D:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.6E": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.6E:foundation",
-        "path-seed:A2.6E:core",
-        "path-seed:A2.6E:representation",
-        "path-seed:A2.6E:application",
-        "path-seed:A2.6E:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.6F": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.6F:foundation",
-        "path-seed:A2.6F:core",
-        "path-seed:A2.6F:representation",
-        "path-seed:A2.6F:application",
-        "path-seed:A2.6F:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.6G": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.6G:foundation",
-        "path-seed:A2.6G:core",
-        "path-seed:A2.6G:representation",
-        "path-seed:A2.6G:application",
-        "path-seed:A2.6G:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.6H": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.6H:foundation",
-        "path-seed:A2.6H:core",
-        "path-seed:A2.6H:representation",
-        "path-seed:A2.6H:application",
-        "path-seed:A2.6H:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.6I": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.6I:foundation",
-        "path-seed:A2.6I:core",
-        "path-seed:A2.6I:representation",
-        "path-seed:A2.6I:application",
-        "path-seed:A2.6I:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.6J": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.6J:foundation",
-        "path-seed:A2.6J:core",
-        "path-seed:A2.6J:representation",
-        "path-seed:A2.6J:application",
-        "path-seed:A2.6J:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.6K": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.6K:foundation",
-        "path-seed:A2.6K:core",
-        "path-seed:A2.6K:representation",
-        "path-seed:A2.6K:application",
-        "path-seed:A2.6K:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.6L": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.6L:foundation",
-        "path-seed:A2.6L:core",
-        "path-seed:A2.6L:representation",
-        "path-seed:A2.6L:application",
-        "path-seed:A2.6L:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.7A": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.7A:foundation",
-        "path-seed:A2.7A:core",
-        "path-seed:A2.7A:representation",
-        "path-seed:A2.7A:application",
-        "path-seed:A2.7A:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.7B": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.7B:foundation",
-        "path-seed:A2.7B:core",
-        "path-seed:A2.7B:representation",
-        "path-seed:A2.7B:application",
-        "path-seed:A2.7B:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.7C": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.7C:foundation",
-        "path-seed:A2.7C:core",
-        "path-seed:A2.7C:representation",
-        "path-seed:A2.7C:application",
-        "path-seed:A2.7C:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.7D": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.7D:foundation",
-        "path-seed:A2.7D:core",
-        "path-seed:A2.7D:representation",
-        "path-seed:A2.7D:application",
-        "path-seed:A2.7D:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.7E": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.7E:foundation",
-        "path-seed:A2.7E:core",
-        "path-seed:A2.7E:representation",
-        "path-seed:A2.7E:application",
-        "path-seed:A2.7E:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.7F": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.7F:foundation",
-        "path-seed:A2.7F:core",
-        "path-seed:A2.7F:representation",
-        "path-seed:A2.7F:application",
-        "path-seed:A2.7F:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.7G": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.7G:foundation",
-        "path-seed:A2.7G:core",
-        "path-seed:A2.7G:representation",
-        "path-seed:A2.7G:application",
-        "path-seed:A2.7G:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.7H": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.7H:foundation",
-        "path-seed:A2.7H:core",
-        "path-seed:A2.7H:representation",
-        "path-seed:A2.7H:application",
-        "path-seed:A2.7H:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.7I": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.7I:foundation",
-        "path-seed:A2.7I:core",
-        "path-seed:A2.7I:representation",
-        "path-seed:A2.7I:application",
-        "path-seed:A2.7I:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.8A": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.8A:foundation",
-        "path-seed:A2.8A:core",
-        "path-seed:A2.8A:representation",
-        "path-seed:A2.8A:application",
-        "path-seed:A2.8A:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.8B": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.8B:foundation",
-        "path-seed:A2.8B:core",
-        "path-seed:A2.8B:representation",
-        "path-seed:A2.8B:application",
-        "path-seed:A2.8B:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     },
     "A2.8C": {
-      "courseId": "algebra2",
       "familyCount": 5,
-      "bands": [
-        2,
-        3,
-        3,
-        4,
-        5
-      ],
-      "familyIds": [
-        "path-seed:A2.8C:foundation",
-        "path-seed:A2.8C:core",
-        "path-seed:A2.8C:representation",
-        "path-seed:A2.8C:application",
-        "path-seed:A2.8C:challenge"
-      ],
-      "studentReadyMinimum": true
+      "authored": 0,
+      "upgradedStarter": 5
     }
-  },
-  "generationErrors": []
+  }
 }

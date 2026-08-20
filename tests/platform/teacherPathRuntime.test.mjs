@@ -229,7 +229,9 @@ test('student-experience runtime can issue and grade secure bank content with ze
 
   assert.equal(questionInstance.sourceBankQuestionId, bankRecord.id);
   assert.equal(questionInstance.canonicalQuestion, undefined, 'legacy secure-bank answers must not travel in a canonical question');
-  assert.deepEqual(questionInstance.responseFields, [{ id: 'answer', label: 'Answer', inputProfile: 'text', unit: null }]);
+  assert.deepEqual(questionInstance.responseFields, [{
+    id: 'answer', label: 'Answer', inputProfile: 'text', unit: null, responseHint: null, placeholder: null,
+  }]);
   assert.equal(JSON.stringify(questionInstance).includes('"expected":"A"'), false, 'expected answer must stay private');
 
   const result = await runtime.submitStudentResponse({

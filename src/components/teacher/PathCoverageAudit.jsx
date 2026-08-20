@@ -4,6 +4,10 @@ import { clearTeacherPathBankSnapshotCache } from '../../platform/path/pathBankS
 import {
   COVERAGE_STATE, COVERAGE_STATE_LABELS, summarizeCoverage,
 } from '../../../functions/shared/pathCoverage.mjs';
+import {
+  CONTENT_STATE, CONTENT_STATE_LABELS,
+} from '../../../functions/shared/pathStandardQuality.mjs';
+import { getExecutionModeDiagnostics } from '../../config/executionMode.js';
 import { COURSES } from '../../../functions/shared/classModel.mjs';
 import { PATH_WEB_RELEASE } from '../../platform/path/pathRelease.js';
 
@@ -33,6 +37,25 @@ const pill = (state) => ({
   fontWeight: 900, textTransform: 'uppercase', letterSpacing: '.04em',
   ...(STATE_STYLE[state] || STATE_STYLE[COVERAGE_STATE.NONE]),
 });
+
+// Coverage and quality are different questions with different answers, so they
+// get different colours. A standard can be green on the left (a session will
+// run) and amber on the right (what it will run is placeholders).
+const CONTENT_STATE_STYLE = {
+  [CONTENT_STATE.PRODUCTION_READY]: { background: '#e6f4ea', color: '#137333' },
+  [CONTENT_STATE.CANDIDATE]: { background: '#e8f0fe', color: '#174ea6' },
+  [CONTENT_STATE.MINIMUM_OPERATIONAL]: { background: '#fef7e0', color: '#7a4f00' },
+  [CONTENT_STATE.AUTHORED_UNUSABLE]: { background: '#fce8e6', color: '#a50e0e' },
+  [CONTENT_STATE.NONE]: { background: '#f1f3f4', color: '#3c4043' },
+};
+
+const contentPill = (state) => ({
+  display: 'inline-block', padding: '3px 9px', borderRadius: 999, fontSize: 11,
+  fontWeight: 900, textTransform: 'uppercase', letterSpacing: '.04em',
+  ...(CONTENT_STATE_STYLE[state] || CONTENT_STATE_STYLE[CONTENT_STATE.NONE]),
+});
+
+const listOrDash = (values) => (values && values.length ? values.join(', ') : '—');
 
 
 const friendlyPathError = (caught, fallback) => {
@@ -131,8 +154,18 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
     }
   };
 
+  const executionMode = getExecutionModeDiagnostics();
   const index = indexes[courseId] || null;
-  const rows = useMemo(() => (index ? summarizeCoverage(index, { onlyGaps }) : []), [index, onlyGaps]);
+  // "Gaps" now means "not finished", not merely "cannot run". A standard whose
+  // five items are all placeholders is exactly the row a content lead needs to
+  // see, and the old filter hid it because a session would technically start.
+  const rows = useMemo(() => {
+    if (!index) return [];
+    const all = summarizeCoverage(index);
+    return onlyGaps
+      ? all.filter((row) => !row.studentReady || row.contentState !== CONTENT_STATE.PRODUCTION_READY)
+      : all;
+  }, [index, onlyGaps]);
   const summary = index?.summary || null;
 
   return (
@@ -154,6 +187,14 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
           </div>
           <button type="button" style={quiet} onClick={loadRuntimeStatus} disabled={busy}>Check deployment</button>
         </div>
+        {/* Which runtime THIS build will use. A deployment that lost its
+            execution-mode variable used to serve students a sandbox question
+            silently; now it refuses, and this is where an administrator sees
+            why before a class does. */}
+        <p style={{ margin: '10px 0 0', color: executionMode.mode === 'misconfigured' ? '#a50e0e' : '#5f6368', fontSize: 13, lineHeight: 1.5, fontWeight: executionMode.mode === 'misconfigured' ? 800 : 400 }}>
+          This web build runs My Math Path in <strong>{executionMode.mode}</strong> mode ({String(executionMode.reason).replace(/_/g, ' ')}).
+          {executionMode.message ? ` ${executionMode.message}` : ''}
+        </p>
         {runtimeError && <p role="alert" style={{ margin: '12px 0 0', color: '#a50e0e', fontWeight: 800, lineHeight: 1.5 }}>{runtimeError}</p>}
         {runtimeStatus?.release && runtimeStatus.release !== PATH_WEB_RELEASE && (
           <p role="alert" style={{ margin: '12px 0 0', color: '#a50e0e', fontWeight: 800, lineHeight: 1.5 }}>
@@ -326,6 +367,10 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
               ['Usable but thin', summary.minimal],
               ['Authored but unusable', summary.authoredUnusable],
               ['No content', summary.none],
+              // The higher bar, reported beside the launch bar rather than
+              // instead of it: "a session can run" and "a session is worth
+              // running" are different facts and both matter.
+              ['Production quality', summary.productionReady ?? 0],
             ].map(([label, value]) => (
               <div key={label}>
                 <div style={{ fontSize: 26, fontWeight: 900, color: '#202124' }}>{value}</div>
@@ -338,6 +383,16 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
               ? 'Every standard on this wheel has practice content. No student can reach a dead end.'
               : `${summary.wheelSkills - summary.studentReady} standard${summary.wheelSkills - summary.studentReady === 1 ? '' : 's'} cannot be practised yet, and ${summary.wheelSkills - summary.studentReady === 1 ? 'is' : 'are'} hidden from students until content exists.`}
           </p>
+          {summary.quality && (
+            <p style={{ margin: '10px 0 0', color: '#5f6368', fontSize: 13, lineHeight: 1.6 }}>
+              Content quality across this wheel: <strong>{summary.quality.productionReady}</strong> production ·{' '}
+              <strong>{summary.quality.candidate}</strong> candidate ·{' '}
+              <strong>{summary.quality.minimumOperational}</strong> operational placeholders ·{' '}
+              <strong>{summary.quality.authoredUnusable}</strong> unusable ·{' '}
+              <strong>{summary.quality.none}</strong> empty.
+              {' '}A standard is not finished because five text boxes exist for it.
+            </p>
+          )}
           {index?.generatedAt && (
             <p style={{ margin: '6px 0 0', color: '#5f6368', fontSize: 12 }}>
               Last computed {new Date(index.generatedAt).toLocaleString()}.
@@ -352,7 +407,7 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
             <h3 style={{ margin: 0 }}>By standard</h3>
             <label style={{ fontSize: 13, color: '#3c4043', display: 'flex', gap: 6, alignItems: 'center' }}>
               <input type="checkbox" checked={onlyGaps} onChange={(event) => setOnlyGaps(event.target.checked)} />
-              Show only gaps
+              Show only unfinished standards
             </label>
           </div>
           <div style={{ overflowX: 'auto' }}>
@@ -360,28 +415,57 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
               <thead>
                 <tr style={{ background: '#f1f3f4', textAlign: 'left' }}>
                   <th style={{ padding: 9 }}>Standard</th>
-                  <th style={{ padding: 9 }}>Usable question families</th>
-                  <th style={{ padding: 9 }}>Authored (active)</th>
-                  <th style={{ padding: 9 }}>Difficulty bands</th>
-                  <th style={{ padding: 9 }}>Status</th>
+                  <th style={{ padding: 9 }}>Issuable</th>
+                  <th style={{ padding: 9 }}>Production</th>
+                  <th style={{ padding: 9 }}>Representations</th>
+                  <th style={{ padding: 9 }}>Thinking</th>
+                  <th style={{ padding: 9 }}>Bands / DOK</th>
+                  <th style={{ padding: 9 }}>Reviews · Tools</th>
+                  <th style={{ padding: 9 }}>Can run</th>
+                  <th style={{ padding: 9 }}>Content quality</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => (
-                  <tr key={row.displayCode} style={{ borderBottom: '1px solid #e8eaed' }}>
-                    <td style={{ padding: 9, fontWeight: 900 }}>{row.displayCode}</td>
-                    <td style={{ padding: 9, fontWeight: 900, color: row.issuableCount ? '#137333' : '#a50e0e' }}>{row.issuableCount}</td>
-                    <td style={{ padding: 9, color: '#5f6368' }}>{row.activeCount}</td>
-                    <td style={{ padding: 9, color: '#5f6368' }}>
-                      {Object.keys(row.byBand).length
-                        ? Object.entries(row.byBand).sort().map(([band, count]) => `B${band}×${count}`).join(' · ')
-                        : '—'}
-                    </td>
-                    <td style={{ padding: 9 }}><span style={pill(row.state)}>{COVERAGE_STATE_LABELS[row.state]}</span></td>
-                  </tr>
-                ))}
+                {rows.map((row) => {
+                  const quality = row.quality || null;
+                  return (
+                    <React.Fragment key={row.displayCode}>
+                      <tr style={{ borderBottom: quality?.warnings?.length || quality?.blockers?.length ? 0 : '1px solid #e8eaed' }}>
+                        <td style={{ padding: 9, fontWeight: 900 }}>{row.displayCode}</td>
+                        <td style={{ padding: 9, fontWeight: 900, color: row.issuableCount ? '#137333' : '#a50e0e' }}>{row.issuableCount}</td>
+                        <td style={{ padding: 9, fontWeight: 900, color: (quality?.productionCount || 0) >= 5 ? '#137333' : '#7a4f00' }}>{quality?.productionCount ?? 0}</td>
+                        <td style={{ padding: 9, color: '#5f6368', fontSize: 12 }}>{listOrDash(quality?.representations)}</td>
+                        <td style={{ padding: 9, color: '#5f6368', fontSize: 12 }}>{listOrDash(quality?.taskTypes)}</td>
+                        <td style={{ padding: 9, color: '#5f6368', fontSize: 12 }}>
+                          {Object.keys(row.byBand).length
+                            ? Object.entries(row.byBand).sort().map(([band, count]) => `B${band}×${count}`).join(' · ')
+                            : '—'}
+                          {quality?.dokLevels?.length ? ` / DOK ${quality.dokLevels.join(',')}` : ''}
+                        </td>
+                        <td style={{ padding: 9, color: '#5f6368', fontSize: 12 }}>
+                          {quality ? `${quality.solutionReviewCount}/${quality.issuableCount}` : '—'}
+                          {quality ? ` · ${quality.toolBackedCount} tool` : ''}
+                        </td>
+                        <td style={{ padding: 9 }}><span style={pill(row.state)}>{COVERAGE_STATE_LABELS[row.state]}</span></td>
+                        <td style={{ padding: 9 }}><span style={contentPill(row.contentState)}>{CONTENT_STATE_LABELS[row.contentState] || '—'}</span></td>
+                      </tr>
+                      {(quality?.blockers?.length || quality?.warnings?.length) ? (
+                        <tr style={{ borderBottom: '1px solid #e8eaed' }}>
+                          <td colSpan={9} style={{ padding: '0 9px 10px 9px' }}>
+                            {quality.blockers.map((line, position) => (
+                              <div key={`b-${position}`} style={{ color: '#a50e0e', fontSize: 12, lineHeight: 1.55 }}>■ {line}</div>
+                            ))}
+                            {quality.warnings.slice(0, 6).map((line, position) => (
+                              <div key={`w-${position}`} style={{ color: '#7a4f00', fontSize: 12, lineHeight: 1.55 }}>▲ {line}</div>
+                            ))}
+                          </td>
+                        </tr>
+                      ) : null}
+                    </React.Fragment>
+                  );
+                })}
                 {rows.length === 0 && (
-                  <tr><td colSpan={5} style={{ padding: 14, color: '#137333', fontWeight: 700 }}>No gaps — every standard on this wheel has practice content.</td></tr>
+                  <tr><td colSpan={9} style={{ padding: 14, color: '#137333', fontWeight: 700 }}>No gaps — every standard on this wheel has practice content.</td></tr>
                 )}
               </tbody>
             </table>

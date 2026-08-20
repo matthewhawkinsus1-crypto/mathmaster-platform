@@ -141,7 +141,8 @@ test('off-wheel prerequisites get coverage too, because routing can reach them',
 });
 
 test('the summary counts what a launch decision needs', () => {
-  assert.deepEqual(INDEX.summary, {
+  const { quality, ...launchCounts } = INDEX.summary;
+  assert.deepEqual(launchCounts, {
     wheelSkills: 4,
     studentReady: 1,
     adequate: 1,
@@ -149,7 +150,12 @@ test('the summary counts what a launch decision needs', () => {
     authoredUnusable: 1,
     none: 1,
     fullyCovered: false,
+    // Issuable is not finished: none of these placeholder items is production
+    // quality, and the summary says so separately.
+    productionReady: 0,
   });
+  assert.equal(quality.total, 4);
+  assert.equal(quality.productionReady, 0);
 });
 
 test('full coverage is every wheel standard issuable, not most of them', () => {

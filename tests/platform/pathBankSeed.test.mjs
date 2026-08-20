@@ -27,9 +27,20 @@ const rigorPolicy = require('../../functions/lib/rigorPolicy.js');
 
 const SEED_DIR = new URL('../../seed/pathQuestionBank/', import.meta.url);
 
-// The six middle-school standards the current Algebra prerequisite graph can
-// route a student into. Off both wheels, and reachable, so they need coverage.
-const REACHABLE_PREREQUISITES = ['7.7', '7.11A', '8.4A', '8.5G', '8.5I', '8.8C'];
+// Every middle-school standard the Algebra prerequisite graph can route into.
+// Off both wheels, and reachable, so a gap here is a dead end met by a student
+// who has just answered badly — the worst possible moment.
+//
+// This list grew from six to twenty-nine when the prerequisite content was
+// authored: the graph could always reach these, and nineteen of them had no
+// content, so a confirmed prerequisite gap had nowhere to send the student.
+const REACHABLE_PREREQUISITES = [
+  '6.7A', '6.7D',
+  '7.3A', '7.3B', '7.7', '7.11A',
+  '8.2B', '8.2C', '8.4A', '8.4B', '8.4C',
+  '8.5A', '8.5B', '8.5C', '8.5D', '8.5E', '8.5F', '8.5G', '8.5H', '8.5I',
+  '8.7C', '8.8A', '8.8C', '8.9', '8.10A', '8.10C', '8.11A', '8.12C', '8.12D',
+];
 
 const loadSeed = async () => {
   const files = (await readdir(SEED_DIR)).filter((name) => name.endsWith('_pathQuestionBank_seed.json')).sort();
@@ -57,9 +68,13 @@ const PLANS = await planAll(SEED);
 
 // --- The dry-run: every document, through the real production check -----------------
 
-test('the seed package is the size it claims to be, with unique ids', () => {
-  assert.equal(SEED.length, 515);
-  assert.equal(new Set(SEED.map((entry) => entry.id)).size, 515, 'duplicate ids would overwrite each other on import');
+test('every document has a unique id and an alignment', () => {
+  // Not a fixed count any more: the bank grows as standards are authored, and a
+  // test that pins the total turns every content addition into a test failure.
+  // What must stay true is that an import cannot overwrite one item with
+  // another, and that every item is reachable from a standard.
+  assert.ok(SEED.length >= 515, `the bank shrank to ${SEED.length} documents`);
+  assert.equal(new Set(SEED.map((entry) => entry.id)).size, SEED.length, 'duplicate ids would overwrite each other on import');
   SEED.forEach((entry) => {
     assert.ok(entry.id, 'every document needs an id to be idempotent on');
     assert.ok(Array.isArray(entry.alignmentKeys) && entry.alignmentKeys.length, `${entry.id} has no alignment`);
@@ -78,15 +93,58 @@ test('every seed document is issuable by production buildIssuePlan', () => {
   assert.deepEqual(failures, [], `documents that would fail in production:\n${JSON.stringify(failures, null, 2)}`);
 });
 
-test('the seed uses the legacy field-graded branch, declaring no Path tool', () => {
+test('every document is graded by exactly one of the two secure routes', () => {
+  // The bank now contains both kinds. What must never happen is a third kind:
+  // an item that names a tool with no contract, which would fail closed and be
+  // silently dropped from coverage.
   SEED.forEach((entry) => {
-    assert.equal(entry.type, undefined, `${entry.id} declares a type`);
-    assert.equal(entry.toolId, undefined, `${entry.id} declares a toolId`);
-    assert.equal(entry.pathToolId, undefined, `${entry.id} declares a pathToolId`);
-    assert.ok(Array.isArray(entry.responseFields) && entry.responseFields.length, `${entry.id} has no response fields`);
-    // And so the plan carries no tool payload — it grades on fields.
-    assert.equal(PLANS[entry.id].toolPayload, null);
+    const plan = PLANS[entry.id];
+    if (plan.toolPayload) {
+      assert.ok(entry.type || entry.toolId || entry.pathToolId, `${entry.id} has a tool payload but declares no tool`);
+      assert.ok(plan.privateGrading?.pathToolId, `${entry.id} has no server grader`);
+    } else {
+      assert.equal(entry.type, undefined, `${entry.id} declares a type with no contract`);
+      assert.equal(entry.toolId, undefined, `${entry.id} declares a toolId with no contract`);
+      assert.equal(entry.pathToolId, undefined, `${entry.id} declares a pathToolId with no contract`);
+      assert.ok(Array.isArray(entry.responseFields) && entry.responseFields.length, `${entry.id} has no response fields`);
+    }
   });
+});
+
+test('no document asks a student to type the letter of an option', () => {
+  // The single worst defect in the original starter bank, and the one the
+  // upgrade exists to remove. Checked over the WHOLE bank rather than the
+  // authored part, because the starter items are what a student meets on any
+  // standard nobody has authored yet.
+  const offenders = SEED.filter((entry) => /type\s+(?:a|the letter)\b/i.test(entry.prompt || '')
+    || /(^|\n)\s*[A-D]\s*\)\s+\S/m.test(entry.prompt || ''));
+  assert.deepEqual(offenders.map((entry) => entry.id), []);
+});
+
+test('a multiple-choice item ships real selectable options', () => {
+  const choiceItems = SEED.filter((entry) => (entry.responseFields || [])
+    .some((field) => field.inputProfile === 'choice'));
+  assert.ok(choiceItems.length > 400, `only ${choiceItems.length} items offer real choices`);
+  choiceItems.forEach((entry) => {
+    assert.ok((entry.choices || []).length >= 2, `${entry.id} has a choice input but no options`);
+    const expected = String(entry.responseFields[0].expected);
+    assert.ok(entry.choices.some((choice) => choice.id === expected), `${entry.id}'s expected answer is not one of its options`);
+  });
+});
+
+test('the correct option is not always in the same place', () => {
+  // 460 of 472 starter items had the correct option first. A student learns
+  // that in three questions, and from then on the item measures nothing.
+  const counts = new Map();
+  let total = 0;
+  SEED.forEach((entry) => {
+    if (!(entry.choices || []).length) return;
+    const expected = String(entry.responseFields[0].expected);
+    counts.set(expected, (counts.get(expected) || 0) + 1);
+    total += 1;
+  });
+  const worstShare = Math.max(...counts.values()) / total;
+  assert.ok(worstShare <= 0.4, `${Math.round(worstShare * 100)}% of choice items share one answer position`);
 });
 
 // --- Coverage, computed from the documents rather than from the manifest -------------
@@ -138,7 +196,7 @@ test('no standard is left under-filled or empty', () => {
   });
 });
 
-test('the five families are spread across difficulty bands, not stacked in one', () => {
+test('every family set is spread across difficulty bands, not stacked in one', () => {
   const index = coverageFor('algebra1');
   Object.values(index.skills).forEach((record) => {
     assert.ok(record.distinctBands >= 2, `${record.displayCode} sits in ${record.distinctBands} band(s)`);
@@ -159,9 +217,9 @@ const candidatesFor = (code) => SEED.filter((entry) => (
   && PLANS[entry.id]?.issuable
 ));
 
-test('all 103 currently routeable standards launch a full five-question session', () => {
+test('every routeable standard launches a full five-question session', () => {
   const targets = routeableTargets();
-  assert.equal(targets.length, 103, 'the routeable set is 49 + 48 + 6');
+  assert.equal(targets.length, 49 + 48 + REACHABLE_PREREQUISITES.length, 'the routeable set is both wheels plus every reachable prerequisite');
 
   const failures = [];
   targets.forEach((code) => {
@@ -206,10 +264,27 @@ test('nothing a student receives carries the answer', () => {
     // The expected VALUES too, wherever they might have been copied. Checked as
     // values rather than by scanning for the word "answer", which is a
     // legitimate response-field id in this bank.
-    const blob = JSON.stringify(sanitized);
+    // The expected VALUES too, wherever they might have been copied — but
+    // scanned over the parts of the payload that describe the TASK, not the
+    // parts that describe the MATERIAL.
+    //
+    // Two exclusions, and both are the difference between a leak and a
+    // question. `stimulus` is what the student is meant to read: a table whose
+    // whole point is "the intercept is the value at x = 0" necessarily contains
+    // the intercept. And a choice item's expected value is an option id, which
+    // has to travel because it is the answer SPACE — the payload says which
+    // options exist and never which one is right.
+    const { stimulus, ...taskPayload } = sanitized;
+    const blob = JSON.stringify(taskPayload);
     (entry.responseFields || []).forEach((field) => {
       if (field.expected === undefined || String(field.expected).length < 2) return;
+      if (field.inputProfile === 'choice') return;
       assert.ok(!blob.includes(JSON.stringify(field.expected)), `${entry.id} leaked its expected value`);
+    });
+    // And nothing inside the stimulus may name itself an answer.
+    const stimulusKeys = collectKeys(stimulus || {});
+    ['expected', 'accepted', 'correct', 'answer'].forEach((key) => {
+      assert.ok(!stimulusKeys.has(key), `${entry.id} put "${key}" inside its stimulus`);
     });
   });
 });
@@ -225,7 +300,13 @@ test('the shipped manifest matches what the documents actually contain', async (
       counted[code] = (counted[code] || 0) + 1;
     });
   });
-  assert.equal(Object.keys(counted).length, 103, 'the seed covers 103 standards');
-  Object.values(counted).forEach((count) => assert.equal(count, MINIMUM_ISSUABLE_FAMILIES));
-  assert.ok(manifest, 'the package ships a manifest');
+  // The manifest is generated by the build, so this asserts they cannot drift:
+  // a hand-maintained manifest is a second claim about the bank that can
+  // disagree with the bank.
+  assert.equal(manifest.totals.documents, SEED.length);
+  assert.equal(manifest.totals.standards, Object.keys(counted).length);
+  Object.entries(counted).forEach(([code, count]) => {
+    assert.ok(count >= MINIMUM_ISSUABLE_FAMILIES, `${code} has only ${count} families`);
+    assert.equal(manifest.standards[code].familyCount, count, `${code} is miscounted in the manifest`);
+  });
 });

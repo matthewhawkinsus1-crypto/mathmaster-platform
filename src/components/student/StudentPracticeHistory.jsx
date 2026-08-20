@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { buildStudentEvidenceTimeline, getTimelineTeksOptions } from '../../platform/history/evidenceTimelineService.js';
 import { toDisplayCode } from '../../utils/teksUtils.js';
+import { studentLabelForTeks } from '../../platform/path/skillLabels.js';
 
 const chipStyle = { display: 'inline-flex', alignItems: 'center', padding: '3px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 800 };
 
@@ -26,9 +27,9 @@ export const StudentPracticeHistory = ({ evidenceEvents = [], availableTeks = []
           <p style={{ margin: '5px 0 0', color: '#5f6368' }}>A chronological record of your MathMaster learning evidence.</p>
         </div>
         <label style={{ fontSize: '12px', fontWeight: 800, color: '#3c4043' }}>
-          TEKS filter
+          Skill
           <select value={teksFilter} onChange={(event) => setTeksFilter(event.target.value)} style={{ display: 'block', minWidth: '180px', marginTop: '5px', padding: '9px 10px', border: '1px solid #bdc1c6', borderRadius: '7px', background: '#fff' }}>
-            <option value="all">All TEKS</option>
+            <option value="all">All skills</option>
             {options.map((code) => <option key={code} value={code}>{code}</option>)}
           </select>
         </label>
@@ -62,7 +63,7 @@ export const StudentPracticeHistory = ({ evidenceEvents = [], availableTeks = []
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
                   <div>
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                      <strong style={{ color: '#174ea6' }}>TEKS {item.primaryTeks}</strong>
+                      <strong style={{ color: '#174ea6' }}>{studentLabelForTeks(item.primaryTeks)}</strong>
                       <span style={{ ...chipStyle, background: '#e8f0fe', color: '#174ea6' }}>{item.activityRoleName}</span>
                       <span style={{ ...chipStyle, background: item.classification.isIndependent ? '#e6f4ea' : '#fff4ce', color: item.classification.isIndependent ? '#137333' : '#7a4f00' }}>{item.classification.label}</span>
                     </div>

@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as liveSessionService from '../../services/pathSessionService.js';
 import { generateRuntimeUUID } from '../../utils/idUtils.js';
 import PathSessionPlayer from './PathSessionPlayer.jsx';
+import { explainStepForStudent } from '../../platform/path/pathSessionRouting.js';
 
 // The session runtime is injected.
 //
@@ -34,14 +35,32 @@ export const MyMathPathProductionContainer = ({
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [configurationError, setConfigurationError] = useState(null);
   const [submissionError, setSubmissionError] = useState(null);
   const [lastGradingResult, setLastGradingResult] = useState(null);
+  const [lastFeedback, setLastFeedback] = useState(null);
+  const [lastSupport, setLastSupport] = useState(null);
+  const [solutionReview, setSolutionReview] = useState(null);
+  // Set when a question closes. The next question is NOT fetched automatically:
+  // a review the student never sees is not a review, and auto-advancing past it
+  // is how "show a meaningful solution" turns into "flash one for 300ms".
+  const [awaitingContinue, setAwaitingContinue] = useState(false);
+  const [routeNotice, setRouteNotice] = useState(null);
   const pendingSubmissionRef = useRef(null);
   const completionReportedRef = useRef(false);
+
+  const clearAttemptState = () => {
+    setLastGradingResult(null);
+    setLastFeedback(null);
+    setLastSupport(null);
+    setSolutionReview(null);
+    setAwaitingContinue(false);
+  };
 
   const initializeSession = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setConfigurationError(null);
     setSubmissionError(null);
     completionReportedRef.current = false;
     try {
@@ -54,7 +73,10 @@ export const MyMathPathProductionContainer = ({
         setCurrentQuestion(null);
       }
     } catch (caught) {
-      setError(caught.message || 'Unable to load this My Math Path session.');
+      // A deployment that cannot reach the secure Path is a service problem,
+      // not a mathematics problem, and it is said differently.
+      if (caught?.isConfigurationError) setConfigurationError(caught.message);
+      else setError(caught.message || 'Unable to load this My Math Path session.');
     } finally {
       setLoading(false);
     }
@@ -67,6 +89,30 @@ export const MyMathPathProductionContainer = ({
     completionReportedRef.current = true;
     onSessionComplete?.(session);
   }, [session, onSessionComplete]);
+
+  // The banner that tells the student why the path changed direction. Built from
+  // the same decision object the teacher's route trace is built from, so the two
+  // cannot say different things.
+  const decisionNotice = useMemo(
+    () => explainStepForStudent(session?.lastDecision || null),
+    [session?.lastDecision],
+  );
+
+  const advanceToNextQuestion = useCallback(async () => {
+    if (!session || session.status !== 'active') return;
+    setAwaitingContinue(false);
+    setSubmissionError(null);
+    try {
+      const next = await fetchNextSanitizedQuestion({ sessionId: session.sessionId });
+      setCurrentQuestion(next.questionInstance);
+      clearAttemptState();
+      // The explanation is carried forward onto the question it explains, so a
+      // student meeting a prerequisite reads why on that question's screen.
+      setRouteNotice(decisionNotice);
+    } catch (caught) {
+      setSubmissionError(caught.message || 'The next question could not be loaded. Try again.');
+    }
+  }, [session, fetchNextSanitizedQuestion, decisionNotice]);
 
   const handleSubmitAnswer = async (responsePayload, supportUsage = {}, grade = null) => {
     if (!session || !currentQuestion || submitting) return;
@@ -90,17 +136,26 @@ export const MyMathPathProductionContainer = ({
       });
       pendingSubmissionRef.current = null;
       setLastGradingResult(result.grading);
+      setLastFeedback(result.feedback || null);
+      setLastSupport(result.support || null);
+      // Only ever set from what the server sent, and the server only sends it
+      // once the question is closed.
+      setSolutionReview(result.solutionReview || null);
       setSession(result.session);
-      if (result.needsNextQuestion && result.session.status === 'active') {
-        const next = await fetchNextSanitizedQuestion({ sessionId: result.session.sessionId });
-        setCurrentQuestion(next.questionInstance);
-        setLastGradingResult(null);
+
+      if (result.grading?.questionFinalized && result.session.status === 'active') {
+        // Hold here so the review can be read. `advanceToNextQuestion` is what
+        // fetches the next one, and the student presses the button.
+        setAwaitingContinue(true);
       } else if (result.session.status === 'active') {
         setCurrentQuestion((current) => (current
           ? { ...current, attemptsUsed: result.grading?.attemptNumber ?? current.attemptsUsed }
           : current));
       } else {
-        setCurrentQuestion(null);
+        // Session finished. The review stays on screen; the completion panel
+        // renders under it once the student continues.
+        setAwaitingContinue(Boolean(result.solutionReview));
+        if (!result.solutionReview) setCurrentQuestion(null);
       }
       onSimulationEvent?.({
         id: `path-event-${Date.now()}`,
@@ -130,9 +185,14 @@ export const MyMathPathProductionContainer = ({
         remainingAttempts: Number(result.grading?.attemptsRemaining || 0),
         expired: !result.grading?.isCorrect && Boolean(result.grading?.questionFinalized),
         partGrades: result.grading?.parts || [],
+        message: result.feedback?.message || '',
       };
     } catch (caught) {
-      setSubmissionError(`Submission was not confirmed. Check your connection and retry; MathMaster will reuse the same submission ID. ${caught.message || ''}`.trim());
+      if (caught?.isConfigurationError) {
+        setConfigurationError(caught.message);
+        return null;
+      }
+      setSubmissionError(`Submission was not confirmed. Check your connection and press Check again — MathMaster reuses the same submission ID, so retrying cannot count your answer twice. ${caught.message || ''}`.trim());
       return null;
     } finally {
       setSubmitting(false);
@@ -159,7 +219,14 @@ export const MyMathPathProductionContainer = ({
       });
       setSession(forced.session);
       setLastGradingResult(forced.grading || null);
+      setLastFeedback(forced.feedback || null);
+      setLastSupport(forced.support || null);
+      setSolutionReview(forced.solutionReview || null);
       setCurrentQuestion(forced.questionInstance || null);
+      // A forced outcome is a teacher stepping through the machine; it does not
+      // pause for a student to read a review.
+      setAwaitingContinue(false);
+      setRouteNotice(explainStepForStudent(forced.decision || forced.session?.lastDecision || null));
       const event = {
         id: `path-force-${Date.now()}`,
         at: Date.now(),
@@ -217,6 +284,11 @@ export const MyMathPathProductionContainer = ({
         teksCode: currentQuestion.teksCode || null,
         alignmentKey: currentQuestion.alignmentKey || null,
         prompt: currentQuestion.tool?.prompt || currentQuestion.canonicalQuestion?.prompt || currentQuestion.prompt || '',
+        pathToolId: currentQuestion.pathToolId || null,
+        familyId: currentQuestion.familyId || null,
+        difficultyBand: currentQuestion.difficultyBand ?? null,
+        dok: currentQuestion.dok ?? null,
+        representation: currentQuestion.representation || null,
         attemptsUsed: currentQuestion.attemptsUsed || 0,
         attemptsAllowed: currentQuestion.attemptsAllowed || 0,
       } : null,
@@ -225,22 +297,78 @@ export const MyMathPathProductionContainer = ({
     return () => onSimulationController(null);
   }, [onSimulationController, session, currentQuestion, submitting, forceCurrentQuestionOutcome, forceOutcomeFromSimulator]);
 
-  if (loading) return <div style={{ padding: '60px', textAlign: 'center', color: '#174ea6' }}>Loading your personalized path…</div>;
-  if (error) return <div style={{ maxWidth: '560px', margin: '40px auto', padding: '22px', borderRadius: '10px', background: '#fce8e6', color: '#a50e0e', textAlign: 'center' }}><strong>My Math Path could not start</strong><p>{error}</p><button type="button" onClick={initializeSession} style={{ padding: '9px 15px' }}>Retry</button></div>;
+  if (loading) return <div style={{ padding: 60, textAlign: 'center', color: '#174ea6' }}>Loading your personalized path…</div>;
 
-  if (session?.status === 'completed' || session?.status === 'teacherSupportNeeded') {
-    const paused = session.status === 'teacherSupportNeeded';
+  if (configurationError) {
     return (
-      <section style={{ maxWidth: '620px', margin: '36px auto', padding: '30px', border: '1px solid #dadce0', borderRadius: '12px', background: '#fff', textAlign: 'center' }}>
-        <h1 style={{ color: '#202124' }}>{paused ? 'Practice paused' : 'Session complete!'}</h1>
-        <p style={{ color: '#5f6368' }}>{paused ? (session.teacherMessage || 'Your progress is saved. Check in with your teacher before continuing this skill.') : `You completed ${session.summary?.completedQuestions || session.pathState?.counters?.questionsThisSession || 0} questions.`}</p>
-        {!paused && <div style={{ margin: '18px 0', padding: '13px', borderRadius: '8px', background: '#e6f4ea', color: '#137333' }}><strong>{session.summary?.correctQuestions || 0}</strong> correct · <strong>{session.summary?.independentSuccesses || 0}</strong> independent successes</div>}
-        <button type="button" onClick={onReturnToDashboard} style={{ padding: '11px 20px', border: 0, borderRadius: '7px', background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Return to My Math Path</button>
+      <section role="alert" style={{ maxWidth: 620, margin: '40px auto', padding: 24, borderRadius: 12, background: '#fff4ce', border: '1px solid #f0d489', color: '#7a4f00', textAlign: 'left' }}>
+        <h1 style={{ margin: '0 0 8px', fontSize: 20, color: '#7a4f00' }}>My Math Path is not available right now</h1>
+        <p style={{ margin: '0 0 12px', lineHeight: 1.6 }}>
+          This is a setup problem on the site, not a problem with your work. Nothing you have done has been lost.
+          Please tell your teacher.
+        </p>
+        <p style={{ margin: '0 0 14px', fontSize: 13, color: '#5f6368', lineHeight: 1.6 }}>{configurationError}</p>
+        <button type="button" onClick={initializeSession} style={{ minHeight: 42, padding: '0 16px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer' }}>Try again</button>
       </section>
     );
   }
 
-  return <>{submissionError && <div role="alert" style={{ maxWidth: '760px', margin: '18px auto 0', padding: '11px 13px', borderRadius: '8px', background: '#fff4ce', color: '#7a4f00' }}>{submissionError}</div>}<PathSessionPlayer session={session} questionInstance={currentQuestion} lastGradingResult={lastGradingResult} isSubmitting={submitting} studentProfile={studentProfile} onSubmitAnswer={handleSubmitAnswer} /></>;
+  if (error) {
+    return (
+      <div style={{ maxWidth: 560, margin: '40px auto', padding: 22, borderRadius: 10, background: '#fce8e6', color: '#a50e0e', textAlign: 'center' }}>
+        <strong>My Math Path could not start</strong>
+        <p>{error}</p>
+        <button type="button" onClick={initializeSession} style={{ minHeight: 42, padding: '9px 15px' }}>Retry</button>
+      </div>
+    );
+  }
+
+  const sessionOver = session?.status === 'completed' || session?.status === 'teacherSupportNeeded';
+  if (sessionOver && !awaitingContinue) {
+    const paused = session.status === 'teacherSupportNeeded';
+    return (
+      <section style={{ maxWidth: 620, margin: '36px auto', padding: 30, border: '1px solid #dadce0', borderRadius: 12, background: '#fff', textAlign: 'center' }}>
+        <h1 style={{ color: '#202124' }}>{paused ? 'Practice paused' : 'Session complete'}</h1>
+        <p style={{ color: '#5f6368', lineHeight: 1.6 }}>
+          {paused
+            ? (session.teacherMessage || 'Your progress is saved. Check in with your teacher before continuing this skill.')
+            : `You worked through ${session.summary?.completedQuestions || session.pathState?.counters?.questionsThisSession || 0} questions.`}
+        </p>
+        {!paused && (
+          <div style={{ margin: '18px 0', padding: 13, borderRadius: 8, background: '#e6f4ea', color: '#137333', lineHeight: 1.6 }}>
+            <strong>{session.summary?.correctQuestions || 0}</strong> right first time or after a retry ·{' '}
+            <strong>{session.summary?.independentSuccesses || 0}</strong> of those on your own
+          </div>
+        )}
+        <button type="button" onClick={onReturnToDashboard} style={{ minHeight: 44, padding: '11px 20px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Back to My Math Path</button>
+      </section>
+    );
+  }
+
+  return (
+    <>
+      {submissionError && (
+        <div role="alert" style={{ maxWidth: 880, margin: '14px auto 0', padding: '11px 13px', borderRadius: 9, background: '#fff4ce', color: '#7a4f00', lineHeight: 1.55 }}>
+          {submissionError}
+        </div>
+      )}
+      <PathSessionPlayer
+        session={session}
+        questionInstance={currentQuestion}
+        lastGradingResult={lastGradingResult}
+        lastFeedback={lastFeedback}
+        lastSupport={lastSupport}
+        solutionReview={solutionReview}
+        routeNotice={routeNotice}
+        isSubmitting={submitting}
+        studentProfile={studentProfile}
+        onSubmitAnswer={handleSubmitAnswer}
+        onContinue={awaitingContinue
+          ? (session?.status === 'active' ? advanceToNextQuestion : () => { setAwaitingContinue(false); setCurrentQuestion(null); })
+          : null}
+      />
+    </>
+  );
 };
 
 export default MyMathPathProductionContainer;
