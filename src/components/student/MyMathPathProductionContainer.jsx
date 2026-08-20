@@ -142,6 +142,12 @@ export const MyMathPathProductionContainer = ({
         submissionId: pendingSubmissionRef.current.submissionId,
         responsePayload,
         supportUsage,
+        // Accommodation delivery travels beside the support usage rather than
+        // inside it: the server treats these as CLAIMS about what rendered,
+        // and reconciles them against what the student is actually authorized
+        // for before recording anything.
+        supportsPresented: Array.isArray(supportUsage?.supportsPresented) ? supportUsage.supportsPresented : [],
+        supportsUsed: Array.isArray(supportUsage?.supportsUsed) ? supportUsage.supportsUsed : [],
         // Only the canonical renderer supplies this, and only a runtime that
         // already holds the answer key accepts it. The secure server ignores
         // it and grades for itself.

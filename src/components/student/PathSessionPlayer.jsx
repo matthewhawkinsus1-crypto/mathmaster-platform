@@ -9,6 +9,7 @@ import PathQuestionStimulus from './PathQuestionStimulus.jsx';
 import PathSolutionReview from './PathSolutionReview.jsx';
 import { getEffectiveActivityPolicy } from '../../platform/policies/activityPolicies.js';
 import { resolveCalculatorPolicy } from '../../platform/policies/calculatorPolicy.js';
+import PathSupportBar, { speechTextFor, supportPresentationStyle } from './PathSupportBar.jsx';
 import { questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
 import { describeSkill, teksSkillId } from '../../platform/path/skillGraph.js';
 import { toDisplayCode } from '../../utils/teksUtils.js';
@@ -156,6 +157,9 @@ export const PathSessionPlayer = ({
   const [calculatorUsed, setCalculatorUsed] = useState(false);
   const [contextScaffoldUsed, setContextScaffoldUsed] = useState(false);
   const [hintOpen, setHintOpen] = useState(false);
+  // What the support bar actually rendered and what the student pressed. The
+  // server intersects both with the authorized set before believing them.
+  const [supportDelivery, setSupportDelivery] = useState({ presented: [], used: [] });
   const feedbackRef = useRef(null);
 
   const instanceId = questionInstance?.questionInstanceId || '';
@@ -180,6 +184,34 @@ export const PathSessionPlayer = ({
   // A new question closes the hint panel; a second attempt on the SAME question
   // does not, because the student is still using it.
   useEffect(() => { setHintOpen(false); }, [instanceId]);
+
+  // Which authorized supports apply to THIS question. Decided by the server at
+  // issue time — the browser does not read a profile and decide for itself
+  // what it is allowed to offer.
+  const applicableSupports = useMemo(
+    () => (Array.isArray(questionInstance?.applicableSupports) ? questionInstance.applicableSupports : []),
+    [questionInstance],
+  );
+
+  // Everything a student would need read to them, in the order they meet it.
+  // Deliberately excludes anything the server holds back — a read-aloud button
+  // must never become a way to hear the answer.
+  const speechText = useMemo(() => {
+    if (!questionInstance) return '';
+    const parts = [
+      questionInstance.context?.scenario,
+      questionInstance.prompt,
+      questionInstance.formulaLatex,
+      ...(questionInstance.choices || []).map((choice, index) => `Option ${index + 1}. ${choice?.label ?? ''}`),
+      ...(questionInstance.responseFields || []).map((field) => field?.label),
+    ];
+    return speechTextFor(parts.filter(Boolean).join('. '));
+  }, [questionInstance]);
+
+  const presentationStyle = useMemo(
+    () => supportPresentationStyle(supportDelivery.presented),
+    [supportDelivery.presented],
+  );
 
   // Move the reader to the response when it changes. Chromebook screens are
   // short, and a student who submitted at the bottom of the card should not
@@ -286,6 +318,12 @@ export const PathSessionPlayer = ({
         remediationUsed: false,
         workedExampleUsed: false,
         isMathematicallyIndependent: !contextScaffoldUsed && !(hintOpen && Boolean(lastSupport?.hint)),
+        // ACCESS accommodations. Sent as what actually rendered and what the
+        // student actually pressed — not as a copy of their profile. The
+        // server intersects both with the authorized set, so this can only
+        // ever narrow what gets recorded, never widen it.
+        supportsPresented: supportDelivery.presented,
+        supportsUsed: supportDelivery.used,
       },
     );
   };
@@ -306,7 +344,15 @@ export const PathSessionPlayer = ({
       />
       <DecisionBanner notice={routeNotice} />
 
-      <section style={CARD}>
+      <section style={{ ...CARD, ...presentationStyle }}>
+        <PathSupportBar
+          applicableSupports={applicableSupports}
+          speechText={speechText}
+          questionInstanceId={instanceId}
+          onDelivery={setSupportDelivery}
+          disabled={isSubmitting}
+        />
+
         {questionInstance.isDevelopmentSandbox && (
           <p style={{ margin: '0 0 12px', padding: '8px 11px', borderRadius: 8, background: '#fce8e6', color: '#a50e0e', fontSize: 12, fontWeight: 800 }}>
             Developer sandbox — this is not authored MathMaster content.

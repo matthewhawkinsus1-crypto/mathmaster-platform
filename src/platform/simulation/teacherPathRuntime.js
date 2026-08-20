@@ -191,6 +191,10 @@ export const createTeacherPathRuntime = ({
   learner: initialLearner = null,
   onChange = null,
   requiredQuestions = 5,
+  // The synthetic student's support entitlements, already resolved. Supplied
+  // so a teacher can check that an accommodation actually reaches the screen —
+  // which is the only way to discover a tool that cannot honour one.
+  supportEntitlements = null,
 } = {}) => {
   const usingSecureBank = Array.isArray(pathBankQuestions);
   const bank = usingSecureBank
@@ -299,6 +303,10 @@ export const createTeacherPathRuntime = ({
       sourceBankQuestionId: chosen.sourceBankQuestionId,
       // Why THIS item, in the same fields production returns. Teacher-facing
       // only — none of it identifies the answer.
+      // Which authorized supports apply here, decided the same way the server
+      // decides them, so the simulator exercises the real contract.
+      applicableSupports: list(supportEntitlements?.authorized),
+      authorizedSupports: list(supportEntitlements?.authorized),
       selectionReason: selection?.reason || null,
       contentQuality: selection?.quality || null,
       selectedRepresentation: selection?.representation || null,
@@ -408,7 +416,14 @@ export const createTeacherPathRuntime = ({
    * student's raw work and the private definition. `isCorrect` in the arguments
    * is only read for a canonical question, which has no contract to grade it.
    */
-  const submitStudentResponse = async ({ sessionId, questionInstanceId, submissionId = null, isCorrect, supportUsage = {}, responsePayload = null, forcedVerdict = null }) => {
+  const submitStudentResponse = async ({
+    sessionId, questionInstanceId, submissionId = null, isCorrect,
+    supportUsage = {}, responsePayload = null, forcedVerdict = null,
+    // Accepted so the simulator takes the same call shape the live service
+    // does — a teacher checking accommodation delivery must not be exercising
+    // a different contract from the one a student runs on.
+    supportsPresented = [], supportsUsed = [],
+  }) => {
     const session = sessions.get(sessionId);
     if (!session) throw new Error('That simulated session no longer exists.');
 
@@ -465,7 +480,19 @@ export const createTeacherPathRuntime = ({
       isCorrect = graded.isCorrect;
     }
 
-    recordEvidence(session, instance, isCorrect === true, supportUsage);
+    // Same reconciliation the server performs, so what a teacher sees recorded
+    // is what a student would have recorded.
+    const applicable = list(instance.applicableSupports);
+    const presentedHere = list(supportsPresented).filter((id) => applicable.includes(String(id)));
+    const usedHere = list(supportsUsed).filter((id) => presentedHere.includes(String(id)));
+    const reconciledUsage = {
+      ...supportUsage,
+      accommodations: usedHere,
+      accommodationsPresented: presentedHere,
+      accommodationsApplicable: applicable,
+      accommodationsNotDelivered: applicable.filter((id) => !presentedHere.includes(id)),
+    };
+    recordEvidence(session, instance, isCorrect === true, reconciledUsage);
 
     instance.attemptsUsed = (instance.attemptsUsed || 0) + 1;
     const finalized = isCorrect === true || instance.attemptsUsed >= instance.attemptsAllowed;

@@ -129,6 +129,11 @@ export const submitStudentResponse = async ({
   questionInstanceId,
   responsePayload,
   supportUsage = {},
+  // What the support bar actually rendered and what the student pressed. These
+  // are CLAIMS: the server intersects them with the supports it authorized at
+  // issue time, so a modified client can only ever narrow what is recorded.
+  supportsPresented = [],
+  supportsUsed = [],
   submissionId = null,
 }) => {
   assertRuntimeAvailable();
@@ -171,6 +176,8 @@ export const submitStudentResponse = async ({
     submissionId: activeSubmissionId,
     responsePayload,
     supportUsage,
+    supportsPresented,
+    supportsUsed,
   });
   return response.data;
 };
