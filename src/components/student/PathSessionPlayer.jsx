@@ -419,12 +419,23 @@ export const PathSessionPlayer = ({
           </div>
         )}
 
+        {/* STICKY ON A SHORT SCREEN.
+            A school Chromebook at 1366x768 leaves roughly 600px of page once
+            the browser chrome is accounted for. Prompt, stimulus, response
+            fields, hint panel and feedback all live above this button, so on a
+            longer question the student had to scroll down to submit and back up
+            to read the response. The action follows them instead.
+            `position: sticky` degrades to normal flow wherever it is not
+            supported, so nothing is lost on an older browser. */}
         {!finalized && (
           <button
             type="button"
             onClick={submit}
             disabled={!complete || isSubmitting}
             style={{
+              position: 'sticky',
+              bottom: 10,
+              zIndex: 2,
               width: '100%',
               marginTop: 18,
               minHeight: 48,
@@ -435,6 +446,7 @@ export const PathSessionPlayer = ({
               color: '#fff',
               fontSize: 16,
               fontWeight: 900,
+              boxShadow: '0 -2px 12px rgba(255,255,255,.9)',
               cursor: !complete || isSubmitting ? 'not-allowed' : 'pointer',
             }}
           >
