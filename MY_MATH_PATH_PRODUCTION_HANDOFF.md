@@ -247,7 +247,59 @@ Two related repairs:
   `activityRole: "practice"`, including retention probes, so "has this stayed
   with you?" and "are you learning this?" were the same evidence downstream.
 
-## 10. Commands
+## 10. Accommodations, SPED, 504 and EB
+
+**The Path server used to read no support profile at all.** It loaded the
+roster document and took one string from it (the class period), ignoring the
+`.profile` field sitting beside it. So on My Math Path every accommodation was
+browser-side decoration: extra attempts could not be granted, the calculator
+was resolved client-side and never checked, and every evidence event carried
+zero "presented" telemetry — forever.
+
+Underneath that, the repository held **nine different representations** of a
+student's supports. The two that mattered could not read each other: the flat
+kebab-case shape the teacher UI writes and actually persists, and the
+structured SIS/IEP shape where extended time and extra attempts were the *only*
+place those numbers existed. The structured resolver had zero callers. The two
+even disagreed about words — a district column `extra_time` became
+`extendedTimeMultiplier`, while the teacher UI's `'extra-time'` meant "turn off
+the idle timer".
+
+`functions/shared/supportEntitlements.mjs` is the single canonical model. It is
+an **adapter, not a migration**: both stored shapes keep working, and every
+consumer asks one function what a student is entitled to.
+
+Three facts are kept strictly apart, because conflating them is how compliance
+reporting goes wrong:
+
+| | Who decides | What it means |
+| --- | --- | --- |
+| **Authorized** | Server, from the stored profile | The student is entitled to this |
+| **Applicable** | Server, per question | It has meaning on *this* item |
+| **Presented / used** | Browser, reporting what rendered | The control was on screen; the student pressed it |
+
+Presented and used are accepted from the client but **intersected with the
+authorized set**, so a modified browser can only ever narrow what is recorded —
+never manufacture a compliance record or an excuse. A support that is
+authorized and applicable and yet did not render is recorded as its own
+telemetry stage, `authorizedNotPresented`: that is the signal an administrator
+needs to find a tool that cannot honour a support.
+
+**Access is not scaffolding.** Text-to-speech, translation, large text,
+contrast, extra time and a permitted calculator change how a student reaches
+the mathematics. None of them reduces mastery credit. The one exception is
+`algebraAutoApply`, which carries out a step the student chose but did not
+perform — a different claim from having solved it.
+
+**A calculator may not replace the construct.** On the balance workspace, where
+performing the operation is the assessed skill, the compatibility matrix marks
+it *unsafe here* rather than *missing*.
+
+Nothing about SPED, 504 or EB status lowers the mathematics by itself. A
+modification does that, it comes only from stored profile data, and it is kept
+out of grade-level mastery aggregation.
+
+## 11. Commands
 
 Run these from the repository root.
 
@@ -273,7 +325,7 @@ Deploy is unchanged: the seed files land in both `seed/pathQuestionBank/` and
 `functions/seeds/pathQuestionBank/`, and `PATH_BANK_COVERAGE_MANIFEST.json` is
 regenerated alongside them.
 
-## 11. Adding content
+## 12. Adding content
 
 Authoring lives in `seed/pathQuestionBank/authoring/`. To add a standard:
 
