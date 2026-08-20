@@ -4584,6 +4584,15 @@ exports.issueNextQuestion = onCall(async (request) => {
   }
 
   const classPeriod = rosterSnapshot.data()?.classPeriod || "Unassigned";
+  // THE STUDENT'S ACTUAL ENTITLEMENTS.
+  //
+  // The roster document was already being read here, and its `.profile` field
+  // was already being ignored — the Path server used the doc for one string
+  // (the class period) and nothing else. That is why extra attempts, the
+  // calculator accommodation and reduced choices could not be authoritative on
+  // the Path however carefully a district authorized them: nothing on the
+  // server had ever looked. The adapter accepts either stored profile shape.
+  const entitlements = await mathPath.resolveEntitlements(rosterSnapshot.data()?.profile || null);
   const courseLevel = courseSettingsSnapshot.data()?.profiles?.[classPeriod]?.courseLevel || "standard";
   const masteryProfile = masterySnapshot.data()?.profiles?.[activeDisplayCode] || {};
   const adaptiveRigor = rigorPolicy.resolveAdaptiveRigor({ courseLevel, profile: masteryProfile });
@@ -4610,7 +4619,13 @@ exports.issueNextQuestion = onCall(async (request) => {
   // whether a prerequisite is the obstacle, and three tries at it would measure
   // persistence rather than answer the question.
   const pathRole = session.diagnosing ? "diagnose" : (session.lastDecision?.action || "continue");
-  const attemptsAllowed = session.sessionKind === "retentionProbe" || pathRole === "diagnose" ? 1 : 3;
+  const baseAttempts = session.sessionKind === "retentionProbe" || pathRole === "diagnose" ? 1 : 3;
+  // An authorized extra-attempts accommodation is ADDED to the pedagogical
+  // figure rather than replacing it, and deliberately does not extend a
+  // one-attempt diagnostic — that task is one attempt by design, because it is
+  // asking what the student can do unaided right now. Resolved on the server,
+  // so the browser cannot grant itself a fourth try.
+  const attemptsAllowed = await mathPath.attemptsFor(baseAttempts, entitlements);
   const questionInstanceId = mathPath.runtimeId("qi");
   const currentQuestion = {
     // The public half — the authentic tool, by allowlist — plus the private
@@ -4624,6 +4639,18 @@ exports.issueNextQuestion = onCall(async (request) => {
     // student payload; the Path Simulator reads them from the session document.
     selectionReason: choice.reason,
     contentQuality: choice.quality,
+    // Which authorized supports actually apply to THIS question. Authorized is
+    // not the same as applicable: a calculator accommodation does not apply to
+    // an item whose assessed construct is the computation, and reduced choices
+    // do not apply where there is nothing to reduce.
+    applicableSupports: await mathPath.applicableSupportsFor(entitlements, authored, {}),
+    authorizedSupports: entitlements.authorized,
+    supportEntitlements: {
+      extraAttempts: entitlements.extraAttempts,
+      extendedTimeMultiplier: entitlements.extendedTimeMultiplier,
+      translationLanguage: entitlements.translationLanguage,
+      isModifiedCurriculum: Boolean(entitlements.modification?.isModifiedCurriculum),
+    },
     representation: choice.representation || null,
     taskType: choice.taskType || null,
     // Evidence is recorded against the skill the question actually came from.
@@ -4772,6 +4799,32 @@ exports.submitPathResponse = onCall(async (request) => {
     const priorSupport = currentQuestion.supportReleased || {};
     const hintReleased = Boolean(priorSupport.hintReleased) || Boolean(attemptSupport.support?.hint);
     const reviewReleased = Boolean(priorSupport.reviewReleased) || Boolean(attemptSupport.solutionReview);
+    // ACCOMMODATION DELIVERY, reconciled.
+    //
+    // Three different facts, from three different places, deliberately kept
+    // apart:
+    //   AUTHORIZED  — the student's profile. Server fact, resolved at issue.
+    //   APPLICABLE  — does it even apply to this question. Server fact.
+    //   PRESENTED/USED — did the button actually render, did the student press
+    //                    it. Only the browser can observe these, so they are
+    //                    accepted from the client but INTERSECTED with the
+    //                    authorized set: a client cannot report a support the
+    //                    student was never granted, so it cannot manufacture a
+    //                    compliance record or an excuse.
+    //
+    // Before this, the Path recorded no accommodations at all — the server's
+    // supportUsage had no `accommodations` key, so `supportTelemetry()`
+    // iterated an empty array and EVERY My Math Path evidence event carried
+    // zero "presented" events, forever.
+    const delivery = await mathPath.reconcileSupports({
+      entitlements: {
+        authorized: Array.isArray(currentQuestion.authorizedSupports) ? currentQuestion.authorizedSupports : [],
+      },
+      applicable: Array.isArray(currentQuestion.applicableSupports) ? currentQuestion.applicableSupports : [],
+      clientPresented: Array.isArray(request.data?.supportsPresented) ? request.data.supportsPresented : [],
+      clientUsed: Array.isArray(request.data?.supportsUsed) ? request.data.supportsUsed : [],
+    });
+
     const supportUsage = {
       // Server-observed. Not accepted from the request.
       hintUsed: hintReleased,
@@ -4781,6 +4834,18 @@ exports.submitPathResponse = onCall(async (request) => {
       teacherAssisted: Boolean(claimed.teacherAssisted),
       calculatorUsed: Boolean(claimed.calculatorUsed),
       modified: Boolean(claimed.modified),
+      // ACCESS accommodations. These are recorded so a compliance report can
+      // answer "was it offered, was it used" — and they must NOT reduce
+      // mathematical independence. A student who had the prompt read aloud, or
+      // read it in Spanish, did the same mathematics as everyone else.
+      accommodations: delivery.used,
+      accommodationsPresented: delivery.presented,
+      accommodationsApplicable: delivery.applicable,
+      // Authorized, applicable, and nothing rendered it. This is the signal an
+      // administrator needs: a tool could not honour a support the student is
+      // entitled to.
+      accommodationsNotDelivered: delivery.authorizedButNotPresented,
+      ...(delivery.rejectedClaims.length ? { rejectedSupportClaims: delivery.rejectedClaims } : {}),
       ...(Array.isArray(claimed.modifications) && claimed.modifications.length
         ? { modifications: claimed.modifications.slice(0, 12).map((entry) => String(entry).slice(0, 80)) }
         : {}),

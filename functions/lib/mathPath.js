@@ -35,6 +35,40 @@ async function pathSolutionSupport() {
   return solutionSupportModule;
 }
 
+// What a student is entitled to, resolved from whichever profile shape their
+// district actually wrote. The Path server used to read no support profile at
+// all, which meant extra attempts, calculator and reduced choices could not be
+// authoritative on the Path however carefully they were authorized.
+let supportEntitlementsModule = null;
+async function supportEntitlements() {
+  if (!supportEntitlementsModule) supportEntitlementsModule = await import('../shared/supportEntitlements.mjs');
+  return supportEntitlementsModule;
+}
+
+/** Resolve one student's entitlements from their stored `grades/{id}.profile`. */
+async function resolveEntitlements(rawProfile) {
+  const module = await supportEntitlements();
+  return module.resolveSupportEntitlements(rawProfile);
+}
+
+/** Attempts for a Path question, after any authorized extra-attempts support. */
+async function attemptsFor(baseAttempts, entitlements) {
+  const module = await supportEntitlements();
+  return module.attemptsWithEntitlements(baseAttempts, entitlements);
+}
+
+/** Which authorized supports actually apply to this question. */
+async function applicableSupportsFor(entitlements, question, options) {
+  const module = await supportEntitlements();
+  return module.applicableSupports(entitlements, question, options || {});
+}
+
+/** Fold the client's render/use report into the server's authorized set. */
+async function reconcileSupports(input) {
+  const module = await supportEntitlements();
+  return module.reconcileSupportDelivery(input);
+}
+
 function canonicalAlignmentKey(value) {
   const raw = String(value || '').trim();
   if (!raw) return '';
@@ -323,7 +357,15 @@ async function gradeResponse(grading, responsePayload = {}) {
 }
 
 function mathematicalIndependence(supportUsage = {}) {
+  // An algebra auto-apply performs an algebraic step the student selected but
+  // did not carry out. Every other ACCESS accommodation in `accommodations` is
+  // deliberately absent from this check — text-to-speech, translation, large
+  // text, contrast, extra time and a permitted calculator change how a student
+  // reaches the mathematics, not whether they did it.
+  const usedConstructSupport = (Array.isArray(supportUsage.accommodations) ? supportUsage.accommodations : [])
+    .some((entry) => String(entry) === 'algebraAutoApply');
   return supportUsage.isMathematicallyIndependent !== false
+    && !usedConstructSupport
     && !supportUsage.hintUsed
     && !supportUsage.teacherAssisted
     && !supportUsage.scaffoldUsed
@@ -333,7 +375,42 @@ function mathematicalIndependence(supportUsage = {}) {
 
 function supportTelemetry(supportUsage = {}) {
   const result = [];
-  (supportUsage.accommodations || []).forEach((supportType) => result.push({ stage: 'presented', supportType: String(supportType), reducesMathematicalIndependence: false }));
+  // PRESENTED means it actually rendered on the student's screen, not that
+  // their profile contained it. Deriving "presented" from authorization is how
+  // a compliance report comes to claim a support was delivered on a screen
+  // that never showed it.
+  const presented = Array.isArray(supportUsage.accommodationsPresented)
+    ? supportUsage.accommodationsPresented
+    // Older evidence documents only carried `accommodations`. Reading them as
+    // presented keeps historical reports working rather than blanking them.
+    : (supportUsage.accommodations || []);
+  presented.forEach((supportType) => result.push({
+    stage: 'presented',
+    supportType: String(supportType),
+    reducesMathematicalIndependence: false,
+  }));
+  // An ACCESS accommodation the student actually used. Explicitly does not
+  // reduce mathematical independence: reading the question aloud, or in
+  // Spanish, is not help with the mathematics.
+  (Array.isArray(supportUsage.accommodations) ? supportUsage.accommodations : []).forEach((supportType) => {
+    result.push({
+      stage: 'used',
+      supportType: String(supportType),
+      // The one exception. An algebra auto-apply carries out a step the student
+      // chose but did not perform, which is a different claim from having
+      // solved it.
+      reducesMathematicalIndependence: String(supportType) === 'algebraAutoApply',
+    });
+  });
+  // Authorized, applicable to this question, and yet nothing put it on screen.
+  // Recorded as its own stage so an administrator can find the tools that
+  // cannot honour a support rather than discovering it from a parent.
+  (Array.isArray(supportUsage.accommodationsNotDelivered) ? supportUsage.accommodationsNotDelivered : [])
+    .forEach((supportType) => result.push({
+      stage: 'authorizedNotPresented',
+      supportType: String(supportType),
+      reducesMathematicalIndependence: false,
+    }));
   const used = [
     ['hintUsed', 'hint', true],
     ['teacherAssisted', 'teacherAssistance', true],
@@ -373,6 +450,11 @@ async function attemptSupport(args) {
 }
 
 module.exports = {
+  applicableSupportsFor,
+  attemptsFor,
+  reconcileSupports,
+  resolveEntitlements,
+  supportEntitlements,
   attemptSupport,
   buildPrivateSupport,
   pathSolutionSupport,
