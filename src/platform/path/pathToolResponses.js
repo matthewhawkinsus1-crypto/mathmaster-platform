@@ -101,3 +101,9 @@ export const questionFromToolPayload = (toolPayload) => (
 );
 
 export default buildRawPathResponse;
+
+// Exported so a test can check that the shapes these build are the shapes the
+// server graders accept. A renderer sending `{answers}` to a grader validating
+// `{responses}` rejects every submission, and the student is told their
+// perfectly good answer was "not in the shape this question expects".
+export const PATH_TOOL_RESPONSE_BUILDERS = BUILDERS;
