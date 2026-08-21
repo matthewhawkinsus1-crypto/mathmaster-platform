@@ -3,6 +3,14 @@ dist
 *-debug.log
 .firebase
 
+# Deployment environment. `VITE_MATHMASTER_EXECUTION_MODE` decides whether a
+# build talks to the secure Path or refuses to run, so it is set per deployment
+# and never committed — a checked-in value would follow the repo into somebody
+# else's environment and quietly configure it.
+.env
+.env.local
+.env.*.local
+
 # Firestore emulator artefacts
 firebase-debug.log
 firestore-debug.log
