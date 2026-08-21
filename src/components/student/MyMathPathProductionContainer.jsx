@@ -342,7 +342,22 @@ export const MyMathPathProductionContainer = ({
           Please tell your teacher.
         </p>
         <p style={{ margin: '0 0 14px', fontSize: 13, color: '#5f6368', lineHeight: 1.6 }}>{configurationError}</p>
-        <button type="button" onClick={initializeSession} style={{ minHeight: 42, padding: '0 16px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer' }}>Try again</button>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={initializeSession}
+            style={{ minHeight: 42, padding: '0 16px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer' }}
+          >
+            Try again
+          </button>
+          <button
+            type="button"
+            onClick={onReturnToDashboard}
+            style={{ minHeight: 42, padding: '0 16px', border: '1px solid #dadce0', borderRadius: 8, background: '#fff', color: '#3c4043', fontWeight: 800, cursor: 'pointer' }}
+          >
+            Back to My Math Path
+          </button>
+        </div>
       </section>
     );
   }
@@ -352,7 +367,14 @@ export const MyMathPathProductionContainer = ({
       <div style={{ maxWidth: 560, margin: '40px auto', padding: 22, borderRadius: 10, background: '#fce8e6', color: '#a50e0e', textAlign: 'center' }}>
         <strong>My Math Path could not start</strong>
         <p>{error}</p>
-        <button type="button" onClick={initializeSession} style={{ minHeight: 42, padding: '9px 15px' }}>Retry</button>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <button type="button" onClick={initializeSession} style={{ minHeight: 42, padding: '9px 15px' }}>
+            Retry
+          </button>
+          <button type="button" onClick={onReturnToDashboard} style={{ minHeight: 42, padding: '9px 15px' }}>
+            Back to My Math Path
+          </button>
+        </div>
       </div>
     );
   }
