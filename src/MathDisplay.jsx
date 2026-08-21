@@ -1,4 +1,5 @@
 import 'mathlive';
+import { stackDivisions } from './stackDivisions.js';
 
 const stripMathDelimiters = (value) => {
   const text = String(value ?? '').trim();
@@ -48,7 +49,15 @@ export default function MathDisplay({
   style = {},
   className = '',
 }) {
-  const cleanValue = stripMathDelimiters(value);
+  // A division becomes a fraction before anything decides how to render it.
+  //
+  // Without this, whether `3/4` stacked depended on the rest of the sentence:
+  // ASCIIMath stacks a numeric division, LaTeX does not, and NEITHER stacks a
+  // division with a letter in it, so `x/2` was always a side slash. `\frac`
+  // stacks in both modes, so writing it out settles the question before format
+  // detection runs. Anything ambiguous is left exactly as authored — see
+  // ./stackDivisions.js.
+  const cleanValue = stackDivisions(stripMathDelimiters(value));
   if (!cleanValue) return null;
 
   const resolvedFormat = detectMathFormat(cleanValue, format);
