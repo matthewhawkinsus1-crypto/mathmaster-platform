@@ -6,6 +6,8 @@
 // same student response should receive the same verdict everywhere MathMaster
 // grades it.
 
+import { sameLinearEquation } from './algebraicForm.mjs';
+
 const UNICODE_MINUS = /[−–—]/g;
 
 const normalizeStructuralMathLive = (value) => String(value ?? '')
@@ -156,5 +158,12 @@ export const sameValue = (left, right, tolerance = 1e-6) => {
   if (leftSet !== null || rightSet !== null) {
     return leftSet !== null && rightSet !== null && sameFiniteSetNotation(left, right, tolerance);
   }
-  return sameAtomicValue(left, right, tolerance);
+  if (sameAtomicValue(left, right, tolerance)) return true;
+  // LAST RESORT, and only for equations. Text equality already handled every
+  // spelling the author thought to list; this catches the ones they did not —
+  // an unreduced slope, a decimal for a fraction, a `\frac` from the keypad.
+  // It compares side against side, so it cannot accept a different FORM of the
+  // same line, and it refuses above degree one so it cannot silently grade a
+  // "simplify" or "vertex form" question. See functions/shared/algebraicForm.mjs.
+  return sameLinearEquation(left, right, tolerance);
 };
