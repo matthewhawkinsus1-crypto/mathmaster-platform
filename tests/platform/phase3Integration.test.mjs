@@ -378,7 +378,7 @@ test('activity role dynamically multiplies mastery evidence without becoming the
   assert.ok(testEvidence.gradeLevelWeight > classwork.gradeLevelWeight);
 });
 
-test('context scaffold leaves mastery weight intact while mathematical scaffold reduces it', () => {
+test('context accommodations preserve mastery credit while mathematical scaffolds reduce credit, not evidence weight', () => {
   const question = {
     type: 'algebra', activityRole: 'classwork',
     standards: { primary: [{ code: 'A.2A', level: 'assessed' }] },
@@ -390,9 +390,20 @@ test('context scaffold leaves mastery weight intact while mathematical scaffold 
   const context = collectStudentEvidence({ student: makeStudent({ contextScaffoldUsed: true }), assignments: [assignment] })[0];
   const math = collectStudentEvidence({ student: makeStudent({ scaffoldUsed: true }), assignments: [assignment] })[0];
   const hint = collectStudentEvidence({ student: makeStudent({ hintUsed: true }), assignments: [assignment] })[0];
+
+  // Access/context support does not weaken the mathematical claim.
   assert.equal(context.gradeLevelWeight, base.gradeLevelWeight);
-  assert.ok(math.gradeLevelWeight < base.gradeLevelWeight);
-  assert.ok(hint.gradeLevelWeight < base.gradeLevelWeight);
+  assert.equal(context.credit, base.credit);
+  assert.equal(context.isMathematicallyIndependent, true);
+
+  // Mathematical assistance remains evidence at the same weight, but earns
+  // reduced credit so the support discount cannot cancel out in the average.
+  for (const supported of [math, hint]) {
+    assert.equal(supported.gradeLevelWeight, base.gradeLevelWeight);
+    assert.ok(supported.credit < base.credit);
+    assert.equal(supported.supported, true);
+    assert.equal(supported.isMathematicallyIndependent, false);
+  }
 });
 
 test('legacy assignment validator now accepts Batch A-D tool questions in shared mode', () => {

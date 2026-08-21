@@ -64,10 +64,15 @@ test('root Administration remains discoverable to the protected email and server
   assert.match(appSource, /matthew\.hawkins@desotoisd\.org/);
   assert.match(appSource, /rootAdminUiEligible/);
   assert.match(adminUiSource, /Create Student Account/);
-  assert.match(adminUiSource, /assignStudentToTeacher/);
+  assert.match(adminUiSource, /setStudentClass/);
   assert.match(authServiceSource, /createStudentAccount/);
   assert.match(authServiceSource, /assignStudentToTeacher/);
-  for (const exportName of ['createStudentAccount', 'assignStudentToTeacher', 'setTeacherAccess', 'permanentlyDeleteStudent']) {
+  assert.match(authServiceSource, /setStudentClass/);
+
+  // The current Administration UI uses setStudentClass for roster placement.
+  // Keep the legacy assignStudentToTeacher callable protected as well so old
+  // clients cannot bypass root authorization.
+  for (const exportName of ['createStudentAccount', 'assignStudentToTeacher', 'setStudentClass', 'setTeacherAccess', 'permanentlyDeleteStudent']) {
     const start = functionsSource.indexOf(`exports.${exportName}`);
     assert.ok(start >= 0, `${exportName} must exist`);
     const next = functionsSource.indexOf('\nexports.', start + 1);

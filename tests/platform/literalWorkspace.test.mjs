@@ -4,7 +4,7 @@ import {
   buildLiteralWorkspaceQuestion, expandImplicitProducts, readLiteralEquation,
   readLiteralVariable, usesLiteralWorkspace,
 } from '../../src/literalWorkspace.js';
-import { latexToExpression, parseOperationOperand } from '../../src/algebraAstEngine.js';
+import { expressionsEquivalent, latexToExpression, parseOperationOperand } from '../../src/algebraAstEngine.js';
 import { applyBalancedOperation, isSolvedEquation, parseEquationInput } from '../../src/algebraAstEngine.js';
 
 const AREA = { type: 'literal', prompt: 'Solve for h.', equationLatex: 'A = bh', solveFor: 'h', answer: 'A/b' };
@@ -116,8 +116,11 @@ test('y = mx + b takes two steps, and neither is arithmetic', () => {
 // --- Symbolic operands (F10) -------------------------------------------------
 
 test('an operand typed as mathematics parses the same as one typed as text', () => {
-  assert.equal(parseOperationOperand('1/2').expression, parseOperationOperand('\\frac{1}{2}').expression);
-  assert.equal(parseOperationOperand('\\frac{1}{2}').numericValue, 0.5);
+  const text = parseOperationOperand('1/2');
+  const math = parseOperationOperand('\\frac{1}{2}');
+  assert.equal(expressionsEquivalent(text.expression, math.expression), true);
+  assert.equal(text.numericValue, 0.5);
+  assert.equal(math.numericValue, 0.5);
 });
 
 test('a letter is a legitimate operand', () => {

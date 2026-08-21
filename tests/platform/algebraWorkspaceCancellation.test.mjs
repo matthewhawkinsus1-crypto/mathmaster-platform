@@ -4,6 +4,7 @@ import {
   applyBalancedOperation,
   parseEquationInput,
   splitMultiplicativeFactors,
+  expressionsEquivalent,
 } from '../../src/algebraAstEngine.js';
 import { resolveEquationAfterMove } from '../../src/algebraSupportLevels.js';
 
@@ -28,7 +29,7 @@ test('dividing d = rt by r creates cancellation only on rt/r and no redundant le
   assert.deepEqual(factors.denominator.map((factor) => factor.text), ['r']);
 
   const after = resolveEquationAfterMove(move, 2, ['right']);
-  assert.match(after.left.replace(/\s/g, ''), /d\/r|d\*1\/r|d\/\(r\)/);
+  assert.equal(expressionsEquivalent(after.left, 'd/r', 'd'), true, `left side should remain equivalent to d/r, got ${after.left}`);
   assert.equal(after.right, 't');
 });
 

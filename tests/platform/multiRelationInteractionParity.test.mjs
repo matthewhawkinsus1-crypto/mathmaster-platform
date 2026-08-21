@@ -109,7 +109,7 @@ test('advanced workspace keeps term-specific placement with one compact contextu
 test('advanced workspace keeps student-authored Rewrite Simplify instead of one-click auto simplification', () => {
   const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
   assert.match(src, /Rewrite \/ Simplify/);
-  assert.match(src, /You write the equivalent expression/);
+  assert.match(src, /Type your equivalent expression/);
   assert.match(src, /MathMaster only checks it/);
   assert.doesNotMatch(src, />Simplify left</);
   assert.doesNotMatch(src, />Simplify right</);
