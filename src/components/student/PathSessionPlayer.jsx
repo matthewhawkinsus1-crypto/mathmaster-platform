@@ -13,6 +13,8 @@ import PathSupportBar, { speechTextFor, supportPresentationStyle } from './PathS
 import { questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
 import { describeSkill, teksSkillId } from '../../platform/path/skillGraph.js';
 import { toDisplayCode } from '../../utils/teksUtils.js';
+import StandardBadge from '../common/StandardBadge.jsx';
+import { FRAMEWORK_LABELS } from '../../platform/ccmr/assessmentCrosswalk.js';
 
 // Three ways a path question can arrive, in order of preference.
 //
@@ -81,11 +83,21 @@ const skillNameFor = (questionInstance, session) => {
  * on a practice session turns every question into a grade, which is the
  * opposite of what practice is for.
  */
-function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowed }) {
+function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowed, assessmentFramework = null }) {
   const total = Number(session?.requiredQuestions) || 5;
   const done = Number(session?.summary?.completedQuestions) || 0;
   const current = Math.min(total, done + 1);
   const isRetention = session?.sessionKind === 'retentionProbe';
+  // The standard THIS question is on, not the standard the session started on:
+  // the routing engine can descend into a prerequisite mid-session, and when it
+  // does, the badge has to follow the student.
+  const questionCode = toDisplayCode(
+    questionInstance?.teksCode
+    || questionInstance?.alignmentKey
+    || session?.currentSkillCode
+    || session?.target?.alignmentKey
+    || '',
+  );
 
   return (
     <header style={{ marginBottom: 12 }}>
@@ -98,6 +110,14 @@ function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowe
           {attemptsAllowed > 1 && attemptsLeft > 0 ? ` · ${attemptsLeft} ${attemptsLeft === 1 ? 'try' : 'tries'} left` : ''}
         </span>
       </div>
+      {assessmentFramework && (
+        <p style={{ margin: '6px 0 0', color: '#5b21b6', fontSize: 12.5, fontWeight: 800 }}>
+          Practising for the {FRAMEWORK_LABELS[assessmentFramework] || assessmentFramework}
+        </p>
+      )}
+      {questionCode && (
+        <StandardBadge code={questionCode} framework={assessmentFramework} style={{ marginTop: 7 }} />
+      )}
       <div
         role="progressbar"
         aria-valuemin={0}
@@ -155,6 +175,7 @@ export const PathSessionPlayer = ({
   solutionReview = null,
   routeNotice = null,
   isSubmitting,
+  assessmentFramework = null,
   studentProfile,
   onSubmitAnswer,
   onContinue = null,
@@ -245,6 +266,7 @@ export const PathSessionPlayer = ({
           questionInstance={questionInstance}
           attemptsLeft={attemptsLeft}
           attemptsAllowed={attemptsAllowed}
+          assessmentFramework={assessmentFramework}
         />
         <DecisionBanner notice={routeNotice} />
 
@@ -347,6 +369,7 @@ export const PathSessionPlayer = ({
         questionInstance={questionInstance}
         attemptsLeft={attemptsLeft}
         attemptsAllowed={attemptsAllowed}
+        assessmentFramework={assessmentFramework}
       />
       <DecisionBanner notice={routeNotice} />
 

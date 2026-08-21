@@ -16,6 +16,10 @@ export const MyMathPathProductionContainer = ({
   targetAlignmentKey,
   sessionKind = 'practice',
   requiredQuestions = 5,
+  // The assessment the student pressed for, when they came from a CCMR
+  // pathway. Presentation only — it never reaches the server, and it cannot
+  // change which question is issued or how it is graded.
+  assessmentFramework = null,
   studentProfile,
   sessionProvider = null,
   onReturnToDashboard,
@@ -391,6 +395,7 @@ export const MyMathPathProductionContainer = ({
         solutionReview={solutionReview}
         routeNotice={routeNotice}
         isSubmitting={submitting}
+        assessmentFramework={assessmentFramework}
         studentProfile={studentProfile}
         onSubmitAnswer={handleSubmitAnswer}
         onContinue={awaitingContinue

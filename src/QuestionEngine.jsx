@@ -42,6 +42,8 @@ import InteractiveModelingLabPlayer from './components/labs/InteractiveModelingL
 import { useToast } from './ui/Toast';
 import QuestionModuleBoundary from './QuestionModuleBoundary';
 import QuestionPrompt from './QuestionPrompt';
+import StandardBadge from './components/common/StandardBadge.jsx';
+import { normalizeQuestionStandards } from './questionMetadata';
 import ReferenceInfoCard from './ReferenceInfoCard';
 import { resolveReferenceInfo } from './referenceInfo';
 import {
@@ -145,6 +147,13 @@ export default function QuestionEngine({
   const processedQuestion = useMemo(
     () => normalizeContextualQuestion(generateQuestion(stableQuestion, generationKey, stableStudentProfile)),
     [stableQuestion, generationKey, stableStudentProfile],
+  );
+  // The primary standard this question is aligned to, for the badge beneath the
+  // prompt. Read through the same normalizer the rest of the platform uses, so
+  // a question aligned in any of the accepted shapes resolves the same way.
+  const questionStandardCode = useMemo(
+    () => normalizeQuestionStandards(processedQuestion).primary?.[0]?.code || '',
+    [processedQuestion],
   );
   const referenceInfo = useMemo(() => resolveReferenceInfo(processedQuestion), [processedQuestion]);
   const presentationQuestion = useMemo(
@@ -650,6 +659,15 @@ export default function QuestionEngine({
     <div className="mathmaster-question-context-panel">
       <div className="mathmaster-desktop-question-anchor">
         <QuestionPrompt variant="task">{processedQuestion?.prompt || 'Complete the math task.'}</QuestionPrompt>
+        {/* Which standard this is, and whether it counts toward a college,
+            career or military assessment. A CCMR-aligned question inside an
+            ordinary assignment used to look exactly like every other question,
+            so the work a student was already doing toward those tests was
+            invisible to them. Tools that lead with their own TaskCard show the
+            same chip there. */}
+        {questionStandardCode && (
+          <StandardBadge code={questionStandardCode} style={{ margin: '0 auto 14px', maxWidth: '860px' }} />
+        )}
       </div>
       <ReferenceInfoCard referenceInfo={referenceInfo} />
       {!supportPresentation.declutter && (

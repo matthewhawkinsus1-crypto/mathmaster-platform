@@ -183,6 +183,13 @@ export const MyMathPathExperience = ({
       targetAlignmentKey: toCanonicalKey(teksCode),
       sessionKind: options.sessionKind || 'practice',
       requiredQuestions: options.requiredQuestions || (options.sessionKind === 'retentionProbe' ? 2 : 5),
+      // WHICH TEST THE STUDENT PRESSED FOR. Every CCMR entry point already
+      // passed this — "practise this for the SAT" — and it was dropped here, so
+      // the session that opened was indistinguishable from an ordinary one and
+      // the student had nothing on screen telling them what they were
+      // practising for, or which standard. It is presentation only: the
+      // questions and the grading are the server's, and unchanged.
+      assessmentFramework: options.framework || null,
     });
     setActiveTab('session');
   };

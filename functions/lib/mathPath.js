@@ -217,6 +217,18 @@ function buildSanitizedQuestion(question, { questionInstanceId, attemptsAllowed,
       tool: toolPayload.tool,
     } : {}),
     questionInstanceId,
+    // THE STANDARD THIS QUESTION IS ON. Public metadata, not an answer — the
+    // student is entitled to know what they are practising, and a CCMR session
+    // has to be able to say which standard and which assessment the question in
+    // front of them serves. It has to travel per QUESTION rather than per
+    // session because the routing engine descends into prerequisites: a session
+    // targeting A.2(B) can legitimately issue an 8.5(I) question, and labelling
+    // that with the session's target would be a lie.
+    alignmentKey: displayAlignmentKey(
+      Array.isArray(question.alignmentKeys) && question.alignmentKeys.length
+        ? question.alignmentKeys[0]
+        : question.alignmentKey || '',
+    ),
     familyId: String(question.familyId || question.questionType || 'path-question'),
     familyVersion: Number(question.familyVersion) || 1,
     questionType: String(question.questionType || 'response'),

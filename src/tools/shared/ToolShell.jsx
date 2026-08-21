@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { getTexasStandard } from '../../texasStandards';
 import { normalizeQuestionStandards } from '../../questionMetadata';
 import MathText from '../../components/common/MathText.jsx';
+import StandardBadge from '../../components/common/StandardBadge.jsx';
 
 export default function ToolShell({ title, subtitle, badge, children, footer }) {
   return (
@@ -107,6 +108,15 @@ export const TaskCard = ({ task, steps = [], note = null, question = null }) => 
             <MathText as="p" key={entry.code} style={{ margin: '4px 0 0', fontSize: 13, color: '#3c4756', lineHeight: 1.5 }}>
               {entry.description}
             </MathText>
+          ))}
+          {/* THE CCMR DESIGNATION. A question in an ordinary assignment whose
+              standard is on the SAT, ACT, TSIA2 or ASVAB looked exactly like
+              every other question, so the work a student was already doing
+              toward those tests was invisible to them. The chip says so, from
+              the authored per-standard crosswalk — a standard nobody has mapped
+              shows its code and no assessments rather than a guess. */}
+          {standards.slice(0, 1).map((entry) => (
+            <StandardBadge key={`badge-${entry.code}`} code={entry.code} style={{ marginTop: 9 }} />
           ))}
         </div>
       ) : null}
