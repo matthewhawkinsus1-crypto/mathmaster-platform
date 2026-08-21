@@ -36,6 +36,12 @@ import { toDisplayCode } from '../../utils/teksUtils.js';
 
 const WRAPPER = { maxWidth: 880, margin: '0 auto', padding: '14px 14px 44px' };
 
+// A tool needs the room. 880px is right for a prompt and an answer box, but a
+// coordinate plane shares that width with a panel of point tasks, and the plane
+// ends up too small to aim at. Reading text still wraps at a comfortable
+// measure inside the tool's own shell.
+const TOOL_WRAPPER = { ...WRAPPER, maxWidth: 1180 };
+
 const CARD = {
   padding: '18px 18px 20px',
   border: '1px solid #dadce0',
@@ -233,7 +239,7 @@ export const PathSessionPlayer = ({
   const canonical = secureQuestion || questionInstance.canonicalQuestion || null;
   if (canonical) {
     return (
-      <main style={WRAPPER}>
+      <main style={TOOL_WRAPPER}>
         <SessionHeader
           session={session}
           questionInstance={questionInstance}

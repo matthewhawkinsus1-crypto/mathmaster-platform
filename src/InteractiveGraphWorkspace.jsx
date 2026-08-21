@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import MathDisplay from './MathDisplay';
 import MathInput from './MathInput';
 import MathText from './components/common/MathText.jsx';
+import { toPlainMath } from './components/common/mathSegments.js';
+import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
 import QuestionPrompt from './QuestionPrompt';
 import { FUNCTION_GRAPH_LABELS } from './functionGraphUtils';
 import { POINT_FEATURES } from './analysisRequestCatalog';
@@ -679,7 +681,16 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
   return (
     <div style={{ textAlign: 'left' }}>
       <h2 style={{ color: '#202124', marginTop: 0, textAlign: 'center' }}>{workspaceTitle}</h2>
-      <QuestionPrompt>{question.prompt || (pointOnly ? 'Plot every point from your table.' : 'Construct the function, show its boundaries or continuation clearly, and complete every requested analysis part.')}</QuestionPrompt>
+      {/* The authored prompt is shown by whoever mounted this workspace —
+          QuestionEngine leads every question with it. Repeating it here put the
+          same sentence on screen twice, once as "Your task" and again as "Your
+          question", and pushed the plane further down a short screen. What is
+          left is the fallback: directions for a workspace opened WITHOUT an
+          authored prompt, which is how the tools lab and the workflow runner
+          use it. */}
+      {!String(question.prompt || '').trim() && (
+        <QuestionPrompt>{pointOnly ? 'Plot every point from your table.' : 'Construct the function, show its boundaries or continuation clearly, and complete every requested analysis part.'}</QuestionPrompt>
+      )}
       {question.showEquation !== false && question.equationLatex && <div style={{ margin: '18px auto', padding: '14px 20px', width: 'fit-content', maxWidth: '100%', borderRadius: '10px', background: '#f8f9fa', color: '#1a73e8', fontSize: '27px', fontWeight: 'bold' }}><MathDisplay value={question.equationLatex} format="latex" /></div>}
 
       <div style={{ display: 'flex', justifyContent: 'center', gap: '9px', flexWrap: 'wrap', marginBottom: '12px' }}>
@@ -692,7 +703,21 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
         {studentChoosesX && constructionEnabled && <span style={{ padding: '7px 12px', borderRadius: '999px', background: '#f3e8fd', color: '#681da8', fontWeight: 'bold' }}>Choose your own x-values</span>}
       </div>
 
-      <div className="mathmaster-function-workspace-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(195px, 235px) minmax(0, 760px)', gap: '16px', justifyContent: 'center', alignItems: 'start' }}>
+      {/* THE PLANE CAN LEAVE THE LAYOUT. Squeezed between the session card, the
+          tool shell and the point-task sidebar it measured 587px wide on a
+          1366px Chromebook, which makes plotting a point an exercise in
+          precision aiming. `Enlarge` gives the workspace the whole window.
+
+          The wrapper goes around the sidebar AS WELL as the plane: a bigger
+          graph you cannot press "Check Point Placements" on, or see which point
+          you are being asked for, is not much use.
+
+          Inside the grid the sidebar takes what it needs and the plane takes
+          the rest. It used to be `minmax(0, 760px)`, a cap the plane never
+          actually reached because everything upstream is narrower — so the only
+          effect of the fixed width was to shrink the graph. */}
+      <EnlargeableFigure label="Coordinate plane workspace" enlargeLabel="Enlarge graph">
+      <div className="mathmaster-function-workspace-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 220px) minmax(0, 1fr)', gap: '16px', justifyContent: 'center', alignItems: 'start' }}>
         <aside style={{ border: '1px solid #dfe3e7', borderRadius: '12px', background: '#f8fbff', padding: '12px' }}>
           {stage === 'construct' ? (
             <>
@@ -707,8 +732,8 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
                   const canPlace = task.expected === 'undefined' || Number.isFinite(Number(xValue));
                   return <div key={task.id} style={{ border: active ? '2px solid #1a73e8' : '1px solid #c9d4e5', borderRadius: '9px', background: placement ? '#eef5ff' : '#fff', padding: '9px' }}>
                     <button type="button" draggable={!mobileInteraction.isMobile && !construction.pointsValidated && canPlace} onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-point', task.id); event.dataTransfer.setDragImage(makePointDragImage(), 22, 22); setDraggingTaskId(task.id); }} onDragEnd={() => { setDraggingTaskId(null); setDropCandidate(null); setDropMagneticTarget(null); }} aria-pressed={active}
-                    aria-label={`${task.label}${active ? ' — selected. Move the cursor on the plane and press Enter, or type an exact coordinate.' : ''}`}
-                    onClick={() => { if (!construction.pointsValidated && canPlace) { setActiveTaskId(task.id); setKeyboardAnnouncement(`${task.label} selected. Use the arrow keys on the plane and press Enter, or type an exact coordinate below.`); } }} style={{ width: '100%', textAlign: 'left', border: 'none', background: 'transparent', padding: 0, cursor: construction.pointsValidated || !canPlace ? 'default' : 'grab' }}>
+                    aria-label={`${toPlainMath(task.label)}${active ? ' — selected. Move the cursor on the plane and press Enter, or type an exact coordinate.' : ''}`}
+                    onClick={() => { if (!construction.pointsValidated && canPlace) { setActiveTaskId(task.id); setKeyboardAnnouncement(`${toPlainMath(task.label)} selected. Use the arrow keys on the plane and press Enter, or type an exact coordinate below.`); } }} style={{ width: '100%', textAlign: 'left', border: 'none', background: 'transparent', padding: 0, cursor: construction.pointsValidated || !canPlace ? 'default' : 'grab' }}>
                       {/* Point tasks are authored as "Plot the point where $x = 0$".
                           The aria-label above deliberately keeps the plain string —
                           a screen reader should hear the source, not markup — but
@@ -750,7 +775,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
           )}
         </aside>
 
-        <figure style={{ margin: 0, width: 'min(100%, 780px)', padding: '10px', border: '1px solid #dfe3e7', borderRadius: '12px', background: '#fff', boxSizing: 'border-box' }}>
+        <figure style={{ margin: 0, width: '100%', padding: '10px', border: '1px solid #dfe3e7', borderRadius: '12px', background: '#fff', boxSizing: 'border-box' }}>
           <svg ref={svgRef} className="mathmaster-responsive-canvas mathmaster-touch-surface" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="xMidYMid meet" role="application"
             aria-label="Coordinate plane. Use the arrow keys to move the cursor, hold Shift to move faster, and press Enter to place at the cursor."
             tabIndex={0}
@@ -806,7 +831,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
             {!construction.snapped && construction.strokes.map((stroke, strokeIndex) => <polyline key={`stroke-${strokeIndex}`} points={stroke.map((point) => point.join(',')).join(' ')} fill="none" stroke="#7baaf7" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.88" />)}
             {drawing && drawingRef.current.length > 1 && <polyline points={drawingRef.current.map((point) => point.join(',')).join(' ')} fill="none" stroke="#7baaf7" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.88" />}
 
-            {constructionEnabled && tasks.filter((task) => Array.isArray(construction.placements[task.id])).map((task) => { const point = construction.placements[task.id]; const isCenter = task.role === 'center'; const x = toScreenX(point[0]); const y = toScreenY(point[1]); return <g key={task.id}><circle cx={x} cy={y} r={isCenter ? 10 : 8} fill={isCenter ? '#fff' : POINT_GUIDE_COLOR} stroke={isCenter ? '#9334e6' : '#fff'} strokeWidth="3" />{isCenter && <text x={x - 4} y={y + 5} fontSize="17" fontWeight="bold" fill="#9334e6">×</text>}<rect x={x + 8} y={y - 29} width={Math.max(36, task.label.length * 7 + 12)} height="21" rx="6" fill="rgba(255,255,255,0.58)" /><text x={x + 14} y={y - 14} fontSize="12" fontWeight="bold" fill="#174ea6">{task.label}</text></g>; })}
+            {constructionEnabled && tasks.filter((task) => Array.isArray(construction.placements[task.id])).map((task) => { const point = construction.placements[task.id]; const isCenter = task.role === 'center'; const x = toScreenX(point[0]); const y = toScreenY(point[1]); return <g key={task.id}><circle cx={x} cy={y} r={isCenter ? 10 : 8} fill={isCenter ? '#fff' : POINT_GUIDE_COLOR} stroke={isCenter ? '#9334e6' : '#fff'} strokeWidth="3" />{isCenter && <text x={x - 4} y={y + 5} fontSize="17" fontWeight="bold" fill="#9334e6">×</text>}<rect x={x + 8} y={y - 29} width={Math.max(36, toPlainMath(task.label).length * 7 + 12)} height="21" rx="6" fill="rgba(255,255,255,0.58)" /><text x={x + 14} y={y - 14} fontSize="12" fontWeight="bold" fill="#174ea6">{toPlainMath(task.label)}</text></g>; })}
             {dragGuideActive && <g pointerEvents="none"><line x1={toScreenX(dropCandidate[0])} y1={PADDING} x2={toScreenX(dropCandidate[0])} y2={HEIGHT - PADDING} stroke={POINT_GUIDE_COLOR} strokeWidth={dropMagneticTarget ? 4 : 3} strokeDasharray="8 5" opacity="0.84" /><line x1={PADDING} y1={toScreenY(dropCandidate[1])} x2={WIDTH - PADDING} y2={toScreenY(dropCandidate[1])} stroke={POINT_GUIDE_COLOR} strokeWidth={dropMagneticTarget ? 4 : 3} strokeDasharray="8 5" opacity="0.84" />{dropMagneticTarget && <circle cx={toScreenX(dropCandidate[0])} cy={toScreenY(dropCandidate[1])} r="24" fill="rgba(19,115,51,0.10)" stroke="#137333" strokeWidth="3" strokeDasharray="5 4" />}<circle cx={toScreenX(dropCandidate[0])} cy={toScreenY(dropCandidate[1])} r="15" fill="rgba(0,166,166,0.22)" stroke={dropMagneticTarget ? '#137333' : POINT_GUIDE_COLOR} strokeWidth="4" /><circle cx={toScreenX(dropCandidate[0])} cy={toScreenY(dropCandidate[1])} r="6" fill={dropMagneticTarget ? '#137333' : POINT_GUIDE_COLOR} />{dropMagneticTarget && <text x={toScreenX(dropCandidate[0])} y={toScreenY(dropCandidate[1]) - 31} textAnchor="middle" fontSize="12" fontWeight="bold" fill="#137333">Snap</text>}</g>}
             {stage === 'analysis' && activePointPart && (analysis.selections[activePointPart.id] || []).map((point, index) => <g key={`analysis-${index}`}><circle cx={toScreenX(point[0])} cy={toScreenY(point[1])} r="8" fill="#d93025" stroke="#fff" strokeWidth="3" /><rect x={toScreenX(point[0]) + 8} y={toScreenY(point[1]) - 29} width="82" height="22" rx="6" fill="rgba(255,255,255,0.62)" /><text x={toScreenX(point[0]) + 13} y={toScreenY(point[1]) - 14} fontSize="12" fontWeight="bold" fill="#3c4043">{pointLabel(point)}</text></g>)}
 
@@ -817,6 +842,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
           <figcaption style={{ color: '#5f6368', fontSize: '13px', padding: '8px 4px 0' }}>{pointOnly ? 'Plot each ordered pair from your completed table.' : boundaryOnly ? 'This relationship has a finite domain. Its graph must stop at explicit open or closed boundary markers.' : continuationOnly ? 'Arrows show that the function continues beyond the visible coordinate plane.' : 'Arrows show continuation; open and closed circles show finite-domain boundaries.'}</figcaption>
         </figure>
       </div>
+      </EnlargeableFigure>
 
       {stage === 'construct' && <div style={{ maxWidth: '960px', margin: '14px auto 0', textAlign: 'center' }}>
         {pointFeedback && <p style={{ margin: '8px 0', color: construction.pointsValidated ? '#137333' : '#8a5a00', fontWeight: 'bold' }}>{pointFeedback}</p>}

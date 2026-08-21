@@ -6,7 +6,10 @@ import MathText from '../../components/common/MathText.jsx';
 export default function ToolShell({ title, subtitle, badge, children, footer }) {
   return (
     <section className="mathmaster-tool-shell" style={{
-      width: 'min(100%, 980px)',
+      // Takes the room it is given, up to a limit generous enough for a
+      // coordinate plane beside its controls. The old fixed 980px capped a
+      // graph well below the width available on a school Chromebook.
+      width: 'min(100%, 1180px)',
       margin: '0 auto',
       border: '1px solid #d9e2f1',
       borderRadius: 18,

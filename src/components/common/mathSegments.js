@@ -41,6 +41,41 @@ export const splitMathSegments = (text) => String(text ?? '')
   .filter(Boolean);
 
 /**
+ * Authored text as plain characters, for the places that cannot typeset.
+ *
+ * An SVG `<text>` node holds characters, not markup, so the label drawn beside
+ * a plotted point cannot use MathText — and drawing "Plot the point where
+ * $x = 0$" on the coordinate plane is exactly the bug this round of work is
+ * about, just somewhere a DOM-based fix cannot reach. The same is true of an
+ * `aria-label`: a screen reader should hear "x equals 0", not "dollar x".
+ *
+ * So the mathematics is unwrapped and spelled out with the characters a person
+ * reads: ≤ rather than \le, ² rather than ^2, a/b rather than \frac{a}{b}.
+ * Lossy by design — this is a caption, not a formula.
+ */
+export const toPlainMath = (value) => splitMathSegments(value)
+  .map((segment) => (isMathSegment(segment) ? unwrapMathSegment(segment).value : segment))
+  .join('')
+  .replace(/\\[dt]?frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, '$1/$2')
+  .replace(/\\sqrt\s*\{([^{}]*)\}/g, '√($1)')
+  .replace(/\\(?:le|leq)\b/g, '≤')
+  .replace(/\\(?:ge|geq)\b/g, '≥')
+  .replace(/\\(?:ne|neq)\b/g, '≠')
+  .replace(/\\(?:cdot|times)\b/g, '×')
+  .replace(/\\infty\b/g, '∞')
+  .replace(/\\cup\b/g, '∪')
+  .replace(/\\cap\b/g, '∩')
+  .replace(/\\pi\b/g, 'π')
+  .replace(/\\left|\\right/g, '')
+  .replace(/\\(?:text|mathrm|operatorname)\s*\{([^{}]*)\}/g, '$1')
+  .replace(/\^\{?2\}?/g, '²')
+  .replace(/\^\{?3\}?/g, '³')
+  .replace(/\\(?:,|;|!|quad|qquad)/g, ' ')
+  .replace(/[{}]/g, '')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+/**
  * The mathematics inside a delimited segment, and how to set it.
  *
  * Display for `$$…$$` and `\[…\]`; inline for `\(…\)` and `$…$`.

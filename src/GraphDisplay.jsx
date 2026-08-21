@@ -1,6 +1,7 @@
 import QuestionPrompt from './QuestionPrompt';
 import { evaluateStaticGraphFunction, fitStaticGraphViewport, resolvePointFill, resolvePointRadius } from './graphSpecUtils';
 import { readGraphPointCoordinates } from './graphPointUtils.js';
+import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
 
 const DEFAULT_WIDTH = 620;
 const DEFAULT_HEIGHT = 430;
@@ -164,7 +165,11 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph' }) {
   const axisY = xMin <= 0 && xMax >= 0 ? toScreenX(0) : toScreenX(xMin);
 
   return (
-    <figure
+    // Readable at 680px, and enlargeable when it is not — reading a value off a
+    // graph is exactly the task where a bigger picture is the difference
+    // between an answer and a guess.
+    <EnlargeableFigure
+      label={graph.ariaLabel || title}
       style={{
         margin: '24px auto',
         width: 'min(100%, 680px)',
@@ -172,7 +177,6 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph' }) {
         border: '1px solid #dfe3e7',
         borderRadius: '12px',
         padding: '12px',
-        boxSizing: 'border-box',
         boxShadow: '0 2px 8px rgba(60,64,67,0.08)',
       }}
     >
@@ -360,6 +364,6 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph' }) {
           </QuestionPrompt>
         </figcaption>
       )}
-    </figure>
+    </EnlargeableFigure>
   );
 }
