@@ -1439,8 +1439,16 @@ async function processPathSeedImport({ db, actor, items, dryRun = false }) {
     // The exact production check. A starter item that cannot be issued and
     // graded by My Math Path never reaches Firestore and never counts toward
     // coverage.
+    //
+    // A TEMPLATE IS CHECKED BY GENERATING FROM IT. `buildTemplateIssuePlan`
+    // draws sampled instances and runs each one through the same
+    // `buildIssuePlan` an authored item faces, because the thing that reaches a
+    // student is an instance and never the template. Inspecting the template
+    // would pass a document whose `expected` is still the literal text
+    // "{{b}}" — gradeable-looking, and wrong for every student who meets it.
+    // A record with no generator takes the ordinary path unchanged.
     // eslint-disable-next-line no-await-in-loop
-    const plan = await mathPath.buildIssuePlan(item);
+    const plan = await mathPath.buildTemplateIssuePlan(item);
     if (!plan.issuable) { rejected.push(describe(plan.reason)); continue; }
     if (!Array.isArray(item.alignmentKeys) || item.alignmentKeys.length === 0) {
       rejected.push(describe("no_alignment_keys"));
@@ -4655,7 +4663,42 @@ exports.issueNextQuestion = onCall(async (request) => {
     usedTaskTypes,
   });
   const authored = choice.question;
-  const issuePlan = planByQuestionId.get(authored.id);
+  const questionInstanceId = mathPath.runtimeId("qi");
+
+  // THE QUESTION THE STUDENT ACTUALLY GETS.
+  //
+  // A bank record may be a template — parameters plus the document that uses
+  // them — and this is where it becomes one concrete question. It happens on
+  // the server because the parameters that produced the answer must never
+  // reach the browser, and because a browser generating its own numbers while
+  // the server graded a stored key would mark every correct answer wrong.
+  //
+  // Deterministic in the session and the instance id, so the question survives
+  // a reload; the generated question is stored on the session either way, so
+  // the two agree by construction. A record with no generator — which is every
+  // record in the bank today — passes through untouched.
+  const instantiated = await mathPath.instantiateQuestion(authored, `${sessionId}|${questionInstanceId}`);
+  if (!instantiated.question) {
+    logger.error("A Path template could not generate a question", {
+      sessionId, bankQuestionId: authored.id, reason: instantiated.reason,
+    });
+    throw new HttpsError("failed-precondition", `A question for ${activeDisplayCode} could not be prepared. Your teacher can see this in the Path audit.`, { reason: "generator-failed" });
+  }
+  const issued = instantiated.question;
+
+  // Re-planned from the INSTANCE, not the template: the grading definition is
+  // built from this question's own answer, and a template's answer is a
+  // placeholder. For a record with no generator these are the same object and
+  // the stored plan is reused.
+  const issuePlan = instantiated.parameters
+    ? await mathPath.buildIssuePlan(issued)
+    : planByQuestionId.get(authored.id);
+  if (!issuePlan?.issuable) {
+    logger.error("A generated Path question was not issuable", {
+      sessionId, bankQuestionId: authored.id, reason: issuePlan?.reason,
+    });
+    throw new HttpsError("failed-precondition", `A question for ${activeDisplayCode} could not be prepared. Your teacher can see this in the Path audit.`, { reason: "generated-not-issuable" });
+  }
   // A diagnostic is ONE question with ONE attempt: it is asked to find out
   // whether a prerequisite is the obstacle, and three tries at it would measure
   // persistence rather than answer the question.
@@ -4667,13 +4710,16 @@ exports.issueNextQuestion = onCall(async (request) => {
   // asking what the student can do unaided right now. Resolved on the server,
   // so the browser cannot grant itself a fourth try.
   const attemptsAllowed = await mathPath.attemptsFor(baseAttempts, entitlements);
-  const questionInstanceId = mathPath.runtimeId("qi");
   const currentQuestion = {
     // The public half — the authentic tool, by allowlist — plus the private
     // grading definition, which lives only in this session document.
-    ...mathPath.buildSanitizedQuestion(authored, { questionInstanceId, attemptsAllowed, attemptsUsed: 0, toolPayload: issuePlan.toolPayload }),
+    ...mathPath.buildSanitizedQuestion(issued, { questionInstanceId, attemptsAllowed, attemptsUsed: 0, toolPayload: issuePlan.toolPayload }),
     bankQuestionId: authored.id,
     sourceBankQuestionId: authored.id,
+    // The draw that produced this question. Teacher/QA metadata on the session
+    // document only — `buildSanitizedQuestion` does not copy it, so a student
+    // cannot read the parameters that generated their answer.
+    generatorParameters: instantiated.parameters,
     skillCode: activeDisplayCode,
     pathRole,
     // Teacher/QA metadata. `buildSanitizedQuestion` does not copy these onto the
@@ -4684,7 +4730,7 @@ exports.issueNextQuestion = onCall(async (request) => {
     // not the same as applicable: a calculator accommodation does not apply to
     // an item whose assessed construct is the computation, and reduced choices
     // do not apply where there is nothing to reduce.
-    applicableSupports: await mathPath.applicableSupportsFor(entitlements, authored, {}),
+    applicableSupports: await mathPath.applicableSupportsFor(entitlements, issued, {}),
     authorizedSupports: entitlements.authorized,
     supportEntitlements: {
       extraAttempts: entitlements.extraAttempts,
@@ -4706,7 +4752,7 @@ exports.issueNextQuestion = onCall(async (request) => {
     // document, and are released one piece at a time by submitPathResponse.
     // Nothing in this bundle is ever part of the sanitized question, so a
     // student cannot read the review out of the payload before answering.
-    privateSupport: await mathPath.buildPrivateSupport(authored),
+    privateSupport: await mathPath.buildPrivateSupport(issued),
   };
 
   const issuedQuestion = await db.runTransaction(async (transaction) => {

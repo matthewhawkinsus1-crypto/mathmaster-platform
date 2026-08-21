@@ -13,6 +13,57 @@ async function pathToolContracts() {
   return contractModule;
 }
 
+// Server-side question generation. Lives on this side of the wire on purpose:
+// the browser must never see the parameters that produced an answer, and the
+// browser generating its own numbers while the server graded the stored key
+// would mark every correct answer wrong.
+let generationModule = null;
+async function pathGeneration() {
+  if (!generationModule) generationModule = await import('../shared/pathQuestionGeneration.mjs');
+  return generationModule;
+}
+
+/**
+ * The question a student is actually given, from the family that was selected.
+ *
+ * A template becomes one concrete question here, deterministically from the
+ * seed, and the concrete question is what gets stored on the session and
+ * graded. A question with no generator is returned unchanged, which is every
+ * question in the bank today — this is additive, and nothing that works now
+ * changes shape.
+ */
+async function instantiateQuestion(question, seedKey) {
+  const generation = await pathGeneration();
+  if (!generation.hasPathGenerator(question)) return { question, parameters: null, reason: null };
+  return generation.generatePathInstanceWithRetries(question, seedKey);
+}
+
+/**
+ * Whether a template can really produce questions, checked by producing them.
+ *
+ * A template is never validated by inspection. `buildIssuePlan` is run against
+ * SAMPLED INSTANCES, because an instance is the thing that reaches a student:
+ * a template whose constraints are unsatisfiable, or that leaves a placeholder
+ * unbound, or that generates an ungradeable question one draw in twenty, has
+ * to fail at import rather than at nine in the morning in a classroom.
+ */
+async function buildTemplateIssuePlan(question, { samples = 8 } = {}) {
+  const generation = await pathGeneration();
+  if (!generation.hasPathGenerator(question)) {
+    const plan = await buildIssuePlan(question);
+    return { issuable: plan.issuable, reason: plan.reason, samples: 0 };
+  }
+  const drawn = generation.samplePathInstances(question, samples);
+  const failed = drawn.find((entry) => !entry.question);
+  if (failed) return { issuable: false, reason: failed.reason || 'generator_failed', samples: drawn.length };
+  for (const entry of drawn) {
+    // eslint-disable-next-line no-await-in-loop
+    const plan = await buildIssuePlan(entry.question);
+    if (!plan.issuable) return { issuable: false, reason: `generated_${plan.reason}`, samples: drawn.length };
+  }
+  return { issuable: true, reason: null, samples: drawn.length };
+}
+
 // The legacy field-graded branch, shared with the coverage index and the
 // promotion gate so all three mean the same thing by "gradeable".
 let legacyModule = null;
@@ -476,6 +527,9 @@ module.exports = {
   buildPrivateSupport,
   pathSolutionSupport,
   buildIssuePlan,
+  buildTemplateIssuePlan,
+  instantiateQuestion,
+  pathGeneration,
   buildSanitizedQuestion,
   gradePathToolResponse,
   storedToolPayload,
