@@ -1,5 +1,5 @@
 import 'mathlive';
-import { stackDivisions } from './stackDivisions.js';
+import { stackDivisions } from '../functions/shared/stackDivisions.mjs';
 
 const stripMathDelimiters = (value) => {
   const text = String(value ?? '').trim();

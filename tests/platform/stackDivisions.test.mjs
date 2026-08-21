@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { stackDivisions } from '../../src/stackDivisions.js';
+import { stackDivisions } from '../../functions/shared/stackDivisions.mjs';
 
 // Turning a written division into a stacked fraction, without ever changing
 // what the mathematics says.
@@ -40,10 +40,22 @@ test('several divisions in one expression are all rewritten', () => {
 
 // The other half. A `/` that cannot be read confidently must survive untouched:
 // a wrong \frac changes the mathematics, an unstacked slash is only ugly.
-test('an exponent or subscript next to the slash is left alone', () => {
-  assert.equal(stackDivisions('x^2/3'), 'x^2/3', 'the 2 is an exponent, not a numerator');
+test('a power travels with its base into the fraction', () => {
+  // `x^2/3` is x-squared over three. Taking only the exponent as the numerator
+  // would print `x^\frac{2}{3}` — a different number — so the base comes too.
+  assert.equal(stackDivisions('x^2/3'), '\\frac{x^2}{3}');
+  // And on the other side: `180/d^2` is 180 over d-squared, not 180 over d,
+  // all squared.
+  assert.equal(stackDivisions('180/d^2'), '\\frac{180}{d^2}');
+  assert.equal(stackDivisions('3/4^2'), '\\frac{3}{4^2}');
+});
+
+test('a subscript or a braced power beside the slash is left alone', () => {
+  // A subscript is part of a name, not an operand.
   assert.equal(stackDivisions('a_1/2'), 'a_1/2');
-  assert.equal(stackDivisions('3/4^2'), '3/4^2');
+  assert.equal(stackDivisions('2/b_1'), '2/b_1');
+  // A closing brace is the tail of a `\frac` as often as it is a power group.
+  // Too ambiguous to rewrite, so the slash stays as written.
   assert.equal(stackDivisions('x^{2}/3'), 'x^{2}/3');
 });
 

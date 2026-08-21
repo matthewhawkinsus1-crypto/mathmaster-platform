@@ -93,14 +93,35 @@ const INEQUALITY_KEYS = [
   { label: '∪', command: '\\cup', ariaLabel: 'Insert union' },
 ];
 
+// THE WAY OUT.
+//
+// A math field is structural: `/` opens a fraction and the cursor lands in the
+// denominator, `^` opens a power and the cursor lands in the exponent, and both
+// keep everything typed afterwards. Typing `3/4x+2` therefore produces
+// three over four-x-plus-two — a different expression from the one the student
+// meant, and one they can see but may not recognise as wrong.
+//
+// MathLive's way out is the space bar, which nothing tells a student. This is
+// the same gesture with a name on it, and it is on every keypad because every
+// keypad can open a group.
+const EXIT_GROUP_KEY = {
+  label: '↷ out',
+  action: 'moveAfterParent',
+  ariaLabel: 'Move the cursor out of the fraction, exponent or bracket',
+};
+
+const withExit = (keys) => [...keys, EXIT_GROUP_KEY];
+
 const getToolKeys = (profile, { isMobile = false, contextSymbols = [] } = {}) => {
-  if (profile === 'interval') return INTERVAL_KEYS;
-  if (profile === 'inequality') return INEQUALITY_KEYS;
-  if (profile === 'set') return [...SET_KEYS, ...INEQUALITY_KEYS, ...INTERVAL_KEYS.filter((item) => ['(', ')', '[', ']'].includes(item.label))];
-  if (profile === 'function') return [...FUNCTION_KEYS, ...BASIC_KEYS];
-  if (profile === 'algebra-operation') return isMobile ? algebraOperationKeysForContext(contextSymbols) : [...ALGEBRA_OPERATION_KEYS, ...BASIC_KEYS];
-  if (profile === 'basic+set') return [...BASIC_KEYS, ...SET_KEYS, ...INEQUALITY_KEYS];
-  return BASIC_KEYS;
+  if (profile === 'interval') return withExit(INTERVAL_KEYS);
+  if (profile === 'inequality') return withExit(INEQUALITY_KEYS);
+  if (profile === 'set') return withExit([...SET_KEYS, ...INEQUALITY_KEYS, ...INTERVAL_KEYS.filter((item) => ['(', ')', '[', ']'].includes(item.label))]);
+  if (profile === 'function') return withExit([...FUNCTION_KEYS, ...BASIC_KEYS]);
+  if (profile === 'algebra-operation') return withExit(isMobile ? algebraOperationKeysForContext(contextSymbols) : [...ALGEBRA_OPERATION_KEYS, ...BASIC_KEYS]);
+  if (profile === 'basic+set') return withExit([...BASIC_KEYS, ...SET_KEYS, ...INEQUALITY_KEYS]);
+  if (profile === 'equation') return withExit([...BASIC_KEYS, { label: '=', command: '=', ariaLabel: 'Insert equals sign' }]);
+  if (profile === 'expression') return withExit(BASIC_KEYS);
+  return withExit(BASIC_KEYS);
 };
 
 const detectMobileInput = () => typeof window !== 'undefined' && (window.innerWidth <= 768 || window.matchMedia?.('(pointer: coarse)')?.matches === true);
@@ -167,11 +188,31 @@ export default function MathInput({
     window.mathVirtualKeyboard?.hide?.();
 
     const handleInput = () => onChangeRef.current(mathField.value);
+
+    // Climb out of every open fraction, power or root. Stops when the cursor
+    // stops moving, which is how a top-level position announces itself.
+    const leaveAllGroups = () => {
+      for (let guard = 0; guard < 12; guard += 1) {
+        const before = mathField.position;
+        mathField.executeCommand('moveAfterParent');
+        if (mathField.position === before) return;
+      }
+    };
+
     const preventUnusedModes = (event) => {
       if (event.key === 'Escape') event.preventDefault();
       if (event.key === '\\') {
         event.preventDefault();
         mathField.insert('\\backslash', { selectionMode: 'after' });
+      }
+      // An equals sign always starts the other side of the statement, never the
+      // inside of a denominator or an exponent. Without this, a student typing
+      // `f^-1(x)=(x+9)/4` got the whole equation buried in the superscript,
+      // because `^` opens a group and nothing closes it. `+` and `-` are left
+      // alone deliberately: `1/x-2` is a student legitimately building the
+      // denominator x−2, and guessing there would take it away from them.
+      if (event.key === '=') {
+        leaveAllGroups();
       }
     };
     const preventContextMenu = (event) => event.preventDefault();

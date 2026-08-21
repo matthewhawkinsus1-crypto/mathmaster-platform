@@ -1,0 +1,352 @@
+{
+  "generatedAt": "2026-08-21T04:20:41.869Z",
+  "typed": 351,
+  "failures": [
+    {
+      "id": "mm_A_12E_reverse-choose",
+      "seedFile": "algebra1_pathQuestionBank_seed.json",
+      "fieldId": "answer",
+      "profile": "expression",
+      "expected": "2A/h-b_2",
+      "serialized": "\\frac{2A}{h-b_2}"
+    },
+    {
+      "id": "mm_A_9D_reverse-from-features",
+      "seedFile": "algebra1_pathQuestionBank_seed.json",
+      "fieldId": "answer",
+      "profile": "equation",
+      "expected": "y=3(3)^x-2",
+      "serialized": "y=3\\left(3\\right)^{x-2}"
+    },
+    {
+      "id": "mm_A2_2B_find-inverse",
+      "seedFile": "algebra2_pathQuestionBank_seed.json",
+      "fieldId": "answer",
+      "profile": "equation",
+      "expected": "f^-1(x)=(x+9)/4",
+      "serialized": "f^{-1\\left(x\\right)}=\\frac{\\left(x+9\\right)}{4}"
+    },
+    {
+      "id": "mm_A2_2C_reverse-pair",
+      "seedFile": "algebra2_pathQuestionBank_seed.json",
+      "fieldId": "answer",
+      "profile": "equation",
+      "expected": "f^-1(x)=(x-2)^2",
+      "serialized": "f^{-1\\left(x\\right)}=\\left(x-2\\right)^2"
+    },
+    {
+      "id": "mm_A2_5A_reverse-design",
+      "seedFile": "algebra2_pathQuestionBank_seed.json",
+      "fieldId": "answer",
+      "profile": "equation",
+      "expected": "y=3(2)^x-5",
+      "serialized": "y=3\\left(2\\right)^{x-5}"
+    },
+    {
+      "id": "mm_A2_5C_to-log-form",
+      "seedFile": "algebra2_pathQuestionBank_seed.json",
+      "fieldId": "answer",
+      "profile": "equation",
+      "expected": "log_2(32)=5",
+      "serialized": "\\log_{_{2\\left(32\\right)}}=5"
+    },
+    {
+      "id": "mm_A2_6C_reverse-design",
+      "seedFile": "algebra2_pathQuestionBank_seed.json",
+      "fieldId": "answer",
+      "profile": "equation",
+      "expected": "y=3|x-2|-1",
+      "serialized": "y=3"
+    },
+    {
+      "id": "mm_A2_6D_from-tolerance",
+      "seedFile": "algebra2_pathQuestionBank_seed.json",
+      "fieldId": "answer",
+      "profile": "equation",
+      "expected": "|v-500|=8",
+      "serialized": "\\v-500|=8"
+    },
+    {
+      "id": "mm_A2_6D_reverse-write",
+      "seedFile": "algebra2_pathQuestionBank_seed.json",
+      "fieldId": "answer",
+      "profile": "equation",
+      "expected": "|x-7|=5",
+      "serialized": "\\x-7|=5"
+    },
+    {
+      "id": "mm_A2_6F_reverse-write",
+      "seedFile": "algebra2_pathQuestionBank_seed.json",
+      "fieldId": "answer",
+      "profile": "inequality",
+      "expected": "|x-5|<=4",
+      "serialized": "\\x-5|<=4"
+    },
+    {
+      "id": "mm_A2_6K_context-domain",
+      "seedFile": "algebra2_pathQuestionBank_seed.json",
+      "fieldId": "answer",
+      "profile": "interval",
+      "expected": "(0, 400]",
+      "serialized": "\\left(0,\\right)400]"
+    },
+    {
+      "id": "mm_A2_7D_full-factorization",
+      "seedFile": "algebra2_pathQuestionBank_seed.json",
+      "fieldId": "answer",
+      "profile": "expression",
+      "expected": "(x - 1)(x + 2)(x - 3)",
+      "serialized": "\\left(x\\right)-1)\\left(x\\right)+2)\\left(x\\right)-3)"
+    },
+    {
+      "id": "mm_A2_7E_difference-of-cubes",
+      "seedFile": "algebra2_pathQuestionBank_seed.json",
+      "fieldId": "answer",
+      "profile": "expression",
+      "expected": "(x - 3)(x^2 + 3x + 9)",
+      "serialized": "\\left(x\\right)-3)\\left(x^2\\right)+3x+9)"
+    },
+    {
+      "id": "mm_A2_7E_grouping",
+      "seedFile": "algebra2_pathQuestionBank_seed.json",
+      "fieldId": "answer",
+      "profile": "expression",
+      "expected": "(x + 4)(x - 3)(x + 3)",
+      "serialized": "\\left(x\\right)+4)\\left(x\\right)-3)\\left(x\\right)+3)"
+    },
+    {
+      "id": "mm_A2_7F_add-unlike",
+      "seedFile": "algebra2_pathQuestionBank_seed.json",
+      "fieldId": "answer",
+      "profile": "expression",
+      "expected": "(5x + 3)/(x(x + 1))",
+      "serialized": "\\frac{\\left(5x\\right)+3)}{\\left(x\\left(x\\right)+\\right)1))}"
+    },
+    {
+      "id": "mm_A2_7F_context-combine",
+      "seedFile": "algebra2_pathQuestionBank_seed.json",
+      "fieldId": "answer",
+      "profile": "expression",
+      "expected": "(8r + 5)/(r(r + 1))",
+      "serialized": "\\frac{\\left(8r\\right)+5)}{\\left(r\\left(r\\right)+\\right)1))}"
+    },
+    {
+      "id": "mm_A2_7I_context-range",
+      "seedFile": "algebra2_pathQuestionBank_seed.json",
+      "fieldId": "answer",
+      "profile": "interval",
+      "expected": "[0, 64]",
+      "serialized": "\\left\\lbrack0,\\right\\rbrack64]"
+    },
+    {
+      "id": "mm_A2_7I_quadratic-range",
+      "seedFile": "algebra2_pathQuestionBank_seed.json",
+      "fieldId": "answer",
+      "profile": "interval",
+      "expected": "[-5, inf)",
+      "serialized": "\\left\\lbrack-5,\\right\\rbrack\\in f)"
+    }
+  ],
+  "samples": [
+    {
+      "profile": "number",
+      "typed": "-3",
+      "serialized": "-3"
+    },
+    {
+      "profile": "expression",
+      "typed": "8x+6",
+      "serialized": "8x+6"
+    },
+    {
+      "profile": "expression",
+      "typed": "-x^2+8x-1",
+      "serialized": "-x^2+8x-1"
+    },
+    {
+      "profile": "expression",
+      "typed": "3x^2-8x+9",
+      "serialized": "3x^2-8x+9"
+    },
+    {
+      "profile": "number",
+      "typed": "12",
+      "serialized": "12"
+    },
+    {
+      "profile": "expression",
+      "typed": "2x^2+7x-15",
+      "serialized": "2x^2+7x-15"
+    },
+    {
+      "profile": "expression",
+      "typed": "x^2+12x+36",
+      "serialized": "x^2+12x+36"
+    },
+    {
+      "profile": "expression",
+      "typed": "(x+5)(x-4)",
+      "serialized": "\\left(x+5\\right)\\left(x-4\\right)"
+    },
+    {
+      "profile": "number",
+      "typed": "4",
+      "serialized": "4"
+    },
+    {
+      "profile": "number",
+      "typed": "20",
+      "serialized": "20"
+    },
+    {
+      "profile": "expression",
+      "typed": "3x^2-2x+1",
+      "serialized": "3x^2-2x+1"
+    },
+    {
+      "profile": "expression",
+      "typed": "6x^3-3x^2+12x",
+      "serialized": "6x^3-3x^2+12x"
+    },
+    {
+      "profile": "expression",
+      "typed": "x^2+7x",
+      "serialized": "x^2+7x"
+    },
+    {
+      "profile": "expression",
+      "typed": "-6x^3+15x^2-12x",
+      "serialized": "-6x^3+15x^2-12x"
+    },
+    {
+      "profile": "expression",
+      "typed": "6x^2(3x+4)",
+      "serialized": "6x^2\\left(3x+4\\right)"
+    },
+    {
+      "profile": "number",
+      "typed": "36",
+      "serialized": "36"
+    },
+    {
+      "profile": "expression",
+      "typed": "(3x+2)(x+3)",
+      "serialized": "\\left(3x+2\\right)\\left(x+3\\right)"
+    },
+    {
+      "profile": "expression",
+      "typed": "(x-4)(x-5)",
+      "serialized": "\\left(x-4\\right)\\left(x-5\\right)"
+    },
+    {
+      "profile": "expression",
+      "typed": "x^2+4x-12",
+      "serialized": "x^2+4x-12"
+    },
+    {
+      "profile": "expression",
+      "typed": "(x+8)(x-8)",
+      "serialized": "\\left(x+8\\right)\\left(x-8\\right)"
+    },
+    {
+      "profile": "number",
+      "typed": "9991",
+      "serialized": "9991"
+    },
+    {
+      "profile": "expression",
+      "typed": "4x^2-81",
+      "serialized": "4x^2-81"
+    },
+    {
+      "profile": "number",
+      "typed": "10",
+      "serialized": "10"
+    },
+    {
+      "profile": "number",
+      "typed": "7",
+      "serialized": "7"
+    },
+    {
+      "profile": "number",
+      "typed": "48",
+      "serialized": "48"
+    },
+    {
+      "profile": "expression",
+      "typed": "6√2",
+      "serialized": "6\\surd2"
+    },
+    {
+      "profile": "expression",
+      "typed": "x^4",
+      "serialized": "x^4"
+    },
+    {
+      "profile": "number",
+      "typed": "6",
+      "serialized": "6"
+    },
+    {
+      "profile": "number",
+      "typed": "2.25",
+      "serialized": "2.25"
+    },
+    {
+      "profile": "expression",
+      "typed": "(5x^3)^2",
+      "serialized": "\\left(5x^3\\right)^2"
+    },
+    {
+      "profile": "number",
+      "typed": "10",
+      "serialized": "10"
+    },
+    {
+      "profile": "number",
+      "typed": "21",
+      "serialized": "21"
+    },
+    {
+      "profile": "number",
+      "typed": "13",
+      "serialized": "13"
+    },
+    {
+      "profile": "number",
+      "typed": "7",
+      "serialized": "7"
+    },
+    {
+      "profile": "number",
+      "typed": "35",
+      "serialized": "35"
+    },
+    {
+      "profile": "number",
+      "typed": "-6",
+      "serialized": "-6"
+    },
+    {
+      "profile": "equation",
+      "typed": "f(n)=3f(n-1)",
+      "serialized": "f\\left(n\\right)=3f\\left(n-1\\right)"
+    },
+    {
+      "profile": "equation",
+      "typed": "f(n)=7+(n-1)4",
+      "serialized": "f\\left(n\\right)=7+\\left(n-1\\right)4"
+    },
+    {
+      "profile": "equation",
+      "typed": "f(n)=80(0.5)^(n-1)",
+      "serialized": "f\\left(n\\right)=80\\left(0.5\\right)^{\\left(n-1\\right)}"
+    },
+    {
+      "profile": "number",
+      "typed": "324",
+      "serialized": "324"
+    }
+  ]
+}

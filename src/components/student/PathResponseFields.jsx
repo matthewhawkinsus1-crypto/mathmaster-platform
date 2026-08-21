@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import MathText from '../common/MathText.jsx';
+import MathInput from '../../MathInput.jsx';
 
 // The generic secure Path response.
 //
@@ -15,16 +16,26 @@ import MathText from '../common/MathText.jsx';
 //
 //   choice        real selectable cards, one per option, with the option text
 //                 rendered as mathematics
-//   number        a numeric field
-//   expression    a symbolic answer, with the symbols a keyboard lacks
-//   equation      the same, seeded for `=`
-//   interval      interval notation, with ∞ ∪ [ ] on the pad
-//   inequality    an inequality, with < ≤ > ≥ on the pad
-//   text          short words, where words are genuinely the answer
+//   text          short words, where words are genuinely the answer, in a
+//                 plain box where Enter checks the answer
+//   everything    the platform's own math editor, with the keypad the question
+//     else        needs — ∞ ∪ [ ] for an interval, < ≤ > ≥ for an inequality
+//
+// EVERY MATHEMATICAL ANSWER IS TYPED IN A MATH EDITOR. It used to be a plain
+// text box with a strip of characters to paste in, which meant a student
+// writing three quarters saw `3/4` — a side slash, on a mathematics platform —
+// and `x^2` stayed `x^2`. Every MathMaster tool already used MathInput; the
+// Path's generic answers were the one place that did not, and so the one place
+// mathematics did not look like mathematics.
+//
+// That changes what is submitted, from plain text to LaTeX. See
+// tests/browser/answerRoundTrip.mjs, which types every seed answer key into a
+// real editor and grades what comes back with the real server grader — the
+// evidence the graders accept it rather than the assumption.
 //
 // Nothing here decides correctness. Every profile collects a value and hands it
 // up; the verdict comes back from the server. And nothing here simplifies,
-// rearranges or completes what a student typed: the pad inserts a character the
+// rearranges or completes what a student typed: the keypad inserts a symbol the
 // student chose, which is a keyboard, not a solver.
 
 const FIELD_BASE = {
@@ -56,27 +67,16 @@ const HINT = {
   lineHeight: 1.5,
 };
 
-const PAD_BUTTON = {
-  minHeight: 34,
-  minWidth: 34,
-  padding: '0 9px',
-  border: '1px solid #c5d5ef',
-  borderRadius: 7,
-  background: '#f4f8ff',
-  color: '#174ea6',
-  fontSize: 15,
-  fontWeight: 800,
-  cursor: 'pointer',
-};
-
-// Symbols a Chromebook keyboard cannot produce. Inserting one is a typing aid,
-// not a mathematical decision: the student chose the symbol.
-const SYMBOL_PADS = {
-  interval: ['(', ')', '[', ']', '∞', '-∞', '∪', ','],
-  inequality: ['<', '≤', '>', '≥', '≠'],
-  expression: ['^', '√', '/', 'π', '±'],
-  equation: ['=', '^', '/', '√'],
-  set: ['{', '}', ',', '|', '∈'],
+// Which MathInput keypad each answer profile gets, so the symbols on offer are
+// the ones the question actually needs.
+const TOOL_PROFILE = {
+  interval: 'interval',
+  inequality: 'inequality',
+  set: 'set',
+  equation: 'equation',
+  expression: 'expression',
+  orderedPair: 'expression',
+  number: 'expression',
 };
 
 const normalizeProfile = (profile) => {
@@ -159,48 +159,24 @@ function ChoiceGroup({ field, choices, value, onChange, disabled }) {
   );
 }
 
-function TypedField({ field, profile, value, onChange, onSubmit, disabled, autoFocus }) {
+/** Words are genuinely the answer: a plain box, and Enter checks it. */
+function WordField({ field, value, onChange, onSubmit, disabled, autoFocus }) {
   const inputRef = useRef(null);
-  const pad = SYMBOL_PADS[profile] || null;
-  const hint = field.responseHint || DEFAULT_HINT[profile] || null;
+  const hint = field.responseHint || null;
 
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus();
   }, [autoFocus]);
 
-  const insert = (symbol) => {
-    const input = inputRef.current;
-    const current = String(value ?? '');
-    if (!input) {
-      onChange(current + symbol);
-      return;
-    }
-    const start = input.selectionStart ?? current.length;
-    const end = input.selectionEnd ?? current.length;
-    const next = current.slice(0, start) + symbol + current.slice(end);
-    onChange(next);
-    // Put the caret after what the student just inserted, so the next character
-    // lands where they expect rather than at the end of the box.
-    requestAnimationFrame(() => {
-      input.focus();
-      const caret = start + symbol.length;
-      input.setSelectionRange(caret, caret);
-    });
-  };
-
   return (
     <div>
-      {/* The bank names its fields mathematically — "$x$-intercept",
-          "Boundary of $y \ge 2x + 1$" — so a plain-text label showed the
-          student the markup instead of the mathematics. */}
       <label style={LABEL} htmlFor={`path-field-${field.id}`}>
         <MathText>{field.label || 'Answer'}</MathText>{field.unit ? ` (${field.unit})` : ''}
       </label>
       <input
         id={`path-field-${field.id}`}
         ref={inputRef}
-        type={profile === 'number' ? 'text' : 'text'}
-        inputMode={profile === 'number' ? 'decimal' : 'text'}
+        type="text"
         autoComplete="off"
         autoCorrect="off"
         spellCheck={false}
@@ -209,9 +185,6 @@ function TypedField({ field, profile, value, onChange, onSubmit, disabled, autoF
         value={value ?? ''}
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={(event) => {
-          // Enter checks the answer. A student who has typed a number and
-          // pressed Enter has finished; making them find the button is friction
-          // with no purpose.
           if (event.key === 'Enter') {
             event.preventDefault();
             onSubmit?.();
@@ -219,22 +192,48 @@ function TypedField({ field, profile, value, onChange, onSubmit, disabled, autoF
         }}
         style={FIELD_BASE}
       />
-      {pad && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-          {pad.map((symbol) => (
-            <button
-              key={symbol}
-              type="button"
-              disabled={disabled}
-              aria-label={`Insert ${symbol}`}
-              onClick={() => insert(symbol)}
-              style={PAD_BUTTON}
-            >
-              {symbol}
-            </button>
-          ))}
-        </div>
-      )}
+      {hint && <MathText style={HINT}>{hint}</MathText>}
+    </div>
+  );
+}
+
+/**
+ * A mathematical answer, in the platform's own math editor.
+ *
+ * WHAT THIS REPLACED. A plain `<input type="text">` with a strip of characters
+ * to paste into it. A student writing three quarters saw `3/4` — a side slash,
+ * in a sentence, on a mathematics platform — and `x^2` stayed `x^2`. Every
+ * MathMaster tool already uses MathInput; only the Path's generic answers did
+ * not, so the Path was the one place where mathematics did not look like
+ * mathematics.
+ *
+ * IT CHANGES WHAT IS SUBMITTED, from plain text to LaTeX, and that is the risk.
+ * tests/browser/answerRoundTrip.mjs types all 351 seed answer keys into a real
+ * editor and grades what comes back with the real server grader — the evidence
+ * that the graders accept it, rather than the assumption.
+ *
+ * Enter does not submit here: in a math field Enter is a structural key, and
+ * binding it to "check my answer" would end the question mid-expression. The
+ * Check button is directly below and follows the student down the page.
+ */
+function MathField({ field, profile, value, onChange, disabled, autoFocus }) {
+  const hint = field.responseHint || DEFAULT_HINT[profile] || null;
+  return (
+    <div>
+      <label style={LABEL}>
+        <MathText>{field.label || 'Answer'}</MathText>{field.unit ? ` (${field.unit})` : ''}
+      </label>
+      <MathInput
+        value={value ?? ''}
+        onChange={onChange}
+        toolProfile={TOOL_PROFILE[profile] || 'expression'}
+        placeholder={field.placeholder || ''}
+        ariaLabel={field.label || 'Answer'}
+        focusSignal={autoFocus ? 1 : 0}
+        showToolsInitially
+        maxWidth={640}
+        inputStatus={disabled ? 'neutral' : 'neutral'}
+      />
       {hint && <MathText style={HINT}>{hint}</MathText>}
     </div>
   );
@@ -273,14 +272,26 @@ export const PathResponseFields = ({
             />
           );
         }
+        if (profile === 'text') {
+          return (
+            <WordField
+              key={field.id}
+              field={field}
+              value={values[field.id]}
+              onChange={(next) => onChangeField(field.id, next)}
+              onSubmit={onSubmit}
+              disabled={disabled}
+              autoFocus={index === 0}
+            />
+          );
+        }
         return (
-          <TypedField
+          <MathField
             key={field.id}
             field={field}
             profile={profile}
             value={values[field.id]}
             onChange={(next) => onChangeField(field.id, next)}
-            onSubmit={onSubmit}
             disabled={disabled}
             autoFocus={index === 0}
           />

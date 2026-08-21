@@ -6,11 +6,12 @@
 // same student response should receive the same verdict everywhere MathMaster
 // grades it.
 
-import { sameLinearEquation } from './algebraicForm.mjs';
+import { expandLatexShorthand, sameLinearEquation } from './algebraicForm.mjs';
+import { stackDivisions } from './stackDivisions.mjs';
 
 const UNICODE_MINUS = /[−–—]/g;
 
-const normalizeStructuralMathLive = (value) => String(value ?? '')
+const normalizeStructuralMathLive = (value) => expandLatexShorthand(value)
   .trim()
   .replace(UNICODE_MINUS, '-')
   .replace(/\\left|\\right/g, '')
@@ -23,9 +24,27 @@ const normalizeStructuralMathLive = (value) => String(value ?? '')
   .replace(/\\rbrace/g, '}')
   .replace(/\\\{/g, '{')
   .replace(/\\\}/g, '}')
+  // ...and the same is true of interval brackets. Typing `[-5,7]` into a math
+  // field serializes as `\left\lbrack-5,7\right\rbrack`, which every grader
+  // used to read as a different answer from the `[-5,7]` in the answer key.
+  .replace(/\\lbrack/g, '[')
+  .replace(/\\rbrack/g, ']')
+  .replace(/\\\[/g, '[')
+  .replace(/\\\]/g, ']')
   .replace(/\\varnothing|\\emptyset|∅/g, '∅');
 
-export const normalizeAnswer = (value) => normalizeStructuralMathLive(value)
+/**
+ * One spelling for a division, whichever way it was written.
+ *
+ * An author types `L = 180/d^2` into the answer key. A student presses the
+ * fraction key and the editor sends `L=\frac{180}{d^2}`. Those are the same
+ * answer, and the grader marked the student wrong. Canonicalising both onto
+ * `\frac` before any text comparison is what makes them agree — and it costs
+ * nothing, because a division that cannot be read confidently is left alone.
+ */
+const canonicalizeDivisions = (value) => stackDivisions(value, { skipAsciiCalls: false });
+
+export const normalizeAnswer = (value) => canonicalizeDivisions(normalizeStructuralMathLive(value))
   .replace(/\\cdot|\\times/g, '*')
   .replace(/\\infty|∞/g, 'inf')
   .replace(/\\cup|∪/g, 'u')

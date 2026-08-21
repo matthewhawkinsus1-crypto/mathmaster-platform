@@ -120,6 +120,50 @@ export const samePolynomial = (left, right, tolerance = 1e-6) => {
 const UNICODE_MINUS = /[−–—]/g;
 
 /**
+ * The shorthand MathLive really emits, written out in full.
+ *
+ * Typing `5/3` into a math field serializes as `\frac53` — no braces, because
+ * each part is a single token. Typing `x^2` gives `^2`, but pressing the
+ * superscript key gives `^{2}`, and `√` typed as a character gives `\surd`
+ * rather than `\sqrt`. Every grader that only knew the long spellings marked
+ * those correct answers wrong.
+ *
+ * Exported because answer normalization needs the same expansion: the fix has
+ * to be in one place, or the two will drift the way the delimiter scanners did.
+ */
+export const expandLatexShorthand = (value) => String(value ?? '')
+  // `\left` and `\right` are sizing hints with no mathematical content, and
+  // they sit between every other rule here and the thing it needs to match —
+  // `\sqrt{\left(2\right)}` is `\sqrt{(2)}` is `\sqrt{2}`. Removed first so the
+  // rest of this chain sees the mathematics rather than the decoration.
+  .replace(/\\left|\\right/g, '')
+  // `\frac53` and `\frac5{x+1}` → `\frac{5}{3}`. A brace-less part is exactly
+  // one character; anything longer already carries its braces.
+  .replace(/\\([dt]?frac)(?!\s*\{)\s*(\\?[A-Za-z0-9])\s*(\{[^{}]*\}|\\?[A-Za-z0-9])/g,
+    (match, command, first, second) => `\\${command}{${first}}${second.startsWith('{') ? second : `{${second}}`}`)
+  .replace(/\\([dt]?frac)\s*(\{[^{}]*\})\s*(\\?[A-Za-z0-9])(?![A-Za-z0-9])/g,
+    (match, command, first, second) => `\\${command}${first}{${second}}`)
+  // `\surd` is the bare radical glyph and `√` is the character an answer key
+  // is often written with; `\sqrt` is the one with a body. All three mean the
+  // same root, so they are spelled the same way before anything compares them.
+  .replace(/(?:\\surd|√)\s*(\{[^{}]*\}|\([^()]*\)|[A-Za-z0-9]+)/g, (match, body) => `\\sqrt{${body.replace(/^[({]|[)}]$/g, '')}}`)
+  // ASCIIMath `sqrt(2)` is the same root as `\sqrt{2}`, and answer keys are
+  // written both ways. So are the redundant brackets the editor leaves behind
+  // when a student types `sqrt(` and MathLive closes the fence for them.
+  .replace(/\bsqrt\s*\(([^()]*)\)/g, '\\sqrt{$1}')
+  .replace(/\\sqrt\{\(([^()]*)\)\}/g, '\\sqrt{$1}')
+  // `^{(n-1)}` is the same power as `^(n-1)`: the braces are the editor's
+  // bookkeeping around a group that already has its own brackets.
+  .replace(/([\^_])\{(\([^()]*\))\}/g, '$1$2')
+  // `\frac{(r-3)}{2}` is `\frac{r-3}{2}`. A fraction bar already groups its
+  // parts, so brackets round a whole part are the editor's, not the student's.
+  .replace(/\\([dt]?frac)\{\(([^()]*)\)\}/g, '\\$1{$2}')
+  .replace(/(\\[dt]?frac\{[^{}]*\})\{\(([^()]*)\)\}/g, '$1{$2}')
+  // `x^{2}` and `x^{2}` are the same power as `x^2`; braces round a single
+  // token are MathLive's bookkeeping, not the student's meaning.
+  .replace(/([\^_])\{(-?[A-Za-z0-9])\}/g, '$1$2');
+
+/**
  * LaTeX in, ordinary algebra out.
  *
  * MathLive produces `\frac{3}{2}x`, a keyboard produces `3/2x`, and the seed
@@ -127,7 +171,7 @@ const UNICODE_MINUS = /[−–—]/g;
  * survive.
  */
 export const normalizeAlgebraicText = (value) => {
-  let text = String(value ?? '')
+  let text = expandLatexShorthand(value)
     .replace(UNICODE_MINUS, '-')
     .replace(/\\left|\\right/g, '')
     .replace(/\\(?:cdot|times)/g, '*')

@@ -126,11 +126,17 @@ const operandBefore = (text, end) => {
   if (/\d/.test(text[index])) {
     while (start > 0 && /[\d.]/.test(text[start - 1])) start -= 1;
   }
-  // `x^2/3` must not become `x^\frac{2}{3}`, and `a_1/2` must not lose its
-  // subscript. The character in front settles it.
-  if (start > 0 && (text[start - 1] === '^' || text[start - 1] === '_')) return null;
   // A letter that is the tail of a command (`\pi/2`) is not a bare variable.
   if (start > 0 && /[A-Za-z]/.test(text[index]) && /[A-Za-z\\]/.test(text[start - 1])) return null;
+  // `x^2/3` is x-squared over three, so the power comes along as one operand.
+  // Taking only the exponent would print `x^\frac{2}{3}` — a different number.
+  if (start > 0 && text[start - 1] === '^') {
+    const base = operandBefore(text, start - 2);
+    if (!base) return null;
+    return { start: base.start, text: text.slice(base.start, index + 1) };
+  }
+  // A subscript is part of a name, not an operand of its own.
+  if (start > 0 && text[start - 1] === '_') return null;
   return { start, text: text.slice(start, index + 1) };
 };
 
@@ -151,16 +157,24 @@ const operandAfter = (text, start) => {
   // this does not have. Left as written.
   if (text[index] === '\\' || text[index] === '{') return null;
 
+  // A power belongs to the denominator: `180/d^2` is 180 over d-squared, not
+  // 180 over d, all squared. A subscript is part of a name, so it comes too.
+  const withTrailingPower = (end) => {
+    if (text[end] !== '^') return { end, text: text.slice(index, end) };
+    const exponent = operandAfter(text, end + 1);
+    if (!exponent) return null;
+    return { end: exponent.end, text: text.slice(index, exponent.end) };
+  };
+
   if (/\d/.test(text[index])) {
     let end = index;
     while (end < text.length && /[\d.]/.test(text[end])) end += 1;
-    // `3/4^2` is not `\frac{3}{4}` squared.
-    if (text[end] === '^' || text[end] === '_') return null;
-    return { end, text: text.slice(index, end) };
+    if (text[end] === '_') return null;
+    return withTrailingPower(end);
   }
   if (/[A-Za-z]/.test(text[index])) {
-    if (text[index + 1] && (text[index + 1] === '^' || text[index + 1] === '_')) return null;
-    return { end: index + 1, text: text.slice(index, index + 1) };
+    if (text[index + 1] === '_') return null;
+    return withTrailingPower(index + 1);
   }
   return null;
 };
@@ -171,10 +185,14 @@ const operandAfter = (text, start) => {
  * Returns the input unchanged when there is nothing to do, so callers can use
  * the result unconditionally.
  */
-export const stackDivisions = (value) => {
+export const stackDivisions = (value, { skipAsciiCalls = true } = {}) => {
   const text = String(value ?? '');
   if (!text.includes('/')) return text;
-  if (ASCII_ONLY_CALL.test(text)) return text;
+  // The ASCIIMath guard exists to protect RENDERING: introducing a `\frac`
+  // flips the string to LaTeX, where `sqrt(x)` is the word "sqrt". Grading has
+  // no such problem — nothing is drawn — and there the canonical form matters
+  // more, so the caller can turn the guard off.
+  if (skipAsciiCalls && ASCII_ONLY_CALL.test(text)) return text;
 
   const skip = verbatimRanges(text);
   let out = text;
