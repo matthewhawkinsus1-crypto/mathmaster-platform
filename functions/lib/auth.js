@@ -17,7 +17,12 @@ const ADMIN_AUDIT_COLLECTION = "adminAuditLog";
 // bootstrapped from an environment variable: removing INITIAL_TEACHER_EMAILS
 // after rollout must never strand the platform without an administrator.
 // Additional staff are granted the ordinary teacher role by this account.
-const ROOT_ADMIN_EMAIL = "matthew.hawkins@desotoisd.org";
+//
+// The value itself lives in functions/shared/rolePolicy.mjs so the server, the
+// browser and the rules tests all read one declaration. It was written out
+// twice — here and in src/App.jsx — and two copies of the identity that decides
+// who may administer the platform is one copy too many.
+const ROOT_ADMIN_EMAIL = require("../shared/rolePolicyIdentity.cjs").ROOT_ADMIN_EMAIL;
 
 const STUDENT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{1,63}$/;
 const PASSCODE_PATTERN = /^\d{4,8}$/;

@@ -8,11 +8,57 @@ const auth = require('../../functions/lib/auth.js');
 const admin = require('../../functions/lib/admin.js');
 const functionsSource = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
 const firestoreRules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
+const rolePolicy = await import('../../functions/shared/rolePolicy.mjs');
 
 test('root administrator identity is fixed to the requested DeSoto account', () => {
   assert.equal(auth.ROOT_ADMIN_EMAIL, 'matthew.hawkins@desotoisd.org');
   assert.equal(auth.isRootAdminEmail('Matthew.Hawkins@desotoisd.org'), true);
   assert.equal(auth.isRootAdminEmail('teacher@desotoisd.org'), false);
+});
+
+// Three modules have to name the administrator, and two of them cannot import
+// the third: `functions/lib/auth.js` is CommonJS and needs the address while it
+// is still initialising, so it reads the .cjs mirror. If those two files ever
+// drift, the server and the browser would enforce different administrators —
+// the browser would offer Admin Mode to an account the callables refuse, which
+// is exactly the loop this test exists to prevent.
+test('every declaration of the administrator identity agrees', () => {
+  const cjs = require('../../functions/shared/rolePolicyIdentity.cjs');
+  assert.equal(cjs.ROOT_ADMIN_EMAIL, rolePolicy.ROOT_ADMIN_EMAIL);
+  assert.equal(auth.ROOT_ADMIN_EMAIL, rolePolicy.ROOT_ADMIN_EMAIL);
+  // ...and nobody re-declares it as a literal of their own.
+  const appSource = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+  assert.equal(
+    appSource.includes(`'${rolePolicy.ROOT_ADMIN_EMAIL}'`),
+    false,
+    'src/App.jsx must import ROOT_ADMIN_EMAIL rather than hard-coding it',
+  );
+});
+
+test('a refused administrative call names the account it requires', () => {
+  // The gate is unchanged; only the refusal is legible. A person signed in on a
+  // second account must be able to read the error and learn which account to
+  // use, instead of being told to refresh a token that can never work.
+  const refusal = functionsSource.slice(
+    functionsSource.indexOf('async function requireRootAdmin'),
+    functionsSource.indexOf('function requireStudent'),
+  );
+  assert.match(refusal, /authLib\.ROOT_ADMIN_EMAIL/);
+  assert.match(refusal, /You are signed in as \$\{email\}/);
+  assert.equal(refusal.includes('Sign out and back in'), false);
+});
+
+test('the Path audit no longer tells the wrong account to refresh its token', () => {
+  const auditSource = readFileSync(
+    new URL('../../src/components/teacher/PathCoverageAudit.jsx', import.meta.url),
+    'utf8',
+  );
+  const friendly = auditSource.slice(
+    auditSource.indexOf('const friendlyPathError'),
+    auditSource.indexOf('export default function PathCoverageAudit'),
+  );
+  assert.equal(friendly.includes('Sign out and back in as Root Admin'), false);
+  assert.match(friendly, /ROOT_ADMIN_EMAIL/);
 });
 
 test('permanent student deletion requires an exact typed confirmation', () => {

@@ -61,8 +61,13 @@ test('post-deadline assignments become uncredited in-memory practice instead of 
 });
 
 test('root Administration remains discoverable to the protected email and server still authorizes every privileged mutation', () => {
-  assert.match(appSource, /matthew\.hawkins@desotoisd\.org/);
+  // Discoverability is still keyed to the protected identity — but that identity
+  // is now imported from the module the callables enforce rather than repeated
+  // as a second literal here, so the browser cannot come to believe in an
+  // administrator the server would refuse. See tests/platform/adminAuthority.
+  assert.match(appSource, /import \{ isRootAdminEmail \} from '\.\.\/functions\/shared\/rolePolicy\.mjs'/);
   assert.match(appSource, /rootAdminUiEligible/);
+  assert.match(appSource, /isRootAdminEmail\(user\.email\)/);
   assert.match(adminUiSource, /Create Student Account/);
   assert.match(adminUiSource, /setStudentClass/);
   assert.match(authServiceSource, /createStudentAccount/);

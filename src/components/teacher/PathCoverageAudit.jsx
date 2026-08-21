@@ -13,6 +13,7 @@ import { PATH_WEB_RELEASE } from '../../platform/path/pathRelease.js';
 import { COMPAT, COMPAT_LABEL, buildToolSupportMatrix } from '../../platform/supports/toolSupportMatrix.js';
 import { PATH_TOOL_IDS } from '../../../functions/shared/pathToolContracts.mjs';
 import { SUPPORT } from '../../../functions/shared/supportEntitlements.mjs';
+import { ROOT_ADMIN_EMAIL } from '../../../functions/shared/rolePolicy.mjs';
 
 // Which standards My Math Path can actually teach.
 //
@@ -69,8 +70,19 @@ const friendlyPathError = (caught, fallback) => {
   if (code === 'not-found') {
     return `${fallback} The required Path Cloud Function is not deployed. Deploy Firebase Functions from this project, then try again.`;
   }
-  if (code === 'permission-denied' || code === 'unauthenticated') {
-    return `${fallback} Sign out and back in as Root Admin so your current authorization token is refreshed.`;
+  if (code === 'unauthenticated') {
+    return `${fallback} Your session expired. Sign out and back in, then try again.`;
+  }
+  if (code === 'permission-denied') {
+    // The server's own message names the administrator address and the address
+    // actually signed in. Prefer it: the old advice here ("sign out and back in
+    // as Root Admin") is a loop for anyone signed in on a second account, since
+    // refreshing that token can never produce administrator claims. Only the
+    // account itself can. Fall back to naming the address when an older
+    // deployment returns the generic message.
+    const detail = String(caught?.message || '').trim();
+    if (detail && detail.includes('@')) return `${fallback} ${detail}`;
+    return `${fallback} This action is restricted to the MathMaster root administrator (${ROOT_ADMIN_EMAIL}). Sign in with that account to seed or rebuild the Path bank.`;
   }
   return caught?.message || fallback;
 };

@@ -150,8 +150,10 @@ import {
 import LoginScreen from './LoginScreen.jsx';
 import { useAuth } from './auth/AuthProvider.jsx';
 import { watchLiveChallengeInvite } from './platform/liveChallenge/liveChallengeService.js';
+// The administrator identity comes from the same module the callables enforce,
+// so the browser can never believe in a different administrator than the server.
+import { isRootAdminEmail } from '../functions/shared/rolePolicy.mjs';
 
-const ROOT_ADMIN_EMAIL = 'matthew.hawkins@desotoisd.org';
 const LiveChallengeTeacher = lazy(() => import('./components/liveChallenge/LiveChallengeTeacher.jsx'));
 const LiveChallengeStudent = lazy(() => import('./components/liveChallenge/LiveChallengeStudent.jsx'));
 
@@ -4073,7 +4075,7 @@ function App() {
     // server. The email fallback prevents a stale token from hiding Admin Mode
     // from the one account that needs to fix/deploy it.
     const rootAdminUiEligible = user.isRootAdmin === true
-      || String(user.email || '').trim().toLowerCase() === ROOT_ADMIN_EMAIL;
+      || isRootAdminEmail(user.email);
     const selectedAssignment = assignments.find((assignment) => assignment.id === gradebookFilter.assignmentId) || null;
     const selectedClassStudents = allStudents.filter((student) => (student.classPeriod || 'Unassigned') === gradebookFilter.classPeriod).sort(compareStudentsByName);
     const assignmentsForSelectedClass = assignments.filter((assignment) => !gradebookFilter.classPeriod || assignmentIsForStudent(assignment, gradebookFilter.classPeriod));

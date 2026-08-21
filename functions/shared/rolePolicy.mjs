@@ -14,6 +14,21 @@
 
 export const ROLE = Object.freeze({ STUDENT: 'student', TEACHER: 'teacher' });
 
+/**
+ * The one account that may administer the platform.
+ *
+ * Declared here rather than in two hard-coded literals — `functions/lib/auth.js`
+ * and `src/App.jsx` each carried their own copy — because the identity that
+ * decides who can administer MathMaster must not be able to disagree with
+ * itself. Deliberately not read from an environment variable: unsetting a
+ * variable after rollout must never strand the platform with no administrator.
+ */
+export const ROOT_ADMIN_EMAIL = 'matthew.hawkins@desotoisd.org';
+
+export const isRootAdminEmail = (value) => (
+  String(value ?? '').trim().toLowerCase() === ROOT_ADMIN_EMAIL
+);
+
 /** Signed in at all. */
 export const isAuthenticated = (auth) => Boolean(auth && auth.uid);
 

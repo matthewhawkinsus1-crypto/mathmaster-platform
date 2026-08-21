@@ -249,7 +249,17 @@ async function requireRootAdmin(request) {
     if (decision.reason === "unauthenticated") {
       throw new HttpsError("unauthenticated", "Sign in before making this administrative change.");
     }
-    throw new HttpsError("permission-denied", "This action is restricted to the MathMaster root administrator.");
+    // Name both addresses. The gate itself is unchanged — this is refused for
+    // exactly the same reasons it always was — but "restricted to the root
+    // administrator" gave someone on a second account no way to tell whether
+    // they were on the wrong account or holding a stale token, so the honest
+    // remedy (sign in as the administrator) was indistinguishable from the
+    // useless one (sign out and back in on the same account, forever).
+    const signedInAs = email ? `You are signed in as ${email}.` : "You are signed in without a verified email address.";
+    throw new HttpsError(
+      "permission-denied",
+      `This action is restricted to the MathMaster root administrator (${authLib.ROOT_ADMIN_EMAIL}). ${signedInAs}`,
+    );
   }
   return { uid: request.auth.uid, email };
 }
