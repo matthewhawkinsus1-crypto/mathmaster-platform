@@ -1,25 +1,11 @@
 import MathDisplay from './MathDisplay';
-
-const MATH_DELIMITER_PATTERN = /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)|\$[^$\n]+?\$)/g;
+import { isMathSegment, splitMathSegments, unwrapMathSegment } from './components/common/mathSegments.js';
 
 // Preserve author-entered values, but never show raw calculator-style inverse
 // notation in prose. This is display-only typography; grading data is not
 // changed.
 const normalizePlainMathTypography = (value) => String(value ?? '')
   .replace(/([A-Za-z])\^-1/g, '$1⁻¹');
-
-const getDelimitedMath = (segment) => {
-  if (segment.startsWith('$$')) {
-    return { value: segment.slice(2, -2), inline: false };
-  }
-  if (segment.startsWith('\\[')) {
-    return { value: segment.slice(2, -2), inline: false };
-  }
-  if (segment.startsWith('\\(')) {
-    return { value: segment.slice(2, -2), inline: true };
-  }
-  return { value: segment.slice(1, -1), inline: true };
-};
 
 /**
  * Displays ordinary directions plus optional math delimited with:
@@ -32,7 +18,7 @@ export default function QuestionPrompt({
   variant = 'question',
 }) {
   const text = String(children ?? '');
-  const segments = text.split(MATH_DELIMITER_PATTERN).filter(Boolean);
+  const segments = splitMathSegments(text);
 
   const isPlain = variant === 'plain';
   const isTask = variant === 'task';
@@ -64,14 +50,11 @@ export default function QuestionPrompt({
         </div>
       )}
       {segments.map((segment, index) => {
-        const isMath = MATH_DELIMITER_PATTERN.test(segment);
-        MATH_DELIMITER_PATTERN.lastIndex = 0;
-
-        if (!isMath) {
+        if (!isMathSegment(segment)) {
           return <span key={`${index}-${segment}`}>{normalizePlainMathTypography(segment)}</span>;
         }
 
-        const math = getDelimitedMath(segment);
+        const math = unwrapMathSegment(segment);
         if (!math.inline) {
           return (
             <MathDisplay

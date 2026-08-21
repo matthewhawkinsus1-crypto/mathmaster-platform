@@ -103,7 +103,7 @@ const DEFAULT_HINT = {
 function ChoiceGroup({ field, choices, value, onChange, disabled }) {
   return (
     <fieldset style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
-      <legend style={{ ...LABEL, padding: 0 }}>{field.label || 'Choose one'}</legend>
+      <legend style={{ ...LABEL, padding: 0 }}><MathText>{field.label || 'Choose one'}</MathText></legend>
       <div role="radiogroup" aria-label={field.label || 'Answer choices'} style={{ display: 'grid', gap: 9 }}>
         {choices.map((choice, index) => {
           const selected = String(value ?? '') === String(choice.id);
@@ -190,8 +190,11 @@ function TypedField({ field, profile, value, onChange, onSubmit, disabled, autoF
 
   return (
     <div>
+      {/* The bank names its fields mathematically — "$x$-intercept",
+          "Boundary of $y \ge 2x + 1$" — so a plain-text label showed the
+          student the markup instead of the mathematics. */}
       <label style={LABEL} htmlFor={`path-field-${field.id}`}>
-        {field.label || 'Answer'}{field.unit ? ` (${field.unit})` : ''}
+        <MathText>{field.label || 'Answer'}</MathText>{field.unit ? ` (${field.unit})` : ''}
       </label>
       <input
         id={`path-field-${field.id}`}
@@ -232,7 +235,7 @@ function TypedField({ field, profile, value, onChange, onSubmit, disabled, autoF
           ))}
         </div>
       )}
-      {hint && <span style={HINT}>{hint}</span>}
+      {hint && <MathText style={HINT}>{hint}</MathText>}
     </div>
   );
 }

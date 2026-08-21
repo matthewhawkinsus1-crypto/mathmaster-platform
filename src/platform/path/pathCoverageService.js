@@ -87,18 +87,24 @@ export const seedPathQuestionBank = async (items, { chunkSize = 400, onProgress 
   // write pass only starts if the whole package came back clean. A partially
   // imported bank would report some standards ready and others not, with no way
   // to tell whether that reflects the content or a half-finished import.
+  // `documentCount` is the number of documents the human actually supplied.
+  // `received` is a per-pass tally, and this route makes two passes, so it
+  // double-counts — the audit used to divide it by two to compensate, which
+  // then halved the built-in initializer's count because that route makes only
+  // one pass. Report the real number instead of asking the UI to guess how many
+  // passes ran.
   const validation = await runPass(true);
   if (validation.rejected.length) {
-    return { imported: false, phase: 'validation', ...validation };
+    return { imported: false, phase: 'validation', documentCount: items.length, ...validation };
   }
 
   const written = await runPass(false);
   if (written.rejected.length === 0) {
     onProgress?.({ phase: 'coverage', chunk: 0, chunks: 0 });
     const coverage = await rebuildPathCoverage(['algebra1', 'algebra2']);
-    return { imported: true, phase: 'import', ...written, coverage };
+    return { imported: true, phase: 'import', documentCount: items.length, ...written, coverage };
   }
-  return { imported: false, phase: 'import', ...written };
+  return { imported: false, phase: 'import', documentCount: items.length, ...written };
 };
 
 /**
@@ -113,7 +119,9 @@ export const seedPathQuestionBank = async (items, { chunkSize = 400, onProgress 
 export const initializeBundledPathBankStarter = async ({ onProgress = null } = {}) => {
   onProgress?.({ phase: 'initializing', chunk: 0, chunks: 0 });
   const call = httpsCallable(functions, 'initializeStarterPathQuestionBank');
-  const seed = (await call({})).data || {};
+  const raw = (await call({})).data || {};
+  // One server-side pass, so `received` already IS the document count.
+  const seed = { ...raw, documentCount: raw.received ?? 0 };
   if (!seed.imported) return { initialized: false, seed, coverage: null };
   onProgress?.({ phase: 'coverage', chunk: 0, chunks: 0 });
   const coverage = await rebuildPathCoverage(['algebra1', 'algebra2']);

@@ -402,7 +402,7 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
         {seedPhase && <p style={{ marginTop: 12, color: '#174ea6', fontWeight: 700 }}>{seedPhase}</p>}
         {seed && (
           <div style={{ marginTop: 14, fontSize: 13, lineHeight: 1.7 }}>
-            <div>Documents in the file: <strong>{seed.received / (seed.imported ? 2 : 1)}</strong></div>
+            <div>Documents supplied: <strong>{seed.documentCount ?? seed.received ?? 0}</strong></div>
             <div>Stored: <strong style={{ color: seed.imported ? '#137333' : '#a50e0e' }}>{seed.imported ? seed.accepted : 0}</strong></div>
             <div>Standards supplied: <strong>{seed.standards.length}</strong></div>
             {!seed.imported && (

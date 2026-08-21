@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { getTexasStandard } from '../../texasStandards';
 import { normalizeQuestionStandards } from '../../questionMetadata';
+import MathText from '../../components/common/MathText.jsx';
 
 export default function ToolShell({ title, subtitle, badge, children, footer }) {
   return (
@@ -54,6 +55,11 @@ export const ResultPill = ({ ok, children }) => (
 // Every tool leads with the same thing: one sentence naming the task, then the
 // concrete steps. Previously each tool buried its directions in a paragraph
 // under the workspace, where a student reads them only after guessing wrong.
+//
+// EVERY AUTHORED STRING HERE GOES THROUGH MathText. This is the card at the top
+// of every single tool, so a prompt written as "Solve $-3x + 4 > 13$" — which is
+// how the whole Path bank is written — was showing a student the dollar signs
+// and the backslashes. One component, every tool, every question.
 export const TaskCard = ({ task, steps = [], note = null, question = null }) => {
   const authoredPrompt = String(question?.prompt || '').trim();
   const taskText = String(task || '').trim();
@@ -76,28 +82,28 @@ export const TaskCard = ({ task, steps = [], note = null, question = null }) => 
       {authoredPrompt ? (
         <>
           <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#174ea6' }}>{promptDiffers ? 'Problem' : 'Your task'}</div>
-          <p style={{ margin: '6px 0 0', fontSize: 17, fontWeight: 700, color: '#172033', lineHeight: 1.4 }}>{authoredPrompt}</p>
+          <MathText as="p" style={{ margin: '6px 0 0', fontSize: 17, fontWeight: 700, color: '#172033', lineHeight: 1.4 }}>{authoredPrompt}</MathText>
         </>
       ) : null}
       {taskText && (!authoredPrompt || promptDiffers) ? (
         <>
           <div style={{ marginTop: authoredPrompt ? 12 : 0, fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#174ea6' }}>{authoredPrompt ? 'What to do' : 'Your task'}</div>
-          <p style={{ margin: '6px 0 0', fontSize: 16, fontWeight: 700, color: '#172033', lineHeight: 1.4 }}>{taskText}</p>
+          <MathText as="p" style={{ margin: '6px 0 0', fontSize: 16, fontWeight: 700, color: '#172033', lineHeight: 1.4 }}>{taskText}</MathText>
         </>
       ) : null}
       {steps.length ? (
         <ol style={{ margin: '10px 0 0', paddingLeft: 20, color: '#3c4756', lineHeight: 1.6 }}>
-          {steps.map((step, index) => <li key={index}>{step}</li>)}
+          {steps.map((step, index) => <li key={index}><MathText>{step}</MathText></li>)}
         </ol>
       ) : null}
-      {note ? <p style={{ margin: '10px 0 0', fontSize: 13, color: '#5f6b7a' }}>{note}</p> : null}
+      {note ? <MathText as="p" style={{ margin: '10px 0 0', fontSize: 13, color: '#5f6b7a' }}>{note}</MathText> : null}
       {aligned.length ? (
         <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid #d5e2f7' }}>
           <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#5f6b7a' }}>Skill focus</div>
           {aligned.map((entry) => (
-            <p key={entry.code} style={{ margin: '4px 0 0', fontSize: 13, color: '#3c4756', lineHeight: 1.5 }}>
+            <MathText as="p" key={entry.code} style={{ margin: '4px 0 0', fontSize: 13, color: '#3c4756', lineHeight: 1.5 }}>
               {entry.description}
-            </p>
+            </MathText>
           ))}
         </div>
       ) : null}
@@ -137,7 +143,7 @@ export const HintPanel = ({ hints = [], onHintUsed }) => {
       </div>
       {revealed > 0 ? (
         <ol style={{ margin: '10px 0 0', paddingLeft: 20, color: '#5f4400', lineHeight: 1.6 }}>
-          {hints.slice(0, revealed).map((hint, index) => <li key={index} style={{ marginBottom: 4 }}>{hint}</li>)}
+          {hints.slice(0, revealed).map((hint, index) => <li key={index} style={{ marginBottom: 4 }}><MathText>{hint}</MathText></li>)}
         </ol>
       ) : (
         <p style={{ margin: '8px 0 0', fontSize: 13, color: '#7a6027' }}>
