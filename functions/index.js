@@ -1293,7 +1293,7 @@ async function pathCoverage() {
 
 const COVERAGE_COLLECTION = "pathCoverage";
 
-const PATH_RUNTIME_RELEASE = "path-bank-2026-08-16-r4-self-healing";
+const PATH_RUNTIME_RELEASE = "path-bank-2026-08-20-r5-production-refresh";
 
 
 /**
@@ -1514,6 +1514,9 @@ const BUILT_IN_PATH_SEED_FILES = Object.freeze([
   "grade8_pathQuestionBank_seed.json",
 ]);
 
+const BUILT_IN_PATH_SEED_MARKER = "mathmaster-built-in-path-bank";
+const LEGACY_BUILT_IN_PATH_SEED_SOURCE = "MathMaster curated starter coverage";
+
 function loadBuiltInStarterPathSeed() {
   const seedDirectory = path.join(__dirname, "seeds", "pathQuestionBank");
   const items = BUILT_IN_PATH_SEED_FILES.flatMap((fileName) => {
@@ -1525,6 +1528,25 @@ function loadBuiltInStarterPathSeed() {
   const ids = new Set(items.map((item) => String(item?.id || "").trim()));
   if (ids.size !== items.length || ids.has("")) throw new Error("The built-in Path starter bank contains missing or duplicate IDs.");
   return items;
+}
+
+async function removeSupersededBuiltInPathSeedRecords(db, currentItems) {
+  const currentIds = new Set(currentItems.map((item) => String(item?.id || "").trim()).filter(Boolean));
+  const snapshot = await db.collection("pathQuestionBank").get();
+  const obsolete = snapshot.docs.filter((doc) => {
+    if (currentIds.has(doc.id)) return false;
+    const data = doc.data() || {};
+    return data.builtInPathSeed === BUILT_IN_PATH_SEED_MARKER
+      || data?.seedMetadata?.source === LEGACY_BUILT_IN_PATH_SEED_SOURCE;
+  });
+
+  for (let index = 0; index < obsolete.length; index += 400) {
+    const batch = db.batch();
+    obsolete.slice(index, index + 400).forEach((doc) => batch.delete(doc.ref));
+    // eslint-disable-next-line no-await-in-loop
+    await batch.commit();
+  }
+  return obsolete.length;
 }
 
 /**
@@ -1618,13 +1640,21 @@ exports.initializeStarterPathQuestionBank = onCall(async (request) => {
     logger.error("Could not load built-in My Math Path starter bank", error);
     throw new HttpsError("failed-precondition", "The built-in My Math Path starter bank is unavailable in this deployment.");
   }
-  if (items.length > 600) {
-    throw new HttpsError("failed-precondition", "The built-in starter bank exceeds the supported one-click import size.");
-  }
-  const seed = await processPathSeedImport({ db, actor, items, dryRun: false });
+  // The built-in package is loaded on the server, so it is not constrained by
+  // the browser callable payload limit used by custom imports. Firestore writes
+  // are already chunked inside processPathSeedImport. Tag the current built-in
+  // package so a later refresh can retire superseded bundled questions without
+  // touching teacher-promoted or custom Path-bank content.
+  const taggedItems = items.map((item) => ({
+    ...item,
+    builtInPathSeed: BUILT_IN_PATH_SEED_MARKER,
+    builtInPathSeedRelease: PATH_RUNTIME_RELEASE,
+  }));
+  const seed = await processPathSeedImport({ db, actor, items: taggedItems, dryRun: false });
   if (!seed.imported) return seed;
+  const removedSuperseded = await removeSupersededBuiltInPathSeedRecords(db, taggedItems);
   const coverage = await rebuildStoredPathCoverage(db);
-  return { ...seed, coverage };
+  return { ...seed, removedSuperseded, coverage };
 });
 
 /** Remove a promoted question from the Path bank without touching the assignment. */
