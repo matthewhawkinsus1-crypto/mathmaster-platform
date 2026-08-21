@@ -4915,7 +4915,7 @@
         "kit": 1
       },
       "type": "functionInvestigation",
-      "prompt": "The function $y = \\frac{1}{2}x - 3$ is shown. Plot the points where $x = 0$ and $x = 4$, then give the $y$-intercept.",
+      "prompt": "Use the function $y = \\frac{1}{2}x - 3$. Plot the points where $x = 0$ and $x = 4$, then give the $y$-intercept.",
       "functionSpec": {
         "type": "linear",
         "m": 0.5,
@@ -4951,7 +4951,7 @@
         {
           "id": "yint",
           "label": "What is the $y$-intercept?",
-          "kind": "increasing",
+          "kind": "value",
           "responseMode": "text",
           "expected": [
             "-3"
@@ -4979,7 +4979,8 @@
       "supportHints": [
         "Substitute $x = 0$ into the equation."
       ],
-      "misconceptions": []
+      "misconceptions": [],
+      "equationLatex": "y = \\frac{1}{2}x - 3"
     },
     {
       "id": "mm_A_2C_from-table",
@@ -6310,7 +6311,7 @@
         {
           "id": "slope",
           "label": "What is the slope of this line?",
-          "kind": "constant",
+          "kind": "value",
           "responseMode": "text",
           "expected": [
             "0"
@@ -7467,7 +7468,7 @@
         {
           "id": "slope",
           "label": "What is the slope of this line?",
-          "kind": "decreasing",
+          "kind": "value",
           "responseMode": "text",
           "expected": [
             "-3/2"
@@ -7791,7 +7792,7 @@
         {
           "id": "rate",
           "label": "How many litres does the tank lose each minute?",
-          "kind": "decreasing",
+          "kind": "value",
           "responseMode": "text",
           "expected": [
             "4"
@@ -8147,7 +8148,7 @@
         {
           "id": "zero",
           "label": "At what $x$ value does the line cross the $x$-axis?",
-          "kind": "decreasing",
+          "kind": "value",
           "responseMode": "text",
           "expected": [
             "3"
@@ -10651,7 +10652,7 @@
         {
           "id": "predict",
           "label": "What does the model predict at week 5?",
-          "kind": "increasing",
+          "kind": "value",
           "responseMode": "text",
           "expected": [
             "40"
@@ -12429,7 +12430,7 @@
         {
           "id": "a",
           "label": "What is the value of $a$?",
-          "kind": "increasing",
+          "kind": "value",
           "responseMode": "text",
           "expected": [
             "2"
@@ -12692,7 +12693,7 @@
         {
           "id": "yint",
           "label": "What is the $y$ value where the parabola crosses the $y$-axis?",
-          "kind": "decreasing",
+          "kind": "value",
           "responseMode": "text",
           "expected": [
             "-3"
@@ -13047,7 +13048,7 @@
         {
           "id": "yint",
           "label": "What is the $y$-intercept?",
-          "kind": "increasing",
+          "kind": "value",
           "responseMode": "text",
           "expected": [
             "-4"
@@ -13657,7 +13658,7 @@
         {
           "id": "opens",
           "label": "Does this parabola open upward or downward?",
-          "kind": "decreasing",
+          "kind": "value",
           "responseMode": "text",
           "expected": [
             "downward"
@@ -15695,7 +15696,7 @@
         {
           "id": "asymptote",
           "label": "What line does the graph approach on the left?",
-          "kind": "increasing",
+          "kind": "value",
           "responseMode": "text",
           "expected": [
             "y=0"

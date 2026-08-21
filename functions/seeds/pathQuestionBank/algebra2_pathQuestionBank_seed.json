@@ -196,7 +196,7 @@
         {
           "id": "domain",
           "label": "What is the domain of this function?",
-          "kind": "increasing",
+          "kind": "domain",
           "responseMode": "text",
           "expected": [
             "all real numbers"
@@ -571,7 +571,7 @@
         {
           "id": "inverse",
           "label": "Give the corresponding point on the inverse, as (x, y).",
-          "kind": "increasing",
+          "kind": "value",
           "responseMode": "text",
           "expected": [
             "(2,3)"
@@ -4572,7 +4572,7 @@
         {
           "id": "domain",
           "label": "What is the domain of this function?",
-          "kind": "increasing",
+          "kind": "domain",
           "responseMode": "text",
           "expected": [
             "x >= 2"
@@ -4583,7 +4583,8 @@
             "[2, inf)",
             "[2,inf)",
             "x is greater than or equal to 2"
-          ]
+          ],
+          "notation": "inequality"
         }
       ],
       "solutionReview": {
@@ -4951,7 +4952,7 @@
         {
           "id": "min",
           "label": "What is the minimum value of the function?",
-          "kind": "increasing",
+          "kind": "value",
           "responseMode": "text",
           "expected": [
             "-4"
@@ -6480,7 +6481,7 @@
         {
           "id": "asymptote",
           "label": "What is the equation of the vertical asymptote?",
-          "kind": "increasing",
+          "kind": "value",
           "responseMode": "text",
           "expected": [
             "x=3"
@@ -8006,7 +8007,7 @@
         {
           "id": "range",
           "label": "What is the range of this function?",
-          "kind": "increasing",
+          "kind": "range",
           "responseMode": "text",
           "expected": [
             "all real numbers"
@@ -8675,7 +8676,7 @@
         {
           "id": "range",
           "label": "What is the range of this function?",
-          "kind": "increasing",
+          "kind": "range",
           "responseMode": "text",
           "expected": [
             "y >= 2"
@@ -8686,7 +8687,8 @@
             "[2, inf)",
             "[2,inf)",
             "y is greater than or equal to 2"
-          ]
+          ],
+          "notation": "inequality"
         }
       ],
       "solutionReview": {
@@ -9922,7 +9924,7 @@
         {
           "id": "asymptote",
           "label": "What is the equation of the vertical asymptote?",
-          "kind": "decreasing",
+          "kind": "value",
           "responseMode": "text",
           "expected": [
             "x=2"

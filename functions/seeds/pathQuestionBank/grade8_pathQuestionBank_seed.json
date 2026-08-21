@@ -2778,7 +2778,7 @@
         {
           "id": "rate",
           "label": "How many kilometres does the bike travel each hour?",
-          "kind": "increasing",
+          "kind": "value",
           "responseMode": "text",
           "expected": [
             "12"
@@ -3365,7 +3365,7 @@
         {
           "id": "slope",
           "label": "What is the slope of this line?",
-          "kind": "increasing",
+          "kind": "value",
           "responseMode": "text",
           "expected": [
             "3"
@@ -4030,7 +4030,7 @@
         {
           "id": "start",
           "label": "What depth did the pool start at, in inches?",
-          "kind": "increasing",
+          "kind": "value",
           "responseMode": "text",
           "expected": [
             "6"
@@ -6386,7 +6386,7 @@
         {
           "id": "fixed",
           "label": "What is the cost in dollars when $x = 0$?",
-          "kind": "increasing",
+          "kind": "value",
           "responseMode": "text",
           "expected": [
             "20"

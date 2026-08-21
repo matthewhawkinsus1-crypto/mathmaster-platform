@@ -10,9 +10,22 @@
 // illegal one. Both are fixed by generating the contract text and the validator
 // from this file, so the list a model is given is the list the renderer honours.
 
-// Kinds answered by typing an interval or an inequality.
+// Kinds answered by typing, rather than by clicking the graph.
+//
+// `value` is the one most graph questions actually are: a single answer typed
+// as text — a slope, a rate, an intercept, the equation of an asymptote, the
+// word "downward". It was missing, so every short-answer part in the bank had
+// to borrow an interval kind to pass validation, and all 24 of them did. The
+// field then meant nothing, and the student paid for it: the keypad is chosen
+// from the kind, so "What is the slope of this line?" was answered on a pad of
+// ( ) [ ] ∞ ∪.
+//
+// Keep this list identical to PATH_ANALYSIS_NOTATION_KINDS in
+// functions/shared/pathToolContracts.mjs — a test asserts they match, because
+// a kind the contract allows and the renderer does not know becomes a
+// click-a-point task with no box to type in.
 export const NOTATION_ANALYSIS_KINDS = Object.freeze([
-  'domain', 'range', 'increasing', 'decreasing', 'constant', 'positive', 'negative',
+  'value', 'domain', 'range', 'increasing', 'decreasing', 'constant', 'positive', 'negative',
 ]);
 
 // Named features answered by clicking the graph, typing coordinates, or both.

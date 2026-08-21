@@ -7,6 +7,7 @@ import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
 import QuestionPrompt from './QuestionPrompt';
 import { FUNCTION_GRAPH_LABELS } from './functionGraphUtils';
 import { POINT_FEATURES } from './analysisRequestCatalog';
+import { analysisKeypadProfile } from '../functions/shared/pathToolContracts.mjs';
 import useUndoHistory from './useUndoHistory';
 import useLocalDraftState from './useLocalDraftState';
 import useMobileInteractionMode from './platform/mobile/useMobileInteractionMode.js';
@@ -194,6 +195,21 @@ const stageButtonStyle = (active, disabled = false) => ({
   opacity: disabled ? 0.45 : 1,
   cursor: disabled ? 'not-allowed' : 'pointer',
 });
+
+// A hint at the shape of the answer, not the name of a data field. The old
+// code printed `part.notation` straight into the box, so a student saw the
+// word "interval" where an example belongs.
+//
+// The keypad decision itself lives in the contract (analysisKeypadProfile) —
+// it is the same question the `kind` answers, and keeping it there is what
+// lets it be tested without a browser.
+const analysisPlaceholderFor = (part) => {
+  const keypad = analysisKeypadProfile(part);
+  if (keypad === 'interval') return 'for example [2, ∞)';
+  if (keypad === 'inequality') return 'for example x ≥ 2';
+  if (keypad === 'set') return 'for example {1, 2, 3}';
+  return '';
+};
 
 export default function InteractiveGraphWorkspace({ question, onStateChange, mode = 'investigate', onUndoStateChange = null, feedback = null, draftKey = null }) {
   const mobileInteraction = useMobileInteractionMode();
@@ -768,7 +784,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
                     {part.responseMode !== 'input' && <div style={{ marginTop: '5px', fontSize: '12px', color: '#5f6368' }}>{noneSelected ? 'Marked: does not exist' : `${selected.length}/${part.expected.length || 1} selected`}</div>}
                     {part.allowNone && part.responseMode !== 'input' && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, noneSelections: { ...current.noneSelections, [part.id]: !current.noneSelections[part.id] }, selections: { ...current.selections, [part.id]: [] } }))} style={{ marginTop: '7px', padding: '6px 9px', borderRadius: '7px', border: '1px solid #c5d5ef', background: noneSelected ? '#e8f0fe' : '#fff', color: '#174ea6', fontWeight: 'bold' }}>Does not exist</button>}
                     {part.responseMode !== 'click' && <div style={{ marginTop: '8px' }}><MathInput value={analysis.typedPoints[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, typedPoints: { ...current.typedPoints, [part.id]: value } }))} placeholder={part.expected.length > 1 ? '(x₁, y₁), (x₂, y₂)' : '(x, y) or DNE'} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} /></div>}
-                  </> : <div style={{ marginTop: '8px' }}>{part.allowsEmptyAnswer && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: 'does not exist' } }))} style={{ marginBottom: '7px', padding: '6px 9px', borderRadius: '7px', border: '1px solid #c5d5ef', background: String(analysis.answers[part.id] || '').toLowerCase().includes('exist') ? '#e8f0fe' : '#fff', color: '#174ea6', fontWeight: 'bold' }}>Does not exist</button>}<MathInput value={analysis.answers[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: value } }))} toolProfile={part.notation === 'inequality' ? 'inequality' : part.notation === 'set' ? 'set' : 'interval'} showToolsInitially placeholder={part.notation} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} /></div>}
+                  </> : <div style={{ marginTop: '8px' }}>{part.allowsEmptyAnswer && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: 'does not exist' } }))} style={{ marginBottom: '7px', padding: '6px 9px', borderRadius: '7px', border: '1px solid #c5d5ef', background: String(analysis.answers[part.id] || '').toLowerCase().includes('exist') ? '#e8f0fe' : '#fff', color: '#174ea6', fontWeight: 'bold' }}>Does not exist</button>}<MathInput value={analysis.answers[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: value } }))} toolProfile={analysisKeypadProfile(part)} showToolsInitially placeholder={analysisPlaceholderFor(part)} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} /></div>}
                 </div>;
               })}
             </>

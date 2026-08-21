@@ -703,9 +703,42 @@ const analysisRequests = (question) => (
 // unrecognised kind does not fail in the tool, it silently becomes a
 // click-a-point task. The server would then grade a typed `answers` entry that
 // the student was never given a box for, and mark it wrong every time.
+// What an analysis part is ASKING FOR.
+//
+// `value` is the one most graph questions actually are: a single answer typed
+// as text — a slope, a rate, an intercept, the equation of an asymptote, the
+// word "downward". Before it existed the only kinds available were interval
+// questions, so every short-answer part in the bank was filed under
+// `increasing` or `decreasing` because those were on the allowed list. The
+// field passed validation and meant nothing, and the student paid for it: the
+// workspace picks the keypad from the kind, so "What is the slope of this
+// line?" was answered on a keypad of ( ) [ ] ∞ ∪.
 export const PATH_ANALYSIS_NOTATION_KINDS = Object.freeze([
+  'value', 'domain', 'range', 'increasing', 'decreasing', 'constant', 'positive', 'negative',
+]);
+
+// The kinds whose answer is genuinely an interval or an inequality, and so
+// genuinely want the interval keypad. Everything else is a `value`.
+export const PATH_ANALYSIS_INTERVAL_KINDS = Object.freeze([
   'domain', 'range', 'increasing', 'decreasing', 'constant', 'positive', 'negative',
 ]);
+
+/**
+ * Which answer keypad an analysis part should be given.
+ *
+ * Lives beside the kinds rather than in the workspace because it is the same
+ * decision: what this part is asking for. An explicit `notation` from the
+ * author wins; otherwise the kind decides, and only the kinds whose answer
+ * really is an interval get the interval pad. The old rule was "interval unless
+ * the author said otherwise", and authors almost never said otherwise.
+ */
+export const analysisKeypadProfile = (part) => {
+  const notation = String(part?.notation || '');
+  if (notation === 'inequality') return 'inequality';
+  if (notation === 'set') return 'set';
+  if (notation === 'interval') return 'interval';
+  return PATH_ANALYSIS_INTERVAL_KINDS.includes(String(part?.kind || '')) ? 'interval' : 'basic';
+};
 export const PATH_ANALYSIS_POINT_FEATURES = Object.freeze([
   'xIntercepts', 'yIntercept', 'vertex', 'localMaximum', 'localMinimum', 'center',
 ]);
