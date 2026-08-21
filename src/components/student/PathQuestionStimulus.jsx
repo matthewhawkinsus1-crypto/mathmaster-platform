@@ -56,15 +56,21 @@ function StimulusTable({ table }) {
           </thead>
         )}
         <tbody>
-          {(table.rows || []).map((row, rowIndex) => (
-            <tr key={`r-${rowIndex}`}>
-              {row.map((cell, cellIndex) => (
-                <td key={`c-${rowIndex}-${cellIndex}`} style={cellStyle}>
-                  <MathText>{cell}</MathText>
-                </td>
-              ))}
-            </tr>
-          ))}
+          {(table.rows || []).map((row, rowIndex) => {
+            // Firestore-safe Path rows are stored as { cells: [...] }. Accept
+            // the original array form too so previews/older local content
+            // continue to render without a migration.
+            const cells = Array.isArray(row) ? row : (Array.isArray(row?.cells) ? row.cells : []);
+            return (
+              <tr key={`r-${rowIndex}`}>
+                {cells.map((cell, cellIndex) => (
+                  <td key={`c-${rowIndex}-${cellIndex}`} style={cellStyle}>
+                    <MathText>{cell}</MathText>
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

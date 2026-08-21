@@ -34,6 +34,7 @@ const {
   assignmentFeedbackIsHeld,
 } = require("./lib/activityFeedback");
 const mathPath = require("./lib/mathPath");
+const { firestoreSafePathRecord } = require("./lib/pathFirestoreShape");
 const labEvaluation = require("./lib/labEvaluation");
 const secureExam = require("./lib/secureExam");
 const adminPolicy = require("./lib/admin");
@@ -1435,7 +1436,7 @@ async function processPathSeedImport({ db, actor, items, dryRun = false }) {
       rejected.push(describe("no_alignment_keys"));
       continue;
     }
-    accepted.push({ ...item, id, active: item.active !== false });
+    accepted.push(firestoreSafePathRecord({ ...item, id, active: item.active !== false }));
   }
 
   // ALL OR NOTHING. A partly imported starter bank can make the wheel tell

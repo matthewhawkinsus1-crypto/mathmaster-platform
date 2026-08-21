@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { cellsForRow } = require('./pathFirestoreShape');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -139,8 +140,12 @@ function sanitizeStimulus(stimulus) {
   if (stimulus.table && typeof stimulus.table === 'object') {
     clean.table = {
       headers: (Array.isArray(stimulus.table.headers) ? stimulus.table.headers : []).slice(0, 8).map((value) => String(value)),
+      // Firestore cannot store arrays directly inside arrays. Persisted Path
+      // bank/session rows therefore use { cells: [...] }, while older authored
+      // content may still arrive as a plain row array. Normalize both to the
+      // Firestore-safe shape before the question is stored in a session.
       rows: (Array.isArray(stimulus.table.rows) ? stimulus.table.rows : []).slice(0, 20)
-        .map((row) => (Array.isArray(row) ? row : []).slice(0, 8).map((value) => String(value))),
+        .map((row) => ({ cells: cellsForRow(row).slice(0, 8).map((value) => String(value)) })),
     };
   }
   if (Array.isArray(stimulus.orderedPairs)) {
