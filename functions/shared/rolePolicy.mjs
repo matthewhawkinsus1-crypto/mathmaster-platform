@@ -96,6 +96,8 @@ export const ADMIN_ONLY_OPERATIONS = Object.freeze([
   'seedPathQuestionBank',
   'initializeStarterPathQuestionBank',
   'getPathRuntimeStatus',
+  'rebuildPathCoverage',
+  'diagnosePathSkill',
   'listAdminAuditLog',
 ]);
 

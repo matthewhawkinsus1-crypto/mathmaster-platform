@@ -1411,18 +1411,96 @@ async function pathCoverage() {
 
 const COVERAGE_COLLECTION = "pathCoverage";
 
-const PATH_RUNTIME_RELEASE = "path-bank-2026-08-21-r9-asvab";
+const PATH_RUNTIME_RELEASE = "path-bank-2026-08-23-r10-server-authoritative-coverage";
+const PATH_COURSE_IDS = Object.freeze(["grade6", "grade7", "grade8", "algebra1", "algebra2"]);
 
+let texasStandardsModule = null;
+async function texasStandardsRegistry() {
+  if (!texasStandardsModule) texasStandardsModule = await import("./shared/texasStandards.mjs");
+  return texasStandardsModule;
+}
 
-/**
- * Which course's coverage index answers for a standard.
- *
- * The same rule the client's `courseIdForTeks` uses: an `A2.` code is Algebra
- * II, anything else is Algebra I. Prerequisites from earlier grades live in the
- * `offWheel` section of whichever course routed to them.
- */
+/** Which canonical course owns a Texas standard. */
 function coverageCourseIdFor(alignmentKey) {
-  return /^(texas:)?A2\./i.test(String(alignmentKey || "").trim()) ? "algebra2" : "algebra1";
+  const code = String(alignmentKey || "").trim().replace(/^texas:/i, "").toUpperCase();
+  if (/^6\./.test(code)) return "grade6";
+  if (/^7\./.test(code)) return "grade7";
+  if (/^8\./.test(code)) return "grade8";
+  if (/^A2\./.test(code)) return "algebra2";
+  return "algebra1";
+}
+
+function pathDiagnosticId(operation = "path") {
+  const safe = String(operation || "path").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase() || "path";
+  return `${safe}-${Date.now().toString(36)}-${crypto.randomBytes(4).toString("hex")}`;
+}
+
+function isHttpsCallableError(error) {
+  return error instanceof HttpsError || [
+    "cancelled", "unknown", "invalid-argument", "deadline-exceeded", "not-found",
+    "already-exists", "permission-denied", "resource-exhausted", "failed-precondition",
+    "aborted", "out-of-range", "unimplemented", "internal", "unavailable",
+    "data-loss", "unauthenticated",
+  ].includes(String(error?.code || "").replace(/^functions\//, ""));
+}
+
+async function withPathCallableDiagnostics(operation, handler) {
+  try {
+    return await handler();
+  } catch (error) {
+    if (isHttpsCallableError(error)) throw error;
+    const diagnosticId = pathDiagnosticId(operation);
+    logger.error("Unexpected My Math Path callable failure", {
+      operation, diagnosticId,
+      message: error?.message || String(error),
+      stack: error?.stack || null,
+    });
+    throw new HttpsError(
+      "internal",
+      "My Math Path could not complete this server operation.",
+      { reason: "path-runtime-internal", operation, diagnosticId },
+    );
+  }
+}
+
+async function safeBuildTemplateIssuePlan(question, { operation = "path-validation" } = {}) {
+  try {
+    return await mathPath.buildTemplateIssuePlan(question);
+  } catch (error) {
+    const diagnosticId = pathDiagnosticId(operation);
+    logger.error("Path-bank template validator threw instead of returning a plan", {
+      operation, diagnosticId,
+      questionId: question?.id || null,
+      familyId: question?.familyId || null,
+      questionType: question?.questionType || null,
+      pathToolId: question?.pathToolId || question?.toolId || question?.tool?.id || null,
+      message: error?.message || String(error),
+      stack: error?.stack || null,
+    });
+    return {
+      issuable: false,
+      reason: "validator_exception",
+      detail: error?.message || "The production issuer threw while validating this document.",
+      diagnosticId,
+      samples: 0,
+    };
+  }
+}
+
+function summarizePathRejections(entries = []) {
+  const group = (field, fallback = "unknown") => entries.reduce((acc, entry) => {
+    const key = String(entry?.[field] || fallback);
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  return {
+    total: entries.length,
+    byReason: group("reason"),
+    byQuestionType: group("questionType"),
+    byTool: group("pathToolId", "field-graded / none"),
+    byCourse: group("courseId"),
+    byFramework: group("assessmentFramework", "course"),
+  };
 }
 
 let selectionModule = null;
@@ -1431,97 +1509,71 @@ async function pathSelection() {
   return selectionModule;
 }
 
-let promotionModule = null;
-async function pathPromotion() {
-  if (!promotionModule) promotionModule = await import("./shared/pathPromotion.mjs");
-  return promotionModule;
-}
-
 /**
  * Root-admin deployment diagnostic for My Math Path.
  *
- * The public Vercel client and Firebase Functions are deployed separately. A
- * stale client used to make a new backend (or vice versa) look like a content
- * problem. This callable gives Administration a safe handshake: release IDs,
- * counts, and coverage summaries only. It never returns question payloads or
- * answer keys.
+ * Firebase Hosting and Cloud Functions are one production release. This
+ * handshake reports the server release, secure-bank count, and canonical
+ * coverage documents only; no question or answer payload is returned.
  */
 exports.getPathRuntimeStatus = onCall(async (request) => {
   await requireRootAdmin(request);
   const db = getFirestore();
 
-  const [bankCountSnapshot, algebra1Coverage, algebra2Coverage] = await Promise.all([
+  const [bankCountSnapshot, ...coverageSnapshots] = await Promise.all([
     db.collection("pathQuestionBank").count().get(),
-    db.collection(COVERAGE_COLLECTION).doc("algebra1").get(),
-    db.collection(COVERAGE_COLLECTION).doc("algebra2").get(),
+    ...PATH_COURSE_IDS.map((courseId) => db.collection(COVERAGE_COLLECTION).doc(courseId).get()),
   ]);
 
   let starterAvailable = false;
   let starterCount = 0;
+  let starterError = null;
   try {
     const items = loadBuiltInStarterPathSeed();
     starterAvailable = items.length > 0;
     starterCount = items.length;
   } catch (error) {
+    starterError = error?.message || String(error);
     logger.error("Path runtime status could not read the built-in starter bank", error);
   }
 
-  const coverageSummary = (snapshot) => snapshot.exists ? (snapshot.data()?.summary || null) : null;
+  const coverage = {};
+  PATH_COURSE_IDS.forEach((courseId, index) => {
+    const snapshot = coverageSnapshots[index];
+    coverage[courseId] = snapshot.exists ? {
+      summary: snapshot.data()?.summary || null,
+      generatedAt: snapshot.data()?.generatedAt || null,
+      schemaVersion: snapshot.data()?.schemaVersion || null,
+    } : null;
+  });
+
   return {
     release: PATH_RUNTIME_RELEASE,
+    sourceOfTruth: "secure-path-bank + canonical-texas-standards + production-issuer",
+    teacherAssignmentsAffectCoverage: false,
     bankCount: bankCountSnapshot.data().count || 0,
     starterAvailable,
     starterCount,
-    coverage: {
-      algebra1: coverageSummary(algebra1Coverage),
-      algebra2: coverageSummary(algebra2Coverage),
-    },
+    starterError,
+    courseIds: PATH_COURSE_IDS,
+    coverage,
   };
 });
 
 /**
- * Promote an authored assignment question into the secure Path bank.
+ * Legacy compatibility endpoint.
  *
- * The two banks stay distinct on purpose. Writing an assignment does not make
- * its questions trusted mastery content; a person has to say so, and the server
- * has to agree. The question is read from the assignment SERVER-SIDE — the
- * caller nominates which one, and never supplies its contents — so a browser
- * cannot promote a question that was never authored, or edit one on the way in.
+ * Teacher assignments are no longer a Path coverage source. Keeping the
+ * endpoint as an explicit retirement message is safer than deleting it while
+ * an older browser may still have the action cached.
  */
 exports.promoteQuestionToPathBank = onCall(async (request) => {
   await requireTeacher(request);
-  const db = getFirestore();
-  const promotion = await pathPromotion();
-
-  const assignmentId = String(request.data?.assignmentId || "").trim();
-  const questionIndex = Number(request.data?.questionIndex);
-  if (!assignmentId || !Number.isInteger(questionIndex) || questionIndex < 0) {
-    throw new HttpsError("invalid-argument", "assignmentId and questionIndex are required.");
-  }
-
-  const assignmentSnapshot = await db.collection("assignments").doc(assignmentId).get();
-  if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment no longer exists.");
-  const question = (assignmentSnapshot.data()?.questions || [])[questionIndex];
-  if (!question) throw new HttpsError("not-found", "That question is not in the assignment.");
-
-  const evaluation = promotion.evaluatePromotion(question, { schemaResult: request.data?.schemaResult || null });
-  if (!evaluation.canPromote) {
-    throw new HttpsError("failed-precondition", evaluation.blocking.map((entry) => entry.detail || entry.label).join(" "), {
-      reason: "promotion-blocked",
-      checks: evaluation.checks,
-    });
-  }
-
-  const record = promotion.buildPathBankRecord(question, {
-    promotedBy: callerEmail(request),
-    sourceAssignmentId: assignmentId,
-    sourceQuestionIndex: questionIndex,
-  });
-  const bankId = promotion.pathBankIdFor({ sourceAssignmentId: assignmentId, sourceQuestionIndex: questionIndex });
-  await db.collection("pathQuestionBank").doc(bankId).set(record, { merge: true });
-  await rebuildStoredPathCoverage(db);
-
-  return { bankId, standards: evaluation.standards, toolId: evaluation.toolId, checks: evaluation.checks };
+  throw new HttpsError(
+    "failed-precondition",
+    "Assignment-to-Path promotion has been retired. My Math Path coverage is built only from the secure Path bank and canonical standards. Use Administration → My Math Path content coverage to manage bank content.",
+    { reason: "assignment-path-promotion-retired" },
+  );
 });
 
 /**
@@ -1536,44 +1588,46 @@ async function processPathSeedImport({ db, actor, items, dryRun = false }) {
   const rejected = [];
   for (const item of items) {
     const id = String(item?.id || "").trim();
-    const describe = (reason) => ({
+    const standards = (Array.isArray(item?.alignmentKeys) ? item.alignmentKeys : [])
+      .map((key) => String(key).replace(/^texas:/i, "").toUpperCase());
+    const describe = (reason, plan = {}) => ({
       id: id || null,
       familyId: item?.familyId || null,
-      standards: (Array.isArray(item?.alignmentKeys) ? item.alignmentKeys : []).map((key) => String(key).replace(/^texas:/i, "").toUpperCase()),
-      reason,
+      standards,
+      courseId: item?.courseId || coverageCourseIdFor(standards[0] || ""),
+      assessmentFramework: item?.assessmentContext?.framework || item?.assessmentFramework || null,
+      questionType: item?.questionType || "response",
+      pathToolId: item?.pathToolId || item?.toolId || item?.tool?.id || null,
+      reason: reason || "not_issuable",
+      detail: plan?.detail || null,
+      diagnosticId: plan?.diagnosticId || null,
     });
     if (!id) { rejected.push(describe("missing_id")); continue; }
-    // The exact production check. A starter item that cannot be issued and
-    // graded by My Math Path never reaches Firestore and never counts toward
-    // coverage.
-    //
-    // A TEMPLATE IS CHECKED BY GENERATING FROM IT. `buildTemplateIssuePlan`
-    // draws sampled instances and runs each one through the same
-    // `buildIssuePlan` an authored item faces, because the thing that reaches a
-    // student is an instance and never the template. Inspecting the template
-    // would pass a document whose `expected` is still the literal text
-    // "{{b}}" — gradeable-looking, and wrong for every student who meets it.
-    // A record with no generator takes the ordinary path unchanged.
+    if (!standards.length) { rejected.push(describe("no_alignment_keys")); continue; }
+
+    // Validate the thing a student will actually receive. A bad template is a
+    // rejected document, not an exception that aborts diagnosis of the other
+    // 5,000 documents.
     // eslint-disable-next-line no-await-in-loop
-    const plan = await mathPath.buildTemplateIssuePlan(item);
-    if (!plan.issuable) { rejected.push(describe(plan.reason)); continue; }
-    if (!Array.isArray(item.alignmentKeys) || item.alignmentKeys.length === 0) {
-      rejected.push(describe("no_alignment_keys"));
-      continue;
-    }
+    const plan = await safeBuildTemplateIssuePlan(item, { operation: "seed-import-validation" });
+    if (!plan.issuable) { rejected.push(describe(plan.reason, plan)); continue; }
     accepted.push(firestoreSafePathRecord({ ...item, id, active: item.active !== false }));
   }
 
-  // ALL OR NOTHING. A partly imported starter bank can make the wheel tell
-  // different truths depending on which chunk happened to finish first.
+  const rejectionSummary = summarizePathRejections(rejected);
+
+  // ALL OR NOTHING. The validation pass returns every actionable rejection and
+  // writes nothing until the complete package is clean.
   if (rejected.length) {
     return {
       dryRun,
       imported: false,
+      phase: "validation",
       received: items.length,
       accepted: 0,
       wouldAccept: accepted.length,
       rejected,
+      rejectionSummary,
       standards: [],
     };
   }
@@ -1583,29 +1637,36 @@ async function processPathSeedImport({ db, actor, items, dryRun = false }) {
       const chunk = accepted.slice(index, index + 400);
       const batch = db.batch();
       chunk.forEach((record) => {
-        const { id, ...fields } = record;
-        batch.set(db.collection("pathQuestionBank").doc(id), {
+        const { id: recordId, ...fields } = record;
+        // The bank package is authoritative. `merge:true` used to leave fields
+        // from an older question shape behind when a question changed type, so
+        // a refresh could report success while Firestore still contained stale
+        // tool/grading metadata. Replace the document instead.
+        batch.set(db.collection("pathQuestionBank").doc(recordId), {
           ...fields,
           seededAt: FieldValue.serverTimestamp(),
           seededBy: actor.uid,
-        }, { merge: true });
+        });
       });
       // eslint-disable-next-line no-await-in-loop
       await batch.commit();
     }
     await writeAdminAudit(db, actor, "path_bank_seeded", "pathQuestionBank", {
       accepted: accepted.length,
-      rejected: rejected.length,
+      rejected: 0,
+      replacementWrites: true,
     });
   }
 
   return {
     dryRun,
     imported: !dryRun,
+    phase: dryRun ? "validation" : "write",
     received: items.length,
     accepted: accepted.length,
     wouldAccept: accepted.length,
     rejected,
+    rejectionSummary,
     standards: [...new Set(accepted.flatMap((record) => record.alignmentKeys.map((key) => String(key).replace(/^texas:/i, "").toUpperCase())))].sort(),
   };
 }
@@ -1685,22 +1746,18 @@ async function removeSupersededBuiltInPathSeedRecords(db, currentItems) {
 /**
  * Rebuild stored coverage from the actual secure bank.
  */
-async function rebuildStoredPathCoverage(db, {
-  courses = ["algebra1", "algebra2"],
-  wheelTeksByCourse = null,
-} = {}) {
-  const coverage = await pathCoverage();
-  const builtInItems = loadBuiltInStarterPathSeed();
-  const derivedWheel = { algebra1: new Set(), algebra2: new Set() };
+async function canonicalPathStandardsForCourse(courseId) {
+  const registry = await texasStandardsRegistry();
+  return registry.getTexasStandardsForCourse(courseId)
+    .filter((standard) => standard.classification !== "process")
+    .map((standard) => standard.code);
+}
 
-  builtInItems.filter((item) => pathQuestionMatchesFramework(item, null)).forEach((item) => {
-    const courseId = String(item?.courseId || "");
-    if (!derivedWheel[courseId]) return;
-    (Array.isArray(item?.alignmentKeys) ? item.alignmentKeys : []).forEach((key) => {
-      const code = String(key || "").replace(/^texas:/i, "").trim().toUpperCase();
-      if (code) derivedWheel[courseId].add(code);
-    });
-  });
+/** Rebuild stored coverage from the secure bank and the canonical Texas registry. */
+async function rebuildStoredPathCoverage(db, { courses = PATH_COURSE_IDS } = {}) {
+  const coverage = await pathCoverage();
+  const validCourses = [...new Set(courses.map(String))].filter((courseId) => PATH_COURSE_IDS.includes(courseId));
+  if (!validCourses.length) throw new HttpsError("invalid-argument", "Choose at least one supported Math Path course.");
 
   const snapshot = await db.collection("pathQuestionBank").get();
   const bankItems = snapshot.docs
@@ -1709,18 +1766,16 @@ async function rebuildStoredPathCoverage(db, {
   const plans = {};
   for (const item of bankItems) {
     // eslint-disable-next-line no-await-in-loop
-    plans[item.id] = await mathPath.buildTemplateIssuePlan(item);
+    plans[item.id] = await safeBuildTemplateIssuePlan(item, { operation: "coverage-rebuild" });
   }
 
   const indexes = {};
-  for (const courseId of courses) {
-    const supplied = Array.isArray(wheelTeksByCourse?.[courseId])
-      ? wheelTeksByCourse[courseId]
-      : [];
-    const wheelTeks = supplied.length ? supplied : [...(derivedWheel[courseId] || [])];
-    if (!wheelTeks.length) {
-      throw new HttpsError("failed-precondition", `No My Math Path standards are available for ${courseId}.`);
-    }
+  for (const courseId of validCourses) {
+    // THE COURSE MAP IS SERVER-AUTHORITATIVE. Teacher assignments and browser
+    // wheel configuration do not choose which standards count as coverage.
+    // eslint-disable-next-line no-await-in-loop
+    const wheelTeks = await canonicalPathStandardsForCourse(courseId);
+    if (!wheelTeks.length) throw new HttpsError("failed-precondition", `No canonical Texas standards are registered for ${courseId}.`);
     const index = coverage.buildCoverageIndex({
       courseId,
       wheelTeks,
@@ -1732,7 +1787,11 @@ async function rebuildStoredPathCoverage(db, {
     await db.collection(COVERAGE_COLLECTION).doc(courseId).set(index);
     indexes[courseId] = index;
   }
-  return { courses, indexes };
+  return {
+    courses: validCourses,
+    sourceOfTruth: "canonical-texas-standards + secure-path-bank + production-issuer",
+    indexes,
+  };
 }
 
 async function livePathSkillIsLaunchable(db, targetAlignmentKey) {
@@ -1746,7 +1805,7 @@ async function livePathSkillIsLaunchable(db, targetAlignmentKey) {
   const plans = {};
   for (const item of bankItems) {
     // eslint-disable-next-line no-await-in-loop
-    plans[item.id] = await mathPath.buildTemplateIssuePlan(item);
+    plans[item.id] = await safeBuildTemplateIssuePlan(item, { operation: "live-coverage-check" });
   }
   const index = coverage.buildCoverageIndex({
     courseId: coverageCourseIdFor(targetAlignmentKey),
@@ -1767,7 +1826,7 @@ async function livePathSkillIsLaunchable(db, targetAlignmentKey) {
  * the root-admin callable can ask the server to install it, and the client gets
  * counts/status back rather than the seed contents.
  */
-exports.initializeStarterPathQuestionBank = onCall(async (request) => {
+exports.initializeStarterPathQuestionBank = onCall({ timeoutSeconds: 540, memory: "1GiB" }, async (request) => {
   const actor = await requireRootAdmin(request);
   const db = getFirestore();
   let items;
@@ -1788,10 +1847,10 @@ exports.initializeStarterPathQuestionBank = onCall(async (request) => {
     builtInPathSeedRelease: PATH_RUNTIME_RELEASE,
   }));
   const seed = await processPathSeedImport({ db, actor, items: taggedItems, dryRun: false });
-  if (!seed.imported) return seed;
+  if (!seed.imported) return { ...seed, phase: "validation" };
   const removedSuperseded = await removeSupersededBuiltInPathSeedRecords(db, taggedItems);
   const coverage = await rebuildStoredPathCoverage(db);
-  return { ...seed, removedSuperseded, coverage };
+  return { ...seed, phase: "complete", removedSuperseded, coverage };
 });
 
 /** Remove a promoted question from the Path bank without touching the assignment. */
@@ -1808,36 +1867,93 @@ exports.withdrawQuestionFromPathBank = onCall(async (request) => {
 });
 
 /**
- * Recompute the coverage index for one or more courses.
+ * Recompute the coverage index from the secure Path bank.
  *
- * Teacher-callable, because a teacher needs to know which standards their class
- * can actually practise. The write is server-side only.
- *
- * ISSUABILITY IS `buildIssuePlan` — the same function `issueNextQuestion` calls.
- * A question cannot count as coverage unless the server would really issue and
- * grade it, so this index and the runtime can never disagree about what exists.
- *
- * THE WHEEL LIST COMES FROM THE CALLER, and that is safe in the only direction
- * that matters. Deriving it server-side would mean importing the whole Texas
- * standards catalogue into the Functions bundle, which is not deployed with
- * `functions/`. Supplying it cannot make an uncovered skill launchable: a
- * standard absent from the index is not in `skills`, and `isSkillLaunchable`
- * fails closed on anything it does not find. A short or wrong list can only
- * make MORE skills unavailable, never fewer — it degrades the report, it cannot
- * open a dead end.
+ * This is a global administrative operation, not a teacher-assignment mapping.
+ * The server owns the course-standard list through the canonical Texas registry.
  */
-exports.rebuildPathCoverage = onCall(async (request) => {
-  await requireTeacher(request);
+exports.rebuildPathCoverage = onCall({ timeoutSeconds: 540, memory: "1GiB" }, async (request) => {
+  await requireRootAdmin(request);
   const db = getFirestore();
   const requestedCourses = Array.isArray(request.data?.courses) ? request.data.courses : [];
-  const wheelByCourse = request.data?.wheelTeksByCourse && typeof request.data?.wheelTeksByCourse === "object"
-    ? request.data.wheelTeksByCourse
-    : {};
-  const courses = requestedCourses.length
-    ? requestedCourses
-    : (Object.keys(wheelByCourse).length ? Object.keys(wheelByCourse) : ["algebra1", "algebra2"]);
-  return rebuildStoredPathCoverage(db, { courses, wheelTeksByCourse: wheelByCourse });
+  const courses = requestedCourses.length ? requestedCourses : PATH_COURSE_IDS;
+  return rebuildStoredPathCoverage(db, { courses });
 });
+
+/**
+ * Root-admin targeted diagnostic for a standard that will not launch.
+ * Returns counts and validation reasons only — never prompts, expected answers,
+ * generator parameters, or private grading definitions.
+ */
+exports.diagnosePathSkill = onCall({ timeoutSeconds: 120, memory: "512MiB" }, async (request) => {
+  await requireRootAdmin(request);
+  const db = getFirestore();
+  const targetAlignmentKey = mathPath.canonicalAlignmentKey(request.data?.targetAlignmentKey);
+  if (!targetAlignmentKey) throw new HttpsError("invalid-argument", "targetAlignmentKey is required.");
+  const assessmentFramework = normalizePathAssessmentFramework(request.data?.assessmentFramework);
+  const courseId = coverageCourseIdFor(targetAlignmentKey);
+
+  const [snapshot, storedCoverage] = await Promise.all([
+    db.collection("pathQuestionBank").where("alignmentKeys", "array-contains", targetAlignmentKey).limit(200).get(),
+    db.collection(COVERAGE_COLLECTION).doc(courseId).get(),
+  ]);
+  const allRecords = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  const activeRecords = allRecords.filter((question) => question.active !== false);
+  const records = activeRecords.filter((question) => pathQuestionMatchesFramework(question, assessmentFramework));
+  const evaluations = [];
+  for (const question of records) {
+    // eslint-disable-next-line no-await-in-loop
+    const plan = await safeBuildTemplateIssuePlan(question, { operation: "skill-diagnostic" });
+    evaluations.push({ question, plan });
+  }
+
+  const rejected = evaluations.filter((entry) => !entry.plan?.issuable).map(({ question, plan }) => ({
+    id: question.id,
+    familyId: question.familyId || null,
+    questionType: question.questionType || "response",
+    pathToolId: question.pathToolId || question.toolId || question.tool?.id || null,
+    courseId: question.courseId || courseId,
+    assessmentFramework: question.assessmentContext?.framework || null,
+    reason: plan?.reason || "not_issuable",
+    detail: plan?.detail || null,
+    diagnosticId: plan?.diagnosticId || null,
+  }));
+  const issuableFamilies = new Set(evaluations
+    .filter((entry) => entry.plan?.issuable)
+    .map((entry) => String(entry.question?.familyId || entry.question?.id || ""))
+    .filter(Boolean));
+
+  const coverage = await pathCoverage();
+  const diagnosticIndex = coverage.buildCoverageIndex({
+    courseId,
+    wheelTeks: [coverage.coverageKey(targetAlignmentKey)],
+    bankItems: records,
+    plans: Object.fromEntries(evaluations.map((entry) => [entry.question.id, entry.plan])),
+    generatedAt: Date.now(),
+  });
+  const key = coverage.coverageKey(targetAlignmentKey);
+  const storedEntry = storedCoverage.exists
+    ? (storedCoverage.data()?.skills?.[key] || storedCoverage.data()?.offWheel?.[key] || null)
+    : null;
+
+  return {
+    targetAlignmentKey,
+    displayCode: mathPath.displayAlignmentKey(targetAlignmentKey),
+    courseId,
+    assessmentFramework,
+    totalBankMatches: allRecords.length,
+    activeMatches: activeRecords.length,
+    frameworkMatches: records.length,
+    issuableDocuments: evaluations.filter((entry) => entry.plan?.issuable).length,
+    issuableFamilies: issuableFamilies.size,
+    launchable: assessmentFramework ? issuableFamilies.size >= 5 : coverage.isSkillLaunchable(diagnosticIndex, targetAlignmentKey),
+    liveCoverage: diagnosticIndex.skills?.[key] || diagnosticIndex.offWheel?.[key] || null,
+    storedCoverage: storedEntry,
+    rejectionSummary: summarizePathRejections(rejected),
+    rejected: rejected.slice(0, 80),
+  };
+});
+
 /**
  * Root-admin action: give existing evidence, mastery and scratchpad records the
  * authorization context the scoped rules read.
@@ -4085,7 +4201,7 @@ async function loadChallengeCandidates(db, { courseId, standardCode }) {
 
   const planned = await Promise.all(candidates.map(async (question) => ({
     question,
-    plan: await mathPath.buildTemplateIssuePlan(question),
+    plan: await safeBuildTemplateIssuePlan(question, { operation: "path-runtime-framework-check" }),
   })));
   return planned.filter((entry) => entry.plan.issuable);
 }
@@ -4850,7 +4966,7 @@ exports.getTeacherWeeklyPathCompletions = onCall(async (request) => {
 });
 
 /** Start or resume one server-owned learning-path session for a TEKS target. */
-exports.startMyMathPathSession = onCall(async (request) => {
+exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics("startMyMathPathSession", async () => {
   const { studentId } = requireStudent(request);
   let targetAlignmentKey = mathPath.canonicalAlignmentKey(request.data?.targetAlignmentKey);
   if (!targetAlignmentKey) throw new HttpsError("invalid-argument", "targetAlignmentKey is required.");
@@ -4945,7 +5061,7 @@ exports.startMyMathPathSession = onCall(async (request) => {
       .filter((question) => question.active !== false)
       .filter((question) => pathQuestionMatchesFramework(question, assessmentFramework));
     const frameworkPlans = await Promise.all(frameworkRecords.map(async (question) => ({
-      question, plan: await mathPath.buildTemplateIssuePlan(question),
+      question, plan: await safeBuildTemplateIssuePlan(question, { operation: "path-runtime-framework-check" }),
     })));
     const issuableFamilies = new Set(frameworkPlans
       .filter((entry) => entry.plan?.issuable)
@@ -5028,10 +5144,10 @@ exports.startMyMathPathSession = onCall(async (request) => {
   });
 
   return { success: true, session: publicPathSession(session) };
-});
+}));
 
 /** Issue only a sanitized question payload. Expected answers remain server-side. */
-exports.issueNextQuestion = onCall(async (request) => {
+exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("issueNextQuestion", async () => {
   const { studentId } = requireStudent(request);
   const sessionId = String(request.data?.sessionId || "").trim();
   if (!sessionId) throw new HttpsError("invalid-argument", "sessionId is required.");
@@ -5066,7 +5182,7 @@ exports.issueNextQuestion = onCall(async (request) => {
     .filter((question) => question.active !== false);
   const buildFrameworkPlans = async (framework) => Promise.all(bankRecords
     .filter((question) => pathQuestionMatchesFramework(question, framework))
-    .map(async (question) => ({ question, plan: await mathPath.buildTemplateIssuePlan(question) })));
+    .map(async (question) => ({ question, plan: await safeBuildTemplateIssuePlan(question, { operation: "path-question-selection" }) })));
 
   let plans = await buildFrameworkPlans(session.assessmentFramework || null);
   let issuable = plans.filter((entry) => entry.plan.issuable);
@@ -5273,7 +5389,7 @@ exports.issueNextQuestion = onCall(async (request) => {
   });
 
   return { questionInstance: mathPath.buildSanitizedQuestion(issuedQuestion, { questionInstanceId: issuedQuestion.questionInstanceId, attemptsAllowed: issuedQuestion.attemptsAllowed, attemptsUsed: issuedQuestion.attemptsUsed, toolPayload: mathPath.storedToolPayload(issuedQuestion) }) };
-});
+}));
 
 /**
  * Grade a path response on the server and append immutable evidence in the same
@@ -5314,17 +5430,15 @@ exports.submitPathResponse = onCall(async (request) => {
   // The mastery profile is what the student knew coming in; the coverage
   // indexes are what the bank can actually teach. Both are read-only inputs, so
   // reading them outside keeps the transaction short.
-  const [masterySnapshot, retentionSnapshotForRouting, algebra1Coverage, algebra2Coverage] = await Promise.all([
+  const [masterySnapshot, retentionSnapshotForRouting, ...coverageSnapshots] = await Promise.all([
     db.collection("studentMasteryProfiles").doc(studentId).get(),
     db.collection("studentRetentionSchedules").doc(studentId).get(),
-    db.collection(COVERAGE_COLLECTION).doc("algebra1").get(),
-    db.collection(COVERAGE_COLLECTION).doc("algebra2").get(),
+    ...PATH_COURSE_IDS.map((courseId) => db.collection(COVERAGE_COLLECTION).doc(courseId).get()),
   ]);
   const masteryProfiles = masterySnapshot.data()?.profiles || {};
-  const coverageIndexes = {
-    algebra1: algebra1Coverage.exists ? algebra1Coverage.data() : null,
-    algebra2: algebra2Coverage.exists ? algebra2Coverage.data() : null,
-  };
+  const coverageIndexes = Object.fromEntries(PATH_COURSE_IDS.map((courseId, index) => [
+    courseId, coverageSnapshots[index]?.exists ? coverageSnapshots[index].data() : null,
+  ]));
   const retentionSchedules = retentionSnapshotForRouting.data()?.schedules || {};
 
   const transactionResult = await db.runTransaction(async (transaction) => {

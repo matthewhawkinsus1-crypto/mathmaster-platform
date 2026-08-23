@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { fetchPathCoverage, fetchPathRuntimeStatus, initializeBundledPathBankStarter, rebuildPathCoverage, seedPathQuestionBank } from '../../platform/path/pathCoverageService.js';
+import { diagnosePathSkill, fetchPathCoverage, fetchPathRuntimeStatus, initializeBundledPathBankStarter, PATH_COVERAGE_COURSE_IDS, rebuildPathCoverage, seedPathQuestionBank } from '../../platform/path/pathCoverageService.js';
 import { clearTeacherPathBankSnapshotCache } from '../../platform/path/pathBankSimulationService.js';
 import {
   COVERAGE_STATE, COVERAGE_STATE_LABELS, summarizeCoverage,
@@ -61,33 +61,52 @@ const contentPill = (state) => ({
 
 const listOrDash = (values) => (values && values.length ? values.join(', ') : '—');
 
+const REJECTION_REASON_HELP = Object.freeze({
+  missing_id: 'The document has no stable question ID.',
+  no_alignment_keys: 'The document is not aligned to a Path standard.',
+  no_gradable_definition: 'The question has no server-gradeable expected answer.',
+  no_server_grader_for_this_tool: 'The question names an interaction that the secure server does not know how to grade.',
+  tool_has_no_gradable_answer: 'The interaction is supported, but this document is missing the answer data its grader requires.',
+  generator_failed: 'The generator could not produce a valid question from this template.',
+  constraints_unsatisfiable: 'The generator constraints cannot produce a valid draw.',
+  validator_exception: 'The production validator threw while checking this document. Use the diagnostic ID to trace the server error.',
+});
+
+const humanizeReason = (reason) => {
+  const key = String(reason || 'unknown');
+  const base = key.replace(/^generated_/, '');
+  const detail = REJECTION_REASON_HELP[key] || REJECTION_REASON_HELP[base];
+  return detail || key.replace(/_/g, ' ');
+};
+
+const sortedGroups = (value = {}) => Object.entries(value || {}).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+
+const diagnosticSuffix = (caught) => {
+  const details = caught?.details || caught?.customData?.details || {};
+  const id = details?.diagnosticId || caught?.diagnosticId;
+  return id ? ` Diagnostic ID: ${id}.` : '';
+};
 
 const friendlyPathError = (caught, fallback) => {
   const code = String(caught?.code || '').replace(/^functions\//, '');
+  const detail = String(caught?.message || '').replace(/^Firebase:\s*/i, '').trim();
+  const suffix = diagnosticSuffix(caught);
   if (code === 'internal') {
-    return `${fallback} The deployed Cloud Functions returned an internal error. This commonly happens when the Vercel web build and Firebase Functions are on different Path releases. Deploy Functions from the same project first, then deploy that project to Vercel.`;
+    return `${fallback} The secure Firebase Path service hit an unexpected server error.${suffix} Use the skill diagnostic below or check the matching diagnostic ID in Cloud Functions logs.`;
   }
   if (code === 'not-found') {
-    return `${fallback} The required Path Cloud Function is not deployed. Deploy Firebase Functions from this project, then try again.`;
+    return `${fallback} The required Path Cloud Function is not deployed from the current GitHub main release.`;
   }
   if (code === 'unauthenticated') {
     return `${fallback} Your session expired. Sign out and back in, then try again.`;
   }
   if (code === 'permission-denied') {
-    // The server's own message names the administrator address and the address
-    // actually signed in. Prefer it: the old advice here ("sign out and back in
-    // as Root Admin") is a loop for anyone signed in on a second account, since
-    // refreshing that token can never produce administrator claims. Only the
-    // account itself can. Fall back to naming the address when an older
-    // deployment returns the generic message.
-    const detail = String(caught?.message || '').trim();
     if (detail && detail.includes('@')) return `${fallback} ${detail}`;
-    return `${fallback} This action is restricted to the MathMaster root administrator (${ROOT_ADMIN_EMAIL}). Sign in with that account to seed or rebuild the Path bank.`;
+    return `${fallback} This action is restricted to the MathMaster root administrator (${ROOT_ADMIN_EMAIL}).`;
   }
-  return caught?.message || fallback;
+  return `${detail || fallback}${suffix}`;
 };
-
-export default function PathCoverageAudit({ courseIds = COURSES.map((course) => course.id) }) {
+export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS }) {
   const [indexes, setIndexes] = useState({});
   const [courseId, setCourseId] = useState(courseIds[0]);
   const [loading, setLoading] = useState(true);
@@ -98,6 +117,10 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
   const [seedPhase, setSeedPhase] = useState(null);
   const [runtimeStatus, setRuntimeStatus] = useState(null);
   const [runtimeError, setRuntimeError] = useState(null);
+  const [diagnosticTarget, setDiagnosticTarget] = useState('');
+  const [diagnosticFramework, setDiagnosticFramework] = useState('');
+  const [diagnostic, setDiagnostic] = useState(null);
+  const [diagnosticBusy, setDiagnosticBusy] = useState(false);
 
 
   const loadRuntimeStatus = useCallback(async () => {
@@ -147,18 +170,29 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
     setBusy(true);
     setError(null);
     setSeed(null);
+    setSeedPhase('Loading the built-in secure bank on the server…');
     try {
       const result = await initializeBundledPathBankStarter({
         onProgress: ({ phase, chunk, chunks }) => {
-          if (phase === 'initializing') setSeedPhase('Installing the secure starter bank…');
-          else if (phase === 'coverage') setSeedPhase('Recomputing Path coverage…');
+          if (phase === 'initializing') setSeedPhase('Loading and validating all built-in Path templates on the server…');
+          else if (phase === 'coverage' || phase === 'coverage-complete') setSeedPhase('Rebuilding canonical course coverage from the installed bank…');
           else setSeedPhase(`${phase === 'validating' ? 'Validating' : 'Importing'} ${chunk} of ${chunks}…`);
         },
       });
       setSeed(result.seed);
-      if (!result.initialized) throw new Error('The starter bank did not pass server validation. Nothing was written.');
+      if (!result.initialized) {
+        const rejected = result.seed?.rejected?.length || 0;
+        const topReason = sortedGroups(result.seed?.rejectionSummary?.byReason)[0];
+        setError(
+          rejected
+            ? `The starter bank was NOT changed. ${rejected} document${rejected === 1 ? '' : 's'} failed production validation${topReason ? `; the largest group is “${humanizeReason(topReason[0])}” (${topReason[1]})` : ''}. The report below identifies the exact types, tools, documents, and diagnostic IDs.`
+            : 'The starter bank was not changed. The server rejected the initialization before writing; review the report below.',
+        );
+        return;
+      }
       clearTeacherPathBankSnapshotCache();
-      setIndexes(result.coverage?.indexes || {});
+      if (result.coverage?.indexes) setIndexes(result.coverage.indexes);
+      else await load();
       await loadRuntimeStatus();
       setSeedPhase(null);
     } catch (caught) {
@@ -166,6 +200,29 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
       setSeedPhase(null);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const runDiagnostic = async (requestedTarget = diagnosticTarget, requestedFramework = diagnosticFramework) => {
+    const target = String(requestedTarget || '').trim();
+    if (!target) {
+      setError('Enter or choose a standard to diagnose.');
+      return;
+    }
+    setDiagnosticBusy(true);
+    setError(null);
+    setDiagnostic(null);
+    try {
+      const result = await diagnosePathSkill({
+        targetAlignmentKey: target,
+        assessmentFramework: requestedFramework || null,
+      });
+      setDiagnostic(result);
+      setDiagnosticTarget(result.displayCode || target);
+    } catch (caught) {
+      setError(friendlyPathError(caught, `Could not diagnose ${target}.`));
+    } finally {
+      setDiagnosticBusy(false);
     }
   };
 
@@ -218,7 +275,7 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
         {runtimeError && <p role="alert" style={{ margin: '12px 0 0', color: '#a50e0e', fontWeight: 800, lineHeight: 1.5 }}>{runtimeError}</p>}
         {runtimeStatus?.release && runtimeStatus.release !== PATH_WEB_RELEASE && (
           <p role="alert" style={{ margin: '12px 0 0', color: '#a50e0e', fontWeight: 800, lineHeight: 1.5 }}>
-            The web app and Cloud Functions are on different Path releases. Do not troubleshoot question content yet. Deploy Functions from this project, then deploy this same project to Vercel.
+            Firebase Hosting and Cloud Functions are on different Path releases. Do not troubleshoot question content yet. Deploy both from the same GitHub main commit.
           </p>
         )}
       </section>
@@ -293,6 +350,19 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
         </p>
       </section>
 
+      <section style={{ ...card, background: '#f8fbff' }}>
+        <h3 style={{ margin: 0 }}>What coverage means now</h3>
+        <p style={{ margin: '7px 0 0', color: '#3c4043', fontSize: 13, lineHeight: 1.6, maxWidth: 820 }}>
+          <strong>Teacher assignments do not create, remove, or map My Math Path coverage.</strong> The source of truth is:
+          the canonical Texas standards registry → the secure <code>pathQuestionBank</code> → the same server issuer/grader that prepares a student question.
+          This page only reports that server-owned result.
+        </p>
+        <p style={{ margin: '8px 0 0', color: '#5f6368', fontSize: 12, lineHeight: 1.55, maxWidth: 820 }}>
+          “Recompute” rebuilds the report from those three sources. It does not inspect class assignments, and it does not publish assignment questions into the Path bank.
+          Grade 6, 7, 8, Algebra I, and Algebra II are mapped from the canonical standards registry on the server, not from a browser wheel.
+        </p>
+      </section>
+
       <section style={card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start' }}>
           <div>
@@ -340,10 +410,10 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
       <section style={card}>
         <h3 style={{ margin: 0 }}>Import a Path bank seed package</h3>
         <p style={{ margin: '6px 0 14px', color: '#5f6368', fontSize: 13, lineHeight: 1.55, maxWidth: 720 }}>
-          A new MathMaster installation starts with an empty secure bank. The built-in starter package supplies five
-          minimum-operational families for every currently routeable Algebra I / Algebra II Path standard and its current
-          middle-school prerequisites. Its answer key stays inside Cloud Functions — students never download the seed file —
-          and every item is validated by the production issuer before storage. It can be safely run again.
+          The built-in bank is the server-owned starting content for course Path and CCMR practice. Refreshing it validates
+          every bundled template with the production issuer, replaces each built-in Firestore document authoritatively, removes
+          superseded built-in documents, and then rebuilds Grade 6, Grade 7, Grade 8, Algebra I, and Algebra II coverage from
+          the canonical Texas registry. Teacher assignments are not consulted. The answer key never enters the browser.
         </p>
         <button type="button" style={{ ...primary, marginBottom: 16 }} onClick={initializeStarter} disabled={busy}>
           {busy ? 'Working…' : 'Initialize / refresh built-in starter bank'}
@@ -403,36 +473,125 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
         {seed && (
           <div style={{ marginTop: 14, fontSize: 13, lineHeight: 1.7 }}>
             <div>Documents supplied: <strong>{seed.documentCount ?? seed.received ?? 0}</strong></div>
-            <div>Stored: <strong style={{ color: seed.imported ? '#137333' : '#a50e0e' }}>{seed.imported ? seed.accepted : 0}</strong></div>
-            <div>Standards supplied: <strong>{seed.standards.length}</strong></div>
+            <div>Validated / stored: <strong style={{ color: seed.imported ? '#137333' : '#a50e0e' }}>{seed.imported ? seed.accepted : `${seed.wouldAccept ?? 0} would pass`}</strong></div>
+            <div>Standards represented: <strong>{seed.standards?.length || 0}</strong></div>
+            {seed.removedSuperseded !== undefined && <div>Superseded built-in documents removed: <strong>{seed.removedSuperseded}</strong></div>}
             {!seed.imported && (
               <p style={{ margin: '10px 0 0', fontWeight: 900, color: '#a50e0e' }}>
-                Nothing was written. {seed.rejected.length} document{seed.rejected.length === 1 ? '' : 's'} would not have been
-                issuable in production, and a partly-imported bank is worse than an empty one. Fix these and import again.
+                Nothing was written. Validation failed before the write phase, so the existing secure bank was left intact.
               </p>
             )}
-            {seed.rejected.length > 0 && (
-              <details style={{ marginTop: 8 }} open>
-                <summary style={{ cursor: 'pointer', fontWeight: 800, color: '#a50e0e' }}>{seed.rejected.length} rejected</summary>
-                <table style={{ marginTop: 8, borderCollapse: 'collapse', fontSize: 12 }}>
-                  <thead><tr style={{ textAlign: 'left', background: '#f1f3f4' }}>
-                    <th style={{ padding: 6 }}>Question ID</th><th style={{ padding: 6 }}>Family</th>
-                    <th style={{ padding: 6 }}>Standard</th><th style={{ padding: 6 }}>Reason</th>
-                  </tr></thead>
-                  <tbody>
-                    {seed.rejected.slice(0, 60).map((entry, position) => (
-                      <tr key={`${entry.id}-${position}`} style={{ borderBottom: '1px solid #e8eaed' }}>
-                        <td style={{ padding: 6 }}>{entry.id || '(no id)'}</td>
-                        <td style={{ padding: 6 }}>{entry.familyId || '—'}</td>
-                        <td style={{ padding: 6 }}>{(entry.standards || []).join(', ') || '—'}</td>
-                        <td style={{ padding: 6, color: '#a50e0e' }}>{String(entry.reason).replace(/_/g, ' ')}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+
+            {(seed.rejectionSummary?.total || 0) > 0 && (
+              <div style={{ marginTop: 12, padding: 12, border: '1px solid #f0b4b2', borderRadius: 9, background: '#fff8f7' }}>
+                <strong style={{ color: '#a50e0e' }}>Why the package was rejected</strong>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12, marginTop: 10 }}>
+                  {[
+                    ['By reason', seed.rejectionSummary.byReason, true],
+                    ['By question type', seed.rejectionSummary.byQuestionType, false],
+                    ['By interaction / tool', seed.rejectionSummary.byTool, false],
+                    ['By course', seed.rejectionSummary.byCourse, false],
+                  ].map(([label, groups, explain]) => (
+                    <div key={label}>
+                      <div style={{ fontWeight: 900, fontSize: 12, color: '#3c4043' }}>{label}</div>
+                      {sortedGroups(groups).slice(0, 12).map(([key, count]) => (
+                        <div key={key} style={{ marginTop: 4, fontSize: 12, color: '#5f6368' }}>
+                          <strong>{count}</strong> · {explain ? humanizeReason(key) : key}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {(seed.rejected?.length || 0) > 0 && (
+              <details style={{ marginTop: 10 }} open>
+                <summary style={{ cursor: 'pointer', fontWeight: 800, color: '#a50e0e' }}>{seed.rejected.length} rejected document{seed.rejected.length === 1 ? '' : 's'}</summary>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ marginTop: 8, borderCollapse: 'collapse', fontSize: 12, minWidth: 920, width: '100%' }}>
+                    <thead><tr style={{ textAlign: 'left', background: '#f1f3f4' }}>
+                      <th style={{ padding: 6 }}>Question ID</th><th style={{ padding: 6 }}>Family</th>
+                      <th style={{ padding: 6 }}>Standard</th><th style={{ padding: 6 }}>Type</th>
+                      <th style={{ padding: 6 }}>Tool</th><th style={{ padding: 6 }}>Reason</th><th style={{ padding: 6 }}>Diagnostic</th>
+                    </tr></thead>
+                    <tbody>
+                      {seed.rejected.slice(0, 100).map((entry, position) => (
+                        <tr key={`${entry.id}-${position}`} style={{ borderBottom: '1px solid #e8eaed' }}>
+                          <td style={{ padding: 6 }}>{entry.id || '(no id)'}</td>
+                          <td style={{ padding: 6 }}>{entry.familyId || '—'}</td>
+                          <td style={{ padding: 6 }}>{(entry.standards || []).join(', ') || '—'}</td>
+                          <td style={{ padding: 6 }}>{entry.questionType || '—'}</td>
+                          <td style={{ padding: 6 }}>{entry.pathToolId || 'field-graded'}</td>
+                          <td style={{ padding: 6, color: '#a50e0e' }} title={entry.detail || ''}>{humanizeReason(entry.reason)}</td>
+                          <td style={{ padding: 6, fontFamily: 'monospace', fontSize: 11 }}>{entry.diagnosticId || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </details>
             )}
-            {seed.imported && <p style={{ margin: '10px 0 0', color: '#137333', fontWeight: 800 }}>Import complete. Coverage was recomputed automatically and the simulator cache was refreshed.</p>}
+            {seed.imported && <p style={{ margin: '10px 0 0', color: '#137333', fontWeight: 800 }}>Import complete. Built-in documents were replaced cleanly, superseded built-ins were retired, and canonical course coverage was rebuilt on the server.</p>}
+          </div>
+        )}
+      </section>
+
+      <section style={card}>
+        <h3 style={{ margin: 0 }}>Why won’t this skill start?</h3>
+        <p style={{ margin: '6px 0 12px', color: '#5f6368', fontSize: 13, lineHeight: 1.55, maxWidth: 820 }}>
+          Diagnose one standard against the live secure bank. This shows how many documents match, how many the production
+          issuer can grade, which question types/tools are being rejected, and whether the stored coverage report is stale.
+          It never returns prompts, answers, generator parameters, or private grading data.
+        </p>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end' }}>
+          <label style={{ display: 'grid', gap: 4, fontSize: 12, fontWeight: 800 }}>
+            Standard
+            <input value={diagnosticTarget} onChange={(event) => setDiagnosticTarget(event.target.value)} placeholder="A.5A or 8.5I" style={{ minHeight: 38, minWidth: 180, border: '1px solid #bdc1c6', borderRadius: 8, padding: '0 10px' }} />
+          </label>
+          <label style={{ display: 'grid', gap: 4, fontSize: 12, fontWeight: 800 }}>
+            Practice format
+            <select value={diagnosticFramework} onChange={(event) => setDiagnosticFramework(event.target.value)} style={{ minHeight: 38, border: '1px solid #bdc1c6', borderRadius: 8, padding: '0 9px', background: '#fff' }}>
+              <option value="">Course practice</option>
+              <option value="digitalSAT">Digital SAT</option>
+              <option value="act">ACT</option>
+              <option value="tsia2">TSIA2</option>
+              <option value="asvab">ASVAB</option>
+            </select>
+          </label>
+          <button type="button" style={primary} onClick={() => runDiagnostic()} disabled={diagnosticBusy}>{diagnosticBusy ? 'Diagnosing…' : 'Diagnose skill'}</button>
+        </div>
+
+        {diagnostic && (
+          <div style={{ marginTop: 14, padding: 14, borderRadius: 10, border: `1px solid ${diagnostic.launchable ? '#81c995' : '#f0b4b2'}`, background: diagnostic.launchable ? '#f4fbf5' : '#fff8f7' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+              <strong>{diagnostic.displayCode} · {diagnostic.assessmentFramework || 'Course practice'}</strong>
+              <strong style={{ color: diagnostic.launchable ? '#137333' : '#a50e0e' }}>{diagnostic.launchable ? 'LIVE BANK CAN LAUNCH' : 'LIVE BANK CANNOT LAUNCH'}</strong>
+            </div>
+            <p style={{ margin: '8px 0 0', fontSize: 13, color: '#3c4043' }}>
+              Bank matches <strong>{diagnostic.totalBankMatches}</strong> · active <strong>{diagnostic.activeMatches}</strong> · format matches <strong>{diagnostic.frameworkMatches}</strong> · issuable documents <strong>{diagnostic.issuableDocuments}</strong> · issuable families <strong>{diagnostic.issuableFamilies}</strong>.
+            </p>
+            {diagnostic.storedCoverage && diagnostic.liveCoverage && diagnostic.storedCoverage.studentReady !== diagnostic.liveCoverage.studentReady && (
+              <p style={{ margin: '8px 0 0', color: '#a50e0e', fontWeight: 900 }}>Stored coverage is stale: the live bank and the saved coverage document disagree. Press Recompute from bank.</p>
+            )}
+            {(diagnostic.rejectionSummary?.total || 0) > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <strong style={{ fontSize: 12 }}>Rejected documents:</strong>
+                {sortedGroups(diagnostic.rejectionSummary.byReason).map(([reason, count]) => (
+                  <div key={reason} style={{ marginTop: 4, color: '#a50e0e', fontSize: 12 }}><strong>{count}</strong> · {humanizeReason(reason)}</div>
+                ))}
+              </div>
+            )}
+            {(diagnostic.rejected?.length || 0) > 0 && (
+              <details style={{ marginTop: 10 }}>
+                <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Show rejected IDs / types / tools</summary>
+                {diagnostic.rejected.slice(0, 40).map((entry) => (
+                  <div key={entry.id} style={{ marginTop: 5, fontSize: 12, color: '#5f6368' }}>
+                    <code>{entry.id}</code> · {entry.questionType || 'response'} · {entry.pathToolId || 'field-graded'} · <span style={{ color: '#a50e0e' }}>{humanizeReason(entry.reason)}</span>{entry.diagnosticId ? ` · diagnostic ${entry.diagnosticId}` : ''}
+                  </div>
+                ))}
+              </details>
+            )}
           </div>
         )}
       </section>
@@ -470,12 +629,12 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
           </div>
           <p style={{ margin: '14px 0 0', fontWeight: 900, color: summary.fullyCovered ? '#137333' : '#a50e0e', lineHeight: 1.5 }}>
             {summary.fullyCovered
-              ? 'Every standard on this wheel has practice content. No student can reach a dead end.'
+              ? 'Every canonical course standard has launchable practice content.'
               : `${summary.wheelSkills - summary.studentReady} standard${summary.wheelSkills - summary.studentReady === 1 ? '' : 's'} cannot be practised yet, and ${summary.wheelSkills - summary.studentReady === 1 ? 'is' : 'are'} hidden from students until content exists.`}
           </p>
           {summary.quality && (
             <p style={{ margin: '10px 0 0', color: '#5f6368', fontSize: 13, lineHeight: 1.6 }}>
-              Content quality across this wheel: <strong>{summary.quality.productionReady}</strong> production ·{' '}
+              Content quality across this course: <strong>{summary.quality.productionReady}</strong> production ·{' '}
               <strong>{summary.quality.candidate}</strong> candidate ·{' '}
               <strong>{summary.quality.minimumOperational}</strong> operational placeholders ·{' '}
               <strong>{summary.quality.authoredUnusable}</strong> unusable ·{' '}
@@ -512,7 +671,7 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
                   <th style={{ padding: 9 }}>Bands / DOK</th>
                   <th style={{ padding: 9 }}>Reviews · Tools</th>
                   <th style={{ padding: 9 }}>Can run</th>
-                  <th style={{ padding: 9 }}>Content quality</th>
+                  <th style={{ padding: 9 }}>Content quality</th><th style={{ padding: 9 }}>Diagnose</th>
                 </tr>
               </thead>
               <tbody>
@@ -538,10 +697,11 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
                         </td>
                         <td style={{ padding: 9 }}><span style={pill(row.state)}>{COVERAGE_STATE_LABELS[row.state]}</span></td>
                         <td style={{ padding: 9 }}><span style={contentPill(row.contentState)}>{CONTENT_STATE_LABELS[row.contentState] || '—'}</span></td>
+                        <td style={{ padding: 9 }}><button type="button" style={{ ...quiet, minHeight: 32, padding: '0 9px', fontSize: 11 }} onClick={() => { setDiagnosticTarget(row.displayCode); setDiagnosticFramework(''); runDiagnostic(row.displayCode, ''); }} disabled={diagnosticBusy}>Check</button></td>
                       </tr>
                       {(quality?.blockers?.length || quality?.warnings?.length) ? (
                         <tr style={{ borderBottom: '1px solid #e8eaed' }}>
-                          <td colSpan={9} style={{ padding: '0 9px 10px 9px' }}>
+                          <td colSpan={10} style={{ padding: '0 9px 10px 9px' }}>
                             {quality.blockers.map((line, position) => (
                               <div key={`b-${position}`} style={{ color: '#a50e0e', fontSize: 12, lineHeight: 1.55 }}>■ {line}</div>
                             ))}
@@ -555,7 +715,7 @@ export default function PathCoverageAudit({ courseIds = COURSES.map((course) => 
                   );
                 })}
                 {rows.length === 0 && (
-                  <tr><td colSpan={9} style={{ padding: 14, color: '#137333', fontWeight: 700 }}>No gaps — every standard on this wheel has practice content.</td></tr>
+                  <tr><td colSpan={10} style={{ padding: 14, color: '#137333', fontWeight: 700 }}>No gaps — every canonical course standard has launchable practice content.</td></tr>
                 )}
               </tbody>
             </table>

@@ -1,8 +1,25 @@
 import { doc, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../firebase';
-import { getWheelTeksForCourse } from '../mastery/strandConfig.js';
 import { isSkillLaunchable } from '../../../functions/shared/pathCoverage.mjs';
+
+export const PATH_COVERAGE_COURSE_IDS = Object.freeze(['grade6', 'grade7', 'grade8', 'algebra1', 'algebra2']);
+
+const summarizeRejected = (entries = []) => {
+  const group = (field, fallback = 'unknown') => entries.reduce((acc, entry) => {
+    const key = String(entry?.[field] || fallback);
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  return {
+    total: entries.length,
+    byReason: group('reason'),
+    byQuestionType: group('questionType'),
+    byTool: group('pathToolId', 'field-graded / none'),
+    byCourse: group('courseId'),
+    byFramework: group('assessmentFramework', 'course'),
+  };
+};
 
 // Reading and rebuilding the My Math Path coverage index.
 //
@@ -41,16 +58,20 @@ export const fetchPathRuntimeStatus = async () => {
 /**
  * Recompute coverage from the secure bank.
  *
- * The wheel standards travel with the request because the Functions bundle does
- * not carry the Texas standards catalogue. See the note on `rebuildPathCoverage`
- * for why that cannot open a dead end.
+ * The browser sends only which course documents to refresh. The SERVER derives
+ * each course's standards from the canonical Texas registry, so a browser, a
+ * teacher assignment, or a stale wheel cannot change what "coverage" means.
  */
-export const rebuildPathCoverage = async (courses = ['algebra1', 'algebra2']) => {
-  const wheelTeksByCourse = Object.fromEntries(
-    courses.map((courseId) => [courseId, getWheelTeksForCourse(courseId)]),
-  );
+export const rebuildPathCoverage = async (courses = PATH_COVERAGE_COURSE_IDS) => {
   const call = httpsCallable(functions, 'rebuildPathCoverage');
-  const result = await call({ courses, wheelTeksByCourse });
+  const result = await call({ courses });
+  return result.data || {};
+};
+
+/** Targeted, answer-safe diagnosis for one standard. */
+export const diagnosePathSkill = async ({ targetAlignmentKey, assessmentFramework = null }) => {
+  const call = httpsCallable(functions, 'diagnosePathSkill');
+  const result = await call({ targetAlignmentKey, assessmentFramework });
   return result.data || {};
 };
 
@@ -78,7 +99,7 @@ export const seedPathQuestionBank = async (items, { chunkSize = 400, onProgress 
       totals.rejected.push(...(data.rejected || []));
       (data.standards || []).forEach((code) => totals.standards.add(code));
     }
-    return { ...totals, standards: [...totals.standards].sort() };
+    return { ...totals, standards: [...totals.standards].sort(), rejectionSummary: summarizeRejected(totals.rejected) };
   };
 
   // TWO PASSES, and the first one writes nothing. A package large enough to
@@ -101,7 +122,7 @@ export const seedPathQuestionBank = async (items, { chunkSize = 400, onProgress 
   const written = await runPass(false);
   if (written.rejected.length === 0) {
     onProgress?.({ phase: 'coverage', chunk: 0, chunks: 0 });
-    const coverage = await rebuildPathCoverage(['algebra1', 'algebra2']);
+    const coverage = await rebuildPathCoverage(PATH_COVERAGE_COURSE_IDS);
     return { imported: true, phase: 'import', documentCount: items.length, ...written, coverage };
   }
   return { imported: false, phase: 'import', documentCount: items.length, ...written };
@@ -112,7 +133,7 @@ export const seedPathQuestionBank = async (items, { chunkSize = 400, onProgress 
  *
  * The answer-bearing starter package is stored only inside the Cloud Functions
  * deployment. It is deliberately NOT fetched by the browser or copied into
- * Vite public assets, because that would publish the secure bank answer key to
+ * Firebase Hosting assets, because that would publish the secure bank answer key to
  * every student. The callable returns counts/status only; coverage is rebuilt
  * afterward from Firestore.
  */
@@ -123,9 +144,11 @@ export const initializeBundledPathBankStarter = async ({ onProgress = null } = {
   // One server-side pass, so `received` already IS the document count.
   const seed = { ...raw, documentCount: raw.received ?? 0 };
   if (!seed.imported) return { initialized: false, seed, coverage: null };
-  onProgress?.({ phase: 'coverage', chunk: 0, chunks: 0 });
-  const coverage = await rebuildPathCoverage(['algebra1', 'algebra2']);
-  return { initialized: true, seed, coverage };
+  // The server initializer already rebuilt coverage from the bank it just
+  // installed. Rebuilding it again here used to validate all 5,186 templates a
+  // third time and could turn a successful import into a client-visible error.
+  onProgress?.({ phase: 'coverage-complete', chunk: 0, chunks: 0 });
+  return { initialized: true, seed, coverage: raw.coverage || null };
 };
 
 /**

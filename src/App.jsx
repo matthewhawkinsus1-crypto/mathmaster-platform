@@ -150,7 +150,6 @@ import { buildTeacherWeeklyView, buildWeeklyGoal, dueAtFor, weekKeyFor } from '.
 import SignInAccess from './SignInAccess.jsx';
 import ClassesAdmin from './components/admin/ClassesAdmin.jsx';
 import PathCoverageAudit from './components/teacher/PathCoverageAudit.jsx';
-import PromoteToPathBank from './components/teacher/PromoteToPathBank.jsx';
 import {
   blobToBase64,
   generateLessonNotesPdfBlob,
@@ -319,7 +318,6 @@ function App() {
   const [teacherWorkspaceMode, setTeacherWorkspaceMode] = useState('teacher');
   const [adminTab, setAdminTab] = useState('classes');
   const [classes, setClasses] = useState([]);
-  const [promoteAssignment, setPromoteAssignment] = useState(null);
   // Who is looking, and at which classes. Read by fetchStudents, which runs
   // during sign-in before `user` state exists.
   const viewerRef = useRef({ email: null, isRootAdmin: false });
@@ -4803,9 +4801,6 @@ function App() {
             busy={assignmentPreflightBusy}
           />
         )}
-        {promoteAssignment && (
-          <PromoteToPathBank assignment={promoteAssignment} onClose={() => setPromoteAssignment(null)} />
-        )}
         {questionEditorAssignment && (
           <AssignmentQuestionEditor
             assignment={questionEditorAssignment}
@@ -5138,7 +5133,6 @@ function App() {
                             { key: 'preview', label: 'View as Student', onClick: () => startTeacherPreview(assignment.id) },
                             { key: 'edit-questions', label: 'Edit Questions', onClick: () => openQuestionEditor(assignment) },
                             { key: 'export-json', label: 'Export JSON', onClick: () => { setExportJsonAssignment(assignment); setExportJsonCopied(false); } },
-                            { key: 'path-bank', label: 'Add to Path Bank…', onClick: () => setPromoteAssignment(assignment) },
                             { key: 'dates-classes', label: 'Dates & Classes', onClick: () => beginEditAssignmentDates(assignment) },
                             { key: 'move-folder', label: 'Move to Folder', onClick: () => { setMovingFolderAssignmentId(assignment.id); setMovingFolderValue(assignment.folder || ''); } },
                             { key: 'duplicate', label: 'Duplicate', onClick: () => handleDuplicateAssignment(assignment) },

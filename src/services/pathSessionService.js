@@ -54,6 +54,55 @@ const mockAnswers = new Map();
 
 const callable = (name) => httpsCallable(functions, name);
 
+const callableDetails = (caught) => (
+  (caught?.details && typeof caught.details === 'object' && caught.details)
+  || (caught?.customData?.details && typeof caught.customData.details === 'object' && caught.customData.details)
+  || {}
+);
+
+const pathOperationLabel = Object.freeze({
+  startMyMathPathSession: 'start this practice session',
+  issueNextQuestion: 'prepare the next secure question',
+  submitPathResponse: 'check this response',
+});
+
+const normalizePathCallableError = (caught, operation) => {
+  if (caught?.isConfigurationError) return caught;
+  const code = String(caught?.code || '').replace(/^functions\//, '');
+  const details = callableDetails(caught);
+  const diagnosticId = String(details?.diagnosticId || '').trim() || null;
+  const reason = String(details?.reason || '').trim() || null;
+  const action = pathOperationLabel[operation] || 'complete this Path action';
+  let message = String(caught?.message || '').replace(/^Firebase:\s*/i, '').trim();
+
+  if (code === 'internal') {
+    message = `The secure My Math Path service could not ${action}.`;
+    if (diagnosticId) message += ` Diagnostic ID: ${diagnosticId}.`;
+    message += ' Return to My Math Path or try again; an administrator can use the diagnostic ID in Path content coverage.';
+  } else if (!message) {
+    message = `My Math Path could not ${action}.`;
+  }
+
+  const error = new Error(message);
+  error.name = 'PathRuntimeError';
+  error.code = code ? `functions/${code}` : (caught?.code || 'path/runtime-error');
+  error.reason = reason;
+  error.operation = operation;
+  error.diagnosticId = diagnosticId;
+  error.details = details;
+  error.recoverable = ['internal', 'unavailable', 'deadline-exceeded', 'resource-exhausted'].includes(code);
+  return error;
+};
+
+const invokePathCallable = async (name, payload) => {
+  try {
+    const response = await callable(name)(payload);
+    return response.data;
+  } catch (caught) {
+    throw normalizePathCallableError(caught, name);
+  }
+};
+
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
 // The sandbox question is deliberately labelled as one. A developer should be
@@ -106,7 +155,7 @@ export const startOrResumePathSession = async ({ targetAlignmentKey, sessionKind
     mockSessions.set(session.sessionId, session);
     return { success: true, session: clone(session) };
   }
-  const response = await callable('startMyMathPathSession')({
+  return invokePathCallable('startMyMathPathSession', {
     targetAlignmentKey: canonicalKey,
     sessionKind,
     requiredQuestions,
@@ -115,7 +164,6 @@ export const startOrResumePathSession = async ({ targetAlignmentKey, sessionKind
     weeklySlotKey: weeklySlotKey || null,
     weeklySlot: weeklySlot || null,
   });
-  return response.data;
 };
 
 export const fetchNextSanitizedQuestion = async ({ sessionId }) => {
@@ -128,8 +176,7 @@ export const fetchNextSanitizedQuestion = async ({ sessionId }) => {
     session.currentQuestion = questionInstance;
     return { questionInstance: clone(questionInstance) };
   }
-  const response = await callable('issueNextQuestion')({ sessionId });
-  return response.data;
+  return invokePathCallable('issueNextQuestion', { sessionId });
 };
 
 export const submitStudentResponse = async ({
@@ -178,7 +225,7 @@ export const submitStudentResponse = async ({
       needsNextQuestion: finalized && session.status === 'active',
     };
   }
-  const response = await callable('submitPathResponse')({
+  return invokePathCallable('submitPathResponse', {
     sessionId,
     questionInstanceId,
     submissionId: activeSubmissionId,
@@ -187,5 +234,4 @@ export const submitStudentResponse = async ({
     supportsPresented,
     supportsUsed,
   });
-  return response.data;
 };
