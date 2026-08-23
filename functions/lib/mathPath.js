@@ -288,6 +288,23 @@ function buildSanitizedQuestion(question, { questionInstanceId, attemptsAllowed,
     dok: Number(question.dok) || 1,
     calculatorPolicy: String(question.calculatorPolicy || 'inherit'),
     assessedConstruct: question.assessedConstruct || null,
+    // Assessment context is instructional metadata, not answer data. Carry it
+    // per issued question so CCMR practice can distinguish a real exam-format
+    // item from a temporary course-foundation bridge during adaptive routing.
+    assessmentContext: question.assessmentContext && typeof question.assessmentContext === 'object'
+      ? (() => {
+        const framework = String(question.assessmentContext.framework || 'course');
+        const directAlignment = (Array.isArray(question.alignments) ? question.alignments : []).find((entry) => (
+          String(entry?.framework || '') === framework && Boolean(String(entry?.domainId || '').trim())
+        ));
+        return {
+          framework,
+          domainId: String(question.assessmentContext.domainId || directAlignment?.domainId || ''),
+          examStyle: question.assessmentContext.examStyle === true,
+        };
+      })()
+      : null,
+    assessmentBridgeFramework: question.assessmentBridgeFramework ? String(question.assessmentBridgeFramework) : null,
     prompt: String(question.prompt || ''),
     choices: normalizeChoices(question.choices),
     formulaLatex: question.formulaLatex ? String(question.formulaLatex) : null,

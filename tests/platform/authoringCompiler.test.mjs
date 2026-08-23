@@ -60,7 +60,14 @@ assert.ok(compactA1.includes('\"standard\": \"A.3C\"'), 'the compact contract te
 assert.ok(compactA1.includes('A.3C'), 'the selected course TEKS are included');
 assert.ok(!compactA1.includes('A2.1A'), 'Algebra II standards are omitted from an Algebra I authoring prompt');
 assert.ok(compactA1.includes('schemaVersion\": 5') || compactA1.includes('schemaVersion": 5') || compactA1.includes('\"schemaVersion\": 5'), 'the default contract is Authoring Intent V5');
-assert.ok(compactA1.length < 20000, 'the default course-specific authoring prompt stays compact');
+// The compact contract is the prompt a teacher pastes into an AI, so its length
+// is a real constraint and not a formality. The ceiling moved from 20,000 to
+// 28,000 when the TEKS → CCMR crosswalk was added: for Algebra I that table is
+// 5,330 characters on its own, and it is what tells an authoring AI which
+// framework/domain pairs are legitimate — without it the exam-style items it
+// writes cannot be trusted. Measured 18,779 before, 26,033 after, so this keeps
+// roughly the same headroom it always had rather than removing the guard.
+assert.ok(compactA1.length < 28000, `the default course-specific authoring prompt stays compact (was ${compactA1.length})`);
 
 const fixRequest = buildFixRequest({
   rawJson: '{"schemaVersion":4}',

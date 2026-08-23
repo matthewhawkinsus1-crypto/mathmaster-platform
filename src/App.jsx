@@ -90,7 +90,7 @@ import TexasStandardsDashboard from './TexasStandardsDashboard';
 import MathToolsLab from './dev/MathToolsLab';
 import { useToast } from './ui/Toast';
 import { EmptyState, ProgressBar, SearchField, StatCard } from './ui/primitives';
-import { buildStudentMasteryProfile } from './masteryEngine.js';
+import { buildStudentMasteryProfile, collectStudentEvidence } from './masteryEngine.js';
 import {
   getEffectiveActivityPolicy,
   resolveQuestionActivityRole,
@@ -119,13 +119,21 @@ import PacingControls from './components/teacher/PacingControls.jsx';
 import RecommendedSkills from './components/student/RecommendedSkills.jsx';
 import { teksCodeFromSkillId } from './platform/path/skillGraph.js';
 import { buildStudentPathOptions } from './platform/path/studentPathOptions.js';
-import { buildStudentDashboardModel } from './studentDashboardModel.js';
+import { buildStudentDashboardModel, resolveNextAction } from './studentDashboardModel.js';
+import { questionAssessmentFramework } from './platform/student/questionAlignmentInfo.js';
+import { FRAMEWORK_LABELS } from './platform/ccmr/assessmentCrosswalk.js';
 import { compareStudentsByName, formatStudentName } from './platform/studentName';
+import { evidenceRowsToEvents } from './platform/profile/legacyEvidenceAdapter.js';
+import { buildStudentLearningProfile } from './platform/profile/studentLearningProfile.js';
+import { resolveDeliveredQuestionMetadata } from './platform/assignments/assignmentAdaptation.js';
+import { adaptLegacyMasteryToPhase5 } from './platform/profile/legacyMasteryAdapter.js';
 import StudentDashboardView from './components/student/StudentDashboardView.jsx';
 import {
-  ROUTE_EVENTS, buildRouteEvent, fetchClassPacing, fetchSkillOverrides,
-  logRouteEvent, normalizePacingByClass, overridesForClass, saveClassPacing, saveSkillOverrides,
+  ROUTE_EVENTS, buildRouteEvent, fetchClassPacing, fetchSkillOverrides, fetchWeeklyGoalSettings,
+  logRouteEvent, overridesForClassContext, saveClassPacing, saveSkillOverrides, saveWeeklyGoalSettings,
+  storedPacingForClassContext, storedWeeklyGoalForClassContext,
 } from './platform/path/pathStore.js';
+import WeeklyPathControls from './components/teacher/WeeklyPathControls.jsx';
 import SignInAccess from './SignInAccess.jsx';
 import ClassesAdmin from './components/admin/ClassesAdmin.jsx';
 import PathCoverageAudit from './components/teacher/PathCoverageAudit.jsx';
@@ -290,6 +298,12 @@ function App() {
   const [pacingByClass, setPacingByClass] = useState({});
   const [skillOverrides, setSkillOverrides] = useState([]);
   const [pacingBusy, setPacingBusy] = useState(false);
+  // Weekly Path goal settings, per class. Stored beside pacing and read the
+  // same way — students read them, teachers write them, and a class with
+  // nothing stored gets working defaults rather than no Path.
+  const [weeklyGoalsByClass, setWeeklyGoalsByClass] = useState({});
+  const [weeklyGoalClassId, setWeeklyGoalClassId] = useState(null);
+  const [weeklyGoalBusy, setWeeklyGoalBusy] = useState(false);
   // The skill a student picked from Recommended for You, consumed once by
   // My Math Path and cleared when they come back.
   const [pathLaunchTeks, setPathLaunchTeks] = useState(null);
@@ -361,6 +375,28 @@ function App() {
     });
   }, [user, tracker, supportUsageByAssignment, assignments]);
 
+  // The signed-in student's own Student Learning Profile, built from the same
+  // evidence their teacher's roster reads. Assignment adaptation needs the DOK
+  // and stable-band picture, which the legacy mastery profile does not carry.
+  const studentLearningProfile = useMemo(() => {
+    if (user?.role !== 'student') return null;
+    const student = {
+      id: user.id,
+      classPeriod: user.classPeriod,
+      gradesByAssignment: tracker,
+      supportUsageByAssignment,
+    };
+    const rows = collectStudentEvidence({ student, assignments });
+    const { events } = evidenceRowsToEvents(rows);
+    return buildStudentLearningProfile({
+      courseId: user?.profile?.course || 'algebra1',
+      evidenceEvents: events,
+      masteryProfilesByTeks: currentStudentMasteryProfile
+        ? adaptLegacyMasteryToPhase5({ legacyProfile: currentStudentMasteryProfile, evidenceRows: rows })
+        : {},
+    });
+  }, [user, tracker, supportUsageByAssignment, assignments, currentStudentMasteryProfile]);
+
   const adaptiveStudentProfile = useMemo(() => {
     if (user?.role !== 'student') return null;
     return {
@@ -376,6 +412,44 @@ function App() {
       return [student.id, profile];
     }));
   }, [allStudents, assignments]);
+
+  // ONE SET OF LEARNING PROFILES FOR THE WHOLE TEACHER WORKSPACE.
+  //
+  // The Students roster, the Weekly Path table and anything added later all
+  // read from this. Building them per screen is how a repository ends up with
+  // four status vocabularies and a student who reads as two different levels on
+  // two tabs. Derived synchronously from the grades documents already in
+  // memory, so no screen pays a Firestore read to show a badge.
+  const teacherLearningProfiles = useMemo(() => {
+    if (!allStudents.length) return {};
+    return Object.fromEntries(allStudents.map((student) => {
+      const rows = collectStudentEvidence({ student, assignments });
+      const { events } = evidenceRowsToEvents(rows);
+      const legacyProfile = teacherMasteryProfilesByStudentId[student.id] || null;
+      return [student.id, buildStudentLearningProfile({
+        courseId: courseProfiles?.[student.classPeriod]?.course || 'algebra1',
+        evidenceEvents: events,
+        // Without per-TEKS mastery, course mastery is null and the performance
+        // projection reads "Establishing Baseline" forever, however much work
+        // the student has done. The legacy summaries already carry it.
+        masteryProfilesByTeks: legacyProfile
+          ? adaptLegacyMasteryToPhase5({ legacyProfile, evidenceRows: rows })
+          : {},
+      })];
+    }));
+  }, [allStudents, assignments, courseProfiles, teacherMasteryProfilesByStudentId]);
+
+  // The students in the class the Weekly Path screen is looking at.
+  const teacherWeeklyRoster = useMemo(() => {
+    const activeId = weeklyGoalClassId || classes[0]?.classId || null;
+    if (!activeId) return [];
+    const record = classes.find((entry) => entry.classId === activeId) || null;
+    return allStudents
+      .filter((student) => student.classId === activeId
+        || (record?.period && student.classPeriod === record.period))
+      .map((student) => ({ id: student.id, name: formatStudentName(student) }))
+      .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  }, [allStudents, classes, weeklyGoalClassId]);
 
   useEffect(() => {
     if (!pendingLaunchAssignmentId) return;
@@ -490,9 +564,12 @@ function App() {
   // signing in, so it degrades to defaults rather than rejecting the login.
   const fetchPathSettings = async () => {
     try {
-      const [pacing, overrides] = await Promise.all([fetchClassPacing(), fetchSkillOverrides()]);
+      const [pacing, overrides, weeklyGoals] = await Promise.all([
+        fetchClassPacing(), fetchSkillOverrides(), fetchWeeklyGoalSettings(),
+      ]);
       setPacingByClass(pacing);
       setSkillOverrides(overrides);
+      setWeeklyGoalsByClass(weeklyGoals);
     } catch (error) {
       console.error('Could not load curriculum pacing:', error);
     }
@@ -500,13 +577,36 @@ function App() {
 
   // Inputs for the student's independent path. Students read pacing and
   // overrides (settings/ is student-readable); they never write them.
-  const studentPacing = useMemo(() => {
-    if (user?.role !== 'student' || !user.classPeriod) return null;
-    // No entry means the teacher has not set a position for this class, and
-    // the panel stays hidden rather than recommending from a placeholder
-    // calendar nobody has confirmed.
-    return normalizePacingByClass(pacingByClass)[user.classPeriod] || null;
+  const studentStoredPacing = useMemo(() => {
+    if (user?.role !== 'student') return null;
+    return storedPacingForClassContext(pacingByClass, {
+      classId: user.classId,
+      classPeriod: user.classPeriod,
+    });
   }, [user, pacingByClass]);
+
+  // The teacher's weekly goal settings for THIS student's class. Same
+  // classId-then-period fallback as pacing, and the same rule: nothing stored
+  // means the defaults apply, never that the student has no week.
+  const studentWeeklyGoalConfig = useMemo(() => {
+    if (user?.role !== 'student') return null;
+    return storedWeeklyGoalForClassContext(weeklyGoalsByClass, {
+      classId: user.classId,
+      classPeriod: user.classPeriod,
+    });
+  }, [user, weeklyGoalsByClass]);
+
+  const studentOverrides = useMemo(() => (
+    user?.role === 'student'
+      ? overridesForClassContext(skillOverrides, { classId: user.classId, classPeriod: user.classPeriod })
+      : []
+  ), [skillOverrides, user]);
+
+  const studentPathAssignments = useMemo(() => (
+    user?.role === 'student'
+      ? assignments.filter((assignment) => assignmentIsForStudent(assignment, user.classPeriod))
+      : []
+  ), [assignments, user]);
 
   const studentRecord = useMemo(() => ({
     id: user?.id,
@@ -520,17 +620,17 @@ function App() {
 
   // Evaluated once and shared, so Recommended for You and My Math Path cannot
   // disagree about what this student should do next.
-  const studentPathOptions = useMemo(() => (
-    studentPacing
-      ? buildStudentPathOptions({
-        student: studentRecord,
-        assignments,
-        courseId: studentCourseId,
-        pacing: studentPacing,
-        teacherOverrides: overridesForClass(skillOverrides, user?.classPeriod),
-      })
-      : null
-  ), [studentRecord, assignments, studentCourseId, studentPacing, skillOverrides, user]);
+  const studentPathOptions = useMemo(() => buildStudentPathOptions({
+    student: studentRecord,
+    assignments: studentPathAssignments,
+    courseId: studentCourseId,
+    pacing: studentStoredPacing,
+    teacherOverrides: studentOverrides,
+  }), [studentRecord, studentPathAssignments, studentCourseId, studentStoredPacing, studentOverrides]);
+
+  // Downstream presentation may want to say whether timing is automatic or
+  // teacher-set. The engine has already resolved that distinction for us.
+  const studentPacing = studentPathOptions?.pacing || studentStoredPacing;
 
   const handleChooseSkill = (card) => {
     if (!card?.skillId) return;
@@ -569,6 +669,24 @@ function App() {
       console.error(error);
     } finally {
       setPacingBusy(false);
+    }
+  };
+
+  const handleSaveWeeklyGoal = async (classId, config) => {
+    if (!classId) return;
+    // Optimistic locally, then persisted. A teacher adjusting a control must
+    // see it move immediately; a failed write says so rather than silently
+    // reverting under them.
+    const next = { ...weeklyGoalsByClass, [classId]: config };
+    setWeeklyGoalsByClass(next);
+    setWeeklyGoalBusy(true);
+    try {
+      await saveWeeklyGoalSettings(next);
+    } catch (error) {
+      toastError('Weekly goal not saved', 'The change is showing locally but did not reach the server.');
+      console.error(error);
+    } finally {
+      setWeeklyGoalBusy(false);
     }
   };
 
@@ -1702,6 +1820,17 @@ function App() {
           attemptRecord: outcome.record,
           attemptResult: outcome.result,
           supportUsage: outcome.record.supportUsage || supportUsage || {},
+          // What was actually delivered, recomputed from the same deterministic
+          // inputs the generator used. Recording the template's DOK and
+          // difficulty here meant every mastery conclusion downstream was drawn
+          // from what the question claimed rather than what the student answered.
+          delivered: resolveDeliveredQuestionMetadata({
+            question: assignment.questions?.[currentQuestionIndex],
+            learningProfile: studentLearningProfile,
+            activityRole: activeQuestionRole,
+            variationMode: getSectionVariantMode(assignment, activeQuestionRole),
+            honors: String(user?.profile?.courseLevel || '').toLowerCase() === 'honors',
+          }),
         });
         writeImmutableEvidenceEvent(user.id, evidenceEvent)
           .catch((evidenceError) => console.error('Could not append Phase 5C evidence history:', evidenceError));
@@ -2312,8 +2441,11 @@ function App() {
         if (destination.courseLevel === 'honors') {
           let enrichmentQuestion = null;
           if (!sourceHonorsReport.isHonorsReady) {
+            if (!sourceHonorsReport.checks.ccmrEnrichment) {
+              throw new Error('This Honors destination needs an authentic CCMR-style Practice question in the source assignment. Regenerate or edit the assignment JSON so Practice includes a directly authored Digital SAT, ACT, TSIA2, or ASVAB item aligned to the lesson TEKS.');
+            }
             if (!teacherReview?.honorsEnrichmentQuestion) {
-              throw new Error('This Honors destination does not yet meet the Honors rigor/CCMR contract. Return to preflight and choose Build Honors Enrichment.');
+              throw new Error('This Honors destination still needs additional Honors depth. Return to preflight and choose Build Honors Depth Extension.');
             }
             enrichmentQuestion = destination.course === courseProfiles?.[splitClassPeriodsByRigor(assignedClassPeriods, courseProfiles).honors[0]]?.course
               ? teacherReview.honorsEnrichmentQuestion
@@ -3621,6 +3753,20 @@ function App() {
     const generationStudentKey = currentSectionVariantMode === 'shared'
       ? `shared-version:${assignment.id}:${activeQuestionRole}`
       : preview ? 'teacher-preview' : user?.id || 'anonymous';
+
+    // ADAPTATION, RESOLVED ONCE.
+    //
+    // The same value is used to generate the question and, at grade time, to
+    // record what was actually delivered. Resolving it in two places would let
+    // the evidence disagree with the question the student answered — which is
+    // the defect this whole seam exists to close.
+    const currentAdaptation = preview ? null : resolveDeliveredQuestionMetadata({
+      question: questions[currentQuestionIndex],
+      learningProfile: studentLearningProfile,
+      activityRole: runtimeActivityRole,
+      variationMode: currentSectionVariantMode,
+      honors: String(user?.profile?.courseLevel || '').toLowerCase() === 'honors',
+    });
     const draftSessionMode = preview ? 'preview' : lifecycle.isPracticeOnly ? 'post-deadline-practice' : lifecycle.isLate ? 'late' : 'graded';
     const supportPresentation = preview ? getStudentSupportPresentation({}) : activeSupportPresentation;
     const replacementWarning = currentIsDOL && dolState.status === 'active'
@@ -3948,6 +4094,10 @@ function App() {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: '10px' }}>
                     {section.entries.map(({ index, sectionPosition, role: cardRole, isTimedDOLQuestion }) => {
                       const record = normalizeQuestionRecord(workingTracker?.[index]);
+                      const cardAssessment = questionAssessmentFramework(questions[index] || {});
+                      const cardAssessmentLabel = cardAssessment.examStyle && cardAssessment.framework
+                        ? `${FRAMEWORK_LABELS[cardAssessment.framework] || cardAssessment.framework} practice`
+                        : '';
                       const cardPolicy = getEffectiveActivityPolicy(cardRole);
                       const cardFeedbackHeld = !preview && !lifecycle.isPracticeOnly && cardPolicy.feedback === 'teacherRelease' && !assignmentFeedbackWasReleased(assignment);
                       const storedCardState = getQuestionCardState(workingTracker?.[index]);
@@ -3986,6 +4136,7 @@ function App() {
                         >
                           <div style={{ fontSize: '14px', fontWeight: 'bold' }}>Question {sectionPosition + 1}</div>
                           <div style={{ marginTop: '5px', padding: '3px 7px', borderRadius: '999px', background: sectionMeta.background, color: sectionMeta.color, border: `1px solid ${sectionMeta.border}`, fontSize: '10px', fontWeight: 900 }}>{sectionMeta.label}</div>
+                          {cardAssessmentLabel && <div aria-label={`${cardAssessmentLabel} question`} style={{ marginTop: '5px', padding: '3px 7px', borderRadius: 999, background: '#f3ecfd', color: '#5b21b6', border: '1px solid #d9c9f7', fontSize: '10px', fontWeight: 950 }}>{cardAssessmentLabel}</div>}
                           <div style={{ fontSize: '12px', marginTop: '7px', fontWeight: 'bold' }}>{sectionUnavailable ? lockedLabel : cardState.label}</div>
                           {record.totalAttempts > 0 && <div style={{ fontSize: '11px', marginTop: '3px', opacity: 0.85 }}>{record.totalAttempts} total attempt{record.totalAttempts === 1 ? '' : 's'}</div>}
                         </button>
@@ -4003,6 +4154,7 @@ function App() {
               question={questions[currentQuestionIndex]}
               questionRecord={workingTracker?.[currentQuestionIndex]}
               generationKey={`${activeAssignmentId}|${generationStudentKey}|${currentQuestionIndex}|variant:${currentRecord.variantIndex}`}
+              adaptation={currentAdaptation}
               onGrade={handleGradeSubmit}
               onStepGrade={handleStepGrade}
               onRequestNewQuestion={handleRequestNewQuestion}
@@ -4211,8 +4363,29 @@ function App() {
               </Suspense>
             )}
 
+            {teacherTab === 'weeklyPath' && (
+              <WeeklyPathControls
+                classes={classes}
+                selectedClassId={weeklyGoalClassId || classes[0]?.classId || null}
+                goalsByClass={weeklyGoalsByClass}
+                // The roster's own profiles, reused rather than rebuilt: the
+                // badge in this table and the badge on the Students screen have
+                // to be the same badge from the same evidence, or a teacher is
+                // being shown two opinions about one child.
+                studentsInClass={teacherWeeklyRoster}
+                learningProfilesByStudentId={teacherLearningProfiles}
+                onSelectClass={setWeeklyGoalClassId}
+                onChange={handleSaveWeeklyGoal}
+                onOpenStudent={(studentId) => { setTeacherTab('students'); setPathLaunchTeks(null); setGradebookFilter({ classPeriod: '', assignmentId: null, student: studentId }); }}
+                saving={weeklyGoalBusy}
+                now={now}
+              />
+            )}
+
             {teacherTab === 'pacing' && (
               <PacingControls
+                classes={classes}
+                assignments={assignments}
                 courseProfiles={courseProfiles}
                 pacingByClass={pacingByClass}
                 overrides={skillOverrides}
@@ -4406,6 +4579,7 @@ function App() {
             {teacherTab === 'students' && (
               <StudentsRoster
                 students={allStudents}
+                classes={classes}
                 classPeriods={CLASS_PERIODS}
                 courseProfiles={courseProfiles}
                 masteryProfilesByStudentId={teacherMasteryProfilesByStudentId}
@@ -4559,9 +4733,10 @@ function App() {
           studentId={user.id}
           studentName={user.displayName || user.id}
           studentProfile={adaptiveStudentProfile || user.profile}
-          assignments={assignments}
+          assignments={studentPathAssignments}
           launchTeksCode={pathLaunchTeks}
           pathOptions={studentPathOptions}
+          weeklyGoalConfig={studentWeeklyGoalConfig}
           courseId={studentCourseId}
           studentRecord={studentRecord}
           onExit={() => { setPathLaunchTeks(null); setStudentDashboardMode('assignments'); }}
@@ -4604,6 +4779,10 @@ function App() {
         matchesSmartView,
       },
     });
+    // Home decides ONE thing for the student. The weekly-Path fallback is
+    // omitted deliberately: this screen does not fetch Path evidence, and a
+    // "your week is done" claim nobody checked is worse than not mentioning it.
+    const studentNextAction = resolveNextAction({ dashboard });
     return (
       <StudentDashboardView
         dashboard={dashboard}
@@ -4612,12 +4791,15 @@ function App() {
         onStartAssignment={startAssignment}
         onOpenMathPath={() => setStudentDashboardMode('mathPath')}
         onOpenSecureExams={() => setStudentDashboardMode('secureExams')}
+        // The one thing this student should do next, decided by the model
+        // rather than left for them to work out from six equal panels.
+        nextAction={studentNextAction}
         liveChallengeInvite={liveChallengeInvite}
         onOpenLiveChallenge={() => setStudentDashboardMode('liveChallenge')}
         onLogout={handleLogout}
         recommended={{
           student: studentRecord,
-          assignments,
+          assignments: studentPathAssignments,
           courseId: studentCourseId,
           pacing: studentPacing,
           pathOptions: studentPathOptions,

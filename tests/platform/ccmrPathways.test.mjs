@@ -41,8 +41,11 @@ const satAssignment = (correctCount, total = 5) => ({
     questionId: `sat-q${index}`,
     type: 'algebra',
     prompt: 'SAT-style linear equation',
-    assessmentContext: { framework: 'digitalSAT' },
-    alignments: [{ framework: 'teks', code: 'A.5A', role: 'primary', evidenceLevel: 'assessed' }],
+    assessmentContext: { framework: 'digitalSAT', examStyle: true },
+    alignments: [
+      { framework: 'teks', code: 'A.5A', role: 'primary', evidenceLevel: 'assessed' },
+      { framework: 'digitalSAT', domainId: 'algebra', role: 'secondary', evidenceMode: 'direct' },
+    ],
   })),
   _records: Array.from({ length: total }, (unused, index) => ({
     status: index < correctCount ? 'correct' : 'incorrect',

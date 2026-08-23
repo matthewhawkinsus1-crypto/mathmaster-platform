@@ -43,6 +43,7 @@ import { useToast } from './ui/Toast';
 import QuestionModuleBoundary from './QuestionModuleBoundary';
 import QuestionPrompt from './QuestionPrompt';
 import StandardBadge from './components/common/StandardBadge.jsx';
+import { questionAssessmentFramework } from './platform/student/questionAlignmentInfo.js';
 import { normalizeQuestionStandards } from './questionMetadata';
 import ReferenceInfoCard from './ReferenceInfoCard';
 import { resolveReferenceInfo } from './referenceInfo';
@@ -107,6 +108,11 @@ export default function QuestionEngine({
   onLoadScratchpad,
   onSaveScratchpad,
   generationKey,
+  // The assignment-adaptation decision for this student and this question,
+  // resolved by the caller so the generator and the evidence writer agree.
+  // Null means "not adapted", which is what preview and every legacy
+  // assignment pass.
+  adaptation = null,
   questionRecord,
   maximumAttempts = null,
   draftKey = null,
@@ -124,6 +130,7 @@ export default function QuestionEngine({
   teacherCalculatorChoice = null,
   assignmentId = null,
   executionScope = 'student',
+  showStandardBadge = true,
   onNextQuestion = null,
   nextQuestionLabel = '',
   nextQuestionSectionLabel = '',
@@ -144,9 +151,14 @@ export default function QuestionEngine({
   const showOutcomeFeedback = resolvedActivityPolicy?.feedback === 'immediate' || feedbackReleased === true;
   const stableQuestion = useDeepStableValue(question);
   const stableStudentProfile = useDeepStableValue(studentProfile);
+  // Deep-stabilised like the profile: `adaptation` is rebuilt on every parent
+  // render, so a raw object reference in the dependency list would regenerate
+  // the question on every keystroke — and leaving it OUT would serve a stale
+  // band after the student's evidence moves.
+  const stableAdaptation = useDeepStableValue(adaptation);
   const processedQuestion = useMemo(
-    () => normalizeContextualQuestion(generateQuestion(stableQuestion, generationKey, stableStudentProfile)),
-    [stableQuestion, generationKey, stableStudentProfile],
+    () => normalizeContextualQuestion(generateQuestion(stableQuestion, generationKey, stableStudentProfile, stableAdaptation)),
+    [stableQuestion, generationKey, stableStudentProfile, stableAdaptation],
   );
   // The primary standard this question is aligned to, for the badge beneath the
   // prompt. Read through the same normalizer the rest of the platform uses, so
@@ -154,6 +166,10 @@ export default function QuestionEngine({
   const questionStandardCode = useMemo(
     () => normalizeQuestionStandards(processedQuestion).primary?.[0]?.code || '',
     [processedQuestion],
+  );
+  const questionAssessment = useMemo(
+    () => questionAssessmentFramework(processedQuestion, assessmentContext),
+    [processedQuestion, assessmentContext],
   );
   const referenceInfo = useMemo(() => resolveReferenceInfo(processedQuestion), [processedQuestion]);
   const presentationQuestion = useMemo(
@@ -663,10 +679,16 @@ export default function QuestionEngine({
             career or military assessment. A CCMR-aligned question inside an
             ordinary assignment used to look exactly like every other question,
             so the work a student was already doing toward those tests was
-            invisible to them. Tools that lead with their own TaskCard show the
-            same chip there. */}
-        {questionStandardCode && (
-          <StandardBadge code={questionStandardCode} style={{ margin: '0 auto 14px', maxWidth: '860px' }} />
+            invisible to them. QuestionEngine owns this in assignments; My Path
+            owns it in the session header so the student sees it only once. */}
+        {showStandardBadge && questionStandardCode && (
+          <StandardBadge
+            code={questionStandardCode}
+            framework={questionAssessment.framework}
+            domainId={questionAssessment.domainId}
+            examStyle={questionAssessment.examStyle}
+            style={{ margin: '0 auto 14px', maxWidth: '860px' }}
+          />
         )}
       </div>
       <ReferenceInfoCard referenceInfo={referenceInfo} />

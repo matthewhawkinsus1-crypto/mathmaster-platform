@@ -32,6 +32,12 @@ const advanced = buildAdvancedAuthoringContract({ generatedAt: new Date('2026-08
   ALL_TEXAS_MATH_STANDARDS.filter((standard) => ['algebra1','algebra2'].includes(standard.courseId)).forEach((standard) => {
     assert.ok(v5.includes(standard.code), `V5 contract lists TEKS ${standard.code}`);
   });
+  assert.match(v5, /## Honors \+ CCMR Practice/);
+  assert.match(v5, /about 15%/);
+  assert.match(v5, /assessmentContext/);
+  assert.match(v5, /examStyle/);
+  assert.match(v5, /TEKS → CCMR exam-style authoring crosswalk/);
+  assert.match(v5, /A\.2B.*digitalSAT:algebra/);
 }
 
 // --- advanced/developer V4 contract still mirrors internal registries ---------
@@ -51,6 +57,12 @@ const advanced = buildAdvancedAuthoringContract({ generatedAt: new Date('2026-08
   });
   PLATFORM_OWNED_FIELDS.forEach((field) => assert.ok(advanced.includes(`\`${field}\``), `advanced contract forbids ${field}`));
   assert.ok(advanced.includes(`Schema version: ${CONTRACT_SCHEMA_VERSION}`));
+  // The Honors/CCMR assertions live in the V5 block above, which is the
+  // contract that carries that section. Four copies of them were pasted here
+  // as well, against `advanced`, where the section does not exist — three
+  // passed by coincidence on strings that appear elsewhere in a contract six
+  // times the length, and the fourth failed. Duplicating an assertion under
+  // the wrong subject is how a passing suite stops meaning anything.
 }
 
 // --- nothing garbled --------------------------------------------------------

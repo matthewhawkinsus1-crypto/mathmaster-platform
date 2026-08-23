@@ -2,63 +2,12 @@ import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import { db } from '../firebase.js';
 import { buildStudentMasteryProfile, collectStudentEvidence } from '../masteryEngine.js';
 import { toDisplayCode } from '../utils/teksUtils.js';
+// The pure legacy->Phase 5 conversion lives outside this module so that callers
+// which only need the transformation do not pull a Firestore client in with it.
+// Re-exported because existing importers reach for it here.
+import { adaptLegacyMasteryToPhase5, retentionSignal } from '../platform/profile/legacyMasteryAdapter.js';
 
-const phase5StatusForLegacyLevel = (levelKey) => ({
-  masters: 'Mastered',
-  meets: 'Secure',
-  approaches: 'Developing',
-  didNotMeet: 'Needs Attention',
-  insufficient: 'Not Enough Evidence',
-}[levelKey] || 'Not Enough Evidence');
-
-const retentionSignal = (schedule = {}) => {
-  if (schedule.status === 'confirmedLoss') return 'confirmedLoss';
-  if (['concern', 'overdue'].includes(schedule.status)) return 'concern';
-  return 'stable';
-};
-
-export const adaptLegacyMasteryToPhase5 = ({ legacyProfile = {}, evidenceRows = [], retentionSchedulesByTEKS = {} } = {}) => {
-  const result = {};
-  Object.entries(legacyProfile.teks || {}).forEach(([rawCode, summary]) => {
-    const code = toDisplayCode(rawCode);
-    const rows = evidenceRows.filter((row) => toDisplayCode(row.teks) === code);
-    const independentSuccesses = rows
-      .filter((row) => row.eventuallyCorrect && row.isMathematicallyIndependent)
-      .map((row) => row.lastAttemptAt)
-      .filter(Boolean)
-      .map((value) => Date.parse(value))
-      .filter(Number.isFinite);
-    const schedule = retentionSchedulesByTEKS[code] || retentionSchedulesByTEKS[rawCode] || {};
-    result[code] = {
-      teksCode: code,
-      mastery: {
-        estimate: Number.isFinite(Number(summary.score)) ? Math.round(Number(summary.score)) : null,
-        status: phase5StatusForLegacyLevel(summary.performance?.key),
-        confidence: summary.confidence || 'Low',
-        observedPerformance: Number.isFinite(Number(summary.eventualCorrectRate))
-          ? Math.round(Number(summary.eventualCorrectRate))
-          : null,
-      },
-      signals: {
-        retention: retentionSignal(schedule),
-        breadth: (summary.dokLevels || []).length >= 2 ? 'broad' : 'developing',
-      },
-      dimensions: {
-        eligibleGradeLevelEvents: Number(summary.itemCount) || 0,
-        dokRepresented: summary.dokLevels || [],
-        familiesRepresented: [...new Set(rows.map((row) => row.questionType).filter(Boolean))],
-        lastIndependentSuccessAt: independentSuccesses.length ? Math.max(...independentSuccesses) : null,
-      },
-      recommendation: {
-        reason: summary.performance?.ceilingReason
-          || (summary.performance?.key === 'didNotMeet'
-            ? 'Rebuild this skill with targeted grade-level support.'
-            : 'Continue building independent accuracy and breadth.'),
-      },
-    };
-  });
-  return result;
-};
+export { adaptLegacyMasteryToPhase5 };
 
 const mergeProfile = (fallback = {}, server = {}, schedule = {}) => ({
   ...fallback,

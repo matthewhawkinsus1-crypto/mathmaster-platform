@@ -56,8 +56,11 @@ test('student tool cards preserve the authored problem and closed tools render s
   const questionEngine = fs.readFileSync(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8');
   assert.match(toolShell, /const authoredPrompt = String\(question\?\.prompt/);
   assert.match(toolShell, /promptDiffers \? 'Problem' : 'Your task'/);
-  assert.match(toolShell, />Skill focus</);
-  assert.doesNotMatch(toolShell, /<strong style=\{\{ color: '#174ea6' \}\}>\{entry\.code\}<\/strong>/);
+  // Standards are owned once by QuestionEngine (or the My Path session header),
+  // not repeated again inside every interactive tool card.
+  assert.doesNotMatch(toolShell, />Skill focus</);
+  assert.doesNotMatch(toolShell, /StandardBadge/);
+  assert.match(questionEngine, /<StandardBadge/);
   assert.match(questionEngine, /<ToolSolutionReview question=\{processedQuestion\}/);
 });
 

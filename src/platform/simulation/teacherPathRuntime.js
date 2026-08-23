@@ -32,6 +32,7 @@ import { buildFieldGradingDefinition, hasFieldGradableDefinition } from '../../.
 import { buildAttemptSupportPayload, buildPrivateSupport } from '../../../functions/shared/pathSolutionSupport.mjs';
 import { sameValue } from '../../../functions/shared/answerEquivalence.mjs';
 import { selectNextFamily, recordFamilyUse } from '../../../functions/shared/pathQuestionSelection.mjs';
+import { generatePathInstanceWithRetries, hasPathGenerator } from '../../../functions/shared/pathQuestionGeneration.mjs';
 import { getQuestionPrimaryTeksCodes } from '../../questionMetadata.js';
 import { teksSkillId, teksCodeFromSkillId, describeSkill } from '../path/skillGraph.js';
 import { buildMasteryBySkillForStudent } from '../path/masteryAdapter.js';
@@ -220,6 +221,7 @@ export const createTeacherPathRuntime = ({
     sessionId: session.sessionId,
     status: session.status,
     sessionKind: session.sessionKind,
+    assessmentFramework: session.assessmentFramework || null,
     requiredQuestions: session.requiredQuestions,
     target: { alignmentKey: session.targetAlignmentKey },
     summary: { ...session.summary },
@@ -246,7 +248,12 @@ export const createTeacherPathRuntime = ({
    * thing this architecture is not allowed to grow.
    */
   const chooseQuestion = (session, skillId) => {
-    const candidates = bank.get(skillId) || [];
+    const candidates = (bank.get(skillId) || []).filter((entry) => {
+      const authoredFramework = String(entry.question?.assessmentContext?.framework || 'course');
+      return session.assessmentFramework
+        ? authoredFramework === session.assessmentFramework && entry.question?.assessmentContext?.examStyle !== false
+        : authoredFramework === 'course';
+    });
     if (!candidates.length) return null;
     const byQuestion = new Map(candidates.map((entry) => [entry.question, entry]));
     const choice = selectNextFamily(candidates.map((entry) => entry.question), {
@@ -268,10 +275,24 @@ export const createTeacherPathRuntime = ({
     }
     const selection = chosen.selection || null;
     const questionInstanceId = uid('qi');
+    // The production bank now stores generator templates. The simulator must
+    // instantiate the selected family before building either its public payload
+    // or private grading definition, otherwise a teacher sees literal {{n}}
+    // placeholders while a student receives a concrete server-generated item.
+    const generated = hasPathGenerator(chosen.question)
+      ? generatePathInstanceWithRetries(chosen.question, `${session.sessionId}|${questionInstanceId}`)
+      : { question: chosen.question, parameters: null, reason: null };
+    if (!generated.question) {
+      session.status = 'blocked';
+      session.blockedSkillId = skillId;
+      session.generatorFailure = generated.reason || 'generator_failed';
+      return null;
+    }
+    const issuedQuestion = generated.question;
     // The secure payload if this tool has a contract, and nothing at all if it
     // does not — the same allowlist the server applies.
-    const toolPayload = buildPublicToolPayload(chosen.question);
-    const fieldGraded = !toolPayload && hasFieldGradableDefinition(chosen.question);
+    const toolPayload = buildPublicToolPayload(issuedQuestion);
+    const fieldGraded = !toolPayload && hasFieldGradableDefinition(issuedQuestion);
     const instance = {
       questionInstanceId,
       ...(toolPayload ? {
@@ -284,12 +305,12 @@ export const createTeacherPathRuntime = ({
         // same public shape production issues: labels and prompt, never the
         // expected answers. PathSessionPlayer already has a dedicated fields
         // renderer for exactly this payload.
-        ...publicFieldPayload(chosen.question),
+        ...publicFieldPayload(issuedQuestion),
       } : {
         // Assignment fallback used only by tests/legacy callers. Student
         // Experience passes `pathBankQuestions`, so production simulation never
         // silently substitutes classroom content for an empty secure bank.
-        canonicalQuestion: chosen.question,
+        canonicalQuestion: issuedQuestion,
       }),
       skillId,
       teksCode: chosen.teksCode,
@@ -329,14 +350,14 @@ export const createTeacherPathRuntime = ({
     // server keeps it in `session.currentQuestion`. It is never part of the
     // instance handed to the renderer.
     session.privateGrading = toolPayload
-      ? buildPrivateToolGrading(chosen.question)
-      : (fieldGraded ? buildFieldGradingDefinition(chosen.question) : null);
+      ? buildPrivateToolGrading(issuedQuestion)
+      : (fieldGraded ? buildFieldGradingDefinition(issuedQuestion) : null);
     session.privateGradingMode = toolPayload ? 'tool' : (fieldGraded ? 'fields' : 'canonical');
     // Same rule as production: feedback, hints and the review are held beside
     // the grading definition and released by attempt, never issued with the
     // question.
-    session.privateSupport = buildPrivateSupport(chosen.question);
-    session.issued.push({ ...instance, question: chosen.question });
+    session.privateSupport = buildPrivateSupport(issuedQuestion);
+    session.issued.push({ ...instance, question: issuedQuestion, generatorParameters: generated.parameters });
     session.currentQuestion = instance;
     session.currentSkillId = skillId;
     return instance;
@@ -361,7 +382,7 @@ export const createTeacherPathRuntime = ({
 
   // --- The three calls the container makes -----------------------------------
 
-  const startOrResumePathSession = async ({ targetAlignmentKey, sessionKind = 'practice', requiredQuestions: required = requiredQuestions }) => {
+  const startOrResumePathSession = async ({ targetAlignmentKey, sessionKind = 'practice', requiredQuestions: required = requiredQuestions, assessmentFramework = null }) => {
     const code = toDisplayCode(targetAlignmentKey);
     const skillId = teksSkillId(code);
 
@@ -376,6 +397,7 @@ export const createTeacherPathRuntime = ({
       candidate.status === 'active'
       && candidate.targetAlignmentKey === toCanonicalKey(code)
       && candidate.sessionKind === sessionKind
+      && (candidate.assessmentFramework || null) === (assessmentFramework || null)
     ));
     if (existing) {
       publish(existing);
@@ -386,6 +408,7 @@ export const createTeacherPathRuntime = ({
       sessionId: uid('sim_path'),
       status: 'active',
       sessionKind,
+      assessmentFramework: assessmentFramework || null,
       requiredQuestions: Math.max(1, Math.min(10, Number(required) || 5)),
       targetAlignmentKey: toCanonicalKey(code),
       originSkillId: skillId,

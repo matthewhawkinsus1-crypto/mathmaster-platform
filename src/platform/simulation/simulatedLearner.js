@@ -120,17 +120,45 @@ const emptyLearnerDocument = (id, label) => ({
 // A synthetic question carrying a single TEKS code, used only to seed a
 // starting state. It goes through the same evidence collection as any authored
 // question, which is the point: nothing writes a performance level directly.
-const seedQuestion = (code, index) => ({
+const seedQuestion = (code, index, { activityRole = 'classwork', dok = null, difficultyBand = 3 } = {}) => ({
   questionId: `${SIM_SEED_PREFIX}q${index}`,
   type: 'algebra',
   prompt: `Simulated prior evidence for ${code}.`,
   // DOK 3 on at least one item is required before the engine will estimate
   // Masters, so the seed has to span complexity rather than repeat easy items.
-  dok: index % 3 === 0 ? 3 : 2,
-  difficultyBand: 3,
-  activityRole: 'classwork',
+  dok: dok ?? (index % 3 === 0 ? 3 : 2),
+  difficultyBand,
+  activityRole,
   alignments: [{ framework: 'teks', code, role: 'primary', evidenceLevel: 'assessed' }],
 });
+
+/**
+ * CONTEXT EVIDENCE — why a simulated learner needs more than one standard.
+ *
+ * The target-skill seed puts a synthetic student into a chosen performance band
+ * on ONE standard, which is exactly right for testing a routing decision about
+ * that standard. It is not enough to build a Student Learning Profile: that
+ * requires 12 usable events across 3 standards and 2 kinds of work before it
+ * will classify anyone, deliberately, because a label formed from six questions
+ * on one skill is not a judgement about a child.
+ *
+ * The visible consequence was that every simulated profile — Fresh, Struggling,
+ * On-level, Advanced — read as "Establishing Baseline" and produced the same
+ * week. A teacher opening the simulator to see whether the engine adapts would
+ * have concluded that it does not.
+ *
+ * So the Weekly Path view seeds SURROUNDING evidence too: neighbouring
+ * standards, at a level consistent with the chosen profile, across a second
+ * kind of work. A real student always has this. It is opt-in so that every
+ * existing routing test and Question Bench scenario keeps the exact learner it
+ * was calibrated against.
+ */
+const CONTEXT_PLAN = {
+  masters: { total: 4, correct: 4, band: 4 },
+  meets: { total: 4, correct: 3, band: 3 },
+  approaches: { total: 4, correct: 2, band: 3 },
+  didNotMeet: { total: 4, correct: 1, band: 2 },
+};
 
 // Correct-answer ratio chosen to land inside each performance band. The bands
 // are score >= 85 masters, >= 70 meets, >= 55 approaches, else didNotMeet, and
@@ -147,32 +175,62 @@ const SEED_PLAN = {
  * Build the synthetic assignment plus records that put a simulated learner into
  * a chosen starting state for a set of TEKS codes.
  */
-export const buildSeedEvidence = ({ targetKey, teksCodes = [], assignmentId = `${SIM_SEED_PREFIX}baseline` }) => {
+export const buildSeedEvidence = ({
+  targetKey,
+  teksCodes = [],
+  assignmentId = `${SIM_SEED_PREFIX}baseline`,
+  // Neighbouring standards to seed alongside the target, so the learner has a
+  // profile rather than a single data point. Empty by default.
+  contextCodes = [],
+}) => {
   const codes = (Array.isArray(teksCodes) ? teksCodes : []).filter(Boolean);
   const plan = SEED_PLAN[targetKey];
   if (!plan || !codes.length) return { assignment: null, records: {} };
 
   const questions = [];
   const records = {};
+
+  const answer = (index, isCorrect, code) => {
+    records[index] = recordQuestionAttempt({
+      record: null,
+      isCorrect,
+      questionDetails: `Simulated ${isCorrect ? 'correct' : 'incorrect'} response for ${code}.`,
+    }).record;
+    // An incorrect first attempt that is never retried has to be pushed to its
+    // terminal state, or it reads as "still in progress" rather than as
+    // evidence of a gap.
+    if (!isCorrect) {
+      records[index] = recordQuestionAttempt({ record: records[index], isCorrect: false }).record;
+      records[index] = recordQuestionAttempt({ record: records[index], isCorrect: false }).record;
+    }
+  };
+
   codes.forEach((code) => {
     for (let i = 0; i < plan.total; i += 1) {
       const index = questions.length;
       questions.push(seedQuestion(code, index));
-      const isCorrect = i < plan.correct;
-      records[index] = recordQuestionAttempt({
-        record: null,
-        isCorrect,
-        questionDetails: `Simulated ${isCorrect ? 'correct' : 'incorrect'} response for ${code}.`,
-      }).record;
-      // An incorrect first attempt that is never retried has to be pushed to
-      // its terminal state, or it reads as "still in progress" rather than
-      // as evidence of a gap.
-      if (!isCorrect) {
-        records[index] = recordQuestionAttempt({ record: records[index], isCorrect: false }).record;
-        records[index] = recordQuestionAttempt({ record: records[index], isCorrect: false }).record;
-      }
+      answer(index, i < plan.correct, code);
     }
   });
+
+  // Surrounding evidence, from a second kind of work and across a second and
+  // third standard, so the profile has something to be built from.
+  const contextPlan = CONTEXT_PLAN[targetKey];
+  const context = (Array.isArray(contextCodes) ? contextCodes : [])
+    .filter((code) => code && !codes.includes(code));
+  if (contextPlan) {
+    context.forEach((code) => {
+      for (let i = 0; i < contextPlan.total; i += 1) {
+        const index = questions.length;
+        questions.push(seedQuestion(code, index, {
+          activityRole: 'independentPractice',
+          dok: i === 0 ? 1 : 2,
+          difficultyBand: contextPlan.band,
+        }));
+        answer(index, i < contextPlan.correct, code);
+      }
+    });
+  }
 
   return {
     assignment: {
@@ -196,13 +254,17 @@ export const createSimulatedLearner = ({
   teacherId = 'teacher',
   slotId = 'default',
   teksCodes = [],
+  // Opt-in. See CONTEXT_PLAN: without it a simulated learner cannot cross the
+  // Student Learning Profile's baseline requirement, so every starting profile
+  // renders identically in any view that shows a profile.
+  contextCodes = [],
 } = {}) => {
   const profile = getStartingProfile(profileId);
   const learner = emptyLearnerDocument(
     `${SIMULATION_NAMESPACE}:${teacherId}:${slotId}`,
     `${profile.label} (simulated)`,
   );
-  const seed = buildSeedEvidence({ targetKey: profile.targetKey, teksCodes });
+  const seed = buildSeedEvidence({ targetKey: profile.targetKey, teksCodes, contextCodes });
   const seedAssignments = [];
 
   if (seed.assignment) {

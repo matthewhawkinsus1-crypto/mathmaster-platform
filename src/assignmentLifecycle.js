@@ -122,7 +122,12 @@ export const assignmentIsForStudent = (assignment, classPeriod) => {
   return assigned.length > 0 && assigned.includes(classPeriod);
 };
 
-const VERSION_MODES = new Set(['shared', 'personalized']);
+// Three modes now, not two. 'adaptive' was silently falling through this gate
+// to 'personalized', so an assignment authored as adaptive delivered a variant
+// and nobody was told. The canonical vocabulary and the legacy mapping live in
+// `platform/assignments/assignmentAdaptation.js`; this set only decides whether
+// a stored value is one the platform recognises at all.
+const VERSION_MODES = new Set(['shared', 'personalized', 'variant', 'adaptive']);
 
 // Bundled assignments can mix delivery modes by activity section. The old
 // assignment-level variantMode remains the fallback so every assignment saved

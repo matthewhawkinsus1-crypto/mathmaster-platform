@@ -12,6 +12,9 @@ import { isSkillLaunchable } from '../../../functions/shared/pathCoverage.mjs';
 import { curateStudentPanel } from '../../platform/path/studentPanel.js';
 import { teksCodeFromSkillId, teksSkillId } from '../../platform/path/skillGraph.js';
 import { statusForSkill } from '../../platform/path/pathMap.js';
+import { buildStudentLearningProfile } from '../../platform/profile/studentLearningProfile.js';
+import { buildWeeklyPathPlan } from '../../platform/path/weeklyPathPlan.js';
+import { buildWeeklyGoal, deriveCompletionsFromEvidence, evaluateWeeklyGoalProgress, normalizeWeeklyGoalConfig } from '../../platform/path/weeklyPathGoal.js';
 import { STATUS } from '../../platform/path/recommendationEngine.js';
 import { studentLabelForTeks } from '../../platform/path/skillLabels.js';
 import { DEFAULT_MASTERY_COURSE_ID, getWheelTeksForCourse } from '../../platform/mastery/strandConfig.js';
@@ -72,6 +75,9 @@ export const MyMathPathExperience = ({
   // is dropped on a mastery map to find it again.
   launchTeksCode = null,
   pathOptions = null,
+  // The teacher's weekly goal settings for this student's class. Null means
+  // nothing was configured, which is a working state, not a missing one.
+  weeklyGoalConfig = null,
   // The course this student is enrolled in. It drives the mastery wheel and
   // every fallback, so an Algebra II student never meets Algebra I content.
   courseId = DEFAULT_MASTERY_COURSE_ID,
@@ -118,6 +124,57 @@ export const MyMathPathExperience = ({
   );
   const availableTeks = useMemo(() => Object.keys(masteryData.masteryProfilesByTEKS).map(toDisplayCode), [masteryData.masteryProfilesByTEKS]);
 
+  // THIS WEEK.
+  //
+  // Everything below is derived from data this component already fetches — the
+  // per-TEKS mastery, the retention schedules, the evidence events and the path
+  // options. No new reads, and no second engine: the teacher's roster view runs
+  // the identical functions over the identical inputs, which is what stops a
+  // teacher from seeing a recommendation the student never received.
+  const learningProfile = useMemo(() => buildStudentLearningProfile({
+    courseId,
+    masteryProfilesByTeks: masteryData.masteryProfilesByTEKS,
+    evidenceEvents,
+    retentionSchedules: masteryData.retentionSchedulesByTEKS,
+  }), [courseId, masteryData.masteryProfilesByTEKS, masteryData.retentionSchedulesByTEKS, evidenceEvents]);
+
+  const honors = String(studentProfile?.courseLevel || '').toLowerCase() === 'honors';
+
+  const weeklyPlan = useMemo(() => (pathOptions ? buildWeeklyPathPlan({
+    options: pathOptions,
+    courseId,
+    profile: learningProfile,
+    masteryProfilesByTeks: masteryData.masteryProfilesByTEKS,
+    retentionSchedules: masteryData.retentionSchedulesByTEKS,
+    evidenceEvents,
+    // The PLAN must be built to the same length the GOAL will ask for.
+    // Building four and then asking for six leaves two empty cards.
+    sessions: normalizeWeeklyGoalConfig(weeklyGoalConfig || {}, { honors }).sessions,
+    honors,
+    interventionMode: Boolean(weeklyGoalConfig?.interventionMode),
+    pinnedSkills: weeklyGoalConfig?.pinnedSkills || [],
+  }) : null), [pathOptions, courseId, learningProfile, masteryData, evidenceEvents, honors, weeklyGoalConfig]);
+
+  const weeklyGoal = useMemo(() => (weeklyPlan ? buildWeeklyGoal({
+    plan: weeklyPlan, config: weeklyGoalConfig || {}, honors, studentId, courseId,
+  }) : null), [weeklyPlan, weeklyGoalConfig, honors, studentId, courseId]);
+
+  const weeklyCompletions = useMemo(
+    () => deriveCompletionsFromEvidence({ evidenceEvents, weekKey: weeklyGoal?.weekKey }),
+    [evidenceEvents, weeklyGoal],
+  );
+  const weeklyProgress = useMemo(
+    () => (weeklyGoal ? evaluateWeeklyGoalProgress({ goal: weeklyGoal, completions: weeklyCompletions }) : null),
+    [weeklyGoal, weeklyCompletions],
+  );
+  // Which slots are done. Matched by standard, because the student may work the
+  // week in any order and a fixed running total would tick off the wrong cards.
+  const completedSlots = useMemo(() => {
+    if (!weeklyGoal) return [];
+    const worked = new Set(weeklyCompletions.map((entry) => entry.teksCode).filter(Boolean));
+    return weeklyGoal.sessions.filter((session) => worked.has(session.teksCode)).map((session) => session.slot);
+  }, [weeklyGoal, weeklyCompletions]);
+
   // CCMR. The components have existed since Batch 9; what was missing was any
   // route a student could take to reach them, and the evidence to fill them.
   const [goals, setGoals] = useState(() => readCcmrGoals(studentId));
@@ -127,7 +184,8 @@ export const MyMathPathExperience = ({
     assignments,
     goals,
     teacherPriorities: teacherAssessmentPriorities,
-  })), [assessmentContextOverride, studentRecord, assignments, goals, teacherAssessmentPriorities]);
+    evidenceEvents,
+  })), [assessmentContextOverride, studentRecord, assignments, goals, teacherAssessmentPriorities, evidenceEvents]);
   const changeGoals = useCallback((next) => {
     if (readOnly) {
       setCoverageNotice(teacherReadOnlyNotice);
@@ -263,7 +321,7 @@ export const MyMathPathExperience = ({
           />
         </div>
       )}
-      {activeTab === 'dashboard' && <MyMathPathDashboard studentName={studentName || studentId || 'Student'} masteryProfilesByTEKS={masteryData.masteryProfilesByTEKS} retentionSchedulesByTEKS={masteryData.retentionSchedulesByTEKS} recommendedTeks={recommendedTeks} courseId={courseId} pathOptions={pathOptions} assessmentContext={assessmentContext} onPracticeAs={({ skillId, framework }) => { const code = teksCodeFromSkillId(skillId); if (code) startSession(code, { framework }); }} onStartSession={startSession} />}
+      {activeTab === 'dashboard' && <MyMathPathDashboard studentName={studentName || studentId || 'Student'} masteryProfilesByTEKS={masteryData.masteryProfilesByTEKS} retentionSchedulesByTEKS={masteryData.retentionSchedulesByTEKS} recommendedTeks={recommendedTeks} courseId={courseId} pathOptions={pathOptions} assessmentContext={assessmentContext} weeklyGoal={weeklyGoal} weeklyProgress={weeklyProgress} completedSlots={completedSlots} onPracticeAs={({ skillId, framework }) => { const code = teksCodeFromSkillId(skillId); if (code) startSession(code, { framework }); }} onStartSession={startSession} />}
       {activeTab === 'history' && <StudentPracticeHistory evidenceEvents={evidenceEvents} availableTeks={availableTeks} loading={loading} error={historyError} />}
       {activeTab === 'session' && sessionConfig && <MyMathPathProductionContainer {...sessionConfig} studentProfile={studentProfile} sessionProvider={sessionProvider} onSimulationController={onSimulationController} onSimulationEvent={onSimulationEvent} onReturnToDashboard={returnToDashboard} onSessionComplete={() => onReload?.()} />}
     </div>

@@ -13,8 +13,10 @@
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase.js';
 import { normalizeClassPacing } from './curriculumPacing.js';
+import { normalizeWeeklyGoalConfig } from './weeklyPathGoal.js';
 
 export const PACING_DOC = 'classPacing';
+export const WEEKLY_GOAL_DOC = 'weeklyPathGoals';
 export const OVERRIDES_DOC = 'skillOverrides';
 export const HISTORY_COLLECTION = 'pathHistory';
 
@@ -44,6 +46,51 @@ export const getPacingForClass = (pacingByClass, classId) => (
   normalizePacingByClass(pacingByClass)[classId] || normalizeClassPacing({})
 );
 
+/**
+ * Resolve a student's saved pacing without making the legacy period key the
+ * source of truth. New controls save by real classId; old deployments saved by
+ * period, so the period remains a read-only compatibility fallback until those
+ * records are naturally replaced.
+ */
+export const storedPacingForClassContext = (pacingByClass, { classId = '', classPeriod = '' } = {}) => {
+  const normalized = normalizePacingByClass(pacingByClass);
+  return (classId && normalized[classId]) || (classPeriod && normalized[classPeriod]) || null;
+};
+
+/**
+ * Weekly goal settings, stored per class for the same reason pacing is: one
+ * teacher's Algebra I section and their Algebra II Honors section want
+ * different weeks, and a setting saved for one must never silently become the
+ * setting for the other.
+ *
+ * Normalisation runs on both read and write. A settings document written by an
+ * older build, or hand-edited in the Firebase console, has to produce a working
+ * week rather than an exception — the whole design rests on a teacher who
+ * configures nothing still getting a functioning Path.
+ */
+export const normalizeWeeklyGoalsByClass = (raw) => {
+  const source = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+  return Object.fromEntries(
+    Object.entries(source)
+      .filter(([classId]) => classId)
+      .map(([classId, config]) => [
+        classId,
+        normalizeWeeklyGoalConfig(config, { honors: Boolean(config?.honors) }),
+      ]),
+  );
+};
+
+/**
+ * The settings that apply to one student, with the same classId-then-period
+ * fallback pacing uses. Returns null when nothing is stored, so the caller can
+ * tell "the teacher chose the defaults" from "the teacher chose nothing" — the
+ * difference matters when deciding whether to show a configuration prompt.
+ */
+export const storedWeeklyGoalForClassContext = (goalsByClass, { classId = '', classPeriod = '' } = {}) => {
+  const normalized = normalizeWeeklyGoalsByClass(goalsByClass);
+  return (classId && normalized[classId]) || (classPeriod && normalized[classPeriod]) || null;
+};
+
 export const normalizeOverride = (raw) => {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const action = String(raw.action || '');
@@ -67,6 +114,29 @@ export const normalizeOverrides = (raw) => (Array.isArray(raw) ? raw : [])
 
 export const overridesForClass = (overrides, classId) => normalizeOverrides(overrides)
   .filter((entry) => !entry.classId || entry.classId === classId);
+
+
+/**
+ * Class-scoped overrides with legacy period compatibility. If the same skill
+ * exists at more than one scope, the real classId wins over the old period key
+ * and either wins over a global override.
+ */
+export const overridesForClassContext = (overrides, { classId = '', classPeriod = '' } = {}) => {
+  const ranked = new Map();
+  const rankFor = (entry) => {
+    if (classId && entry.classId === classId) return 3;
+    if (classPeriod && entry.classId === classPeriod) return 2;
+    if (!entry.classId) return 1;
+    return 0;
+  };
+  normalizeOverrides(overrides).forEach((entry) => {
+    const rank = rankFor(entry);
+    if (!rank) return;
+    const current = ranked.get(entry.skillId);
+    if (!current || rank >= current.rank) ranked.set(entry.skillId, { entry, rank });
+  });
+  return [...ranked.values()].map(({ entry }) => entry);
+};
 
 /**
  * Add or replace an override. One action per (class, skill): a teacher who
@@ -137,6 +207,15 @@ export const fetchClassPacing = async () => {
 
 export const saveClassPacing = async (pacingByClass) => {
   await setDoc(doc(db, 'settings', PACING_DOC), { byClass: normalizePacingByClass(pacingByClass) });
+};
+
+export const fetchWeeklyGoalSettings = async () => {
+  const snapshot = await getDoc(doc(db, 'settings', WEEKLY_GOAL_DOC));
+  return snapshot.exists() ? normalizeWeeklyGoalsByClass(snapshot.data()?.byClass) : {};
+};
+
+export const saveWeeklyGoalSettings = async (goalsByClass) => {
+  await setDoc(doc(db, 'settings', WEEKLY_GOAL_DOC), { byClass: normalizeWeeklyGoalsByClass(goalsByClass) });
 };
 
 export const fetchSkillOverrides = async () => {

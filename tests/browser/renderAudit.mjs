@@ -44,6 +44,10 @@ const argOf = (name, fallback) => {
   return index >= 0 ? process.argv[index + 1] : fallback;
 };
 const limit = Number(argOf('--limit', '0')) || 0;
+// `--limit` takes the first N, which after the bank grew to nine seed files
+// means "audit the alphabetically first file". `--stride` walks the whole bank
+// instead, so a sample covers every file and every question shape.
+const stride = Number(argOf('--stride', '0')) || 0;
 const write = process.argv.includes('--write');
 
 // --- the seed bank -------------------------------------------------------------
@@ -65,6 +69,8 @@ const LEAK_PATTERNS = [
   { id: 'dollar-delimited-latex', pattern: /\$[^$\n]{1,160}\$/g },
   { id: 'latex-command', pattern: /\\(?:frac|dfrac|sqrt|left|right|cdot|times|le|ge|infty|cup|text|begin|end|mathrm)\b/g },
   { id: 'paren-delimited-latex', pattern: /\\\([^\n]{1,160}\\\)/g },
+  // A placeholder on screen means a template reached a student unfilled.
+  { id: 'unsubstituted-placeholder', pattern: /\{\{\s*[A-Za-z_][A-Za-z0-9_]*\s*(?:\|[a-z]+)?\s*\}\}/g },
 ];
 
 const findLeaks = (text) => {
@@ -80,7 +86,9 @@ const findLeaks = (text) => {
 // --- run -----------------------------------------------------------------------
 
 const items = loadSeedItems();
-const selected = limit ? items.slice(0, limit) : items;
+const selected = stride
+  ? items.filter((unused, index) => index % stride === 0)
+  : (limit ? items.slice(0, limit) : items);
 console.log(`Auditing ${selected.length} of ${items.length} seed questions against ${ORIGIN}`);
 
 const browser = await chromium.launch({
@@ -97,26 +105,40 @@ let rendered = 0;
 let skipped = 0;
 
 for (const item of selected) {
-  // The production issuability gate. A question the server would refuse to
-  // issue is not one a student can see, so auditing its rendering would be
-  // auditing something that never reaches a screen.
+  // A TEMPLATE IS NOT WHAT A STUDENT SEES. Once the bank became generative,
+  // rendering the stored record meant rendering `{{m}}` — and finding nothing
+  // wrong with it, because the leak patterns look for LaTeX, not placeholders.
+  // Generate first, exactly as `issueNextQuestion` does, so the audit is
+  // looking at the question rather than the recipe.
   // eslint-disable-next-line no-await-in-loop
-  const plan = await mathPath.buildIssuePlan(item);
-  if (!plan.issuable) { skipped += 1; continue; }
+  const instantiated = await mathPath.instantiateQuestion(item, `audit|${item.id}`);
+  if (!instantiated.question) { skipped += 1; continue; }
+  const issued = instantiated.question;
 
-  const questionInstance = mathPath.buildSanitizedQuestion(item, {
+  // The production issuability gate, applied to the INSTANCE. Checking the
+  // template instead skipped questions that generate perfectly well, because a
+  // template's `expected` is a placeholder and the gate reads answers.
+  // eslint-disable-next-line no-await-in-loop
+  const issuedPlan = await mathPath.buildIssuePlan(issued);
+  if (!issuedPlan.issuable) { skipped += 1; continue; }
+
+  const questionInstance = mathPath.buildSanitizedQuestion(issued, {
     questionInstanceId: `audit-${item.id}`,
     attemptsAllowed: 3,
     attemptsUsed: 0,
-    toolPayload: plan.toolPayload,
+    toolPayload: issuedPlan.toolPayload,
   });
 
+  // Read the review, feedback and hint off the GENERATED question too. Taking
+  // them from the stored record put `{{rate}}` on the audit's screen and
+  // reported it as a content defect, when it was the harness reading the recipe
+  // for three fields and the question for the rest.
   const scene = {
     id: item.id,
     questionInstance,
-    solutionReview: item.solutionReview || null,
-    feedback: Array.isArray(item.attemptFeedback) ? item.attemptFeedback[0] || null : null,
-    hint: Array.isArray(item.supportHints) ? item.supportHints[0] || null : null,
+    solutionReview: issued.solutionReview || null,
+    feedback: Array.isArray(issued.attemptFeedback) ? issued.attemptFeedback[0] || null : null,
+    hint: Array.isArray(issued.supportHints) ? issued.supportHints[0] || null : null,
   };
 
   // eslint-disable-next-line no-await-in-loop

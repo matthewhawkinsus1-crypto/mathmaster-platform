@@ -8,7 +8,7 @@ import { finalizeSecureExam, issueSecureExamQuestion, recordSecureExamIntegrityE
 const terminal = new Set([EXAM_RUNTIME_STATES.SUBMITTED, EXAM_RUNTIME_STATES.TIME_EXPIRED, EXAM_RUNTIME_STATES.FORCE_SUBMITTED]);
 const locked = new Set([EXAM_RUNTIME_STATES.LOCKED_INTEGRITY, EXAM_RUNTIME_STATES.LOCKED_PROCTOR]);
 
-export const SecureExamContainer = ({ examSessionId, examType = 'digitalSAT', studentSupportProfile = null, onFinished = null }) => {
+export const SecureExamContainer = ({ examSessionId, examType = 'digitalSAT', studentSupportProfile = null, onFinished = null, onExitAfterFinished = null }) => {
   const [session, setSession] = useState(null);
   const [question, setQuestion] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -97,7 +97,7 @@ export const SecureExamContainer = ({ examSessionId, examType = 'digitalSAT', st
 
   if (!session) return <div style={{ minHeight: '70vh', display: 'grid', placeItems: 'center', padding: 20 }}><section style={{ width: 'min(560px,100%)', textAlign: 'center', padding: 30, border: '1px solid #dadce0', borderRadius: 14, background: '#fff' }}><h1>Secure exam simulation</h1><p style={{ color: '#5f6368', lineHeight: 1.55 }}>Starting enters full-screen when your browser permits it. Focus changes and restricted actions are recorded for your proctor. This is monitored web delivery, not an operating-system lockdown browser.</p>{error && <p role="alert" style={{ color: '#b3261e' }}>{error}</p>}<button type="button" disabled={busy} onClick={start} style={{ minHeight: 48, padding: '10px 22px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 900 }}>{busy ? 'Starting…' : 'Start exam'}</button></section></div>;
 
-  if (terminal.has(session.status)) return <div style={{ minHeight: '70vh', display: 'grid', placeItems: 'center', padding: 20 }}><section style={{ width: 'min(560px,100%)', textAlign: 'center', padding: 30, borderRadius: 14, background: '#e6f4ea', color: '#0d652d' }}><h1>Exam recorded</h1><p>Your responses were submitted. Correctness and scores remain hidden until your teacher releases feedback.</p></section></div>;
+  if (terminal.has(session.status)) return <div style={{ minHeight: '70vh', display: 'grid', placeItems: 'center', padding: 20 }}><section style={{ width: 'min(560px,100%)', textAlign: 'center', padding: 30, borderRadius: 14, background: '#e6f4ea', color: '#0d652d' }}><h1>Exam recorded</h1><p>{session.feedbackReleased ? 'Your teacher has released feedback. Return to Secure exams to review your questions and standards.' : 'Your responses were submitted. Correctness and scores remain hidden until your teacher releases feedback.'}</p>{onExitAfterFinished && <button type="button" onClick={onExitAfterFinished} style={{ minHeight: 44, marginTop: 10, padding: '8px 14px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Back to secure exams</button>}</section></div>;
 
   return <div style={{ minHeight: '100dvh', background: '#f8f9fa', position: 'relative' }}>
     <ExamPrepHeader examType={session.examType || examType} questionOrdinal={Number(session.summary?.completedQuestions || 0) + 1} totalQuestions={session.requiredQuestions} expiresAt={session.expiresAt} onTimeExpired={() => finish('timeExpired')} />

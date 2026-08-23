@@ -236,7 +236,14 @@ export const LessonPreflightModal = ({
     guidedNotesBySection: { ...(current.guidedNotesBySection || {}), [role]: value },
   }));
   const resolvedSectionVariantModes = Object.fromEntries(activityRoles.map((role) => [role, sectionVariantMode(role)]));
-  const legacyVariantMode = Object.values(resolvedSectionVariantModes).every((mode) => mode === 'shared') ? 'shared' : 'personalized';
+  // The assignment-level value is a COMPATIBILITY field for readers that predate
+  // per-section modes. It must never report 'shared' for a bundle that is not
+  // shared, and it reports 'adaptive' only when a section genuinely is — an old
+  // reader seeing 'adaptive' falls back to variant behaviour, which is right.
+  const sectionModeValues = Object.values(resolvedSectionVariantModes);
+  const legacyVariantMode = sectionModeValues.every((mode) => mode === 'shared')
+    ? 'shared'
+    : sectionModeValues.some((mode) => mode === 'adaptive') ? 'adaptive' : 'personalized';
   const localToday = (() => {
     const date = new Date();
     const year = date.getFullYear();
@@ -357,13 +364,18 @@ export const LessonPreflightModal = ({
         <p style={{ color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>{honorsSelected ? 'Honors periods are validated from the saved class designation. When Standard and Honors destinations are selected together, MathMaster creates destination variants from this one source assignment.' : 'No selected class is designated Honors. Standard validation applies.'}</p>
         {honorsSelected && honorsReport.isNarrowCheckpoint && <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: '#e8f0fe', color: '#174ea6', fontSize: 12, lineHeight: 1.5 }}><strong>Narrow Honors checkpoint.</strong> Warm-Ups and DOLs with three or fewer items may stay focused on the current TEKS. Depth, prerequisite repair, and CCMR are balanced across the recent Honors sequence instead of forced into every short check.</div>}
         {honorsSelected && !honorsReport.isNarrowCheckpoint && <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(190px, 1fr))', gap: 7 }}>{[
-          ['coreTeks', 'Core TEKS'], ['higherOrderReasoning', 'Higher-order reasoning'], ['multipleRepresentations', 'Multiple representations'], ['justification', 'Explanation / justification'], ['modelingApplication', 'Modeling / application'], ['ccmrEnrichment', 'CCMR enrichment'],
+          ['coreTeks', 'Core TEKS'], ['higherOrderReasoning', 'Higher-order reasoning'], ['multipleRepresentations', 'Multiple representations'], ['justification', 'Explanation / justification'], ['modelingApplication', 'Modeling / application'], ['ccmrEnrichment', 'Authentic CCMR Practice'],
         ].map(([key, label]) => <div key={key} style={{ padding: '8px 10px', borderRadius: 8, background: honorsReport.checks[key] ? '#e6f4ea' : '#fff4ce', color: honorsReport.checks[key] ? '#137333' : '#7a4f00', fontWeight: 800, fontSize: 12 }}>{honorsReport.checks[key] ? '✓' : '!'} {label}</div>)}</div>}
-        {honorsSelected && !honorsReport.isNarrowCheckpoint && !honorsReport.isHonorsReady && <button type="button" onClick={() => {
+        {honorsSelected && !honorsReport.isNarrowCheckpoint && !honorsReport.checks.ccmrEnrichment && (
+          <div style={{ marginTop: 11, padding: '11px 13px', borderRadius: 9, background: '#fff4ce', border: '1px solid #f0d489', color: '#7a4f00', fontSize: 12.5, lineHeight: 1.55 }}>
+            <strong>Authentic CCMR Practice is still needed.</strong> For a full Honors assignment, include at least one independent Practice question deliberately written in Digital SAT, ACT, TSIA2, or ASVAB style and aligned to mathematics actually taught in this lesson. MathMaster will not invent or relabel an ordinary course question here. The AI authoring contract now requires this when you ask for Honors work.
+          </div>
+        )}
+        {honorsSelected && !honorsReport.isNarrowCheckpoint && !honorsReport.isHonorsReady && honorsReport.missing.some((key) => key !== 'ccmrEnrichment') && <button type="button" onClick={() => {
           const firstHonorsPeriod = rigorDestinations.honors[0];
           setHonorsEnrichmentQuestion(buildHonorsEnrichmentQuestion({ questions: sourceRigorQuestions, course: courseProfiles?.[firstHonorsPeriod]?.course || 'algebra1' }));
-        }} style={{ marginTop: 12, minHeight: 44, padding: '9px 15px', border: 0, borderRadius: 8, background: '#6f2da8', color: '#fff', fontWeight: 900 }}>Build Honors Enrichment</button>}
-        {honorsEnrichmentQuestion && <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: '#e6f4ea', color: '#137333', fontSize: 12 }}><strong>MathMaster enrichment addendum prepared.</strong> It will be added only to the Honors destination variant after teacher confirmation.</div>}
+        }} style={{ marginTop: 12, minHeight: 44, padding: '9px 15px', border: 0, borderRadius: 8, background: '#6f2da8', color: '#fff', fontWeight: 900 }}>Build Honors Depth Extension</button>}
+        {honorsEnrichmentQuestion && <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: '#e6f4ea', color: '#137333', fontSize: 12 }}><strong>MathMaster depth extension prepared.</strong> It strengthens modeling/justification for the Honors destination, but it does not substitute for an authentic CCMR-style Practice item.</div>}
         {honorsSelected && honorsReport.isHonorsReady && !honorsReport.isNarrowCheckpoint && !honorsEnrichmentQuestion && <div style={{ marginTop: 10, color: '#137333', fontWeight: 800, fontSize: 12 }}>✓ Source assignment already satisfies the Honors contract; MathMaster will not rewrite it.</div>}
       </fieldset>
     </section>
@@ -389,18 +401,35 @@ export const LessonPreflightModal = ({
       <fieldset style={fieldsetStyle}>
         <legend style={legendStyle}>Question versions by section</legend>
         <p style={{ margin: '0 0 12px', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>
-          Choose independently for each bundled section. Shared gives every student the same authored/generated version in that section. Personalized gives students different versions wherever the question supports generation or variants; fixed visuals remain fixed.
+          Choose independently for each bundled section. <strong>Same questions</strong> gives everyone the
+          identical version. <strong>Different versions</strong> keeps the task, the depth and the complexity
+          identical and changes only the numbers. <strong>Pitched to the student</strong> keeps the standard you
+          assigned and lets MathMaster move complexity and depth by one step, using what each student has
+          actually shown.
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-          {activityRoles.map((role) => (
-            <label key={role} style={labelStyle}>
-              {humanRole(role)}
-              <select value={sectionVariantMode(role)} onChange={(event) => setSectionVariantMode(role, event.target.value)} style={inputStyle}>
-                <option value="shared">Same questions for all students</option>
-                <option value="personalized">Different versions where possible</option>
-              </select>
-            </label>
-          ))}
+          {activityRoles.map((role) => {
+            // Assessment sections are offered the first two options only.
+            // Levelling a DOL or a quiz per student makes its grades
+            // incomparable, and a dropdown that quietly allows it is how that
+            // happens by accident rather than by decision.
+            const isAssessment = ['dol', 'quiz', 'test', 'assessment', 'formative'].includes(String(role).toLowerCase());
+            return (
+              <label key={role} style={labelStyle}>
+                {humanRole(role)}
+                <select value={sectionVariantMode(role)} onChange={(event) => setSectionVariantMode(role, event.target.value)} style={inputStyle}>
+                  <option value="shared">Same questions for all students</option>
+                  <option value="personalized">Different versions, same difficulty</option>
+                  {!isAssessment && <option value="adaptive">Pitched to the student</option>}
+                </select>
+                {isAssessment && (
+                  <span style={{ display: 'block', marginTop: 4, color: '#5f6368', fontSize: 11, lineHeight: 1.45 }}>
+                    Assessment sections keep one rigor for everyone, so the results stay comparable.
+                  </span>
+                )}
+              </label>
+            );
+          })}
         </div>
       </fieldset>
 

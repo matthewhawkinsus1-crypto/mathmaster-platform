@@ -57,8 +57,31 @@ const loadSeed = async () => {
 const planAll = async (documents) => {
   const plans = {};
   for (const document of documents) {
+    // First enforce the exact template boundary gate used by the importer. A
+    // generator is valid only if sampled concrete instances really issue.
     // eslint-disable-next-line no-await-in-loop
-    plans[document.id] = await mathPath.buildIssuePlan(document);
+    const templatePlan = await mathPath.buildTemplateIssuePlan(document);
+    if (!templatePlan.issuable) {
+      plans[document.id] = templatePlan;
+      continue;
+    }
+    // Then build one deterministic concrete instance so the remainder of this
+    // suite can inspect the real secure grading route (field vs tool). Raw
+    // generator placeholders are not themselves a student question.
+    // eslint-disable-next-line no-await-in-loop
+    const instantiated = await mathPath.instantiateQuestion(document, `seed-test|${document.id}`);
+    if (!instantiated.question) {
+      plans[document.id] = { issuable: false, reason: instantiated.reason || "generator_failed" };
+      continue;
+    }
+    // eslint-disable-next-line no-await-in-loop
+    const issuePlan = await mathPath.buildIssuePlan(instantiated.question);
+    plans[document.id] = {
+      ...issuePlan,
+      issuable: templatePlan.issuable && issuePlan.issuable,
+      reason: templatePlan.reason || issuePlan.reason,
+      templateSamples: templatePlan.samples,
+    };
   }
   return plans;
 };
@@ -137,17 +160,24 @@ test('a multiple-choice item ships real selectable options', () => {
   });
 });
 
-test('the correct option is not always in the same place', () => {
-  // 460 of 472 starter items had the correct option first. A student learns
-  // that in three questions, and from then on the item measures nothing.
+test('the correct option is not always in the same place', async () => {
+  // Generator-backed families may intentionally keep a stable answer ID while
+  // the server deterministically shuffles the rendered option order. Test the
+  // concrete question a student receives, not the raw template's ID naming.
   const counts = new Map();
   let total = 0;
-  SEED.forEach((entry) => {
-    if (!(entry.choices || []).length) return;
-    const expected = String(entry.responseFields[0].expected);
-    counts.set(expected, (counts.get(expected) || 0) + 1);
+  for (const entry of SEED) {
+    if (!(entry.choices || []).length) continue;
+    // eslint-disable-next-line no-await-in-loop
+    const instantiated = await mathPath.instantiateQuestion(entry, `choice-position|${entry.id}`);
+    const question = instantiated.question;
+    assert.ok(question, `${entry.id} could not be instantiated for choice-position audit`);
+    const expected = String(question.responseFields?.[0]?.expected ?? '');
+    const position = (question.choices || []).findIndex((choice) => String(choice?.id) === expected);
+    assert.ok(position >= 0, `${entry.id}'s expected answer is not one of its generated options`);
+    counts.set(position, (counts.get(position) || 0) + 1);
     total += 1;
-  });
+  }
   const worstShare = Math.max(...counts.values()) / total;
   assert.ok(worstShare <= 0.4, `${Math.round(worstShare * 100)}% of choice items share one answer position`);
 });
@@ -157,7 +187,7 @@ test('the correct option is not always in the same place', () => {
 const coverageFor = (courseId) => buildCoverageIndex({
   courseId,
   wheelTeks: getWheelTeksForCourse(courseId),
-  bankItems: SEED,
+  bankItems: SEED.filter(isCourseItem),
   plans: PLANS,
 });
 
@@ -216,8 +246,10 @@ const routeableTargets = () => ([
   ...REACHABLE_PREREQUISITES,
 ]);
 
+const isCourseItem = (entry) => String(entry?.assessmentContext?.framework || 'course') === 'course';
 const candidatesFor = (code) => SEED.filter((entry) => (
   entry.active !== false
+  && isCourseItem(entry)
   && (entry.alignmentKeys || []).some((key) => String(key).replace(/^texas:/i, '').toUpperCase() === code.toUpperCase())
   && PLANS[entry.id]?.issuable
 ));
@@ -290,6 +322,34 @@ test('nothing a student receives carries the answer', () => {
     const stimulusKeys = collectKeys(stimulus || {});
     ['expected', 'accepted', 'correct', 'answer'].forEach((key) => {
       assert.ok(!stimulusKeys.has(key), `${entry.id} put "${key}" inside its stimulus`);
+    });
+  });
+});
+
+const ASSESSMENT_BANK_EXPECTATIONS = Object.freeze({
+  digitalSAT: { documents: 1045, standards: 209 },
+  act: { documents: 1125, standards: 225 },
+  tsia2: { documents: 1125, standards: 225 },
+  asvab: { documents: 730, standards: 146 },
+});
+
+Object.entries(ASSESSMENT_BANK_EXPECTATIONS).forEach(([framework, expected]) => {
+  test(`${framework} standards have five directly-authored exam-style families and stay out of course selection`, () => {
+    const items = SEED.filter((entry) => entry?.assessmentContext?.framework === framework && entry?.assessmentContext?.examStyle === true);
+    assert.equal(items.length, expected.documents);
+    const byCode = new Map();
+    items.forEach((entry) => {
+      (entry.alignmentKeys || []).forEach((key) => {
+        const code = String(key).replace(/^texas:/i, '').toUpperCase();
+        if (!byCode.has(code)) byCode.set(code, []);
+        byCode.get(code).push(entry);
+      });
+    });
+    assert.equal(byCode.size, expected.standards);
+    byCode.forEach((families, code) => {
+      assert.equal(new Set(families.map((entry) => entry.familyId)).size, 5, `${code} does not have five distinct ${framework} families`);
+      assert.ok(families.every((entry) => entry.assessmentContext.framework === framework));
+      assert.ok(families.every((entry) => !candidatesFor(code).includes(entry)), `${code} leaked ${framework} content into course candidates`);
     });
   });
 });

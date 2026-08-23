@@ -43,6 +43,19 @@ export const buildAttemptEvidenceEvent = ({
   attemptResult,
   supportUsage = {},
   occurredAt = Date.now(),
+  // WHAT THE STUDENT ACTUALLY RECEIVED.
+  //
+  // The snapshot below used to read DOK and difficulty off the question
+  // TEMPLATE. That is not what the student answered: per-band content profiles
+  // could already substitute a different band, and adaptive assignments move
+  // the band deliberately. A student could answer the Band 2 version and have
+  // Band 3 recorded — and these events are the input to every mastery profile,
+  // so every DOK and difficulty conclusion downstream was drawn from what the
+  // question claimed rather than from what was delivered.
+  //
+  // Supplied by `resolveDeliveredQuestionMetadata`. Absent means "not adapted",
+  // and the template values stand.
+  delivered = null,
 }) => {
   const metadata = normalizeQuestionInstructionalMetadata(question || {}, assignment || {});
   const declaredEvidenceKeys = Array.isArray(question?.masteryEvidenceKeys) ? question.masteryEvidenceKeys : [];
@@ -75,10 +88,25 @@ export const buildAttemptEvidenceEvent = ({
       familyId: String(question?.familyId || question?.toolId || question?.type || 'question'),
       familyVersion: Number(question?.familyVersion) || 1,
       questionType: String(question?.questionType || question?.type || question?.toolId || 'question'),
-      difficultyBand: metadata.difficulty.generatorBand,
-      dok: metadata.complexity.level,
+      difficultyBand: Number.isFinite(Number(delivered?.difficultyBand))
+        ? Number(delivered.difficultyBand)
+        : metadata.difficulty.generatorBand,
+      dok: Number.isFinite(Number(delivered?.dok)) ? Number(delivered.dok) : metadata.complexity.level,
+      // Kept beside the delivered values rather than replacing them: a teacher
+      // asking "was this the version I assigned?" needs both numbers.
+      assignedDifficultyBand: metadata.difficulty.generatorBand,
+      assignedDok: metadata.complexity.level,
+      adapted: Boolean(delivered?.adapted),
       variantIndex,
     },
+    // The reason, stored with the evidence, so it survives the session that
+    // produced it. Null when nothing was adapted.
+    adaptation: delivered?.adapted ? {
+      reasonCode: delivered.target?.reason || null,
+      reason: delivered.reason || null,
+      mode: delivered.target?.policy?.mode || null,
+      standardPreserved: true,
+    } : null,
     source: {
       kind: 'assignment',
       assignmentId: String(assignment?.id || ''),

@@ -1,6 +1,9 @@
 import React from 'react';
-import { EmptyState, ProgressBar, StatCard } from '../../ui/primitives';
+import { EmptyState, ProgressBar } from '../../ui/primitives';
 import RecommendedSkills from './RecommendedSkills.jsx';
+import AssignmentGroup from './AssignmentGroup.jsx';
+import WhatShouldIDoNow from './WhatShouldIDoNow.jsx';
+import { BUCKET_LABEL, BUCKET_OPEN_BY_DEFAULT, BUCKET_ORDER } from '../../studentDashboardModel.js';
 import DOLCountdown from './DOLCountdown.jsx';
 import { formatDateTime, formatRemainingTime } from '../../assignmentLifecycle';
 
@@ -42,6 +45,9 @@ export default function StudentDashboardView({
   onStartAssignment,
   onOpenMathPath = null,
   onOpenSecureExams = null,
+  // The single answer to "what should I do now?", already decided by
+  // resolveNextAction. Null in contexts that render the list alone.
+  nextAction = null,
   liveChallengeInvite = null,
   onOpenLiveChallenge = null,
   onLogout = null,
@@ -50,8 +56,15 @@ export default function StudentDashboardView({
 }) {
   const {
     visibleAssignments, resumeAssignment, resumeQuestionIndex, resumeLifecycle,
-    activeDols, doNowEntries, comingUpEntries, completedEntries,
+    activeDols, doNowEntries, comingUpEntries, completedEntries, groups,
   } = dashboard;
+
+  // A group is only worth a heading when it has something in it. Six headings
+  // reading "0 items" looks like a system with nothing to offer.
+  const GROUP_HINTS = {
+    pastDue: 'Late work is still open and still counts.',
+    practice: 'Past its due date, so it no longer changes your grade — but the practice still counts toward what you know.',
+  };
 
   const renderAssignmentCard = ({ assignment, isAttempted, lifecycle, access, recordedGrade, activity, classwork, dol, disabled, feedbackHeld, questionsTotal, questionsDone }) => {
     const statusStyle = lifecycle.isPracticeOnly ? { border: '#5f6368', bg: '#f1f3f4', color: '#3c4043', label: 'Practice only' } : lifecycle.isLate ? { border: '#f9ab00', bg: '#fff4ce', color: '#7a4f00', label: 'Late' } : lifecycle.isScheduled ? { border: '#9aa0a6', bg: '#f1f3f4', color: '#3c4043', label: 'Scheduled' } : { border: '#d8dde6', bg: '#e6f4ea', color: '#137333', label: 'On time' };
@@ -97,6 +110,15 @@ export default function StudentDashboardView({
           </section>
         )}
 
+        {/* One answer, above everything else on the page. */}
+        {nextAction && (
+          <WhatShouldIDoNow
+            nextAction={nextAction}
+            onStartAssignment={(assignment, questionIndex) => onStartAssignment(assignment.id, questionIndex || 0)}
+            onOpenMathPath={onOpenMathPath}
+          />
+        )}
+
         {activeDols.map(({ assignment, state }) => (
           <section key={assignment.id} style={{ marginBottom: '18px', padding: '22px 25px', borderRadius: '16px', background: '#f3e8fd', border: '3px solid #9334e6', color: '#4a126b', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>
             <div><div style={{ fontSize: '13px', fontWeight: 900, textTransform: 'uppercase' }}>DOL available now</div><h2 style={{ margin: '4px 0' }}>{assignment.title} · DOL section</h2><p style={{ margin: 0 }}>Complete all {(state.questionIndices || [state.questionIndex]).length} DOL question{(state.questionIndices || [state.questionIndex]).length === 1 ? '' : 's'} before the timer reaches zero.</p>{!supportPresentation.hideCountdowns && <div style={{ marginTop: '8px', fontSize: '22px', fontWeight: 1000 }}><DOLCountdown endsAt={state.endsAt} /> remaining</div>}</div>
@@ -119,33 +141,31 @@ export default function StudentDashboardView({
           />
         ) : (
           <>
-            {/* At-a-glance counts, so a student can see what is waiting
-                without reading three lists first. */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px', marginBottom: '26px' }}>
-              <StatCard label="Do now" value={doNowEntries.length} tone={doNowEntries.length > 0 ? 'warning' : 'success'} hint={doNowEntries.length ? 'Needs attention' : 'All caught up'} />
-              <StatCard label="Coming up" value={comingUpEntries.length} tone="primary" />
-              <StatCard label="Completed" value={completedEntries.length} tone="success" />
-            </div>
+            {/* GROUPS, NOT ONE LONG LIST.
+                Three headings works at four assignments and stops working at
+                twenty-two, which is a normal amount of work by November. The
+                ones a student must act on are open; the rest show their count
+                and open on one press. */}
+            {BUCKET_ORDER.map((bucket) => (
+              <AssignmentGroup
+                key={bucket}
+                bucket={bucket}
+                label={BUCKET_LABEL[bucket]}
+                entries={(groups && groups[bucket]) || []}
+                defaultOpen={BUCKET_OPEN_BY_DEFAULT[bucket]}
+                hint={GROUP_HINTS[bucket] || null}
+                renderEntry={renderAssignmentCard}
+              />
+            ))}
 
-            <h2 style={{ color: '#202124', textAlign: 'left' }}>Do Now</h2>
-            {doNowEntries.length === 0 ? (
-              <EmptyState icon="✅" title="All caught up" message="Nothing needs your attention right now. Check Coming Up for what's next." />
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '10px' }}>{doNowEntries.map(renderAssignmentCard)}</div>
-            )}
-
-            <h2 style={{ color: '#202124', textAlign: 'left', marginTop: '30px' }}>Coming Up</h2>
-            {comingUpEntries.length === 0 ? (
-              <EmptyState icon="📅" title="Nothing else scheduled" message="When your teacher schedules more work, it will appear here before it opens." />
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '10px' }}>{comingUpEntries.map(renderAssignmentCard)}</div>
-            )}
-
-            {completedEntries.length > 0 && (
-              <details style={{ marginTop: '30px', textAlign: 'left' }}>
-                <summary style={{ cursor: 'pointer', fontWeight: 900, fontSize: '19px', color: '#202124', padding: '4px 0' }}>Completed ({completedEntries.length})</summary>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '15px' }}>{completedEntries.map(renderAssignmentCard)}</div>
-              </details>
+            {/* Every group empty is a real state and deserves a sentence, not a
+                blank space where the work would be. */}
+            {BUCKET_ORDER.every((bucket) => !((groups && groups[bucket]) || []).length) && (
+              <EmptyState
+                icon="✅"
+                title="Nothing waiting"
+                message="You have no assignments open right now. My Math Path is always there when you want to keep going."
+              />
             )}
           </>
         )}

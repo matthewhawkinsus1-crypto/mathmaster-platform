@@ -59,10 +59,11 @@ export const buildStudentAssessmentContext = ({
   assignments = [],
   goals = [],
   teacherPriorities = [],
+  evidenceEvents = [],
 } = {}) => {
   const safeAssignments = Array.isArray(assignments) ? assignments : [];
   return {
-    assessmentEvidence: buildAssessmentEvidence({ student: student || {}, assignments: safeAssignments }),
+    assessmentEvidence: buildAssessmentEvidence({ student: student || {}, assignments: safeAssignments, evidenceEvents }),
     // Direct alignment — a question authored AS an SAT item — is kept separate
     // from crosswalk overlap on purpose, and this index is what tells them
     // apart at runtime.

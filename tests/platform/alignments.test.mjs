@@ -69,14 +69,24 @@ const find = (list, framework) => list.filter((entry) => entry.framework === fra
   });
 }
 
-// --- declaring the item as SAT-style promotes that framework to direct ----
+// --- exam context alone is not direct evidence; explicit domain alignment is ---
 {
-  const satItem = {
+  const contextOnly = {
     alignments: [{ framework: 'teks', code: 'A.2A', role: 'primary' }],
     assessmentContext: { framework: 'digitalSAT', examStyle: true },
   };
+  const contextOnlyOut = normalizeQuestionAlignments(contextOnly);
+  assert.equal(find(contextOnlyOut, 'digitalSAT')[0].evidenceMode, 'crosswalk', 'assessmentContext alone cannot promote a crosswalk');
+
+  const satItem = {
+    alignments: [
+      { framework: 'teks', code: 'A.2A', role: 'primary' },
+      { framework: 'digitalSAT', domainId: 'algebra', role: 'secondary', evidenceMode: 'direct' },
+    ],
+    assessmentContext: { framework: 'digitalSAT', examStyle: true },
+  };
   const out = normalizeQuestionAlignments(satItem);
-  assert.equal(find(out, 'digitalSAT')[0].evidenceMode, 'direct', 'declared SAT item produces SAT evidence');
+  assert.equal(find(out, 'digitalSAT')[0].evidenceMode, 'direct', 'explicit SAT domain alignment produces SAT evidence');
   assert.equal(find(out, 'act')[0].evidenceMode, 'crosswalk', 'other exams stay informational');
 }
 
@@ -127,6 +137,51 @@ const find = (list, framework) => list.filter((entry) => entry.framework === fra
   const good = { alignments: [{ framework: 'teks', code: 'A.2A', role: 'primary', evidenceLevel: 'assessed' }] };
   const { errors } = validateAlignments(good);
   assert.deepEqual(errors, [], 'a well-formed alignment produces no errors');
+}
+
+{
+  const directWithoutContext = {
+    alignments: [
+      { framework: 'teks', code: 'A.5A', role: 'primary' },
+      { framework: 'digitalSAT', domainId: 'algebra', role: 'secondary', evidenceMode: 'direct' },
+    ],
+  };
+  const { errors } = validateAlignments(directWithoutContext);
+  assert.ok(errors.some((error) => /requires matching assessmentContext with examStyle:true/.test(error)));
+  assert.ok(getDirectEvidenceAlignments(directWithoutContext).every((entry) => entry.framework === 'teks'));
+}
+
+{
+  const missingDirectDomain = {
+    alignments: [{ framework: 'teks', code: 'A.5A', role: 'primary' }],
+    assessmentContext: { framework: 'digitalSAT', examStyle: true },
+  };
+  const { errors } = validateAlignments(missingDirectDomain);
+  assert.ok(errors.some((error) => /no explicit digitalSAT domain alignment/.test(error)));
+}
+
+{
+  const mismatchedDomain = {
+    alignments: [
+      { framework: 'teks', code: 'A.5A', role: 'primary' },
+      { framework: 'digitalSAT', domainId: 'advancedMath', role: 'secondary', evidenceMode: 'direct' },
+    ],
+    assessmentContext: { framework: 'digitalSAT', examStyle: true },
+  };
+  const { errors } = validateAlignments(mismatchedDomain);
+  assert.ok(errors.some((error) => /none of its TEKS alignments crosswalk/.test(error)));
+}
+
+{
+  const validDirect = {
+    alignments: [
+      { framework: 'teks', code: 'A.5A', role: 'primary' },
+      { framework: 'digitalSAT', domainId: 'algebra', role: 'secondary', evidenceMode: 'direct' },
+    ],
+    assessmentContext: { framework: 'digitalSAT', examStyle: true },
+  };
+  const { errors } = validateAlignments(validDirect);
+  assert.deepEqual(errors, []);
 }
 
 {

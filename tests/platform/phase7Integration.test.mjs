@@ -38,17 +38,61 @@ test('course rigor is class-level and defaults safely to Standard', () => {
   assert.equal(profiles['Period 3'].courseLabel, 'Algebra II');
 });
 
-test('Honors contract catches shallow imports and deterministic enrichment satisfies the missing depth/CCMR contract', () => {
-  const source = [{ type: 'algebra', teks: ['A.5A'], dok: 1, prompt: 'Solve 3x + 4 = 40.', generator: { kind: 'linear' } }];
+test('Honors contract requires authentic exam-style Practice and keeps depth enrichment separate', () => {
+  const source = [{ type: 'algebra', teks: ['A.5A'], dok: 1, activityRole: 'practice', prompt: 'Solve 3x + 4 = 40.', generator: { kind: 'linear' } }];
   const before = inspectHonorsRigor(source);
   assert.equal(before.isHonorsReady, false);
   assert.equal(before.checks.ccmrEnrichment, false);
+
+  // A MathMaster-generated depth extension can strengthen Honors rigor, but it
+  // must not masquerade as direct SAT/ACT/TSIA2/ASVAB practice.
   const enrichment = buildHonorsEnrichmentQuestion({ questions: source, course: 'algebra1' });
   assert.equal(enrichment.type, 'graphStory');
-  assert.equal(enrichment.ccmr, true);
+  assert.equal(enrichment.ccmr, undefined);
+  assert.equal(enrichment.activityRole, 'classwork');
   assert.equal(enrichment.variants.length >= 2, true);
-  const after = inspectHonorsRigor([...source, enrichment]);
+  const depthOnly = inspectHonorsRigor([...source, enrichment]);
+  assert.equal(depthOnly.checks.ccmrEnrichment, false);
+  assert.equal(depthOnly.isHonorsReady, false);
+
+  // A keyword or legacy flag is not authentic exam-style practice.
+  const fakeSat = {
+    type: 'response', activityRole: 'practice', teks: ['A.5A'], dok: 2,
+    ccmr: true, prompt: 'SAT-style: solve the equation.',
+  };
+  assert.equal(inspectHonorsRigor([...source, enrichment, fakeSat]).checks.ccmrEnrichment, false);
+
+  const directSat = {
+    type: 'response', activityRole: 'practice', dok: 2,
+    prompt: 'If $f(x)=3x+4$, what is $f(12)$?',
+    alignments: [
+      { framework: 'teks', code: 'A.5A', primary: true },
+      { framework: 'digitalSAT', domainId: 'algebra', alignmentType: 'direct' },
+    ],
+    assessmentContext: { framework: 'digitalSAT', examStyle: true },
+  };
+  const after = inspectHonorsRigor([...source, enrichment, directSat]);
+  assert.equal(after.checks.ccmrEnrichment, true);
   assert.equal(after.isHonorsReady, true);
+  assert.equal(after.checks.coreTeks, true, 'canonical alignments count as TEKS evidence');
+
+  const wrongDomain = {
+    ...directSat,
+    alignments: [
+      { framework: 'teks', code: 'A.5A', primary: true },
+      { framework: 'digitalSAT', domainId: 'advancedMath', alignmentType: 'direct' },
+    ],
+  };
+  assert.equal(inspectHonorsRigor([...source, enrichment, wrongDomain]).checks.ccmrEnrichment, false, 'valid domain ids still must match the TEKS crosswalk');
+
+  const unrelatedLessonTeks = {
+    ...directSat,
+    alignments: [
+      { framework: 'teks', code: 'A.2B', primary: true },
+      { framework: 'digitalSAT', domainId: 'algebra', alignmentType: 'direct' },
+    ],
+  };
+  assert.equal(inspectHonorsRigor([...source, enrichment, unrelatedLessonTeks]).checks.ccmrEnrichment, false, 'exam item must transfer a TEKS taught in the assignment');
 
   const narrowDol = inspectHonorsRigor([
     { type: 'algebra', activityRole: 'dol', teks: ['A.5A'], dok: 1, prompt: 'Solve 3x + 4 = 40.' },
@@ -60,9 +104,10 @@ test('Honors contract catches shallow imports and deterministic enrichment satis
   const mix = summarizeRigorSequence([{ assignedClassPeriods: ['Period 2'], dueDate: '2026-08-08', questions: [
     { teks: ['A.5A'], prompt: 'Core' },
     { teks: ['A.5A'], prerequisite: true, prompt: 'Foundation' },
-    { teks: ['A.5A'], ccmr: true, prompt: 'SAT model' },
+    fakeSat,
+    directSat,
   ] }], 'Period 2');
-  assert.deepEqual(mix.counts, { core: 1, prerequisite: 1, ccmr: 1 });
+  assert.deepEqual(mix.counts, { core: 2, prerequisite: 1, ccmr: 1 });
   assert.deepEqual(mix.target, { core: 75, prerequisite: 10, ccmr: 15 });
 });
 

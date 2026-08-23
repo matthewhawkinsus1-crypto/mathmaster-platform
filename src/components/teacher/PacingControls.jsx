@@ -2,17 +2,17 @@ import { useMemo, useState } from 'react';
 import { CLASS_PERIODS } from '../../assignmentLifecycle';
 import { getSkillGraph, describeSkill } from '../../platform/path/skillGraph';
 import { explainForStudent } from '../../platform/path/recommendationEngine';
-import { buildStudentPathOptions, resolvePacingProvider } from '../../platform/path/studentPathOptions';
+import { buildStudentPathOptions, deriveAutomaticClassPacing, resolvePacingProvider } from '../../platform/path/studentPathOptions';
 import { describeToday, loadCalendar } from '../../platform/path/curriculumCalendar';
 import {
-  OVERRIDE_ACTIONS, getPacingForClass, overridesForClass, removeOverride, upsertOverride,
+  OVERRIDE_ACTIONS, normalizePacingByClass, overridesForClassContext, removeOverride, upsertOverride,
 } from '../../platform/path/pathStore';
 
 // Teacher pacing and skill overrides.
 //
-// This is the screen that makes the engine's *timing* dimension real. Until a
-// teacher says where their class actually is, every skill is treated as
-// current and the adaptive path can only reason about prerequisites.
+// This screen is an OPTIONAL teacher override over autonomous pacing. Students
+// have a Path without touching this page; teachers use it only when the live
+// calendar/assignment anchor needs a local adjustment.
 //
 // What is set here reaches students directly: Recommended for You and the
 // student Path are both built from this pacing, so a position set on this
@@ -62,6 +62,8 @@ const PREVIEW_ORDER = ['required', 'remediation', 'priority', 'recommended', 'av
 export default function PacingControls({
   // The fallback for a class with no course set, not a global setting.
   courseId: fallbackCourseId = 'algebra1',
+  classes = [],
+  assignments = [],
   // period -> { course, courseLabel, ... }, exactly as the teacher's class
   // settings store it.
   courseProfiles = {},
@@ -72,15 +74,57 @@ export default function PacingControls({
   onSaveOverrides,
   busy = false,
 }) {
-  const [classId, setClassId] = useState(CLASS_PERIODS[0] || 'Period 1');
-  const classProfile = courseProfiles?.[classId] || null;
+  const classOptions = useMemo(() => {
+    const live = (Array.isArray(classes) ? classes : [])
+      .filter((entry) => entry?.classId && entry?.status !== 'archived')
+      .map((entry) => ({
+        key: entry.classId,
+        period: entry.period || '',
+        name: entry.name || entry.classId,
+        course: entry.course || fallbackCourseId,
+        courseLevel: entry.courseLevel || 'standard',
+        courseLabel: entry.courseLabel || entry.name || entry.course || fallbackCourseId,
+      }));
+    if (live.length) return live;
+    return CLASS_PERIODS.map((period) => ({
+      key: period,
+      period,
+      name: period,
+      course: courseProfiles?.[period]?.course || fallbackCourseId,
+      courseLevel: courseProfiles?.[period]?.courseLevel || 'standard',
+      courseLabel: courseProfiles?.[period]?.courseLabel || courseProfiles?.[period]?.course || fallbackCourseId,
+    }));
+  }, [classes, courseProfiles, fallbackCourseId]);
+
+  const [selectedClassKey, setSelectedClassKey] = useState('');
+  const classId = classOptions.some((entry) => entry.key === selectedClassKey)
+    ? selectedClassKey
+    : (classOptions[0]?.key || CLASS_PERIODS[0] || 'Period 1');
+  const selectedClass = classOptions.find((entry) => entry.key === classId) || null;
+  const classProfile = selectedClass || courseProfiles?.[selectedClass?.period || classId] || null;
   const courseId = classProfile?.course || fallbackCourseId;
   const [skillFilter, setSkillFilter] = useState('');
   const [previewOpen, setPreviewOpen] = useState(false);
 
+  const classAssignments = useMemo(() => (
+    (Array.isArray(assignments) ? assignments : []).filter((assignment) => {
+      const periods = Array.isArray(assignment?.assignedClassPeriods) ? assignment.assignedClassPeriods : [];
+      return selectedClass?.period ? periods.includes(selectedClass.period) : false;
+    })
+  ), [assignments, selectedClass]);
+
   const skills = useMemo(() => getSkillGraph(courseId), [courseId]);
-  const pacing = useMemo(() => getPacingForClass(pacingByClass, classId), [pacingByClass, classId]);
-  const classOverrides = useMemo(() => overridesForClass(overrides, classId), [overrides, classId]);
+  const storedPacing = useMemo(() => {
+    const normalized = normalizePacingByClass(pacingByClass);
+    return normalized[classId] || (selectedClass?.period ? normalized[selectedClass.period] : null) || null;
+  }, [pacingByClass, classId, selectedClass]);
+  const pacing = useMemo(() => (
+    storedPacing || deriveAutomaticClassPacing({ courseId, assignments: classAssignments, skills, nowValue })
+  ), [storedPacing, courseId, classAssignments, skills, nowValue]);
+  const classOverrides = useMemo(() => overridesForClassContext(overrides, {
+    classId,
+    classPeriod: selectedClass?.period || '',
+  }), [overrides, classId, selectedClass]);
   const overrideBySkill = useMemo(
     () => Object.fromEntries(classOverrides.map((entry) => [entry.skillId, entry])),
     [classOverrides],
@@ -100,13 +144,13 @@ export default function PacingControls({
 
   const preview = useMemo(() => buildStudentPathOptions({
     student: { id: 'preview', gradesByAssignment: {} },
-    assignments: [],
+    assignments: classAssignments,
     courseId,
     pacing,
     teacherOverrides: classOverrides,
     nowValue,
   }) || { recommended: [], available: [], confidence: { level: 'low', message: '' } },
-  [courseId, pacing, classOverrides, nowValue]);
+  [courseId, pacing, classOverrides, classAssignments, nowValue]);
 
   const setPacingField = (field, value) => {
     onSavePacing?.({
@@ -140,10 +184,24 @@ export default function PacingControls({
       <div style={{ ...panel, borderLeft: '5px solid #f9ab00' }}>
         <h3 style={heading}>Curriculum pacing</h3>
         <p style={note}>
-          Tell MathMaster where this class actually is. Pacing decides whether a skill is
-          review, current, or too far ahead — it never decides whether a student is
-          mathematically ready, which comes from prerequisites and mastery.
+          MathMaster runs this class autonomously by default. Use these controls only when you want to override
+          where the class sits in the course. Pacing affects timing; prerequisites and mastery still decide readiness.
         </p>
+        <div style={{ padding: '10px 12px', borderRadius: 8, background: storedPacing ? '#eef4ff' : '#e6f4ea', color: storedPacing ? '#174ea6' : '#137333', fontSize: 13, lineHeight: 1.5, marginBottom: 14 }}>
+          <strong>{storedPacing ? 'Manual pacing override is active.' : 'Automatic pacing is active.'}</strong>{' '}
+          {storedPacing
+            ? 'Students still route autonomously from mastery and prerequisites; this class position only changes the timing window.'
+            : 'No setup is required. MathMaster uses the district calendar when available and otherwise anchors provisional pacing to open assignment TEKS.'}
+          {storedPacing && normalizePacingByClass(pacingByClass)[classId] && (
+            <button type="button" disabled={busy} onClick={() => {
+              const next = { ...pacingByClass };
+              delete next[classId];
+              onSavePacing?.(next);
+            }} style={{ marginLeft: 10, minHeight: 34, padding: '5px 10px', border: '1px solid #aecbfa', borderRadius: 7, background: '#fff', color: '#174ea6', fontWeight: 800, cursor: busy ? 'wait' : 'pointer' }}>
+              Return to automatic
+            </button>
+          )}
+        </div>
         {isProvisional ? (
           <div style={{ padding: '10px 12px', borderRadius: 8, background: '#fef7e0', color: '#7a4f00', fontSize: 13, lineHeight: 1.5, marginBottom: 14 }}>
             <strong>Provisional pacing.</strong> No district scope-and-sequence is loaded for this
@@ -163,15 +221,14 @@ export default function PacingControls({
         )}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14 }}>
-          <label style={{ fontWeight: 800 }}>Class period
-            <select value={classId} onChange={(event) => setClassId(event.target.value)} style={{ ...control, width: '100%', marginTop: 6 }}>
-              {CLASS_PERIODS.map((period) => {
-                const label = courseProfiles?.[period]?.courseLabel;
-                return <option key={period} value={period}>{label ? `${period} · ${label}` : period}</option>;
-              })}
+          <label style={{ fontWeight: 800 }}>Class
+            <select value={classId} onChange={(event) => setSelectedClassKey(event.target.value)} style={{ ...control, width: '100%', marginTop: 6 }}>
+              {classOptions.map((entry) => (
+                <option key={entry.key} value={entry.key}>
+                  {entry.period ? `${entry.name} · ${entry.period}` : entry.name} · {entry.courseLevel === 'honors' ? 'Honors' : 'Standard'}
+                </option>
+              ))}
             </select>
-            {/* Named, because everything below it — the skill list, the
-                calendar, the preview — is this course's and not the other's. */}
             <span style={{ display: 'block', marginTop: 6, fontSize: 12, fontWeight: 700, color: '#5f6368' }}>
               {classProfile?.courseLabel
                 ? `Pacing, skills and preview below are ${classProfile.courseLabel}.`
@@ -225,7 +282,7 @@ export default function PacingControls({
       </div>
 
       <div style={panel}>
-        <h3 style={heading}>Skill overrides for {classId}</h3>
+        <h3 style={heading}>Skill overrides for {selectedClass?.name || classId}</h3>
         <p style={note}>
           Overrides are stored per class, so opening a skill early for one period does not open it
           for the others, and they never modify the shared curriculum. Tap the same action again to
@@ -276,10 +333,10 @@ export default function PacingControls({
       </div>
 
       <div style={panel}>
-        <h3 style={heading}>What a student in {classId} would be offered</h3>
+        <h3 style={heading}>What a student in {selectedClass?.name || classId} would be offered</h3>
         <p style={note}>
           The real recommendation engine, run against this pacing and these overrides for a student
-          with no history yet. This is the same answer a student in {classId} gets on their own
+          with no history yet. This is the same answer a student in {selectedClass?.name || classId} gets on their own
           Path and in Recommended for You, so what you set here is what they will be offered.
         </p>
         <button

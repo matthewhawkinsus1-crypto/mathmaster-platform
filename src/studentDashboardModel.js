@@ -18,7 +18,65 @@
 
 const list = (value) => (Array.isArray(value) ? value : []);
 
-export const BUCKET = Object.freeze({ DO_NOW: 'doNow', COMING_UP: 'comingUp', COMPLETED: 'completed' });
+/**
+ * WHY THREE BUCKETS WAS NOT ENOUGH.
+ *
+ * The dashboard sorted everything into do-now / coming-up / completed, which
+ * works for a student with four assignments and stops working at twenty. Two
+ * distinctions were being lost inside "do now", and both change what a student
+ * should actually do:
+ *
+ *   PAST_DUE  — late work is not the same as work due today. Burying an overdue
+ *               assignment among today's is how it stays overdue.
+ *   IN_PROGRESS — a half-finished assignment is cheaper to finish than a new one
+ *               is to start, and a student who cannot see which ones are already
+ *               open re-starts things instead.
+ *
+ * And one was being lost entirely: PRACTICE, work that is past its deadline but
+ * still open to practise. Showing it beside graded work makes a student think
+ * they are late for something that no longer carries a grade.
+ *
+ * The order below is the priority order. It is the order the buckets are
+ * offered in and the order `nextAction` searches.
+ */
+export const BUCKET = Object.freeze({
+  IN_PROGRESS: 'inProgress',
+  PAST_DUE: 'pastDue',
+  DO_NOW: 'doNow',
+  COMING_UP: 'comingUp',
+  PRACTICE: 'practice',
+  COMPLETED: 'completed',
+});
+
+export const BUCKET_LABEL = Object.freeze({
+  [BUCKET.IN_PROGRESS]: 'Keep going',
+  [BUCKET.PAST_DUE]: 'Past due',
+  [BUCKET.DO_NOW]: 'Due today',
+  [BUCKET.COMING_UP]: 'Coming up',
+  [BUCKET.PRACTICE]: 'Practice available',
+  [BUCKET.COMPLETED]: 'Finished',
+});
+
+/**
+ * Which groups open by default.
+ *
+ * Progressive disclosure, and the rule is what a student needs to ACT on.
+ * Finished work and things not due yet are collapsed — they are reassurance and
+ * planning, not today's job.
+ */
+export const BUCKET_OPEN_BY_DEFAULT = Object.freeze({
+  [BUCKET.IN_PROGRESS]: true,
+  [BUCKET.PAST_DUE]: true,
+  [BUCKET.DO_NOW]: true,
+  [BUCKET.COMING_UP]: false,
+  [BUCKET.PRACTICE]: false,
+  [BUCKET.COMPLETED]: false,
+});
+
+export const BUCKET_ORDER = Object.freeze([
+  BUCKET.IN_PROGRESS, BUCKET.PAST_DUE, BUCKET.DO_NOW,
+  BUCKET.COMING_UP, BUCKET.PRACTICE, BUCKET.COMPLETED,
+]);
 
 /**
  * Everything the dashboard needs, in one pass.
@@ -117,10 +175,7 @@ export const buildStudentDashboardModel = ({
       const disabled = (lifecycle.isScheduled && access.reason !== 'prerequisiteMet') || !access.open;
       const done = isDone(assignment, assignmentTracker, lifecycle);
       const feedbackHeld = assignmentHasHeldTeacherFeedback(assignment);
-      const dueSoon = matchesSmartView(assignment, 'today', { nowValue }) || lifecycle.isLate;
-      const bucket = done
-        ? BUCKET.COMPLETED
-        : (!lifecycle.isScheduled && access.open && dueSoon) ? BUCKET.DO_NOW : BUCKET.COMING_UP;
+      const dueSoon = matchesSmartView(assignment, 'today', { nowValue });
 
       // "How much is left" was invisible until a student opened the
       // assignment, so a 1-question and a 12-question assignment looked
@@ -130,8 +185,28 @@ export const buildStudentDashboardModel = ({
       const questionsDone = assignmentTracker
         ? includedIndices.filter((index) => ['correct', 'expired'].includes(normalizeQuestionRecord(assignmentTracker[index]).status)).length
         : 0;
+      const started = questionsDone > 0 && questionsDone < questionsTotal;
+
+      // Order matters and encodes the priority a student should read off the
+      // screen. Finished first (nothing else applies to it), then practice-only
+      // — which is past its deadline but no longer graded, and must not sit in
+      // "past due" making a student anxious about a grade they cannot change.
+      const bucket = done
+        ? BUCKET.COMPLETED
+        : lifecycle.isPracticeOnly
+          ? BUCKET.PRACTICE
+          : disabled
+            ? BUCKET.COMING_UP
+            : started
+              ? BUCKET.IN_PROGRESS
+              : lifecycle.isLate
+                ? BUCKET.PAST_DUE
+                : dueSoon
+                  ? BUCKET.DO_NOW
+                  : BUCKET.COMING_UP;
 
       return {
+        started,
         assignment, assignmentTracker, isAttempted, lifecycle, access, recordedGrade,
         activity, classwork, dol, disabled, feedbackHeld, bucket, questionsTotal, questionsDone,
       };
@@ -147,5 +222,120 @@ export const buildStudentDashboardModel = ({
     doNowEntries: entries.filter((entry) => entry.bucket === BUCKET.DO_NOW),
     comingUpEntries: entries.filter((entry) => entry.bucket === BUCKET.COMING_UP),
     completedEntries: entries.filter((entry) => entry.bucket === BUCKET.COMPLETED),
+    inProgressEntries: entries.filter((entry) => entry.bucket === BUCKET.IN_PROGRESS),
+    pastDueEntries: entries.filter((entry) => entry.bucket === BUCKET.PAST_DUE),
+    practiceEntries: entries.filter((entry) => entry.bucket === BUCKET.PRACTICE),
+    // One list keyed by bucket, so a screen can render the groups by walking
+    // BUCKET_ORDER instead of naming six props and forgetting the seventh.
+    groups: Object.fromEntries(BUCKET_ORDER.map((bucket) => [
+      bucket, entries.filter((entry) => entry.bucket === bucket),
+    ])),
+  };
+};
+
+/**
+ * WHAT SHOULD I DO NOW? — one answer, not a dashboard.
+ *
+ * "Do not turn Home into a dashboard full of equally important boxes." A
+ * student opening MathMaster has one question, and a screen that offers six
+ * equally-weighted panels answers it by making them choose. This picks.
+ *
+ * The order is about consequence, not about recency:
+ *
+ *   1. A live DOL. It is timed and it closes. Nothing else can wait less.
+ *   2. Unfinished work. Cheaper to finish than a new thing is to start, and the
+ *      half-done state is itself a small cost the student is carrying.
+ *   3. Past due. Still gradeable, and every day it stays here it gets worse.
+ *   4. Due today.
+ *   5. The weekly Path goal, if it is not met.
+ *   6. Nothing pressing — which is a real answer, and is said as one rather
+ *      than left as an empty screen.
+ */
+export const resolveNextAction = ({ dashboard, weeklyProgress = null } = {}) => {
+  const first = (bucket) => (dashboard?.groups?.[bucket] || [])[0] || null;
+
+  const activeDol = (dashboard?.activeDols || [])[0];
+  if (activeDol) {
+    return {
+      kind: 'dol',
+      assignment: activeDol.assignment,
+      headline: 'Your exit ticket is open',
+      detail: 'It is timed, so do this one first.',
+      actionLabel: 'Start the exit ticket',
+      urgency: 'now',
+    };
+  }
+
+  if (dashboard?.resumeAssignment) {
+    return {
+      kind: 'resume',
+      assignment: dashboard.resumeAssignment,
+      questionIndex: dashboard.resumeQuestionIndex,
+      headline: 'Pick up where you left off',
+      detail: dashboard.resumeAssignment.title,
+      actionLabel: 'Continue',
+      urgency: 'now',
+    };
+  }
+
+  const inProgress = first(BUCKET.IN_PROGRESS);
+  if (inProgress) {
+    return {
+      kind: 'inProgress',
+      assignment: inProgress.assignment,
+      headline: 'Finish what you started',
+      detail: `${inProgress.assignment.title} — ${inProgress.questionsDone} of ${inProgress.questionsTotal} done`,
+      actionLabel: 'Continue',
+      urgency: 'now',
+    };
+  }
+
+  const pastDue = first(BUCKET.PAST_DUE);
+  if (pastDue) {
+    return {
+      kind: 'pastDue',
+      assignment: pastDue.assignment,
+      headline: 'This one is past due',
+      // Late, not lost. A student who believes it no longer counts stops.
+      detail: `${pastDue.assignment.title} — late work is still open and still counts.`,
+      actionLabel: 'Start it',
+      urgency: 'late',
+    };
+  }
+
+  const dueToday = first(BUCKET.DO_NOW);
+  if (dueToday) {
+    return {
+      kind: 'dueToday',
+      assignment: dueToday.assignment,
+      headline: 'Due today',
+      detail: dueToday.assignment.title,
+      actionLabel: 'Start it',
+      urgency: 'today',
+    };
+  }
+
+  if (weeklyProgress && weeklyProgress.remaining > 0) {
+    return {
+      kind: 'weeklyPath',
+      headline: 'Your Math Path this week',
+      detail: `${weeklyProgress.completed} of ${weeklyProgress.required} sessions done. ${weeklyProgress.remaining} to go.`,
+      actionLabel: 'Open My Math Path',
+      urgency: weeklyProgress.overdue ? 'late' : 'thisWeek',
+    };
+  }
+
+  // NOTHING ASSIGNED IS PRESSING. What is said next depends on whether the
+  // caller actually knows about the weekly Path — Home does not always, and
+  // claiming "this week's Path is done" when nobody checked would be a
+  // confident lie a student could act on.
+  return {
+    kind: 'clear',
+    headline: 'You are caught up',
+    detail: weeklyProgress
+      ? 'Nothing is due, and this week\'s Path is done. Practice is open whenever you want it.'
+      : 'Nothing is due right now. My Math Path is open whenever you want to keep going.',
+    actionLabel: 'Open My Math Path',
+    urgency: 'none',
   };
 };

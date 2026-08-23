@@ -6,6 +6,7 @@ import { CALCULATOR_MODES } from '../policies/calculatorPolicy.js';
 import { DOK_LEVELS, INSTRUCTIONAL_LEVELS } from '../../questionMetadata.js';
 import { TEXAS_STANDARDS_BY_COURSE, TEXAS_MATH_ACTIVE_COURSES } from '../../texasStandards.js';
 import { EXAM_DOMAIN_REGISTRY } from '../assessment/examDomainRegistry.js';
+import { getSkillCrosswalk } from '../ccmr/assessmentCrosswalk.js';
 import { QUESTION_TYPE_CATALOG, REPRESENTATIONS } from './questionTypeCatalog.js';
 import { TYPES_THAT_RENDER_A_TABLE } from './semanticValidation.js';
 import { ANALYSIS_NOTATIONS, NOTATION_ANALYSIS_KINDS, POINT_FEATURES } from '../../analysisRequestCatalog.js';
@@ -104,6 +105,55 @@ const examSection = () => {
     lines.push('');
   });
   return section('Exam frameworks and their domain ids', lines);
+};
+
+const ccmrCrosswalkSection = () => {
+  const lines = [
+    line('Use this table only when you are deliberately authoring an exam-style item.'),
+    line('An omitted framework means do not claim that assessment for that TEKS. A partial'),
+    line('mapping means the TEKS is broader than the assessment; keep the item inside the'),
+    line('overlapping aspect instead of testing an excluded part.'),
+    '',
+  ];
+  TEXAS_MATH_ACTIVE_COURSES.forEach((course) => {
+    const standards = TEXAS_STANDARDS_BY_COURSE[course.id] || [];
+    lines.push(line(`### ${course.label || course.id}`));
+    standards.forEach((standard) => {
+      const connections = Object.values(getSkillCrosswalk(standard.code).frameworks || {});
+      if (!connections.length) return;
+      const rendered = connections.map((entry) => (
+        `${entry.framework}:${entry.domainId}${entry.coverage === 'partial' ? ' [partial]' : ''}`
+      )).join('; ');
+      lines.push(bullet(`${standard.code} — ${rendered}`));
+      connections.filter((entry) => entry.coverage === 'partial' && entry.allowedAspects?.length).forEach((entry) => {
+        lines.push(`  - ${entry.framework} overlap only: ${entry.allowedAspects.join('; ')}`);
+      });
+    });
+    lines.push('');
+  });
+  return section('TEKS → CCMR exam-style authoring crosswalk', lines);
+};
+
+const compactCcmrCrosswalkSection = (courseId = null) => {
+  const requestedCourse = ['algebra1', 'algebra2'].includes(String(courseId || '')) ? String(courseId) : null;
+  const lines = [];
+  TEXAS_MATH_ACTIVE_COURSES
+    .filter((course) => ['algebra1', 'algebra2'].includes(course.id))
+    .filter((course) => !requestedCourse || course.id === requestedCourse)
+    .forEach((course) => {
+      lines.push(`### ${course.label || course.id}`);
+      (TEXAS_STANDARDS_BY_COURSE[course.id] || []).forEach((standard) => {
+        const connections = Object.values(getSkillCrosswalk(standard.code).frameworks || {});
+        if (!connections.length) return;
+        const rendered = connections.map((entry) => `${entry.framework}:${entry.domainId}${entry.coverage === 'partial' ? ' [partial]' : ''}`).join('; ');
+        lines.push(`- ${standard.code} — ${rendered}`);
+        connections.filter((entry) => entry.coverage === 'partial' && entry.allowedAspects?.length).forEach((entry) => {
+          lines.push(`  - ${entry.framework} overlap only: ${entry.allowedAspects.join('; ')}`);
+        });
+      });
+      lines.push('');
+    });
+  return lines.join('\n');
 };
 
 const activityRoleSection = () => section('Activity roles', Object.values(ACTIVITY_ROLES).map((role) => {
@@ -658,6 +708,7 @@ export const buildAdvancedAuthoringContract = ({ generatedAt = new Date() } = {}
   ]));
 
   parts.push(examSection());
+  parts.push(ccmrCrosswalkSection());
 
   parts.push(section('Assessment context', [
     line(`\`assessmentContext.framework\` accepts: ${ASSESSMENT_FRAMEWORKS.join(', ')}.`),
@@ -686,9 +737,17 @@ export const buildAdvancedAuthoringContract = ({ generatedAt = new Date() } = {}
   ]));
 
   parts.push(section('Honors', [
-    line('Do not designate students or destination classes as Honors. Author appropriate'),
-    line('rigor when the teacher asks for it. MathMaster determines Honors requirements'),
-    line('from the teacher\'s destination-class configuration, which is authoritative.'),
+    line("Do not emit `honors`, `isHonors`, or `courseLevel`; the teacher's saved class"),
+    line('configuration decides which destination is Honors. But when the teacher asks you'),
+    line('to AUTHOR an Honors assignment, the mathematics must satisfy the Honors contract.'),
+    '',
+    bullet('Keep the same course TEKS. Honors means deeper reasoning, richer representations, modeling/justification, and transfer — not unrelated future content.'),
+    bullet('For a full assignment with independent Practice, include authentic CCMR exam-style practice in Practice. Aim for about 15% over time: normally 1 item in a 5–8 question Practice section, or 1–2 in a 9–12 question section.'),
+    bullet('The CCMR item must assess a TEKS taught or intentionally reviewed in the assignment. Do not insert an unrelated assessment topic to hit a quota.'),
+    bullet('Rotate among legitimate Digital SAT, ACT, TSIA2 and ASVAB mappings. Use only framework/domain pairs in the TEKS → CCMR crosswalk above.'),
+    bullet('A CCMR item counts as authentic only when it has BOTH a matching exam alignment and `assessmentContext: { "framework": "...", "examStyle": true }`. Merely writing SAT/ACT/TSIA2/ASVAB in the prompt or adding a legacy `ccmr` flag does not count.'),
+    bullet('Do not make every Honors question exam-style. The course lesson remains the core; CCMR items are deliberate transfer opportunities.'),
+    bullet('Warm-Ups/DOLs of three or fewer questions may remain narrowly focused on the current TEKS. Honors depth and CCMR are balanced across the recent sequence.'),
   ]));
 
   parts.push(section('Output rules', [
@@ -900,6 +959,31 @@ export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = nu
   '- If Classwork uses rich graph, mapping, table, modeling, sorting, or representation tools, Practice should preserve a meaningful share of those experiences rather than becoming mostly simple multiple-response questions.',
   '- Guided Notes belong primarily in Classwork. Practice should normally omit authored Guided Notes unless the teacher/source explicitly requires scaffolding.',
   '- Do not increase Practice rigor by importing later-unit or later-course mathematics. The instructional-scope ceiling always wins.',
+  '',
+  '## Honors + CCMR Practice',
+  "- Do not set `honors`, `isHonors`, or `courseLevel`; MathMaster gets Honors placement from the teacher's destination class. When the teacher asks for an Honors assignment, however, author the required rigor into the mathematics.",
+  '- Keep the same course TEKS and deepen reasoning, representation, modeling, justification, and transfer. Honors is not permission to jump ahead to unrelated future-course content.',
+  '- In a full Honors assignment with an independent Practice section, include authentic exam-style CCMR Practice. Aim for about 15% over the recent sequence: normally 1 item in a 5–8 question Practice section, or 1–2 in a 9–12 question Practice section.',
+  '- The authentic CCMR item must target a TEKS taught or intentionally reviewed in this assignment. Short Warm-Ups/DOLs of three or fewer questions are exempt.',
+  '- A CCMR item is direct exam-format practice only when `assessmentContext` names digitalSAT, act, tsia2, or asvab with `examStyle:true`, AND `alignments` includes both the TEKS and the matching exam `domainId`. Do not satisfy this rule with words such as SAT in the prompt, a `ccmr:true` flag, or an informational TEKS crosswalk alone.',
+  '- Do not make every Honors Practice question exam-style. The course work is still the core; the exam-style item is a deliberate transfer check.',
+  '- Use only the legitimate framework/domain pairs listed below. `[partial]` means the TEKS is broader than that assessment; keep the item inside the listed overlapping aspect.',
+  '',
+  '### V5 metadata example for one authentic Honors Practice item',
+  '```json',
+  '{',
+  '  "standard": "A.2B",',
+  '  "activityRole": "practice",',
+  '  "alignments": [',
+  '    { "framework": "teks", "code": "A.2B", "role": "primary", "evidenceLevel": "assessed" },',
+  '    { "framework": "digitalSAT", "domainId": "algebra", "role": "primary", "evidenceMode": "direct" }',
+  '  ],',
+  '  "assessmentContext": { "framework": "digitalSAT", "examStyle": true }',
+  '}',
+  '```',
+  '',
+  '## TEKS → CCMR exam-style authoring crosswalk',
+  compactCcmrCrosswalkSection(courseId),
   '',
   '## Stable studentActions',
   '- Solving: `solveEquation`, `solveStepByStep`, `fractionAnswer`, `solveLiteral`, `solveSystem`.',

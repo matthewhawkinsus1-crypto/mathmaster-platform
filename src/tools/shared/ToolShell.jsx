@@ -1,8 +1,5 @@
 import React, { useState } from 'react';
-import { getTexasStandard } from '../../texasStandards';
-import { normalizeQuestionStandards } from '../../questionMetadata';
 import MathText from '../../components/common/MathText.jsx';
-import StandardBadge from '../../components/common/StandardBadge.jsx';
 
 export default function ToolShell({ title, subtitle, badge, children, footer }) {
   return (
@@ -69,14 +66,7 @@ export const TaskCard = ({ task, steps = [], note = null, question = null }) => 
   const taskText = String(task || '').trim();
   const promptDiffers = Boolean(authoredPrompt && authoredPrompt !== taskText);
 
-  // Standards are helpful as a student-facing skill description, but the raw
-  // TEKS identifier is teacher/programming metadata.  Keep the code available
-  // elsewhere in MathMaster and show students only the actual skill language.
-  const standards = question ? normalizeQuestionStandards(question).primary : [];
-  const aligned = standards
-    .map((entry) => ({ code: entry.code, description: getTexasStandard(entry.code)?.description }))
-    .filter((entry) => entry.description)
-    .slice(0, 2);
+
 
   return (
     <div style={{
@@ -101,25 +91,6 @@ export const TaskCard = ({ task, steps = [], note = null, question = null }) => 
         </ol>
       ) : null}
       {note ? <MathText as="p" style={{ margin: '10px 0 0', fontSize: 13, color: '#5f6b7a' }}>{note}</MathText> : null}
-      {aligned.length ? (
-        <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid #d5e2f7' }}>
-          <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#5f6b7a' }}>Skill focus</div>
-          {aligned.map((entry) => (
-            <MathText as="p" key={entry.code} style={{ margin: '4px 0 0', fontSize: 13, color: '#3c4756', lineHeight: 1.5 }}>
-              {entry.description}
-            </MathText>
-          ))}
-          {/* THE CCMR DESIGNATION. A question in an ordinary assignment whose
-              standard is on the SAT, ACT, TSIA2 or ASVAB looked exactly like
-              every other question, so the work a student was already doing
-              toward those tests was invisible to them. The chip says so, from
-              the authored per-standard crosswalk — a standard nobody has mapped
-              shows its code and no assessments rather than a guess. */}
-          {standards.slice(0, 1).map((entry) => (
-            <StandardBadge key={`badge-${entry.code}`} code={entry.code} style={{ marginTop: 9 }} />
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 };

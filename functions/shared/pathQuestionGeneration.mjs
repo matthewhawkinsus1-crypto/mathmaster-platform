@@ -309,8 +309,124 @@ const substituteString = (text, scope) => {
   ));
 };
 
+/**
+ * COLLAPSE THE SIGNS A SUBSTITUTION JUST CREATED.
+ *
+ * Vertex form is written `(x-{{h}})`, which is right until `h` draws negative
+ * and the student is shown `(x--5)`. Auditing the bank by generating from it
+ * found 329 templates that do this — every quadratic vertex family, every
+ * slope-from-two-points family, anything that subtracts a signed parameter.
+ *
+ * It is not a cosmetic problem. No textbook prints `(x--5)`, and a student who
+ * reads it as `(x-5)` puts the vertex at +5 instead of -5 and gets the question
+ * wrong for a reason that is the platform's fault. It is also in the answer
+ * fields, where a key of `--4` would mark a student typing `4` incorrect.
+ *
+ * Fixing it here rather than in 329 templates is not a shortcut: this is exact
+ * sign arithmetic, it is the seam where the problem is created, and it holds
+ * for every template authored after today.
+ *
+ * The trailing DIGIT requirement is what keeps prose safe — an em-dash written
+ * as `--` is followed by a space or a letter, never by a numeral.
+ */
+// A RUN of signs, collapsed by parity rather than by enumerating cases.
+//
+// Pattern-by-pattern rules handle `a--5` and miss `a---5`; parity handles any
+// length, which matters because two adjacent signed substitutions can produce
+// three signs in a row. The captured prefix decides what the surviving sign
+// attaches to:
+//
+//   after an OPERAND (`x`, `8`, `)`)   an even run is `+`, an odd run is `-`
+//   after an OPERATOR (`=`, `(`, `,`)  an even run is nothing, an odd run is `-`
+//
+// The trailing DIGIT requirement is what keeps prose safe: an em-dash written
+// as `--` is followed by a space or a letter, never by a numeral.
+const SIGN_RUN_AFTER_OPERAND = /([0-9A-Za-z)\]}])(\s*)((?:[-+]\s*){2,})(\d)/g;
+const SIGN_RUN_AFTER_OPERATOR = /([=(\[,{])(\s*)((?:[-+]\s*){2,})(\d)/g;
+
+const negativeParity = (run) => ((run.match(/-/g) || []).length % 2 === 1);
+
+// A run at the very start of a fragment has no prefix to attach to — an answer
+// key stored as `--4` is exactly this case, and would mark a student typing `4`
+// incorrect.
+const SIGN_RUN_AT_START = /^(\s*)((?:[-+]\s*){2,})(\d)/;
+
+const collapseRuns = (fragment) => fragment
+  .replace(SIGN_RUN_AT_START, (match, gap, run, digit) => (
+    `${gap}${negativeParity(run) ? '-' : ''}${digit}`
+  ))
+  .replace(SIGN_RUN_AFTER_OPERAND, (match, prefix, gap, run, digit) => (
+    `${prefix}${gap}${negativeParity(run) ? '-' : '+'}${digit}`
+  ))
+  .replace(SIGN_RUN_AFTER_OPERATOR, (match, prefix, gap, run, digit) => (
+    `${prefix}${gap}${negativeParity(run) ? '-' : ''}${digit}`
+  ));
+
+// Prose is left alone by construction, not by luck. The rewrite runs inside
+// `$...$` spans, and — for fields like an answer key that carry a bare
+// expression with no delimiters — only on strings that contain no ordinary
+// words. "the value -- and then --3 apples" is prose and stays as written;
+// `-5`, `x--5` and `(3--2)/4` are expressions and get fixed.
+const looksLikeProse = (text) => /[A-Za-z]{2,}/.test(text.replace(/\\[A-Za-z]+/g, ''));
+
+/**
+ * Undelimited arithmetic inside a sentence.
+ *
+ * A solution review writes "the coefficients add to -8+-6=-14" with no `$`
+ * around the sum, so the span pass cannot see it and the prose guard rightly
+ * refuses to rewrite the whole sentence. This looks at whitespace-separated
+ * TOKENS and rewrites only the ones that are unambiguously expressions.
+ *
+ * The qualifying test is deliberately strict: the token must contain a digit
+ * AND an `=`, a bracket, or an operator that is not merely its leading sign.
+ * That admits `y=--1` and `-8+-6=-14`, and excludes a bare `--3` sitting in a
+ * sentence, where a double dash is far more likely to be punctuation.
+ */
+const EXPRESSION_TOKEN = /^[-+()\[\]{}0-9a-zA-Z^./*=,\\]+$/;
+
+const collapseExpressionTokens = (text) => {
+  if (!/[-+]\s*[-+]/.test(text)) return text;
+  return text.replace(/\S+/g, (token) => {
+    if (!/[-+][-+]/.test(token)) return token;
+    if (!EXPRESSION_TOKEN.test(token)) return token;
+    if (!/\d/.test(token)) return token;
+    // An operator or relation beyond the token's own leading sign.
+    // A token with no letters at all is a number, never a word. Scanning the
+    // whole bank found ZERO authored `--` in any template source — every double
+    // sign in a rendered question is created by substitution — so a run glued
+    // to a digit is arithmetic. An author writing a real em-dash puts a space
+    // after it, which fails the trailing-digit requirement anyway.
+    const bare = !/[A-Za-z]/.test(token);
+    if (!bare && !/[=()\[\]{}*/^,]/.test(token) && !/[0-9a-zA-Z][-+]/.test(token)) return token;
+    // A WORD of three or more letters means prose that happens to lack spaces.
+    // Math function and LaTeX command names are stripped first: `sqrt`, `frac`
+    // and `log` are mathematics, not sentences.
+    const withoutMathNames = token
+      .replace(/\\[A-Za-z]+/g, '')
+      .replace(/\b(sqrt|frac|cbrt|log|ln|sin|cos|tan|abs|min|max|pi|deg)\b/gi, '');
+    if (/[A-Za-z]{3,}/.test(withoutMathNames)) return token;
+    return collapseRuns(token);
+  });
+};
+
+export const collapseSigns = (text) => {
+  if (typeof text !== 'string' || !/[-+]\s*[-+]/.test(text)) return text;
+
+  if (text.includes('$')) {
+    // Odd indices are the math spans once split on the delimiter. Even indices
+    // are prose, but a solution review routinely writes undelimited arithmetic
+    // in the middle of a sentence — "the coefficients add to -8+-6=-14" — so
+    // those get the token pass rather than being skipped.
+    return text
+      .split('$')
+      .map((part, index) => (index % 2 === 1 ? collapseRuns(part) : collapseExpressionTokens(part)))
+      .join('$');
+  }
+  return looksLikeProse(text) ? collapseExpressionTokens(text) : collapseRuns(text);
+};
+
 const substitute = (node, scope) => {
-  if (typeof node === 'string') return substituteString(node, scope);
+  if (typeof node === 'string') return collapseSigns(substituteString(node, scope));
   if (Array.isArray(node)) return node.map((entry) => substitute(entry, scope));
   if (node && typeof node === 'object') {
     const out = {};
@@ -318,6 +434,22 @@ const substitute = (node, scope) => {
     return out;
   }
   return node;
+};
+
+// Multiple-choice families often keep a stable answer id (for example
+// `opt-1`) while the option LABELS are generated from the same parameters as
+// the question. That is secure for grading but, if the array order also stays
+// fixed, a student can learn that the first button is usually correct. Shuffle
+// the rendered options server-side with the same seeded RNG used for the
+// question. The order is therefore different across generated instances but
+// deterministic for the same question seed, so reloads never move the answer.
+const shuffleWithRandom = (values, random) => {
+  const shuffled = [...values];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  return shuffled;
 };
 
 // --- the generator --------------------------------------------------------------
@@ -377,6 +509,9 @@ export const generatePathInstance = (template, seedKey) => {
 
     const { generator: unused, ...document } = template;
     const filled = substitute(document, scope);
+    if (Array.isArray(filled.choices) && filled.choices.length > 1) {
+      filled.choices = shuffleWithRandom(filled.choices, random);
+    }
     // A placeholder nobody bound would reach a student as literal `{{b}}`.
     const unbound = [...placeholdersUsed(filled)];
     if (unbound.length) {

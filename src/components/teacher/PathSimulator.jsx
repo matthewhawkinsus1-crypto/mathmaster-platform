@@ -13,6 +13,7 @@ import { staticMapProvider } from '../../platform/path/curriculumPacing';
 import { explainLock, listPrerequisiteChoices, simulateInstantMastery } from '../../platform/path/graphInspection';
 import { REMEDIATION_ACTION, describeBranchImpact, planRemediation } from '../../platform/path/remediationPlan';
 import { getStudentPathOptions } from '../../platform/path/recommendationEngine';
+import WeeklyPathExplainer from './WeeklyPathExplainer.jsx';
 import { getWheelTeksForCourse } from '../../platform/mastery/strandConfig.js';
 import { COURSES } from '../../../functions/shared/classModel.mjs';
 import { buildAssessmentEvidence, withSimulatedEvidence } from '../../platform/ccmr/assessmentEvidence';
@@ -175,7 +176,16 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
     const seedCodes = mode === 'bench' && teksCodes.length
       ? teksCodes
       : (simulationTargetTeks ? [simulationTargetTeks] : []);
-    const created = createSimulatedLearner({ profileId: nextProfileId, teacherId, teksCodes: seedCodes });
+    // The Weekly Path view shows a Student Learning Profile, which will not
+    // classify anyone from six questions on one standard. Without surrounding
+    // evidence every starting profile renders as "Establishing Baseline" and a
+    // teacher sees the same week for Advanced and Struggling — concluding,
+    // reasonably, that the engine does not adapt. Routing and Question Bench
+    // keep the single-standard learner they were calibrated against.
+    const contextCodes = mode === 'week'
+      ? courseWheelTeks.filter((code) => code !== simulationTargetTeks).slice(0, 2)
+      : [];
+    const created = createSimulatedLearner({ profileId: nextProfileId, teacherId, teksCodes: seedCodes, contextCodes });
     setSession({ ...created, extraAssignments: created.seedAssignments });
     setProfileId(nextProfileId);
   };
@@ -457,7 +467,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
       </div>
 
       <div role="group" aria-label="Simulator mode" style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-        {[['experience', 'Student experience'], ['bench', 'Question bench']].map(([id, label]) => (
+        {[['experience', 'Student experience'], ['week', 'Weekly Path'], ['bench', 'Question bench']].map(([id, label]) => (
           <button
             key={id}
             type="button"
@@ -478,6 +488,54 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
       {slotNotice && (
         <div role="status" style={{ padding: '10px 14px', marginBottom: 12, borderRadius: 8, background: '#e8f0fe', color: '#174ea6', fontWeight: 800, fontSize: 13 }}>
           {slotNotice}
+        </div>
+      )}
+
+      {mode === 'week' && (
+        <div>
+          <div style={{ ...panel, marginBottom: 14 }}>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <label style={{ fontSize: 12.5, fontWeight: 800, color: '#3c4043' }}>
+                Starting profile
+                <select
+                  value={profileId}
+                  onChange={(event) => startSession(event.target.value)}
+                  style={{ display: 'block', marginTop: 4, minHeight: 44, padding: '9px 10px', border: '1px solid #c9ced6', borderRadius: 8, fontSize: 15 }}
+                >
+                  {STARTING_PROFILES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                </select>
+              </label>
+              <label style={{ fontSize: 12.5, fontWeight: 800, color: '#3c4043' }}>
+                Course
+                <select
+                  value={simulationCourseId}
+                  onChange={(event) => {
+                    const nextCourse = event.target.value;
+                    setSimulationCourseId(nextCourse);
+                    setSimulationTargetTeks(getWheelTeksForCourse(nextCourse)[0] || '');
+                    setSession(null);
+                  }}
+                  style={{ display: 'block', marginTop: 4, minHeight: 44, padding: '9px 10px', border: '1px solid #c9ced6', borderRadius: 8, fontSize: 15 }}
+                >
+                  {COURSES.map((course) => <option key={course.id} value={course.id}>{course.label}</option>)}
+                </select>
+              </label>
+              {!session && (
+                <button type="button" onClick={() => startSession()} style={{ ...smallButton, minHeight: 44, background: '#1a73e8', color: '#fff', border: 0 }}>
+                  Start a simulated student
+                </button>
+              )}
+            </div>
+            <p style={{ color: '#5f6368', fontSize: 13, lineHeight: 1.55, margin: '12px 0 0' }}>
+              {STARTING_PROFILES.find((item) => item.id === profileId)?.description}
+            </p>
+          </div>
+          <WeeklyPathExplainer
+            learner={session?.learner || null}
+            assignments={simulationAssignments}
+            courseId={simulationCourseId}
+            retentionSchedulesByTEKS={session?.retentionSchedulesByTEKS || {}}
+          />
         </div>
       )}
 

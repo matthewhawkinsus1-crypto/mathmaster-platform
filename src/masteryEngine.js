@@ -152,7 +152,13 @@ export const collectStudentEvidence = ({ student, assignments = [] } = {}) => {
   const evidence = [];
   const gradesByAssignment = student?.gradesByAssignment || {};
 
-  assignments.forEach((assignment) => {
+  // A DEFAULT PARAMETER ONLY CATCHES `undefined`. A student document has a NULL
+  // assignments list before the first fetch resolves, and that threw here rather
+  // than degrading to "no evidence yet" — a blank teacher roster instead of a
+  // roster that fills in a moment later. studentPathOptions already coerced at
+  // its own boundary for exactly this reason; the coercion belongs here, where
+  // the iteration is.
+  (Array.isArray(assignments) ? assignments : []).forEach((assignment) => {
     const assignmentGrades = gradesByAssignment?.[assignment.id];
     if (!assignmentGrades || !Array.isArray(assignment.questions)) return;
 
@@ -189,7 +195,6 @@ export const collectStudentEvidence = ({ student, assignments = [] } = {}) => {
           activityEvidenceType: weights.activityEvidenceType,
           gradeLevelWeight: weights.gradeLevelWeight,
           modifiedWeight: weights.modifiedWeight,
-          activityEvidenceWeight: weights.activityEvidenceWeight,
           credit: getQuestionCredit(record) * (weights.creditFactor ?? 1),
           supported: Boolean(weights.supported),
           independentSuccess: getQuestionCredit(record) >= 1 && !weights.supported,
@@ -336,7 +341,7 @@ export const buildStudentMasteryProfile = ({ student, assignments = [] } = {}) =
     metadataCoveragePercent: (() => {
       let attemptedQuestions = 0;
       let taggedQuestions = 0;
-      assignments.forEach((assignment) => {
+      (Array.isArray(assignments) ? assignments : []).forEach((assignment) => {
         const assignmentGrades = student?.gradesByAssignment?.[assignment.id];
         if (!assignmentGrades) return;
         assignment.questions?.forEach((question, index) => {
@@ -369,7 +374,9 @@ export const buildStudentMasteryProfile = ({ student, assignments = [] } = {}) =
   };
 };
 
-export const buildClassMasteryProfiles = ({ students = [], assignments = [] } = {}) => students.map((student) => buildStudentMasteryProfile({ student, assignments }));
+export const buildClassMasteryProfiles = ({ students = [], assignments = [] } = {}) => (
+  (Array.isArray(students) ? students : []).map((student) => buildStudentMasteryProfile({ student, assignments }))
+);
 
 export const getObservedDifficultyLabel = (firstAttemptCorrectRate, responseCount) => {
   if (responseCount < 5) return 'Not enough data';
@@ -381,12 +388,14 @@ export const getObservedDifficultyLabel = (firstAttemptCorrectRate, responseCoun
 };
 
 export const buildItemAnalytics = ({ students = [], assignments = [] } = {}) => {
+  // Null, not just undefined — see collectStudentEvidence.
+  const safeStudents = Array.isArray(students) ? students : [];
   const rows = [];
-  assignments.forEach((assignment) => {
+  (Array.isArray(assignments) ? assignments : []).forEach((assignment) => {
     assignment.questions?.forEach((question, questionIndex) => {
       if (question?.teacherExcluded === true) return;
       const metadata = normalizeQuestionInstructionalMetadata(question, assignment);
-      const records = students.map((student) => ({
+      const records = safeStudents.map((student) => ({
         student,
         record: normalizeQuestionRecord(student?.gradesByAssignment?.[assignment.id]?.[questionIndex]),
       })).filter(({ record }) => record.status !== 'unattempted' || record.totalAttempts > 0);
@@ -439,7 +448,7 @@ export const buildStandardsExportPayload = ({ students = [], assignments = [] } 
   generatedAt: new Date().toISOString(),
   framework: 'Texas TEKS + MathMaster instructional mastery estimate',
   disclaimer: 'Estimated performance levels are local instructional estimates and are not official STAAR classifications or scale scores.',
-  students: students.map((student) => ({
+  students: (Array.isArray(students) ? students : []).map((student) => ({
     ...buildStudentMasteryProfile({ student, assignments }),
     evidence: collectStudentEvidence({ student, assignments }),
   })),

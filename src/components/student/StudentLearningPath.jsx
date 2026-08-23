@@ -188,8 +188,8 @@ export const StudentLearningPath = ({
       <section style={{ ...section, maxWidth: 940, margin: '24px auto' }}>
         <h3 style={sectionHeading}>Your path</h3>
         <p style={{ margin: 0, color: '#5f6368', fontSize: 14, lineHeight: 1.6 }}>
-          Your path opens once your teacher sets where the class is in the course. Your mastery overview and practice
-          history are available now.
+          MathMaster is still resolving your course and learning path. If this remains here, your class assignment needs
+          to be checked by your teacher or administrator.
         </p>
       </section>
     );

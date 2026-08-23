@@ -7,6 +7,7 @@ import { DEFAULT_MASTERY_COURSE_ID, masteryCourseLabel } from '../../platform/ma
 import { studentLabelForTeks } from '../../platform/path/skillLabels.js';
 import { curateStudentPanel } from '../../platform/path/studentPanel.js';
 import { teksCodeFromSkillId } from '../../platform/path/skillGraph.js';
+import WeeklyPathGoalPanel from './WeeklyPathGoalPanel.jsx';
 
 export const MyMathPathDashboard = ({
   studentName = 'Student',
@@ -19,6 +20,12 @@ export const MyMathPathDashboard = ({
   courseId = DEFAULT_MASTERY_COURSE_ID,
   pathOptions = null,
   assessmentContext = null,
+  // This week's goal, from the engine. Absent for a student whose path options
+  // have not resolved yet, in which case the wheel and the rest of the
+  // dashboard still render — the week is an addition, never a gate.
+  weeklyGoal = null,
+  weeklyProgress = null,
+  completedSlots = [],
   onPracticeAs = null,
   onStartSession,
 }) => {
@@ -49,6 +56,24 @@ export const MyMathPathDashboard = ({
       </header>
 
       <RetentionQuickCheckBanner pendingProbes={retentionReport.pendingProbes} onLaunchQuickCheck={onStartSession} />
+
+      {/* THE WEEK COMES FIRST. A student opening MathMaster asks one question —
+          what should I do now — and the skills map, useful as it is, answers a
+          different one. It sits directly under the retention banner, above the
+          map, because that is the order the student's own attention runs in. */}
+      {weeklyGoal && (
+        <div style={{ margin: '0 0 22px' }}>
+          <WeeklyPathGoalPanel
+            goal={weeklyGoal}
+            progress={weeklyProgress}
+            completedSlots={completedSlots}
+            onStartSession={(session) => {
+              const code = session?.teksCode || teksCodeFromSkillId(session?.skillId);
+              if (code) onStartSession?.(code);
+            }}
+          />
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '22px', alignItems: 'center' }}>
         <div style={{ minWidth: 0, padding: '18px', border: '1px solid #dadce0', borderRadius: '12px', background: '#fff' }}>

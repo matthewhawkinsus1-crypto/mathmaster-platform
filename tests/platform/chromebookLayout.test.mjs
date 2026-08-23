@@ -109,3 +109,40 @@ test('a tool that draws is allowed to scale with the viewport', () => {
   assert.match(graph, /preserveAspectRatio="xMidYMid meet"/);
   assert.match(graph, /width: '100%', height: 'auto'/);
 });
+
+// --- The Phase 9 student surfaces ---------------------------------------------
+
+test('every new student surface has a thumb-sized primary control', () => {
+  // A trackpad on a Chromebook and a thumb on a phone both need about 44px.
+  // These are the screens a student uses most, so they are the ones where a
+  // cramped target costs the most mis-taps.
+  ['components/student/WhatShouldIDoNow.jsx',
+    'components/student/AssignmentGroup.jsx',
+    'components/student/WeeklyPathGoalPanel.jsx'].forEach((path) => {
+    const source = read(path);
+    const heights = [...source.matchAll(/minHeight:\s*(\d+)/g)].map((match) => Number(match[1]));
+    assert.ok(heights.length > 0, `${path} sets no explicit control height`);
+    heights.forEach((height) => {
+      assert.ok(height >= 44, `${path} has a ${height}px target, below the 44px minimum`);
+    });
+  });
+});
+
+test('the new student surfaces do not pin themselves to a wide fixed width', () => {
+  ['components/student/WhatShouldIDoNow.jsx',
+    'components/student/AssignmentGroup.jsx',
+    'components/student/WeeklyPathGoalPanel.jsx'].forEach((path) => {
+    const source = read(path);
+    [...source.matchAll(/(?:^|[^-])width:\s*'?(\d+)px/g)].forEach((match) => {
+      assert.ok(Number(match[1]) <= USABLE_WIDTH,
+        `${path} fixes a width of ${match[1]}px, wider than the usable ${USABLE_WIDTH}px`);
+    });
+  });
+});
+
+test('a student can always leave an active Path session', () => {
+  // The brief: no state should require a browser refresh or Home as the only
+  // escape. An active session had no exit at all.
+  assert.match(player, /Back to My Math Path/,
+    'the session player offers no way back to My Math Path');
+});

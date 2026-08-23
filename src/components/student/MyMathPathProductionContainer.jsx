@@ -17,8 +17,9 @@ export const MyMathPathProductionContainer = ({
   sessionKind = 'practice',
   requiredQuestions = 5,
   // The assessment the student pressed for, when they came from a CCMR
-  // pathway. Presentation only — it never reaches the server, and it cannot
-  // change which question is issued or how it is graded.
+  // pathway. The secure server stores this on the session and selects only
+  // directly-authored items for that framework; ordinary Path sessions keep
+  // selecting ordinary course items.
   assessmentFramework = null,
   studentProfile,
   sessionProvider = null,
@@ -52,6 +53,14 @@ export const MyMathPathProductionContainer = ({
   const [routeNotice, setRouteNotice] = useState(null);
   const pendingSubmissionRef = useRef(null);
   const completionReportedRef = useRef(false);
+  // How many times the student has pressed Retry on the SAME failure.
+  //
+  // A Retry button that reruns the identical failing call is the trap this
+  // counter exists to end: the student presses it, sees the same message, and
+  // has nowhere else to go. After a couple of honest attempts the screen stops
+  // leading with Retry and leads with the way out instead.
+  const [retryCount, setRetryCount] = useState(0);
+  const [slowLoad, setSlowLoad] = useState(false);
 
   const clearAttemptState = () => {
     setLastGradingResult(null);
@@ -68,7 +77,11 @@ export const MyMathPathProductionContainer = ({
     setSubmissionError(null);
     completionReportedRef.current = false;
     try {
-      const result = await startOrResumePathSession({ targetAlignmentKey, sessionKind, requiredQuestions });
+      const result = await startOrResumePathSession({ targetAlignmentKey, sessionKind, requiredQuestions, assessmentFramework });
+      // A successful load clears the record of past failures, so a student who
+      // hits one blip and recovers is not permanently shown the "this is not
+      // working" screen.
+      setRetryCount(0);
       setSession(result.session);
       if (result.session.status === 'active') {
         const next = await fetchNextSanitizedQuestion({ sessionId: result.session.sessionId });
@@ -79,14 +92,24 @@ export const MyMathPathProductionContainer = ({
     } catch (caught) {
       // A deployment that cannot reach the secure Path is a service problem,
       // not a mathematics problem, and it is said differently.
+      setRetryCount((current) => current + 1);
       if (caught?.isConfigurationError) setConfigurationError(caught.message);
       else setError(caught.message || 'Unable to load this My Math Path session.');
     } finally {
       setLoading(false);
     }
-  }, [targetAlignmentKey, sessionKind, requiredQuestions]);
+  }, [targetAlignmentKey, sessionKind, requiredQuestions, assessmentFramework]);
 
   useEffect(() => { initializeSession(); }, [initializeSession]);
+
+  // Loading should feel intentional, and a load that has clearly stalled should
+  // hand the student an exit rather than a spinner they have to escape with the
+  // browser's Back button.
+  useEffect(() => {
+    if (!loading) { setSlowLoad(false); return undefined; }
+    const timer = setTimeout(() => setSlowLoad(true), 12000);
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   useEffect(() => {
     if (session?.status !== 'completed' || completionReportedRef.current) return;
@@ -331,7 +354,29 @@ export const MyMathPathProductionContainer = ({
     return () => onSimulationController(null);
   }, [onSimulationController, session, currentQuestion, submitting, forceCurrentQuestionOutcome, forceOutcomeFromSimulator]);
 
-  if (loading) return <div style={{ padding: 60, textAlign: 'center', color: '#174ea6' }}>Loading your personalized path…</div>;
+  if (loading) {
+    return (
+      <div style={{ padding: 60, textAlign: 'center', color: '#174ea6' }}>
+        <p style={{ margin: 0 }}>Loading your personalized path…</p>
+        {/* A stalled load is not a state a student should have to escape with
+            the browser's Back button. */}
+        {slowLoad && (
+          <div style={{ marginTop: 18 }}>
+            <p style={{ margin: '0 0 12px', color: '#5f6368', fontSize: 14, lineHeight: 1.6 }}>
+              This is taking longer than it should. Your work is safe — you can wait, or go back and try a different skill.
+            </p>
+            {onReturnToDashboard && <button
+          type="button"
+          onClick={onReturnToDashboard}
+          style={{ minHeight: 44, padding: '11px 18px', border: '1px solid #c5d5ef', borderRadius: 8, background: '#fff', color: '#174ea6', fontWeight: 800, cursor: 'pointer' }}
+        >
+          Back to My Math Path
+        </button>}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (configurationError) {
     return (
@@ -342,17 +387,53 @@ export const MyMathPathProductionContainer = ({
           Please tell your teacher.
         </p>
         <p style={{ margin: '0 0 14px', fontSize: 13, color: '#5f6368', lineHeight: 1.6 }}>{configurationError}</p>
-        <button type="button" onClick={initializeSession} style={{ minHeight: 42, padding: '0 16px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer' }}>Try again</button>
+        {/* THE TRAP THIS ENDS. Both error screens used to offer Retry and
+            nothing else. A configuration problem does not fix itself between
+            two clicks, so the student pressed Retry, saw the same message, and
+            had no way back — the "trapped in an error state" failure exactly.
+            The exit is always present; after two honest attempts it becomes the
+            primary action, because by then Retry has been shown not to work. */}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {retryCount < 2 && (
+            <button type="button" onClick={initializeSession} style={{ minHeight: 44, padding: '0 16px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer' }}>Try again</button>
+          )}
+          {onReturnToDashboard && <button
+          type="button"
+          onClick={onReturnToDashboard}
+          style={{ minHeight: 44, padding: '11px 18px', border: '1px solid #c5d5ef', borderRadius: 8, background: '#fff', color: '#174ea6', fontWeight: 800, cursor: 'pointer' }}
+        >
+          Back to My Math Path
+        </button>}
+        </div>
+        {retryCount >= 2 && (
+          <p style={{ margin: '12px 0 0', fontSize: 13, color: '#7a4f00', lineHeight: 1.6 }}>
+            Trying again has not helped, so this needs your teacher rather than another click. Everything else on your path is still open.
+          </p>
+        )}
       </section>
     );
   }
 
   if (error) {
     return (
-      <div style={{ maxWidth: 560, margin: '40px auto', padding: 22, borderRadius: 10, background: '#fce8e6', color: '#a50e0e', textAlign: 'center' }}>
-        <strong>My Math Path could not start</strong>
-        <p>{error}</p>
-        <button type="button" onClick={initializeSession} style={{ minHeight: 42, padding: '9px 15px' }}>Retry</button>
+      <div role="alert" style={{ maxWidth: 560, margin: '40px auto', padding: 22, borderRadius: 10, background: '#fce8e6', color: '#a50e0e', textAlign: 'left' }}>
+        <strong style={{ display: 'block', marginBottom: 6 }}>This skill could not start</strong>
+        <p style={{ margin: '0 0 10px', lineHeight: 1.6 }}>{error}</p>
+        <p style={{ margin: '0 0 14px', fontSize: 13, color: '#7a4f00', lineHeight: 1.6 }}>
+          Nothing you have done has been lost, and the rest of your path is still open.
+        </p>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {retryCount < 2 && (
+            <button type="button" onClick={initializeSession} style={{ minHeight: 44, padding: '0 16px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer' }}>Try again</button>
+          )}
+          {onReturnToDashboard && <button
+          type="button"
+          onClick={onReturnToDashboard}
+          style={{ minHeight: 44, padding: '11px 18px', border: '1px solid #c5d5ef', borderRadius: 8, background: '#fff', color: '#174ea6', fontWeight: 800, cursor: 'pointer' }}
+        >
+          Back to My Math Path
+        </button>}
+        </div>
       </div>
     );
   }
@@ -387,6 +468,7 @@ export const MyMathPathProductionContainer = ({
         </div>
       )}
       <PathSessionPlayer
+        onExit={onReturnToDashboard}
         session={session}
         questionInstance={currentQuestion}
         lastGradingResult={lastGradingResult}

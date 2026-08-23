@@ -193,3 +193,30 @@ test('sampling produces distinct instances for the import gate', () => {
   const distinct = new Set(samples.map((entry) => entry.question.prompt));
   assert.ok(distinct.size >= 6, `only ${distinct.size} distinct instances in 10 samples`);
 });
+
+test('generated choice order is deterministic for a seed and preserves the expected id', () => {
+  const template = {
+    id: 'choice-shuffle',
+    prompt: 'Choose the value of {{n}}.',
+    choices: [
+      { id: 'opt-1', label: '{{n}}' },
+      { id: 'opt-2', label: '{{n}} + 1' },
+      { id: 'opt-3', label: '{{n}} - 1' },
+      { id: 'opt-4', label: '0' },
+    ],
+    responseFields: [{ id: 'answer', inputProfile: 'choice', expected: 'opt-1' }],
+    generator: { parameters: { n: { type: 'int', min: 2, max: 20 } } },
+  };
+  const first = generatePathInstance(template, 'stable-seed').question;
+  const replay = generatePathInstance(template, 'stable-seed').question;
+  assert.deepEqual(first.choices, replay.choices, 'a reload must keep the same option order');
+  assert.equal(first.responseFields[0].expected, 'opt-1');
+  assert.ok(first.choices.some((choice) => choice.id === 'opt-1'));
+
+  const positions = new Set();
+  for (let index = 0; index < 40; index += 1) {
+    const question = generatePathInstance(template, `shuffle-${index}`).question;
+    positions.add(question.choices.findIndex((choice) => choice.id === 'opt-1'));
+  }
+  assert.ok(positions.size >= 3, `correct option only appeared in ${positions.size} positions`);
+});

@@ -160,7 +160,6 @@ export const normalizeQuestionAlignments = (question = {}, { includeCrosswalks =
     }
   }
 
-  const context = normalizeAssessmentContext(source.assessmentContext);
   const seen = new Set();
   const result = [];
   declared.forEach((entry) => {
@@ -189,9 +188,10 @@ export const normalizeQuestionAlignments = (question = {}, { includeCrosswalks =
           domainId: mapping.domainId,
           role: 'secondary',
           evidenceLevel: 'practiced',
-          // Promoted to direct only when the item declares itself an item of
-          // that exam.
-          evidenceMode: context.framework === framework && context.examStyle ? 'direct' : 'crosswalk',
+          // A derived crosswalk is informational only. Direct exam evidence
+          // requires an explicit exam-domain alignment on the authored item;
+          // assessmentContext alone cannot promote a course item.
+          evidenceMode: 'crosswalk',
           derivedFrom: teksEntry.code,
         });
       });
@@ -209,8 +209,19 @@ export const getPrimaryTeksCodes = (question) =>
     .map((entry) => entry.code);
 
 // Only alignments that genuinely measure the framework should move readiness.
-export const getDirectEvidenceAlignments = (question) =>
-  normalizeQuestionAlignments(question).filter((entry) => entry.evidenceMode === 'direct');
+// TEKS authored on the item is direct course evidence. Exam evidence additionally
+// requires an explicit matching examStyle context; a stray domain alignment is
+// not enough to move SAT/ACT/TSIA2/ASVAB readiness.
+export const getDirectEvidenceAlignments = (question = {}) => {
+  const context = question?.assessmentContext;
+  const examFramework = context?.examStyle === true && DOMAIN_FRAMEWORKS.includes(context?.framework)
+    ? context.framework
+    : null;
+  return normalizeQuestionAlignments(question).filter((entry) => (
+    entry.evidenceMode === 'direct'
+    && (entry.framework === ALIGNMENT_FRAMEWORKS.TEKS || entry.framework === examFramework)
+  ));
+};
 
 /**
  * Validation for authored alignment data. Returns errors that block an import
@@ -292,12 +303,56 @@ export const validateAlignments = (question = {}, { label = 'question' } = {}) =
     }
   });
 
+  const directExamClaims = raw.filter((entry) => (
+    entry && typeof entry === 'object' && !Array.isArray(entry)
+    && DOMAIN_FRAMEWORKS.includes(String(entry.framework || ''))
+    && String(entry.evidenceMode || 'direct') === 'direct'
+  ));
   const context = question?.assessmentContext;
+  directExamClaims.forEach((entry) => {
+    if (!context || typeof context !== 'object' || Array.isArray(context)
+      || context.examStyle !== true || context.framework !== entry.framework) {
+      errors.push(`${label} direct ${entry.framework} alignment requires matching assessmentContext with examStyle:true.`);
+    }
+  });
   if (context != null) {
     if (typeof context !== 'object' || Array.isArray(context)) {
       errors.push(`${label} assessmentContext must be an object.`);
     } else if (context.framework != null && !ASSESSMENT_FRAMEWORKS.includes(context.framework)) {
       errors.push(`${label} assessmentContext.framework "${context.framework}" is invalid. Use one of: ${ASSESSMENT_FRAMEWORKS.join(', ')}.`);
+    }
+  }
+
+  // If an item claims authentic exam style, its direct exam domain must be one
+  // the authored TEKS actually maps to. This prevents an AI from satisfying an
+  // Honors/CCMR rule by attaching a valid-but-unrelated domain id.
+  const examFramework = context && typeof context === 'object' && !Array.isArray(context)
+    && context.examStyle === true && DOMAIN_FRAMEWORKS.includes(context.framework)
+    ? context.framework
+    : null;
+  if (examFramework) {
+    const teksCodes = raw
+      .filter((entry) => entry && typeof entry === 'object' && !Array.isArray(entry) && String(entry.framework || 'teks') === 'teks')
+      .map((entry) => normalizeTeksCode(entry.code))
+      .filter(Boolean);
+    const directExamEntries = raw.filter((entry) => (
+      entry && typeof entry === 'object' && !Array.isArray(entry)
+      && String(entry.framework || '') === examFramework
+      && Boolean(String(entry.domainId || '').trim())
+    ));
+    if (!directExamEntries.length) {
+      errors.push(`${label} declares ${examFramework} examStyle but has no explicit ${examFramework} domain alignment.`);
+    } else if (teksCodes.length) {
+      directExamEntries.forEach((entry) => {
+        const supported = teksCodes.some((code) => {
+          const mapping = mapTEKSToExamDomains(code)?.[examFramework];
+          const domains = mapping?.domainIds || (mapping?.domainId ? [mapping.domainId] : []);
+          return domains.includes(entry.domainId);
+        });
+        if (!supported) {
+          errors.push(`${label} declares ${examFramework}:${entry.domainId}, but none of its TEKS alignments crosswalk to that domain.`);
+        }
+      });
     }
   }
 

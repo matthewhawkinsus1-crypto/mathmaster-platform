@@ -1,4 +1,5 @@
 import { getStrandForTEKS } from '../mastery/strandConfig.js';
+import { mapTEKSToExamDomains } from '../assessment/examDomainRegistry.js';
 
 export const COURSE_LEVELS = Object.freeze({
   STANDARD: 'standard',
@@ -11,6 +12,8 @@ export const COURSE_OPTIONS = Object.freeze([
 ]);
 
 const COURSE_LABELS = Object.freeze(Object.fromEntries(COURSE_OPTIONS.map((course) => [course.id, course.label])));
+
+const CCMR_FRAMEWORKS = new Set(['digitalSAT', 'act', 'tsia2', 'asvab']);
 
 export const normalizeCourseLevel = (value) => (
   String(value || '').trim().toLowerCase() === COURSE_LEVELS.HONORS
@@ -58,16 +61,45 @@ export const splitClassPeriodsByRigor = (classPeriods = [], courseProfiles = {})
 );
 
 const questionTeks = (question = {}) => {
-  const raw = question.teks
-    || question.teksAlignments
-    || question.standards?.primary
-    || question.metadata?.teks
-    || [];
+  const canonical = (Array.isArray(question.alignments) ? question.alignments : [])
+    .filter((entry) => entry && String(entry.framework || 'teks').toLowerCase() === 'teks' && entry.code)
+    .map((entry) => entry.code);
+  const raw = canonical.length
+    ? canonical
+    : question.teks
+      || question.teksAlignments
+      || question.standards?.primary
+      || question.metadata?.teks
+      || [];
   return (Array.isArray(raw) ? raw : [raw])
     .map((entry) => typeof entry === 'string' ? entry : entry?.code || entry?.teks || '')
     .map((value) => String(value || '').trim())
     .filter(Boolean);
 };
+
+const directCcmrFramework = (question = {}) => {
+  const context = question?.assessmentContext;
+  const framework = String(context?.framework || '').trim();
+  if (context?.examStyle !== true || !CCMR_FRAMEWORKS.has(framework)) return null;
+  const examDomains = (Array.isArray(question.alignments) ? question.alignments : [])
+    .filter((entry) => String(entry?.framework || '').trim() === framework && Boolean(entry?.domainId))
+    .map((entry) => String(entry.domainId));
+  if (!examDomains.length) return null;
+
+  const validForTeks = questionTeks(question).some((code) => {
+    const mapping = mapTEKSToExamDomains(code)?.[framework];
+    const allowedDomains = mapping?.domainIds || (mapping?.domainId ? [mapping.domainId] : []);
+    return examDomains.some((domainId) => allowedDomains.includes(domainId));
+  });
+  return validForTeks ? framework : null;
+};
+
+const isDirectCcmrQuestion = (question = {}) => Boolean(directCcmrFramework(question));
+const isDirectCcmrPracticeQuestion = (question = {}) => (
+  isDirectCcmrQuestion(question)
+  && String(question.activityRole || question.role || '').trim().toLowerCase() === 'practice'
+);
+
 
 const questionDok = (question = {}) => Number(
   question.dok
@@ -110,13 +142,22 @@ export const inspectHonorsRigor = (questions = [], { allowNarrowCheckpoint = fal
       ['modelingLab', 'dataModelingLab', 'relationshipModel', 'graphStory', 'contextInterpretation'].includes(question.type || question.toolId)
       || hasAnyToken(searchableQuestionText(question), ['model', 'real-world', 'scenario', 'application'])
     )),
-    ccmrEnrichment: included.some((question) => (
-      question.ccmr === true
-      || question.collegeCareerReadiness === true
-      || Boolean(question.examAlignment)
-      || hasAnyToken(searchableQuestionText(question), ['ccmr', 'sat', 'act', 'tsia2', 'college readiness', 'college-readiness'])
-    )),
+    // Filled below after we know which TEKS the non-exam lesson actually teaches.
+    ccmrEnrichment: false,
   };
+  const lessonTeks = new Set(
+    included
+      .filter((question) => !isDirectCcmrQuestion(question))
+      .flatMap(questionTeks),
+  );
+  // A full Honors assignment earns CCMR credit only from a directly-authored,
+  // crosswalk-valid exam-style item in independent Practice that transfers a
+  // TEKS taught elsewhere in this assignment. Keywords and legacy flags are
+  // informational at most; they cannot stand in for authentic transfer work.
+  checks.ccmrEnrichment = included.some((question) => (
+    isDirectCcmrPracticeQuestion(question)
+    && questionTeks(question).some((code) => lessonTeks.has(code))
+  ));
   const depthCount = [
     checks.higherOrderReasoning,
     checks.multipleRepresentations,
@@ -136,12 +177,7 @@ export const inspectHonorsRigor = (questions = [], { allowNarrowCheckpoint = fal
   };
 };
 
-const isCcmrQuestion = (question = {}) => (
-  question.ccmr === true
-  || question.collegeCareerReadiness === true
-  || Boolean(question.examAlignment)
-  || hasAnyToken(searchableQuestionText(question), ['ccmr', 'sat', 'act', 'tsia2', 'college readiness', 'college-readiness'])
-);
+const isCcmrQuestion = (question = {}) => isDirectCcmrQuestion(question);
 
 const isPrerequisiteQuestion = (question = {}) => (
   question.prerequisite === true
@@ -187,17 +223,15 @@ export const buildHonorsEnrichmentQuestion = ({ questions = [], course = 'algebr
   const firstTeks = questions.flatMap(questionTeks)[0] || null;
   const courseId = normalizeCourseId(course);
   const courseLabel = COURSE_LABELS[courseId];
-  const basePrompt = `${courseLabel} Honors extension: Create a realistic situation connected to ${firstTeks ? `TEKS ${firstTeks}` : 'the mathematics in this assignment'}. Define the quantities, represent their relationship with a graph, and justify why the graph is reasonable. Then explain one feature of the model that a SAT, ACT, or TSIA2-style question could ask you to interpret.`;
+  const basePrompt = `${courseLabel} Honors extension: Create a realistic situation connected to ${firstTeks ? `TEKS ${firstTeks}` : 'the mathematics in this assignment'}. Define the quantities, represent their relationship with a graph, and justify why the graph is reasonable. Then explain what one important feature of the model means in context.`;
   return {
     type: 'graphStory',
-    familyId: `honors-ccmr-modeling-${courseId}`,
+    familyId: `honors-modeling-${courseId}`,
     activityRole: 'classwork',
     dok: 3,
     difficultyBand: 4,
     teks: firstTeks ? [firstTeks] : [],
-    ccmr: true,
-    collegeCareerReadiness: true,
-    tags: ['honors', 'ccmr', 'modeling', 'multiple-representations', 'justification'],
+    tags: ['honors', 'modeling', 'multiple-representations', 'justification'],
     honorsEnrichment: {
       generatedBy: 'MathMaster',
       contractVersion: 1,
@@ -206,7 +240,7 @@ export const buildHonorsEnrichmentQuestion = ({ questions = [], course = 'algebr
     prompt: basePrompt,
     variants: [
       { prompt: basePrompt },
-      { prompt: `${courseLabel} Honors extension: Design a different real-world model connected to ${firstTeks ? `TEKS ${firstTeks}` : 'this assignment'}. Identify the independent and dependent quantities, sketch and label a graph, justify its important features, and write one college-readiness interpretation question that could be answered from your representation.` },
+      { prompt: `${courseLabel} Honors extension: Design a different real-world model connected to ${firstTeks ? `TEKS ${firstTeks}` : 'this assignment'}. Identify the independent and dependent quantities, sketch and label a graph, justify its important features, and explain what one important feature of your representation means in context.` },
     ],
     minimumScenarioCharacters: 35,
     minimumExplanationCharacters: 45,

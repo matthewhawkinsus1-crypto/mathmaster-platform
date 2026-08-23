@@ -1,8 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import CalculatorPanel from '../CalculatorPanel.jsx';
+import MathText from '../common/MathText.jsx';
+import MathDisplay from '../../MathDisplay.jsx';
+import PathQuestionStimulus from '../student/PathQuestionStimulus.jsx';
 import { resolveExamCalculatorPolicy } from '../../platform/policies/examPolicyResolver.js';
 
-const inputTypeFor = (profile) => ['number', 'numeric', 'decimal'].includes(String(profile || '').toLowerCase()) ? 'number' : 'text';
+const isNumericProfile = (profile) => ['number', 'numeric', 'decimal'].includes(String(profile || '').toLowerCase());
 
 export const SecureExamQuestionPlayer = ({ examType, question, initialResponsePayload = null, studentSupportProfile, accommodationConfirmed = false, busy = false, onSubmit, onDraftChange }) => {
   const [responses, setResponses] = useState(() => initialResponsePayload?.responses || {});
@@ -35,27 +38,39 @@ export const SecureExamQuestionPlayer = ({ examType, question, initialResponsePa
   return (
     <main style={{ width: 'min(820px, 100%)', margin: '0 auto', padding: '28px 18px 64px', boxSizing: 'border-box' }}>
       <section style={{ background: '#fff', border: '1px solid #dadce0', borderRadius: 14, padding: 'clamp(18px, 4vw, 30px)', boxShadow: '0 5px 22px rgba(0,0,0,.07)' }}>
-        <div style={{ color: '#5f6368', fontSize: 11, fontWeight: 900, textTransform: 'uppercase' }}>Secure response · DOK {question.dok || '—'}</div>
-        <h1 style={{ color: '#202124', fontSize: 'clamp(20px, 4vw, 27px)', lineHeight: 1.45, margin: '10px 0 24px' }}>{question.prompt}</h1>
-        {question.formulaLatex && <div style={{ background: '#f8f9fa', padding: 12, borderRadius: 8, marginBottom: 18, fontFamily: 'serif' }}>{question.formulaLatex}</div>}
+        <div style={{ color: '#5f6368', fontSize: 11, fontWeight: 900, textTransform: 'uppercase' }}>Secure exam question</div>
+        {/* Secure mode deliberately hides TEKS/domain labels while answering,
+            but the mathematics itself must still render exactly as authored. */}
+        <MathText as="h1" style={{ color: '#202124', fontSize: 'clamp(20px, 4vw, 27px)', lineHeight: 1.45, margin: '10px 0 24px', fontWeight: 760 }}>{question.prompt}</MathText>
+        {question.formulaLatex && <div style={{ background: '#f8f9fa', padding: 12, borderRadius: 8, marginBottom: 18, overflowX: 'auto' }}><MathDisplay value={question.formulaLatex} /></div>}
+        <PathQuestionStimulus stimulus={question.stimulus} />
         <form onSubmit={submit}>
           <div style={{ display: 'grid', gap: 15 }}>
             {fields.map((field, fieldIndex) => (
               <fieldset key={field.id} style={{ border: 0, padding: 0, margin: 0 }}>
-                <legend style={{ fontSize: 13, fontWeight: 900, color: '#3c4043', marginBottom: 7 }}>{field.label || `Response ${fieldIndex + 1}`}{field.unit ? ` (${field.unit})` : ''}</legend>
-                {choices.length && fields.length === 1 ? choices.map((choice) => (
-                  <label key={choice.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '11px 12px', marginBottom: 8, border: '1px solid #c7ccd1', borderRadius: 9, cursor: 'pointer' }}>
-                    <input type="radio" name={field.id} value={choice.id} checked={responses[field.id] === choice.id} onChange={(event) => updateResponse(field.id, event.target.value)} />
-                    <span>{choice.label}</span>
-                  </label>
-                )) : (
+                <legend style={{ fontSize: 13, fontWeight: 900, color: '#3c4043', marginBottom: 7 }}>
+                  <MathText>{field.label || `Response ${fieldIndex + 1}`}{field.unit ? ` (${field.unit})` : ''}</MathText>
+                </legend>
+                {choices.length && fields.length === 1 ? choices.map((choice) => {
+                  const selected = responses[field.id] === choice.id;
+                  return (
+                    <label key={choice.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '12px 13px', marginBottom: 8, border: selected ? '2px solid #1a73e8' : '1px solid #c7ccd1', borderRadius: 9, cursor: 'pointer', background: selected ? '#eef4ff' : '#fff', boxShadow: selected ? '0 0 0 1px rgba(26,115,232,.08)' : 'none' }}>
+                      <input type="radio" name={field.id} value={choice.id} checked={selected} onChange={(event) => updateResponse(field.id, event.target.value)} style={{ marginTop: 3 }} />
+                      <MathText style={{ lineHeight: 1.5 }}>{choice.label}</MathText>
+                    </label>
+                  );
+                }) : (
                   <input
                     autoComplete="off"
-                    type={inputTypeFor(field.inputProfile)}
-                    inputMode={inputTypeFor(field.inputProfile) === 'number' ? 'decimal' : undefined}
+                    // Keep this a text input even for numeric SPR items. HTML
+                    // number inputs reject valid assessment responses such as
+                    // 3/4; inputMode still gives a numeric-friendly keyboard.
+                    type="text"
+                    inputMode={isNumericProfile(field.inputProfile) ? 'decimal' : undefined}
                     value={responses[field.id] ?? ''}
                     onChange={(event) => updateResponse(field.id, event.target.value)}
-                    style={{ width: '100%', minHeight: 46, padding: '10px 12px', border: '2px solid #c7ccd1', borderRadius: 8, boxSizing: 'border-box', fontSize: 17 }}
+                    aria-label={field.label || `Response ${fieldIndex + 1}`}
+                    style={{ width: '100%', minHeight: 48, padding: '10px 12px', border: '2px solid #c7ccd1', borderRadius: 8, boxSizing: 'border-box', fontSize: 17 }}
                   />
                 )}
               </fieldset>

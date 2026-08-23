@@ -91,8 +91,9 @@ const skillIdsForQuestion = (question) => normalizeQuestionAlignments(question, 
  * Returns a nested map: evidence[skillId][framework]. Absent means unpractised,
  * which callers must render as "not practised yet" rather than as a score.
  */
-export const buildAssessmentEvidence = ({ student, assignments = [] } = {}) => {
+export const buildAssessmentEvidence = ({ student, assignments = [], evidenceEvents = [] } = {}) => {
   const safeAssignments = Array.isArray(assignments) ? assignments : [];
+  const safeEvidenceEvents = Array.isArray(evidenceEvents) ? evidenceEvents : [];
   const grades = student?.gradesByAssignment || {};
   const evidence = {};
 
@@ -138,6 +139,48 @@ export const buildAssessmentEvidence = ({ student, assignments = [] } = {}) => {
           const key = item.framework ? '_directCredit' : '_crosswalkCredit';
           entry[key] = (entry[key] || 0) + credit;
         });
+      });
+    });
+  });
+
+  // My Math Path and released secure-exam evidence are immutable
+  // event records rather than assignment tracker rows. They must feed the same
+  // CCMR proficiency model or a student can complete authentic SAT/ACT/etc.
+  // practice and see the readiness wheel remain unchanged. Assignment-origin
+  // events are intentionally ignored here because the assignment tracker loop
+  // above already counted them.
+  safeEvidenceEvents.forEach((event) => {
+    const sourceKind = String(event?.source?.kind || '');
+    if (!['myMathPath', 'secureExam'].includes(sourceKind)) return;
+    if (event?.performance?.status && event.performance.status !== 'finalized') return;
+
+    const skillIds = [...new Set((event?.masteryEvidenceKeys?.length ? event.masteryEvidenceKeys : event?.alignmentKeys || [])
+      .map((key) => String(key || '').replace(/^texas:/i, ''))
+      .filter(Boolean)
+      .map((code) => teksSkillId(code)))];
+    if (!skillIds.length) return;
+
+    const sourceFramework = sourceKind === 'secureExam'
+      ? String(event?.source?.examType || '')
+      : String(event?.source?.assessmentFramework || '');
+    const directFramework = ASSESSMENT_FRAMEWORKS.includes(sourceFramework) ? sourceFramework : null;
+    const rawScore = Number(event?.performance?.score);
+    const credit = clamp01(Number.isFinite(rawScore) ? (rawScore > 1 ? rawScore / 100 : rawScore) : (event?.performance?.isCorrect ? 1 : 0));
+    const occurredAt = event?.occurredAt || null;
+
+    skillIds.forEach((skillId) => {
+      const frameworks = directFramework
+        ? [directFramework]
+        : Object.keys(getSkillCrosswalk(skillId).frameworks);
+      frameworks.forEach((framework) => {
+        const entry = bucket(skillId, framework);
+        entry.attempts += 1;
+        entry.correct += credit;
+        if (directFramework) entry.directItemsAttempted += 1;
+        else entry.crosswalkItemsAttempted += 1;
+        if (occurredAt != null) entry.lastAttemptAt = occurredAt;
+        const key = directFramework ? '_directCredit' : '_crosswalkCredit';
+        entry[key] = (entry[key] || 0) + credit;
       });
     });
   });

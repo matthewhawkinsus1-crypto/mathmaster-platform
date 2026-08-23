@@ -134,12 +134,23 @@ export const getDirectAlignmentIndex = (assignments = [], { normalizeAlignments,
     (assignment?.questions || []).forEach((question) => {
       const context = normalizeContext ? normalizeContext(question?.assessmentContext) : question?.assessmentContext;
       const framework = context?.framework;
+      // Direct-capable means directly authored, not merely tagged. Require the
+      // raw authored flag even if a legacy normalizer would default it to true.
+      if (question?.assessmentContext?.examStyle !== true) return;
       if (!framework || framework === 'course' || !ASSESSMENT_FRAMEWORKS.includes(framework)) return;
 
       const alignments = normalizeAlignments ? normalizeAlignments(question) : (question?.alignments || []);
+      const directDomains = alignments
+        .filter((entry) => entry?.framework === framework && entry?.domainId)
+        .map((entry) => String(entry.domainId));
+      if (!directDomains.length) return;
+
       alignments
         .filter((entry) => (entry.framework === 'teks' || !entry.framework) && entry.code && entry.role !== 'prerequisite')
         .forEach((entry) => {
+          const mapped = getSkillCrosswalk(entry.code).frameworks[framework];
+          const allowedDomains = mapped?.domainIds || (mapped?.domainId ? [mapped.domainId] : []);
+          if (!directDomains.some((domainId) => allowedDomains.includes(domainId))) return;
           const skillId = teksSkillId(entry.code);
           if (!index.has(skillId)) index.set(skillId, new Set());
           index.get(skillId).add(framework);

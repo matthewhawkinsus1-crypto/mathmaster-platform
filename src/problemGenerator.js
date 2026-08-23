@@ -544,9 +544,17 @@ const getReplacementKeyParts = (generationKey) => {
   return { baseKey: match[1], variantIndex: Number(match[2]) };
 };
 
-export const generateQuestion = (question, generationKey, studentProfile = null) => {
+/**
+ * `adaptation` is the assignment-adaptation decision for THIS student and THIS
+ * question, resolved by the caller. When absent, the legacy per-question
+ * differentiation decides the band exactly as it always did — so an assignment
+ * that was never made adaptive behaves identically.
+ */
+export const generateQuestion = (question, generationKey, studentProfile = null, adaptation = null) => {
   if (!question) return null;
-  const adaptiveQuestion = applyAdaptiveDifferentiation(question, studentProfile).question;
+  const adaptiveQuestion = applyAdaptiveDifferentiation(question, studentProfile, {
+    targetBandOverride: adaptation?.adapted ? adaptation.difficultyBand : null,
+  }).question;
   // Apply accommodations/modifications after adaptive selection so a student
   // support plan always wins if the two would otherwise change the same field.
   const supportedQuestion = applyStudentSupportToQuestion(adaptiveQuestion, studentProfile).question;

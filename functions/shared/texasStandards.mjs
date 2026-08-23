@@ -72,9 +72,15 @@ const algebraIContent = (code, strand, reportingCategory, classification, descri
   courseId: 'algebra1',
   course: 'Algebra I',
   strand,
-  strandLabel: strand >= 2 && strand <= 5
-    ? (reportingCategory ? ALGEBRA_I_REPORTING_CATEGORIES[reportingCategory] : null)
-    : null,
+  // The label is the STAAR REPORTING CATEGORY, so it is keyed off the reporting
+  // category and nothing else. The previous guard also required the TEKS strand
+  // number to be 2-5, which silently blanked every standard from A.6 onward —
+  // all of quadratics (RC 4) and all of exponentials (RC 5), 26 of Algebra I's
+  // 49 standards. Two things depended on it: the student-facing "what this
+  // question is building" dialog, which lost its category line for half the
+  // course, and the weekly Path's variety logic, which had no strand to spread
+  // work across. Process standards carry no reporting category and stay null.
+  strandLabel: reportingCategory ? (ALGEBRA_I_REPORTING_CATEGORIES[reportingCategory] || null) : null,
   classification,
   reportingCategory,
   description,

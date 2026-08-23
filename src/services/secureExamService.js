@@ -24,6 +24,7 @@ const mockSession = (examType) => {
     timeLimitSeconds: policy.timeLimitSeconds,
     expiresAt: policy.timeLimitSeconds == null ? null : now + policy.timeLimitSeconds * 1000,
     feedbackReleased: false,
+    responses: {},
     currentQuestion: null,
   };
 };
@@ -31,7 +32,18 @@ const mockSession = (examType) => {
 const nextMockQuestion = (session) => {
   const questionInstanceId = `examq_mock_${generateRuntimeUUID()}`;
   mockAnswers.set(questionInstanceId, '4');
-  return { questionInstanceId, questionType: 'number', prompt: 'Secure exam sandbox check: enter 4.', responseFields: [{ id: 'answer', label: 'Answer', inputProfile: 'number' }], choices: [], dok: 1, difficultyBand: 3, examCalculatorMode: session.examType === 'tsia2' ? 'basic' : null };
+  return {
+    questionInstanceId,
+    questionType: 'response',
+    prompt: 'Solve $2x=8$. Enter $x$.',
+    responseFields: [{ id: 'answer', label: 'Answer', inputProfile: 'number' }],
+    choices: [],
+    alignmentKey: 'A.5A',
+    alignmentKeys: ['texas:A.5A'],
+    dok: 1,
+    difficultyBand: 3,
+    examCalculatorMode: session.examType === 'tsia2' ? 'basic' : null,
+  };
 };
 
 export const createSecureExamSession = async (payload) => {
@@ -50,6 +62,26 @@ export const createSecureExamSession = async (payload) => {
 export const listStudentSecureExamSessions = async () => {
   if (getExecutionMode() === EXECUTION_MODES.MOCK_LOCAL) return { sessions: [...mockSessions.values()].map(clone) };
   return call('listStudentSecureExamSessions', {});
+};
+
+export const getStudentSecureExamReview = async ({ examSessionId }) => {
+  if (getExecutionMode() === EXECUTION_MODES.MOCK_LOCAL) {
+    const session = mockSessions.get(examSessionId);
+    if (!session) throw new Error('Secure exam sandbox session not found.');
+    if (!session.feedbackReleased) throw new Error('Your teacher has not released feedback for this exam yet.');
+    const items = Object.values(session.responses || {}).sort((a, b) => Number(a.submittedAt || 0) - Number(b.submittedAt || 0));
+    const correctQuestions = items.filter((item) => item.grading?.isCorrect).length;
+    return {
+      review: {
+        session: clone(session),
+        answeredQuestions: items.length,
+        correctQuestions,
+        scorePercent: items.length ? Math.round(correctQuestions / items.length * 100) : 0,
+        items: clone(items),
+      },
+    };
+  }
+  return call('getStudentSecureExamReview', { examSessionId });
 };
 
 export const startSecureExamSession = async ({ examSessionId = null, examType = 'digitalSAT' } = {}) => {
@@ -91,7 +123,20 @@ export const submitSecureExamResponse = async ({ examSessionId, questionInstance
     if (!session || session.status !== 'in_progress' || session.currentQuestion?.questionInstanceId !== questionInstanceId) throw new Error('That secure exam question is no longer active.');
     const response = Object.values(responsePayload?.responses || {})[0];
     const isCorrect = String(response ?? '').trim() === mockAnswers.get(questionInstanceId);
+    const current = clone(session.currentQuestion);
     session.summary.completedQuestions += 1;
+    session.summary.correctQuestions = Number(session.summary.correctQuestions || 0) + (isCorrect ? 1 : 0);
+    session.responses[questionInstanceId] = {
+      questionInstanceId,
+      bankQuestionId: current.bankQuestionId || 'mock-bank-question',
+      alignmentKeys: current.alignmentKeys || (current.alignmentKey ? [`texas:${current.alignmentKey}`] : []),
+      questionType: current.questionType,
+      familyId: current.familyId || 'mock-secure-family',
+      grading: { score: isCorrect ? 1 : 0, isCorrect },
+      responsePayload: clone(responsePayload || { responses: {} }),
+      questionSnapshot: current,
+      submittedAt: Date.now(),
+    };
     session.currentQuestion = null;
     if (session.summary.completedQuestions >= session.requiredQuestions) session.status = 'submitted';
     return { success: true, submissionId: activeSubmissionId, recorded: true, correctnessReleased: false, _mockCorrect: isCorrect, session: clone(session), needsNextQuestion: session.status === 'in_progress' };

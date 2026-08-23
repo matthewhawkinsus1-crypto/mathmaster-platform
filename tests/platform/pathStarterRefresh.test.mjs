@@ -15,6 +15,10 @@ const seedFiles = [
   'grade6_pathQuestionBank_seed.json',
   'grade7_pathQuestionBank_seed.json',
   'grade8_pathQuestionBank_seed.json',
+  'digitalSAT_pathQuestionBank_seed.json',
+  'act_pathQuestionBank_seed.json',
+  'tsia2_pathQuestionBank_seed.json',
+  'asvab_pathQuestionBank_seed.json',
 ];
 
 const seedCount = seedFiles.reduce((total, fileName) => {

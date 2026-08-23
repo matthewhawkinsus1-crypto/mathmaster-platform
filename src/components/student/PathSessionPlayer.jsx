@@ -15,6 +15,7 @@ import { describeSkill, teksSkillId } from '../../platform/path/skillGraph.js';
 import { toDisplayCode } from '../../utils/teksUtils.js';
 import StandardBadge from '../common/StandardBadge.jsx';
 import { FRAMEWORK_LABELS } from '../../platform/ccmr/assessmentCrosswalk.js';
+import { questionAssessmentFramework } from '../../platform/student/questionAlignmentInfo.js';
 
 // Three ways a path question can arrive, in order of preference.
 //
@@ -83,7 +84,7 @@ const skillNameFor = (questionInstance, session) => {
  * on a practice session turns every question into a grade, which is the
  * opposite of what practice is for.
  */
-function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowed, assessmentFramework = null }) {
+function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowed, assessmentFramework = null, onExit = null }) {
   const total = Number(session?.requiredQuestions) || 5;
   const done = Number(session?.summary?.completedQuestions) || 0;
   const current = Math.min(total, done + 1);
@@ -98,9 +99,42 @@ function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowe
     || session?.target?.alignmentKey
     || '',
   );
+  const authoredAssessment = questionAssessmentFramework(questionInstance || {});
+  const bridgeFramework = questionInstance?.assessmentBridgeFramework || null;
+  // New issued questions carry their own assessmentContext. The fallback keeps
+  // an already-open pre-deploy CCMR session labelled correctly without ever
+  // overriding an explicit course foundation bridge.
+  const directFramework = authoredAssessment.examStyle
+    ? authoredAssessment.framework
+    : (!bridgeFramework && assessmentFramework && !questionInstance?.assessmentContext ? assessmentFramework : null);
 
   return (
     <header style={{ marginBottom: 12 }}>
+      {/* AN ACTIVE SESSION HAD NO EXIT AT ALL.
+          Not a broken one — none. A student part-way through who needed to stop
+          had the browser back button or a reload, which is exactly the "no state
+          should require browser refresh" case. Progress is held server-side and
+          the session resumes from its lock, so leaving costs nothing; the
+          wording says so, because a student who fears losing their work will sit
+          on a question rather than go and ask for help. */}
+      {onExit && (
+        <div style={{ marginBottom: 8 }}>
+          <button
+            type="button"
+            onClick={onExit}
+            style={{
+              appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
+              minHeight: 44, padding: '8px 2px', border: 0, background: 'transparent',
+              color: '#174ea6', fontWeight: 800, fontSize: 13.5, cursor: 'pointer',
+            }}
+          >
+            ← Back to My Math Path
+          </button>
+          <span style={{ display: 'block', color: '#5f6368', fontSize: 11.5, lineHeight: 1.45 }}>
+            Your work so far is saved. You can pick this session up again.
+          </span>
+        </div>
+      )}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
         <strong style={{ color: '#174ea6', fontSize: 16 }}>
           {isRetention ? 'Quick retention check' : skillNameFor(questionInstance, session)}
@@ -110,13 +144,13 @@ function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowe
           {attemptsAllowed > 1 && attemptsLeft > 0 ? ` · ${attemptsLeft} ${attemptsLeft === 1 ? 'try' : 'tries'} left` : ''}
         </span>
       </div>
-      {assessmentFramework && (
-        <p style={{ margin: '6px 0 0', color: '#5b21b6', fontSize: 12.5, fontWeight: 800 }}>
-          Practising for the {FRAMEWORK_LABELS[assessmentFramework] || assessmentFramework}
+      {bridgeFramework && (
+        <p role="status" style={{ margin: '6px 0 0', padding: '7px 10px', width: 'fit-content', maxWidth: '100%', borderRadius: 8, background: '#fef7e0', border: '1px solid #f0d489', color: '#7a4f00', fontSize: 12.5, fontWeight: 800, lineHeight: 1.45 }}>
+          Foundation bridge for {FRAMEWORK_LABELS[bridgeFramework] || bridgeFramework} practice · strengthen this math first, then return to exam-format questions.
         </p>
       )}
       {questionCode && (
-        <StandardBadge code={questionCode} framework={assessmentFramework} style={{ marginTop: 7 }} />
+        <StandardBadge code={questionCode} framework={directFramework} domainId={questionInstance?.assessmentContext?.domainId || null} examStyle={Boolean(directFramework)} style={{ marginTop: 7 }} />
       )}
       <div
         role="progressbar"
@@ -179,6 +213,9 @@ export const PathSessionPlayer = ({
   studentProfile,
   onSubmitAnswer,
   onContinue = null,
+  // One logical level up: My Math Path, never Home. Null in the teacher
+  // simulator, which has its own frame around this.
+  onExit = null,
 }) => {
   const [responsesByQuestion, setResponsesByQuestion] = useState({});
   const [calculatorUsed, setCalculatorUsed] = useState(false);
@@ -267,6 +304,7 @@ export const PathSessionPlayer = ({
           attemptsLeft={attemptsLeft}
           attemptsAllowed={attemptsAllowed}
           assessmentFramework={assessmentFramework}
+          onExit={onExit}
         />
         <DecisionBanner notice={routeNotice} />
 
@@ -282,6 +320,7 @@ export const PathSessionPlayer = ({
           studentProfile={studentProfile}
           maximumAttempts={questionInstance.attemptsAllowed}
           activityRole={questionInstance.activityRole || 'practice'}
+          showStandardBadge={false}
           draftKey={`path-${questionInstance.questionInstanceId}`}
           // With a secure payload the engine collects raw work and the server
           // decides; `onGrade` is not used at all on that route.
@@ -370,6 +409,7 @@ export const PathSessionPlayer = ({
         attemptsLeft={attemptsLeft}
         attemptsAllowed={attemptsAllowed}
         assessmentFramework={assessmentFramework}
+        onExit={onExit}
       />
       <DecisionBanner notice={routeNotice} />
 

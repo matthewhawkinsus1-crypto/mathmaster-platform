@@ -1304,7 +1304,7 @@ async function pathCoverage() {
 
 const COVERAGE_COLLECTION = "pathCoverage";
 
-const PATH_RUNTIME_RELEASE = "path-bank-2026-08-20-r5-production-refresh";
+const PATH_RUNTIME_RELEASE = "path-bank-2026-08-21-r9-asvab";
 
 
 /**
@@ -1531,12 +1531,18 @@ const BUILT_IN_PATH_SEED_FILES = Object.freeze([
   "grade6_pathQuestionBank_seed.json",
   "grade7_pathQuestionBank_seed.json",
   "grade8_pathQuestionBank_seed.json",
+  "digitalSAT_pathQuestionBank_seed.json",
+  "act_pathQuestionBank_seed.json",
+  "tsia2_pathQuestionBank_seed.json",
+  "asvab_pathQuestionBank_seed.json",
 ]);
 
 const BUILT_IN_PATH_SEED_MARKER = "mathmaster-built-in-path-bank";
 const LEGACY_BUILT_IN_PATH_SEED_SOURCE = "MathMaster curated starter coverage";
 
+let builtInStarterPathSeedCache = null;
 function loadBuiltInStarterPathSeed() {
+  if (builtInStarterPathSeedCache) return builtInStarterPathSeedCache;
   const seedDirectory = path.join(__dirname, "seeds", "pathQuestionBank");
   const items = BUILT_IN_PATH_SEED_FILES.flatMap((fileName) => {
     const filePath = path.join(seedDirectory, fileName);
@@ -1546,7 +1552,8 @@ function loadBuiltInStarterPathSeed() {
   if (!items.length) throw new Error("The built-in Path starter bank is empty.");
   const ids = new Set(items.map((item) => String(item?.id || "").trim()));
   if (ids.size !== items.length || ids.has("")) throw new Error("The built-in Path starter bank contains missing or duplicate IDs.");
-  return items;
+  builtInStarterPathSeedCache = items;
+  return builtInStarterPathSeedCache;
 }
 
 async function removeSupersededBuiltInPathSeedRecords(db, currentItems) {
@@ -1579,7 +1586,7 @@ async function rebuildStoredPathCoverage(db, {
   const builtInItems = loadBuiltInStarterPathSeed();
   const derivedWheel = { algebra1: new Set(), algebra2: new Set() };
 
-  builtInItems.forEach((item) => {
+  builtInItems.filter((item) => pathQuestionMatchesFramework(item, null)).forEach((item) => {
     const courseId = String(item?.courseId || "");
     if (!derivedWheel[courseId]) return;
     (Array.isArray(item?.alignmentKeys) ? item.alignmentKeys : []).forEach((key) => {
@@ -1589,11 +1596,13 @@ async function rebuildStoredPathCoverage(db, {
   });
 
   const snapshot = await db.collection("pathQuestionBank").get();
-  const bankItems = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  const bankItems = snapshot.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() }))
+    .filter((item) => pathQuestionMatchesFramework(item, null));
   const plans = {};
   for (const item of bankItems) {
     // eslint-disable-next-line no-await-in-loop
-    plans[item.id] = await mathPath.buildIssuePlan(item);
+    plans[item.id] = await mathPath.buildTemplateIssuePlan(item);
   }
 
   const indexes = {};
@@ -1624,11 +1633,13 @@ async function livePathSkillIsLaunchable(db, targetAlignmentKey) {
   const snapshot = await db.collection("pathQuestionBank")
     .where("alignmentKeys", "array-contains", targetAlignmentKey)
     .get();
-  const bankItems = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  const bankItems = snapshot.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() }))
+    .filter((item) => pathQuestionMatchesFramework(item, null));
   const plans = {};
   for (const item of bankItems) {
     // eslint-disable-next-line no-await-in-loop
-    plans[item.id] = await mathPath.buildIssuePlan(item);
+    plans[item.id] = await mathPath.buildTemplateIssuePlan(item);
   }
   const index = coverage.buildCoverageIndex({
     courseId: coverageCourseIdFor(targetAlignmentKey),
@@ -3963,7 +3974,7 @@ async function loadChallengeCandidates(db, { courseId, standardCode }) {
 
   const planned = await Promise.all(candidates.map(async (question) => ({
     question,
-    plan: await mathPath.buildIssuePlan(question),
+    plan: await mathPath.buildTemplateIssuePlan(question),
   })));
   return planned.filter((entry) => entry.plan.issuable);
 }
@@ -3991,14 +4002,22 @@ async function buildLiveChallengePublicQuestion(db, { roomId, roundIndex, questi
   const snapshot = await db.collection("pathQuestionBank").doc(questionId).get();
   if (!snapshot.exists) throw new HttpsError("failed-precondition", "A Live Challenge question is no longer in the secure bank.");
   const authored = snapshot.data() || {};
-  const plan = await mathPath.buildIssuePlan(authored);
+  // A bank record may be a generator template. Live Challenge must instantiate
+  // it on the server exactly as My Math Path does; grading reconstructs the
+  // same draw from this deterministic seed, so the browser never chooses the
+  // numbers or receives the answer-bearing generator parameters.
+  const seedKey = `challenge|${roomId}|${roundIndex}|${questionId}`;
+  const instantiated = await mathPath.instantiateQuestion(authored, seedKey);
+  if (!instantiated.question) throw new HttpsError("failed-precondition", "A Live Challenge question could not be generated.");
+  const issued = { ...instantiated.question, activityRole: "practice" };
+  const plan = await mathPath.buildIssuePlan(issued);
   if (!plan.issuable) throw new HttpsError("failed-precondition", "A Live Challenge question can no longer be securely graded.");
-  const displayStandard = (Array.isArray(authored.alignmentKeys) ? authored.alignmentKeys[0] : "")
-    ? mathPath.displayAlignmentKey(authored.alignmentKeys[0])
+  const displayStandard = (Array.isArray(issued.alignmentKeys) ? issued.alignmentKeys[0] : "")
+    ? mathPath.displayAlignmentKey(issued.alignmentKeys[0])
     : null;
   return {
     ...mathPath.buildSanitizedQuestion(
-      { ...authored, activityRole: "practice" },
+      issued,
       {
         questionInstanceId: `challenge_${roomId}_r${roundIndex + 1}`,
         attemptsAllowed: 1,
@@ -4388,7 +4407,10 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   const questionSnapshot = questionId ? await db.collection("pathQuestionBank").doc(questionId).get() : null;
   if (!questionSnapshot?.exists) throw new HttpsError("failed-precondition", "This round's secure question is unavailable.");
   const authored = questionSnapshot.data() || {};
-  const plan = await mathPath.buildIssuePlan(authored);
+  const seedKey = `challenge|${roomId}|${submittedRound}|${questionId}`;
+  const instantiated = await mathPath.instantiateQuestion(authored, seedKey);
+  if (!instantiated.question) throw new HttpsError("failed-precondition", "This round's question could not be regenerated securely.");
+  const plan = await mathPath.buildIssuePlan(instantiated.question);
   if (!plan.issuable) throw new HttpsError("failed-precondition", "This round can no longer be securely graded.");
   const grading = await mathPath.gradePathToolResponse(plan.privateGrading, request.data?.responsePayload || {});
   if (grading?.rejected) throw new HttpsError("failed-precondition", grading.reason || "The response could not be graded.");
@@ -4473,6 +4495,21 @@ function pathSessionRequiredQuestions(sessionKind, requested) {
   return Math.max(2, Math.min(10, Number(requested) || 5));
 }
 
+const PATH_ASSESSMENT_FRAMEWORKS = new Set(["digitalSAT", "act", "tsia2", "asvab"]);
+
+function normalizePathAssessmentFramework(value) {
+  const framework = String(value || "").trim();
+  return PATH_ASSESSMENT_FRAMEWORKS.has(framework) ? framework : null;
+}
+
+function pathQuestionMatchesFramework(question = {}, assessmentFramework = null) {
+  const authoredFramework = String(question?.assessmentContext?.framework || "course");
+  if (assessmentFramework) {
+    return authoredFramework === assessmentFramework && question?.assessmentContext?.examStyle !== false;
+  }
+  return authoredFramework === "course";
+}
+
 /** Start or resume one server-owned learning-path session for a TEKS target. */
 exports.startMyMathPathSession = onCall(async (request) => {
   const { studentId } = requireStudent(request);
@@ -4480,6 +4517,7 @@ exports.startMyMathPathSession = onCall(async (request) => {
   if (!targetAlignmentKey) throw new HttpsError("invalid-argument", "targetAlignmentKey is required.");
   const sessionKind = request.data?.sessionKind === "retentionProbe" ? "retentionProbe" : "practice";
   const requiredQuestions = pathSessionRequiredQuestions(sessionKind, request.data?.requiredQuestions);
+  const assessmentFramework = normalizePathAssessmentFramework(request.data?.assessmentFramework);
   const db = getFirestore();
 
   // Refuse a standard the secure bank cannot issue a question for, and refuse
@@ -4513,7 +4551,36 @@ exports.startMyMathPathSession = onCall(async (request) => {
       }
     }
   }
-  const lockId = mathPath.opaqueId("pathlock", studentId, targetAlignmentKey);
+  // A CCMR launch is allowed to call itself SAT/ACT/TSIA2/ASVAB practice only
+  // when that exact framework has a full secure session of directly-authored
+  // exam-style families. The ordinary TEKS coverage index is intentionally not
+  // enough: crosswalk overlap is not direct assessment evidence.
+  if (assessmentFramework) {
+    const frameworkSnapshot = await db.collection("pathQuestionBank")
+      .where("alignmentKeys", "array-contains", targetAlignmentKey)
+      .limit(40)
+      .get();
+    const frameworkRecords = frameworkSnapshot.docs
+      .map((questionDoc) => ({ id: questionDoc.id, ...questionDoc.data() }))
+      .filter((question) => question.active !== false)
+      .filter((question) => pathQuestionMatchesFramework(question, assessmentFramework));
+    const frameworkPlans = await Promise.all(frameworkRecords.map(async (question) => ({
+      question, plan: await mathPath.buildTemplateIssuePlan(question),
+    })));
+    const issuableFamilies = new Set(frameworkPlans
+      .filter((entry) => entry.plan?.issuable)
+      .map((entry) => String(entry.question?.familyId || entry.question?.id || ""))
+      .filter(Boolean));
+    if (issuableFamilies.size < 5) {
+      throw new HttpsError(
+        "failed-precondition",
+        `${assessmentFramework} practice for ${mathPath.displayAlignmentKey(targetAlignmentKey)} is not published yet.`,
+        { reason: "no-assessment-path-coverage", assessmentFramework },
+      );
+    }
+  }
+
+  const lockId = mathPath.opaqueId("pathlock", studentId, targetAlignmentKey, assessmentFramework || "course");
   const lockRef = db.collection("activePathLocks").doc(lockId);
   const proposedSessionRef = db.collection("pathSessions").doc();
 
@@ -4526,6 +4593,9 @@ exports.startMyMathPathSession = onCall(async (request) => {
         if (existing.data()?.sessionKind !== sessionKind) {
           throw new HttpsError("failed-precondition", "Finish the active session for this TEKS before starting a different check.");
         }
+        if ((existing.data()?.assessmentFramework || null) !== assessmentFramework) {
+          throw new HttpsError("failed-precondition", "Finish the active session before changing assessment format.");
+        }
         return existing.data();
       }
     }
@@ -4537,6 +4607,7 @@ exports.startMyMathPathSession = onCall(async (request) => {
       studentId,
       status: "active",
       sessionKind,
+      assessmentFramework,
       requiredQuestions,
       target: { alignmentKey: targetAlignmentKey },
       summary: { completedQuestions: 0, correctQuestions: 0, independentSuccesses: 0 },
@@ -4562,7 +4633,7 @@ exports.startMyMathPathSession = onCall(async (request) => {
       updatedAt: now,
     };
     transaction.set(proposedSessionRef, next);
-    transaction.set(lockRef, { sessionId: proposedSessionRef.id, studentId, targetAlignmentKey, sessionKind, updatedAt: now });
+    transaction.set(lockRef, { sessionId: proposedSessionRef.id, studentId, targetAlignmentKey, sessionKind, assessmentFramework, updatedAt: now });
     return next;
   });
 
@@ -4600,18 +4671,44 @@ exports.issueNextQuestion = onCall(async (request) => {
   // Every candidate is screened by the Path Tool Contract before it can be
   // chosen. A question whose tool has no server grader is skipped here rather
   // than issued in a weaker form.
-  const plans = await Promise.all(bankSnapshot.docs
+  const bankRecords = bankSnapshot.docs
     .map((questionDoc) => ({ id: questionDoc.id, ...questionDoc.data() }))
-    .filter((question) => question.active !== false)
-    .map(async (question) => ({ question, plan: await mathPath.buildIssuePlan(question) })));
-  const issuable = plans.filter((entry) => entry.plan.issuable);
-  const candidates = issuable.map((entry) => entry.question);
-  const planByQuestionId = new Map(issuable.map((entry) => [entry.question.id, entry.plan]));
+    .filter((question) => question.active !== false);
+  const buildFrameworkPlans = async (framework) => Promise.all(bankRecords
+    .filter((question) => pathQuestionMatchesFramework(question, framework))
+    .map(async (question) => ({ question, plan: await mathPath.buildTemplateIssuePlan(question) })));
+
+  let plans = await buildFrameworkPlans(session.assessmentFramework || null);
+  let issuable = plans.filter((entry) => entry.plan.issuable);
+  let candidates = issuable.map((entry) => entry.question);
+  let usingCourseBridge = false;
+
+  // A CCMR session may route down to a mathematical prerequisite that the exam
+  // itself does not test. Stranding the student there with "start again" is a
+  // bad learning experience. Use the ordinary course family as a clearly
+  // labelled foundation bridge, then let routing return to direct exam-format
+  // work. The bridge never counts as direct assessment evidence.
+  if (!candidates.length && session.assessmentFramework && activeDisplayCode !== targetDisplayCode) {
+    const coursePlans = await buildFrameworkPlans(null);
+    const courseIssuable = coursePlans.filter((entry) => entry.plan.issuable);
+    if (courseIssuable.length) {
+      plans = coursePlans;
+      issuable = courseIssuable;
+      candidates = courseIssuable.map((entry) => entry.question);
+      usingCourseBridge = true;
+      logger.info("Using course foundation bridge inside assessment Path session", {
+        sessionId,
+        assessmentFramework: session.assessmentFramework,
+        activeDisplayCode,
+        targetDisplayCode,
+      });
+    }
+  }
+
   if (!candidates.length) {
-    // NEVER STRAND. If the excursion skill turns out to have nothing issuable,
-    // the session goes back to its target rather than throwing an error at a
-    // student who has just answered badly. Only a target with no content is a
-    // genuine failure, and the wheel already hides those.
+    // NEVER STRAND. If an ordinary excursion skill truly has no issuable
+    // content, return the routing state to the target. Assessment sessions have
+    // already tried the course bridge above before reaching this branch.
     if (activeDisplayCode !== targetDisplayCode) {
       logger.warn("Path excursion skill has no issuable content; returning to target", {
         sessionId, activeDisplayCode, targetDisplayCode,
@@ -4658,6 +4755,10 @@ exports.issueNextQuestion = onCall(async (request) => {
   const usedTaskTypes = Array.isArray(session.usedTaskTypes) ? session.usedTaskTypes : [];
   const choice = selection.selectNextFamily(candidates, {
     preferredBand: adaptiveRigor.preferredDifficultyBand,
+    // Cognitive demand, decided server-side from the same evidence the band is.
+    // Selection ignored it entirely until now, so the DOK the platform reported
+    // was never the DOK it delivered.
+    preferredDok: adaptiveRigor.preferredDok,
     usage: familyUsage,
     usedRepresentations,
     usedTaskTypes,
@@ -4675,8 +4776,7 @@ exports.issueNextQuestion = onCall(async (request) => {
   //
   // Deterministic in the session and the instance id, so the question survives
   // a reload; the generated question is stored on the session either way, so
-  // the two agree by construction. A record with no generator — which is every
-  // record in the bank today — passes through untouched.
+  // the two agree by construction. A record with no generator passes through untouched.
   const instantiated = await mathPath.instantiateQuestion(authored, `${sessionId}|${questionInstanceId}`);
   if (!instantiated.question) {
     logger.error("A Path template could not generate a question", {
@@ -4690,9 +4790,7 @@ exports.issueNextQuestion = onCall(async (request) => {
   // built from this question's own answer, and a template's answer is a
   // placeholder. For a record with no generator these are the same object and
   // the stored plan is reused.
-  const issuePlan = instantiated.parameters
-    ? await mathPath.buildIssuePlan(issued)
-    : planByQuestionId.get(authored.id);
+  const issuePlan = await mathPath.buildIssuePlan(issued);
   if (!issuePlan?.issuable) {
     logger.error("A generated Path question was not issuable", {
       sessionId, bankQuestionId: authored.id, reason: issuePlan?.reason,
@@ -4722,6 +4820,7 @@ exports.issueNextQuestion = onCall(async (request) => {
     generatorParameters: instantiated.parameters,
     skillCode: activeDisplayCode,
     pathRole,
+    assessmentBridgeFramework: usingCourseBridge ? session.assessmentFramework : null,
     // Teacher/QA metadata. `buildSanitizedQuestion` does not copy these onto the
     // student payload; the Path Simulator reads them from the session document.
     selectionReason: choice.reason,
@@ -5051,6 +5150,13 @@ exports.submitPathResponse = onCall(async (request) => {
         activityRole: session.sessionKind === "retentionProbe" ? "retention" : "practice",
         activitySessionId: sessionId,
         sessionKind: session.sessionKind,
+        // Direct assessment evidence comes from the question actually issued,
+        // not merely from the session the student started. A course foundation
+        // bridge inside SAT/ACT/etc. remains course evidence.
+        assessmentFramework: currentQuestion.assessmentContext?.examStyle === true
+          ? normalizePathAssessmentFramework(currentQuestion.assessmentContext.framework)
+          : null,
+        assessmentBridgeFramework: currentQuestion.assessmentBridgeFramework || null,
       },
       performance: { score: gradingCore.score, isCorrect: gradingCore.isCorrect, attemptNumber, status: questionFinalized ? "finalized" : "attempted", isMathematicallyIndependent: independent },
       supportUsage: { ...supportUsage, isMathematicallyIndependent: independent },
@@ -5084,7 +5190,7 @@ exports.submitPathResponse = onCall(async (request) => {
     transaction.set(evidenceRef, event);
     transaction.set(sessionRef, nextSession);
     if (nextStatus === "completed") {
-      const lockRef = db.collection("activePathLocks").doc(mathPath.opaqueId("pathlock", studentId, session.target.alignmentKey));
+      const lockRef = db.collection("activePathLocks").doc(mathPath.opaqueId("pathlock", studentId, session.target.alignmentKey, session.assessmentFramework || "course"));
       transaction.delete(lockRef);
     }
 
@@ -5229,6 +5335,13 @@ function secureExamAlignmentKeys(question = {}) {
   return [...new Set(source.map(mathPath.canonicalAlignmentKey).filter(Boolean))];
 }
 
+function secureExamPublicQuestion(question = {}) {
+  return secureExam.publicQuestion(
+    mathPath.buildSanitizedQuestion(question, question),
+    { examCalculatorMode: question.examCalculatorMode || question.calculatorMode || null },
+  );
+}
+
 function assertStudentExamSession(snapshot, studentId) {
   if (!snapshot.exists || String(snapshot.data()?.studentId || "") !== studentId) {
     throw new HttpsError("not-found", "That secure exam session is not available.");
@@ -5316,6 +5429,22 @@ exports.listStudentSecureExamSessions = onCall(async (request) => {
   return { sessions };
 });
 
+/** Student review: released correctness plus the original sanitized item and standards. */
+exports.getStudentSecureExamReview = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const examSessionId = secureExamSessionId(request);
+  const snapshot = await getFirestore().collection("examSessions").doc(examSessionId).get();
+  const session = assertStudentExamSession(snapshot, studentId);
+  if (!secureExam.TERMINAL_STATES.has(session.status)) {
+    throw new HttpsError("failed-precondition", "Finish the exam before opening review.");
+  }
+  if (session.feedbackReleased !== true) {
+    throw new HttpsError("failed-precondition", "Your teacher has not released feedback for this exam yet.");
+  }
+  const review = secureExam.publicReview(session);
+  return { success: true, review };
+});
+
 /** Issue one sanitized exam item; expected answers never leave Functions. */
 exports.issueSecureExamQuestion = onCall(async (request) => {
   const { studentId } = requireStudent(request);
@@ -5326,27 +5455,51 @@ exports.issueSecureExamQuestion = onCall(async (request) => {
   const session = assertStudentExamSession(snapshot, studentId);
   assertExamInProgress(session);
   if (session.currentQuestion) {
-    return { questionInstance: mathPath.buildSanitizedQuestion(session.currentQuestion, session.currentQuestion), draftResponse: session.currentQuestion.draftResponse || null, session: secureExam.publicSession(session) };
+    return { questionInstance: secureExamPublicQuestion(session.currentQuestion), draftResponse: session.currentQuestion.draftResponse || null, session: secureExam.publicSession(session) };
   }
   if (Number(session.summary?.completedQuestions || 0) >= Number(session.requiredQuestions || 1)) {
     throw new HttpsError("failed-precondition", "All required exam questions have been completed.");
   }
-  const bank = await db.collection("examQuestionBank").where("examTypes", "array-contains", session.examType).limit(100).get();
+  // Secure simulations use the same verified, generator-backed assessment
+  // families as CCMR My Path. The old `examQuestionBank` had no bundled seed,
+  // so a teacher could create an exam that had nothing reliable to issue.
+  // Selecting from the trusted built-in Path package keeps exam format, answer
+  // generation and grading on the same server-side contract students already
+  // use for assessment-specific Path practice.
   const used = new Set(Array.isArray(session.usedQuestionIds) ? session.usedQuestionIds.map(String) : []);
-  const candidates = bank.docs
-    .map((docSnapshot) => ({ id: docSnapshot.id, ...docSnapshot.data() }))
-    .filter((question) => question.active !== false && !used.has(question.id) && mathPath.hasGradeableDefinition(question));
+  const targetDomainId = secureExam.nextDomainId(session);
+  const assessmentItems = loadBuiltInStarterPathSeed().filter((question) => {
+    const context = question?.assessmentContext || {};
+    return question?.active !== false
+      && context.examStyle === true
+      && String(context.framework || "") === session.examType
+      && !used.has(String(question.id || ""));
+  });
+  const domainFor = (question) => (Array.isArray(question?.alignments) ? question.alignments : [])
+    .find((entry) => String(entry?.framework || "") === session.examType && String(entry?.evidenceMode || entry?.alignmentType || "") === "direct")?.domainId || null;
+  const domainCandidates = targetDomainId ? assessmentItems.filter((question) => domainFor(question) === targetDomainId) : assessmentItems;
+  const candidates = domainCandidates.length ? domainCandidates : assessmentItems;
   if (!candidates.length) throw new HttpsError("failed-precondition", `No unused secure ${session.examType} exam items are available.`);
+  candidates.sort((left, right) => String(left.id || "").localeCompare(String(right.id || "")));
   const authored = candidates[Number(session.summary?.completedQuestions || 0) % candidates.length];
   const questionInstanceId = mathPath.runtimeId("examq");
+  const instantiated = await mathPath.instantiateQuestion(authored, `${examSessionId}|${questionInstanceId}`);
+  if (!instantiated.question) throw new HttpsError("failed-precondition", "This secure exam item could not be generated.");
+  const issuedQuestion = instantiated.question;
+  const issuePlan = await mathPath.buildIssuePlan(issuedQuestion);
+  if (!issuePlan.issuable) throw new HttpsError("failed-precondition", "This secure exam item could not be graded securely.");
+  const assessmentDomainId = domainFor(authored);
   const currentQuestion = {
-    ...mathPath.buildSanitizedQuestion(authored, { questionInstanceId, attemptsAllowed: 1, attemptsUsed: 0 }),
+    ...issuedQuestion,
     bankQuestionId: authored.id,
-    alignmentKeys: secureExamAlignmentKeys(authored),
+    alignmentKeys: secureExamAlignmentKeys(issuedQuestion),
     questionInstanceId,
     attemptsAllowed: 1,
     attemptsUsed: 0,
-    privateGrading: mathPath.privateGradingDefinition(authored),
+    assessmentDomainId,
+    generatorParameters: instantiated.parameters,
+    privateGrading: issuePlan.privateGrading,
+    ...(issuePlan.toolPayload || {}),
   };
   const issued = await db.runTransaction(async (transaction) => {
     const freshSnapshot = await transaction.get(sessionRef);
@@ -5357,7 +5510,7 @@ exports.issueSecureExamQuestion = onCall(async (request) => {
     transaction.set(sessionRef, next);
     return next;
   });
-  return { questionInstance: mathPath.buildSanitizedQuestion(issued.currentQuestion, issued.currentQuestion), draftResponse: issued.currentQuestion?.draftResponse || null, session: secureExam.publicSession(issued) };
+  return { questionInstance: secureExamPublicQuestion(issued.currentQuestion), draftResponse: issued.currentQuestion?.draftResponse || null, session: secureExam.publicSession(issued) };
 });
 
 function sanitizeSecureExamDraft(responsePayload, supportUsage) {
@@ -5429,15 +5582,22 @@ exports.submitSecureExamResponse = onCall(async (request) => {
       calculatorUsed: Boolean(request.data.supportUsage.calculatorUsed),
       teacherAssisted: Boolean(request.data.supportUsage.teacherAssisted),
     } : {};
+    const safeResponsePayload = sanitizeSecureExamDraft(request.data?.responsePayload, safeSupport).responsePayload;
     const responseRecord = {
       questionInstanceId,
       bankQuestionId: current.bankQuestionId,
       alignmentKeys: current.alignmentKeys || [],
       questionType: current.questionType,
       familyId: current.familyId,
+      assessmentDomainId: current.assessmentDomainId || null,
       dok: current.dok,
       grading: { score: grading.score, isCorrect: grading.isCorrect },
       supportUsage: safeSupport,
+      // Stored server-side while feedback is held. `publicSession` strips the
+      // whole responses map, and `publicReview` releases only this sanitized
+      // question/response after an authenticated teacher releases feedback.
+      questionSnapshot: mathPath.buildSanitizedQuestion(current, current),
+      responsePayload: safeResponsePayload,
       submittedAt: now,
     };
     const finished = completedQuestions >= Number(session.requiredQuestions || 1);
@@ -5500,6 +5660,8 @@ async function applyOpenSecureExamDraft(session, now) {
     dok: current.dok,
     grading: { score: grading.score, isCorrect: grading.isCorrect },
     supportUsage: draft.supportUsage || {},
+    questionSnapshot: mathPath.buildSanitizedQuestion(current, current),
+    responsePayload: draft.responsePayload || { responses: {} },
     submittedAt: now,
     finalizedFromAutosave: true,
   };

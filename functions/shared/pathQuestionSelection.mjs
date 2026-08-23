@@ -39,6 +39,11 @@ const bandOf = (question) => {
   return Number.isFinite(band) ? band : 3;
 };
 
+const dokOf = (question) => {
+  const dok = Number(question?.dok);
+  return Number.isFinite(dok) ? dok : 2;
+};
+
 // How much a family is worth on the quality axis. Deliberately coarse: the
 // selector needs "is this the real thing or a placeholder", not a score.
 const QUALITY_RANK = {
@@ -59,10 +64,23 @@ const QUALITY_RANK = {
  */
 export const rankCandidates = (candidates = [], {
   preferredBand = 3,
+  // COGNITIVE DEMAND WAS NOT A SELECTION CRITERION AT ALL.
+  //
+  // The engine decides a DOK for every session, stores it, reports it to
+  // teachers and records it on the evidence — and selection never looked at it.
+  // Only the band reached delivery, so "DOK and difficulty adapt
+  // independently" was true in the reasoning and half-true in practice: a
+  // student who had earned deeper thinking got the same complexity band with
+  // whatever demand happened to be attached.
+  //
+  // Null means "no preference", which is what every caller that has not been
+  // updated passes — so behaviour is unchanged until a caller opts in.
+  preferredDok = null,
   usage = {},
   usedRepresentations = [],
   usedTaskTypes = [],
 } = {}) => {
+  const wantsDok = Number.isFinite(Number(preferredDok));
   const seenRepresentations = new Set(usedRepresentations);
   const seenTaskTypes = new Set(usedTaskTypes);
 
@@ -71,12 +89,16 @@ export const rankCandidates = (candidates = [], {
     const lastUsedAt = Number(usage[question.id]?.lastUsedAt ?? 0) || 0;
     const band = bandOf(question);
     const distance = Math.abs(band - preferredBand);
+    const dok = dokOf(question);
+    const dokDistance = wantsDok ? Math.abs(dok - Number(preferredDok)) : 0;
     const audit = auditPathQuestionQuality(question);
     return {
       question,
       index,
       band,
       distance,
+      dok,
+      dokDistance,
       timesUsed,
       lastUsedAt,
       quality: audit.level,
@@ -95,10 +117,15 @@ export const rankCandidates = (candidates = [], {
     || a.representationRepeat - b.representationRepeat
     // A kind of thinking this session has not used yet.
     || a.taskTypeRepeat - b.taskTypeRepeat
-    // Then how far from the readiness band.
+    // Then how far from the readiness band. Complexity comes before demand
+    // because it governs whether the student can engage with the question at
+    // all; asking the right KIND of thinking at an unreachable complexity
+    // helps nobody.
     || a.distance - b.distance
     // At equal distance, the easier side first.
     || (a.band - preferredBand) - (b.band - preferredBand)
+    // Then how far from the requested cognitive demand.
+    || a.dokDistance - b.dokDistance
     // Among used families, least used and least recently used.
     || a.timesUsed - b.timesUsed
     || a.lastUsedAt - b.lastUsedAt
@@ -116,12 +143,15 @@ export const rankCandidates = (candidates = [], {
  */
 export const selectNextFamily = (candidates = [], {
   preferredBand = 3,
+  preferredDok = null,
   usage = {},
   usedRepresentations = [],
   usedTaskTypes = [],
 } = {}) => {
   if (!candidates.length) return null;
-  const ranked = rankCandidates(candidates, { preferredBand, usage, usedRepresentations, usedTaskTypes });
+  const ranked = rankCandidates(candidates, {
+    preferredBand, preferredDok, usage, usedRepresentations, usedTaskTypes,
+  });
   const chosen = ranked[0];
   const unusedRemaining = ranked.filter((entry) => entry.timesUsed === 0).length;
 
@@ -139,6 +169,9 @@ export const selectNextFamily = (candidates = [], {
     question: chosen.question,
     band: chosen.band,
     preferredBand,
+    dok: chosen.dok,
+    preferredDok: Number.isFinite(Number(preferredDok)) ? Number(preferredDok) : null,
+    dokDistanceFromPreferred: chosen.dokDistance,
     quality: chosen.quality,
     representation: chosen.representation,
     taskType: chosen.taskType,

@@ -32,12 +32,25 @@ const mergeQuestionOverride = (question, override) => {
   };
 };
 
-export const applyAdaptiveDifferentiation = (question, studentProfile) => {
+/**
+ * ONE BAND DECISION, NOT TWO.
+ *
+ * `targetBandOverride` lets the assignment adaptation layer decide the band —
+ * role-aware, bounded by the author's envelope, and with a reason a teacher can
+ * read — while this function keeps doing the thing only it can do: render that
+ * band using the author's own per-band content.
+ *
+ * Without an override the behaviour is byte-identical to before, so every
+ * existing assignment and every existing test sees exactly what it always saw.
+ */
+export const applyAdaptiveDifferentiation = (question, studentProfile, { targetBandOverride = null } = {}) => {
   if (!question) return { question, targetBand: 3, applied: false };
   const mode = ['off', 'recommend', 'auto'].includes(question?.differentiation?.mode)
     ? question.differentiation.mode
     : 'recommend';
-  const targetBand = resolveAdaptiveTargetBand(question, studentProfile);
+  const targetBand = Number.isFinite(Number(targetBandOverride))
+    ? clampBand(targetBandOverride)
+    : resolveAdaptiveTargetBand(question, studentProfile);
   const baseBand = normalizeQuestionDifficulty(question).generatorBand;
 
   if (mode !== 'auto') {

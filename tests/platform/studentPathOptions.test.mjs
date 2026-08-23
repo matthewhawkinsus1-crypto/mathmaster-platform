@@ -27,10 +27,31 @@ const studentWith = (code, outcomes) => {
   return { student: { id: 's1', gradesByAssignment: { a1: grades } }, assignments: [assignment] };
 };
 
-test('no pacing means no options at all, not a placeholder guess', () => {
+test('no saved pacing still produces an autonomous path', () => {
   const { student, assignments } = studentWith('A.5A', [true, true]);
-  assert.equal(buildStudentPathOptions({ student, assignments, pacing: null }), null);
-  assert.equal(buildStudentPathOptions(), null);
+  const options = buildStudentPathOptions({ student, assignments, pacing: null });
+  assert.ok(options, 'missing teacher pacing must not turn My Math Path off');
+  assert.equal(options.pacing?.pacingFramework, 'automatic');
+  assert.ok([...options.required, ...options.recommended, ...options.available, ...options.remediation, ...options.future, ...options.locked].length > 0);
+
+  const blank = buildStudentPathOptions();
+  assert.ok(blank, 'a valid default course can still build a starter path');
+  assert.equal(blank.pacing?.pacingFramework, 'automatic');
+});
+
+// A teacher's Open now / Recommend action must work even if they never touched
+// curriculum pacing. This is the exact live regression that previously left a
+// student on the "your teacher must set pacing" screen.
+test('teacher unlocks work without a manual pacing record', () => {
+  const { student, assignments } = studentWith('A.5A', [true, true]);
+  const late = teksSkillId('A.9D');
+  const options = buildStudentPathOptions({
+    student,
+    assignments,
+    pacing: null,
+    teacherOverrides: [{ skillId: late, action: 'recommend' }],
+  });
+  assert.equal(curateStudentPanel(options).best?.skillId, late);
 });
 
 test('one assembly serves both surfaces identically', () => {

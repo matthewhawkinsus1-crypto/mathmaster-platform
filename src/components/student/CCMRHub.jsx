@@ -135,7 +135,7 @@ export default function CCMRHub({
       <section style={{ padding: 16, border: '1px solid #dadce0', borderRadius: 12, background: '#fff', textAlign: 'left' }}>
         <h2 style={{ margin: '0 0 8px', fontSize: 18, color: '#174ea6' }}>College, Career &amp; Military Readiness</h2>
         <p style={{ margin: 0, color: '#5f6368', lineHeight: 1.6 }}>
-          Your teacher hasn&apos;t set your class&apos;s pacing yet, so there is nothing to recommend here.
+          MathMaster is still resolving your course path, so there is nothing to recommend here yet.
         </p>
       </section>
     );

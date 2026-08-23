@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-21",
+  "release": "path-bank-2026-08-21-r9-asvab",
+  "totals": {
+    "templates": 5150,
+    "courseTemplates": 1125,
+    "assessmentTemplates": 4025,
+    "courseStandards": 225
+  },
+  "banks": {
+    "grade6": {
+      "standards": 45,
+      "templates": 225,
+      "framework": null
+    },
+    "grade7": {
+      "standards": 40,
+      "templates": 200,
+      "framework": null
+    },
+    "grade8": {
+      "standards": 43,
+      "templates": 215,
+      "framework": null
+    },
+    "algebra1": {
+      "standards": 49,
+      "templates": 245,
+      "framework": null
+    },
+    "algebra2": {
+      "standards": 48,
+      "templates": 240,
+      "framework": null
+    },
+    "digitalSAT": {
+      "standards": 209,
+      "templates": 1045,
+      "framework": "digitalSAT"
+    },
+    "act": {
+      "standards": 225,
+      "templates": 1125,
+      "framework": "act"
+    },
+    "tsia2": {
+      "standards": 225,
+      "templates": 1125,
+      "framework": "tsia2"
+    },
+    "asvab": {
+      "standards": 146,
+      "templates": 730,
+      "framework": "asvab"
+    }
+  },
+  "seedDestinations": [
+    "functions/seeds/pathQuestionBank",
+    "seed/pathQuestionBank"
+  ],
+  "manifest": "seed/pathQuestionBank/PATH_BANK_COVERAGE_MANIFEST.json",
+  "tests": {
+    "broadPathCcmr": {
+      "passed": 387,
+      "failed": 1,
+      "total": 388,
+      "knownEnvironmentFailure": "tests/platform/pathWiring.test.mjs requires installed firebase npm package"
+    }
+  }
+}

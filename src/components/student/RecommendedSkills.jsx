@@ -9,11 +9,9 @@ import { curateStudentPanel, resolveChoiceState } from '../../platform/path/stud
 // assignments are the classroom contract; this is what a student does with
 // their own time, and the ordering on screen has to say so.
 //
-// The panel does not appear at all until the teacher has set a pacing position
-// for the class. Before that the skill-to-window map is a placeholder, and
-// recommending from a placeholder calendar would be worse than recommending
-// nothing — a student would be told "your class is learning this" when nobody
-// had said what the class was learning.
+// My Math Path is autonomous by default. Teacher pacing is an optional
+// override; when it is absent the shared path builder derives timing from the
+// district calendar or the class's open assignment TEKS.
 
 const SLOT_STYLE = {
   best: { border: '#1a73e8', background: '#e8f0fe', chip: '#174ea6', mark: '★' },
@@ -72,8 +70,7 @@ export default function RecommendedSkills({
 
   const panel = useMemo(() => (options ? curateStudentPanel(options) : null), [options]);
 
-  // No pacing set by the teacher means no honest recommendation to make.
-  if (!pacing || !panel || panel.isEmpty) return null;
+  if (!panel || panel.isEmpty) return null;
 
   const { choiceAllowed, reason } = resolveChoiceState(panel);
   const allSkills = options
