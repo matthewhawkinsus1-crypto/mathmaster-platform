@@ -298,3 +298,42 @@ export const resolveAdaptiveRigor = ({ courseLevel = 'standard', readiness = 'on
   if (readiness === 'developing') return { mode: 'repair', label: 'Scaffold / repair' };
   return { mode: 'standard', label: 'On track' };
 };
+
+/**
+ * The readiness word `resolveAdaptiveRigor` needs, taken from the centralized
+ * Student Learning Profile instead of recomputed.
+ *
+ * Teacher screens used to reach for `deriveDomainReadiness` here, which walks
+ * legacy per-TEKS mastery summaries and answers with its own colour table. That
+ * gave a screen two verdicts about the same student — the central badge saying
+ * one thing and the row beside it saying another — which is the exact defect
+ * Phase 0 exists to remove. The profile already decided; this only translates
+ * its vocabulary.
+ *
+ * BASELINE is not translated into `onTrack`. A student whose evidence has not
+ * stabilized has not been judged, and calling that "on track" is an assertion
+ * the profile deliberately refused to make. Callers get `established: false`
+ * and are expected to say so rather than print a rigor label.
+ */
+export const readinessFromLearningProfile = (profile) => {
+  const band = profile?.instructionalBand || null;
+  if (band === 'above') return { readiness: 'advanced', established: true };
+  if (band === 'below') return { readiness: 'developing', established: true };
+  if (band === 'on') return { readiness: 'onTrack', established: true };
+  return { readiness: 'onTrack', established: false };
+};
+
+/**
+ * The adaptive posture for one student, from the profile and their real class.
+ *
+ * Returns the same `{ mode, label }` shape as `resolveAdaptiveRigor` plus the
+ * honest `established` flag, so a caller can render "Establishing baseline"
+ * rather than a posture the evidence does not support yet.
+ */
+export const resolveAdaptiveRigorFromProfile = ({ courseLevel = 'standard', profile = null } = {}) => {
+  const { readiness, established } = readinessFromLearningProfile(profile);
+  const rigor = resolveAdaptiveRigor({ courseLevel, readiness });
+  return established
+    ? { ...rigor, established: true }
+    : { mode: 'establishingBaseline', label: 'Establishing baseline', established: false };
+};

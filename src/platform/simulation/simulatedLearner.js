@@ -20,10 +20,13 @@
 // with it, because there is nothing here to keep in step.
 
 import { recordQuestionAttempt, normalizeQuestionRecord, getQuestionCredit } from '../../attemptPolicy.js';
-import { buildStudentMasteryProfile } from '../../masteryEngine.js';
+import { buildStudentMasteryProfile, collectStudentEvidence } from '../../masteryEngine.js';
 import { applyAdaptiveDifferentiation, resolvePrerequisiteSupportPath } from '../../differentiationEngine.js';
 import { getQuestionPrimaryTeksCodes } from '../../questionMetadata.js';
 import { getTexasStandard } from '../../texasStandards.js';
+import { adaptLegacyMasteryToPhase5 } from '../profile/legacyMasteryAdapter.js';
+import { evidenceRowsToEvents } from '../profile/legacyEvidenceAdapter.js';
+import { buildStudentLearningProfile } from '../profile/studentLearningProfile.js';
 
 // Everything the simulator writes lives under this key, never alongside student
 // records. Nothing here reaches grades, analytics, Classroom, or class reports.
@@ -427,11 +430,29 @@ export const forceRetentionDue = ({ schedules = {}, teksCodes = [], nowValue = D
  * simulator reads state from, so what the teacher sees is what a student in the
  * same position would get.
  */
-export const evaluateSimulation = ({ learner, assignments = [], question = null }) => {
+export const evaluateSimulation = ({
+  learner, assignments = [], question = null, courseId = 'algebra1', retentionSchedulesByTEKS = {},
+}) => {
+  // Keep the legacy mastery object because the existing routing engine consumes
+  // it, but derive the teacher-facing status from the same centralized Student
+  // Learning Profile contract used by roster, Gradebook and Weekly Path.
   const profile = buildStudentMasteryProfile({ student: learner, assignments });
+  const evidenceRows = collectStudentEvidence({ student: learner, assignments });
+  const masteryProfilesByTeks = adaptLegacyMasteryToPhase5({
+    legacyProfile: profile,
+    evidenceRows,
+    retentionSchedulesByTEKS,
+  });
+  const { events: evidenceEvents, coverage: evidenceCoverage } = evidenceRowsToEvents(evidenceRows);
+  const learningProfile = buildStudentLearningProfile({
+    courseId,
+    masteryProfilesByTeks,
+    evidenceEvents,
+    retentionSchedules: retentionSchedulesByTEKS,
+  });
   const routing = question ? resolvePrerequisiteSupportPath(question, profile) : null;
   const differentiation = question ? applyAdaptiveDifferentiation(question, profile) : null;
-  return { profile, routing, differentiation };
+  return { profile, learningProfile, evidenceCoverage, routing, differentiation };
 };
 
 const PERFORMANCE_ORDER = ['insufficient', 'didNotMeet', 'approaches', 'meets', 'masters'];

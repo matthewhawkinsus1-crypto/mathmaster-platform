@@ -9,9 +9,9 @@ export const classroomPostingMode = (assignment = {}) => {
 
 export const shouldAutoPublishClassroomPackage = (assignment = {}) => {
   if (!assignment?.id) return false;
-  if (!Array.isArray(assignment.assignedClassPeriods) || !assignment.assignedClassPeriods.length) {
-    return false;
-  }
+  const classIds = Array.isArray(assignment.assignedClassIds) ? assignment.assignedClassIds : [];
+  const classPeriods = Array.isArray(assignment.assignedClassPeriods) ? assignment.assignedClassPeriods : [];
+  if (!classIds.length && !classPeriods.length) return false;
   const classroom = assignment.classroomPackage;
   if (!classroom || classroom.enabled === false) return false;
   const publishMode = clean(classroom?.assignmentPost?.publishMode || 'whenAssigned').toLowerCase();
@@ -19,11 +19,16 @@ export const shouldAutoPublishClassroomPackage = (assignment = {}) => {
 };
 
 export const mappedCourseIdsForAssignment = (assignment = {}, mappings = []) => {
+  const classIds = new Set((assignment.assignedClassIds || []).map(clean).filter(Boolean));
   const periods = new Set((assignment.assignedClassPeriods || []).map(clean).filter(Boolean));
-  if (!periods.size) return [];
+  if (!classIds.size && !periods.size) return [];
   return [...new Set(
     (Array.isArray(mappings) ? mappings : [])
-      .filter((mapping) => periods.has(clean(mapping?.classPeriod)))
+      .filter((mapping) => (
+        classIds.size
+          ? classIds.has(clean(mapping?.classId))
+          : periods.has(clean(mapping?.classPeriod))
+      ))
       .map((mapping) => clean(mapping?.courseId))
       .filter(Boolean),
   )];

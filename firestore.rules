@@ -226,6 +226,7 @@ service cloud.firestore {
     match /classJoinCodes/{docId} { allow read, write: if false; }
     match /authThrottle/{docId} { allow read, write: if false; }
     match /activePathLocks/{docId} { allow read, write: if false; }
+    match /weeklyPathGoalSnapshots/{docId} { allow read, write: if false; }
     match /pathSessions/{docId} { allow read, write: if false; }
     match /pathSubmissions/{docId} { allow read, write: if false; }
     match /masteryEvidenceApplications/{docId} { allow read, write: if false; }

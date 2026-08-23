@@ -206,6 +206,7 @@ export default function SimulatedStudentExperience({
 
   const dashboard = useMemo(() => buildStudentDashboardModel({
     assignments,
+    classId: learner?.classId || null,
     classPeriod,
     nowValue,
     tracker: learner?.gradesByAssignment || {},

@@ -1,5 +1,6 @@
 import { EXAM_BENCHMARKS, EXAM_DOMAIN_REGISTRY, EXAM_TYPES, mapTEKSToExamDomains } from './examDomainRegistry.js';
 import { toDisplayCode } from '../../utils/teksUtils.js';
+import { finiteNumber } from '../utils/numeric.js';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
@@ -38,7 +39,9 @@ export const predictExamScoresFromMastery = (masteryProfilesByTEKS = {}) => Obje
   const benchmark = EXAM_BENCHMARKS[examType];
   const hasEvidence = domainReport.mastery != null;
   const score = hasEvidence ? scaledScore(examType, domainReport.mastery) : null;
-  const universalThreshold = Number.isFinite(Number(benchmark.readinessThreshold)) ? Number(benchmark.readinessThreshold) : null;
+  // A missing threshold must stay null. Coerced to 0 it becomes a bar every
+  // student clears, and the screen reports the whole class as exam-ready.
+  const universalThreshold = finiteNumber(benchmark.readinessThreshold);
   reports[examType] = {
     examTitle: examType === EXAM_TYPES.DIGITAL_SAT ? 'Digital SAT Math' : examType === EXAM_TYPES.ACT ? 'ACT Mathematics' : examType === EXAM_TYPES.TSIA2 ? 'TSIA2 Mathematics' : 'ASVAB Math Preparation',
     estimatedScore: score,

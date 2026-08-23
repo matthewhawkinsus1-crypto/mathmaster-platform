@@ -113,13 +113,44 @@ export const formatRemainingTime = (milliseconds) => {
   return `${minutes}m`;
 };
 
-export const assignmentIsForStudent = (assignment, classPeriod) => {
-  const assigned = Array.isArray(assignment?.assignedClassPeriods)
+const normalizeClassContext = (value) => {
+  if (value && typeof value === 'object') {
+    return {
+      classId: String(value.classId || '').trim() || null,
+      classPeriod: String(value.classPeriod || value.period || '').trim() || null,
+    };
+  }
+  return { classId: null, classPeriod: String(value || '').trim() || null };
+};
+
+// Modern assignments are addressed to real class entities. Period targeting is
+// retained only for assignments created before class IDs existed. Crucially, if
+// an assignment HAS class IDs, a matching period must never widen its audience:
+// two teachers can both have a "Period 3" and they are not the same class.
+export const assignmentIsForStudent = (assignment, classContext) => {
+  const { classId, classPeriod } = normalizeClassContext(classContext);
+  const assignedClassIds = Array.isArray(assignment?.assignedClassIds)
+    ? assignment.assignedClassIds.map((value) => String(value || '').trim()).filter(Boolean)
+    : [];
+  if (assignedClassIds.length > 0) return Boolean(classId && assignedClassIds.includes(classId));
+
+  const assignedPeriods = Array.isArray(assignment?.assignedClassPeriods)
     ? assignment.assignedClassPeriods.filter(Boolean)
     : [];
-  // Student audience is explicit: an empty period list means Library / Not assigned.
+  // Student audience is explicit: an empty list means Library / Not assigned.
   // It must never behave as a wildcard, or Library items leak onto every student dashboard.
-  return assigned.length > 0 && assigned.includes(classPeriod);
+  return assignedPeriods.length > 0 && Boolean(classPeriod && assignedPeriods.includes(classPeriod));
+};
+
+const scopedOverride = ({ byClassId, byClassPeriod, classId, classPeriod }) => {
+  const modern = byClassId && typeof byClassId === 'object' ? byClassId : {};
+  // Once a class-ID map exists, it is authoritative even when this particular
+  // class has no entry. Falling through to a same-named period here would make
+  // another class inherit the control.
+  if (Object.keys(modern).length > 0) return classId ? modern[classId] || null : null;
+  return classPeriod && byClassPeriod && typeof byClassPeriod === 'object'
+    ? byClassPeriod[classPeriod] || null
+    : null;
 };
 
 // Three modes now, not two. 'adaptive' was silently falling through this gate
@@ -157,7 +188,7 @@ const SECTION_ACCESS_STATES = new Set(['open', 'closed']);
 // After the final grading cutoff the whole assignment becomes voluntary
 // Practice Mode. At that point teacher section locks no longer hide content —
 // students may revisit everything, but none of it writes grades/evidence.
-export const getSectionAccessState = ({ assignment, activityRole, classPeriod, nowValue = Date.now() }) => {
+export const getSectionAccessState = ({ assignment, activityRole, classId = null, classPeriod, nowValue = Date.now() }) => {
   const role = String(activityRole || '').trim().toLowerCase();
   const questions = Array.isArray(assignment?.questions) ? assignment.questions : [];
   const exists = questions.some((question) => questionIsIncluded(question)
@@ -180,7 +211,7 @@ export const getSectionAccessState = ({ assignment, activityRole, classPeriod, n
   const config = assignment?.sectionAccess?.[role] || {};
   const configuredDefault = String(config.defaultState || assignment?.sectionAccessDefaults?.[role] || 'open').toLowerCase();
   const defaultState = SECTION_ACCESS_STATES.has(configuredDefault) ? configuredDefault : 'open';
-  const override = classPeriod ? config?.overridesByClassPeriod?.[classPeriod] || null : null;
+  const override = scopedOverride({ byClassId: config?.overridesByClassId, byClassPeriod: config?.overridesByClassPeriod, classId, classPeriod });
   const overrideState = String(override?.state || '').toLowerCase();
   const status = SECTION_ACCESS_STATES.has(overrideState) ? overrideState : defaultState;
   return { role, enabled: true, status, isOpen: status === 'open', defaultState, override, lifecycle };
@@ -319,7 +350,7 @@ export const getPeriodWindow = (scheduleValue, classPeriod, nowValue = Date.now(
   };
 };
 
-export const getWarmupState = ({ assignment, schedule, classPeriod, nowValue = Date.now() }) => {
+export const getWarmupState = ({ assignment, schedule, classId = null, classPeriod, nowValue = Date.now() }) => {
   const questions = Array.isArray(assignment?.questions) ? assignment.questions : [];
   const includedQuestions = questions.filter(questionIsIncluded);
   const enabled = assignment?.warmup?.enabled ?? includedQuestions.some((question) => (
@@ -347,7 +378,7 @@ export const getWarmupState = ({ assignment, schedule, classPeriod, nowValue = D
 
   const opensAt = new Date(window.start.getTime() - minutesBeforeStart * 60000);
   const endsAt = window.end;
-  const closedRecord = assignment?.warmup?.closedByClassPeriod?.[classPeriod] || null;
+  const closedRecord = scopedOverride({ byClassId: assignment?.warmup?.closedByClassId, byClassPeriod: assignment?.warmup?.closedByClassPeriod, classId, classPeriod });
   const closedAtValue = typeof closedRecord === 'object' ? closedRecord?.closedAt : closedRecord;
   const closedDateKey = typeof closedRecord === 'object' ? closedRecord?.dateKey : null;
   const closedAt = closedAtValue ? parseLocalDateTime(closedAtValue, false) : null;
@@ -399,7 +430,7 @@ export const resolveDOLQuestionIndices = (assignment) => {
 
 export const resolveDOLQuestionIndex = (assignment) => resolveDOLQuestionIndices(assignment)[0] ?? -1;
 
-export const getDOLState = ({ assignment, schedule, classPeriod, nowValue = Date.now() }) => {
+export const getDOLState = ({ assignment, schedule, classId = null, classPeriod, nowValue = Date.now() }) => {
   const questions = Array.isArray(assignment?.questions) ? assignment.questions : [];
   const includedQuestions = questions.filter(questionIsIncluded);
   const hasAuthoredDOL = includedQuestions.some((question) => (
@@ -438,7 +469,7 @@ export const getDOLState = ({ assignment, schedule, classPeriod, nowValue = Date
 
   const durationMinutes = Math.max(1, Number(assignment?.dol?.minutesBeforeEnd || 10));
   const regularOpensAt = new Date(window.end.getTime() - durationMinutes * 60000);
-  const unlock = assignment?.dol?.earlyUnlocks?.[classPeriod] || null;
+  const unlock = scopedOverride({ byClassId: assignment?.dol?.earlyUnlocksByClassId, byClassPeriod: assignment?.dol?.earlyUnlocks, classId, classPeriod });
   const unlockDateKey = typeof unlock === 'object' ? unlock?.dateKey : null;
   const unlockAtValue = typeof unlock === 'object' ? unlock?.unlockedAt : unlock;
   const unlockAtParsed = unlockAtValue ? parseLocalDateTime(unlockAtValue, false) : null;

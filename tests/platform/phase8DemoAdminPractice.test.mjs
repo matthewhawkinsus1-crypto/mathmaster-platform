@@ -90,6 +90,7 @@ test('administrator-created class placement is enforced during first-time PIN cl
   const start = functionsSource.indexOf('exports.studentSignIn');
   const end = functionsSource.indexOf('exports.resetStudentPasscode', start);
   const block = functionsSource.slice(start, end);
-  assert.match(block, /assignedClassPeriod/);
+  assert.match(block, /joinCodeMatchesRoster\(existingRoster\.data\(\) \|\| \{\}, joinMembership\)/);
+  assert.match(block, /classId/);
   assert.match(block, /class code does not match the class assigned/i);
 });

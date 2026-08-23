@@ -15465,6 +15465,1013 @@
           "end": "start+dep"
         }
       }
+    },
+    {
+      "id": "mm_gen_6_6_2B_absolute-value-is-a-distance",
+      "active": true,
+      "alignmentKeys": [
+        "texas:6.2B"
+      ],
+      "courseId": "grade6",
+      "familyId": "mathmaster:6.2B:gen-absolute-value-is-a-distance",
+      "familyVersion": 1,
+      "questionType": "multipleChoice",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "6.2B",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Work out what is actually true first, then check the claim against it."
+      ],
+      "supportHints": [
+        "Decide what would have to be true for the statement to hold. Then test it."
+      ],
+      "taskType": "errorAnalysis",
+      "representation": "symbolic",
+      "prompt": "A student writes $|-{{n}}| = -{{n}}$. Is that right, and what does the absolute value actually mean?",
+      "choices": [
+        {
+          "id": "distance",
+          "label": "No — it is the DISTANCE from zero, which is never negative, so $|-{{n}}| = {{n}}$"
+        },
+        {
+          "id": "yes",
+          "label": "Yes — absolute value keeps the sign the number already had"
+        },
+        {
+          "id": "opposite",
+          "label": "No — it always gives the opposite, so the answer is $ {{n}} $ only for positives"
+        },
+        {
+          "id": "zero",
+          "label": "No — the absolute value of any negative number is $0$"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "distance"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Absolute value asks HOW FAR from zero, not which side.",
+        "reasoning": [
+          "$-{{n}}$ sits $ {{n}} $ units from zero on the number line.",
+          "Distance cannot be negative, so $|-{{n}}| = {{n}}$. The OPPOSITE of $-{{n}}$ is also $ {{n}} $ — but those are two different ideas that happen to agree here."
+        ],
+        "answerSummary": "{{n}}"
+      },
+      "generator": {
+        "parameters": {
+          "n": {
+            "type": "int",
+            "min": 2,
+            "max": 19
+          }
+        },
+        "derived": {}
+      }
+    },
+    {
+      "id": "mm_gen_6_6_3D_crossing-zero",
+      "active": true,
+      "alignmentKeys": [
+        "texas:6.3D"
+      ],
+      "courseId": "grade6",
+      "familyId": "mathmaster:6.3D:gen-crossing-zero",
+      "familyVersion": 1,
+      "questionType": "multipleChoice",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "6.3D",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Work out what is actually true first, then check the claim against it."
+      ],
+      "supportHints": [
+        "Decide what would have to be true for the statement to hold. Then test it."
+      ],
+      "taskType": "errorAnalysis",
+      "representation": "symbolic",
+      "prompt": "A student computes $ {{a}} - {{b}} $ and writes $ {{wrong}} $, saying you always subtract the smaller from the larger. What is the answer, and why?",
+      "choices": [
+        {
+          "id": "negative",
+          "label": "$ {{right}} $ — you start at $ {{a}} $ and move $ {{b}} $ to the LEFT, which crosses zero"
+        },
+        {
+          "id": "student",
+          "label": "The student is right — order does not matter in subtraction"
+        },
+        {
+          "id": "add",
+          "label": "$ {{sum}} $"
+        },
+        {
+          "id": "zero",
+          "label": "$0$, because the numbers cancel"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "negative"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Subtraction is a direction on the number line, and order matters.",
+        "reasoning": [
+          "Starting at $ {{a}} $ and moving $ {{b}} $ to the left lands on $ {{right}} $.",
+          "Swapping the order gives $ {{wrong}} $, which is a different question with a different answer."
+        ],
+        "answerSummary": "{{right}}"
+      },
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 9
+          },
+          "b": {
+            "type": "int",
+            "min": 10,
+            "max": 20
+          }
+        },
+        "derived": {
+          "right": "a-b",
+          "wrong": "b-a",
+          "sum": "a+b"
+        }
+      }
+    },
+    {
+      "id": "mm_gen_6_6_5B_find-the-whole",
+      "active": true,
+      "alignmentKeys": [
+        "texas:6.5B"
+      ],
+      "courseId": "grade6",
+      "familyId": "mathmaster:6.5B:gen-find-the-whole",
+      "familyVersion": 1,
+      "questionType": "multipleChoice",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "6.5B",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Work out what is actually true first, then check the claim against it."
+      ],
+      "supportHints": [
+        "Decide what would have to be true for the statement to hold. Then test it."
+      ],
+      "taskType": "justification",
+      "representation": "verbal",
+      "prompt": "$ {{part}} $ students is $ {{p}}\\% $ of the class. A student multiplies $ {{part}} \\times {{p}}\\% $ to find the class size. What should they do instead?",
+      "choices": [
+        {
+          "id": "divide",
+          "label": "Divide — the class is $ {{part}} \\div {{p}}\\% = {{whole}} $ students"
+        },
+        {
+          "id": "multiply",
+          "label": "Multiplying is right, because percent means \"of\""
+        },
+        {
+          "id": "subtract",
+          "label": "Subtract the percent from 100 first"
+        },
+        {
+          "id": "add",
+          "label": "Add $ {{p}} $ to $ {{part}} $"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "divide"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Multiplying by a percent makes something SMALLER. The whole is bigger than the part.",
+        "reasoning": [
+          "$ {{p}}\\% $ of the class is $ {{part}} $, so $ {{p}}\\% $ of the whole equals $ {{part}} $.",
+          "The whole is therefore $ {{part}} \\div {{p}}\\% = {{whole}} $. Check: $ {{p}}\\% $ of $ {{whole}} $ is $ {{part}} $."
+        ],
+        "answerSummary": "{{whole}} students"
+      },
+      "generator": {
+        "parameters": {
+          "whole": {
+            "type": "int",
+            "min": 20,
+            "max": 40,
+            "step": 4
+          },
+          "p": {
+            "type": "int",
+            "min": 25,
+            "max": 75,
+            "step": 25
+          }
+        },
+        "derived": {
+          "part": "whole*p/100"
+        },
+        "constraints": [
+          "part*100 == whole*p"
+        ]
+      }
+    },
+    {
+      "id": "mm_gen_6_6_6A_which-depends-on-which",
+      "active": true,
+      "alignmentKeys": [
+        "texas:6.6A"
+      ],
+      "courseId": "grade6",
+      "familyId": "mathmaster:6.6A:gen-which-depends-on-which",
+      "familyVersion": 1,
+      "questionType": "multipleChoice",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "6.6A",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Work out what is actually true first, then check the claim against it."
+      ],
+      "supportHints": [
+        "Decide what would have to be true for the statement to hold. Then test it."
+      ],
+      "taskType": "justification",
+      "representation": "verbal",
+      "prompt": "A shop charges $ \\${{rate}} $ per hour of parking. A student says the cost is the independent quantity because it is the thing being asked about. Which is independent, and how do you tell?",
+      "choices": [
+        {
+          "id": "hours",
+          "label": "Hours is independent — you choose it, and the cost follows from it"
+        },
+        {
+          "id": "cost",
+          "label": "Cost is independent, because that is what the question is about"
+        },
+        {
+          "id": "either",
+          "label": "Either one may be called independent"
+        },
+        {
+          "id": "neither",
+          "label": "Neither, because both change"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "hours"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The independent quantity is the one you get to choose.",
+        "reasoning": [
+          "You decide how long to park. The cost is then determined: $ {{rate}} \\times {{hours}} = {{cost}} $ for {{hours}} hours.",
+          "You cannot choose the cost first and have the hours follow, so cost is the dependent quantity."
+        ],
+        "answerSummary": "Hours is independent; cost depends on it"
+      },
+      "generator": {
+        "parameters": {
+          "rate": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "hours": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          }
+        },
+        "derived": {
+          "cost": "rate*hours"
+        }
+      }
+    },
+    {
+      "id": "mm_gen_6_6_7A_not-left-to-right",
+      "active": true,
+      "alignmentKeys": [
+        "texas:6.7A"
+      ],
+      "courseId": "grade6",
+      "familyId": "mathmaster:6.7A:gen-not-left-to-right",
+      "familyVersion": 1,
+      "questionType": "multipleChoice",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "6.7A",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Work out what is actually true first, then check the claim against it."
+      ],
+      "supportHints": [
+        "Decide what would have to be true for the statement to hold. Then test it."
+      ],
+      "taskType": "errorAnalysis",
+      "representation": "symbolic",
+      "prompt": "A student evaluates $ {{a}} + {{b}} \\times {{c}} $ from left to right and gets $ {{wrong}} $. What is the correct value, and why?",
+      "choices": [
+        {
+          "id": "multiplyFirst",
+          "label": "$ {{right}} $ — multiplication is done before addition, so $ {{b}} \\times {{c}} $ comes first"
+        },
+        {
+          "id": "student",
+          "label": "The student is right — expressions are read left to right"
+        },
+        {
+          "id": "either",
+          "label": "Both answers are acceptable"
+        },
+        {
+          "id": "parens",
+          "label": "The expression cannot be evaluated without parentheses"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "multiplyFirst"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Multiplication and division happen before addition and subtraction.",
+        "reasoning": [
+          "$ {{b}} \\times {{c}} = {{product}} $ first.",
+          "Then $ {{a}} + {{product}} = {{right}} $. Reading left to right would add first and give $ {{wrong}} $ instead."
+        ],
+        "answerSummary": "{{right}}"
+      },
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          },
+          "b": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "c": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          }
+        },
+        "derived": {
+          "product": "b*c",
+          "right": "a+b*c",
+          "wrong": "(a+b)*c"
+        },
+        "constraints": [
+          "right != wrong"
+        ]
+      }
+    },
+    {
+      "id": "mm_gen_6_6_7C_distribute-to-both",
+      "active": true,
+      "alignmentKeys": [
+        "texas:6.7C"
+      ],
+      "courseId": "grade6",
+      "familyId": "mathmaster:6.7C:gen-distribute-to-both",
+      "familyVersion": 1,
+      "questionType": "multipleChoice",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "6.7C",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Work out what is actually true first, then check the claim against it."
+      ],
+      "supportHints": [
+        "Decide what would have to be true for the statement to hold. Then test it."
+      ],
+      "taskType": "errorAnalysis",
+      "representation": "symbolic",
+      "prompt": "A student says $ {{k}}(x + {{n}}) $ is the same as $ {{k}}x + {{n}} $. Test it with $x = {{test}}$.",
+      "choices": [
+        {
+          "id": "bothTerms",
+          "label": "Not equivalent — the $ {{k}} $ multiplies BOTH terms, giving $ {{k}}x + {{kn}} $. At $x={{test}}$ they give $ {{correctValue}} $ and $ {{wrongValue}} $"
+        },
+        {
+          "id": "same",
+          "label": "They are equivalent for every value of $x$"
+        },
+        {
+          "id": "onlyZero",
+          "label": "They are equivalent only when $x = 0$"
+        },
+        {
+          "id": "cannot",
+          "label": "Equivalence cannot be tested by substituting a value"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "bothTerms"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A factor outside a bracket multiplies everything inside it.",
+        "reasoning": [
+          "$ {{k}}(x + {{n}}) = {{k}}x + {{kn}} $.",
+          "At $x = {{test}}$: the correct expression gives $ {{correctValue}} $, the student's gives $ {{wrongValue}} $. One counterexample settles it."
+        ],
+        "answerSummary": "{{k}}x + {{kn}}"
+      },
+      "generator": {
+        "parameters": {
+          "k": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "n": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          },
+          "test": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "kn": "k*n",
+          "correctValue": "k*test+k*n",
+          "wrongValue": "k*test+n"
+        }
+      }
+    },
+    {
+      "id": "mm_gen_6_6_9A_which-operation-undoes-it",
+      "active": true,
+      "alignmentKeys": [
+        "texas:6.9A"
+      ],
+      "courseId": "grade6",
+      "familyId": "mathmaster:6.9A:gen-which-operation-undoes-it",
+      "familyVersion": 1,
+      "questionType": "multipleChoice",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "6.9A",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Work out what is actually true first, then check the claim against it."
+      ],
+      "supportHints": [
+        "Decide what would have to be true for the statement to hold. Then test it."
+      ],
+      "taskType": "justification",
+      "representation": "verbal",
+      "prompt": "A student shares $ {{total}} $ stickers equally among $ {{groups}} $ friends and writes $ {{groups}}s = {{total}} $. To find $s$, they multiply both sides by $ {{groups}} $. What should they do?",
+      "choices": [
+        {
+          "id": "divide",
+          "label": "Divide both sides by $ {{groups}} $ — division undoes multiplication, giving $s = {{s}} $"
+        },
+        {
+          "id": "multiply",
+          "label": "Multiplying is right, because it isolates $s$"
+        },
+        {
+          "id": "subtract",
+          "label": "Subtract $ {{groups}} $ from both sides"
+        },
+        {
+          "id": "nothing",
+          "label": "Nothing needs to be done; $s = {{total}} $"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "divide"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Undo an operation with its inverse.",
+        "reasoning": [
+          "$s$ is being MULTIPLIED by $ {{groups}} $, so dividing by $ {{groups}} $ undoes it.",
+          "$s = {{total}} \\div {{groups}} = {{s}} $. Check: $ {{groups}} \\times {{s}} = {{total}} $."
+        ],
+        "answerSummary": "{{s}} stickers each"
+      },
+      "generator": {
+        "parameters": {
+          "groups": {
+            "type": "int",
+            "min": 3,
+            "max": 9
+          },
+          "s": {
+            "type": "int",
+            "min": 4,
+            "max": 15
+          }
+        },
+        "derived": {
+          "total": "groups*s"
+        }
+      }
+    },
+    {
+      "id": "mm_gen_6_6_10B_test-the-inequality",
+      "active": true,
+      "alignmentKeys": [
+        "texas:6.10B"
+      ],
+      "courseId": "grade6",
+      "familyId": "mathmaster:6.10B:gen-test-the-inequality",
+      "familyVersion": 1,
+      "questionType": "multipleChoice",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "6.10B",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Work out what is actually true first, then check the claim against it."
+      ],
+      "supportHints": [
+        "Decide what would have to be true for the statement to hold. Then test it."
+      ],
+      "taskType": "justification",
+      "representation": "symbolic",
+      "prompt": "Does $x = {{guess}}$ satisfy $x + {{b}} > {{c}} $? Substitute and check.",
+      "choices": [
+        {
+          "id": "no",
+          "label": "No — it gives $ {{guessValue}} $, which is not greater than $ {{c}} $"
+        },
+        {
+          "id": "yes",
+          "label": "Yes — it makes the inequality true"
+        },
+        {
+          "id": "equal",
+          "label": "It makes both sides equal, which counts as satisfying it"
+        },
+        {
+          "id": "cannot",
+          "label": "Inequalities cannot be checked by substitution"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "no"
+        }
+      ],
+      "solutionReview": {
+        "headline": "An inequality is checked the same way an equation is — substitute.",
+        "reasoning": [
+          "Substituting: $ {{guess}} + {{b}} = {{guessValue}} $.",
+          "$ {{guessValue}} $ is not greater than $ {{c}} $, so $ {{guess}} $ does not satisfy it. Values above $ {{boundary}} $ do."
+        ],
+        "answerSummary": "No"
+      },
+      "generator": {
+        "parameters": {
+          "b": {
+            "type": "int",
+            "min": 2,
+            "max": 15
+          },
+          "boundary": {
+            "type": "int",
+            "min": 3,
+            "max": 20
+          },
+          "below": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          }
+        },
+        "derived": {
+          "c": "boundary+b",
+          "guess": "boundary-below",
+          "guessValue": "boundary-below+b"
+        }
+      }
+    },
+    {
+      "id": "mm_gen_6_6_8D_the-missing-half",
+      "active": true,
+      "alignmentKeys": [
+        "texas:6.8D"
+      ],
+      "courseId": "grade6",
+      "familyId": "mathmaster:6.8D:gen-the-missing-half",
+      "familyVersion": 1,
+      "questionType": "multipleChoice",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "6.8D",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Work out what is actually true first, then check the claim against it."
+      ],
+      "supportHints": [
+        "Decide what would have to be true for the statement to hold. Then test it."
+      ],
+      "taskType": "errorAnalysis",
+      "representation": "diagram",
+      "prompt": "A triangle has base $ {{b}} $ and height $ {{h}} $. A student finds the area as $ {{b}} \\times {{h}} = {{wrongArea}} $. What is wrong?",
+      "choices": [
+        {
+          "id": "half",
+          "label": "That is the area of a RECTANGLE with the same base and height. A triangle is half of it, so the area is $ {{area}} $"
+        },
+        {
+          "id": "nothing",
+          "label": "Nothing — that is the triangle area formula"
+        },
+        {
+          "id": "add",
+          "label": "The base and height should be added, not multiplied"
+        },
+        {
+          "id": "double",
+          "label": "The result should be doubled"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "half"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Two copies of a triangle make the rectangle around it.",
+        "reasoning": [
+          "A rectangle $ {{b}} $ by $ {{h}} $ has area $ {{wrongArea}} $, and the triangle is exactly half of that.",
+          "Area $= \\frac{1}{2} \\times {{b}} \\times {{h}} = {{area}} $ square units."
+        ],
+        "answerSummary": "{{area}} square units"
+      },
+      "generator": {
+        "parameters": {
+          "b": {
+            "type": "int",
+            "min": 3,
+            "max": 16
+          },
+          "h": {
+            "type": "int",
+            "min": 2,
+            "max": 14
+          }
+        },
+        "derived": {
+          "wrongArea": "b*h",
+          "area": "b*h/2"
+        },
+        "constraints": [
+          "b*h % 2 == 0"
+        ]
+      }
+    },
+    {
+      "id": "mm_gen_6_6_12C_outlier-moves-the-mean",
+      "active": true,
+      "alignmentKeys": [
+        "texas:6.12C"
+      ],
+      "courseId": "grade6",
+      "familyId": "mathmaster:6.12C:gen-outlier-moves-the-mean",
+      "familyVersion": 1,
+      "questionType": "multipleChoice",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "6.12C",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Work out what is actually true first, then check the claim against it."
+      ],
+      "supportHints": [
+        "Decide what would have to be true for the statement to hold. Then test it."
+      ],
+      "taskType": "justification",
+      "representation": "table",
+      "prompt": "Four scores are $ {{a}} $, $ {{b}} $, $ {{c}} $ and $ {{d}} $. One more score of $ {{outlier}} $ is added. A student says the mean and the median both change by the same amount. What actually happens?",
+      "choices": [
+        {
+          "id": "meanMoves",
+          "label": "The mean is pulled toward $ {{outlier}} $ much more than the median is, because the mean uses every value's size"
+        },
+        {
+          "id": "same",
+          "label": "Both change by the same amount"
+        },
+        {
+          "id": "neither",
+          "label": "Neither changes, because one value cannot matter"
+        },
+        {
+          "id": "medianMoves",
+          "label": "The median moves more than the mean"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "meanMoves"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The mean feels how far away a value is. The median only counts positions.",
+        "reasoning": [
+          "The mean of the first four is $ {{mean4}} $; adding $ {{outlier}} $ makes it $ {{mean5}} $.",
+          "The median only moves to the next value along, because it depends on ORDER rather than on size."
+        ],
+        "answerSummary": "The mean moves much more"
+      },
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 10,
+            "max": 20
+          },
+          "step": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "outlier": {
+            "type": "int",
+            "min": 90,
+            "max": 100
+          }
+        },
+        "derived": {
+          "b": "a+step",
+          "c": "a+2*step",
+          "d": "a+3*step",
+          "sum4": "4*a+6*step",
+          "mean4": "(4*a+6*step)/4",
+          "mean5": "(4*a+6*step+outlier)/5"
+        }
+      }
+    },
+    {
+      "id": "mm_gen_6_6_3A_divide-by-a-fraction",
+      "active": true,
+      "alignmentKeys": [
+        "texas:6.3A"
+      ],
+      "courseId": "grade6",
+      "familyId": "mathmaster:6.3A:gen-divide-by-a-fraction",
+      "familyVersion": 1,
+      "questionType": "multipleChoice",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "6.3A",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Work out what is actually true first, then check the claim against it."
+      ],
+      "supportHints": [
+        "Decide what would have to be true for the statement to hold. Then test it."
+      ],
+      "taskType": "justification",
+      "representation": "symbolic",
+      "prompt": "A student says $ {{whole}} \\div \\frac{1}{{{n}}} $ must be smaller than $ {{whole}} $, because dividing makes things smaller. How many $\\frac{1}{{{n}}}$ pieces are in $ {{whole}} $?",
+      "choices": [
+        {
+          "id": "bigger",
+          "label": "$ {{answer}} $ — dividing by a number LESS than 1 gives a bigger result, because you are counting small pieces"
+        },
+        {
+          "id": "smaller",
+          "label": "$ {{wrong}} $ — dividing always makes a number smaller"
+        },
+        {
+          "id": "same",
+          "label": "$ {{whole}} $ — dividing by a fraction changes nothing"
+        },
+        {
+          "id": "cannot",
+          "label": "You cannot divide a whole number by a fraction"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "bigger"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Division asks \"how many of these fit?\" — and small pieces fit many times.",
+        "reasoning": [
+          "Each whole contains $ {{n}} $ pieces of size $\\frac{1}{{{n}}}$.",
+          "So $ {{whole}} $ wholes contain $ {{whole}} \\times {{n}} = {{answer}} $ pieces. Dividing by a reciprocal is the same as multiplying."
+        ],
+        "answerSummary": "{{answer}}"
+      },
+      "generator": {
+        "parameters": {
+          "whole": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "n": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          }
+        },
+        "derived": {
+          "answer": "whole*n",
+          "wrong": "whole/n"
+        }
+      }
+    },
+    {
+      "id": "mm_gen_6_6_4C_times-as-many-not-more-than",
+      "active": true,
+      "alignmentKeys": [
+        "texas:6.4C"
+      ],
+      "courseId": "grade6",
+      "familyId": "mathmaster:6.4C:gen-times-as-many-not-more-than",
+      "familyVersion": 1,
+      "questionType": "multipleChoice",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "6.4C",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Work out what is actually true first, then check the claim against it."
+      ],
+      "supportHints": [
+        "Decide what would have to be true for the statement to hold. Then test it."
+      ],
+      "taskType": "justification",
+      "representation": "verbal",
+      "prompt": "A recipe uses $ {{blue}} $ blue beads for every $ {{red}} $ red beads. A student says \"there are $ {{diff}} $ more blue than red, so the ratio is $ {{diff}} $\". Why is that wrong?",
+      "choices": [
+        {
+          "id": "multiplicative",
+          "label": "A ratio compares by DIVIDING, not by subtracting — it is $ {{blue}} : {{red}} $, so there are $ {{times}} $ times as many blue"
+        },
+        {
+          "id": "student",
+          "label": "The student is right — a ratio is the difference"
+        },
+        {
+          "id": "sum",
+          "label": "The ratio is the total, $ {{total}} $"
+        },
+        {
+          "id": "either",
+          "label": "Either the difference or the quotient may be used"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "multiplicative"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A ratio is a multiplicative comparison.",
+        "reasoning": [
+          "Doubling the recipe gives $ {{blue2}} $ blue and $ {{red2}} $ red. The DIFFERENCE changed to $ {{diff2}} $, but the ratio is still $ {{blue}} : {{red}} $.",
+          "That is exactly why a ratio divides rather than subtracts — it survives scaling."
+        ],
+        "answerSummary": "{{blue}} : {{red}}"
+      },
+      "generator": {
+        "parameters": {
+          "red": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          },
+          "times": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          }
+        },
+        "derived": {
+          "blue": "red*times",
+          "diff": "red*times-red",
+          "total": "red*times+red",
+          "blue2": "2*red*times",
+          "red2": "2*red",
+          "diff2": "2*red*times-2*red"
+        },
+        "constraints": [
+          "diff != times"
+        ]
+      }
     }
   ]
 }

@@ -23,7 +23,7 @@ const TAB_LABELS = {
   simulator: 'Path Simulator',
   students: 'Students',
   classesWorkspace: 'Classes',
-  classes: 'Class Schedule',
+  classes: 'Class & Bell Schedule',
   pacing: 'Curriculum Pacing',
   weeklyPath: 'Weekly Path',
   grades: 'Grades',
@@ -55,11 +55,38 @@ const TAB_ICONS = {
   access: '🔑',
 };
 
+/*
+ * GROUPED BY WHEN A TEACHER REACHES FOR IT, NOT BY WHAT IT IS.
+ *
+ *   "Do not change this merely to reduce tab count. Use teacher workflow as the
+ *    deciding factor."
+ *
+ * So nothing was merged or removed to make the list shorter. What moved, moved
+ * because the old grouping put things a teacher touches every period beside
+ * things they touch twice a semester, and the eye pays for that on every visit.
+ *
+ *   Class & Bell Schedule left "Classes". It is configuration — set in August,
+ *   edited when the bell schedule changes — and sitting it next to the daily
+ *   class workspace made a settings screen look like a place to work.
+ *
+ *   Demo, Math Tools and the Path Simulator left "Teach" for their own group.
+ *   None of them touch a real student: they are for exploring the platform,
+ *   trying a tool before assigning it, and seeing what the engine would do.
+ *   Grouping them with Assignments implied a daily role none of them has.
+ *
+ *   Live Challenge went with them, for the same reason in reverse — it is a
+ *   real classroom activity, but an occasional one, and it was crowding the
+ *   three screens a teacher opens every single day.
+ *
+ * "Teach" is now the daily loop and nothing else: what needs attention, what is
+ * assigned, and where the assignments live.
+ */
 const TAB_GROUPS = [
-  { id: 'teach', label: 'Teach', tabs: ['home', 'demo', 'liveChallenge', 'assignments', 'library', 'mathTools', 'simulator'] },
-  { id: 'people', label: 'Classes', tabs: ['students', 'classesWorkspace', 'classes', 'weeklyPath', 'pacing'] },
+  { id: 'teach', label: 'Teach', tabs: ['home', 'assignments', 'library'] },
+  { id: 'people', label: 'Classes', tabs: ['classesWorkspace', 'students', 'weeklyPath', 'pacing'] },
   { id: 'insight', label: 'Evidence', tabs: ['grades', 'standards', 'analytics', 'exams'] },
-  { id: 'admin', label: 'Setup', tabs: ['classroom', 'access'] },
+  { id: 'explore', label: 'Explore', tabs: ['liveChallenge', 'mathTools', 'simulator', 'demo'] },
+  { id: 'admin', label: 'Setup', tabs: ['classes', 'classroom', 'access'] },
 ];
 
 // Purely presentational, controlled navigation rail. Owns no data of its

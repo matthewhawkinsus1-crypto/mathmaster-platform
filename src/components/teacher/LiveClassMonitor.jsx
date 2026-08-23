@@ -2,6 +2,9 @@ import { useMemo, useState } from 'react';
 import {
   LIVE_FLAGS, LIVE_SEVERITY, QUESTION_STATE_CHARS, summarizeLiveClass,
 } from '../../livePresence';
+import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
+import { studentsInClass } from '../../../functions/shared/classModel.mjs';
+import { suggestMovesForClass } from '../../platform/teacher/liveCoaching.js';
 
 // A tile per student, sorted so whoever needs the teacher is first. The
 // "thumbnail" is a reconstruction of the student's screen state, not a
@@ -58,7 +61,7 @@ function ProgressStrip({ questionStates, questionIndex }) {
   );
 }
 
-function StudentTile({ row, onOpenStudent }) {
+function StudentTile({ row, onOpenStudent, profile = null, suggestion = null, roomMode = false }) {
   const style = SEVERITY_STYLE[row.severity] || SEVERITY_STYLE[LIVE_SEVERITY.OK];
   const live = row.live;
   const glyph = REPRESENTATION_GLYPH[live?.representation] || REPRESENTATION_GLYPH.text;
@@ -69,8 +72,9 @@ function StudentTile({ row, onOpenStudent }) {
       onClick={() => onOpenStudent?.(row.id)}
       style={{
         textAlign: 'left',
-        padding: '12px 14px',
-        border: `2px solid ${style.border}`,
+        padding: roomMode ? '18px 20px' : '12px 14px',
+        fontSize: roomMode ? 17 : 'inherit',
+        border: `${roomMode ? 3 : 2}px solid ${style.border}`,
         borderRadius: '12px',
         background: style.background,
         cursor: onOpenStudent ? 'pointer' : 'default',
@@ -90,6 +94,20 @@ function StudentTile({ row, onOpenStudent }) {
         </span>
       </div>
 
+      {/*
+        TWO DIFFERENT FACTS, SIDE BY SIDE ON PURPOSE.
+        The tile's colour is LIVE state — what is happening in the room in the
+        next thirty seconds. The badge is the ACADEMIC profile, built from a
+        term of evidence. A student can be stuck on this question and Above
+        Level, and a teacher walking the room needs both: the first tells them
+        where to go next, the second tells them what to say when they get there.
+        This screen used to show only the first, which is how "stuck right now"
+        quietly became a teacher's mental model of a child.
+      */}
+      <div style={{ marginTop: 5 }}>
+        <StudentPerformanceBadge profile={profile} size="small" showEngagement={false} studentName={row.name} />
+      </div>
+
       {live?.assignmentId ? (
         <>
           <div style={{ fontSize: '12px', color: '#5f6368', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -104,6 +122,22 @@ function StudentTile({ row, onOpenStudent }) {
         </>
       ) : (
         <div style={{ fontSize: '12px', color: '#5f6368' }}>No assignment open</div>
+      )}
+
+      {/*
+        WHAT TO SAY WHEN YOU GET HERE. Only on tiles that need it — a coaching
+        line under every student is a coaching line a teacher stops reading. It
+        never contains mathematics; see the rule at the top of liveCoaching.js.
+      */}
+      {suggestion && (
+        <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: 'rgba(255,255,255,.72)' }}>
+          <div style={{ fontWeight: 800, fontSize: roomMode ? 15 : 12.5, color: '#202124', lineHeight: 1.35 }}>
+            {suggestion.headline}
+          </div>
+          {!roomMode && (
+            <div style={{ marginTop: 3, fontSize: 11.5, color: '#5f6368', lineHeight: 1.45 }}>{suggestion.why}</div>
+          )}
+        </div>
       )}
 
       {row.flags.length > 0 && (
@@ -132,6 +166,14 @@ export default function LiveClassMonitor({
   initialClassPeriod = 'all',
   nowValue = Date.now(),
   onOpenStudent = null,
+  // The SAME profiles the roster and the gradebook render. This screen used to
+  // have no academic signal at all, so its live severity was the only thing a
+  // teacher saw about a student while standing next to them.
+  learningProfilesByStudentId = {},
+  // Authoritative class boundary. Filtering by period alone merged two classes
+  // that happen to share a period label into one live grid.
+  activeClassId = null,
+  classes = [],
 }) {
   // Opens on whichever period is in session; the teacher can widen it from
   // there. Deliberately not re-synced when the period changes mid-view, so a
@@ -139,10 +181,22 @@ export default function LiveClassMonitor({
   const [classPeriod, setClassPeriod] = useState(initialClassPeriod || 'all');
   const [assignmentId, setAssignmentId] = useState('all');
   const [onlyFlagged, setOnlyFlagged] = useState(false);
+  // FOR A TEACHER WALKING AROUND A ROOM, not one sitting at a desk. Larger
+  // tiles, fewer per row, and the reasoning line dropped — because a screen
+  // read at arm's length while moving is a different screen from one read at
+  // reading distance, and trying to be both is how it becomes neither.
+  const [roomMode, setRoomMode] = useState(false);
 
-  const roster = useMemo(() => students.filter((student) => (
-    classPeriod === 'all' || (student?.classPeriod || student?.profile?.classPeriod) === classPeriod
-  )), [students, classPeriod]);
+  const roster = useMemo(() => {
+    // classId first. The period dropdown remains for a school whose records
+    // predate class identities, and for the deliberate "all" view.
+    if (activeClassId) {
+      return studentsInClass({ students, classes, classId: activeClassId });
+    }
+    return students.filter((student) => (
+      classPeriod === 'all' || (student?.classPeriod || student?.profile?.classPeriod) === classPeriod
+    ));
+  }, [students, classes, activeClassId, classPeriod]);
 
   const { rows, classStats, counts } = useMemo(() => summarizeLiveClass(roster, {
     nowValue,
@@ -150,6 +204,11 @@ export default function LiveClassMonitor({
   }), [roster, nowValue, assignmentId]);
 
   const visibleRows = onlyFlagged ? rows.filter((row) => row.severity === LIVE_SEVERITY.ALERT) : rows;
+
+  const suggestions = useMemo(
+    () => suggestMovesForClass({ rows: visibleRows, profilesByStudentId: learningProfilesByStudentId }),
+    [visibleRows, learningProfilesByStudentId],
+  );
 
   const selectStyle = {
     padding: '8px 10px', borderRadius: '8px', border: '1px solid #dadce0',
@@ -169,10 +228,17 @@ export default function LiveClassMonitor({
         </span>
 
         <div style={{ marginLeft: 'auto', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-          <select value={classPeriod} onChange={(event) => setClassPeriod(event.target.value)} style={selectStyle} aria-label="Class period">
-            <option value="all">All periods</option>
-            {classPeriods.map((period) => <option key={period} value={period}>{period}</option>)}
-          </select>
+          {/*
+            Hidden once the workspace has an authoritative class. Two selectors
+            for the same idea is how a teacher ends up looking at Period 3 in
+            one place and Period 5 in another.
+          */}
+          {!activeClassId && (
+            <select value={classPeriod} onChange={(event) => setClassPeriod(event.target.value)} style={selectStyle} aria-label="Class period">
+              <option value="all">All periods</option>
+              {classPeriods.map((period) => <option key={period} value={period}>{period}</option>)}
+            </select>
+          )}
           <select value={assignmentId} onChange={(event) => setAssignmentId(event.target.value)} style={selectStyle} aria-label="Assignment">
             <option value="all">Any assignment</option>
             {assignments.map((assignment) => (
@@ -192,6 +258,20 @@ export default function LiveClassMonitor({
           >
             Needs attention only
           </button>
+          <button
+            type="button"
+            onClick={() => setRoomMode((current) => !current)}
+            aria-pressed={roomMode}
+            title="Larger tiles for reading while moving around the room"
+            style={{
+              ...selectStyle, cursor: 'pointer', fontWeight: 700,
+              background: roomMode ? '#e8f0fe' : '#fff',
+              borderColor: roomMode ? '#1a73e8' : '#dadce0',
+              color: roomMode ? '#174ea6' : '#202124',
+            }}
+          >
+            Room view
+          </button>
         </div>
       </div>
 
@@ -202,9 +282,9 @@ export default function LiveClassMonitor({
             : 'Nobody needs attention right now.'}
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${roomMode ? 330 : 230}px, 1fr))`, gap: roomMode ? '16px' : '12px' }}>
           {visibleRows.map((row) => (
-            <StudentTile key={row.id} row={row} onOpenStudent={onOpenStudent} />
+            <StudentTile key={row.id} row={row} onOpenStudent={onOpenStudent} profile={learningProfilesByStudentId[row.id] || null} suggestion={suggestions[row.id] || null} roomMode={roomMode} />
           ))}
         </div>
       )}

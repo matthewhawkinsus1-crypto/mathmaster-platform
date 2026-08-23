@@ -29,8 +29,25 @@ const dueDateKey = (assignment) => {
   return dueAt ? localDateKey(dueAt) : null;
 };
 
-const hasDolWindowToday = (assignment, classSchedule, nowValue) => {
+const hasDolWindowToday = (assignment, classSchedule, nowValue, classes = []) => {
   if (!assignment?.dol?.enabled) return false;
+  const classIds = Array.isArray(assignment.assignedClassIds)
+    ? assignment.assignedClassIds.map(String).map((value) => value.trim()).filter(Boolean)
+    : [];
+  const classById = new Map((Array.isArray(classes) ? classes : []).map((record) => [String(record?.classId || record?.id || ''), record]));
+  if (classIds.length && classById.size) {
+    return classIds.some((classId) => {
+      const record = classById.get(classId);
+      if (!record) return false;
+      const classPeriod = String(record?.period || record?.classPeriod || '').trim() || null;
+      const dolState = getDOLState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue });
+      return dolState.window !== null;
+    });
+  }
+
+  // Legacy assignments (or callers without class records) still use schedule
+  // periods. Modern teacher surfaces pass classes so class-ID overrides remain
+  // isolated even when two classes share the same period label.
   const periods = Array.isArray(assignment.assignedClassPeriods) && assignment.assignedClassPeriods.length
     ? assignment.assignedClassPeriods
     : CLASS_PERIODS;
@@ -43,7 +60,7 @@ const hasDolWindowToday = (assignment, classSchedule, nowValue) => {
 // Archived assignments are hidden from every view except "Archived" itself
 // — including the default/"All" view — so archiving actually declutters the
 // list rather than just adding another badge to look past.
-export const matchesSmartView = (assignment, viewId, { nowValue = Date.now(), classSchedule } = {}) => {
+export const matchesSmartView = (assignment, viewId, { nowValue = Date.now(), classSchedule, classes = [] } = {}) => {
   if (viewId === 'archived') return isArchived(assignment);
   if (isArchived(assignment)) return false;
   if (!viewId) return true;
@@ -65,7 +82,7 @@ export const matchesSmartView = (assignment, viewId, { nowValue = Date.now(), cl
     case 'closed':
       return lifecycle.isClosed;
     case 'dolToday':
-      return hasDolWindowToday(assignment, classSchedule, nowValue);
+      return hasDolWindowToday(assignment, classSchedule, nowValue, classes);
     default:
       return true;
   }

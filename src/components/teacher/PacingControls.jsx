@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CLASS_PERIODS } from '../../assignmentLifecycle';
+import { CLASS_PERIODS, assignmentIsForStudent } from '../../assignmentLifecycle';
 import { getSkillGraph, describeSkill } from '../../platform/path/skillGraph';
 import { explainForStudent } from '../../platform/path/recommendationEngine';
 import { buildStudentPathOptions, deriveAutomaticClassPacing, resolvePacingProvider } from '../../platform/path/studentPathOptions';
@@ -73,6 +73,11 @@ export default function PacingControls({
   onSavePacing,
   onSaveOverrides,
   busy = false,
+  // The class the workspace is in. Pacing is a fact about one class, so this
+  // screen follows the class bar rather than keeping its own selection — one of
+  // the nine independent selectors that let a teacher edit Period 5's pacing
+  // while every other tab was showing Period 3.
+  activeClassId = null,
 }) {
   const classOptions = useMemo(() => {
     const live = (Array.isArray(classes) ? classes : [])
@@ -96,9 +101,14 @@ export default function PacingControls({
     }));
   }, [classes, courseProfiles, fallbackCourseId]);
 
+  // Local state remains ONLY as the fallback for a school with no class records,
+  // where the class bar has nothing to offer and this list is periods.
   const [selectedClassKey, setSelectedClassKey] = useState('');
-  const classId = classOptions.some((entry) => entry.key === selectedClassKey)
-    ? selectedClassKey
+  const preferredKey = classOptions.some((entry) => entry.key === activeClassId)
+    ? activeClassId
+    : selectedClassKey;
+  const classId = classOptions.some((entry) => entry.key === preferredKey)
+    ? preferredKey
     : (classOptions[0]?.key || CLASS_PERIODS[0] || 'Period 1');
   const selectedClass = classOptions.find((entry) => entry.key === classId) || null;
   const classProfile = selectedClass || courseProfiles?.[selectedClass?.period || classId] || null;
@@ -107,10 +117,10 @@ export default function PacingControls({
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const classAssignments = useMemo(() => (
-    (Array.isArray(assignments) ? assignments : []).filter((assignment) => {
-      const periods = Array.isArray(assignment?.assignedClassPeriods) ? assignment.assignedClassPeriods : [];
-      return selectedClass?.period ? periods.includes(selectedClass.period) : false;
-    })
+    (Array.isArray(assignments) ? assignments : []).filter((assignment) => assignmentIsForStudent(assignment, {
+      classId: selectedClass?.classId || null,
+      classPeriod: selectedClass?.period || null,
+    }))
   ), [assignments, selectedClass]);
 
   const skills = useMemo(() => getSkillGraph(courseId), [courseId]);
@@ -221,8 +231,13 @@ export default function PacingControls({
         )}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14 }}>
-          <label style={{ fontWeight: 800 }}>Class
-            <select value={classId} onChange={(event) => setSelectedClassKey(event.target.value)} style={{ ...control, width: '100%', marginTop: 6 }}>
+          <label style={{ fontWeight: 800 }}>{classes.length ? 'Class (set above)' : 'Class period'}
+            <select
+              value={classId}
+              onChange={(event) => setSelectedClassKey(event.target.value)}
+              disabled={classes.length > 0}
+              style={{ ...control, width: '100%', marginTop: 6, background: classes.length ? '#f1f3f4' : undefined }}
+            >
               {classOptions.map((entry) => (
                 <option key={entry.key} value={entry.key}>
                   {entry.period ? `${entry.name} · ${entry.period}` : entry.name} · {entry.courseLevel === 'honors' ? 'Honors' : 'Standard'}

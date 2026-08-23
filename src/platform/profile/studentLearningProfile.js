@@ -1,3 +1,4 @@
+import { isFiniteNumber } from '../utils/numeric.js';
 // The Student Learning Profile — one answer to "how is this student doing?"
 //
 // WHY THIS EXISTS. An audit of this repository found FOUR independently written
@@ -225,8 +226,14 @@ export const buildTransferProfile = (events = []) => {
 
 /** Course mastery and confidence, rolled up from the server's per-TEKS records. */
 export const rollUpMastery = (profilesByTeks = {}) => {
+  // `Number(null)` is 0, so the obvious guard here used to ACCEPT a skill whose
+  // estimate was null and weight it into course mastery as 0%. The legacy
+  // mastery adapter writes `estimate: null` for exactly the skills a student has
+  // no score on yet — so every untouched skill was quietly dragging course
+  // mastery towards zero, and with it the performance projection on every badge
+  // in the product. "No evidence yet" is not "scored nothing".
   const entries = Object.values(profilesByTeks || {}).filter((entry) => (
-    entry && Number.isFinite(Number(entry.mastery?.estimate))
+    entry && isFiniteNumber(entry.mastery?.estimate)
   ));
   if (!entries.length) return { courseMastery: null, masteryConfidence: 0, skillsWithEvidence: 0 };
 
@@ -441,6 +448,11 @@ export const buildStudentLearningProfile = ({
     dokProfile,
     difficultyProfile,
     retentionStrength,
+    // The count behind `retentionStrength`, not decoration. A fraction with no
+    // denominator cannot be reasoned about: 0.5 from two schedules and 0.5 from
+    // twenty are different findings, and a caller that wants to require enough
+    // evidence before reporting one has no way to ask without this.
+    retentionScheduleCount: schedules.length,
     ccmrTransfer,
     foundationGapDepth,
     // Engagement is returned beside the academic labels and never folded into

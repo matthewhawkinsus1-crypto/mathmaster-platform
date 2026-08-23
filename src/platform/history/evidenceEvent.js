@@ -1,6 +1,7 @@
 import { normalizeQuestionInstructionalMetadata } from '../../questionMetadata.js';
 import { generateStableId } from '../../utils/idUtils.js';
 import { toCanonicalKey } from '../../utils/teksUtils.js';
+import { describeAdaptation } from '../assignments/assignmentAdaptation.js';
 
 const unique = (values = []) => [...new Set(values.filter(Boolean))];
 
@@ -102,8 +103,12 @@ export const buildAttemptEvidenceEvent = ({
     // The reason, stored with the evidence, so it survives the session that
     // produced it. Null when nothing was adapted.
     adaptation: delivered?.adapted ? {
-      reasonCode: delivered.target?.reason || null,
-      reason: delivered.reason || null,
+      reasonCode: delivered.reasonCode || delivered.target?.reason || null,
+      // Falls back to the target's own description rather than storing null.
+      // This field was silently empty for every adapted question because it
+      // depended entirely on a caller populating it; it now degrades to the
+      // engine's own words instead of to nothing.
+      reason: delivered.reason || describeAdaptation(delivered.target) || null,
       mode: delivered.target?.policy?.mode || null,
       standardPreserved: true,
     } : null,

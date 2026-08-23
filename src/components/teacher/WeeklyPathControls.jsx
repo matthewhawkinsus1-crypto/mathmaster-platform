@@ -4,6 +4,7 @@ import {
   buildTeacherWeeklyView, normalizeWeeklyGoalConfig,
 } from '../../platform/path/weeklyPathGoal.js';
 import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
+import StudentNameLink from '../common/StudentNameLink.jsx';
 
 // The teacher's weekly Path controls, and the class table beside them.
 //
@@ -67,10 +68,11 @@ export default function WeeklyPathControls({
   goalsByStudentId = {},
   completionsByStudentId = {},
   learningProfilesByStudentId = {},
-  onSelectClass = null,
   onChange = null,
   onOpenStudent = null,
   saving = false,
+  progressLoading = false,
+  progressTruncated = false,
   now = Date.now(),
 }) {
   const [dirty, setDirty] = useState(null);
@@ -122,23 +124,13 @@ export default function WeeklyPathControls({
           standards from each student&apos;s own evidence.
         </p>
 
-        {classes.length > 1 && (
-          <div style={{ marginBottom: 14 }}>
-            <Field label="Class">
-              <select
-                value={activeClass.classId}
-                onChange={(event) => { setDirty(null); onSelectClass?.(event.target.value); }}
-                style={{ ...control, width: 'min(360px, 100%)' }}
-              >
-                {classes.map((entry) => (
-                  <option key={entry.classId} value={entry.classId}>
-                    {entry.name || entry.classId}{entry.courseLevel === 'honors' ? ' · Honors' : ''}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          </div>
-        )}
+        {/*
+          The class selector that used to sit here is gone. It was one of nine
+          per-screen selectors that knew nothing about each other, so a teacher
+          could be looking at Period 3's weekly goals while every other tab was
+          still on Period 5. The workspace's own class bar now sets this, and
+          this screen reads it.
+        */}
 
         <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))' }}>
           <Field
@@ -251,8 +243,15 @@ export default function WeeklyPathControls({
         <p style={note}>
           Completion and academic profile are separate columns on purpose. A student can be
           above level and still not doing the work, and a student can be doing every session
-          and still need help — collapsing the two into one number hides both facts.
+          and still need help — collapsing the two into one number hides both facts. The weekly
+          grade is 80% completion and 20% quality by default; mastery remains separate.
         </p>
+        {progressLoading && <div style={{ margin: '-4px 0 10px', fontSize: 12, color: '#5f6368' }}>Loading completed Path sessions…</div>}
+        {progressTruncated && (
+          <div style={{ margin: '-4px 0 10px', padding: '9px 11px', borderRadius: 8, background: '#fff4ce', color: '#6b4c00', fontSize: 12, fontWeight: 700 }}>
+            This week&apos;s Path activity was too large to read in full, so the completion counts and grades below may be low. Do not publish these grades until this is resolved.
+          </div>
+        )}
 
         {!rows.length ? (
           <p style={note}>No students in this class yet.</p>
@@ -265,6 +264,7 @@ export default function WeeklyPathControls({
                   <th style={{ textAlign: 'right', padding: 10 }}>Goal</th>
                   <th style={{ textAlign: 'right', padding: 10 }}>Complete</th>
                   <th style={{ textAlign: 'left', padding: 10 }}>Academic profile</th>
+                  <th style={{ textAlign: 'right', padding: 10 }}>Weekly grade</th>
                   <th style={{ textAlign: 'left', padding: 10 }}>Engagement</th>
                 </tr>
               </thead>
@@ -272,15 +272,13 @@ export default function WeeklyPathControls({
                 {rows.map((row) => (
                   <tr key={row.studentId} style={{ borderTop: '1px solid #eef0f2' }}>
                     <td style={{ padding: 10, fontWeight: 800 }}>
-                      {onOpenStudent ? (
-                        <button
-                          type="button"
-                          onClick={() => onOpenStudent(row.studentId)}
-                          style={{ appearance: 'none', border: 0, background: 'transparent', padding: 0, color: '#174ea6', fontWeight: 900, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5 }}
-                        >
-                          {row.studentName}
-                        </button>
-                      ) : row.studentName}
+                      <StudentNameLink
+                        studentId={row.studentId}
+                        studentName={row.studentName}
+                        profile={learningProfilesByStudentId[row.studentId]}
+                        onOpen={onOpenStudent}
+                        style={{ fontSize: 13.5 }}
+                      />
                     </td>
                     <td style={{ padding: 10, textAlign: 'right' }}>{row.goal}</td>
                     <td style={{ padding: 10, textAlign: 'right', fontWeight: 900, color: row.overdue ? '#9a3412' : '#202124' }}>
@@ -294,6 +292,9 @@ export default function WeeklyPathControls({
                         studentName={row.studentName}
                         onClick={onOpenStudent ? () => onOpenStudent(row.studentId) : null}
                       />
+                    </td>
+                    <td style={{ padding: 10, textAlign: 'right', fontWeight: 900, color: row.passing ? '#137333' : row.complete ? '#3c4043' : '#7a4f00' }}>
+                      {progressLoading ? '…' : `${Math.round(row.grade)}%`}
                     </td>
                     <td style={{ padding: 10, color: row.overdue ? '#9a3412' : '#3c4043' }}>
                       {row.overdue ? 'Needs Follow-Up' : row.engagement}

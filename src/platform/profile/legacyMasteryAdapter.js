@@ -11,6 +11,7 @@
 // keeps doing the fetching, which is the only thing it should have owned.
 
 import { toDisplayCode } from '../../utils/teksUtils.js';
+import { isFiniteNumber } from '../utils/numeric.js';
 
 const phase5StatusForLegacyLevel = (levelKey) => ({
   masters: 'Mastered',
@@ -41,10 +42,10 @@ export const adaptLegacyMasteryToPhase5 = ({ legacyProfile = {}, evidenceRows = 
     result[code] = {
       teksCode: code,
       mastery: {
-        estimate: Number.isFinite(Number(summary.score)) ? Math.round(Number(summary.score)) : null,
+        estimate: isFiniteNumber(summary.score) ? Math.round(Number(summary.score)) : null,
         status: phase5StatusForLegacyLevel(summary.performance?.key),
         confidence: summary.confidence || 'Low',
-        observedPerformance: Number.isFinite(Number(summary.eventualCorrectRate))
+        observedPerformance: isFiniteNumber(summary.eventualCorrectRate)
           ? Math.round(Number(summary.eventualCorrectRate))
           : null,
       },

@@ -441,6 +441,17 @@ export const resolveDeliveredQuestionMetadata = ({
     dok: target.dok,
     difficultyBand: target.difficultyBand,
     adapted: target.adapted,
+    // THE EXPLANATION, CARRIED WITH THE DELIVERY.
+    //
+    // The evidence writer reads `delivered.reason` and stores it on the event,
+    // and this resolver never returned one — so every adapted assignment
+    // question in the database recorded `adaptation.reason: null`. The engine
+    // knew why it moved the rigor, the field to hold that answer existed, and
+    // the two were never connected. A teacher opening the adaptation report saw
+    // that something changed and nothing about why, which is the "AI
+    // recommended" opacity the design explicitly forbids.
+    reasonCode: target.reason,
+    reason: describeAdaptation(target),
     target,
   };
 };

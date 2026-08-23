@@ -50,10 +50,11 @@ export const collectReviewBlockers = ({
   const draft = rawDraft && typeof rawDraft === 'object' && !Array.isArray(rawDraft) ? rawDraft : {};
   const blockers = [];
 
+  const assignedIds = Array.isArray(draft.assignedClassIds) ? draft.assignedClassIds : [];
   const assignedPeriods = Array.isArray(draft.assignedClassPeriods) ? draft.assignedClassPeriods : [];
   // Saving to the library and assigning to students are different actions with
   // different requirements. A title is the only thing both need.
-  const mode = resolveCreationMode({ assignedClassPeriods: assignedPeriods });
+  const mode = resolveCreationMode({ assignedClassIds: assignedIds, assignedClassPeriods: assignedPeriods });
 
   if (!String(draft.title || '').trim()) {
     blockers.push(blocker('details', 'Give the assignment a title.'));
@@ -150,6 +151,6 @@ export const stepIndex = (stepId) => {
  */
 export const describePreflightAction = (draft) => {
   const safeDraft = draft && typeof draft === 'object' && !Array.isArray(draft) ? draft : {};
-  const mode = resolveCreationMode({ assignedClassPeriods: safeDraft.assignedClassPeriods });
+  const mode = resolveCreationMode({ assignedClassIds: safeDraft.assignedClassIds, assignedClassPeriods: safeDraft.assignedClassPeriods });
   return { mode, ...CREATION_MODE_LABELS[mode] };
 };

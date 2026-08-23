@@ -21,17 +21,22 @@ export const LIBRARY = Object.freeze({
   label: 'Not assigned',
 });
 
-export const isLibraryAssignment = (assignment) => (
-  !Array.isArray(assignment?.assignedClassPeriods) || assignment.assignedClassPeriods.length === 0
-);
+export const isLibraryAssignment = (assignment) => {
+  const ids = Array.isArray(assignment?.assignedClassIds) ? assignment.assignedClassIds : [];
+  const periods = Array.isArray(assignment?.assignedClassPeriods) ? assignment.assignedClassPeriods : [];
+  return ids.length === 0 && periods.length === 0;
+};
 
 /**
  * Is this a save-to-library action or a create-and-assign action?
  * One predicate, so the button label, the validation and the write path cannot
  * disagree about which one is happening.
  */
-export const resolveCreationMode = ({ assignedClassPeriods = [] } = {}) => (
-  (Array.isArray(assignedClassPeriods) ? assignedClassPeriods : []).length === 0 ? 'library' : 'assign'
+export const resolveCreationMode = ({ assignedClassIds = [], assignedClassPeriods = [] } = {}) => (
+  (Array.isArray(assignedClassIds) ? assignedClassIds : []).length === 0
+    && (Array.isArray(assignedClassPeriods) ? assignedClassPeriods : []).length === 0
+    ? 'library'
+    : 'assign'
 );
 
 export const CREATION_MODE_LABELS = Object.freeze({
@@ -115,7 +120,7 @@ export const resolveAssignmentDates = ({ mode, dueValue, lateDueValue, releaseVa
  */
 export const assertPublishable = (assignment) => {
   if (isLibraryAssignment(assignment)) {
-    throw new Error('This assignment is not assigned to any class yet. Assign it to a class period before posting it to Google Classroom.');
+    throw new Error('This assignment is not assigned to any class yet. Assign it to a class before posting it to Google Classroom.');
   }
   if (!assignment?.dueAt) {
     throw new Error('This assignment has no due date. Set one before posting it to Google Classroom.');

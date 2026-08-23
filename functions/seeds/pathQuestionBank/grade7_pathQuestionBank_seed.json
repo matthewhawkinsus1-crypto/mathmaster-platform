@@ -13976,6 +13976,1029 @@
           }
         }
       }
+    },
+    {
+      "id": "mm_gen_7_7_4C_ratio-must-hold-everywhere",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.4C"
+      ],
+      "courseId": "grade7",
+      "familyId": "mathmaster:7.4C:gen-ratio-must-hold-everywhere",
+      "familyVersion": 1,
+      "questionType": "multipleChoice",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.4C",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Work out what is actually true first, then check the claim against it."
+      ],
+      "supportHints": [
+        "Decide what would have to be true for the statement to hold. Then test it."
+      ],
+      "taskType": "justification",
+      "representation": "table",
+      "prompt": "A table shows $({{x1}}, {{y1}})$ and $({{x2}}, {{y2}})$. A student says the constant of proportionality is $ {{k}} $ because $ {{y1}} \\div {{x1}} = {{k}} $. Check the second pair.",
+      "choices": [
+        {
+          "id": "notProportional",
+          "label": "Not proportional — the second pair gives $ {{y2}} \\div {{x2}} $, which is not $ {{k}} $"
+        },
+        {
+          "id": "correct",
+          "label": "Correct — one pair is enough to find $k$"
+        },
+        {
+          "id": "useSecond",
+          "label": "The constant is whatever the second pair gives"
+        },
+        {
+          "id": "needThree",
+          "label": "At least three pairs are needed before $k$ can be found"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "notProportional"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A constant of proportionality is only constant if every pair gives it.",
+        "reasoning": [
+          "The first pair does give $ {{y1}} \\div {{x1}} = {{k}} $.",
+          "The second pair gives $ {{y2}} \\div {{x2}} $, a different value, so no single $k$ works and the relationship is not proportional."
+        ],
+        "answerSummary": "Not proportional — the ratios disagree"
+      },
+      "generator": {
+        "parameters": {
+          "k": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "x1": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          },
+          "x2": {
+            "type": "int",
+            "min": 7,
+            "max": 12
+          },
+          "off": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          }
+        },
+        "derived": {
+          "y1": "k*x1",
+          "y2": "k*x2+off"
+        }
+      }
+    },
+    {
+      "id": "mm_gen_7_7_11B_does-the-value-fit",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.11B"
+      ],
+      "courseId": "grade7",
+      "familyId": "mathmaster:7.11B:gen-does-the-value-fit",
+      "familyVersion": 1,
+      "questionType": "multipleChoice",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.11B",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Work out what is actually true first, then check the claim against it."
+      ],
+      "supportHints": [
+        "Decide what would have to be true for the statement to hold. Then test it."
+      ],
+      "taskType": "justification",
+      "representation": "symbolic",
+      "prompt": "Does $x = {{guess}}$ make $ {{a}}x + {{b}} = {{c}} $ true? Substitute and check.",
+      "choices": [
+        {
+          "id": "no",
+          "label": "No — it gives $ {{guessValue}} $, not $ {{c}} $. The value that works is $ {{x}} $"
+        },
+        {
+          "id": "yes",
+          "label": "Yes — it makes both sides equal"
+        },
+        {
+          "id": "cannot",
+          "label": "It cannot be checked without solving the equation first"
+        },
+        {
+          "id": "always",
+          "label": "Any value works, because the equation has infinitely many solutions"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "no"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Checking a solution means substituting it, not re-solving.",
+        "reasoning": [
+          "Substituting $x = {{guess}}$: $ {{a}}({{guess}}) + {{b}} = {{guessValue}} $.",
+          "That is not $ {{c}} $, so $ {{guess}} $ is not a solution. Solving gives $x = {{x}} $."
+        ],
+        "answerSummary": "No — the value that works is {{x}}"
+      },
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "b": {
+            "type": "int",
+            "min": -12,
+            "max": 12
+          },
+          "x": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "off": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        },
+        "derived": {
+          "c": "a*x+b",
+          "guess": "x+off",
+          "guessValue": "a*(x+off)+b"
+        }
+      }
+    },
+    {
+      "id": "mm_gen_7_7_9B_diameter-not-radius",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.9B"
+      ],
+      "courseId": "grade7",
+      "familyId": "mathmaster:7.9B:gen-diameter-not-radius",
+      "familyVersion": 1,
+      "questionType": "multipleChoice",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.9B",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Work out what is actually true first, then check the claim against it."
+      ],
+      "supportHints": [
+        "Decide what would have to be true for the statement to hold. Then test it."
+      ],
+      "taskType": "errorAnalysis",
+      "representation": "diagram",
+      "prompt": "A circle has DIAMETER $ {{d}} $ cm. A student finds the area as $\\pi \\times {{d}}^2 = {{wrongArea}}\\pi$. What went wrong?",
+      "choices": [
+        {
+          "id": "halveFirst",
+          "label": "The formula uses the RADIUS. Halving first gives $ {{r}} $, so the area is $ {{area}}\\pi $"
+        },
+        {
+          "id": "nothing",
+          "label": "Nothing — area is $\\pi d^2$"
+        },
+        {
+          "id": "circumference",
+          "label": "They found the circumference instead of the area"
+        },
+        {
+          "id": "doubled",
+          "label": "They should have doubled the diameter first"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "halveFirst"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Area is πr², and r is half the diameter.",
+        "reasoning": [
+          "The diameter is $ {{d}} $, so the radius is $ {{d}} \\div 2 = {{r}} $.",
+          "The area is $\\pi({{r}})^2 = {{area}}\\pi$, which is a quarter of the student's answer."
+        ],
+        "answerSummary": "{{area}}π square cm"
+      },
+      "generator": {
+        "parameters": {
+          "r": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          }
+        },
+        "derived": {
+          "d": "2*r",
+          "area": "r*r",
+          "wrongArea": "4*r*r"
+        }
+      }
+    },
+    {
+      "id": "mm_gen_7_7_11C_triangle-not-quadrilateral",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.11C"
+      ],
+      "courseId": "grade7",
+      "familyId": "mathmaster:7.11C:gen-triangle-not-quadrilateral",
+      "familyVersion": 1,
+      "questionType": "multipleChoice",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.11C",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Work out what is actually true first, then check the claim against it."
+      ],
+      "supportHints": [
+        "Decide what would have to be true for the statement to hold. Then test it."
+      ],
+      "taskType": "errorAnalysis",
+      "representation": "diagram",
+      "prompt": "A triangle has angles $ {{a}}^\\circ $, $ {{b}}^\\circ $ and $x^\\circ$. A student writes $ {{a}} + {{b}} + x = 360 $ and gets $x = {{wrongX}} $. What is wrong?",
+      "choices": [
+        {
+          "id": "oneEighty",
+          "label": "The angles of a TRIANGLE sum to $180^\\circ$, not $360^\\circ$, so $x = {{x}} $"
+        },
+        {
+          "id": "nothing",
+          "label": "Nothing — all polygons have angles summing to $360^\\circ$"
+        },
+        {
+          "id": "subtract",
+          "label": "They should have subtracted the two angles from each other"
+        },
+        {
+          "id": "impossible",
+          "label": "The triangle cannot exist"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "oneEighty"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Three angles, one hundred and eighty degrees.",
+        "reasoning": [
+          "$360^\\circ$ is the sum for a quadrilateral, not a triangle.",
+          "$ {{a}} + {{b}} + x = 180 $, so $x = 180 - {{a}} - {{b}} = {{x}} $."
+        ],
+        "answerSummary": "{{x}} degrees"
+      },
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 25,
+            "max": 80
+          },
+          "b": {
+            "type": "int",
+            "min": 25,
+            "max": 80
+          }
+        },
+        "derived": {
+          "x": "180-a-b",
+          "wrongX": "360-a-b"
+        },
+        "constraints": [
+          "x > 10"
+        ]
+      }
+    },
+    {
+      "id": "mm_gen_7_7_3A_subtracting-a-negative",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.3A"
+      ],
+      "courseId": "grade7",
+      "familyId": "mathmaster:7.3A:gen-subtracting-a-negative",
+      "familyVersion": 1,
+      "questionType": "multipleChoice",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.3A",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Work out what is actually true first, then check the claim against it."
+      ],
+      "supportHints": [
+        "Decide what would have to be true for the statement to hold. Then test it."
+      ],
+      "taskType": "errorAnalysis",
+      "representation": "symbolic",
+      "prompt": "A student computes $ {{a}} - (-{{b}}) $ and writes $ {{wrong}} $. Is that right, and why?",
+      "choices": [
+        {
+          "id": "addIt",
+          "label": "No — subtracting a negative adds, so the answer is $ {{right}} $"
+        },
+        {
+          "id": "yes",
+          "label": "Yes — two negatives always make the result smaller"
+        },
+        {
+          "id": "zero",
+          "label": "No — the answer is $0$"
+        },
+        {
+          "id": "cannot",
+          "label": "Subtracting a negative number is not defined"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "addIt"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Subtracting a negative is the same as adding its opposite.",
+        "reasoning": [
+          "On a number line, taking away a debt of $ {{b}} $ moves you UP by $ {{b}} $.",
+          "$ {{a}} - (-{{b}}) = {{a}} + {{b}} = {{right}} $."
+        ],
+        "answerSummary": "{{right}}"
+      },
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -12,
+            "max": 12
+          },
+          "b": {
+            "type": "int",
+            "min": 2,
+            "max": 14
+          }
+        },
+        "derived": {
+          "right": "a+b",
+          "wrong": "a-b"
+        }
+      }
+    },
+    {
+      "id": "mm_gen_7_7_6E_complement-of-an-event",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.6E"
+      ],
+      "courseId": "grade7",
+      "familyId": "mathmaster:7.6E:gen-complement-of-an-event",
+      "familyVersion": 1,
+      "questionType": "multipleChoice",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.6E",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Work out what is actually true first, then check the claim against it."
+      ],
+      "supportHints": [
+        "Decide what would have to be true for the statement to hold. Then test it."
+      ],
+      "taskType": "justification",
+      "representation": "verbal",
+      "prompt": "A bag holds $ {{win}} $ winning tickets and $ {{lose}} $ losing tickets. A student says the probability of NOT winning is $ {{win}}/{{lose}} $. What is it really, and why?",
+      "choices": [
+        {
+          "id": "complement",
+          "label": "$ {{lose}}/{{total}} $ — the complement is the losing tickets out of ALL $ {{total}} $ tickets"
+        },
+        {
+          "id": "student",
+          "label": "The student is right"
+        },
+        {
+          "id": "inverse",
+          "label": "$ {{lose}}/{{win}} $"
+        },
+        {
+          "id": "half",
+          "label": "Always $1/2$, because you either win or you do not"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "complement"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A probability is a part out of the WHOLE, and the two must sum to 1.",
+        "reasoning": [
+          "There are $ {{win}} + {{lose}} = {{total}} $ tickets altogether.",
+          "P(win) $= {{win}}/{{total}}$ and P(not win) $= {{lose}}/{{total}}$, and those two add to 1."
+        ],
+        "answerSummary": "{{lose}}/{{total}}"
+      },
+      "generator": {
+        "parameters": {
+          "win": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "lose": {
+            "type": "int",
+            "min": 3,
+            "max": 15
+          }
+        },
+        "derived": {
+          "total": "win+lose"
+        },
+        "constraints": [
+          "win != lose"
+        ]
+      }
+    },
+    {
+      "id": "mm_gen_7_7_4A_check-every-step",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.4A"
+      ],
+      "courseId": "grade7",
+      "familyId": "mathmaster:7.4A:gen-check-every-step",
+      "familyVersion": 1,
+      "questionType": "multipleChoice",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.4A",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Work out what is actually true first, then check the claim against it."
+      ],
+      "supportHints": [
+        "Decide what would have to be true for the statement to hold. Then test it."
+      ],
+      "taskType": "justification",
+      "representation": "table",
+      "prompt": "A table goes $ {{y0}} $, $ {{y1}} $, $ {{y2}} $ as $x$ goes 0, 1, 2. A student says the rate of change is $ {{m}} $ because the first step adds $ {{m}} $. Is the rate constant?",
+      "choices": [
+        {
+          "id": "notConstant",
+          "label": "No — the second step adds $ {{step2}} $, not $ {{m}} $, so there is no single rate"
+        },
+        {
+          "id": "yes",
+          "label": "Yes — the first step determines the rate"
+        },
+        {
+          "id": "average",
+          "label": "The rate is the average of the two steps"
+        },
+        {
+          "id": "needMore",
+          "label": "More rows are needed before anything can be said"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "notConstant"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A constant rate must be the same between EVERY consecutive pair.",
+        "reasoning": [
+          "From $ {{y0}} $ to $ {{y1}} $ the change is $ {{m}} $.",
+          "From $ {{y1}} $ to $ {{y2}} $ the change is $ {{step2}} $. Different steps mean the relationship is not linear."
+        ],
+        "answerSummary": "No — the steps are {{m}} and {{step2}}"
+      },
+      "generator": {
+        "parameters": {
+          "y0": {
+            "type": "int",
+            "min": -8,
+            "max": 12
+          },
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "bump": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          }
+        },
+        "derived": {
+          "y1": "y0+m",
+          "y2": "y0+m+m+bump",
+          "step2": "m+bump"
+        }
+      }
+    },
+    {
+      "id": "mm_gen_7_7_7_rate-versus-start",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.7"
+      ],
+      "courseId": "grade7",
+      "familyId": "mathmaster:7.7:gen-rate-versus-start",
+      "familyVersion": 1,
+      "questionType": "multipleChoice",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.7",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Work out what is actually true first, then check the claim against it."
+      ],
+      "supportHints": [
+        "Decide what would have to be true for the statement to hold. Then test it."
+      ],
+      "taskType": "justification",
+      "representation": "verbal",
+      "prompt": "A gym charges a $ \\${{start}} $ joining fee plus $ \\${{rate}} $ each month. A student writes $y = {{start}}x + {{rate}}$. What is wrong?",
+      "choices": [
+        {
+          "id": "swapped",
+          "label": "The rate and the starting fee are swapped — it should be $y = {{rate}}x + {{start}}$"
+        },
+        {
+          "id": "nothing",
+          "label": "Nothing — either order gives the same total"
+        },
+        {
+          "id": "noStart",
+          "label": "The joining fee should not appear in the equation"
+        },
+        {
+          "id": "multiply",
+          "label": "The two amounts should be multiplied together"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "swapped"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The number multiplied by x is the thing that repeats.",
+        "reasoning": [
+          "The $ \\${{rate}} $ happens every month, so it is the coefficient of $x$.",
+          "The $ \\${{start}} $ happens once, at $x = 0$, so it is the constant. After {{months}} months the cost is $ {{rate}}({{months}}) + {{start}} = {{total}} $."
+        ],
+        "answerSummary": "y = {{rate}}x + {{start}}"
+      },
+      "generator": {
+        "parameters": {
+          "start": {
+            "type": "int",
+            "min": 15,
+            "max": 60
+          },
+          "rate": {
+            "type": "int",
+            "min": 8,
+            "max": 35
+          },
+          "months": {
+            "type": "int",
+            "min": 3,
+            "max": 10
+          }
+        },
+        "derived": {
+          "total": "rate*months+start"
+        },
+        "constraints": [
+          "start != rate"
+        ]
+      }
+    },
+    {
+      "id": "mm_gen_7_7_10A_one-step-or-two",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.10A"
+      ],
+      "courseId": "grade7",
+      "familyId": "mathmaster:7.10A:gen-one-step-or-two",
+      "familyVersion": 1,
+      "questionType": "multipleChoice",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.10A",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Work out what is actually true first, then check the claim against it."
+      ],
+      "supportHints": [
+        "Decide what would have to be true for the statement to hold. Then test it."
+      ],
+      "taskType": "justification",
+      "representation": "verbal",
+      "prompt": "Tickets cost $ \\${{rate}} $ each and parking costs $ \\${{park}} $ once. The total was $ \\${{total}} $. Which equation finds the number of tickets, and why?",
+      "choices": [
+        {
+          "id": "twoStep",
+          "label": "$ {{rate}}t + {{park}} = {{total}} $ — parking is paid once, so it is added, not multiplied"
+        },
+        {
+          "id": "oneStep",
+          "label": "$ {{rate}}t = {{total}} $ — parking is part of the ticket price"
+        },
+        {
+          "id": "bothPer",
+          "label": "$({{rate}} + {{park}})t = {{total}} $ — both costs happen per ticket"
+        },
+        {
+          "id": "divide",
+          "label": "$t = {{total}} \\div {{park}} $"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "twoStep"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Ask which cost repeats and which happens once.",
+        "reasoning": [
+          "Parking is a single charge, so it is added once rather than multiplied by the number of tickets.",
+          "Solving $ {{rate}}t + {{park}} = {{total}} $ gives $t = {{t}} $ tickets."
+        ],
+        "answerSummary": "{{rate}}t + {{park}} = {{total}}"
+      },
+      "generator": {
+        "parameters": {
+          "rate": {
+            "type": "int",
+            "min": 6,
+            "max": 20
+          },
+          "park": {
+            "type": "int",
+            "min": 4,
+            "max": 15
+          },
+          "t": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          }
+        },
+        "derived": {
+          "total": "rate*t+park"
+        }
+      }
+    },
+    {
+      "id": "mm_gen_7_7_5A_corresponding-sides",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.5A"
+      ],
+      "courseId": "grade7",
+      "familyId": "mathmaster:7.5A:gen-corresponding-sides",
+      "familyVersion": 1,
+      "questionType": "multipleChoice",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.5A",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Work out what is actually true first, then check the claim against it."
+      ],
+      "supportHints": [
+        "Decide what would have to be true for the statement to hold. Then test it."
+      ],
+      "taskType": "justification",
+      "representation": "diagram",
+      "prompt": "Two similar rectangles have sides $ {{a}} $ by $ {{b}} $ and $ {{a2}} $ by $ {{b2}} $. A student says the scale factor is $ {{a2}} \\div {{b}} $. What is it really?",
+      "choices": [
+        {
+          "id": "corresponding",
+          "label": "$ {{k}} $ — the scale factor compares CORRESPONDING sides, so $ {{a2}} \\div {{a}} $ and $ {{b2}} \\div {{b}} $ both give it"
+        },
+        {
+          "id": "student",
+          "label": "The student is right"
+        },
+        {
+          "id": "sum",
+          "label": "The sum of the two ratios"
+        },
+        {
+          "id": "notSimilar",
+          "label": "The rectangles are not actually similar"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "corresponding"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Compare a side with the side that matches it, not with the other one.",
+        "reasoning": [
+          "$ {{a2}} \\div {{a}} = {{k}} $ and $ {{b2}} \\div {{b}} = {{k}} $ — the same factor from both pairs, which is what similarity means.",
+          "Dividing a length by a side it does not correspond to mixes up two different measurements."
+        ],
+        "answerSummary": "{{k}}"
+      },
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "b": {
+            "type": "int",
+            "min": 3,
+            "max": 12
+          },
+          "k": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          }
+        },
+        "derived": {
+          "a2": "a*k",
+          "b2": "b*k"
+        },
+        "constraints": [
+          "a != b"
+        ]
+      }
+    },
+    {
+      "id": "mm_gen_7_7_13E_simple-versus-compound",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.13E"
+      ],
+      "courseId": "grade7",
+      "familyId": "mathmaster:7.13E:gen-simple-versus-compound",
+      "familyVersion": 1,
+      "questionType": "multipleChoice",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.13E",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Work out what is actually true first, then check the claim against it."
+      ],
+      "supportHints": [
+        "Decide what would have to be true for the statement to hold. Then test it."
+      ],
+      "taskType": "justification",
+      "representation": "verbal",
+      "prompt": "$ \\${{p}} $ is invested at $ {{r}}\\% $ for 2 years. A student says simple and compound interest give the same total because the rate and time are the same. Are they the same?",
+      "choices": [
+        {
+          "id": "compoundMore",
+          "label": "No — compound earns more, because year 2 pays interest on the interest from year 1"
+        },
+        {
+          "id": "same",
+          "label": "Yes — the same rate over the same time gives the same total"
+        },
+        {
+          "id": "simpleMore",
+          "label": "No — simple interest earns more"
+        },
+        {
+          "id": "onlyLong",
+          "label": "They differ only after 10 years or more"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "compoundMore"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Compound interest pays interest on interest. Simple interest never does.",
+        "reasoning": [
+          "Simple: interest is $ {{r}}\\% $ of $ \\${{p}} $ each year, so 2 years give $ \\${{simpleInterest}} $ of interest.",
+          "Compound: year 2 charges $ {{r}}\\% $ on $ \\${{afterYear1}} $, not on $ \\${{p}} $ — which is more."
+        ],
+        "answerSummary": "Compound earns more"
+      },
+      "generator": {
+        "parameters": {
+          "p": {
+            "type": "int",
+            "min": 200,
+            "max": 2000,
+            "step": 100
+          },
+          "r": {
+            "type": "int",
+            "min": 2,
+            "max": 10
+          }
+        },
+        "derived": {
+          "simpleInterest": "2*p*r/100",
+          "afterYear1": "p+p*r/100"
+        }
+      }
+    },
+    {
+      "id": "mm_gen_7_7_4D_percent-off-then-on",
+      "active": true,
+      "alignmentKeys": [
+        "texas:7.4D"
+      ],
+      "courseId": "grade7",
+      "familyId": "mathmaster:7.4D:gen-percent-off-then-on",
+      "familyVersion": 1,
+      "questionType": "multipleChoice",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "7.4D",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Work out what is actually true first, then check the claim against it."
+      ],
+      "supportHints": [
+        "Decide what would have to be true for the statement to hold. Then test it."
+      ],
+      "taskType": "justification",
+      "representation": "verbal",
+      "prompt": "A $ \\${{price}} $ item is reduced by $ {{p}}\\% $, then that sale price is increased by $ {{p}}\\% $. A student says it is back to $ \\${{price}} $. Is it?",
+      "choices": [
+        {
+          "id": "less",
+          "label": "No — it ends BELOW $ \\${{price}} $, because the $ {{p}}\\% $ increase is taken on the smaller sale price"
+        },
+        {
+          "id": "yes",
+          "label": "Yes — the same percent up and down cancel out"
+        },
+        {
+          "id": "more",
+          "label": "No — it ends up higher than it started"
+        },
+        {
+          "id": "depends",
+          "label": "It depends on whether the percent is more or less than 50%"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "less"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A percent is always a percent OF something, and the something changed.",
+        "reasoning": [
+          "The discount was $ {{p}}\\% $ of $ \\${{price}} $, which is $ \\${{discount}} $, leaving $ \\${{sale}} $.",
+          "The increase is $ {{p}}\\% $ of $ \\${{sale}} $, not of $ \\${{price}} $ — so it adds back LESS than $ \\${{discount}} $ and the price ends below where it started."
+        ],
+        "answerSummary": "No — it ends below the original price"
+      },
+      "generator": {
+        "parameters": {
+          "price": {
+            "type": "int",
+            "min": 20,
+            "max": 90,
+            "step": 10
+          },
+          "p": {
+            "type": "int",
+            "min": 10,
+            "max": 40,
+            "step": 10
+          }
+        },
+        "derived": {
+          "discount": "price*p/100",
+          "sale": "price-price*p/100",
+          "finalCents": "price*(100-p)*(100+p)/100"
+        }
+      }
     }
   ]
 }

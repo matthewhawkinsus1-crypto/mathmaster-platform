@@ -86,6 +86,102 @@ const oneOf = (value, allowed, fallback) => (
   Object.values(allowed).includes(value) ? value : fallback
 );
 
+const slotFramework = (value) => {
+  const text = String(value || '').trim();
+  return text && text !== 'course' && text !== 'auto' ? text : null;
+};
+
+// A weekly slot is more specific than a TEKS. The same standard may appear
+// twice in one week for different purposes (current learning + retention, or
+// course practice + assessment transfer). The stable key travels to the server
+// and is what prevents one completed session from filling both rows.
+export const weeklySlotKey = (session = {}, slot = session?.slot) => [
+  Number(slot) || 0,
+  String(session?.skillId || ''),
+  String(session?.teksCode || ''),
+  String(session?.purpose || ''),
+  String(session?.context || 'course'),
+  Number(session?.dok) || 0,
+  Number(session?.difficultyBand) || 0,
+].join('|');
+
+const completionMatchesLegacySlot = (slot, completion, weekKey) => {
+  if (completion?.weekKey && weekKey && completion.weekKey !== weekKey) return false;
+  const slotTeks = String(slot?.teksCode || '').trim();
+  const completionTeks = String(completion?.teksCode || '').trim();
+  if (!slotTeks || !completionTeks || slotTeks !== completionTeks) return false;
+  const expectedFramework = slotFramework(slot?.context || slot?.assessmentFramework);
+  const actualFramework = slotFramework(completion?.assessmentFramework || completion?.context);
+  return expectedFramework === actualFramework;
+};
+
+/**
+ * Match completed Path sessions to assigned weekly slots one-to-one.
+ *
+ * Modern sessions carry `weeklySlotKey`, so matching is exact. Older sessions
+ * predate snapshots; they receive a controlled TEKS/framework fallback, but a
+ * completion is consumed after one match and can never fill a second slot.
+ * Unmatched voluntary practice stays mastery evidence and is excluded here.
+ */
+export const matchWeeklyGoalCompletions = ({ goal, completions = [] } = {}) => {
+  const slots = list(goal?.sessions).map((session, index) => ({
+    ...session,
+    slot: Number(session?.slot) || index + 1,
+    weeklySlotKey: session?.weeklySlotKey || weeklySlotKey(session, Number(session?.slot) || index + 1),
+  }));
+  const available = list(completions)
+    .filter((entry) => entry?.status === 'completed')
+    .map((entry, index) => ({ ...entry, __index: index }));
+  const used = new Set();
+  const matched = [];
+  const strictAssignedMatching = goal?.assignmentState === 'assigned'
+    || available.some((entry) => Boolean(entry.weeklySlotKey));
+
+  // Historical weekly-grade rows predate frozen slot identity. Preserve their
+  // count-based semantics so old weeks do not retroactively become zeroes.
+  // Current assigned weeks are strict: only the frozen slot can earn that slot.
+  if (!strictAssignedMatching) {
+    const required = Math.max(0, Number(goal?.goalSessions) || slots.length);
+    available.slice(0, required).forEach((entry, index) => {
+      const { __index, ...completion } = entry;
+      used.add(__index);
+      const slot = slots[index] || null;
+      matched.push({
+        ...completion,
+        matchedSlot: slot?.slot || index + 1,
+        weeklySlotKey: slot?.weeklySlotKey || completion.weeklySlotKey || null,
+      });
+    });
+    return {
+      matched,
+      unmatched: available.filter((entry) => !used.has(entry.__index)).map(({ __index, ...entry }) => entry),
+      slots,
+    };
+  }
+
+  slots.forEach((slot) => {
+    let match = available.find((entry) => !used.has(entry.__index)
+      && entry.weeklySlotKey
+      && entry.weeklySlotKey === slot.weeklySlotKey
+      && (!entry.weekKey || !goal?.weekKey || entry.weekKey === goal.weekKey));
+    if (!match) {
+      match = available.find((entry) => !used.has(entry.__index)
+        && !entry.weeklySlotKey
+        && completionMatchesLegacySlot(slot, entry, goal?.weekKey));
+    }
+    if (!match) return;
+    used.add(match.__index);
+    const { __index, ...completion } = match;
+    matched.push({ ...completion, matchedSlot: slot.slot, weeklySlotKey: slot.weeklySlotKey });
+  });
+
+  return {
+    matched,
+    unmatched: available.filter((entry) => !used.has(entry.__index)).map(({ __index, ...entry }) => entry),
+    slots,
+  };
+};
+
 /**
  * A teacher's settings, made safe.
  *
@@ -225,12 +321,16 @@ export const buildWeeklyGoal = ({
     // The goal is a number of SESSIONS. It is never a number of TEKS, and the
     // distinction is the whole design.
     goalSessions: settings.sessions,
-    sessions: filtered.map((session, index) => ({
-      ...session,
-      slot: index + 1,
-      purposeLabel: session.purposeLabel || PURPOSE_LABEL[session.purpose] || null,
-      status: 'notStarted',
-    })),
+    sessions: filtered.map((session, index) => {
+      const slot = index + 1;
+      return {
+        ...session,
+        slot,
+        weeklySlotKey: weeklySlotKey(session, slot),
+        purposeLabel: session.purposeLabel || PURPOSE_LABEL[session.purpose] || null,
+        status: 'notStarted',
+      };
+    }),
     ccmr: {
       expectation: settings.ccmrExpectation,
       framework: settings.framework,
@@ -253,7 +353,7 @@ export const buildWeeklyGoal = ({
  */
 export const evaluateWeeklyGoalProgress = ({ goal, completions = [], now = Date.now() } = {}) => {
   const required = Number(goal?.goalSessions) || 0;
-  const done = list(completions).filter((entry) => entry?.status === 'completed');
+  const { matched: done, unmatched } = matchWeeklyGoalCompletions({ goal, completions });
   const onTime = done.filter((entry) => !goal?.dueAt || Number(entry.completedAt) <= Number(goal.dueAt));
 
   const completed = Math.min(done.length, required);
@@ -272,6 +372,8 @@ export const evaluateWeeklyGoalProgress = ({ goal, completions = [], now = Date.
     ratio: required ? Number((completed / required).toFixed(4)) : 0,
     daysLeft,
     overdue: Boolean(goal?.dueAt && now > Number(goal.dueAt) && remaining > 0),
+    matchedCompletions: done,
+    extraPracticeCompletions: unmatched,
   };
 };
 
@@ -303,7 +405,7 @@ export const gradeWeeklyGoal = ({
     ? Math.min(1, progress.completedOnTime / progress.required)
     : 0;
 
-  const finished = list(completions).filter((entry) => entry?.status === 'completed');
+  const finished = progress.matchedCompletions || [];
   const graded = finished.filter((entry) => Number.isFinite(Number(entry?.accuracy)));
   const qualityRatio = graded.length
     ? graded.reduce((sum, entry) => sum + clamp(Number(entry.accuracy), 0, 1), 0) / graded.length
@@ -377,7 +479,13 @@ export const deriveCompletionsFromEvidence = ({
     if (!sessionId) return;
 
     if (!bySession.has(sessionId)) {
-      bySession.set(sessionId, { sessionId, completedAt: at, correct: 0, counted: 0, teksCode: null });
+      bySession.set(sessionId, {
+        sessionId, completedAt: at, correct: 0, counted: 0, teksCode: null,
+        weekKey: event?.source?.weekKey || null,
+        weeklySlotKey: event?.source?.weeklySlotKey || null,
+        weeklySlot: event?.source?.weeklySlot || null,
+        assessmentFramework: event?.source?.assessmentFramework || null,
+      });
     }
     const entry = bySession.get(sessionId);
     entry.completedAt = Math.max(entry.completedAt, at);
@@ -396,6 +504,10 @@ export const deriveCompletionsFromEvidence = ({
     sessionId: entry.sessionId,
     teksCode: entry.teksCode,
     completedAt: entry.completedAt,
+    weekKey: entry.weekKey,
+    weeklySlotKey: entry.weeklySlotKey,
+    weeklySlot: entry.weeklySlot,
+    assessmentFramework: entry.assessmentFramework,
     // Null, not zero, when nothing classifying was produced — the grader treats
     // an absent accuracy as neutral rather than as a wrong answer.
     accuracy: entry.counted ? entry.correct / entry.counted : null,

@@ -163,8 +163,8 @@ export async function linkGoogleAccount({ studentId, classCode }) {
 export const teacherAdmin = {
   listSignInAccess: () => callable('listSignInAccess')().then((result) => result.data || {}),
   listClassJoinCodes: () => callable('listClassJoinCodes')().then((result) => result.data || {}),
-  issueClassJoinCode: (classPeriod) =>
-    callable('issueClassJoinCode')({ classPeriod }).then((result) => result.data || {}),
+  issueClassJoinCode: ({ classId = '', classPeriod = '' } = {}) =>
+    callable('issueClassJoinCode')({ classId, classPeriod }).then((result) => result.data || {}),
   resetStudentPasscode: (studentId) =>
     callable('resetStudentPasscode')({ studentId }).then((result) => result.data || {}),
   unlinkStudentAccount: (studentId) =>

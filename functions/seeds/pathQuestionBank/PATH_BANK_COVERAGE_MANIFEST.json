@@ -1,18 +1,18 @@
 {
   "schemaVersion": 3,
-  "generatedBy": "actual seed contents after full Grade 6–Algebra II generator migration and Digital SAT exam-style bank integration",
+  "generatedBy": "scripts/rebuild-path-manifest.mjs from actual bundled seed contents",
   "totals": {
-    "documents": 2170,
+    "documents": 5186,
     "standards": 225,
-    "courseDocuments": 1125,
-    "assessmentDocuments": 1045,
+    "courseDocuments": 1161,
+    "assessmentDocuments": 4025,
     "authoredStandards": 225,
     "productionQualityStandards": 225,
     "upgradedStarterStandards": 0
   },
   "frameworks": {
     "course": {
-      "documents": 1125,
+      "documents": 1161,
       "standards": 225
     },
     "digitalSAT": {
@@ -20,2010 +20,2622 @@
       "standards": 209
     },
     "act": {
-      "documents": 0,
-      "standards": 0
+      "documents": 1125,
+      "standards": 225
     },
     "tsia2": {
-      "documents": 0,
-      "standards": 0
+      "documents": 1125,
+      "standards": 225
     },
     "asvab": {
-      "documents": 0,
-      "standards": 0
+      "documents": 730,
+      "standards": 146
     }
   },
   "standards": {
-    "6.10A": {
-      "familyCount": 10,
-      "authored": 10,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {
-        "digitalSAT": 5
-      }
-    },
-    "6.10B": {
-      "familyCount": 10,
-      "authored": 10,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {
-        "digitalSAT": 5
-      }
-    },
-    "6.11": {
-      "familyCount": 10,
-      "authored": 10,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {
-        "digitalSAT": 5
-      }
-    },
-    "6.12A": {
-      "familyCount": 10,
-      "authored": 10,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {
-        "digitalSAT": 5
-      }
-    },
-    "6.12B": {
-      "familyCount": 10,
-      "authored": 10,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {
-        "digitalSAT": 5
-      }
-    },
-    "6.12C": {
-      "familyCount": 10,
-      "authored": 10,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {
-        "digitalSAT": 5
-      }
-    },
-    "6.12D": {
-      "familyCount": 10,
-      "authored": 10,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {
-        "digitalSAT": 5
-      }
-    },
-    "6.13A": {
-      "familyCount": 10,
-      "authored": 10,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {
-        "digitalSAT": 5
-      }
-    },
-    "6.13B": {
-      "familyCount": 10,
-      "authored": 10,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {
-        "digitalSAT": 5
-      }
-    },
-    "6.14C": {
-      "familyCount": 5,
-      "authored": 5,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {}
-    },
     "6.2A": {
-      "familyCount": 5,
-      "authored": 5,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
-      "assessmentFamilies": {}
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "tsia2": 5
+      }
     },
     "6.2B": {
-      "familyCount": 5,
-      "authored": 5,
+      "familyCount": 21,
+      "authored": 21,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {}
+      "courseFamilies": 6,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "tsia2": 5
+      }
     },
     "6.2C": {
-      "familyCount": 5,
-      "authored": 5,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {}
-    },
-    "6.2D": {
-      "familyCount": 5,
-      "authored": 5,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {}
-    },
-    "6.2E": {
-      "familyCount": 5,
-      "authored": 5,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {}
-    },
-    "6.3A": {
-      "familyCount": 5,
-      "authored": 5,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {}
-    },
-    "6.3B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "tsia2": 5
+      }
+    },
+    "6.2D": {
+      "familyCount": 20,
+      "authored": 20,
+      "upgradedStarter": 0,
+      "courseFamilies": 5,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "tsia2": 5
+      }
+    },
+    "6.2E": {
+      "familyCount": 20,
+      "authored": 20,
+      "upgradedStarter": 0,
+      "courseFamilies": 5,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "tsia2": 5
+      }
+    },
+    "6.3A": {
+      "familyCount": 21,
+      "authored": 21,
+      "upgradedStarter": 0,
+      "courseFamilies": 6,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "tsia2": 5
+      }
+    },
+    "6.3B": {
+      "familyCount": 25,
+      "authored": 25,
+      "upgradedStarter": 0,
+      "courseFamilies": 5,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "6.3C": {
-      "familyCount": 5,
-      "authored": 5,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {}
-    },
-    "6.3D": {
-      "familyCount": 5,
-      "authored": 5,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {}
-    },
-    "6.3E": {
-      "familyCount": 5,
-      "authored": 5,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {}
-    },
-    "6.4A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "tsia2": 5
+      }
+    },
+    "6.3D": {
+      "familyCount": 21,
+      "authored": 21,
+      "upgradedStarter": 0,
+      "courseFamilies": 6,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "tsia2": 5
+      }
+    },
+    "6.3E": {
+      "familyCount": 20,
+      "authored": 20,
+      "upgradedStarter": 0,
+      "courseFamilies": 5,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "tsia2": 5
+      }
+    },
+    "6.4A": {
+      "familyCount": 25,
+      "authored": 25,
+      "upgradedStarter": 0,
+      "courseFamilies": 5,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "6.4B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "6.4C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 26,
+      "authored": 26,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
+      "courseFamilies": 6,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "6.4D": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "6.4E": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "6.4F": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "6.4G": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "6.4H": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "6.5A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "6.5B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 26,
+      "authored": 26,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
+      "courseFamilies": 6,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "6.5C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "6.6A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 26,
+      "authored": 26,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
+      "courseFamilies": 6,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "6.6B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "6.6C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "6.7A": {
-      "familyCount": 5,
-      "authored": 5,
+      "familyCount": 21,
+      "authored": 21,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {}
+      "courseFamilies": 6,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "tsia2": 5
+      }
     },
     "6.7B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "6.7C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 26,
+      "authored": 26,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
+      "courseFamilies": 6,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "6.7D": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "6.8A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "6.8B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "6.8C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "6.8D": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 26,
+      "authored": 26,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
+      "courseFamilies": 6,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "6.9A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 26,
+      "authored": 26,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
+      "courseFamilies": 6,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "6.9B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "6.9C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "7.10A": {
-      "familyCount": 10,
-      "authored": 10,
+    "6.10A": {
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "7.10B": {
-      "familyCount": 10,
-      "authored": 10,
+    "6.10B": {
+      "familyCount": 26,
+      "authored": 26,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
+      "courseFamilies": 6,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "7.10C": {
-      "familyCount": 10,
-      "authored": 10,
+    "6.11": {
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "7.11A": {
-      "familyCount": 10,
-      "authored": 10,
+    "6.12A": {
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "7.11B": {
-      "familyCount": 10,
-      "authored": 10,
+    "6.12B": {
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "7.11C": {
-      "familyCount": 10,
-      "authored": 10,
+    "6.12C": {
+      "familyCount": 26,
+      "authored": 26,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
+      "courseFamilies": 6,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "7.12A": {
-      "familyCount": 10,
-      "authored": 10,
+    "6.12D": {
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "7.12B": {
-      "familyCount": 10,
-      "authored": 10,
+    "6.13A": {
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "7.12C": {
-      "familyCount": 10,
-      "authored": 10,
+    "6.13B": {
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "7.13A": {
-      "familyCount": 10,
-      "authored": 10,
+    "6.14C": {
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
-      }
-    },
-    "7.13E": {
-      "familyCount": 10,
-      "authored": 10,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {
-        "digitalSAT": 5
-      }
-    },
-    "7.13F": {
-      "familyCount": 10,
-      "authored": 10,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "tsia2": 5
       }
     },
     "7.2": {
-      "familyCount": 5,
-      "authored": 5,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {}
-    },
-    "7.3A": {
-      "familyCount": 5,
-      "authored": 5,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {}
-    },
-    "7.3B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "tsia2": 5
+      }
+    },
+    "7.3A": {
+      "familyCount": 21,
+      "authored": 21,
+      "upgradedStarter": 0,
+      "courseFamilies": 6,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "tsia2": 5
+      }
+    },
+    "7.3B": {
+      "familyCount": 25,
+      "authored": 25,
+      "upgradedStarter": 0,
+      "courseFamilies": 5,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "7.4A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 26,
+      "authored": 26,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
+      "courseFamilies": 6,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "7.4B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "7.4C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 26,
+      "authored": 26,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
+      "courseFamilies": 6,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "7.4D": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 26,
+      "authored": 26,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
+      "courseFamilies": 6,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "7.4E": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "7.5A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 26,
+      "authored": 26,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
+      "courseFamilies": 6,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "7.5B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "7.5C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "7.6A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "7.6B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "7.6C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "7.6D": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "7.6E": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 21,
+      "authored": 21,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
+      "courseFamilies": 6,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "7.6F": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "7.6G": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "7.6H": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "7.6I": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "7.7": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 26,
+      "authored": 26,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
+      "courseFamilies": 6,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "7.8A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "7.8B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "7.8C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "7.9A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "7.9B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 26,
+      "authored": 26,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
+      "courseFamilies": 6,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "7.9C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "7.9D": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "8.10A": {
-      "familyCount": 10,
-      "authored": 10,
+    "7.10A": {
+      "familyCount": 26,
+      "authored": 26,
+      "upgradedStarter": 0,
+      "courseFamilies": 6,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
+      }
+    },
+    "7.10B": {
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "8.10B": {
-      "familyCount": 10,
-      "authored": 10,
+    "7.10C": {
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "8.10C": {
-      "familyCount": 10,
-      "authored": 10,
+    "7.11A": {
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "8.10D": {
-      "familyCount": 10,
-      "authored": 10,
+    "7.11B": {
+      "familyCount": 26,
+      "authored": 26,
+      "upgradedStarter": 0,
+      "courseFamilies": 6,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
+      }
+    },
+    "7.11C": {
+      "familyCount": 26,
+      "authored": 26,
+      "upgradedStarter": 0,
+      "courseFamilies": 6,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
+      }
+    },
+    "7.12A": {
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "8.11A": {
-      "familyCount": 10,
-      "authored": 10,
+    "7.12B": {
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "8.11B": {
-      "familyCount": 10,
-      "authored": 10,
+    "7.12C": {
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "8.11C": {
-      "familyCount": 10,
-      "authored": 10,
+    "7.13A": {
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "8.12A": {
-      "familyCount": 10,
-      "authored": 10,
+    "7.13E": {
+      "familyCount": 26,
+      "authored": 26,
+      "upgradedStarter": 0,
+      "courseFamilies": 6,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
+      }
+    },
+    "7.13F": {
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
-    },
-    "8.12B": {
-      "familyCount": 10,
-      "authored": 10,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {
-        "digitalSAT": 5
-      }
-    },
-    "8.12C": {
-      "familyCount": 10,
-      "authored": 10,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {
-        "digitalSAT": 5
-      }
-    },
-    "8.12D": {
-      "familyCount": 10,
-      "authored": 10,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {
-        "digitalSAT": 5
-      }
-    },
-    "8.12G": {
-      "familyCount": 5,
-      "authored": 5,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {}
     },
     "8.2A": {
-      "familyCount": 5,
-      "authored": 5,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {}
-    },
-    "8.2B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "tsia2": 5
+      }
+    },
+    "8.2B": {
+      "familyCount": 26,
+      "authored": 26,
+      "upgradedStarter": 0,
+      "courseFamilies": 6,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.2C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 26,
+      "authored": 26,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
+      "courseFamilies": 6,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.2D": {
-      "familyCount": 5,
-      "authored": 5,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {}
-    },
-    "8.3A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "tsia2": 5
+      }
+    },
+    "8.3A": {
+      "familyCount": 25,
+      "authored": 25,
+      "upgradedStarter": 0,
+      "courseFamilies": 5,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.3B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.3C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 26,
+      "authored": 26,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
+      "courseFamilies": 6,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.4A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 26,
+      "authored": 26,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
+      "courseFamilies": 6,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.4B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.4C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 26,
+      "authored": 26,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
+      "courseFamilies": 6,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.5A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.5B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 26,
+      "authored": 26,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
+      "courseFamilies": 6,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.5C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.5D": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.5E": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.5F": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 26,
+      "authored": 26,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
+      "courseFamilies": 6,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.5G": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.5H": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.5I": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 26,
+      "authored": 26,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
+      "courseFamilies": 6,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.6A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.6B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.6C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.7A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.7B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.7C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 26,
+      "authored": 26,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
+      "courseFamilies": 6,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.7D": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 26,
+      "authored": 26,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
+      "courseFamilies": 6,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.8A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.8B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.8C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 26,
+      "authored": 26,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
+      "courseFamilies": 6,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.8D": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "8.9": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 26,
+      "authored": 26,
       "upgradedStarter": 0,
-      "courseFamilies": 5,
+      "courseFamilies": 6,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "A.10A": {
-      "familyCount": 10,
-      "authored": 10,
+    "8.10A": {
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "A.10B": {
-      "familyCount": 10,
-      "authored": 10,
+    "8.10B": {
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "A.10C": {
-      "familyCount": 10,
-      "authored": 10,
+    "8.10C": {
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "A.10D": {
-      "familyCount": 10,
-      "authored": 10,
+    "8.10D": {
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "A.10E": {
-      "familyCount": 10,
-      "authored": 10,
+    "8.11A": {
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "A.10F": {
-      "familyCount": 10,
-      "authored": 10,
+    "8.11B": {
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "A.11A": {
-      "familyCount": 10,
-      "authored": 10,
+    "8.11C": {
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "A.11B": {
-      "familyCount": 10,
-      "authored": 10,
+    "8.12A": {
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "A.12A": {
-      "familyCount": 10,
-      "authored": 10,
+    "8.12B": {
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "A.12B": {
-      "familyCount": 10,
-      "authored": 10,
+    "8.12C": {
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "A.12C": {
-      "familyCount": 10,
-      "authored": 10,
+    "8.12D": {
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
-    "A.12D": {
-      "familyCount": 10,
-      "authored": 10,
+    "8.12G": {
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
-      }
-    },
-    "A.12E": {
-      "familyCount": 10,
-      "authored": 10,
-      "upgradedStarter": 0,
-      "courseFamilies": 5,
-      "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "tsia2": 5
       }
     },
     "A.2A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.2B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.2C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.2D": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.2E": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.2F": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.2G": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.2H": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.2I": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.3A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.3B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.3C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.3D": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.3E": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.3F": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.3G": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.3H": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.4A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.4B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.4C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.5A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.5B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.5C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.6A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.6B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.6C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.7A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.7B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.7C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.8A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.8B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.9A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.9B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.9C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.9D": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A.9E": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
+      }
+    },
+    "A.10A": {
+      "familyCount": 25,
+      "authored": 25,
+      "upgradedStarter": 0,
+      "courseFamilies": 5,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
+      }
+    },
+    "A.10B": {
+      "familyCount": 25,
+      "authored": 25,
+      "upgradedStarter": 0,
+      "courseFamilies": 5,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
+      }
+    },
+    "A.10C": {
+      "familyCount": 25,
+      "authored": 25,
+      "upgradedStarter": 0,
+      "courseFamilies": 5,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
+      }
+    },
+    "A.10D": {
+      "familyCount": 25,
+      "authored": 25,
+      "upgradedStarter": 0,
+      "courseFamilies": 5,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
+      }
+    },
+    "A.10E": {
+      "familyCount": 25,
+      "authored": 25,
+      "upgradedStarter": 0,
+      "courseFamilies": 5,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
+      }
+    },
+    "A.10F": {
+      "familyCount": 25,
+      "authored": 25,
+      "upgradedStarter": 0,
+      "courseFamilies": 5,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
+      }
+    },
+    "A.11A": {
+      "familyCount": 25,
+      "authored": 25,
+      "upgradedStarter": 0,
+      "courseFamilies": 5,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
+      }
+    },
+    "A.11B": {
+      "familyCount": 25,
+      "authored": 25,
+      "upgradedStarter": 0,
+      "courseFamilies": 5,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
+      }
+    },
+    "A.12A": {
+      "familyCount": 25,
+      "authored": 25,
+      "upgradedStarter": 0,
+      "courseFamilies": 5,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
+      }
+    },
+    "A.12B": {
+      "familyCount": 25,
+      "authored": 25,
+      "upgradedStarter": 0,
+      "courseFamilies": 5,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
+      }
+    },
+    "A.12C": {
+      "familyCount": 20,
+      "authored": 20,
+      "upgradedStarter": 0,
+      "courseFamilies": 5,
+      "assessmentFamilies": {
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
+      }
+    },
+    "A.12D": {
+      "familyCount": 20,
+      "authored": 20,
+      "upgradedStarter": 0,
+      "courseFamilies": 5,
+      "assessmentFamilies": {
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
+      }
+    },
+    "A.12E": {
+      "familyCount": 25,
+      "authored": 25,
+      "upgradedStarter": 0,
+      "courseFamilies": 5,
+      "assessmentFamilies": {
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.2A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.2B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.2C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.2D": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.3A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.3B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.3C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.3D": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.3E": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.3F": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.3G": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.4A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.4B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.4C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.4D": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.4E": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.4F": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.4G": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.4H": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.5A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.5B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.5C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.5D": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.5E": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.6A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.6B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.6C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.6D": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.6E": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.6F": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.6G": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.6H": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.6I": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.6J": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.6K": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.6L": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.7A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.7B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.7C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.7D": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.7E": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.7F": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.7G": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.7H": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 25,
+      "authored": 25,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "asvab": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.7I": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.8A": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.8B": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     },
     "A2.8C": {
-      "familyCount": 10,
-      "authored": 10,
+      "familyCount": 20,
+      "authored": 20,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
-        "digitalSAT": 5
+        "act": 5,
+        "digitalSAT": 5,
+        "tsia2": 5
       }
     }
   }

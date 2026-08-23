@@ -52,11 +52,17 @@ function courseLabel(course) {
 }
 
 function matchingCoursesForAssignment(assignment, mappings, classes) {
-  const assigned = new Set((assignment?.assignedClassPeriods || []).map(String));
-  if (!assigned.size) return [];
+  const assignedClassIds = new Set((assignment?.assignedClassIds || []).map(clean).filter(Boolean));
+  const assignedPeriods = new Set((assignment?.assignedClassPeriods || []).map(clean).filter(Boolean));
+  if (!assignedClassIds.size && !assignedPeriods.size) return [];
   const byId = new Map(classes.map((record) => [classIdOf(record), record]));
   return mappings
-    .filter((mapping) => assigned.has(classPeriodOf(byId.get(String(mapping.classId)))))
+    .filter((mapping) => (
+      assignedClassIds.size
+        ? assignedClassIds.has(clean(mapping?.classId))
+        : assignedPeriods.has(classPeriodOf(byId.get(clean(mapping?.classId))))
+          || assignedPeriods.has(clean(mapping?.classPeriod))
+    ))
     .map((mapping) => String(mapping.courseId));
 }
 
@@ -103,8 +109,8 @@ export default function ClassroomManagerV2({
   const rosterMapping = rosterCourseId ? mappingByCourse.get(String(rosterCourseId)) : null;
   const mappedClass = rosterMapping ? classById.get(String(rosterMapping.classId)) : null;
   const classStudents = useMemo(
-    () => studentsForClass(students, mappedClass),
-    [students, mappedClass],
+    () => studentsForClass(students, mappedClass, classes),
+    [students, mappedClass, classes],
   );
   const matchPlan = useMemo(
     () => buildRosterMatchPlan({ classroomStudents: roster, mathMasterStudents: classStudents }),

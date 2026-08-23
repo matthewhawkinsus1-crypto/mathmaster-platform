@@ -45,13 +45,20 @@ const studentNameKeys = (student = {}) => {
   return [...labels].filter(Boolean);
 };
 
-export const studentsForClass = (students = [], classRecord = null) => {
+export const studentsForClass = (students = [], classRecord = null, classes = []) => {
   if (!classRecord) return students;
   const classId = clean(classRecord.classId || classRecord.id);
   const period = clean(classRecord.period || classRecord.classPeriod);
+  const activeSamePeriod = (Array.isArray(classes) ? classes : [])
+    .filter((entry) => entry?.status !== 'archived' && clean(entry.period || entry.classPeriod) === period);
+  const periodIsAmbiguous = Boolean(period) && activeSamePeriod.length > 1;
   return students.filter((student) => {
     const studentClassId = clean(student.classId || student.profile?.classId);
     if (classId && studentClassId) return studentClassId === classId;
+    // A legacy period can place an unmigrated student only when it identifies
+    // one real class. Otherwise the student must be assigned a classId rather
+    // than appearing in two Google Classroom rosters.
+    if (periodIsAmbiguous) return false;
     const studentPeriod = clean(student.classPeriod || student.period || student.profile?.classPeriod);
     return period && studentPeriod === period;
   });

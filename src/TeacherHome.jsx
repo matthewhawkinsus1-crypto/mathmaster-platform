@@ -8,6 +8,8 @@ import {
   getPeriodWindow,
 } from './assignmentLifecycle';
 import LiveClassMonitor from './components/teacher/LiveClassMonitor';
+import NeedsAttentionQueue from './components/teacher/NeedsAttentionQueue';
+import { studentsInClass } from '../functions/shared/classModel.mjs';
 
 const formatClock = (date) => date instanceof Date ? date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '';
 
@@ -21,25 +23,39 @@ const greetingFor = (date) => {
 // Landing tab for teachers: today's classes at a glance, so a period's
 // status and roster are one click away instead of hunting through the
 // class-period dropdown on Grades or scrolling the full Classes grid.
-export default function TeacherHome({ allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onSelectPeriod, onOpenStudent, onUnlockDOL = null, dolUnlockBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null }) {
+export default function TeacherHome({ allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onSelectPeriod, onOpenStudent, onUnlockDOL = null, dolUnlockBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, needsAttention = [], needsAttentionCompletionCoverage = true, onOpenWeeklyPath = null, onOpenAdministration = null, learningProfilesByStudentId = {}, activeClassId = null, classes = [] }) {
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
 
-  const todaysClasses = CLASS_PERIODS
-    .map((period) => {
+  const classOptions = classes.length
+    ? classes.filter((entry) => entry?.status !== 'archived')
+    : CLASS_PERIODS.map((period) => ({ classId: null, name: period, period }));
+  const todaysClasses = classOptions
+    .map((classRecord) => {
+      const period = classRecord.period;
       const window = getPeriodWindow(classSchedule, period, nowValue);
       if (!window) return null;
-      const periodStudents = allStudents.filter((student) => student.classPeriod === period);
-      const periodAssignments = assignments.filter((assignment) => assignmentIsForStudent(assignment, period));
-      const openCount = periodAssignments.filter((assignment) => getAssignmentLifecycle(assignment, nowValue).isOpen).length;
+      const context = { classId: classRecord.classId || null, classPeriod: period };
+      const classStudents = studentsInClass({ students: allStudents, classes, ...context });
+      const classAssignments = assignments.filter((assignment) => assignmentIsForStudent(assignment, context));
+      const openCount = classAssignments.filter((assignment) => getAssignmentLifecycle(assignment, nowValue).isOpen).length;
       const isNow = now >= window.start && now <= window.end;
-      return { period, window, studentCount: periodStudents.length, openCount, isNow };
+      return { ...classRecord, period, window, studentCount: classStudents.length, openCount, isNow };
     })
     .filter(Boolean)
-    .sort((a, b) => a.window.start.getTime() - b.window.start.getTime());
+    .sort((a, b) => a.window.start.getTime() - b.window.start.getTime()
+      || String(a.name || a.period).localeCompare(String(b.name || b.period)));
 
-  // The period happening right now, so the live grid opens on the class in
-  // front of the teacher instead of on every student in the building.
-  const periodInSession = todaysClasses.find((entry) => entry.isNow)?.period || 'all';
+  // A real class entity is authoritative. When two classes share a period, the
+  // selected class stays isolated instead of treating the period label as identity.
+  const currentClass = todaysClasses.find((entry) => entry.isNow && entry.classId === activeClassId)
+    || todaysClasses.find((entry) => entry.isNow)
+    || null;
+  const periodInSession = currentClass?.period || 'all';
+  const classIdInSession = currentClass?.classId || null;
+  const classContextInSession = currentClass
+    ? { classId: classIdInSession, classPeriod: periodInSession }
+    : null;
+  const liveClassLabel = currentClass?.name || periodInSession;
 
   // The roster is the source of truth for who is in the class; presence only
   // says what they are doing right now. Joining here means a student with no
@@ -52,27 +68,27 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
   const totalOpen = assignments.filter((assignment) => getAssignmentLifecycle(assignment, nowValue).isOpen).length;
   const totalStudents = allStudents.length;
   const liveDOLControls = periodInSession === 'all' ? [] : assignments
-    .filter((assignment) => assignmentIsForStudent(assignment, periodInSession))
+    .filter((assignment) => assignmentIsForStudent(assignment, classContextInSession))
     .map((assignment) => ({
       assignment,
-      state: getDOLState({ assignment, schedule: classSchedule, classPeriod: periodInSession, nowValue }),
+      state: getDOLState({ assignment, schedule: classSchedule, classId: classIdInSession, classPeriod: periodInSession, nowValue }),
     }))
     .filter(({ state }) => ['waiting', 'active'].includes(state.status));
 
   const liveWarmupControls = periodInSession === 'all' ? [] : assignments
-    .filter((assignment) => assignmentIsForStudent(assignment, periodInSession))
+    .filter((assignment) => assignmentIsForStudent(assignment, classContextInSession))
     .map((assignment) => ({
       assignment,
-      state: getWarmupState({ assignment, schedule: classSchedule, classPeriod: periodInSession, nowValue }),
+      state: getWarmupState({ assignment, schedule: classSchedule, classId: classIdInSession, classPeriod: periodInSession, nowValue }),
     }))
     .filter(({ state }) => ['active', 'closed'].includes(state.status));
 
   const liveSectionControls = periodInSession === 'all' ? [] : assignments
-    .filter((assignment) => assignmentIsForStudent(assignment, periodInSession) && getAssignmentLifecycle(assignment, nowValue).isOpen)
+    .filter((assignment) => assignmentIsForStudent(assignment, classContextInSession) && getAssignmentLifecycle(assignment, nowValue).isOpen)
     .flatMap((assignment) => ['classwork', 'practice'].map((role) => ({
       assignment,
       role,
-      state: getSectionAccessState({ assignment, activityRole: role, classPeriod: periodInSession, nowValue }),
+      state: getSectionAccessState({ assignment, activityRole: role, classId: classIdInSession, classPeriod: periodInSession, nowValue }),
     })))
     .filter(({ state }) => state.enabled && !state.practiceOnly);
 
@@ -82,6 +98,19 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
       <p style={{ color: '#5f6368', marginTop: '-6px' }}>
         {now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
       </p>
+
+      {/*
+        FIRST, BEFORE THE COUNTS. A teacher sitting down asks "what needs my
+        attention right now?", not "how many students do I have?". The tiles
+        below are orientation; this is the answer, so it comes first.
+      */}
+      <NeedsAttentionQueue
+        queue={needsAttention}
+        completionCoverage={needsAttentionCompletionCoverage}
+        onOpenStudent={onOpenStudent}
+        onOpenWeeklyPath={onOpenWeeklyPath}
+        onOpenAdministration={onOpenAdministration}
+      />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '26px' }}>
         <div style={{ padding: '14px', borderRadius: '10px', background: '#e8f0fe', color: '#174ea6' }}>
@@ -100,10 +129,10 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
 
       {liveWarmupControls.length > 0 && (
         <section style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 12, border: '2px solid #f9ab00', background: '#fff8df', color: '#6a4900' }}>
-          <div style={{ fontWeight: 900, marginBottom: 8 }}>Warm-Up controls · {periodInSession}</div>
+          <div style={{ fontWeight: 900, marginBottom: 8 }}>Warm-Up controls · {liveClassLabel}</div>
           <div style={{ display: 'grid', gap: 8 }}>
             {liveWarmupControls.map(({ assignment, state }) => {
-              const busyKey = `${assignment.id}:${periodInSession}`;
+              const busyKey = `${assignment.id}:${classIdInSession || periodInSession}`;
               const closed = state.status === 'closed';
               return (
                 <div key={assignment.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '9px 11px', borderRadius: 9, background: '#fff' }}>
@@ -111,7 +140,7 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
                     <strong>{assignment.title}</strong>
                     <div style={{ marginTop: 3, fontSize: 12 }}>{closed ? 'Closed for new responses · saved work remains visible' : 'Open now · students can begin immediately'}</div>
                   </div>
-                  <button type="button" disabled={warmupControlBusyKey === busyKey} onClick={() => onToggleWarmup?.(assignment, periodInSession)} style={{ minHeight: 40, padding: '8px 13px', border: 0, borderRadius: 8, background: closed ? '#188038' : '#b06000', color: '#fff', fontWeight: 900, cursor: warmupControlBusyKey === busyKey ? 'wait' : 'pointer' }}>
+                  <button type="button" disabled={warmupControlBusyKey === busyKey} onClick={() => onToggleWarmup?.(assignment, classContextInSession)} style={{ minHeight: 40, padding: '8px 13px', border: 0, borderRadius: 8, background: closed ? '#188038' : '#b06000', color: '#fff', fontWeight: 900, cursor: warmupControlBusyKey === busyKey ? 'wait' : 'pointer' }}>
                     {warmupControlBusyKey === busyKey ? 'Saving…' : closed ? 'Reopen Warm-Up' : 'Close Warm-Up'}
                   </button>
                 </div>
@@ -123,11 +152,11 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
 
       {liveSectionControls.length > 0 && (
         <section style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 12, border: '2px solid #1a73e8', background: '#eef4ff', color: '#174ea6' }}>
-          <div style={{ fontWeight: 900, marginBottom: 8 }}>Classwork / Practice access · {periodInSession}</div>
+          <div style={{ fontWeight: 900, marginBottom: 8 }}>Classwork / Practice access · {liveClassLabel}</div>
           <div style={{ fontSize: 12, marginBottom: 10, color: '#3c4043' }}>Use these controls to pace the room without changing other class periods. Closing a section preserves saved work but blocks new graded submissions.</div>
           <div style={{ display: 'grid', gap: 8 }}>
             {liveSectionControls.map(({ assignment, role, state }) => {
-              const busyKey = `${assignment.id}:${periodInSession}:${role}`;
+              const busyKey = `${assignment.id}:${classIdInSession || periodInSession}:${role}`;
               const label = role === 'practice' ? 'Practice' : 'Classwork';
               return (
                 <div key={`${assignment.id}:${role}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '9px 11px', borderRadius: 9, background: '#fff' }}>
@@ -135,7 +164,7 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
                     <strong>{assignment.title}</strong>
                     <div style={{ marginTop: 3, fontSize: 12 }}><strong>{label}:</strong> {state.isOpen ? 'open for new responses' : state.override?.state === 'closed' ? 'closed by teacher · saved work remains visible' : 'starts locked · waiting for teacher'}</div>
                   </div>
-                  <button type="button" disabled={sectionAccessBusyKey === busyKey} onClick={() => onToggleSectionAccess?.(assignment, periodInSession, role)} style={{ minHeight: 40, padding: '8px 13px', border: 0, borderRadius: 8, background: state.isOpen ? '#b06000' : '#188038', color: '#fff', fontWeight: 900, cursor: sectionAccessBusyKey === busyKey ? 'wait' : 'pointer' }}>
+                  <button type="button" disabled={sectionAccessBusyKey === busyKey} onClick={() => onToggleSectionAccess?.(assignment, classContextInSession, role)} style={{ minHeight: 40, padding: '8px 13px', border: 0, borderRadius: 8, background: state.isOpen ? '#b06000' : '#188038', color: '#fff', fontWeight: 900, cursor: sectionAccessBusyKey === busyKey ? 'wait' : 'pointer' }}>
                     {sectionAccessBusyKey === busyKey ? 'Saving…' : state.isOpen ? `Close ${label}` : `Open ${label}`}
                   </button>
                 </div>
@@ -147,10 +176,10 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
 
       {liveDOLControls.length > 0 && (
         <section style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 12, border: '2px solid #9334e6', background: '#f8f0fc', color: '#4a126b' }}>
-          <div style={{ fontWeight: 900, marginBottom: 8 }}>DOL controls · {periodInSession}</div>
+          <div style={{ fontWeight: 900, marginBottom: 8 }}>DOL controls · {liveClassLabel}</div>
           <div style={{ display: 'grid', gap: 8 }}>
             {liveDOLControls.map(({ assignment, state }) => {
-              const busyKey = `${assignment.id}:${periodInSession}`;
+              const busyKey = `${assignment.id}:${classIdInSession || periodInSession}`;
               return (
                 <div key={assignment.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '9px 11px', borderRadius: 9, background: '#fff' }}>
                   <div>
@@ -162,7 +191,7 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
                     </div>
                   </div>
                   {state.status === 'waiting' ? (
-                    <button type="button" disabled={dolUnlockBusyKey === busyKey} onClick={() => onUnlockDOL?.(assignment, periodInSession)} style={{ minHeight: 40, padding: '8px 13px', border: 0, borderRadius: 8, background: '#681da8', color: '#fff', fontWeight: 900, cursor: dolUnlockBusyKey === busyKey ? 'wait' : 'pointer' }}>
+                    <button type="button" disabled={dolUnlockBusyKey === busyKey} onClick={() => onUnlockDOL?.(assignment, classContextInSession)} style={{ minHeight: 40, padding: '8px 13px', border: 0, borderRadius: 8, background: '#681da8', color: '#fff', fontWeight: 900, cursor: dolUnlockBusyKey === busyKey ? 'wait' : 'pointer' }}>
                       {dolUnlockBusyKey === busyKey ? 'Unlocking…' : 'Unlock DOL Early'}
                     </button>
                   ) : (
@@ -184,6 +213,9 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
         initialClassPeriod={periodInSession}
         nowValue={nowValue}
         onOpenStudent={onOpenStudent}
+        learningProfilesByStudentId={learningProfilesByStudentId}
+        activeClassId={activeClassId}
+        classes={classes}
       />
 
       <h3 style={{ margin: '0 0 10px' }}>Today&apos;s Classes</h3>
@@ -191,11 +223,11 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
         <p style={{ color: '#80868b', fontSize: '13px' }}>No classes are scheduled for today.</p>
       ) : (
         <div style={{ display: 'grid', gap: '10px' }}>
-          {todaysClasses.map(({ period, window, studentCount, openCount, isNow }) => (
+          {todaysClasses.map(({ classId, name, period, window, studentCount, openCount, isNow }) => (
             <button
               type="button"
-              key={period}
-              onClick={() => onSelectPeriod(period)}
+              key={classId || period}
+              onClick={() => onSelectPeriod({ classId: classId || null, classPeriod: period })}
               style={{
                 textAlign: 'left',
                 display: 'flex',
@@ -211,7 +243,7 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <strong style={{ fontSize: '15px', color: '#202124' }}>{period}</strong>
+                <strong style={{ fontSize: '15px', color: '#202124' }}>{name || period}</strong>{name && name !== period ? <span style={{ fontSize: '12px', color: '#80868b' }}>{period}</span> : null}
                 {isNow && (
                   <span style={{ fontSize: '11px', fontWeight: 900, padding: '3px 8px', borderRadius: '999px', background: '#1a73e8', color: '#fff' }}>
                     NOW

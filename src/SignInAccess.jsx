@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CLASS_PERIODS } from './assignmentLifecycle';
 import { describeAuthError, teacherAdmin } from './auth/authService';
 import { compareStudentsByName, formatStudentName, studentSearchText } from './platform/studentName';
 
@@ -128,10 +127,10 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
     }
   };
 
-  const codeByPeriod = useMemo(() => {
+  const codeByClassId = useMemo(() => {
     const map = {};
     codes.forEach((entry) => {
-      map[entry.classPeriod] = entry.code;
+      if (entry.classId) map[entry.classId] = entry.code;
     });
     return map;
   }, [codes]);
@@ -216,18 +215,18 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
       {!adminMode && <section style={card}>
         <h3 style={{ margin: '0 0 6px' }}>Class join codes</h3>
         <p style={{ margin: '0 0 16px', color: '#5f6368', fontSize: '14px', lineHeight: 1.55 }}>
-          Show a period&apos;s code on the board on day one. A student needs it once — to set their PIN or to connect a
-          Google account. Rotating a code never signs anyone out; it only stops new claims with the old one.
+          Show the class&apos;s code on the board on day one. A student needs it once — to set their PIN or to connect a
+          Google account. Codes belong to the real class, not just its bell period, so two classes that meet in the same period remain separate. Rotating a code never signs anyone out.
         </p>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '12px' }}>
-          {CLASS_PERIODS.map((period) => {
-            const code = codeByPeriod[period];
-            const busy = pendingAction === `code:${period}`;
+          {activeClasses.map((classRecord) => {
+            const code = codeByClassId[classRecord.classId];
+            const busy = pendingAction === `code:${classRecord.classId}`;
             return (
-              <div key={period} style={{ border: '1px solid #e0e4ea', borderRadius: '10px', padding: '13px 15px', background: '#f8f9fa' }}>
+              <div key={classRecord.classId} style={{ border: '1px solid #e0e4ea', borderRadius: '10px', padding: '13px 15px', background: '#f8f9fa' }}>
                 <div style={{ fontSize: '12px', fontWeight: 800, color: '#5f6368', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  {period}
+                  {classRecord.name || classRecord.classId}{classRecord.period ? ` · ${classRecord.period}` : ''}
                 </div>
                 <div
                   style={{
@@ -247,9 +246,9 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
                   disabled={busy}
                   onClick={() =>
                     runAction(
-                      `code:${period}`,
-                      () => teacherAdmin.issueClassJoinCode(period),
-                      (result) => `${period} join code is now ${result.code}.`,
+                      `code:${classRecord.classId}`,
+                      () => teacherAdmin.issueClassJoinCode({ classId: classRecord.classId, classPeriod: classRecord.period || '' }),
+                      (result) => `${classRecord.name || classRecord.period || 'Class'} join code is now ${result.code}.`,
                     )
                   }
                 >

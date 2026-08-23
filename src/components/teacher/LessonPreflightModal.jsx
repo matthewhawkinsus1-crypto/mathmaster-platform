@@ -11,6 +11,7 @@ import {
   PREFLIGHT_STEPS, blockersForStep, collectReviewBlockers,
   describePreflightAction, stepIndex, summarizePreflightReadiness,
 } from './preflightSteps';
+import AdaptivePreview from './AdaptivePreview.jsx';
 
 // Narrow enough that side-by-side panels stop working. Matches the breakpoint
 // the student-side mobile container already uses, so the two agree about what
@@ -57,7 +58,7 @@ const legendStyle = { fontWeight: 900 };
 const labelStyle = { fontWeight: 800, display: 'block' };
 
 const initialReviewDraft = (draft = {}) => {
-  const { assignedClassPeriods, ...rest } = draft;
+  const { assignedClassPeriods, assignedClassIds, ...rest } = draft;
   return {
     title: '',
     folder: '',
@@ -83,6 +84,7 @@ const initialReviewDraft = (draft = {}) => {
     homeworkDueAt: '',
     ...rest,
     assignedClassPeriods: Array.isArray(assignedClassPeriods) ? [...assignedClassPeriods] : [],
+    assignedClassIds: Array.isArray(assignedClassIds) ? [...assignedClassIds] : [],
   };
 };
 
@@ -114,6 +116,7 @@ export const LessonPreflightModal = ({
   publicationPlan: suppliedPublicationPlan = null,
   initialDraft = {},
   classPeriods = [],
+  classes = [],
   courseProfiles = {},
   sourceLabel = '',
   sourceQuestions = [],
@@ -150,6 +153,15 @@ export const LessonPreflightModal = ({
     },
   }), [lessonBundle, draft.title]);
 
+  // The bundle stores questions per activity; the preview wants them flat, each
+  // still carrying the activity role that decides its delivery mode.
+  const previewQuestions = useMemo(() => activities.flatMap((activity) => (
+    (Array.isArray(activity?.questions) ? activity.questions : []).map((question) => ({
+      ...question,
+      activityRole: question?.activityRole || activity?.role || 'practice',
+    }))
+  )), [activities]);
+
   const validationReport = useMemo(() => validateLessonBundle(effectiveBundle), [effectiveBundle]);
   const validationErrors = useMemo(() => [
     ...(validationReport.criticalErrors || []),
@@ -175,10 +187,16 @@ export const LessonPreflightModal = ({
   const currentQuestion = questions[demoQuestionIndex] || null;
   const currentPolicy = currentActivity ? getEffectiveActivityPolicy(currentActivity.role) : null;
 
-  const rigorDestinations = useMemo(
-    () => splitClassPeriodsByRigor(draft.assignedClassPeriods, courseProfiles),
-    [draft.assignedClassPeriods, courseProfiles],
-  );
+  const activeClassChoices = useMemo(() => (Array.isArray(classes) ? classes : []).filter((entry) => entry?.status !== 'archived' && entry?.classId), [classes]);
+  const usesClassEntities = activeClassChoices.length > 0;
+  const rigorDestinations = useMemo(() => {
+    if (!usesClassEntities || !(draft.assignedClassIds || []).length) return splitClassPeriodsByRigor(draft.assignedClassPeriods, courseProfiles);
+    const selected = activeClassChoices.filter((entry) => draft.assignedClassIds.includes(entry.classId));
+    return {
+      standard: selected.filter((entry) => entry.courseLevel !== 'honors').map((entry) => entry.name || entry.period),
+      honors: selected.filter((entry) => entry.courseLevel === 'honors').map((entry) => entry.name || entry.period),
+    };
+  }, [draft.assignedClassIds, draft.assignedClassPeriods, activeClassChoices, usesClassEntities, courseProfiles]);
   const sourceRigorQuestions = useMemo(() => activities.flatMap((activity) => [
     ...(Array.isArray(activity.questions) ? activity.questions.map((question) => ({
       ...question,
@@ -277,12 +295,30 @@ export const LessonPreflightModal = ({
     else delete next[period];
     return { ...current, dolInstructionDatesByClassPeriod: next };
   });
-  const toggleClassPeriod = (period) => setDraft((current) => ({
-    ...current,
-    assignedClassPeriods: current.assignedClassPeriods.includes(period)
-      ? current.assignedClassPeriods.filter((item) => item !== period)
-      : [...current.assignedClassPeriods, period],
-  }));
+  const setSelectedClassIds = (ids) => setDraft((current) => {
+    const selected = activeClassChoices.filter((entry) => ids.includes(entry.classId));
+    return {
+      ...current,
+      assignedClassIds: ids,
+      assignedClassPeriods: [...new Set(selected.map((entry) => entry.period).filter(Boolean))],
+    };
+  });
+  const toggleClassChoice = (classRecord) => {
+    if (!usesClassEntities) {
+      const period = classRecord.period;
+      setDraft((current) => ({
+        ...current,
+        assignedClassPeriods: current.assignedClassPeriods.includes(period)
+          ? current.assignedClassPeriods.filter((item) => item !== period)
+          : [...current.assignedClassPeriods, period],
+      }));
+      return;
+    }
+    const currentIds = draft.assignedClassIds || [];
+    setSelectedClassIds(currentIds.includes(classRecord.classId)
+      ? currentIds.filter((item) => item !== classRecord.classId)
+      : [...currentIds, classRecord.classId]);
+  };
 
   const canCreate = readiness.canCreate && !busy;
   // The button says which of the two actions it performs. A teacher who has
@@ -340,19 +376,28 @@ export const LessonPreflightModal = ({
       {isNarrow && <StepBlockers blockers={blockersForStep(readiness, 'classes')} />}
 
       <fieldset style={{ ...fieldsetStyle, marginTop: 0 }}>
-        <legend style={legendStyle}>Assign to MathMaster class periods</legend>
+        <legend style={legendStyle}>Assign to MathMaster classes</legend>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 11 }}>
-          <button type="button" onClick={() => setField('assignedClassPeriods', [...classPeriods])} style={{ minHeight: 44, padding: '7px 13px' }}>Select all</button>
-          <button type="button" onClick={() => setField('assignedClassPeriods', [])} style={{ minHeight: 44, padding: '7px 13px' }}>Clear</button>
-          <span style={{ alignSelf: 'center', color: '#5f6368', fontSize: 12 }}>{draft.assignedClassPeriods.length} selected</span>
+          <button type="button" onClick={() => usesClassEntities
+            ? setSelectedClassIds(activeClassChoices.map((entry) => entry.classId))
+            : setField('assignedClassPeriods', [...classPeriods])} style={{ minHeight: 44, padding: '7px 13px' }}>Select all</button>
+          <button type="button" onClick={() => usesClassEntities ? setSelectedClassIds([]) : setField('assignedClassPeriods', [])} style={{ minHeight: 44, padding: '7px 13px' }}>Clear</button>
+          <span style={{ alignSelf: 'center', color: '#5f6368', fontSize: 12 }}>{usesClassEntities ? (draft.assignedClassIds || []).length : draft.assignedClassPeriods.length} selected</span>
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-          {classPeriods.map((period) => (
-            <label key={period} style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 14px', background: draft.assignedClassPeriods.includes(period) ? '#e8f0fe' : '#fff', border: '1px solid #c5d5ef', borderRadius: 999, fontWeight: 800, cursor: 'pointer' }}>
-              <input type="checkbox" style={checkboxStyle} checked={draft.assignedClassPeriods.includes(period)} onChange={() => toggleClassPeriod(period)} /> {period}
-            </label>
-          ))}
+          {(usesClassEntities ? activeClassChoices : classPeriods.map((period) => ({ classId: null, name: period, period }))).map((classRecord) => {
+            const selected = usesClassEntities
+              ? (draft.assignedClassIds || []).includes(classRecord.classId)
+              : draft.assignedClassPeriods.includes(classRecord.period);
+            return (
+              <label key={classRecord.classId || classRecord.period} style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 14px', background: selected ? '#e8f0fe' : '#fff', border: '1px solid #c5d5ef', borderRadius: 999, fontWeight: 800, cursor: 'pointer' }}>
+                <input type="checkbox" style={checkboxStyle} checked={selected} onChange={() => toggleClassChoice(classRecord)} />
+                {classRecord.name || classRecord.period}{classRecord.name && classRecord.name !== classRecord.period ? ` · ${classRecord.period}` : ''}
+              </label>
+            );
+          })}
         </div>
+        {usesClassEntities && <div style={{ marginTop: 9, color: '#5f6368', fontSize: 12 }}>Assignments are targeted by class ID. Period is kept only for bell-schedule timing and legacy compatibility.</div>}
       </fieldset>
 
       <fieldset style={{ ...fieldsetStyle, border: `1px solid ${honorsSelected ? '#c7a9ea' : '#d8dde6'}`, background: honorsSelected ? '#fcf9ff' : '#fff' }}>
@@ -430,6 +475,25 @@ export const LessonPreflightModal = ({
               </label>
             );
           })}
+        </div>
+
+        {/*
+          THE ANSWER TO "WHAT DID I JUST CHOOSE?", BEFORE PUBLISHING.
+          Run through the real adaptation engine, so a teacher who sets a section
+          to "pitched to the student" and sees nothing change learns that HERE,
+          rather than from a class of identical worksheets on Monday.
+        */}
+        <div style={{ marginTop: 16 }}>
+          <AdaptivePreview
+            assignment={{
+              ...draft,
+              variantMode: legacyVariantMode,
+              sectionVariantModes: resolvedSectionVariantModes,
+            }}
+            questions={previewQuestions}
+            courseId={draft?.courseId || 'algebra1'}
+            honors={String(draft?.courseLevel || '').toLowerCase() === 'honors'}
+          />
         </div>
       </fieldset>
 

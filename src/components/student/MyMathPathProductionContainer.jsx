@@ -21,6 +21,9 @@ export const MyMathPathProductionContainer = ({
   // directly-authored items for that framework; ordinary Path sessions keep
   // selecting ordinary course items.
   assessmentFramework = null,
+  weekKey = null,
+  weeklySlotKey = null,
+  weeklySlot = null,
   studentProfile,
   sessionProvider = null,
   onReturnToDashboard,
@@ -77,7 +80,7 @@ export const MyMathPathProductionContainer = ({
     setSubmissionError(null);
     completionReportedRef.current = false;
     try {
-      const result = await startOrResumePathSession({ targetAlignmentKey, sessionKind, requiredQuestions, assessmentFramework });
+      const result = await startOrResumePathSession({ targetAlignmentKey, sessionKind, requiredQuestions, assessmentFramework, weekKey, weeklySlotKey, weeklySlot });
       // A successful load clears the record of past failures, so a student who
       // hits one blip and recovers is not permanently shown the "this is not
       // working" screen.
@@ -98,7 +101,7 @@ export const MyMathPathProductionContainer = ({
     } finally {
       setLoading(false);
     }
-  }, [targetAlignmentKey, sessionKind, requiredQuestions, assessmentFramework]);
+  }, [targetAlignmentKey, sessionKind, requiredQuestions, assessmentFramework, weekKey, weeklySlotKey, weeklySlot]);
 
   useEffect(() => { initializeSession(); }, [initializeSession]);
 

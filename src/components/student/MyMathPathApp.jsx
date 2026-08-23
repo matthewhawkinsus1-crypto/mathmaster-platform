@@ -14,7 +14,8 @@ import { teksCodeFromSkillId, teksSkillId } from '../../platform/path/skillGraph
 import { statusForSkill } from '../../platform/path/pathMap.js';
 import { buildStudentLearningProfile } from '../../platform/profile/studentLearningProfile.js';
 import { buildWeeklyPathPlan } from '../../platform/path/weeklyPathPlan.js';
-import { buildWeeklyGoal, deriveCompletionsFromEvidence, evaluateWeeklyGoalProgress, normalizeWeeklyGoalConfig } from '../../platform/path/weeklyPathGoal.js';
+import { buildWeeklyGoal, deriveCompletionsFromEvidence, evaluateWeeklyGoalProgress, matchWeeklyGoalCompletions, normalizeWeeklyGoalConfig } from '../../platform/path/weeklyPathGoal.js';
+import { resolveWeeklyPathGoalSnapshot } from '../../platform/path/pathStore.js';
 import { STATUS } from '../../platform/path/recommendationEngine.js';
 import { studentLabelForTeks } from '../../platform/path/skillLabels.js';
 import { DEFAULT_MASTERY_COURSE_ID, getWheelTeksForCourse } from '../../platform/mastery/strandConfig.js';
@@ -155,9 +156,39 @@ export const MyMathPathExperience = ({
     pinnedSkills: weeklyGoalConfig?.pinnedSkills || [],
   }) : null), [pathOptions, courseId, learningProfile, masteryData, evidenceEvents, honors, weeklyGoalConfig]);
 
-  const weeklyGoal = useMemo(() => (weeklyPlan ? buildWeeklyGoal({
+  const proposedWeeklyGoal = useMemo(() => (weeklyPlan ? buildWeeklyGoal({
     plan: weeklyPlan, config: weeklyGoalConfig || {}, honors, studentId, courseId,
   }) : null), [weeklyPlan, weeklyGoalConfig, honors, studentId, courseId]);
+  const [assignedWeeklyGoal, setAssignedWeeklyGoal] = useState(null);
+
+  useEffect(() => {
+    if (!proposedWeeklyGoal) { setAssignedWeeklyGoal(null); return undefined; }
+    // The simulator owns its synthetic runtime and never touches production
+    // student callables. Live students freeze the proposal on the server once.
+    if (sessionProvider) {
+      setAssignedWeeklyGoal({ ...proposedWeeklyGoal, assignmentState: 'simulation' });
+      return undefined;
+    }
+    let cancelled = false;
+    setAssignedWeeklyGoal(null);
+    resolveWeeklyPathGoalSnapshot(proposedWeeklyGoal)
+      .then((snapshot) => {
+        if (cancelled || !snapshot) return;
+        setAssignedWeeklyGoal({
+          ...proposedWeeklyGoal,
+          ...snapshot,
+          settings: proposedWeeklyGoal.settings,
+          profile: proposedWeeklyGoal.profile,
+          suppressed: proposedWeeklyGoal.suppressed,
+        });
+      })
+      .catch((caught) => {
+        if (!cancelled) console.error('Could not freeze Weekly Path goal:', caught);
+      });
+    return () => { cancelled = true; };
+  }, [proposedWeeklyGoal, sessionProvider]);
+
+  const weeklyGoal = assignedWeeklyGoal || (proposedWeeklyGoal ? { ...proposedWeeklyGoal, assignmentState: 'proposed' } : null);
 
   const weeklyCompletions = useMemo(
     () => deriveCompletionsFromEvidence({ evidenceEvents, weekKey: weeklyGoal?.weekKey }),
@@ -167,13 +198,11 @@ export const MyMathPathExperience = ({
     () => (weeklyGoal ? evaluateWeeklyGoalProgress({ goal: weeklyGoal, completions: weeklyCompletions }) : null),
     [weeklyGoal, weeklyCompletions],
   );
-  // Which slots are done. Matched by standard, because the student may work the
-  // week in any order and a fixed running total would tick off the wrong cards.
-  const completedSlots = useMemo(() => {
-    if (!weeklyGoal) return [];
-    const worked = new Set(weeklyCompletions.map((entry) => entry.teksCode).filter(Boolean));
-    return weeklyGoal.sessions.filter((session) => worked.has(session.teksCode)).map((session) => session.slot);
-  }, [weeklyGoal, weeklyCompletions]);
+  // Exact one-to-one slot matching. Two weekly rows may intentionally use the
+  // same TEKS, so a set of worked standards would incorrectly mark both done.
+  const completedSlots = useMemo(() => (weeklyGoal
+    ? matchWeeklyGoalCompletions({ goal: weeklyGoal, completions: weeklyCompletions }).matched.map((entry) => entry.matchedSlot)
+    : []), [weeklyGoal, weeklyCompletions]);
 
   // CCMR. The components have existed since Batch 9; what was missing was any
   // route a student could take to reach them, and the evidence to fill them.
@@ -248,6 +277,9 @@ export const MyMathPathExperience = ({
       // practising for, or which standard. It is presentation only: the
       // questions and the grading are the server's, and unchanged.
       assessmentFramework: options.framework || null,
+      weekKey: options.weekKey || null,
+      weeklySlotKey: options.weeklySlotKey || null,
+      weeklySlot: options.weeklySlot || null,
     });
     setActiveTab('session');
   };

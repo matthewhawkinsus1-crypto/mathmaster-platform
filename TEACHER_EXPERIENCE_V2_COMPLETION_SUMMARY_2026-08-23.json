@@ -1,0 +1,74 @@
+{
+  "status": "completed",
+  "releaseDate": "2026-08-23",
+  "sourceArchive": "MathMaster_TeacherExperienceV2_20260823(1).zip",
+  "classBoundary": {
+    "primaryIdentity": "classId",
+    "periodRole": "bell-schedule, display, and legacy fallback only",
+    "modernAudiencePeriodWideningAllowed": false,
+    "classIdFirstSurfaces": [
+      "assignmentAudience",
+      "sectionControls",
+      "classroomPublishing",
+      "classroomRosterMatching",
+      "joinCodes",
+      "studentAccess",
+      "liveChallenge",
+      "gradebook",
+      "pacing",
+      "standardsDashboard",
+      "studentDashboard",
+      "pathCourseContext"
+    ]
+  },
+  "weeklyPath": {
+    "serverOwnedSnapshotCollection": "weeklyPathGoalSnapshots",
+    "frozenCurrentWeekCommitment": true,
+    "oneToOneSlotCompletionMatching": true,
+    "extraPracticeCountsAsAssignedCompletion": false
+  },
+  "generatorBank": {
+    "total": 5186,
+    "course": 1161,
+    "assessment": 4025,
+    "allGeneratorBacked": true,
+    "primaryFunctionsMirrorByteIdentical": true,
+    "counts": {
+      "grade6": 237,
+      "grade7": 212,
+      "grade8": 227,
+      "algebra1": 245,
+      "algebra2": 240,
+      "digitalSAT": 1045,
+      "act": 1125,
+      "tsia2": 1125,
+      "asvab": 730
+    }
+  },
+  "validation": {
+    "parsedSourceFiles": 392,
+    "parsedSourceFailures": 0,
+    "nativeNodeCheckedModules": 240,
+    "nativeNodeCheckFailures": 0,
+    "testsDiscovered": 1776,
+    "testsPassed": 1734,
+    "environmentBlocked": {
+      "mathjs": 37,
+      "firebase": 3,
+      "firebaseRulesUnitTesting": 2,
+      "total": 42
+    },
+    "runnableAssertionFailures": 0,
+    "gitDiffCheck": "clean",
+    "focusedBankTests": 52,
+    "focusedBankTestsPassed": 52
+  },
+  "deployment": {
+    "order": [
+      "functions",
+      "firestoreRules",
+      "web"
+    ],
+    "refreshBuiltInPathBankAfterFunctionsDeploy": true
+  }
+}

@@ -52,15 +52,15 @@ test('Classroom helper requests Topics and CourseWorkMaterials scopes', () => {
 
 test('student Classroom launch is audience checked before opening', () => {
   const src = read('src/App.jsx');
-  assert.match(src, /assignmentIsForStudent\(targetAssignment, user\.classPeriod\)/);
+  assert.match(src, /assignmentIsForStudent\(targetAssignment, \{ classId: user\.classId \|\| null, classPeriod: user\.classPeriod \}\)/);
   assert.match(src, /This Google Classroom assignment is not assigned to your MathMaster class/);
 });
 
 
-test('publishing fails closed through MathMaster class mapping and assigned periods', () => {
+test('publishing fails closed through MathMaster class mapping and class-ID audience first', () => {
   const src = read('functions/index.js');
   assert.match(src, /Map this Google Classroom course to a MathMaster class first/);
-  assert.match(src, /assignedPeriods\.has\(String\(mapping\.classPeriod/);
+  assert.match(src, /audience\.classIds\.length[\s\S]*audience\.classIds\.includes\(mappedClassId\)[\s\S]*audience\.classPeriods\.includes\(mappedPeriod\)/);
 });
 
 test('roster batch verifies the MathMaster student belongs to the mapped class', () => {

@@ -69,7 +69,12 @@ export const MyMathPathDashboard = ({
             completedSlots={completedSlots}
             onStartSession={(session) => {
               const code = session?.teksCode || teksCodeFromSkillId(session?.skillId);
-              if (code) onStartSession?.(code);
+              if (code) onStartSession?.(code, {
+                weekKey: weeklyGoal?.weekKey || null,
+                weeklySlotKey: session?.weeklySlotKey || null,
+                weeklySlot: session?.slot || null,
+                framework: session?.context && session.context !== 'course' ? session.context : null,
+              });
             }}
           />
         </div>

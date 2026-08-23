@@ -26,6 +26,9 @@
 // from it, the tests run it. There is no second definition of what a class is.
 
 export const COURSES = Object.freeze([
+  { id: 'grade6', label: 'Grade 6' },
+  { id: 'grade7', label: 'Grade 7' },
+  { id: 'grade8', label: 'Grade 8' },
   { id: 'algebra1', label: 'Algebra I' },
   { id: 'algebra2', label: 'Algebra II' },
 ]);
@@ -76,7 +79,7 @@ export const normalizeClassInput = (input = {}, { existing = null } = {}) => {
   if (!name) reject('A class needs a name an administrator will recognize, such as "Algebra I — 3rd Period".');
 
   const course = text(input.course ?? existing?.course ?? 'algebra1', 40);
-  if (!COURSE_IDS.has(course)) reject(`"${course}" is not a MathMaster course. Choose Algebra I or Algebra II.`);
+  if (!COURSE_IDS.has(course)) reject(`"${course}" is not a MathMaster course. Choose an active course: Grade 6, Grade 7, Grade 8, Algebra I, or Algebra II.`);
 
   const courseLevel = text(input.courseLevel ?? existing?.courseLevel ?? 'standard', 40);
   if (!LEVEL_IDS.has(courseLevel)) reject(`"${courseLevel}" is not a course level. Choose Standard or Honors.`);
@@ -310,6 +313,73 @@ export const studentsForTeacher = ({ students = [], classes = [], teacherEmail, 
   return students.filter((student) => (
     (student?.classId && allowed.has(student.classId))
     || (includeUnassigned && !student?.classId)
+  ));
+};
+
+/**
+ * Who is in one class.
+ *
+ * ONE membership rule, because there were three copies of it and they were not
+ * quite the same. `classId` is the rule. The period comparison beneath it is a
+ * compatibility path for a student record written before the class migration and
+ * never backfilled — such a student has no classId at all, so period is the only
+ * thing left that can place them, and they land in exactly one roster because
+ * only the selected class's period is compared.
+ *
+ * A student who HAS a classId is never matched on period. That is deliberate: if
+ * a student was moved to another class but their period label is stale, the
+ * class they are actually in wins. The alternative puts one child on two rosters.
+ *
+ * AND THE PERIOD FALLBACK STOPS WHERE THE PERIOD STOPS BEING AN ANSWER. If two
+ * active classes share a period label, an unmigrated student in that period
+ * cannot be placed by it — the label names two different rooms. Such a student
+ * appears in NEITHER roster rather than in both, because one child on two
+ * rosters is counted twice, graded twice and reported twice, and no screen can
+ * tell which one is real. They remain visible in the all-classes view, and
+ * `unplaceableStudents` names them so a screen can ask an administrator to give
+ * them a class instead of leaving them quietly missing.
+ *
+ * Passing neither a classId nor a period returns everyone — "all classes" is a
+ * real view, not an empty one. Passing a period alone filters on it, which is
+ * what a school that has not created class records yet still needs.
+ */
+export const studentsInClass = ({ students = [], classes = [], classId = null, classPeriod = null } = {}) => {
+  const roster = Array.isArray(students) ? students : [];
+  if (!classId) {
+    return classPeriod ? roster.filter((student) => student?.classPeriod === classPeriod) : roster;
+  }
+  const active = (Array.isArray(classes) ? classes : []).filter((entry) => entry?.status !== 'archived');
+  const record = active.find((entry) => entry?.classId === classId) || null;
+  const period = record?.period || classPeriod || null;
+  const periodIsAmbiguous = Boolean(period)
+    && active.filter((entry) => entry?.period === period).length > 1;
+  return roster.filter((student) => (
+    student?.classId
+      ? student.classId === classId
+      : Boolean(period) && !periodIsAmbiguous && student?.classPeriod === period
+  ));
+};
+
+/**
+ * Students no roster can claim: no classId, and a period served by more than one
+ * active class.
+ *
+ * This is the migration gap made visible. Without it those students simply stop
+ * appearing anywhere a teacher looks, which reads as "they left" rather than
+ * "nobody has told the system which class they are in".
+ */
+export const unplaceableStudents = ({ students = [], classes = [] } = {}) => {
+  const active = (Array.isArray(classes) ? classes : []).filter((entry) => entry?.status !== 'archived');
+  const ambiguous = new Set();
+  const seen = new Set();
+  active.forEach((entry) => {
+    const period = entry?.period;
+    if (!period) return;
+    if (seen.has(period)) ambiguous.add(period);
+    seen.add(period);
+  });
+  return (Array.isArray(students) ? students : []).filter((student) => (
+    !student?.classId && ambiguous.has(student?.classPeriod)
   ));
 };
 

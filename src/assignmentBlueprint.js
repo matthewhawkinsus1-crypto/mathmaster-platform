@@ -120,7 +120,10 @@ A complete assignment can now be created from one JSON object. Manual form field
 
 Supported templates: "practice", "practice-with-dol", and "guided-notes".
 Use "P1" through "P8", numbers 1 through 8, or "Period 1" through "Period 8" in classes.
-If variantMode is omitted, MathMaster automatically chooses Shared for fixed lesson questions and Personalized for generated/variant questions.
+There are three delivery modes: "shared" (identical authored instance), "personalized"/"variant" (same TEKS, DOK and difficulty with student-specific generated values),
+and "adaptive" (the assigned TEKS is preserved while family, DOK and difficulty are chosen inside the authored envelope).
+If variantMode is omitted, MathMaster automatically chooses Shared for fixed lesson questions and Personalized for generated/variant questions — never Adaptive, which must be asked for.
+Use "sectionVariantModes" to set the mode per activity role, e.g. { "practice": "adaptive", "classwork": "shared" }.
 If folder is supplied, MathMaster creates the folder path automatically.
 Legacy question-array JSON still works; manual title and dates remain available as fallbacks.
 
@@ -1074,7 +1077,8 @@ const normalizeAssignmentType = (value) => {
 const normalizeVariantMode = (value, questions) => {
   const token = String(value || '').trim().toLowerCase();
   if (['shared', 'exact', 'same', 'same-version', 'exact-same-version'].includes(token)) return 'shared';
-  if (['personalized', 'different', 'generated', 'different-stable-version', 'mixed', 'per-student', 'perstudent', 'personalize-where-possible'].includes(token)) return 'personalized';
+  if (['adaptive', 'pitched', 'pitched-to-student', 'student-level', 'studentlevel'].includes(token)) return 'adaptive';
+  if (['personalized', 'variant', 'different', 'generated', 'different-stable-version', 'mixed', 'per-student', 'perstudent', 'personalize-where-possible'].includes(token)) return 'personalized';
   // Personalized means 'personalize where the question supports it'. Fixed
   // graphs/data remain identical while generator/variant questions use the
   // student's stable generation key. A single fixed visual must never force
@@ -1099,7 +1103,8 @@ const normalizeSectionVariantModes = (value) => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   return Object.fromEntries(Object.entries(value)
     .map(([role, mode]) => [String(role).trim().toLowerCase(), String(mode).trim().toLowerCase()])
-    .filter(([, mode]) => mode === 'shared' || mode === 'personalized'));
+    .filter(([, mode]) => ['shared', 'personalized', 'variant', 'adaptive'].includes(mode))
+    .map(([role, mode]) => [role, mode === 'variant' ? 'personalized' : mode]));
 };
 
 const normalizeDOLInstructionDates = (value) => {

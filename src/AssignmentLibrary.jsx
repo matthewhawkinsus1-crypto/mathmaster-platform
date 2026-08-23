@@ -131,6 +131,7 @@ export default function AssignmentLibrary({
   onNavigateToAssignments,
   nowValue = Date.now(),
   classSchedule,
+  classes = [],
 }) {
   const [selectedFolder, setSelectedFolder] = useState('');
   const [smartView, setSmartView] = useState('');
@@ -154,8 +155,8 @@ export default function AssignmentLibrary({
   // narrowing, so the folder counts below stay consistent with what's
   // actually shown in the list.
   const visibleForSmartView = useMemo(() => assignments.filter((assignment) => (
-    matchesSmartView(assignment, smartView, { nowValue, classSchedule })
-  )), [assignments, smartView, nowValue, classSchedule]);
+    matchesSmartView(assignment, smartView, { nowValue, classSchedule, classes })
+  )), [assignments, smartView, nowValue, classSchedule, classes]);
 
   const filteredAssignments = useMemo(() => {
     const items = visibleForSmartView.filter((assignment) => (

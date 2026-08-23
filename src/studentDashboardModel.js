@@ -86,6 +86,7 @@ export const BUCKET_ORDER = Object.freeze([
  */
 export const buildStudentDashboardModel = ({
   assignments = [],
+  classId = null,
   classPeriod = null,
   nowValue = Date.now(),
   tracker = {},
@@ -108,7 +109,7 @@ export const buildStudentDashboardModel = ({
     matchesSmartView,
   } = providers;
 
-  const visible = list(assignments).filter((assignment) => assignmentIsForStudent(assignment, classPeriod));
+  const visible = list(assignments).filter((assignment) => assignmentIsForStudent(assignment, { classId, classPeriod }));
 
   const canResume = (assignment) => {
     const lifecycle = getAssignmentLifecycle(assignment, nowValue);
@@ -137,7 +138,7 @@ export const buildStudentDashboardModel = ({
 
   const activeDols = visible
     .map((assignment) => {
-      const state = getDOLState({ assignment, schedule: classSchedule, classPeriod, nowValue });
+      const state = getDOLState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue });
       const records = (state.questionIndices || [state.questionIndex])
         .filter((index) => Number.isInteger(index) && index >= 0)
         .map((index) => normalizeQuestionRecord(tracker?.[assignment.id]?.[index]));
@@ -171,7 +172,7 @@ export const buildStudentDashboardModel = ({
       const recordedGrade = calculateGrade(assignmentTracker, assignment);
       const activity = assignmentActivity[assignment.id] || {};
       const classwork = classworkGradesByAssignment[assignment.id];
-      const dol = getDOLState({ assignment, schedule: classSchedule, classPeriod, nowValue });
+      const dol = getDOLState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue });
       const disabled = (lifecycle.isScheduled && access.reason !== 'prerequisiteMet') || !access.open;
       const done = isDone(assignment, assignmentTracker, lifecycle);
       const feedbackHeld = assignmentHasHeldTeacherFeedback(assignment);

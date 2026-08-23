@@ -16,6 +16,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { teacherAdmin } from './auth/authService';
 import {
   getAssignmentByLaunchId,
   listClassroomCourseMappings,
@@ -84,6 +85,13 @@ import TeacherSidebar from './TeacherSidebar';
 import AssignmentLibrary from './AssignmentLibrary';
 import AssignmentCardMenu from './AssignmentCardMenu';
 import ClassesWorkspace from './ClassesWorkspace';
+import { TEXAS_MATH_ACTIVE_COURSES, getTexasStandardsForCourse } from './texasStandards.js';
+import ClassContextBar from './components/teacher/ClassContextBar.jsx';
+import WeeklyPathGradePanel from './components/teacher/WeeklyPathGradePanel.jsx';
+import ClassroomSyncReview from './components/teacher/ClassroomSyncReview.jsx';
+import TeacherQuickSearch from './components/teacher/TeacherQuickSearch.jsx';
+import StudentProfileDrawer from './components/teacher/StudentProfileDrawer.jsx';
+import StudentNameLink from './components/common/StudentNameLink.jsx';
 import TeacherHome from './TeacherHome';
 import DOLCountdown from './components/student/DOLCountdown.jsx';
 import TexasStandardsDashboard from './TexasStandardsDashboard';
@@ -119,6 +127,8 @@ import PacingControls from './components/teacher/PacingControls.jsx';
 import RecommendedSkills from './components/student/RecommendedSkills.jsx';
 import { teksCodeFromSkillId } from './platform/path/skillGraph.js';
 import { buildStudentPathOptions } from './platform/path/studentPathOptions.js';
+import { fetchStudentEvidenceEvents } from './platform/history/evidencePersistence.js';
+import { COMPARABILITY, describeDeliveredRigor, explainGrade, rigorComparability, splitGrade } from './platform/teacher/gradeEvidence.js';
 import { buildStudentDashboardModel, resolveNextAction } from './studentDashboardModel.js';
 import { questionAssessmentFramework } from './platform/student/questionAlignmentInfo.js';
 import { FRAMEWORK_LABELS } from './platform/ccmr/assessmentCrosswalk.js';
@@ -129,11 +139,14 @@ import { resolveDeliveredQuestionMetadata } from './platform/assignments/assignm
 import { adaptLegacyMasteryToPhase5 } from './platform/profile/legacyMasteryAdapter.js';
 import StudentDashboardView from './components/student/StudentDashboardView.jsx';
 import {
-  ROUTE_EVENTS, buildRouteEvent, fetchClassPacing, fetchSkillOverrides, fetchWeeklyGoalSettings,
+  ROUTE_EVENTS, buildRouteEvent, fetchClassPacing, fetchSkillOverrides, fetchWeeklyGoalSettings, fetchTeacherWeeklyPathCompletions,
   logRouteEvent, overridesForClassContext, saveClassPacing, saveSkillOverrides, saveWeeklyGoalSettings,
   storedPacingForClassContext, storedWeeklyGoalForClassContext,
 } from './platform/path/pathStore.js';
 import WeeklyPathControls from './components/teacher/WeeklyPathControls.jsx';
+import StudentPerformanceBadge from './components/common/StudentPerformanceBadge.jsx';
+import { buildWeeklyPathPlan } from './platform/path/weeklyPathPlan.js';
+import { buildTeacherWeeklyView, buildWeeklyGoal, dueAtFor, weekKeyFor } from './platform/path/weeklyPathGoal.js';
 import SignInAccess from './SignInAccess.jsx';
 import ClassesAdmin from './components/admin/ClassesAdmin.jsx';
 import PathCoverageAudit from './components/teacher/PathCoverageAudit.jsx';
@@ -147,7 +160,8 @@ import {
   mappedCourseIdsForAssignment,
   shouldAutoPublishClassroomPackage,
 } from './platform/classroom/automaticClassroomPublishing.js';
-import { resolveStudentCourseContext } from '../functions/shared/classModel.mjs';
+import { resolveStudentCourseContext, studentsInClass, unplaceableStudents } from '../functions/shared/classModel.mjs';
+import { buildNeedsAttentionQueue } from './platform/teacher/needsAttention.js';
 import {
   buildHonorsEnrichmentQuestion,
   defaultCourseProfiles,
@@ -166,6 +180,30 @@ const LiveChallengeTeacher = lazy(() => import('./components/liveChallenge/LiveC
 const LiveChallengeStudent = lazy(() => import('./components/liveChallenge/LiveChallengeStudent.jsx'));
 
 
+
+/*
+ * Which teacher tabs a class actually scopes, and what it scopes there.
+ *
+ * This table is the honest boundary of the class-first architecture. A tab in
+ * it inherits the workspace's class rather than asking again; a tab absent from
+ * it genuinely operates outside class scope, and showing a class selector above
+ * it would imply a filter that does not exist.
+ *
+ * `allowAllClasses: false` marks the views that cannot answer anything without
+ * a specific class — a weekly goal or a live room is a fact about one class, not
+ * an average across five.
+ */
+const CLASS_SCOPED_TABS = Object.freeze({
+  home: { scopeLabel: 'Showing what needs attention' },
+  classesWorkspace: { scopeLabel: 'Showing the class' },
+  students: { scopeLabel: 'Showing the roster' },
+  grades: { scopeLabel: 'Showing grades' },
+  weeklyPath: { scopeLabel: 'Showing weekly goals', allowAllClasses: false },
+  pacing: { scopeLabel: 'Showing pacing', allowAllClasses: false },
+  standards: { scopeLabel: 'Showing mastery' },
+  analytics: { scopeLabel: 'Showing analytics' },
+  assignments: { scopeLabel: 'Showing assignments' },
+});
 
 const createQuestionId = () => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -286,6 +324,14 @@ function App() {
   // during sign-in before `user` state exists.
   const viewerRef = useRef({ email: null, isRootAdmin: false });
   const classesRef = useRef([]);
+  // THE CLASS THE TEACHER IS CURRENTLY WORKING IN.
+  //
+  // Held at the workspace level on purpose. Class context used to live inside
+  // ClassesWorkspace, which unmounts on every tab change, so walking from a
+  // class to the Gradebook and back meant picking the class again. classId is
+  // the authoritative half; the period travels with it only because legacy
+  // screens and unmigrated student records still address work by period.
+  const [activeClass, setActiveClass] = useState({ classId: null, classPeriod: null });
   const [homeNavigationPeriod, setHomeNavigationPeriod] = useState(null);
   const [assignments, setAssignments] = useState([]);
   const [allStudents, setAllStudents] = useState([]);
@@ -302,8 +348,31 @@ function App() {
   // same way — students read them, teachers write them, and a class with
   // nothing stored gets working defaults rather than no Path.
   const [weeklyGoalsByClass, setWeeklyGoalsByClass] = useState({});
-  const [weeklyGoalClassId, setWeeklyGoalClassId] = useState(null);
   const [weeklyGoalBusy, setWeeklyGoalBusy] = useState(false);
+  const [weeklyPathCompletionsByStudent, setWeeklyPathCompletionsByStudent] = useState({});
+  const [weeklyPathGoalSnapshotsByStudent, setWeeklyPathGoalSnapshotsByStudent] = useState({});
+  // Set when the server could not read the whole week. The Weekly Path table
+  // shows grades, so an incomplete read has to be visible rather than assumed.
+  // The student whose profile drawer is open, from ANY teacher surface.
+  // Held here so the drawer opens OVER the teacher's current work rather than
+  // navigating them away from the class monitor or gradebook they were reading.
+  const [profileDrawerStudentId, setProfileDrawerStudentId] = useState(null);
+  const [weeklyPathTruncated, setWeeklyPathTruncated] = useState(false);
+  // A prepared Classroom grade payload awaiting the teacher's review. Holding it
+  // in state rather than sending it is the whole point: nothing reaches
+  // Classroom without a person having looked at it.
+  const [classroomSyncProposal, setClassroomSyncProposal] = useState(null);
+  const [quickSearchOpen, setQuickSearchOpen] = useState(false);
+  // Delivered-question evidence for one class, loaded only when a teacher asks
+  // for it. One Firestore read per student is not a price to pay for rendering
+  // a summary panel nobody requested.
+  const [classEvidenceByStudentId, setClassEvidenceByStudentId] = useState({});
+  const [classEvidenceLoading, setClassEvidenceLoading] = useState(false);
+  // Which class's weekly progress has actually come back from the server.
+  // "No data yet" and "no sessions completed" are different facts, and only one
+  // of them is worth telling a teacher about.
+  const [weeklyPathProgressLoadedFor, setWeeklyPathProgressLoadedFor] = useState(null);
+  const [weeklyPathProgressLoading, setWeeklyPathProgressLoading] = useState(false);
   // The skill a student picked from Recommended for You, consumed once by
   // My Math Path and cleared when they come back.
   const [pathLaunchTeks, setPathLaunchTeks] = useState(null);
@@ -328,7 +397,7 @@ function App() {
   const [classworkGradesByAssignment, setClassworkGradesByAssignment] = useState({});
   const [supportUsageByAssignment, setSupportUsageByAssignment] = useState({});
   const [editingAssignmentId, setEditingAssignmentId] = useState(null);
-  const [editingAssignmentDates, setEditingAssignmentDates] = useState({ dueAt: '', lateDueAt: '', assignedClassPeriods: [] });
+  const [editingAssignmentDates, setEditingAssignmentDates] = useState({ dueAt: '', lateDueAt: '', assignedClassPeriods: [], assignedClassIds: [] });
   const [questionEditorAssignment, setQuestionEditorAssignment] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [assignmentFolderPaths, setAssignmentFolderPaths] = useState([]);
@@ -420,6 +489,25 @@ function App() {
   // four status vocabularies and a student who reads as two different levels on
   // two tabs. Derived synchronously from the grades documents already in
   // memory, so no screen pays a Firestore read to show a badge.
+  const classesById = useMemo(
+    () => Object.fromEntries((Array.isArray(classes) ? classes : []).map((entry) => [entry.classId, entry])),
+    [classes],
+  );
+
+  // Course level per student, resolved through the shared class resolver. Passed
+  // to the CCMR screen for DISPLAY only — enrollment says which room a student
+  // sits in, not what they can do.
+  const courseLevelByStudentId = useMemo(() => Object.fromEntries(allStudents.map((student) => [
+    student.id,
+    resolveStudentCourseContext({ student, classesById, courseProfiles }).courseLevel,
+  ])), [allStudents, classesById, courseProfiles]);
+
+  // The standards a teacher might type a code for. Both active courses, because
+  // a teacher searching "A2.4F" should find it without first switching course.
+  const searchableStandards = useMemo(() => (
+    TEXAS_MATH_ACTIVE_COURSES.flatMap((course) => getTexasStandardsForCourse(course.id))
+  ), []);
+
   const teacherLearningProfiles = useMemo(() => {
     if (!allStudents.length) return {};
     return Object.fromEntries(allStudents.map((student) => {
@@ -427,7 +515,10 @@ function App() {
       const { events } = evidenceRowsToEvents(rows);
       const legacyProfile = teacherMasteryProfilesByStudentId[student.id] || null;
       return [student.id, buildStudentLearningProfile({
-        courseId: courseProfiles?.[student.classPeriod]?.course || 'algebra1',
+        // The class is authoritative. A period-keyed course lookup answers with
+        // whichever class was written last when two share a period, so one of
+        // those two classes' students get profiled against the wrong course.
+        courseId: resolveStudentCourseContext({ student, classesById, courseProfiles }).courseId,
         evidenceEvents: events,
         // Without per-TEKS mastery, course mastery is null and the performance
         // projection reads "Establishing Baseline" forever, however much work
@@ -437,19 +528,126 @@ function App() {
           : {},
       })];
     }));
-  }, [allStudents, assignments, courseProfiles, teacherMasteryProfilesByStudentId]);
+  }, [allStudents, assignments, courseProfiles, classesById, teacherMasteryProfilesByStudentId]);
 
   // The students in the class the Weekly Path screen is looking at.
   const teacherWeeklyRoster = useMemo(() => {
-    const activeId = weeklyGoalClassId || classes[0]?.classId || null;
+    const activeId = activeClass.classId || classes[0]?.classId || null;
     if (!activeId) return [];
-    const record = classes.find((entry) => entry.classId === activeId) || null;
-    return allStudents
-      .filter((student) => student.classId === activeId
-        || (record?.period && student.classPeriod === record.period))
-      .map((student) => ({ id: student.id, name: formatStudentName(student) }))
+    return studentsInClass({ students: allStudents, classes, classId: activeId })
+      .map((student) => ({ ...student, name: formatStudentName(student) }))
       .sort((a, b) => String(a.name).localeCompare(String(b.name)));
-  }, [allStudents, classes, weeklyGoalClassId]);
+  }, [allStudents, classes, activeClass.classId]);
+
+  const teacherWeeklyGoalsByStudent = useMemo(() => {
+    const activeId = activeClass.classId || classes[0]?.classId || null;
+    const classRecord = classes.find((entry) => entry.classId === activeId) || null;
+    if (!classRecord) return {};
+    const honors = String(classRecord.courseLevel || '').toLowerCase() === 'honors';
+    const courseId = classRecord.course || courseProfiles?.[classRecord.period]?.course || 'algebra1';
+    const config = storedWeeklyGoalForClassContext(weeklyGoalsByClass, {
+      classId: activeId,
+      classPeriod: classRecord.period,
+    }) || {};
+    const pacing = storedPacingForClassContext(pacingByClass, {
+      classId: activeId,
+      classPeriod: classRecord.period,
+    });
+    const teacherOverrides = overridesForClassContext(skillOverrides, {
+      classId: activeId,
+      classPeriod: classRecord.period,
+    });
+
+    return Object.fromEntries(teacherWeeklyRoster.map((student) => {
+      const studentAssignments = assignments.filter((assignment) => assignmentIsForStudent(assignment, { classId: student.classId || classRecord.classId, classPeriod: student.classPeriod || classRecord.period }));
+      const pathOptions = buildStudentPathOptions({
+        student,
+        assignments: studentAssignments,
+        courseId,
+        pacing,
+        teacherOverrides,
+        nowValue: now,
+      });
+      const plan = buildWeeklyPathPlan({
+        options: pathOptions,
+        courseId,
+        profile: teacherLearningProfiles[student.id] || null,
+        sessions: config.sessions || (honors ? 5 : 4),
+        honors,
+        now,
+      });
+      const proposedGoal = buildWeeklyGoal({
+        plan,
+        config,
+        honors,
+        studentId: student.id,
+        courseId,
+        now,
+      });
+      const frozen = weeklyPathGoalSnapshotsByStudent[student.id] || null;
+      const goal = frozen ? {
+        ...proposedGoal,
+        ...frozen,
+        settings: proposedGoal.settings,
+        profile: proposedGoal.profile,
+        suppressed: proposedGoal.suppressed,
+      } : { ...proposedGoal, assignmentState: 'proposed' };
+      return [student.id, goal];
+    }));
+  }, [activeClass.classId, classes, courseProfiles, weeklyGoalsByClass, pacingByClass, skillOverrides, teacherWeeklyRoster, assignments, teacherLearningProfiles, weeklyPathGoalSnapshotsByStudent, now]);
+
+  useEffect(() => {
+    // Home needs this as much as the Weekly Path tab does: the needs-attention
+    // queue reports who is behind, and reporting that from data that has not
+    // loaded yet would tell a teacher the whole class is behind every time they
+    // open the page.
+    if (user?.role !== 'teacher' || !['weeklyPath', 'home', 'grades'].includes(teacherTab)) return undefined;
+    const activeId = activeClass.classId || classes[0]?.classId || null;
+    if (!activeId) { setWeeklyPathCompletionsByStudent({}); setWeeklyPathGoalSnapshotsByStudent({}); setWeeklyPathProgressLoadedFor(null); return undefined; }
+    const classRecord = classes.find((entry) => entry.classId === activeId) || null;
+    const config = storedWeeklyGoalForClassContext(weeklyGoalsByClass, {
+      classId: activeId,
+      classPeriod: classRecord?.period || '',
+    }) || {};
+    const weekStartsOn = config.weekStartsOn || 1;
+    let alive = true;
+
+    const loadProgress = async ({ showLoading = false } = {}) => {
+      if (showLoading && alive) setWeeklyPathProgressLoading(true);
+      try {
+        const result = await fetchTeacherWeeklyPathCompletions({
+          classId: activeId,
+          // Compute the week at fetch time. This keeps Monday rollover correct
+          // without tying a Cloud Function call to App's UI clock tick.
+          weekKey: weekKeyFor(Date.now(), weekStartsOn),
+        });
+        if (alive) {
+          setWeeklyPathCompletionsByStudent(result?.byStudentId || {});
+          setWeeklyPathGoalSnapshotsByStudent(result?.goalsByStudentId || {});
+          setWeeklyPathTruncated(result?.truncated === true);
+          setWeeklyPathProgressLoadedFor(activeId);
+        }
+      } catch (error) {
+        console.error('Could not load Weekly Path progress:', error);
+        // A failed read is NOT zero completions. Leaving `loadedFor` unset keeps
+        // every completion alert out of the queue rather than announcing that
+        // nobody did any work.
+        if (alive) { setWeeklyPathCompletionsByStudent({}); setWeeklyPathGoalSnapshotsByStudent({}); setWeeklyPathTruncated(false); setWeeklyPathProgressLoadedFor(null); }
+      } finally {
+        if (showLoading && alive) setWeeklyPathProgressLoading(false);
+      }
+    };
+
+    loadProgress({ showLoading: true });
+    // Weekly progress changes only when sessions complete. Refresh once a
+    // minute while the teacher is looking at this class instead of invoking a
+    // callable every time the application's display clock ticks.
+    const timer = setInterval(() => loadProgress(), 60_000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [user?.role, teacherTab, activeClass.classId, classes, weeklyGoalsByClass]);
 
   useEffect(() => {
     if (!pendingLaunchAssignmentId) return;
@@ -461,7 +659,7 @@ function App() {
 
     // A Google Classroom launch link is a doorway, not authorization. The
     // signed-in MathMaster student must still belong to an assigned class.
-    if (!assignmentIsForStudent(targetAssignment, user.classPeriod)) {
+    if (!assignmentIsForStudent(targetAssignment, { classId: user.classId || null, classPeriod: user.classPeriod })) {
       toastWarning(
         'Assignment not available',
         'This Google Classroom assignment is not assigned to your MathMaster class.',
@@ -483,6 +681,7 @@ function App() {
   const [assignmentPreflightBusy, setAssignmentPreflightBusy] = useState(false);
 
   const [gradebookFilter, setGradebookFilter] = useState({
+    classId: '',
     classPeriod: '',
     assignmentId: null,
     student: null,
@@ -522,8 +721,8 @@ function App() {
     if (user?.role !== 'student' || !user.classPeriod) return undefined;
     const realNow = Date.now();
     const targets = assignments
-      .filter((assignment) => assignmentIsForStudent(assignment, user.classPeriod))
-      .map((assignment) => getDOLState({ assignment, schedule: classSchedule, classPeriod: user.classPeriod, nowValue: realNow }))
+      .filter((assignment) => assignmentIsForStudent(assignment, { classId: user.classId || null, classPeriod: user.classPeriod }))
+      .map((assignment) => getDOLState({ assignment, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: realNow }))
       .map((state) => state.status === 'beforeClass' ? state.window?.start?.getTime()
         : state.status === 'waiting' ? state.opensAt?.getTime()
           : state.status === 'active' ? state.endsAt?.getTime() + 100
@@ -604,7 +803,7 @@ function App() {
 
   const studentPathAssignments = useMemo(() => (
     user?.role === 'student'
-      ? assignments.filter((assignment) => assignmentIsForStudent(assignment, user.classPeriod))
+      ? assignments.filter((assignment) => assignmentIsForStudent(assignment, { classId: user.classId || null, classPeriod: user.classPeriod }))
       : []
   ), [assignments, user]);
 
@@ -1032,7 +1231,7 @@ function App() {
     setDolGradesByAssignment({});
     setClassworkGradesByAssignment({});
     setSupportUsageByAssignment({});
-    setGradebookFilter({ classPeriod: '', assignmentId: null, student: null });
+    setGradebookFilter({ classId: '', classPeriod: '', assignmentId: null, student: null });
     setStudentDashboardMode('assignments');
     await auth.signOut();
   };
@@ -1144,7 +1343,7 @@ function App() {
   const isStudentAssignment = user?.role === 'student' && activeView === 'assignment';
   const isPracticeMode = isStudentAssignment && activeLifecycle.isPracticeOnly;
   const activeSupportPresentation = getStudentSupportPresentation(user?.profile);
-  const activeDOLState = getDOLState({ assignment: activeAssignmentData, schedule: classSchedule, classPeriod: user?.classPeriod, nowValue: now });
+  const activeDOLState = getDOLState({ assignment: activeAssignmentData, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now });
   const activeQuestionRole = resolveQuestionActivityRole({
     question: activeAssignmentData?.questions?.[currentQuestionIndex],
     assignment: activeAssignmentData,
@@ -1282,8 +1481,8 @@ function App() {
     if (user?.role !== 'student' || !user.classPeriod) return;
     const activeKeys = new Set();
     assignments.forEach((assignment) => {
-      if (!assignmentIsForStudent(assignment, user.classPeriod)) return;
-      const dolState = getDOLState({ assignment, schedule: classSchedule, classPeriod: user.classPeriod, nowValue: now });
+      if (!assignmentIsForStudent(assignment, { classId: user.classId || null, classPeriod: user.classPeriod })) return;
+      const dolState = getDOLState({ assignment, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: now });
       if (dolState.status !== 'active') return;
       const dolRecords = (dolState.questionIndices || [dolState.questionIndex])
         .filter((index) => Number.isInteger(index) && index >= 0)
@@ -1311,8 +1510,8 @@ function App() {
     const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     const updates = {};
     assignments.forEach((assignment) => {
-      if (!assignmentIsForStudent(assignment, user.classPeriod)) return;
-      const dolState = getDOLState({ assignment, schedule: classSchedule, classPeriod: user.classPeriod, nowValue: now });
+      if (!assignmentIsForStudent(assignment, { classId: user.classId || null, classPeriod: user.classPeriod })) return;
+      const dolState = getDOLState({ assignment, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: now });
       const previousStatus = lastDOLStatusRef.current[assignment.id];
       lastDOLStatusRef.current[assignment.id] = dolState.status;
       if (dolState.status !== 'ended') return;
@@ -1434,7 +1633,7 @@ function App() {
     let assignment = assignments.find((item) => item.id === activeAssignmentId);
     if (!assignment) return;
 
-    const dolState = getDOLState({ assignment, schedule: classSchedule, classPeriod: user.classPeriod, nowValue: Date.now() });
+    const dolState = getDOLState({ assignment, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: Date.now() });
     if (!getAssignmentLifecycle(assignment, Date.now()).isClosed && (dolState.questionIndices || [dolState.questionIndex]).includes(newIndex) && dolState.enabled && !['active', 'ended'].includes(dolState.status)) {
       toastInfo('DOL not open yet', 'The DOL section opens during the final minutes of this class period. Keep working until the DOL banner appears.');
       return;
@@ -1487,7 +1686,7 @@ function App() {
       (assignment) => assignment.id === assignmentId,
     );
     if (!assignmentData?.questions) return;
-    if (user?.role === 'student' && !assignmentIsForStudent(assignmentData, user.classPeriod)) {
+    if (user?.role === 'student' && !assignmentIsForStudent(assignmentData, { classId: user.classId || null, classPeriod: user.classPeriod })) {
       toastWarning('Not assigned to your class', 'This assignment is not assigned to your class period.');
       return;
     }
@@ -1774,7 +1973,7 @@ function App() {
       : classworkGradesByAssignment;
 
     let updatedDOLGrades = dolGradesByAssignment;
-    const dolState = getDOLState({ assignment, schedule: classSchedule, classPeriod: user.classPeriod, nowValue: Date.now() });
+    const dolState = getDOLState({ assignment, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: Date.now() });
     if (activeQuestionRole === 'dol' && dolState.status === 'active' && (dolState.questionIndices || [dolState.questionIndex]).includes(currentQuestionIndex)) {
       const date = new Date();
       const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -2111,6 +2310,7 @@ function App() {
         sectionAccessDefaults: { classwork: 'open', practice: 'open', ...(metadata?.sectionAccessDefaults || {}) },
         guidedNotesBySection: { classwork: 'automatic', practice: 'off', ...(metadata?.guidedNotesBySection || {}) },
         assignedClassPeriods: [...(metadata?.assignedClassPeriods || [])],
+        assignedClassIds: [...(metadata?.assignedClassIds || [])],
         warmupEnabled: lessonBundle.activities.some((activity) => activity.role === 'warmup')
           && (metadata?.provided?.warmup ? metadata.warmup.enabled !== false : true),
         warmupMinutesBeforeStart: metadata?.warmup?.minutesBeforeStart ?? 7,
@@ -2191,6 +2391,9 @@ function App() {
       const sourceAssignmentType = teacherReview?.assignmentType || packageMetadata?.assignmentType || 'practice';
       const requestedVariantMode = teacherReview?.variantMode || packageMetadata?.variantMode || 'personalized';
       const variantMode = overrideVariantMode || requestedVariantMode;
+      const assignedClassIds = teacherReview
+        ? [...(teacherReview.assignedClassIds || [])]
+        : [...(packageMetadata?.assignedClassIds || [])];
       const assignedClassPeriods = teacherReview
         ? [...(teacherReview.assignedClassPeriods || [])]
         : [...(packageMetadata?.assignedClassPeriods || CLASS_PERIODS)];
@@ -2200,7 +2403,7 @@ function App() {
       // Two paths from here, decided by one predicate: no classes means Save to
       // Library, which needs a title and nothing else. Selecting a class turns
       // it into Create & Assign, and the due date becomes required.
-      const creationMode = resolveCreationMode({ assignedClassPeriods });
+      const creationMode = resolveCreationMode({ assignedClassIds, assignedClassPeriods });
 
       if (!title) {
         throw new Error('Assignment title is missing. Add a title in the preflight review before publishing.');
@@ -2230,8 +2433,8 @@ function App() {
       const requestedSectionVariantModes = teacherReview?.sectionVariantModes || packageMetadata?.sectionVariantModes || {};
       const sectionVariantModes = Object.fromEntries([...new Set(authoredRoles)].map((role) => [
         role,
-        ['shared', 'personalized'].includes(requestedSectionVariantModes?.[role])
-          ? requestedSectionVariantModes[role]
+        ['shared', 'personalized', 'variant', 'adaptive'].includes(requestedSectionVariantModes?.[role])
+          ? (requestedSectionVariantModes[role] === 'variant' ? 'personalized' : requestedSectionVariantModes[role])
           : variantMode,
       ]));
 
@@ -2326,8 +2529,8 @@ function App() {
         variantMode,
         sectionVariantModes,
         sectionAccess: {
-          classwork: { defaultState: teacherReview?.sectionAccessDefaults?.classwork === 'closed' ? 'closed' : 'open', overridesByClassPeriod: {} },
-          practice: { defaultState: teacherReview?.sectionAccessDefaults?.practice === 'closed' ? 'closed' : 'open', overridesByClassPeriod: {} },
+          classwork: { defaultState: teacherReview?.sectionAccessDefaults?.classwork === 'closed' ? 'closed' : 'open', overridesByClassId: {}, overridesByClassPeriod: {} },
+          practice: { defaultState: teacherReview?.sectionAccessDefaults?.practice === 'closed' ? 'closed' : 'open', overridesByClassId: {}, overridesByClassPeriod: {} },
         },
         guidedNotesBySection: {
           classwork: teacherReview?.guidedNotesBySection?.classwork || 'automatic',
@@ -2341,6 +2544,7 @@ function App() {
           minutesBeforeStart: warmupMinutesBeforeStart,
           instructionDate: warmupInstructionDate,
           instructionDatesByClassPeriod: warmupInstructionDatesByClassPeriod,
+          closedByClassId: {},
           closedByClassPeriod: {},
         },
         dol: {
@@ -2349,6 +2553,7 @@ function App() {
           instructionDate: dolInstructionDate,
           instructionDatesByClassPeriod: teacherReview?.dolInstructionDatesByClassPeriod || packageMetadata?.dol?.instructionDatesByClassPeriod || {},
           questionIndex: dolQuestionIndex,
+          earlyUnlocksByClassId: {},
           earlyUnlocks: {},
         },
         folder,
@@ -2382,7 +2587,24 @@ function App() {
       // Extracted so assigning a library item later runs the same split rather
       // than a second copy of it. A library save returns [] here, which is the
       // correct answer: nobody has been given it, so there is nothing to split.
-      const destinationGroups = buildDestinationGroups({ assignedClassPeriods, courseProfiles });
+      const selectedClassRecords = assignedClassIds.length
+        ? classes.filter((entry) => assignedClassIds.includes(entry.classId) && entry?.status !== 'archived')
+        : [];
+      const destinationGroups = selectedClassRecords.length
+        ? Object.values(selectedClassRecords.reduce((groups, entry) => {
+          const course = entry.course || 'algebra1';
+          const courseLevel = entry.courseLevel || 'standard';
+          const key = `${course}:${courseLevel}`;
+          if (!groups[key]) groups[key] = { course, courseLevel, periods: [], classIds: [] };
+          groups[key].periods.push(entry.period);
+          groups[key].classIds.push(entry.classId);
+          return groups;
+        }, {})).map((group) => ({
+          ...group,
+          periods: [...new Set(group.periods.filter(Boolean))],
+          classIds: [...new Set(group.classIds.filter(Boolean))],
+        }))
+        : buildDestinationGroups({ assignedClassPeriods, courseProfiles }).map((group) => ({ ...group, classIds: [] }));
       const sourceHonorsReport = inspectHonorsRigor(parsedQuestions, { allowNarrowCheckpoint: true });
       const splitVariantGroupId = destinationGroups.length > 1 ? `rigor_${createQuestionId()}` : null;
 
@@ -2405,6 +2627,7 @@ function App() {
         const payload = {
           ...assignmentPayloadBase,
           assignedClassPeriods: destination.periods,
+          assignedClassIds: destination.classIds || [],
           questions: variantQuestions,
           courseProfile: { course: destination.course, courseLevel: destination.courseLevel },
           rigorVariant: destination.courseLevel,
@@ -2575,8 +2798,183 @@ function App() {
     await fetchAssignments();
   };
 
-  const handleViewClassGradebook = (period, student = null) => {
-    setGradebookFilter({ classPeriod: period, assignmentId: null, student });
+  // THE NEEDS-ATTENTION QUEUE.
+  //
+  // Assembled here rather than inside Teacher Home because every input already
+  // lives at this level and none of it should be recomputed per screen. The
+  // engine itself is pure and lives in `platform/teacher/needsAttention.js`, so
+  // what counts as worth interrupting a teacher about is testable and is not
+  // buried in a component.
+  //
+  // Weekly-path completion is read for ONE class at a time — it is a Cloud
+  // Function call per class, and firing five of them to render a landing page
+  // would be a poor trade. So with a class selected the queue includes weekly
+  // completion; with "All classes" selected it covers academic and system
+  // findings across everyone and the panel says the weekly half is missing.
+  // The queue is a statement about the week, not about this second. Keying it
+  // to the start of the day keeps a thirty-second display tick from rebuilding
+  // it — and from making a "3 items" badge flicker while a teacher reads it.
+  // The week the Path grade belongs to, and whether it has finished. Both are
+  // read by the gradebook panel; the second gates Classroom review, because a
+  // student who finishes on Friday should not be graded on Wednesday's work.
+  const weeklyPathWeekKey = useMemo(() => {
+    const record = classesById[activeClass.classId] || null;
+    const config = storedWeeklyGoalForClassContext(weeklyGoalsByClass, {
+      classId: activeClass.classId, classPeriod: record?.period || '',
+    }) || {};
+    return weekKeyFor(now, config.weekStartsOn || 1);
+  }, [classesById, activeClass.classId, weeklyGoalsByClass, Math.floor(now / 3_600_000)]);
+
+  const weeklyPathWeekComplete = useMemo(() => {
+    const record = classesById[activeClass.classId] || null;
+    const config = storedWeeklyGoalForClassContext(weeklyGoalsByClass, {
+      classId: activeClass.classId, classPeriod: record?.period || '',
+    }) || {};
+    return now > dueAtFor(now, {
+      weekStartsOn: config.weekStartsOn || 1,
+      dueDayOfWeek: config.dueDayOfWeek ?? 5,
+    });
+  }, [classesById, activeClass.classId, weeklyGoalsByClass, Math.floor(now / 3_600_000)]);
+
+  const queueDayStart = useMemo(() => new Date(now).setHours(0, 0, 0, 0), [Math.floor(now / 3_600_000)]);
+
+  const needsAttentionQueue = useMemo(() => {
+    const scoped = activeClass.classId ? studentsInActiveClass : allStudents;
+    const weeklyLoaded = Boolean(activeClass.classId) && weeklyPathProgressLoadedFor === activeClass.classId;
+    const weeklyByStudentId = !weeklyLoaded ? {} : Object.fromEntries(buildTeacherWeeklyView(
+      teacherWeeklyRoster.map((student) => ({
+        studentId: student.id,
+        studentName: student.name || student.id,
+        goal: teacherWeeklyGoalsByStudent[student.id] || null,
+        completions: weeklyPathCompletionsByStudent[student.id] || [],
+      })).filter((entry) => entry.goal),
+      { now: queueDayStart },
+    ).map((row) => [row.studentId, row]));
+
+    const classSizes = Object.fromEntries(classes.map((entry) => [
+      entry.classId,
+      studentsInClass({ students: allStudents, classes, classId: entry.classId }).length,
+    ]));
+
+    // How far through the school week we are, so nobody is told on Monday
+    // morning that a student has not finished the week's work. Monday is 0 and
+    // Friday is 1; the weekend reads as a full week gone.
+    const day = new Date(queueDayStart).getDay();
+    const weekFraction = Math.min(1, Math.max(0, ((day + 6) % 7) / 4));
+
+    return buildNeedsAttentionQueue({
+      students: scoped.map((student) => ({ ...student, displayName: formatStudentName(student) })),
+      profilesByStudentId: teacherLearningProfiles,
+      weeklyByStudentId,
+      classSizes,
+      unplaceable: unplaceableStudents({ students: allStudents, classes })
+        .map((student) => ({ ...student, displayName: formatStudentName(student) })),
+      weeklyProgressTruncated: weeklyPathTruncated,
+      classCount: classes.filter((entry) => entry?.status !== 'archived').length,
+      weekFraction,
+    });
+  }, [
+    activeClass.classId, studentsInActiveClass, allStudents, classes,
+    teacherLearningProfiles, teacherWeeklyRoster, teacherWeeklyGoalsByStudent,
+    weeklyPathCompletionsByStudent, weeklyPathTruncated, weeklyPathProgressLoadedFor, queueDayStart,
+  ]);
+
+  const profileDrawerStudent = useMemo(
+    () => allStudents.find((student) => student.id === profileDrawerStudentId) || null,
+    [allStudents, profileDrawerStudentId],
+  );
+
+  // The plan shown in the drawer is the SAME plan the student's own screen is
+  // built from. If the two ever disagree, a teacher is being shown a
+  // recommendation the student never received, which is worse than showing none.
+  const profileDrawerPlan = useMemo(() => {
+    if (!profileDrawerStudent) return null;
+    const context = resolveStudentCourseContext({ student: profileDrawerStudent, classesById, courseProfiles });
+    const studentAssignments = assignments.filter((assignment) => (
+      assignmentIsForStudent(assignment, { classId: profileDrawerStudent.classId || null, classPeriod: profileDrawerStudent.classPeriod })
+    ));
+    const options = buildStudentPathOptions({
+      student: profileDrawerStudent,
+      assignments: studentAssignments,
+      courseId: context.courseId,
+      pacing: storedPacingForClassContext(pacingByClass, {
+        classId: profileDrawerStudent.classId, classPeriod: profileDrawerStudent.classPeriod,
+      }),
+      teacherOverrides: overridesForClassContext(skillOverrides, {
+        classId: profileDrawerStudent.classId, classPeriod: profileDrawerStudent.classPeriod,
+      }),
+    });
+    return buildWeeklyPathPlan({
+      options,
+      courseId: context.courseId,
+      profile: teacherLearningProfiles[profileDrawerStudent.id] || null,
+      sessions: context.courseLevel === 'honors' ? 5 : 4,
+      honors: context.courseLevel === 'honors',
+    });
+  }, [profileDrawerStudent, classesById, courseProfiles, assignments, pacingByClass, skillOverrides, teacherLearningProfiles]);
+
+  // A view that cannot answer anything across five classes gets one chosen for
+  // it rather than being left on an option its own bar does not offer. Weekly
+  // goals and pacing are settings that belong to one class; there is no
+  // meaningful average of them.
+  useEffect(() => {
+    const scope = CLASS_SCOPED_TABS[teacherTab];
+    if (!scope || scope.allowAllClasses !== false || activeClass.classId) return;
+    const first = classes.find((entry) => entry?.status !== 'archived') || null;
+    if (first) setActiveClass({ classId: first.classId, classPeriod: first.period || null });
+  }, [teacherTab, activeClass.classId, classes]);
+
+  // Cmd/Ctrl-K from anywhere in the teacher workspace. Bound at this level
+  // rather than on a screen, because the whole value of the palette is that it
+  // works from wherever the teacher already is.
+  useEffect(() => {
+    if (user?.role !== 'teacher') return undefined;
+    const onKey = (event) => {
+      if ((event.metaKey || event.ctrlKey) && String(event.key).toLowerCase() === 'k') {
+        event.preventDefault();
+        setQuickSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [user?.role]);
+
+  // The Gradebook follows the class bar.
+  //
+  // Guarded on an actual difference rather than on the id alone: navigating
+  // into one student's gradebook sets BOTH the filter (with that student) and
+  // the workspace class, and an unguarded effect would then fire and throw the
+  // student away — sending the teacher back to the class list they just left.
+  useEffect(() => {
+    const desired = activeClass.classId || '';
+    setGradebookFilter((current) => (current.classId === desired ? current : {
+      classId: desired,
+      classPeriod: activeClass.classPeriod || '',
+      // The assignment and the student belonged to the previous class. Carrying
+      // either across would show one class's work under another class's name.
+      assignmentId: null,
+      student: null,
+    }));
+  }, [activeClass.classId, activeClass.classPeriod]);
+
+  const handleViewClassGradebook = (classOrPeriod, student = null) => {
+    const studentClassId = student?.classId || '';
+    const classRecord = classes.find((entry) => entry.classId === studentClassId)
+      || classes.find((entry) => entry.classId === classOrPeriod)
+      || classes.find((entry) => entry.period === classOrPeriod)
+      || null;
+    const resolvedClassId = classRecord?.classId || studentClassId || '';
+    const resolvedPeriod = classRecord?.period || student?.classPeriod || String(classOrPeriod || '');
+    setGradebookFilter({
+      classId: resolvedClassId,
+      classPeriod: resolvedPeriod,
+      assignmentId: null,
+      student,
+    });
+    // Opening a class's gradebook IS choosing that class. Leaving the workspace
+    // context pointed somewhere else would put the class bar and the table it
+    // sits above in open disagreement.
+    if (resolvedClassId) setActiveClass({ classId: resolvedClassId, classPeriod: resolvedPeriod || null });
     setTeacherTab('grades');
   };
 
@@ -2605,9 +3003,27 @@ function App() {
     }
   };
 
-  const handleUnlockDOLForClass = async (assignment, classPeriod) => {
-    if (!assignment?.id || !classPeriod) return;
-    const state = getDOLState({ assignment, schedule: classSchedule, classPeriod, nowValue: Date.now() });
+  const resolveTeacherClassContext = (value) => {
+    const supplied = value && typeof value === 'object' ? value : { classPeriod: value };
+    const requestedClassId = String(supplied?.classId || '').trim();
+    const requestedPeriod = String(supplied?.classPeriod || '').trim();
+    const classRecord = classes.find((entry) => entry.classId === requestedClassId)
+      || (!requestedClassId ? classes.find((entry) => entry.period === requestedPeriod) : null)
+      || null;
+    const classId = requestedClassId || classRecord?.classId || null;
+    const classPeriod = requestedPeriod || classRecord?.period || null;
+    return {
+      classId,
+      classPeriod,
+      label: classRecord?.name || classPeriod || 'this class',
+      key: classId || classPeriod || '',
+    };
+  };
+
+  const handleUnlockDOLForClass = async (assignment, classContext) => {
+    const { classId, classPeriod, label: classLabel, key: classKey } = resolveTeacherClassContext(classContext);
+    if (!assignment?.id || !classPeriod || !classKey) return;
+    const state = getDOLState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue: Date.now() });
     if (!state.enabled) {
       toastWarning('No timed DOL', 'This assignment does not have an enabled DOL section.');
       return;
@@ -2621,44 +3037,41 @@ function App() {
       return;
     }
     if (state.status === 'ended') {
-      toastWarning('DOL window ended', `The DOL window for ${classPeriod} has already ended.`);
+      toastWarning('DOL window ended', `The DOL window for ${classLabel} has already ended.`);
       return;
     }
     if (state.status === 'active') {
-      toastInfo('DOL is already open', `${assignment.title} is already available to ${classPeriod}.`);
+      toastInfo('DOL is already open', `${assignment.title} is already available to ${classLabel}.`);
       return;
     }
 
     const durationMinutes = Math.max(1, Number(assignment?.dol?.minutesBeforeEnd || 10));
     const proceed = await confirmAction({
-      title: `Unlock the DOL early for ${classPeriod}?`,
+      title: `Unlock the DOL early for ${classLabel}?`,
       message: state.status === 'beforeClass'
-        ? `The DOL will open when ${classPeriod} begins and its ${durationMinutes}-minute timer will start then.`
-        : `The DOL will open immediately for ${classPeriod} and its ${durationMinutes}-minute timer will start now. Other class periods stay locked.`,
+        ? `The DOL will open when ${classLabel} begins and its ${durationMinutes}-minute timer will start then.`
+        : `The DOL will open immediately for ${classLabel} and its ${durationMinutes}-minute timer will start now. Other classes stay locked.`,
       confirmLabel: 'Unlock DOL',
     });
     if (!proceed) return;
 
-    const busyKey = `${assignment.id}:${classPeriod}`;
+    const busyKey = `${assignment.id}:${classKey}`;
     setDolUnlockBusyKey(busyKey);
     try {
       const unlockedAt = new Date().toISOString();
-      await updateDoc(doc(db, 'assignments', assignment.id), {
-        dol: {
-          ...(assignment.dol || {}),
-          enabled: true,
-          earlyUnlocks: {
-            ...(assignment.dol?.earlyUnlocks || {}),
-            [classPeriod]: {
-              dateKey: localDateKey(Date.now()),
-              unlockedAt,
-              unlockedBy: user?.email || user?.id || 'teacher',
-            },
-          },
-        },
-        updatedAt: unlockedAt,
-      });
-      toastSuccess('DOL unlocked', `${assignment.title} is released early for ${classPeriod} only. Its timer starts when the unlock takes effect.`);
+      const dol = { ...(assignment.dol || {}), enabled: true };
+      const entry = {
+        dateKey: localDateKey(Date.now()),
+        unlockedAt,
+        unlockedBy: user?.email || user?.id || 'teacher',
+      };
+      if (classId) {
+        dol.earlyUnlocksByClassId = { ...(assignment.dol?.earlyUnlocksByClassId || {}), [classId]: entry };
+      } else {
+        dol.earlyUnlocks = { ...(assignment.dol?.earlyUnlocks || {}), [classPeriod]: entry };
+      }
+      await updateDoc(doc(db, 'assignments', assignment.id), { dol, updatedAt: unlockedAt });
+      toastSuccess('DOL unlocked', `${assignment.title} is released early for ${classLabel} only. Its timer starts when the unlock takes effect.`);
     } catch (error) {
       console.error(error);
       toastError('Could not unlock DOL', error.message);
@@ -2667,9 +3080,10 @@ function App() {
     }
   };
 
-  const handleToggleWarmupForClass = async (assignment, classPeriod) => {
-    if (!assignment?.id || !classPeriod) return;
-    const state = getWarmupState({ assignment, schedule: classSchedule, classPeriod, nowValue: Date.now() });
+  const handleToggleWarmupForClass = async (assignment, classContext) => {
+    const { classId, classPeriod, label: classLabel, key: classKey } = resolveTeacherClassContext(classContext);
+    if (!assignment?.id || !classPeriod || !classKey) return;
+    const state = getWarmupState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue: Date.now() });
     if (!state.enabled) {
       toastWarning('No Warm-Up section', 'This assignment does not have an authored Warm-Up section.');
       return;
@@ -2683,7 +3097,7 @@ function App() {
       return;
     }
     if (state.status === 'waiting') {
-      toastInfo('Warm-Up has not opened yet', `It opens ${state.minutesBeforeStart} minutes before ${classPeriod} begins.`);
+      toastInfo('Warm-Up has not opened yet', `It opens ${state.minutesBeforeStart} minutes before ${classLabel} begins.`);
       return;
     }
     if (state.status === 'ended') {
@@ -2693,38 +3107,36 @@ function App() {
 
     const closing = state.status === 'active';
     const proceed = await confirmAction({
-      title: `${closing ? 'Close' : 'Reopen'} the Warm-Up for ${classPeriod}?`,
+      title: `${closing ? 'Close' : 'Reopen'} the Warm-Up for ${classLabel}?`,
       message: closing
-        ? 'Students in this class will keep their saved work for review, but they will not be able to make new Warm-Up submissions. Other class periods are unaffected.'
+        ? 'Students in this class will keep their saved work for review, but they will not be able to make new Warm-Up submissions. Other classes are unaffected.'
         : 'Students in this class will be able to continue the Warm-Up until you close it again or the class period ends.',
       confirmLabel: closing ? 'Close Warm-Up' : 'Reopen Warm-Up',
     });
     if (!proceed) return;
 
-    const busyKey = `${assignment.id}:${classPeriod}`;
+    const busyKey = `${assignment.id}:${classKey}`;
     setWarmupControlBusyKey(busyKey);
     try {
       const changedAt = new Date().toISOString();
-      const closedByClassPeriod = { ...(assignment.warmup?.closedByClassPeriod || {}) };
-      if (closing) {
-        closedByClassPeriod[classPeriod] = {
-          dateKey: localDateKey(Date.now()),
-          closedAt: changedAt,
-          closedBy: user?.email || user?.id || 'teacher',
-        };
+      const warmup = {
+        ...(assignment.warmup || {}),
+        enabled: true,
+        minutesBeforeStart: Math.max(0, Number(assignment?.warmup?.minutesBeforeStart ?? 7)),
+      };
+      if (classId) {
+        const closedByClassId = { ...(assignment.warmup?.closedByClassId || {}) };
+        if (closing) closedByClassId[classId] = { dateKey: localDateKey(Date.now()), closedAt: changedAt, closedBy: user?.email || user?.id || 'teacher' };
+        else delete closedByClassId[classId];
+        warmup.closedByClassId = closedByClassId;
       } else {
-        delete closedByClassPeriod[classPeriod];
+        const closedByClassPeriod = { ...(assignment.warmup?.closedByClassPeriod || {}) };
+        if (closing) closedByClassPeriod[classPeriod] = { dateKey: localDateKey(Date.now()), closedAt: changedAt, closedBy: user?.email || user?.id || 'teacher' };
+        else delete closedByClassPeriod[classPeriod];
+        warmup.closedByClassPeriod = closedByClassPeriod;
       }
-      await updateDoc(doc(db, 'assignments', assignment.id), {
-        warmup: {
-          ...(assignment.warmup || {}),
-          enabled: true,
-          minutesBeforeStart: Math.max(0, Number(assignment?.warmup?.minutesBeforeStart ?? 7)),
-          closedByClassPeriod,
-        },
-        updatedAt: changedAt,
-      });
-      toastSuccess(closing ? 'Warm-Up closed' : 'Warm-Up reopened', `${assignment.title} · ${classPeriod}`);
+      await updateDoc(doc(db, 'assignments', assignment.id), { warmup, updatedAt: changedAt });
+      toastSuccess(closing ? 'Warm-Up closed' : 'Warm-Up reopened', `${assignment.title} · ${classLabel}`);
     } catch (error) {
       console.error(error);
       toastError(`Could not ${closing ? 'close' : 'reopen'} Warm-Up`, error.message);
@@ -2733,9 +3145,10 @@ function App() {
     }
   };
 
-  const handleToggleSectionAccessForClass = async (assignment, classPeriod, activityRole) => {
-    if (!assignment?.id || !classPeriod || !['classwork', 'practice'].includes(activityRole)) return;
-    const state = getSectionAccessState({ assignment, activityRole, classPeriod, nowValue: Date.now() });
+  const handleToggleSectionAccessForClass = async (assignment, classContext, activityRole) => {
+    const { classId, classPeriod, label: classLabel, key: classKey } = resolveTeacherClassContext(classContext);
+    if (!assignment?.id || !classPeriod || !classKey || !['classwork', 'practice'].includes(activityRole)) return;
+    const state = getSectionAccessState({ assignment, activityRole, classId, classPeriod, nowValue: Date.now() });
     if (!state.enabled) {
       toastWarning('Section not found', `This assignment does not have an authored ${activityRole} section.`);
       return;
@@ -2756,33 +3169,26 @@ function App() {
     const nextState = state.isOpen ? 'closed' : 'open';
     const label = activityRole === 'classwork' ? 'Classwork' : 'Practice';
     const proceed = await confirmAction({
-      title: `${nextState === 'open' ? 'Open' : 'Close'} ${label} for ${classPeriod}?`,
+      title: `${nextState === 'open' ? 'Open' : 'Close'} ${label} for ${classLabel}?`,
       message: nextState === 'open'
-        ? `Students in ${classPeriod} will be able to work in the ${label} section. Other class periods are unaffected.`
-        : `Students in ${classPeriod} will keep saved ${label} work for review, but new graded responses in that section will be locked until you reopen it. Other class periods are unaffected.`,
+        ? `Students in ${classLabel} will be able to work in the ${label} section. Other classes are unaffected.`
+        : `Students in ${classLabel} will keep saved ${label} work for review, but new graded responses in that section will be locked until you reopen it. Other classes are unaffected.`,
       confirmLabel: `${nextState === 'open' ? 'Open' : 'Close'} ${label}`,
     });
     if (!proceed) return;
 
-    const busyKey = `${assignment.id}:${classPeriod}:${activityRole}`;
+    const busyKey = `${assignment.id}:${classKey}:${activityRole}`;
     setSectionAccessBusyKey(busyKey);
     try {
       const changedAt = new Date().toISOString();
       const sectionAccess = { ...(assignment.sectionAccess || {}) };
       const config = { ...(sectionAccess[activityRole] || {}) };
-      const overridesByClassPeriod = { ...(config.overridesByClassPeriod || {}) };
-      overridesByClassPeriod[classPeriod] = {
-        state: nextState,
-        changedAt,
-        changedBy: user?.email || user?.id || 'teacher',
-      };
-      sectionAccess[activityRole] = {
-        ...config,
-        defaultState: config.defaultState === 'closed' ? 'closed' : 'open',
-        overridesByClassPeriod,
-      };
+      const entry = { state: nextState, changedAt, changedBy: user?.email || user?.id || 'teacher' };
+      if (classId) config.overridesByClassId = { ...(config.overridesByClassId || {}), [classId]: entry };
+      else config.overridesByClassPeriod = { ...(config.overridesByClassPeriod || {}), [classPeriod]: entry };
+      sectionAccess[activityRole] = { ...config, defaultState: config.defaultState === 'closed' ? 'closed' : 'open' };
       await updateDoc(doc(db, 'assignments', assignment.id), { sectionAccess, updatedAt: changedAt });
-      toastSuccess(`${label} ${nextState}`, `${assignment.title} · ${classPeriod}`);
+      toastSuccess(`${label} ${nextState}`, `${assignment.title} · ${classLabel}`);
     } catch (error) {
       console.error(error);
       toastError(`Could not ${nextState === 'open' ? 'open' : 'close'} ${label}`, error.message);
@@ -2791,17 +3197,64 @@ function App() {
     }
   };
 
-  const handleGoToClassFromHome = (period) => {
-    setHomeNavigationPeriod(period);
+  // Students in the class the teacher is working in.
+  //
+  // Membership follows `classId`. A student whose record predates the class
+  // migration has no classId at all, so they are matched on the period the
+  // class publishes — which is a compatibility path, not the rule, and it is
+  // why an unmigrated student can still appear in exactly one roster.
+  const studentsInActiveClass = useMemo(() => studentsInClass({
+    students: allStudents,
+    classes,
+    classId: activeClass.classId,
+    // Only when a class is actually selected. With no class chosen the roster is
+    // every student, and passing a stale period here would silently filter it.
+    classPeriod: activeClass.classId ? activeClass.classPeriod : null,
+  }), [allStudents, classes, activeClass.classId, activeClass.classPeriod]);
+
+  const handleLoadDeliveredRigor = async (studentIds = []) => {
+    const ids = (Array.isArray(studentIds) ? studentIds : []).filter(Boolean);
+    if (!ids.length || classEvidenceLoading) return;
+    setClassEvidenceLoading(true);
+    try {
+      // Settled, not all: one student with an unreadable history must not cost
+      // the teacher the answer for the other twenty-nine.
+      const results = await Promise.allSettled(ids.map((id) => fetchStudentEvidenceEvents(id)));
+      setClassEvidenceByStudentId(Object.fromEntries(results.map((result, index) => [
+        ids[index],
+        result.status === 'fulfilled' ? result.value : [],
+      ])));
+    } finally {
+      setClassEvidenceLoading(false);
+    }
+  };
+
+  // A class change invalidates the loaded evidence. Showing one class's
+  // delivered rigor under another class's name is worse than showing none.
+  useEffect(() => {
+    setClassEvidenceByStudentId({});
+  }, [activeClass.classId]);
+
+  const handleGoToClassFromHome = (classContext) => {
+    const supplied = classContext && typeof classContext === 'object' ? classContext : { classPeriod: classContext };
+    const classPeriod = supplied.classPeriod || null;
+    const requestedClassId = supplied.classId || null;
+    const matches = (classesRef.current || []).filter((entry) => entry?.status !== 'archived' && entry?.period === classPeriod);
+    const resolvedClassId = requestedClassId || (matches.length === 1 ? matches[0].classId : null);
+    setActiveClass({ classId: resolvedClassId, classPeriod });
+    setHomeNavigationPeriod(classPeriod);
     setTeacherTab('classesWorkspace');
   };
 
-  const handleChangeClassPeriod = async (studentId, newPeriod) => {
+  const handleChangeClassPeriod = async (studentId, newClassId) => {
     try {
-      await updateDoc(doc(db, 'grades', studentId), { classPeriod: newPeriod });
+      // Class membership is a server-owned relationship. Updating only the
+      // legacy period field can leave classId/teacher authorization disagreeing.
+      await teacherAdmin.setStudentClass({ studentId, classId: newClassId || null });
       await fetchStudents();
     } catch (error) {
       console.error(error);
+      toastError('Could not change class', error?.message || 'Class membership could not be updated.');
     }
   };
 
@@ -2988,13 +3441,29 @@ function App() {
       const offset = date.getTimezoneOffset() * 60000;
       return new Date(date.getTime() - offset).toISOString().slice(0, 16);
     };
+    const existingPeriods = Array.isArray(assignment.assignedClassPeriods) ? assignment.assignedClassPeriods : [...CLASS_PERIODS];
+    const explicitIds = Array.isArray(assignment.assignedClassIds) ? assignment.assignedClassIds.filter(Boolean) : [];
+    // A legacy period audience may be ambiguous when two real classes share the
+    // same bell period. Only infer a modern classId when every selected legacy
+    // period maps to exactly one active class; otherwise preserve the legacy
+    // audience until the teacher explicitly chooses a class.
+    const matchesByPeriod = Object.fromEntries(existingPeriods.map((period) => [
+      period,
+      classes.filter((entry) => entry?.status !== 'archived' && entry.period === period),
+    ]));
+    const canSafelyInferIds = existingPeriods.length > 0
+      && existingPeriods.every((period) => (matchesByPeriod[period] || []).length === 1);
+    const existingIds = explicitIds.length
+      ? explicitIds
+      : (canSafelyInferIds ? existingPeriods.map((period) => matchesByPeriod[period][0].classId) : []);
     setEditingAssignmentId(assignment.id);
     setEditingAssignmentDates({
       dueAt: toLocalInput(assignment.dueAt || assignment.dueDate),
       lateDueAt: toLocalInput(assignment.lateDueAt || assignment.lateDueDate || assignment.dueAt || assignment.dueDate),
       dolInstructionDate: assignment.dol?.instructionDate
         || (assignment.releaseAt ? toLocalInput(assignment.releaseAt).slice(0, 10) : localDateKey(Date.now())),
-      assignedClassPeriods: Array.isArray(assignment.assignedClassPeriods) ? assignment.assignedClassPeriods : [...CLASS_PERIODS],
+      assignedClassPeriods: existingPeriods,
+      assignedClassIds: existingIds,
     });
   };
 
@@ -3009,11 +3478,19 @@ function App() {
     const hasDOL = Boolean(assignment?.dol?.enabled || assignment?.questions?.some((question) => (
       resolveQuestionActivityRole({ question, assignment }) === 'dol'
     )));
+    const editedClassIds = Array.isArray(editingAssignmentDates.assignedClassIds) ? editingAssignmentDates.assignedClassIds : [];
+    const editedClassRecords = editedClassIds.length
+      ? classes.filter((entry) => editedClassIds.includes(entry.classId) && entry?.status !== 'archived')
+      : [];
+    const editedPeriods = editedClassRecords.length
+      ? [...new Set(editedClassRecords.map((entry) => entry.period).filter(Boolean))]
+      : (editingAssignmentDates.assignedClassPeriods || []);
     const patch = {
       dueAt: dueAt.toISOString(),
       dueDate: dueAt.toISOString(),
       lateDueAt: lateDueAt.toISOString(),
-      assignedClassPeriods: editingAssignmentDates.assignedClassPeriods || [],
+      assignedClassIds: editedClassIds,
+      assignedClassPeriods: editedPeriods,
     };
     if (hasDOL) {
       patch.dol = {
@@ -3029,10 +3506,8 @@ function App() {
       ...patch,
       dol: patch.dol || assignment?.dol,
     };
-    const wasAssigned = Array.isArray(assignment?.assignedClassPeriods)
-      && assignment.assignedClassPeriods.length > 0;
-    const isNowAssigned = Array.isArray(nextAssignment.assignedClassPeriods)
-      && nextAssignment.assignedClassPeriods.length > 0;
+    const wasAssigned = !isLibraryAssignment(assignment);
+    const isNowAssigned = !isLibraryAssignment(nextAssignment);
 
     // Assigning a previously-library-only V5 package should post it to the
     // mapped Classroom automatically. Existing Classroom posts only need their
@@ -3729,14 +4204,15 @@ function App() {
         : recordedTracker;
     const recordedGrade = calculateGrade(recordedTracker, assignment);
     const progress = calculatePracticeProgress(workingTracker, assignment);
-    const dolState = getDOLState({ assignment, schedule: classSchedule, classPeriod: user?.classPeriod, nowValue: now });
-    const warmupState = getWarmupState({ assignment, schedule: classSchedule, classPeriod: user?.classPeriod, nowValue: now });
+    const dolState = getDOLState({ assignment, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now });
+    const warmupState = getWarmupState({ assignment, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now });
     const currentRecord = normalizeQuestionRecord(workingTracker?.[currentQuestionIndex]);
     const currentIsDOL = !lifecycle.isPracticeOnly && activeQuestionRole === 'dol' && dolState.enabled && (dolState.questionIndices || [dolState.questionIndex]).includes(currentQuestionIndex);
     const currentIsWarmup = !lifecycle.isPracticeOnly && activeQuestionRole === 'warmup' && warmupState.enabled;
     const currentManualSectionState = getSectionAccessState({
       assignment,
       activityRole: activeQuestionRole,
+      classId: user?.classId || null,
       classPeriod: user?.classPeriod,
       nowValue: now,
     });
@@ -3848,6 +4324,7 @@ function App() {
       const manualState = getSectionAccessState({
         assignment,
         activityRole: entry?.role,
+        classId: user?.classId || null,
         classPeriod: user?.classPeriod,
         nowValue: now,
       });
@@ -4106,7 +4583,7 @@ function App() {
                         : storedCardState;
                       const dolUnavailable = isTimedDOLQuestion && !preview && !lifecycle.isClosed && !['active', 'ended'].includes(dolState.status);
                       const warmupUnavailable = cardRole === 'warmup' && warmupState.enabled && !preview && !lifecycle.isPracticeOnly && !warmupCanBeViewed;
-                      const manualSectionState = getSectionAccessState({ assignment, activityRole: cardRole, classPeriod: user?.classPeriod, nowValue: now });
+                      const manualSectionState = getSectionAccessState({ assignment, activityRole: cardRole, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now });
                       const manualSectionUnavailable = !preview && !lifecycle.isPracticeOnly && manualSectionState.enabled && !manualSectionState.isOpen;
                       const sectionUnavailable = dolUnavailable || warmupUnavailable || manualSectionUnavailable;
                       const lockedLabel = warmupUnavailable
@@ -4229,15 +4706,25 @@ function App() {
     const rootAdminUiEligible = user.isRootAdmin === true
       || isRootAdminEmail(user.email);
     const selectedAssignment = assignments.find((assignment) => assignment.id === gradebookFilter.assignmentId) || null;
-    const selectedClassStudents = allStudents.filter((student) => (student.classPeriod || 'Unassigned') === gradebookFilter.classPeriod).sort(compareStudentsByName);
-    const assignmentsForSelectedClass = assignments.filter((assignment) => !gradebookFilter.classPeriod || assignmentIsForStudent(assignment, gradebookFilter.classPeriod));
+    const gradebookRigor = rigorComparability({
+      evidenceByStudentId: classEvidenceByStudentId,
+      assignmentId: selectedAssignment?.id || null,
+    });
+    const selectedGradebookClass = classes.find((entry) => entry.classId === gradebookFilter.classId) || null;
+    const selectedGradebookPeriod = selectedGradebookClass?.period || gradebookFilter.classPeriod || '';
+    const selectedClassStudents = allStudents.filter((student) => (
+      gradebookFilter.classId
+        ? student.classId === gradebookFilter.classId || (!student.classId && selectedGradebookPeriod && student.classPeriod === selectedGradebookPeriod)
+        : (student.classPeriod || 'Unassigned') === selectedGradebookPeriod
+    )).sort(compareStudentsByName);
+    const assignmentsForSelectedClass = assignments.filter((assignment) => !selectedGradebookPeriod || assignmentIsForStudent(assignment, { classId: gradebookFilter.classId || null, classPeriod: selectedGradebookPeriod }));
 
     // The Assignments tab list, after the Library folder/smart-view filter and
     // the free-text search. Computed once so the header count, the
     // select-all-visible checkbox and the rendered cards can never disagree.
     const visibleAssignments = assignments.filter((assignment) => (
       assignmentFolderMatches(assignment, libraryNavigation?.folder)
-      && matchesSmartView(assignment, libraryNavigation?.smartView, { nowValue: now, classSchedule })
+      && matchesSmartView(assignment, libraryNavigation?.smartView, { nowValue: now, classSchedule, classes })
       && titleOrFolderMatches(assignment, assignmentSearch)
     ));
     const visibleAssignmentIds = visibleAssignments.map((assignment) => assignment.id);
@@ -4306,6 +4793,7 @@ function App() {
             lessonBundle={assignmentPreflight.lessonBundle}
             initialDraft={assignmentPreflight.initialDraft}
             classPeriods={CLASS_PERIODS}
+            classes={classes}
             courseProfiles={courseProfiles}
             sourceLabel={assignmentPreflight.sourceLabel}
             sourceQuestions={assignmentPreflight.questions}
@@ -4326,12 +4814,81 @@ function App() {
             onClose={() => setQuestionEditorAssignment(null)}
           />
         )}
+        {/*
+          ONE drawer for the whole teacher workspace. Every student name on
+          every screen opens this same component with the same profile, so the
+          answer a teacher gets never depends on which name they clicked.
+        */}
+        <TeacherQuickSearch
+          open={quickSearchOpen}
+          students={allStudents.map((student) => ({ ...student, displayName: formatStudentName(student) }))}
+          classes={classes}
+          assignments={assignments}
+          standards={searchableStandards}
+          onClose={() => setQuickSearchOpen(false)}
+          onSelect={(result) => {
+            if (result.kind === 'student') { setProfileDrawerStudentId(result.payload.studentId); return; }
+            if (result.kind === 'class') {
+              setActiveClass({ classId: result.payload.classId, classPeriod: result.payload.classPeriod });
+              setTeacherTab('classesWorkspace');
+              return;
+            }
+            if (result.kind === 'assignment') {
+              setGradebookFilter((current) => ({ ...current, assignmentId: result.payload.assignmentId, student: null }));
+              setTeacherTab('grades');
+              return;
+            }
+            if (result.kind === 'standard') setTeacherTab('standards');
+          }}
+        />
+
+        <ClassroomSyncReview
+          proposal={classroomSyncProposal}
+          onClose={() => setClassroomSyncProposal(null)}
+        />
+
+        <StudentProfileDrawer
+          open={Boolean(profileDrawerStudent)}
+          studentId={profileDrawerStudent?.id || null}
+          studentName={profileDrawerStudent ? formatStudentName(profileDrawerStudent) : ''}
+          profile={profileDrawerStudent ? teacherLearningProfiles[profileDrawerStudent.id] : null}
+          plan={profileDrawerPlan}
+          classRecord={profileDrawerStudent ? classesById[profileDrawerStudent.classId] || null : null}
+          courseContext={profileDrawerStudent
+            ? resolveStudentCourseContext({ student: profileDrawerStudent, classesById, courseProfiles })
+            : null}
+          onClose={() => setProfileDrawerStudentId(null)}
+          onOpenFullRecord={(studentId) => {
+            setProfileDrawerStudentId(null);
+            setTeacherTab('students');
+            setPathLaunchTeks(null);
+            setGradebookFilter((current) => ({ ...current, student: studentId }));
+          }}
+          onOpenGradebook={(studentId) => {
+            const student = allStudents.find((entry) => entry.id === studentId) || null;
+            setProfileDrawerStudentId(null);
+            if (student) handleViewClassGradebook(student.classId || student.classPeriod || '', student);
+          }}
+        />
+
         <div className="mm-dashboard-shell" style={{ maxWidth: '1360px', margin: '0 auto', background: '#fff', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'stretch' }}>
           <TeacherSidebar
             activeTab={teacherTab}
             onSelectTab={(tab) => {
               setTeacherTab(tab);
-              setGradebookFilter({ classPeriod: '', assignmentId: null, student: null });
+              // The Gradebook inherits the workspace class rather than starting
+              // blank. Clearing it here was the last place a tab change threw
+              // away the teacher's context and made them choose again.
+              setGradebookFilter({
+                classId: activeClass.classId || '',
+                classPeriod: activeClass.classPeriod || '',
+                assignmentId: null,
+                student: null,
+              });
+              // `homeNavigationPeriod` is a one-shot hand-off from Teacher Home
+              // and is right to clear. `activeClass` is deliberately NOT cleared:
+              // it is the class the teacher is working in, and it has to survive
+              // the walk to another tab and back.
               setHomeNavigationPeriod(null);
               if (['students', 'grades', 'standards', 'analytics', 'exams'].includes(tab)) fetchStudents().catch((error) => console.error('Could not refresh student data:', error));
             }}
@@ -4345,18 +4902,55 @@ function App() {
               <p style={{ margin: '5px 0 0', color: '#5f6368' }}>Assignments, eight class periods, DOL schedules, inclusion supports, and evidence reports</p>
             </div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {/*
+                The shortcut is the point, but a shortcut nobody knows about is
+                a feature that does not exist. The button carries its own key
+                hint so the palette is discoverable without a tour.
+              */}
+              <button
+                type="button"
+                onClick={() => setQuickSearchOpen(true)}
+                title="Find a student, class, assignment or TEKS code"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 13px', background: '#fff', color: '#3c4043', border: '1px solid #dadce0', borderRadius: 8, cursor: 'pointer', fontWeight: 700 }}
+              >
+                <span aria-hidden="true">🔍</span>
+                <span>Find…</span>
+                <kbd style={{ padding: '1px 5px', border: '1px solid #dadce0', borderRadius: 4, background: '#f8f9fa', color: '#5f6368', fontSize: 11, fontFamily: 'inherit' }}>⌘K</kbd>
+              </button>
               {rootAdminUiEligible && <div role="group" aria-label="Root administrator workspace" style={{ display: 'inline-flex', padding: 3, borderRadius: 9, background: '#f1f3f4', border: '1px solid #dadce0' }}><button type="button" aria-pressed="true" style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: '#fff', color: '#174ea6', fontWeight: 900 }}>Teacher View</button><button type="button" aria-pressed="false" onClick={() => setTeacherWorkspaceMode('administration')} style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: 'transparent', color: '#3c4043', cursor: 'pointer', fontWeight: 900 }}>Administration</button></div>}
               <button onClick={handleLogout} style={{ padding: '8px 16px', background: '#fff', color: '#d93025', border: '1px solid #d93025', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Log Out</button>
             </div>
           </header>
 
           <div className="mm-dashboard-content" style={{ padding: '30px' }}>
+            {/*
+              CLASS FIRST, THEN FEATURE.
+              The bar states one piece of application state that every
+              class-scoped view below reads. It is shown only on the tabs where
+              a class actually scopes what is on screen — putting it above the
+              Math Tools Lab or Student Access would imply a scoping that does
+              not exist there, which is worse than not showing it at all.
+            */}
+            {CLASS_SCOPED_TABS[teacherTab] && (
+              <div style={{ marginBottom: 20 }}>
+                <ClassContextBar
+                  classes={classes}
+                  students={allStudents}
+                  activeClassId={activeClass.classId}
+                  onSelectClass={setActiveClass}
+                  scopeLabel={CLASS_SCOPED_TABS[teacherTab].scopeLabel}
+                  allowAllClasses={CLASS_SCOPED_TABS[teacherTab].allowAllClasses !== false}
+                />
+              </div>
+            )}
+
             {teacherTab === 'demo' && <DemoExperience />}
 
             {teacherTab === 'liveChallenge' && (
               <Suspense fallback={<div style={{ padding: 28 }}>Loading Live Challenge…</div>}>
                 <LiveChallengeTeacher
                   allStudents={allStudents}
+                  classes={classes}
                   courseProfiles={courseProfiles}
                   signedInEmail={user.email}
                 />
@@ -4366,17 +4960,20 @@ function App() {
             {teacherTab === 'weeklyPath' && (
               <WeeklyPathControls
                 classes={classes}
-                selectedClassId={weeklyGoalClassId || classes[0]?.classId || null}
+                selectedClassId={activeClass.classId || classes[0]?.classId || null}
                 goalsByClass={weeklyGoalsByClass}
                 // The roster's own profiles, reused rather than rebuilt: the
                 // badge in this table and the badge on the Students screen have
                 // to be the same badge from the same evidence, or a teacher is
                 // being shown two opinions about one child.
                 studentsInClass={teacherWeeklyRoster}
+                goalsByStudentId={teacherWeeklyGoalsByStudent}
+                completionsByStudentId={weeklyPathCompletionsByStudent}
                 learningProfilesByStudentId={teacherLearningProfiles}
-                onSelectClass={setWeeklyGoalClassId}
+                progressLoading={weeklyPathProgressLoading}
+                progressTruncated={weeklyPathTruncated}
                 onChange={handleSaveWeeklyGoal}
-                onOpenStudent={(studentId) => { setTeacherTab('students'); setPathLaunchTeks(null); setGradebookFilter({ classPeriod: '', assignmentId: null, student: studentId }); }}
+                onOpenStudent={setProfileDrawerStudentId}
                 saving={weeklyGoalBusy}
                 now={now}
               />
@@ -4392,6 +4989,7 @@ function App() {
                 onSavePacing={handleSavePacing}
                 onSaveOverrides={handleSaveOverrides}
                 busy={pacingBusy}
+                activeClassId={activeClass.classId}
               />
             )}
 
@@ -4419,6 +5017,7 @@ function App() {
                 onNavigateToAssignments={(navigation) => { setLibraryNavigation(navigation); setTeacherTab('assignments'); }}
                 nowValue={now}
                 classSchedule={classSchedule}
+                classes={classes}
               />
             )}
             {teacherTab === 'assignments' && (
@@ -4565,7 +5164,32 @@ function App() {
                           <label style={{ fontWeight: 'bold' }}>Regular due <input type="datetime-local" value={editingAssignmentDates.dueAt} onChange={(event) => setEditingAssignmentDates((current) => ({ ...current, dueAt: event.target.value }))} style={{ display: 'block', padding: '8px', marginTop: '5px' }} /></label>
                           <label style={{ fontWeight: 'bold' }}>Final late due <input type="datetime-local" value={editingAssignmentDates.lateDueAt} onChange={(event) => setEditingAssignmentDates((current) => ({ ...current, lateDueAt: event.target.value }))} style={{ display: 'block', padding: '8px', marginTop: '5px' }} /></label>
                           {hasDOL && <label style={{ fontWeight: 'bold' }}>DOL instructional date <input type="date" value={editingAssignmentDates.dolInstructionDate || ''} onChange={(event) => setEditingAssignmentDates((current) => ({ ...current, dolInstructionDate: event.target.value }))} style={{ display: 'block', padding: '8px', marginTop: '5px' }} /></label>}
-                          <div style={{ flex: '1 1 100%', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>{CLASS_PERIODS.map((period) => <label key={period} style={{ padding: '5px 8px', borderRadius: '999px', background: editingAssignmentDates.assignedClassPeriods?.includes(period) ? '#e8f0fe' : '#fff', border: '1px solid #c5d5ef', fontWeight: 'bold', fontSize: '12px' }}><input type="checkbox" checked={editingAssignmentDates.assignedClassPeriods?.includes(period)} onChange={() => setEditingAssignmentDates((current) => ({ ...current, assignedClassPeriods: current.assignedClassPeriods?.includes(period) ? current.assignedClassPeriods.filter((item) => item !== period) : [...(current.assignedClassPeriods || []), period] }))} /> {period}</label>)}</div>
+                          <div style={{ flex: '1 1 100%', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            {(classes.filter((entry) => entry?.status !== 'archived').length
+                              ? classes.filter((entry) => entry?.status !== 'archived')
+                              : CLASS_PERIODS.map((period) => ({ classId: null, name: period, period }))).map((classRecord) => {
+                              const selected = classRecord.classId
+                                ? editingAssignmentDates.assignedClassIds?.includes(classRecord.classId)
+                                : editingAssignmentDates.assignedClassPeriods?.includes(classRecord.period);
+                              return (
+                                <label key={classRecord.classId || classRecord.period} style={{ padding: '5px 8px', borderRadius: '999px', background: selected ? '#e8f0fe' : '#fff', border: '1px solid #c5d5ef', fontWeight: 'bold', fontSize: '12px' }}>
+                                  <input type="checkbox" checked={Boolean(selected)} onChange={() => setEditingAssignmentDates((current) => {
+                                    if (classRecord.classId) {
+                                      const ids = current.assignedClassIds?.includes(classRecord.classId)
+                                        ? current.assignedClassIds.filter((item) => item !== classRecord.classId)
+                                        : [...(current.assignedClassIds || []), classRecord.classId];
+                                      const periods = [...new Set(classes.filter((entry) => ids.includes(entry.classId)).map((entry) => entry.period).filter(Boolean))];
+                                      return { ...current, assignedClassIds: ids, assignedClassPeriods: periods };
+                                    }
+                                    const periods = current.assignedClassPeriods?.includes(classRecord.period)
+                                      ? current.assignedClassPeriods.filter((item) => item !== classRecord.period)
+                                      : [...(current.assignedClassPeriods || []), classRecord.period];
+                                    return { ...current, assignedClassPeriods: periods };
+                                  })} /> {classRecord.name || classRecord.period}{classRecord.name && classRecord.name !== classRecord.period ? ` · ${classRecord.period}` : ''}
+                                </label>
+                              );
+                            })}
+                          </div>
                           <button onClick={() => handleSaveAssignmentDates(assignment.id)} style={{ padding: '10px 15px', background: '#188038', color: '#fff', border: 0, borderRadius: '7px', fontWeight: 'bold' }}>Save Dates</button>
                           <button onClick={() => setEditingAssignmentId(null)} style={{ padding: '10px 15px', background: '#fff', border: '1px solid #c9ced6', borderRadius: '7px', fontWeight: 'bold' }}>Cancel</button>
                         </div>
@@ -4578,7 +5202,10 @@ function App() {
 
             {teacherTab === 'students' && (
               <StudentsRoster
-                students={allStudents}
+                // The roster inherits the workspace class instead of carrying
+                // its own filter. "All classes" is still available from the bar
+                // above, so nothing a teacher could see before is unreachable.
+                students={activeClass.classId ? studentsInActiveClass : allStudents}
                 classes={classes}
                 classPeriods={CLASS_PERIODS}
                 courseProfiles={courseProfiles}
@@ -4593,6 +5220,7 @@ function App() {
                 onGenerateIEPReport={openIEPReport}
                 isRootAdmin={rootAdminUiEligible}
                 onOpenAdministration={() => setTeacherWorkspaceMode('administration')}
+                onOpenProfileDrawer={setProfileDrawerStudentId}
               />
             )}
 
@@ -4604,21 +5232,29 @@ function App() {
                 nowValue={now}
                 presenceById={presenceById}
                 onSelectPeriod={handleGoToClassFromHome}
+                needsAttention={needsAttentionQueue}
+                needsAttentionCompletionCoverage={Boolean(activeClass.classId) && weeklyPathProgressLoadedFor === activeClass.classId}
+                learningProfilesByStudentId={teacherLearningProfiles}
+                activeClassId={activeClass.classId}
+                classes={classes}
+                onOpenWeeklyPath={() => setTeacherTab('weeklyPath')}
+                onOpenAdministration={() => setTeacherWorkspaceMode('administration')}
                 onUnlockDOL={handleUnlockDOLForClass}
                 dolUnlockBusyKey={dolUnlockBusyKey}
                 onToggleWarmup={handleToggleWarmupForClass}
                 warmupControlBusyKey={warmupControlBusyKey}
                 onToggleSectionAccess={handleToggleSectionAccessForClass}
                 sectionAccessBusyKey={sectionAccessBusyKey}
-                onOpenStudent={(studentId) => {
-                  const student = allStudents.find((entry) => entry.id === studentId);
-                  if (student) handleViewClassGradebook(student.classPeriod || '', student);
-                }}
+                // Opening a name is a question, not a navigation. It used to
+                // throw the teacher into the Gradebook, losing whatever they
+                // were doing on Home.
+                onOpenStudent={setProfileDrawerStudentId}
               />
             )}
 
             {teacherTab === 'classesWorkspace' && (
               <ClassesWorkspace
+                classes={classes}
                 allStudents={allStudents}
                 assignments={assignments}
                 classSchedule={classSchedule}
@@ -4632,6 +5268,15 @@ function App() {
                 onToggleSectionAccess={handleToggleSectionAccessForClass}
                 sectionAccessBusyKey={sectionAccessBusyKey}
                 initialPeriod={homeNavigationPeriod}
+                initialClassId={activeClass.classId}
+                onSelectClass={setActiveClass}
+                learningProfilesByStudentId={teacherLearningProfiles}
+                masteryProfilesByStudentId={teacherMasteryProfilesByStudentId}
+                needsAttentionCount={needsAttentionQueue.length}
+                onOpenStudent={setProfileDrawerStudentId}
+                evidenceByStudentId={classEvidenceByStudentId}
+                onLoadDeliveredRigor={handleLoadDeliveredRigor}
+                rigorLoading={classEvidenceLoading}
               />
             )}
 
@@ -4652,9 +5297,49 @@ function App() {
             {teacherTab === 'grades' && (
               <div>
                 <h2 style={{ marginTop: 0 }}>Gradebook and Evidence</h2>
+
+                {/*
+                  The weekly Path grade lives in the gradebook because it IS a
+                  grade — but it is a grade about a different thing from the
+                  assignment scores below it, so it gets its own panel rather
+                  than a column that would read as the same kind of number.
+                */}
+                {activeClass.classId && (
+                  <WeeklyPathGradePanel
+                    students={teacherWeeklyRoster}
+                    goalsByStudentId={teacherWeeklyGoalsByStudent}
+                    completionsByStudentId={weeklyPathCompletionsByStudent}
+                    learningProfilesByStudentId={teacherLearningProfiles}
+                    weekKey={weeklyPathWeekKey}
+                    classId={activeClass.classId}
+                    classroomLinked={Boolean(classesById[activeClass.classId]?.classroomCourseId)}
+                    progressTruncated={weeklyPathTruncated}
+                    weekComplete={weeklyPathWeekComplete}
+                    onOpenStudent={setProfileDrawerStudentId}
+                    onReviewClassroomSync={(proposal) => setClassroomSyncProposal(proposal)}
+                    now={now}
+                  />
+                )}
                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '20px', padding: '15px', borderRadius: '9px', background: '#f1f3f4' }}>
-                  <select value={gradebookFilter.classPeriod} onChange={(event) => setGradebookFilter({ classPeriod: event.target.value, assignmentId: null, student: null })} style={{ padding: '9px', minWidth: '180px' }}><option value="">Select class period</option>{CLASS_PERIODS.map((period) => <option key={period} value={period}>{period}</option>)}</select>
-                  <select value={gradebookFilter.assignmentId || ''} disabled={!gradebookFilter.classPeriod} onChange={(event) => setGradebookFilter((current) => ({ ...current, assignmentId: event.target.value || null, student: null }))} style={{ padding: '9px', minWidth: '280px' }}><option value="">Select assignment</option>{assignmentsForSelectedClass.map((assignment) => <option key={assignment.id} value={assignment.id}>{assignment.title}</option>)}</select>
+                  {/*
+                    The class dropdown that stood here is gone; the class bar
+                    above the page owns that choice now. The legacy period
+                    picker survives only for a school with no class records at
+                    all, which has no classes for the bar to offer.
+                  */}
+                  {!classes.length && (
+                    <select
+                      value={gradebookFilter.classPeriod}
+                      onChange={(event) => setGradebookFilter({
+                        classId: '', classPeriod: event.target.value, assignmentId: null, student: null,
+                      })}
+                      style={{ padding: '9px', minWidth: '220px' }}
+                    >
+                      <option value="">Select class period</option>
+                      {CLASS_PERIODS.map((period) => <option key={period} value={period}>{period}</option>)}
+                    </select>
+                  )}
+                  <select value={gradebookFilter.assignmentId || ''} disabled={!selectedGradebookPeriod} onChange={(event) => setGradebookFilter((current) => ({ ...current, assignmentId: event.target.value || null, student: null }))} style={{ padding: '9px', minWidth: '280px' }}><option value="">Select assignment</option>{assignmentsForSelectedClass.map((assignment) => <option key={assignment.id} value={assignment.id}>{assignment.title}</option>)}</select>
                   {gradebookFilter.student && <button onClick={() => setGradebookFilter((current) => ({ ...current, student: null }))} style={{ padding: '9px 14px' }}>Back to class list</button>}
                 </div>
 
@@ -4672,20 +5357,87 @@ function App() {
                   </section>
                 )}
 
-                {gradebookFilter.classPeriod && selectedAssignment && !gradebookFilter.student && (
-                  <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}><thead><tr style={{ background: '#f8f9fa' }}><th style={{ padding: '12px' }}>Student</th><th>Score</th><th>Instructional condition</th><th>Activity</th><th>DOL / Classwork</th><th></th></tr></thead><tbody>{selectedClassStudents.map((student) => { const grades = student.gradesByAssignment?.[selectedAssignment.id]; const score = grades ? calculateGrade(grades, selectedAssignment) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const modified = Boolean(usage.modified || usage.modifications?.length); const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; const dolEntries = Object.entries(student.dolGradesByAssignment?.[selectedAssignment.id] || {}).sort(([a], [b]) => a.localeCompare(b)); const latestDol = dolEntries.at(-1)?.[1]; const classwork = student.classworkGradesByAssignment?.[selectedAssignment.id]; return <tr key={student.id} style={{ borderBottom: '1px solid #e8eaed' }}><td style={{ padding: '12px' }}><div style={{ fontWeight: 'bold' }}>{formatStudentName(student)}</div><div style={{ marginTop: 2, color: '#5f6368', fontSize: 11 }}>ID {student.id}</div></td><td><strong style={{ color: modified ? '#6f2da8' : score >= 70 ? '#188038' : '#202124' }}>{score === null ? '—' : `${score}%`}</strong>{modified && <span title={`Accommodations: ${(usage.accommodations || []).join(', ') || 'none'}; Modifications: ${(usage.modifications || []).join(', ') || 'none'}`} style={{ marginLeft: '7px', padding: '3px 6px', borderRadius: '999px', background: '#efe4ff', color: '#6f2da8', fontWeight: 900, fontSize: '11px' }}>MOD</span>}</td><td style={{ fontSize: '12px' }}>{modified ? `Modified: ${(usage.modifications || []).join(', ')}` : (usage.accommodations || []).length ? `Accommodated: ${usage.accommodations.join(', ')}` : 'Standard'}</td><td style={{ fontSize: '12px', lineHeight: 1.45 }}>Total {formatTime(activity.totalTimeSeconds || 0)}<br />On time {formatTime(activity.onTimeSeconds || 0)} · Late {formatTime(activity.lateSeconds || 0)}<br />Last on-time: {formatTimeStamp(activity.lastActiveBeforeDue)}<br />Last late: {formatTimeStamp(activity.lastActiveLate)}</td><td style={{ fontSize: '12px' }}>DOL: {latestDol ? `${latestDol.score}%` : '—'}<br />Classwork: {classwork?.score ? `${classwork.score}%` : '—'}</td><td><button onClick={() => setGradebookFilter((current) => ({ ...current, student }))} disabled={!grades} style={{ padding: '8px 12px', border: 0, borderRadius: '6px', background: grades ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 'bold' }}>Details</button></td></tr>; })}</tbody></table></div>
+                {/*
+                  "The teacher should never have to guess whether two students'
+                  scores came from identical rigor." On an adaptive assignment
+                  two students can both score 80% having answered genuinely
+                  different questions. That is the point of adaptation, and it
+                  makes the two scores incomparable in a way nothing on this
+                  screen previously admitted. Read from delivered evidence, not
+                  from the assignment's declared mode.
+                */}
+                {selectedAssignment && !gradebookFilter.student && (
+                  <div style={{ marginBottom: 16, padding: '11px 14px', borderRadius: 9, border: '1px solid #d8dde6', background: gradebookRigor.state === COMPARABILITY.VARIED ? '#f8f0fc' : '#f8f9fa', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 11, fontWeight: 900, background: gradebookRigor.state === COMPARABILITY.VARIED ? '#f3e8fd' : gradebookRigor.state === COMPARABILITY.IDENTICAL ? '#e6f4ea' : '#f1f3f4', color: gradebookRigor.state === COMPARABILITY.VARIED ? '#6f2da8' : gradebookRigor.state === COMPARABILITY.IDENTICAL ? '#137333' : '#5f6368' }}>
+                      {gradebookRigor.state === COMPARABILITY.VARIED ? 'RIGOR VARIED' : gradebookRigor.state === COMPARABILITY.IDENTICAL ? 'SAME RIGOR' : 'RIGOR UNKNOWN'}
+                    </span>
+                    <span style={{ flex: 1, minWidth: 220, color: '#3c4043', fontSize: 12.5, lineHeight: 1.45 }}>{gradebookRigor.note}</span>
+                    {gradebookRigor.state === COMPARABILITY.UNKNOWN && (
+                      <button
+                        type="button"
+                        onClick={() => handleLoadDeliveredRigor(selectedClassStudents.map((student) => student.id))}
+                        disabled={classEvidenceLoading}
+                        style={{ padding: '7px 12px', border: '1px solid #dadce0', borderRadius: 8, background: '#fff', color: '#174ea6', fontWeight: 800, fontSize: 12.5, cursor: classEvidenceLoading ? 'wait' : 'pointer' }}
+                      >
+                        {classEvidenceLoading ? 'Reading delivery history…' : 'Check delivered rigor'}
+                      </button>
+                    )}
+                  </div>
                 )}
 
-                {gradebookFilter.student && selectedAssignment && (() => { const student = gradebookFilter.student; const studentGrades = student.gradesByAssignment?.[selectedAssignment.id] || {}; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? '#efe4ff' : '#e8f0fe', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{formatStudentName(student)} · {selectedAssignment.title}</h3><div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>Student ID {student.id}</div><div style={{ marginTop: '5px' }}>Score: <strong>{calculateGrade(studentGrades, selectedAssignment)}%</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>Total engagement {formatTime(activity.totalTimeSeconds || 0)} · Late engagement {formatTime(activity.lateSeconds || 0)}</div></div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: '#fff', color: '#6f2da8', fontWeight: 900 }}>Generate IEP Report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px' }}>{selectedAssignment.questions.map((question, index) => { if (!questionIsIncluded(question)) return null; const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? '#e6f4ea' : record.status === 'expired' && credit < 50 ? '#fce8e6' : credit >= 50 ? '#fff4ce' : '#f1f3f4', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? '#137333' : '#b3261e' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid #aeb8c6', borderRadius: '6px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>View Student Work</button></article>; })}</div></div>; })()}
+                {selectedGradebookPeriod && selectedAssignment && !gradebookFilter.student && (
+                  <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}><thead><tr style={{ background: '#f8f9fa' }}><th style={{ padding: '12px' }}>Student</th><th>Score</th><th>Instructional condition</th><th>Activity</th><th>DOL / Classwork</th><th></th></tr></thead><tbody>{selectedClassStudents.map((student) => { const grades = student.gradesByAssignment?.[selectedAssignment.id]; const score = grades ? calculateGrade(grades, selectedAssignment) : null; const gradeSplit = splitGrade({ tracker: grades, assignment: selectedAssignment }); const gradeExplanation = grades ? explainGrade(gradeSplit) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const modified = Boolean(usage.modified || usage.modifications?.length); const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; const dolEntries = Object.entries(student.dolGradesByAssignment?.[selectedAssignment.id] || {}).sort(([a], [b]) => a.localeCompare(b)); const latestDol = dolEntries.at(-1)?.[1]; const classwork = student.classworkGradesByAssignment?.[selectedAssignment.id]; return <tr key={student.id} style={{ borderBottom: '1px solid #e8eaed' }}><td style={{ padding: '12px' }}><StudentNameLink studentId={student.id} studentName={formatStudentName(student)} profile={teacherLearningProfiles[student.id]} onOpen={setProfileDrawerStudentId} showBadge /><div style={{ marginTop: 3, color: '#5f6368', fontSize: 11 }}>ID {student.id}</div></td><td><strong style={{ color: modified ? '#6f2da8' : score >= 70 ? '#188038' : '#202124' }}>{score === null ? '—' : `${score}%`}</strong>{modified && <span title={`Accommodations: ${(usage.accommodations || []).join(', ') || 'none'}; Modifications: ${(usage.modifications || []).join(', ') || 'none'}`} style={{ marginLeft: '7px', padding: '3px 6px', borderRadius: '999px', background: '#efe4ff', color: '#6f2da8', fontWeight: 900, fontSize: '11px' }}>MOD</span>}
+                    {/*
+                      COMPLETION AND PERFORMANCE, VISUALLY APART.
+                      The grade above is unchanged. These two lines are what a
+                      teacher previously reconstructed by clicking into each
+                      student one at a time: how much was attempted, and how they
+                      did on what they attempted. A grey completion chip is
+                      deliberately NOT red — a student who missed a week has not
+                      failed mathematics.
+                    */}
+                    {gradeSplit.shape !== 'complete' && (
+                      <div style={{ marginTop: 5, display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <span style={{ padding: '2px 7px', borderRadius: 999, background: '#f1f3f4', color: '#3c4043', fontSize: 10.5, fontWeight: 900 }}>
+                          {gradeSplit.attempted}/{gradeSplit.total} ANSWERED
+                        </span>
+                        {gradeSplit.creditOnAttempted !== null && (
+                          <span style={{ padding: '2px 7px', borderRadius: 999, background: '#e8f0fe', color: '#174ea6', fontSize: 10.5, fontWeight: 900 }}>
+                            {gradeSplit.creditOnAttempted}% ON THOSE
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {gradeExplanation && <div style={{ marginTop: 4, fontSize: 11, color: '#5f6368', lineHeight: 1.4, maxWidth: 280 }}>{gradeExplanation}</div>}</td><td style={{ fontSize: '12px' }}>{modified ? `Modified: ${(usage.modifications || []).join(', ')}` : (usage.accommodations || []).length ? `Accommodated: ${usage.accommodations.join(', ')}` : 'Standard'}</td><td style={{ fontSize: '12px', lineHeight: 1.45 }}>Total {formatTime(activity.totalTimeSeconds || 0)}<br />On time {formatTime(activity.onTimeSeconds || 0)} · Late {formatTime(activity.lateSeconds || 0)}<br />Last on-time: {formatTimeStamp(activity.lastActiveBeforeDue)}<br />Last late: {formatTimeStamp(activity.lastActiveLate)}</td><td style={{ fontSize: '12px' }}>DOL: {latestDol ? `${latestDol.score}%` : '—'}<br />Classwork: {classwork?.score ? `${classwork.score}%` : '—'}</td><td><button onClick={() => setGradebookFilter((current) => ({ ...current, student }))} disabled={!grades} style={{ padding: '8px 12px', border: 0, borderRadius: '6px', background: grades ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 'bold' }}>Details</button></td></tr>; })}</tbody></table></div>
+                )}
+
+                {gradebookFilter.student && selectedAssignment && (() => { const student = gradebookFilter.student; const studentGrades = student.gradesByAssignment?.[selectedAssignment.id] || {}; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? '#efe4ff' : '#e8f0fe', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{formatStudentName(student)} · {selectedAssignment.title}</h3><div style={{ marginTop: 6 }}><StudentPerformanceBadge profile={teacherLearningProfiles[student.id]} size="small" studentName={formatStudentName(student)} /></div><div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>Student ID {student.id}</div><div style={{ marginTop: '5px' }}>Score: <strong>{calculateGrade(studentGrades, selectedAssignment)}%</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>Total engagement {formatTime(activity.totalTimeSeconds || 0)} · Late engagement {formatTime(activity.lateSeconds || 0)}</div>{(() => { const delivered = describeDeliveredRigor(classEvidenceByStudentId[student.id] || [], selectedAssignment.id); if (!delivered) return null; return <div style={{ marginTop: 8, padding: '9px 11px', borderRadius: 8, background: '#fff', border: '1px solid #d8dde6' }}><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368' }}>What this student was given</div><div style={{ marginTop: 3, fontSize: 12.5, color: '#202124' }}>{delivered.summary}</div>{delivered.reasons.map((reason) => <div key={reason} style={{ marginTop: 4, fontSize: 12, color: '#5f6368', lineHeight: 1.45 }}>{reason}</div>)}</div>; })()}</div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: '#fff', color: '#6f2da8', fontWeight: 900 }}>Generate IEP Report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px' }}>{selectedAssignment.questions.map((question, index) => { if (!questionIsIncluded(question)) return null; const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? '#e6f4ea' : record.status === 'expired' && credit < 50 ? '#fce8e6' : credit >= 50 ? '#fff4ce' : '#f1f3f4', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? '#137333' : '#b3261e' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid #aeb8c6', borderRadius: '6px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>View Student Work</button></article>; })}</div></div>; })()}
               </div>
             )}
 
             {teacherTab === 'standards' && (
-              <TexasStandardsDashboard allStudents={allStudents} assignments={assignments} />
+              <TexasStandardsDashboard
+                // Scoped by the class bar. A mastery picture averaged across
+                // five different classes is not a picture of anything a teacher
+                // can act on.
+                allStudents={activeClass.classId ? studentsInActiveClass : allStudents}
+                assignments={assignments}
+                classes={classes}
+                learningProfilesByStudentId={teacherLearningProfiles}
+                courseLevelByStudentId={courseLevelByStudentId}
+                onOpenStudent={setProfileDrawerStudentId}
+                className={classesById[activeClass.classId]?.name || 'this class'}
+              />
             )}
 
             {teacherTab === 'analytics' && (
-              <TeacherAnalyticsDashboard students={allStudents} masteryProfilesByStudentId={teacherMasteryProfilesByStudentId} />
+              <TeacherAnalyticsDashboard
+                students={(activeClass.classId ? studentsInActiveClass : allStudents)
+                  .map((student) => ({ ...student, displayName: formatStudentName(student) }))}
+                masteryProfilesByStudentId={teacherMasteryProfilesByStudentId}
+                learningProfilesByStudentId={teacherLearningProfiles}
+                onOpenStudent={setProfileDrawerStudentId}
+              />
             )}
 
             {teacherTab === 'exams' && (
@@ -4702,8 +5454,6 @@ function App() {
                 <MathToolsLab />
               </div>
             )}
-
-            {teacherTab === 'access' && <SignInAccess signedInEmail={user.email} />}
 
             {teacherTab === 'classroom' && <ClassroomManagerV2 assignments={assignments} classes={classes} students={allStudents} teacherEmail={user.email} />}
 
@@ -4758,6 +5508,7 @@ function App() {
     // copy of this logic drifting away from it.
     const dashboard = buildStudentDashboardModel({
       assignments,
+      classId: user.classId || null,
       classPeriod: user.classPeriod,
       nowValue: now,
       tracker,

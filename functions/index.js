@@ -120,6 +120,19 @@ function safePdfFileName(value, fallback = "MathMaster_Student_Notes.pdf") {
   return /\.pdf$/i.test(base) ? base : `${base}.pdf`;
 }
 
+const assignmentAudience = (assignment = {}) => ({
+  classIds: [...new Set((Array.isArray(assignment.assignedClassIds) ? assignment.assignedClassIds : []).map(String).map((value) => value.trim()).filter(Boolean))],
+  classPeriods: [...new Set((Array.isArray(assignment.assignedClassPeriods) ? assignment.assignedClassPeriods : []).map(String).map((value) => value.trim()).filter(Boolean))],
+});
+
+const studentMatchesAssignmentAudience = ({ assignment = {}, classId = null, classPeriod = null } = {}) => {
+  const audience = assignmentAudience(assignment);
+  // Modern assignments are class-ID authoritative. A matching period must not
+  // widen the audience when two real classes share the same schedule label.
+  if (audience.classIds.length) return Boolean(classId && audience.classIds.includes(String(classId)));
+  return Boolean(classPeriod && audience.classPeriods.includes(String(classPeriod)));
+};
+
 async function assertTeacherMayManageAssignment(request, assignmentSnap) {
   const teacherUid = await requireTeacher(request);
   const teacherEmail = callerEmail(request);
@@ -129,19 +142,33 @@ async function assertTeacherMayManageAssignment(request, assignmentSnap) {
   if (authLib.isRootAdminEmail(teacherEmail)) return { teacherUid, teacherEmail };
 
   const assignment = assignmentSnap.data() || {};
-  const periods = [...new Set((assignment.assignedClassPeriods || []).map(String).filter(Boolean))];
-  if (!periods.length) {
+  const audience = assignmentAudience(assignment);
+  if (!audience.classIds.length && !audience.classPeriods.length) {
     throw new HttpsError(
       "failed-precondition",
       "Assign this lesson to a MathMaster class before publishing its Classroom resource package."
     );
   }
-  const classes = await getFirestore()
-    .collection("classes")
-    .where("teacherOfRecord", "==", teacherEmail)
-    .get();
+
+  const db = getFirestore();
+  if (audience.classIds.length) {
+    const snapshots = await Promise.all(audience.classIds.map((classId) => db.collection("classes").doc(classId).get()));
+    const ownsEveryClass = snapshots.every((snapshot) => snapshot.exists
+      && String(snapshot.data()?.teacherOfRecord || "").trim().toLowerCase() === teacherEmail);
+    if (!ownsEveryClass) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only the teacher of record for every assigned class may publish this lesson's generated resources."
+      );
+    }
+    return { teacherUid, teacherEmail };
+  }
+
+  // Legacy assignments predate class IDs. Their period audience is kept only
+  // as a compatibility path until the teacher edits/saves the assignment.
+  const classes = await db.collection("classes").where("teacherOfRecord", "==", teacherEmail).get();
   const ownedPeriods = new Set(classes.docs.map((doc) => String(doc.data()?.period || "")).filter(Boolean));
-  if (!periods.every((period) => ownedPeriods.has(period))) {
+  if (!audience.classPeriods.every((period) => ownedPeriods.has(period))) {
     throw new HttpsError(
       "permission-denied",
       "Only the teacher of record for every assigned class may publish this lesson's generated resources."
@@ -399,13 +426,15 @@ async function writeAdminAudit(db, actor, action, target, details = {}) {
 }
 
 /** Creates the `grades` document a student's whole dashboard hangs off of. */
-async function ensureStudentRecord(db, studentId, { classPeriod } = {}) {
+async function ensureStudentRecord(db, studentId, { classId = null, classPeriod = null, assignedTeacherEmail = null } = {}) {
   const ref = db.collection("grades").doc(studentId);
   const snapshot = await ref.get();
   if (snapshot.exists) return snapshot.data() || {};
 
   const seed = {
+    ...(classId ? { classId } : {}),
     classPeriod: classPeriod || "Unassigned",
+    ...(assignedTeacherEmail ? { assignedTeacherEmail } : {}),
     profile: {},
     gradesByAssignment: {},
     assignmentActivity: {},
@@ -416,6 +445,32 @@ async function ensureStudentRecord(db, studentId, { classPeriod } = {}) {
   };
   await ref.set(seed);
   return seed;
+}
+
+async function resolveJoinCodeMembership(db, joinCode = {}) {
+  const classId = String(joinCode.classId || "").trim();
+  const legacyPeriod = String(joinCode.classPeriod || "").trim() || "Unassigned";
+  if (!classId) return { classId: null, classPeriod: legacyPeriod, assignedTeacherEmail: null, legacy: true };
+
+  const classSnapshot = await db.collection("classes").doc(classId).get();
+  if (!classSnapshot.exists || classSnapshot.data()?.status === "archived") {
+    throw new HttpsError("permission-denied", "That class code is no longer active. Ask your teacher for the current one.");
+  }
+  const classRecord = { classId, ...classSnapshot.data() };
+  const model = await classModel();
+  return { ...model.membershipFieldsFor(classRecord), legacy: false };
+}
+
+function joinCodeMatchesRoster(existing = {}, membership = {}) {
+  const existingClassId = String(existing.classId || "").trim();
+  if (existingClassId) {
+    // A period-only code cannot safely claim a modern class because another
+    // class may share the same bell period. Rotate to a class-ID code instead.
+    return Boolean(membership.classId && existingClassId === String(membership.classId));
+  }
+  const period = String(existing.classPeriod || "").trim();
+  if (!period || period === "Unassigned") return true;
+  return period === String(membership.classPeriod || "");
 }
 
 /**
@@ -562,7 +617,12 @@ exports.linkGoogleAccount = onCall(async (request) => {
     );
   }
 
-  const record = await ensureStudentRecord(db, studentId, { classPeriod: joinCode.classPeriod });
+  const joinMembership = await resolveJoinCodeMembership(db, joinCode);
+  const rosterSnapshot = await db.collection("grades").doc(studentId).get();
+  if (rosterSnapshot.exists && !joinCodeMatchesRoster(rosterSnapshot.data() || {}, joinMembership)) {
+    throw new HttpsError("permission-denied", "That class code does not match the class assigned to this student ID.");
+  }
+  const record = await ensureStudentRecord(db, studentId, joinMembership);
   await directoryRef.set(
     { email, studentId, linkedAt: FieldValue.serverTimestamp(), uid: request.auth.uid },
     { merge: true },
@@ -605,6 +665,7 @@ exports.studentSignIn = onCall(async (request) => {
   const needsSetup = !credential || credential.resetRequired === true;
 
   let classPeriod = null;
+  let joinMembership = null;
 
   if (needsSetup) {
     const rawCode = request.data?.classCode;
@@ -634,14 +695,14 @@ exports.studentSignIn = onCall(async (request) => {
       throw new HttpsError("permission-denied", "That class code is not valid. Ask your teacher for the current one.");
     }
 
-    classPeriod = joinCode.classPeriod || null;
+    joinMembership = await resolveJoinCodeMembership(db, joinCode);
+    classPeriod = joinMembership.classPeriod || null;
     // If an administrator/teacher already placed this ID on a roster, first-
-    // time setup must use that roster's class code. Knowing a code from a
-    // different period is not enough to claim a pre-created student account.
-    const rosterSnapshot = await db.collection("grades").select("classPeriod").get();
+    // time setup must use that exact class code. A period match is only a
+    // compatibility path for roster rows that do not have a classId yet.
+    const rosterSnapshot = await db.collection("grades").select("classPeriod", "classId").get();
     const existingRoster = rosterSnapshot.docs.find((entry) => entry.id.trim().toUpperCase() === key);
-    const assignedClassPeriod = existingRoster?.data()?.classPeriod || null;
-    if (assignedClassPeriod && assignedClassPeriod !== "Unassigned" && classPeriod !== assignedClassPeriod) {
+    if (existingRoster && !joinCodeMatchesRoster(existingRoster.data() || {}, joinMembership)) {
       await authLib.recordFailedAttempt(db, throttleKey);
       throw new HttpsError("permission-denied", "That class code does not match the class assigned to this student ID.");
     }
@@ -675,7 +736,7 @@ exports.studentSignIn = onCall(async (request) => {
     throw new HttpsError("permission-denied", "This MathMaster account is deactivated. Ask your teacher or campus administrator to reactivate it.");
   }
 
-  const record = await ensureStudentRecord(db, studentId, { classPeriod });
+  const record = await ensureStudentRecord(db, studentId, joinMembership || { classPeriod });
 
   // One Firebase user per student ID, so grades survive across devices.
   const uid = `student:${key}`;
@@ -756,19 +817,46 @@ exports.unlinkStudentAccount = onCall(async (request) => {
   return { studentId, unlinked: links.size };
 });
 
-/** Teacher action: rotate the join code for one class period. */
+/** Teacher action: rotate the join code for one real class. */
 exports.issueClassJoinCode = onCall(async (request) => {
   const uid = await requireTeacher(request);
   const db = getFirestore();
+  const teacherEmail = callerEmail(request);
+  const isRoot = authLib.isRootAdminEmail(teacherEmail);
+  let classId = String(request.data?.classId || "").trim();
+  const requestedPeriod = String(request.data?.classPeriod || "").trim();
+  let classRecord = null;
 
-  const classPeriod = String(request.data?.classPeriod ?? "").trim();
-  if (!classPeriod) {
-    throw new HttpsError("invalid-argument", "Choose a class period for this code.");
+  if (classId) {
+    const snapshot = await db.collection("classes").doc(classId).get();
+    if (!snapshot.exists) throw new HttpsError("not-found", "That MathMaster class no longer exists.");
+    classRecord = { classId, ...snapshot.data() };
+  } else if (requestedPeriod) {
+    // Backward compatibility for an older client is safe only when the period
+    // resolves to exactly one class the caller owns. Ambiguous periods must be
+    // selected by classId.
+    const snapshot = await db.collection("classes").where("period", "==", requestedPeriod).get();
+    const matches = snapshot.docs
+      .map((doc) => ({ classId: doc.id, ...doc.data() }))
+      .filter((entry) => isRoot || String(entry.teacherOfRecord || "").trim().toLowerCase() === teacherEmail);
+    if (matches.length === 1) {
+      [classRecord] = matches;
+      classId = classRecord.classId;
+    } else if (matches.length > 1) {
+      throw new HttpsError("failed-precondition", "More than one of your classes uses that period. Choose the class by name.");
+    }
   }
 
+  if (!classRecord) throw new HttpsError("invalid-argument", "Choose a MathMaster class for this code.");
+  if (classRecord.status === "archived") throw new HttpsError("failed-precondition", "Archived classes cannot issue join codes.");
+  if (!isRoot && String(classRecord.teacherOfRecord || "").trim().toLowerCase() !== teacherEmail) {
+    throw new HttpsError("permission-denied", "You can only issue a join code for a class you teach.");
+  }
+
+  const classPeriod = String(classRecord.period || "Unassigned");
   const existing = await db
     .collection(authLib.JOIN_CODE_COLLECTION)
-    .where("classPeriod", "==", classPeriod)
+    .where("classId", "==", classId)
     .get();
 
   let code = authLib.generateJoinCode();
@@ -783,6 +871,8 @@ exports.issueClassJoinCode = onCall(async (request) => {
   existing.docs.forEach((codeDoc) => batch.set(codeDoc.ref, { active: false }, { merge: true }));
   batch.set(db.collection(authLib.JOIN_CODE_COLLECTION).doc(code), {
     code,
+    classId,
+    className: classRecord.name || null,
     classPeriod,
     active: true,
     createdAt: FieldValue.serverTimestamp(),
@@ -790,19 +880,32 @@ exports.issueClassJoinCode = onCall(async (request) => {
   });
   await batch.commit();
 
-  return { code, classPeriod };
+  return { code, classId, className: classRecord.name || null, classPeriod };
 });
 
-/** Teacher view of the active join code per class period. */
+/** Teacher view of the active join code per real class. */
 exports.listClassJoinCodes = onCall(async (request) => {
   await requireTeacher(request);
   const db = getFirestore();
-  const snapshot = await db.collection(authLib.JOIN_CODE_COLLECTION).where("active", "==", true).get();
+  const teacherEmail = callerEmail(request);
+  const isRoot = authLib.isRootAdminEmail(teacherEmail);
+  const [snapshot, classes] = await Promise.all([
+    db.collection(authLib.JOIN_CODE_COLLECTION).where("active", "==", true).get(),
+    loadClasses(db),
+  ]);
+  const visibleClassIds = new Set(classes
+    .filter((entry) => isRoot || String(entry.teacherOfRecord || "").trim().toLowerCase() === teacherEmail)
+    .map((entry) => String(entry.classId)));
   return {
-    codes: snapshot.docs.map((codeDoc) => {
-      const data = codeDoc.data() || {};
-      return { code: codeDoc.id, classPeriod: data.classPeriod || "Unassigned" };
-    }),
+    codes: snapshot.docs
+      .map((codeDoc) => ({ code: codeDoc.id, ...(codeDoc.data() || {}) }))
+      .filter((entry) => entry.classId ? visibleClassIds.has(String(entry.classId)) : isRoot)
+      .map((entry) => ({
+        code: entry.code,
+        classId: entry.classId || null,
+        className: entry.className || null,
+        classPeriod: entry.classPeriod || "Unassigned",
+      })),
   };
 });
 
@@ -859,8 +962,10 @@ exports.listSignInAccess = onCall(async (request) => {
     };
   };
 
+  const caller = callerEmail(request);
   const students = roster.docs
     .filter((rosterDoc) => rosterDoc.id !== "test_connection")
+    .filter((rosterDoc) => isRootAdmin || String(rosterDoc.data()?.assignedTeacherEmail || "").trim().toLowerCase() === caller)
     .map((rosterDoc) => {
       const credential = credentialByStudent[rosterDoc.id];
       const data = rosterDoc.data() || {};
@@ -891,8 +996,10 @@ exports.listSignInAccess = onCall(async (request) => {
     students,
     // The classes every roster row refers to, so no screen has to guess what a
     // classId means or fetch them separately.
-    classes: classes.sort((a, b) => String(a.period || "").localeCompare(String(b.period || ""), undefined, { numeric: true })
-      || String(a.name || "").localeCompare(String(b.name || ""))),
+    classes: classes
+      .filter((entry) => isRootAdmin || String(entry.teacherOfRecord || "").trim().toLowerCase() === caller)
+      .sort((a, b) => String(a.period || "").localeCompare(String(b.period || ""), undefined, { numeric: true })
+        || String(a.name || "").localeCompare(String(b.name || ""))),
     authority: {
       accessLevel: isRootAdmin ? "rootAdmin" : "teacher",
       isRootAdmin,
@@ -3100,13 +3207,8 @@ async function publishAssignmentBatch(request) {
     throw new HttpsError("not-found", "Assignment not found.");
   }
   const assignment = assignmentSnap.data();
-  const assignedPeriods = new Set(
-    (Array.isArray(assignment.assignedClassPeriods)
-      ? assignment.assignedClassPeriods
-      : []
-    ).map(String)
-  );
-  if (!assignedPeriods.size) {
+  const audience = assignmentAudience(assignment);
+  if (!audience.classIds.length && !audience.classPeriods.length) {
     throw new HttpsError(
       "failed-precondition",
       "This MathMaster assignment is still in the library. Assign it to a class before publishing it to Google Classroom."
@@ -3146,12 +3248,17 @@ async function publishAssignmentBatch(request) {
       });
       continue;
     }
-    if (!assignedPeriods.has(String(mapping.classPeriod || ""))) {
+    const mappedClassId = String(mapping.classId || "").trim();
+    const mappedPeriod = String(mapping.classPeriod || "").trim();
+    const mappingMatchesAudience = audience.classIds.length
+      ? Boolean(mappedClassId && audience.classIds.includes(mappedClassId))
+      : Boolean(mappedPeriod && audience.classPeriods.includes(mappedPeriod));
+    if (!mappingMatchesAudience) {
       results.push({
         courseId,
         courseName: course.name || courseId,
         status: "failed",
-        error: `This assignment is not assigned to ${mapping.classPeriod || "the mapped MathMaster class"}.`,
+        error: `This assignment is not assigned to ${mapping.className || mapping.classPeriod || "the mapped MathMaster class"}.`,
       });
       continue;
     }
@@ -3949,10 +4056,14 @@ function shuffleChallengeItems(items) {
   return result;
 }
 
-async function loadChallengeRoster(db, teacherEmail, classPeriod) {
+async function loadChallengeRoster(db, teacherEmail, { classId = null, classPeriod = null } = {}) {
   const snapshot = await db.collection("grades").where("assignedTeacherEmail", "==", teacherEmail).get();
   return snapshot.docs
-    .filter((studentDoc) => String(studentDoc.data()?.classPeriod || "") === classPeriod)
+    .filter((studentDoc) => {
+      const data = studentDoc.data() || {};
+      if (classId) return String(data.classId || "") === String(classId);
+      return Boolean(classPeriod) && !data.classId && String(data.classPeriod || "") === String(classPeriod);
+    })
     .map((studentDoc) => ({ studentId: studentDoc.id, ...studentDoc.data() }));
 }
 
@@ -4063,13 +4174,33 @@ exports.createLiveChallenge = onCall(async (request) => {
   const db = getFirestore();
   const challenge = await liveChallengeRules();
 
-  const classPeriod = String(request.data?.classPeriod || "").trim().slice(0, 80);
-  if (!classPeriod) throw new HttpsError("invalid-argument", "Choose a class period before launching a challenge.");
-  const courseId = challengeCourseId(request.data?.courseId);
+  const requestedClassId = String(request.data?.classId || "").trim().slice(0, 160);
+  let classId = requestedClassId || null;
+  let classPeriod = String(request.data?.classPeriod || "").trim().slice(0, 80) || null;
+  let className = classPeriod;
+  let courseId = challengeCourseId(request.data?.courseId);
+  if (classId) {
+    const classSnapshot = await db.collection("classes").doc(classId).get();
+    if (!classSnapshot.exists) throw new HttpsError("not-found", "That MathMaster class no longer exists.");
+    const classRecord = classSnapshot.data() || {};
+    const ownsClass = authLib.isRootAdminEmail(teacherEmail)
+      || String(classRecord.teacherOfRecord || "").trim().toLowerCase() === teacherEmail;
+    if (!ownsClass) throw new HttpsError("permission-denied", "You can only launch a Live Challenge for a class you teach.");
+    if (classRecord.status === "archived") throw new HttpsError("failed-precondition", "Choose an active class before launching a challenge.");
+    if (!["algebra1", "algebra2"].includes(String(classRecord.course || ""))) {
+      throw new HttpsError("failed-precondition", "Live Challenge currently supports Algebra I and Algebra II classes.");
+    }
+    classPeriod = String(classRecord.period || "").trim().slice(0, 80) || null;
+    className = String(classRecord.name || classPeriod || classId).trim().slice(0, 120);
+    courseId = challengeCourseId(classRecord.course);
+  } else if (!classPeriod) {
+    throw new HttpsError("invalid-argument", "Choose a class before launching a challenge.");
+  }
   const standardCode = challenge.canonicalChallengeStandard(request.data?.standardCode || "mixed");
   const requestedRoundCount = challenge.normalizeRoundCount(request.data?.roundCount);
   const roundSeconds = challenge.normalizeRoundSeconds(request.data?.roundSeconds);
-  const title = String(request.data?.title || `${classPeriod} Live Challenge`).trim().slice(0, 120) || `${classPeriod} Live Challenge`;
+  const defaultTitle = `${className || classPeriod || "Class"} Live Challenge`;
+  const title = String(request.data?.title || defaultTitle).trim().slice(0, 120) || defaultTitle;
 
   // One active room per teacher. A tiny pointer keeps refresh recovery O(1) and
   // avoids reading completed challenge history every time the teacher opens
@@ -4084,8 +4215,8 @@ exports.createLiveChallenge = onCall(async (request) => {
     await activePointerRef.delete();
   }
 
-  const roster = await loadChallengeRoster(db, teacherEmail, classPeriod);
-  if (!roster.length) throw new HttpsError("failed-precondition", `No students assigned to you were found in ${classPeriod}.`);
+  const roster = await loadChallengeRoster(db, teacherEmail, { classId, classPeriod });
+  if (!roster.length) throw new HttpsError("failed-precondition", `No students assigned to you were found in ${className || classPeriod}.`);
 
   const candidates = await loadChallengeCandidates(db, { courseId, standardCode });
   if (candidates.length < challenge.MIN_ROUND_COUNT) {
@@ -4120,7 +4251,9 @@ exports.createLiveChallenge = onCall(async (request) => {
     schemaVersion: 2,
     title,
     teacherEmail,
+    classId,
     classPeriod,
+    className: className || null,
     courseId,
     standardCode,
     status: challenge.LIVE_CHALLENGE_STATUS.LOBBY,
@@ -4169,7 +4302,9 @@ exports.createLiveChallenge = onCall(async (request) => {
         roomId: roomRef.id,
         title,
         teacherEmail,
+        classId,
         classPeriod,
+        className: className || null,
         courseId,
         alias: player.alias,
         playerKey: player.playerKey,
@@ -4184,7 +4319,7 @@ exports.createLiveChallenge = onCall(async (request) => {
   // The recover-after-refresh pointer is written only after the lobby roster
   // and invitations exist, so a partial setup failure cannot trap the teacher
   // behind a pointer to an unusable room.
-  await activePointerRef.set({ roomId: roomRef.id, teacherEmail, classPeriod, updatedAt: FieldValue.serverTimestamp() });
+  await activePointerRef.set({ roomId: roomRef.id, teacherEmail, classId, classPeriod, updatedAt: FieldValue.serverTimestamp() });
 
   return {
     roomId: roomRef.id,
@@ -4510,15 +4645,260 @@ function pathQuestionMatchesFramework(question = {}, assessmentFramework = null)
   return authoredFramework === "course";
 }
 
+
+const WEEKLY_PATH_GOAL_SNAPSHOTS = "weeklyPathGoalSnapshots";
+
+function sanitizeWeeklyPathGoalProposal(goal = {}, { studentId, classRecord }) {
+  const weekKey = String(goal?.weekKey || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(weekKey) || !Number.isFinite(Date.parse(`${weekKey}T00:00:00Z`))) {
+    throw new HttpsError("invalid-argument", "A valid weekly Path weekKey is required.");
+  }
+  const classId = String(classRecord?.classId || "").trim();
+  const courseId = String(classRecord?.course || "").trim();
+  if (!classId || !courseId) throw new HttpsError("failed-precondition", "Your MathMaster class is not fully configured yet.");
+  if (goal?.courseId && String(goal.courseId) !== courseId) {
+    throw new HttpsError("failed-precondition", "This weekly Path proposal belongs to a different course.");
+  }
+  const requested = Math.max(3, Math.min(6, Number(goal?.goalSessions) || 4));
+  const proposed = Array.isArray(goal?.sessions) ? goal.sessions.slice(0, requested) : [];
+  if (!proposed.length) throw new HttpsError("failed-precondition", "MathMaster could not build any weekly Path sessions for this week.");
+
+  const sessions = proposed.map((session, index) => {
+    const slot = index + 1;
+    const displayCode = mathPath.displayAlignmentKey(mathPath.canonicalAlignmentKey(session?.teksCode || session?.skillId));
+    if (!displayCode) throw new HttpsError("invalid-argument", `Weekly Path slot ${slot} has no valid standard.`);
+    const context = normalizePathAssessmentFramework(session?.context) || "course";
+    const dok = Math.max(1, Math.min(4, Math.round(Number(session?.dok) || 2)));
+    const difficultyBand = Math.max(1, Math.min(5, Math.round(Number(session?.difficultyBand) || 3)));
+    const suppliedKey = String(session?.weeklySlotKey || "").trim();
+    const weeklySlotKey = suppliedKey || [
+      slot,
+      String(session?.skillId || ""),
+      displayCode,
+      String(session?.purpose || "practice"),
+      context,
+      dok,
+      difficultyBand,
+    ].join("|");
+    if (weeklySlotKey.length > 300) throw new HttpsError("invalid-argument", `Weekly Path slot ${slot} key is too long.`);
+    return {
+      slot,
+      weeklySlotKey,
+      skillId: String(session?.skillId || "").slice(0, 180) || null,
+      teksCode: displayCode,
+      purpose: String(session?.purpose || "practice").slice(0, 60),
+      context,
+      dok,
+      difficultyBand,
+      studentLabel: session?.studentLabel ? String(session.studentLabel).slice(0, 180) : null,
+      purposeLabel: session?.purposeLabel ? String(session.purposeLabel).slice(0, 120) : null,
+      studentExplanation: session?.studentExplanation ? String(session.studentExplanation).slice(0, 400) : null,
+      targetReason: session?.targetReason ? String(session.targetReason).slice(0, 180) : null,
+      status: "notStarted",
+    };
+  });
+
+  return {
+    schemaVersion: 1,
+    studentId,
+    classId,
+    courseId,
+    weekKey,
+    dueAt: Number(goal?.dueAt) || null,
+    goalSessions: requested,
+    sessions,
+    ccmr: goal?.ccmr && typeof goal.ccmr === "object" ? {
+      expectation: String(goal.ccmr.expectation || "none").slice(0, 40),
+      framework: String(goal.ccmr.framework || "auto").slice(0, 40),
+      transferCount: Math.max(0, Number(goal.ccmr.transferCount) || 0),
+      satisfied: goal.ccmr.satisfied !== false,
+      shortfallReason: goal.ccmr.shortfallReason ? String(goal.ccmr.shortfallReason).slice(0, 160) : null,
+    } : null,
+  };
+}
+
+/** Freeze the student's proposed autonomous week exactly once. */
+exports.resolveWeeklyPathGoalSnapshot = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const db = getFirestore();
+  const studentSnapshot = await db.collection("grades").doc(studentId).get();
+  if (!studentSnapshot.exists) throw new HttpsError("not-found", "Your MathMaster student record is unavailable.");
+  const classRecord = await loadStudentClass(db, studentSnapshot.data());
+  if (!classRecord) throw new HttpsError("failed-precondition", "Your MathMaster class has not been assigned yet.");
+  const proposed = sanitizeWeeklyPathGoalProposal(request.data?.goal || {}, { studentId, classRecord });
+  const ref = db.collection(WEEKLY_PATH_GOAL_SNAPSHOTS).doc(`${studentId}__${proposed.weekKey}`);
+  const assigned = await db.runTransaction(async (transaction) => {
+    const existing = await transaction.get(ref);
+    if (existing.exists) return existing.data();
+    const createdAt = Date.now();
+    const next = { ...proposed, createdAt, updatedAt: createdAt, assignmentState: "assigned" };
+    transaction.set(ref, next);
+    return next;
+  });
+  return { success: true, goal: assigned };
+});
+
+/**
+ * Teacher-only weekly Path progress for one real class.
+ *
+ * `pathSessions` is intentionally server-only. The teacher UI needs completion
+ * facts for weekly goals, but it must never receive answer keys or the private
+ * current-question payload. This callable therefore returns only completed
+ * session IDs, timestamps, target TEKS and aggregate accuracy.
+ */
+exports.getTeacherWeeklyPathCompletions = onCall(async (request) => {
+  await requireTeacher(request);
+  const db = getFirestore();
+  const classId = String(request.data?.classId || "").trim();
+  if (!classId) throw new HttpsError("invalid-argument", "classId is required.");
+
+  const classRef = db.collection(CLASS_COLLECTION).doc(classId);
+  const classSnapshot = await classRef.get();
+  if (!classSnapshot.exists) throw new HttpsError("not-found", "That class no longer exists.");
+  const classRecord = { classId, ...classSnapshot.data() };
+  const email = callerEmail(request);
+  const teacherOfRecord = String(classRecord.teacherOfRecord || "").trim().toLowerCase();
+  const isRoot = Boolean(email && email === authLib.ROOT_ADMIN_EMAIL);
+  if (!isRoot && (!email || teacherOfRecord !== email)) {
+    throw new HttpsError("permission-denied", "Only the teacher of record for this class can view its Weekly Path progress.");
+  }
+
+  const weekKey = String(request.data?.weekKey || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(weekKey)) {
+    throw new HttpsError("invalid-argument", "weekKey must be YYYY-MM-DD.");
+  }
+  const weekStart = Date.parse(`${weekKey}T00:00:00Z`);
+  if (!Number.isFinite(weekStart)) throw new HttpsError("invalid-argument", "weekKey is not a valid date.");
+  const weekEnd = weekStart + (7 * 24 * 60 * 60 * 1000);
+
+  const roster = await db.collection("grades").where("classId", "==", classId).get();
+  const studentIds = new Set(roster.docs
+    .filter((studentDoc) => studentDoc.data()?.status !== "disabled")
+    .map((studentDoc) => studentDoc.id));
+  const byStudentId = Object.fromEntries([...studentIds].map((studentId) => [studentId, []]));
+  const goalsByStudentId = {};
+  if (!studentIds.size) return { classId, weekKey, byStudentId, goalsByStudentId };
+
+  // Snapshot IDs are deterministic, so this needs no collection scan or new
+  // composite index. The teacher sees the same frozen commitment the student
+  // is graded against, not a plan recomputed from today's newer evidence.
+  const goalSnapshots = await Promise.all([...studentIds].map(async (studentId) => {
+    const snapshot = await db.collection(WEEKLY_PATH_GOAL_SNAPSHOTS).doc(`${studentId}__${weekKey}`).get();
+    return [studentId, snapshot.exists ? snapshot.data() : null];
+  }));
+  goalSnapshots.forEach(([studentId, goal]) => { if (goal) goalsByStudentId[studentId] = goal; });
+
+  // One indexed time-range query for the week, then a membership filter. This
+  // avoids one Firestore query per student and scales with weekly Path activity
+  // rather than roster size.
+  //
+  // It is READ IN PAGES, and that is the point. A single `.limit(5000)` over a
+  // district-wide week silently discards everything past the cap — and it
+  // discards it BEFORE the class filter runs, so the students who lose their
+  // completions are chosen by document order rather than by anything a teacher
+  // could see. The failure mode is a weekly Path grade that is quietly too low,
+  // which is exactly the kind of wrong number nobody reports as a bug.
+  //
+  // Cursoring on `completedAt` needs no composite index beyond the single-field
+  // index this range filter already uses, so this stays deployable as-is.
+  const PAGE_SIZE = 1000;
+  const MAX_PAGES = 40; // 40k completed sessions in one week; far past any real district.
+  const sessionDocs = [];
+  let cursor = null;
+  let truncated = false;
+  for (let page = 0; page < MAX_PAGES; page += 1) {
+    let query = db.collection("pathSessions")
+      .where("completedAt", ">=", weekStart)
+      .where("completedAt", "<", weekEnd)
+      .orderBy("completedAt")
+      .limit(PAGE_SIZE);
+    if (cursor) query = query.startAfter(cursor);
+    const page$ = await query.get();
+    if (page$.empty) break;
+    sessionDocs.push(...page$.docs);
+    cursor = page$.docs[page$.docs.length - 1];
+    if (page$.size < PAGE_SIZE) break;
+    if (page === MAX_PAGES - 1) truncated = true;
+  }
+
+  sessionDocs.forEach((sessionDoc) => {
+    const session = sessionDoc.data() || {};
+    const studentId = String(session.studentId || "");
+    if (!studentIds.has(studentId) || session.status !== "completed") return;
+    const completedQuestions = Number(session.summary?.completedQuestions || 0);
+    const correctQuestions = Number(session.summary?.correctQuestions || 0);
+    const alignmentKey = String(session.target?.alignmentKey || "");
+    byStudentId[studentId].push({
+      status: "completed",
+      sessionId: sessionDoc.id,
+      completedAt: Number(session.completedAt || session.updatedAt || 0),
+      teksCode: alignmentKey ? mathPath.displayAlignmentKey(alignmentKey) : null,
+      accuracy: completedQuestions > 0 ? Math.max(0, Math.min(1, correctQuestions / completedQuestions)) : null,
+      sessionKind: session.sessionKind || "practice",
+      assessmentFramework: session.assessmentFramework || null,
+      weekKey: session.weekKey || null,
+      weeklySlotKey: session.weeklySlotKey || null,
+      weeklySlot: session.weeklySlot || null,
+    });
+  });
+
+  Object.values(byStudentId).forEach((rows) => rows.sort((a, b) => a.completedAt - b.completedAt));
+  // `truncated` is returned rather than swallowed: if it is ever true the grades
+  // on this screen are incomplete, and the screen has to be able to say so
+  // instead of presenting a short count as fact.
+  return { classId, weekKey, byStudentId, goalsByStudentId, truncated };
+});
+
 /** Start or resume one server-owned learning-path session for a TEKS target. */
 exports.startMyMathPathSession = onCall(async (request) => {
   const { studentId } = requireStudent(request);
-  const targetAlignmentKey = mathPath.canonicalAlignmentKey(request.data?.targetAlignmentKey);
+  let targetAlignmentKey = mathPath.canonicalAlignmentKey(request.data?.targetAlignmentKey);
   if (!targetAlignmentKey) throw new HttpsError("invalid-argument", "targetAlignmentKey is required.");
   const sessionKind = request.data?.sessionKind === "retentionProbe" ? "retentionProbe" : "practice";
   const requiredQuestions = pathSessionRequiredQuestions(sessionKind, request.data?.requiredQuestions);
-  const assessmentFramework = normalizePathAssessmentFramework(request.data?.assessmentFramework);
+  let assessmentFramework = normalizePathAssessmentFramework(request.data?.assessmentFramework);
   const db = getFirestore();
+
+  const studentSnapshot = await db.collection("grades").doc(studentId).get();
+  if (!studentSnapshot.exists) throw new HttpsError("not-found", "Your MathMaster student record is unavailable.");
+  const studentData = studentSnapshot.data() || {};
+  const [studentClass, legacyCourseSettings] = await Promise.all([
+    loadStudentClass(db, studentData),
+    db.collection("settings").doc("courseProfiles").get(),
+  ]);
+  const legacyCourse = legacyCourseSettings.data()?.profiles?.[studentData.classPeriod] || {};
+  const courseId = studentClass?.course || legacyCourse.course || coverageCourseIdFor(targetAlignmentKey);
+  const courseLevel = studentClass?.courseLevel || legacyCourse.courseLevel || "standard";
+
+  // Weekly launches are resolved against the frozen server commitment. The
+  // browser may choose which assigned row the student clicks, but it cannot
+  // turn that row into another TEKS, framework, DOK or difficulty.
+  const requestedWeekKey = String(request.data?.weekKey || "").trim() || null;
+  const requestedWeeklySlotKey = String(request.data?.weeklySlotKey || "").trim() || null;
+  let weeklySlot = null;
+  if (requestedWeeklySlotKey || requestedWeekKey) {
+    if (!requestedWeeklySlotKey || !requestedWeekKey || !/^\d{4}-\d{2}-\d{2}$/.test(requestedWeekKey)) {
+      throw new HttpsError("invalid-argument", "weekKey and weeklySlotKey are both required for an assigned weekly session.");
+    }
+    const snapshot = await db.collection(WEEKLY_PATH_GOAL_SNAPSHOTS).doc(`${studentId}__${requestedWeekKey}`).get();
+    if (!snapshot.exists) throw new HttpsError("failed-precondition", "This weekly commitment has not been assigned yet. Return to My Math Path and reload the week.");
+    const weeklyGoal = snapshot.data() || {};
+    if (studentClass?.classId && weeklyGoal.classId !== studentClass.classId) {
+      throw new HttpsError("failed-precondition", "This weekly commitment belongs to a different class.");
+    }
+    weeklySlot = (Array.isArray(weeklyGoal.sessions) ? weeklyGoal.sessions : [])
+      .find((slot) => String(slot?.weeklySlotKey || "") === requestedWeeklySlotKey) || null;
+    if (!weeklySlot) throw new HttpsError("failed-precondition", "That weekly Path slot is no longer part of the assigned week.");
+    const assignedTarget = mathPath.canonicalAlignmentKey(weeklySlot.teksCode);
+    if (!assignedTarget || assignedTarget !== targetAlignmentKey) {
+      throw new HttpsError("failed-precondition", "That launch does not match the assigned weekly standard.");
+    }
+    const assignedFramework = normalizePathAssessmentFramework(weeklySlot.context);
+    if (assessmentFramework && assessmentFramework !== assignedFramework) {
+      throw new HttpsError("failed-precondition", "That launch does not match the assigned weekly assessment context.");
+    }
+    assessmentFramework = assignedFramework;
+  }
 
   // Refuse a standard the secure bank cannot issue a question for, and refuse
   // it HERE — at the start, with an explanation — rather than letting the
@@ -4580,7 +4960,7 @@ exports.startMyMathPathSession = onCall(async (request) => {
     }
   }
 
-  const lockId = mathPath.opaqueId("pathlock", studentId, targetAlignmentKey, assessmentFramework || "course");
+  const lockId = mathPath.opaqueId("pathlock", studentId, targetAlignmentKey, assessmentFramework || "course", requestedWeeklySlotKey || "open-practice");
   const lockRef = db.collection("activePathLocks").doc(lockId);
   const proposedSessionRef = db.collection("pathSessions").doc();
 
@@ -4608,6 +4988,16 @@ exports.startMyMathPathSession = onCall(async (request) => {
       status: "active",
       sessionKind,
       assessmentFramework,
+      courseId,
+      courseLevel,
+      classId: studentClass?.classId || null,
+      classPeriod: studentClass?.period || studentData.classPeriod || null,
+      weekKey: requestedWeekKey,
+      weeklySlotKey: requestedWeeklySlotKey,
+      weeklySlot: weeklySlot?.slot || null,
+      intendedDok: weeklySlot?.dok || null,
+      intendedDifficultyBand: weeklySlot?.difficultyBand || null,
+      weeklyPurpose: weeklySlot?.purpose || null,
       requiredQuestions,
       target: { alignmentKey: targetAlignmentKey },
       summary: { completedQuestions: 0, correctQuestions: 0, independentSuccesses: 0 },
@@ -4633,7 +5023,7 @@ exports.startMyMathPathSession = onCall(async (request) => {
       updatedAt: now,
     };
     transaction.set(proposedSessionRef, next);
-    transaction.set(lockRef, { sessionId: proposedSessionRef.id, studentId, targetAlignmentKey, sessionKind, assessmentFramework, updatedAt: now });
+    transaction.set(lockRef, { sessionId: proposedSessionRef.id, studentId, targetAlignmentKey, sessionKind, assessmentFramework, weekKey: requestedWeekKey, weeklySlotKey: requestedWeeklySlotKey, updatedAt: now });
     return next;
   });
 
@@ -4729,7 +5119,8 @@ exports.issueNextQuestion = onCall(async (request) => {
     throw new HttpsError("failed-precondition", `No active secure question family is published for ${session.target.alignmentKey}.${skipped}`);
   }
 
-  const classPeriod = rosterSnapshot.data()?.classPeriod || "Unassigned";
+  const classPeriod = rosterSnapshot.data()?.classPeriod || session.classPeriod || "Unassigned";
+  const studentClass = await loadStudentClass(db, rosterSnapshot.data());
   // THE STUDENT'S ACTUAL ENTITLEMENTS.
   //
   // The roster document was already being read here, and its `.profile` field
@@ -4739,9 +5130,19 @@ exports.issueNextQuestion = onCall(async (request) => {
   // the Path however carefully a district authorized them: nothing on the
   // server had ever looked. The adapter accepts either stored profile shape.
   const entitlements = await mathPath.resolveEntitlements(rosterSnapshot.data()?.profile || null);
-  const courseLevel = courseSettingsSnapshot.data()?.profiles?.[classPeriod]?.courseLevel || "standard";
+  const courseLevel = session.courseLevel
+    || studentClass?.courseLevel
+    || courseSettingsSnapshot.data()?.profiles?.[classPeriod]?.courseLevel
+    || "standard";
   const masteryProfile = masterySnapshot.data()?.profiles?.[activeDisplayCode] || {};
   const adaptiveRigor = rigorPolicy.resolveAdaptiveRigor({ courseLevel, profile: masteryProfile });
+  const onAssignedWeeklyTarget = Boolean(session.weeklySlotKey && activeDisplayCode === targetDisplayCode && !session.diagnosing);
+  const preferredDifficultyBand = onAssignedWeeklyTarget && Number.isFinite(Number(session.intendedDifficultyBand))
+    ? Number(session.intendedDifficultyBand)
+    : adaptiveRigor.preferredDifficultyBand;
+  const preferredDok = onAssignedWeeklyTarget && Number.isFinite(Number(session.intendedDok))
+    ? Number(session.intendedDok)
+    : adaptiveRigor.preferredDok;
   // Selection prefers an UNUSED family, widening to the closest adjacent band
   // before it repeats anything. Narrowing to the nearest band first and cycling
   // inside it — which is what this used to do — trapped a five-question session
@@ -4754,11 +5155,11 @@ exports.issueNextQuestion = onCall(async (request) => {
   const usedRepresentations = Array.isArray(session.usedRepresentations) ? session.usedRepresentations : [];
   const usedTaskTypes = Array.isArray(session.usedTaskTypes) ? session.usedTaskTypes : [];
   const choice = selection.selectNextFamily(candidates, {
-    preferredBand: adaptiveRigor.preferredDifficultyBand,
+    preferredBand: preferredDifficultyBand,
     // Cognitive demand, decided server-side from the same evidence the band is.
     // Selection ignored it entirely until now, so the DOK the platform reported
     // was never the DOK it delivered.
-    preferredDok: adaptiveRigor.preferredDok,
+    preferredDok,
     usage: familyUsage,
     usedRepresentations,
     usedTaskTypes,
@@ -5150,6 +5551,10 @@ exports.submitPathResponse = onCall(async (request) => {
         activityRole: session.sessionKind === "retentionProbe" ? "retention" : "practice",
         activitySessionId: sessionId,
         sessionKind: session.sessionKind,
+        weekKey: session.weekKey || null,
+        weeklySlotKey: session.weeklySlotKey || null,
+        weeklySlot: session.weeklySlot || null,
+        weeklyPurpose: session.weeklyPurpose || null,
         // Direct assessment evidence comes from the question actually issued,
         // not merely from the session the student started. A course foundation
         // bridge inside SAT/ACT/etc. remains course evidence.
@@ -5190,7 +5595,7 @@ exports.submitPathResponse = onCall(async (request) => {
     transaction.set(evidenceRef, event);
     transaction.set(sessionRef, nextSession);
     if (nextStatus === "completed") {
-      const lockRef = db.collection("activePathLocks").doc(mathPath.opaqueId("pathlock", studentId, session.target.alignmentKey, session.assessmentFramework || "course"));
+      const lockRef = db.collection("activePathLocks").doc(mathPath.opaqueId("pathlock", studentId, session.target.alignmentKey, session.assessmentFramework || "course", session.weeklySlotKey || "open-practice"));
       transaction.delete(lockRef);
     }
 
@@ -5246,9 +5651,11 @@ exports.submitModelingLab = onCall(async (request) => {
     const assignment = assignmentSnapshot.data() || {};
     const labDefinition = labSnapshot.data() || {};
     if (String(labDefinition.assignmentId || "") !== assignmentId) throw new HttpsError("failed-precondition", "The modeling lab is not attached to this assignment.");
-    const classPeriod = studentSnapshot.exists ? String(studentSnapshot.data()?.classPeriod || "Unassigned") : "Unassigned";
-    const assignedPeriods = Array.isArray(assignment.assignedClassPeriods) ? assignment.assignedClassPeriods.map(String) : [];
-    if (assignedPeriods.length && !assignedPeriods.includes(classPeriod)) throw new HttpsError("permission-denied", "This modeling lab is not assigned to your class period.");
+    const studentData = studentSnapshot.exists ? (studentSnapshot.data() || {}) : {};
+    const classPeriod = String(studentData.classPeriod || "Unassigned");
+    if (!studentMatchesAssignmentAudience({ assignment, classId: studentData.classId || null, classPeriod })) {
+      throw new HttpsError("permission-denied", "This modeling lab is not assigned to your MathMaster class.");
+    }
 
     let evaluation;
     try {

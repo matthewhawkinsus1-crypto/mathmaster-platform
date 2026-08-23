@@ -15644,6 +15644,1086 @@
           "tb": "4*b"
         }
       }
+    },
+    {
+      "id": "mm_gen_8_8_2C_compare-notation-claim",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.2C"
+      ],
+      "courseId": "grade8",
+      "familyId": "mathmaster:8.2C:gen-compare-notation-claim",
+      "familyVersion": 1,
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.2C",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Look at what the question is asking you to decide, not just what to compute."
+      ],
+      "supportHints": [
+        "Work out what is actually true first. Then check each statement against it."
+      ],
+      "questionType": "multipleChoice",
+      "taskType": "justification",
+      "representation": "symbolic",
+      "prompt": "A student says $ {{a}} \\times 10^{ {{p}} }$ is greater than $ {{b}} \\times 10^{ {{q}} }$ because $ {{a}} > {{b}} $. Is the student right, and what actually settles it?",
+      "choices": [
+        {
+          "id": "exponent",
+          "label": "No — the exponents decide first, and {{q}} > {{p}}"
+        },
+        {
+          "id": "coefficient",
+          "label": "Yes — the larger coefficient always gives the larger number"
+        },
+        {
+          "id": "equal",
+          "label": "No — the two numbers are equal"
+        },
+        {
+          "id": "cannot",
+          "label": "It cannot be decided without converting both to standard notation"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "exponent"
+        }
+      ],
+      "solutionReview": {
+        "headline": "In scientific notation the exponent decides the size first.",
+        "reasoning": [
+          "Both coefficients are between 1 and 10, so neither can span a whole power of ten.",
+          "Since $ {{q}} > {{p}} $, the second number is larger no matter which coefficient is bigger."
+        ],
+        "answerSummary": "No — the exponents decide first, and {{q}} > {{p}}"
+      },
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 5,
+            "max": 9
+          },
+          "b": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "p": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "gap": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          }
+        },
+        "derived": {
+          "q": "p+gap"
+        }
+      }
+    },
+    {
+      "id": "mm_gen_8_8_4C_intercept-not-first-row",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.4C"
+      ],
+      "courseId": "grade8",
+      "familyId": "mathmaster:8.4C:gen-intercept-not-first-row",
+      "familyVersion": 1,
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.4C",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Look at what the question is asking you to decide, not just what to compute."
+      ],
+      "supportHints": [
+        "Work out what is actually true first. Then check each statement against it."
+      ],
+      "questionType": "multipleChoice",
+      "taskType": "justification",
+      "representation": "table",
+      "prompt": "A table shows $y = {{y1}}$ when $x = 1$, and $y$ increases by $ {{m}} $ for every increase of 1 in $x$. A student says the $y$-intercept is $ {{y1}} $. What is wrong with that?",
+      "choices": [
+        {
+          "id": "stepback",
+          "label": "The intercept is the value at $x=0$, which is $ {{b}} $ — one step of $ {{m}} $ back from $ {{y1}} $"
+        },
+        {
+          "id": "nothing",
+          "label": "Nothing — the first value in a table is always the $y$-intercept"
+        },
+        {
+          "id": "slope",
+          "label": "The intercept is the rate of change, $ {{m}} $"
+        },
+        {
+          "id": "none",
+          "label": "A table cannot show a $y$-intercept at all"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "stepback"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The y-intercept is the output when the input is zero.",
+        "reasoning": [
+          "The table starts at $x=1$, not at $x=0$, so its first value is not the intercept.",
+          "Stepping back one unit of $x$ subtracts one rate of change: $ {{y1}} - {{m}} = {{b}} $."
+        ],
+        "answerSummary": "The intercept is {{b}}, one step of {{m}} back from {{y1}}"
+      },
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "b": {
+            "type": "int",
+            "min": -12,
+            "max": 12
+          }
+        },
+        "derived": {
+          "y1": "b+m"
+        }
+      }
+    },
+    {
+      "id": "mm_gen_8_8_5F_both-linear-one-proportional",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.5F"
+      ],
+      "courseId": "grade8",
+      "familyId": "mathmaster:8.5F:gen-both-linear-one-proportional",
+      "familyVersion": 1,
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.5F",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Look at what the question is asking you to decide, not just what to compute."
+      ],
+      "supportHints": [
+        "Work out what is actually true first. Then check each statement against it."
+      ],
+      "questionType": "multipleChoice",
+      "taskType": "justification",
+      "representation": "verbal",
+      "prompt": "Plan A charges $ \\${{r}} $ per hour with no fee. Plan B charges $ \\${{r}} $ per hour plus a $ \\${{fee}} $ fee. Both change at a constant rate. Which is proportional, and why?",
+      "choices": [
+        {
+          "id": "planA",
+          "label": "Plan A only — a proportional relationship must pass through $(0,0)$, and Plan B starts at $ \\${{fee}} $"
+        },
+        {
+          "id": "both",
+          "label": "Both — they have the same constant rate of change"
+        },
+        {
+          "id": "planB",
+          "label": "Plan B only — it has a larger total cost"
+        },
+        {
+          "id": "neither",
+          "label": "Neither — proportional relationships cannot involve money"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "planA"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A constant rate is not enough. Proportional means y = kx, with no constant term.",
+        "reasoning": [
+          "Plan A costs $ {{r}}x $, so at $x=0$ the cost is $0$ and every ratio $y/x$ equals $ {{r}} $.",
+          "Plan B costs $ {{r}}x + {{fee}} $. At 1 hour the ratio is $ {{ratio1}} $, at 2 hours it is $ {{ratio2}} $ — not constant."
+        ],
+        "answerSummary": "Plan A only — Plan B does not pass through the origin"
+      },
+      "generator": {
+        "parameters": {
+          "r": {
+            "type": "int",
+            "min": 6,
+            "max": 15
+          },
+          "fee": {
+            "type": "int",
+            "min": 5,
+            "max": 30
+          }
+        },
+        "derived": {
+          "ratio1": "r+fee",
+          "ratio2": "(2*r+fee)/2"
+        }
+      }
+    },
+    {
+      "id": "mm_gen_8_8_5I_equation-fits-one-point",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.5I"
+      ],
+      "courseId": "grade8",
+      "familyId": "mathmaster:8.5I:gen-equation-fits-one-point",
+      "familyVersion": 1,
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.5I",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Look at what the question is asking you to decide, not just what to compute."
+      ],
+      "supportHints": [
+        "Work out what is actually true first. Then check each statement against it."
+      ],
+      "questionType": "multipleChoice",
+      "taskType": "justification",
+      "representation": "symbolic",
+      "prompt": "A line passes through $({{x1}}, {{y1}})$ and $({{x2}}, {{y2}})$. A student writes $y = {{m}}x + {{wrongB}}$. Check the equation against both points.",
+      "choices": [
+        {
+          "id": "interceptWrong",
+          "label": "The slope is right but the intercept is wrong — the correct equation is $y = {{m}}x + {{b}}$"
+        },
+        {
+          "id": "correct",
+          "label": "The equation is correct — it fits both points"
+        },
+        {
+          "id": "slopeWrong",
+          "label": "The slope is wrong; it should be $ {{y1}} $"
+        },
+        {
+          "id": "noLine",
+          "label": "No line can pass through both points"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "interceptWrong"
+        }
+      ],
+      "solutionReview": {
+        "headline": "An equation must fit EVERY point on the line, not just one.",
+        "reasoning": [
+          "The slope is $({{y2}} - {{y1}})/({{x2}} - {{x1}}) = {{m}}$, which the student had right.",
+          "Substituting $({{x1}}, {{y1}})$ gives $ {{y1}} = {{m}}({{x1}}) + b $, so $b = {{b}}$, not $ {{wrongB}} $."
+        ],
+        "answerSummary": "y = {{m}}x + {{b}}"
+      },
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          },
+          "b": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          },
+          "x1": {
+            "type": "int",
+            "min": -4,
+            "max": 2
+          },
+          "run": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "off": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          }
+        },
+        "derived": {
+          "x2": "x1+run",
+          "y1": "m*x1+b",
+          "y2": "m*(x1+run)+b",
+          "wrongB": "b+off"
+        }
+      }
+    },
+    {
+      "id": "mm_gen_8_8_7C_converse-check",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.7C"
+      ],
+      "courseId": "grade8",
+      "familyId": "mathmaster:8.7C:gen-converse-check",
+      "familyVersion": 1,
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.7C",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Look at what the question is asking you to decide, not just what to compute."
+      ],
+      "supportHints": [
+        "Work out what is actually true first. Then check each statement against it."
+      ],
+      "questionType": "multipleChoice",
+      "taskType": "justification",
+      "representation": "diagram",
+      "prompt": "A triangle has sides $ {{a}} $, $ {{b}} $ and $ {{c}} $, with $ {{c}} $ the longest. A student says it must be a right triangle because $ {{c}} $ is the longest side. Is it a right triangle?",
+      "choices": [
+        {
+          "id": "no",
+          "label": "No — $ {{a}}^2 + {{b}}^2 = {{sumSquares}} $, but $ {{c}}^2 = {{cSquared}} $"
+        },
+        {
+          "id": "yes",
+          "label": "Yes — the longest side is always the hypotenuse of a right triangle"
+        },
+        {
+          "id": "needAngle",
+          "label": "It cannot be decided without measuring an angle"
+        },
+        {
+          "id": "notTriangle",
+          "label": "These three lengths cannot form a triangle"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "no"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The converse of the Pythagorean Theorem is a test, not a guarantee.",
+        "reasoning": [
+          "Every triangle has a longest side. That alone says nothing about its angles.",
+          "The triangle is right only when $a^2 + b^2 = c^2$. Here $ {{sumSquares}} \\ne {{cSquared}} $, so it is not."
+        ],
+        "answerSummary": "No — the squares do not balance"
+      },
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 5,
+            "max": 12
+          },
+          "b": {
+            "type": "int",
+            "min": 6,
+            "max": 14
+          },
+          "bump": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          }
+        },
+        "derived": {
+          "sumSquares": "a*a+b*b",
+          "c": "floor(sqrt(a*a+b*b))+bump",
+          "cSquared": "c*c"
+        },
+        "constraints": [
+          "c < a + b",
+          "c > a",
+          "c > b",
+          "cSquared != sumSquares"
+        ]
+      }
+    },
+    {
+      "id": "mm_gen_8_8_8C_find-the-flawed-step",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.8C"
+      ],
+      "courseId": "grade8",
+      "familyId": "mathmaster:8.8C:gen-find-the-flawed-step",
+      "familyVersion": 1,
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.8C",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Look at what the question is asking you to decide, not just what to compute."
+      ],
+      "supportHints": [
+        "Work out what is actually true first. Then check each statement against it."
+      ],
+      "questionType": "multipleChoice",
+      "taskType": "errorAnalysis",
+      "representation": "symbolic",
+      "prompt": "Solving $ {{m1}}x + {{b1}} = {{m2}}x + {{b2}} $, a student writes: Step 1: $ {{diffM}}x + {{b1}} = {{b2}} $. Step 2: $ {{diffM}}x = {{wrongRight}} $. Step 3: $x = {{wrongX}} $. Which step is wrong, and why?",
+      "choices": [
+        {
+          "id": "step2",
+          "label": "Step 2 — $ {{b1}} $ was subtracted from the left but not from the right; it should be $ {{rightSide}} $"
+        },
+        {
+          "id": "step1",
+          "label": "Step 1 — subtracting $ {{m2}}x $ from both sides was not allowed"
+        },
+        {
+          "id": "step3",
+          "label": "Step 3 — the division was done incorrectly"
+        },
+        {
+          "id": "none",
+          "label": "No step is wrong; the answer is correct"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "step2"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Whatever you do to one side, you must do to the other.",
+        "reasoning": [
+          "Step 1 is fine: subtracting $ {{m2}}x $ from both sides gives $ {{diffM}}x + {{b1}} = {{b2}} $.",
+          "Step 2 subtracted $ {{b1}} $ from the left only. The right side must become $ {{b2}} - {{b1}} = {{rightSide}} $.",
+          "The correct solution is $x = {{x}} $."
+        ],
+        "answerSummary": "Step 2 — the right side should be {{rightSide}}"
+      },
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 6,
+            "max": 12
+          },
+          "m2": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "b1": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          },
+          "x": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "diffM": "m1-m2",
+          "b2": "(m1-m2)*x+b1",
+          "rightSide": "(m1-m2)*x",
+          "wrongRight": "(m1-m2)*x+b1",
+          "wrongX": "((m1-m2)*x+b1)/(m1-m2)"
+        },
+        "constraints": [
+          "diffM > 0",
+          "b1 % diffM == 0"
+        ]
+      }
+    },
+    {
+      "id": "mm_gen_8_8_9_satisfies-only-one",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.9"
+      ],
+      "courseId": "grade8",
+      "familyId": "mathmaster:8.9:gen-satisfies-only-one",
+      "familyVersion": 1,
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.9",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Look at what the question is asking you to decide, not just what to compute."
+      ],
+      "supportHints": [
+        "Work out what is actually true first. Then check each statement against it."
+      ],
+      "questionType": "multipleChoice",
+      "taskType": "justification",
+      "representation": "symbolic",
+      "prompt": "A student says $({{px}}, {{py}})$ solves the system $y = {{m1}}x + {{c1}}$ and $y = {{m2}}x + {{c2}}$. Check it in both equations.",
+      "choices": [
+        {
+          "id": "firstOnly",
+          "label": "It satisfies the first equation only — in the second, the right side is $ {{secondValue}} $, not $ {{py}} $"
+        },
+        {
+          "id": "both",
+          "label": "It satisfies both, so it is the solution"
+        },
+        {
+          "id": "neither",
+          "label": "It satisfies neither equation"
+        },
+        {
+          "id": "secondOnly",
+          "label": "It satisfies the second equation only"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "firstOnly"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A solution to a system must make every equation true at once.",
+        "reasoning": [
+          "First equation: $ {{m1}}({{px}}) + {{c1}} = {{py}} $, so this point is on that line.",
+          "Second equation: $ {{m2}}({{px}}) + {{c2}} = {{secondValue}} $, which is not $ {{py}} $.",
+          "The actual solution of the system is $({{sx}}, {{sy}})$."
+        ],
+        "answerSummary": "The first equation only"
+      },
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          },
+          "m2": {
+            "type": "int",
+            "min": -6,
+            "max": -1
+          },
+          "sx": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "c1": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "shift": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        },
+        "derived": {
+          "sy": "m1*sx+c1",
+          "c2": "m1*sx+c1-m2*sx",
+          "px": "sx+shift",
+          "py": "m1*(sx+shift)+c1",
+          "secondValue": "m2*(sx+shift)+(m1*sx+c1-m2*sx)"
+        }
+      }
+    },
+    {
+      "id": "mm_gen_8_8_4A_slope-independent-of-points",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.4A"
+      ],
+      "courseId": "grade8",
+      "familyId": "mathmaster:8.4A:gen-slope-independent-of-points",
+      "familyVersion": 1,
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.4A",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Look at what the question is asking you to decide, not just what to compute."
+      ],
+      "supportHints": [
+        "Work out what is actually true first. Then check each statement against it."
+      ],
+      "questionType": "multipleChoice",
+      "taskType": "justification",
+      "representation": "graph",
+      "prompt": "On one line, a student draws a slope triangle with rise $ {{r1}} $ and run $ {{u1}} $, then another with rise $ {{r2}} $ and run $ {{u2}} $. The triangles are different sizes. Why do both give the same slope?",
+      "choices": [
+        {
+          "id": "similar",
+          "label": "The triangles are similar, so their corresponding sides are proportional and both ratios equal $ {{slope}} $"
+        },
+        {
+          "id": "congruent",
+          "label": "The triangles are congruent, so their sides are equal"
+        },
+        {
+          "id": "coincidence",
+          "label": "It is a coincidence that depends on the numbers chosen"
+        },
+        {
+          "id": "bigger",
+          "label": "The larger triangle gives the more accurate slope"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "similar"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Slope triangles on one line are similar, so the rise-to-run ratio cannot change.",
+        "reasoning": [
+          "Both triangles have a right angle and share the line, so their angles match and they are similar.",
+          "Similar triangles have proportional sides: $ {{r1}}/{{u1}} = {{r2}}/{{u2}} = {{slope}} $."
+        ],
+        "answerSummary": "They are similar triangles, so the ratios are equal"
+      },
+      "generator": {
+        "parameters": {
+          "slope": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          },
+          "u1": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "scale": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          }
+        },
+        "derived": {
+          "r1": "slope*u1",
+          "u2": "u1*scale",
+          "r2": "slope*u1*scale"
+        }
+      }
+    },
+    {
+      "id": "mm_gen_8_8_3C_scale-factor-length-vs-area",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.3C"
+      ],
+      "courseId": "grade8",
+      "familyId": "mathmaster:8.3C:gen-scale-factor-length-vs-area",
+      "familyVersion": 1,
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.3C",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Look at what the question is asking you to decide, not just what to compute."
+      ],
+      "supportHints": [
+        "Work out what is actually true first. Then check each statement against it."
+      ],
+      "questionType": "multipleChoice",
+      "taskType": "justification",
+      "representation": "diagram",
+      "prompt": "A rectangle $ {{w}} $ by $ {{h}} $ is dilated from the origin by a scale factor of $ {{k}} $. A student says both the perimeter and the area are multiplied by $ {{k}} $. What is actually true?",
+      "choices": [
+        {
+          "id": "areaSquared",
+          "label": "The perimeter is multiplied by $ {{k}} $, but the area is multiplied by $ {{kSquared}} $ — it becomes $ {{newArea}} $"
+        },
+        {
+          "id": "bothK",
+          "label": "The student is right — both are multiplied by $ {{k}} $"
+        },
+        {
+          "id": "bothSquared",
+          "label": "Both the perimeter and the area are multiplied by $ {{kSquared}} $"
+        },
+        {
+          "id": "neither",
+          "label": "Neither changes, because dilation preserves shape"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "areaSquared"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A dilation scales every length by k, so it scales area by k twice.",
+        "reasoning": [
+          "The sides become $ {{newW}} $ and $ {{newH}} $, so the perimeter scales by $ {{k}} $.",
+          "The area was $ {{area}} $ and becomes $ {{newW}} \\times {{newH}} = {{newArea}} $, which is $ {{kSquared}} $ times as large."
+        ],
+        "answerSummary": "Perimeter times {{k}}, area times {{kSquared}}"
+      },
+      "generator": {
+        "parameters": {
+          "w": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "h": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "k": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          }
+        },
+        "derived": {
+          "newW": "w*k",
+          "newH": "h*k",
+          "area": "w*h",
+          "newArea": "w*k*h*k",
+          "kSquared": "k*k"
+        }
+      }
+    },
+    {
+      "id": "mm_gen_8_8_7D_straight-line-vs-grid-path",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.7D"
+      ],
+      "courseId": "grade8",
+      "familyId": "mathmaster:8.7D:gen-straight-line-vs-grid-path",
+      "familyVersion": 1,
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.7D",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Look at what the question is asking you to decide, not just what to compute."
+      ],
+      "supportHints": [
+        "Work out what is actually true first. Then check each statement against it."
+      ],
+      "questionType": "multipleChoice",
+      "taskType": "justification",
+      "representation": "graph",
+      "prompt": "From $(0,0)$ to $({{a}}, {{b}})$, one student walks $ {{a}} $ east then $ {{b}} $ north. Another goes straight. How much shorter is the straight route?",
+      "choices": [
+        {
+          "id": "diff",
+          "label": "$ {{diff}} $ units — the straight route is $ {{c}} $ and the grid route is $ {{gridPath}} $"
+        },
+        {
+          "id": "same",
+          "label": "They are the same length"
+        },
+        {
+          "id": "half",
+          "label": "Exactly half as long"
+        },
+        {
+          "id": "cannot",
+          "label": "It cannot be found without a protractor"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "diff"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The grid route is two legs; the straight route is the hypotenuse.",
+        "reasoning": [
+          "The grid route is $ {{a}} + {{b}} = {{gridPath}} $ units.",
+          "The straight route is $\\sqrt{ {{a}}^2 + {{b}}^2 } = \\sqrt{ {{sumSquares}} } = {{c}} $ units.",
+          "The difference is $ {{gridPath}} - {{c}} = {{diff}} $ units."
+        ],
+        "answerSummary": "{{diff}} units shorter"
+      },
+      "generator": {
+        "parameters": {
+          "j": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          },
+          "k": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          }
+        },
+        "derived": {
+          "a": "j*j-k*k",
+          "b": "2*j*k",
+          "c": "j*j+k*k",
+          "sumSquares": "a*a+b*b",
+          "gridPath": "a+b",
+          "diff": "a+b-c"
+        },
+        "constraints": [
+          "k < j"
+        ]
+      }
+    },
+    {
+      "id": "mm_gen_8_8_5B_interpret-the-constant",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.5B"
+      ],
+      "courseId": "grade8",
+      "familyId": "mathmaster:8.5B:gen-interpret-the-constant",
+      "familyVersion": 1,
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.5B",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Look at what the question is asking you to decide, not just what to compute."
+      ],
+      "supportHints": [
+        "Work out what is actually true first. Then check each statement against it."
+      ],
+      "questionType": "multipleChoice",
+      "taskType": "justification",
+      "representation": "verbal",
+      "prompt": "A tank holds $ {{b}} $ litres and is filling at $ {{m}} $ litres per minute, so $y = {{m}}x + {{b}}$. A student says the $ {{b}} $ should not be there because the tank is being filled. What does the $ {{b}} $ represent, and why does it belong?",
+      "choices": [
+        {
+          "id": "start",
+          "label": "The amount already in the tank at $x=0$ — the tank did not start empty"
+        },
+        {
+          "id": "rate",
+          "label": "A second filling rate that adds to $ {{m}} $"
+        },
+        {
+          "id": "total",
+          "label": "The capacity of the tank when it is full"
+        },
+        {
+          "id": "error",
+          "label": "Nothing — the student is right that it should be removed"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "start"
+        }
+      ],
+      "solutionReview": {
+        "headline": "In y = mx + b, b is the value when x is zero.",
+        "reasoning": [
+          "At $x = 0$ minutes, $y = {{b}}$ litres — that is what was in the tank before filling started.",
+          "After {{t}} minutes there are $ {{m}}({{t}}) + {{b}} = {{after}} $ litres, which is $ {{b}} $ more than filling from empty would give."
+        ],
+        "answerSummary": "The amount already in the tank when timing started"
+      },
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 3,
+            "max": 12
+          },
+          "b": {
+            "type": "int",
+            "min": 5,
+            "max": 40
+          },
+          "t": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          }
+        },
+        "derived": {
+          "after": "m*t+b"
+        }
+      }
+    },
+    {
+      "id": "mm_gen_8_8_2B_justify-the-bound",
+      "active": true,
+      "alignmentKeys": [
+        "texas:8.2B"
+      ],
+      "courseId": "grade8",
+      "familyId": "mathmaster:8.2B:gen-justify-the-bound",
+      "familyVersion": 1,
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "8.2B",
+      "authoring": {
+        "source": "MathMaster generative Path authoring",
+        "kit": 4
+      },
+      "attemptFeedback": [
+        "Look at what the question is asking you to decide, not just what to compute."
+      ],
+      "supportHints": [
+        "Work out what is actually true first. Then check each statement against it."
+      ],
+      "questionType": "multipleChoice",
+      "taskType": "justification",
+      "representation": "symbolic",
+      "prompt": "Without a calculator, between which two consecutive whole numbers does $\\sqrt{ {{n}} }$ lie, and what settles it?",
+      "choices": [
+        {
+          "id": "bounds",
+          "label": "Between $ {{lo}} $ and $ {{hi}} $, because $ {{loSq}} < {{n}} < {{hiSq}} $"
+        },
+        {
+          "id": "halve",
+          "label": "Between $ {{lo}} $ and $ {{hi}} $, because $\\sqrt{ {{n}} }$ is about half of $ {{n}} $"
+        },
+        {
+          "id": "exact",
+          "label": "$\\sqrt{ {{n}} }$ is exactly $ {{lo}} $"
+        },
+        {
+          "id": "cannot",
+          "label": "It cannot be determined without a calculator"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "bounds"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Trap the number between the perfect squares on either side of it.",
+        "reasoning": [
+          "$ {{lo}}^2 = {{loSq}} $ and $ {{hi}}^2 = {{hiSq}} $.",
+          "Since $ {{loSq}} < {{n}} < {{hiSq}} $, taking square roots gives $ {{lo}} < \\sqrt{ {{n}} } < {{hi}} $."
+        ],
+        "answerSummary": "Between {{lo}} and {{hi}}"
+      },
+      "generator": {
+        "parameters": {
+          "lo": {
+            "type": "int",
+            "min": 3,
+            "max": 11
+          },
+          "offset": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        },
+        "derived": {
+          "hi": "lo+1",
+          "loSq": "lo*lo",
+          "hiSq": "(lo+1)*(lo+1)",
+          "n": "lo*lo+offset"
+        },
+        "constraints": [
+          "n < hiSq"
+        ]
+      }
     }
   ]
 }

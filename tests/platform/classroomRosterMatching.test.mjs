@@ -70,3 +70,14 @@ test('topic plan deduplicates folders', () => {
   assert.equal(plan.length, 1);
   assert.equal(plan[0].count, 2);
 });
+
+
+test('legacy period-only students are not duplicated when two classes share a period', () => {
+  const students = [{ id: 'legacy', classPeriod: 'Period 3' }, { id: 'a', classId: 'class-A', classPeriod: 'Period 3' }];
+  const classes = [
+    { classId: 'class-A', period: 'Period 3', status: 'active' },
+    { classId: 'class-B', period: 'Period 3', status: 'active' },
+  ];
+  assert.deepEqual(studentsForClass(students, classes[0], classes).map((student) => student.id), ['a']);
+  assert.deepEqual(studentsForClass(students, classes[1], classes).map((student) => student.id), []);
+});

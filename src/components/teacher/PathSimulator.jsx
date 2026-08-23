@@ -21,6 +21,7 @@ import { getDirectAlignmentIndex } from '../../platform/ccmr/assessmentCrosswalk
 import { normalizeAssessmentContext, normalizeQuestionAlignments } from '../../platform/contract/alignments';
 import AssessmentSkillInspector from './AssessmentSkillInspector';
 import SimulatedStudentExperience from './SimulatedStudentExperience';
+import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
 import { auditPathQuestionQuality, summarizePathBankQuality, buildPathQuestionRevisionBrief } from '../../platform/path/pathQuestionQuality.js';
 import {
   createSlot, describeSimulatedDate, duplicateSlot, removeSlot, renameSlot, resolveSimulatedNow,
@@ -196,7 +197,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
   const simulationVisibleAssignments = useMemo(() => (assignment ? [assignment] : []), [assignment]);
 
   const evaluated = useMemo(() => (
-    session ? evaluateSimulation({ learner: session.learner, assignments: simulationAssignments, question }) : null
+    session ? evaluateSimulation({ learner: session.learner, assignments: simulationAssignments, question, courseId: simulationCourseId, retentionSchedulesByTEKS: session.retentionSchedulesByTEKS || {} }) : null
   ), [session, simulationAssignments, question]);
 
   const explanation = useMemo(() => (
@@ -964,6 +965,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
           {explanation && (
             <div style={{ ...panel, borderLeft: `5px solid ${DECISION_COLOR[explanation.decision] || '#5f6368'}` }}>
               <h3 style={heading}>4. Why this next?</h3>
+              {evaluated?.learningProfile && <div style={{ marginBottom: 12 }}><StudentPerformanceBadge profile={evaluated.learningProfile} studentName={session?.learner?.name || 'Simulated student'} /></div>}
               <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'minmax(150px, auto) 1fr', gap: '7px 14px', fontSize: 14, lineHeight: 1.5 }}>
                 <dt style={{ fontWeight: 800 }}>Current skill</dt><dd style={{ margin: 0 }}>{explanation.currentSkill}</dd>
                 <dt style={{ fontWeight: 800 }}>Performance</dt><dd style={{ margin: 0 }}>{explanation.performanceLabel}{explanation.performanceScore != null ? ` · ${explanation.performanceScore}` : ''} from {explanation.evidenceCount} item{explanation.evidenceCount === 1 ? '' : 's'}</dd>

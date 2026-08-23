@@ -11,7 +11,8 @@
 // reuse them against synthetic data.
 
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
-import { db } from '../../firebase.js';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../../firebase.js';
 import { normalizeClassPacing } from './curriculumPacing.js';
 import { normalizeWeeklyGoalConfig } from './weeklyPathGoal.js';
 
@@ -199,6 +200,39 @@ export const appendRouteEvent = (history, event, max = MAX_HISTORY_EVENTS) => {
 };
 
 // ----------------------------------------------------------- firestore layer
+
+
+/**
+ * Teacher-only weekly Path completion summary for one real class.
+ *
+ * Path sessions are server-owned and intentionally unreadable from Firestore,
+ * so the teacher workspace cannot infer completion from client-visible grades.
+ * This callable returns only the progress facts the teacher needs — no answers,
+ * grading keys, or private question payloads.
+ */
+export const fetchTeacherWeeklyPathCompletions = async ({ classId, weekKey } = {}) => {
+  if (!classId) return { byStudentId: {}, goalsByStudentId: {}, truncated: false };
+  const call = httpsCallable(functions, 'getTeacherWeeklyPathCompletions');
+  // `weekStartsOn` used to be sent and was never read: the server derives the
+  // whole window from `weekKey`, which the caller has already computed with the
+  // class's own week start. Sending it implied the server honoured it.
+  const result = await call({ classId, weekKey });
+  return {
+    byStudentId: result?.data?.byStudentId || {},
+    goalsByStudentId: result?.data?.goalsByStudentId || {},
+    // True only if the server hit its page ceiling, meaning the counts below it
+    // are incomplete. A screen showing a grade must be able to say so.
+    truncated: result?.data?.truncated === true,
+  };
+};
+
+/** Freeze or retrieve this student's server-owned weekly commitment. */
+export const resolveWeeklyPathGoalSnapshot = async (goal) => {
+  if (!goal?.weekKey) return null;
+  const call = httpsCallable(functions, 'resolveWeeklyPathGoalSnapshot');
+  const result = await call({ goal });
+  return result?.data?.goal || null;
+};
 
 export const fetchClassPacing = async () => {
   const snapshot = await getDoc(doc(db, 'settings', PACING_DOC));

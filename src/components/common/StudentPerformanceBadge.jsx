@@ -2,9 +2,22 @@ import React from 'react';
 import {
   BASELINE, ENGAGEMENT, INSTRUCTIONAL_BAND, PERFORMANCE_PROJECTION,
 } from '../../platform/profile/studentLearningProfile.js';
+import {
+  BAND_TONE, ENGAGEMENT_TONE, PROJECTION_TONE, toneChip as chip,
+} from '../../platform/profile/performanceTone.js';
 
-// ONE badge. Used on the roster, the class monitor, the analytics table, the
-// simulator and the student profile view.
+// ONE badge, and the only place a student's academic status is rendered.
+//
+// CURRENTLY MOUNTED ON: the Students roster (rows and Overview), the Student
+// Learning Profile view and drawer, the teacher Weekly Path table, the
+// Gradebook, the Live Class grid, the class overview, and the analytics groups.
+//
+// NOT YET MOUNTED ON: the Path simulator and the CCMR views, which still derive
+// their own status locally. That is tracked work, not an oversight, and this
+// comment says so plainly rather than claiming coverage this component does not
+// have — an earlier version of this header listed five screens, four of which
+// had never imported it, which is precisely the kind of quiet inaccuracy that
+// let four parallel colour tables survive in the first place.
 //
 // WHY THIS FILE EXISTS. The repository already carried four independently
 // written tables mapping the same mastery statuses to the same labels and
@@ -18,45 +31,11 @@ import {
 // If a label looks wrong, the profile is wrong, and there is a single place to
 // go and fix it.
 
-const BAND_TONE = {
-  [INSTRUCTIONAL_BAND.BELOW]: { bg: '#fdf1ec', fg: '#9a3412', border: '#f6d4c4' },
-  [INSTRUCTIONAL_BAND.ON]: { bg: '#eef3fb', fg: '#174ea6', border: '#c9daf8' },
-  [INSTRUCTIONAL_BAND.ABOVE]: { bg: '#eefaf1', fg: '#12633a', border: '#c3e8d1' },
-  [BASELINE]: { bg: '#f3f4f6', fg: '#4b5563', border: '#dcdfe4' },
-};
-
-const PROJECTION_TONE = {
-  [PERFORMANCE_PROJECTION.DID_NOT_MEET]: { bg: '#fdecec', fg: '#9f1239', border: '#f6cdcd' },
-  [PERFORMANCE_PROJECTION.APPROACHES]: { bg: '#fdf6e3', fg: '#854d0e', border: '#f0e0b4' },
-  [PERFORMANCE_PROJECTION.MEETS]: { bg: '#eef3fb', fg: '#174ea6', border: '#c9daf8' },
-  [PERFORMANCE_PROJECTION.MASTERS]: { bg: '#eefaf1', fg: '#12633a', border: '#c3e8d1' },
-  [BASELINE]: { bg: '#f3f4f6', fg: '#4b5563', border: '#dcdfe4' },
-};
-
-// Engagement is deliberately a DIFFERENT visual family. A student can be Above
-// Level and Needs Follow-Up at the same time, and the two facts must not be
-// legible as one combined verdict.
-const ENGAGEMENT_TONE = {
-  [ENGAGEMENT.ON_TRACK]: { bg: '#fff', fg: '#3c4043', border: '#dcdfe4' },
-  [ENGAGEMENT.INCONSISTENT]: { bg: '#fff', fg: '#854d0e', border: '#f0e0b4' },
-  [ENGAGEMENT.NEEDS_FOLLOW_UP]: { bg: '#fff', fg: '#9f1239', border: '#f6cdcd' },
-};
-
-const chip = (tone, size) => ({
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 5,
-  padding: size === 'small' ? '2px 8px' : '4px 10px',
-  borderRadius: 999,
-  fontSize: size === 'small' ? 10.5 : 11.5,
-  fontWeight: 900,
-  letterSpacing: '.02em',
-  lineHeight: 1.55,
-  whiteSpace: 'nowrap',
-  background: tone.bg,
-  color: tone.fg,
-  border: `1px solid ${tone.border}`,
-});
+// The tone tables live in `platform/profile/performanceTone.js` rather than
+// here, because a table cell, a heat-map square and a dashboard chip all need
+// the same colour for the same meaning without borrowing this badge's shape —
+// and the alternative, which this repository has already lived through, is each
+// of them writing its own table.
 
 /**
  * The badge.

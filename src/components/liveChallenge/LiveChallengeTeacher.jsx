@@ -55,13 +55,18 @@ function Leaderboard({ rows = [], limit = 12, projector = false }) {
 
 export default function LiveChallengeTeacher({
   allStudents = [],
+  classes = [],
   courseProfiles = {},
   signedInEmail = '',
 }) {
-  const classPeriods = useMemo(() => [...new Set(allStudents.map((student) => student.classPeriod).filter(Boolean))]
-    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [allStudents]);
-  const [classPeriod, setClassPeriod] = useState(classPeriods[0] || '');
-  const [courseId, setCourseId] = useState(courseProfiles?.[classPeriods[0]]?.course || 'algebra1');
+  const classOptions = useMemo(() => (Array.isArray(classes) ? classes : [])
+    .filter((entry) => entry?.status !== 'archived' && ['algebra1', 'algebra2'].includes(entry?.course))
+    .filter((entry) => allStudents.some((student) => student?.classId === entry.classId))
+    .sort((a, b) => String(a.name || a.period || '').localeCompare(String(b.name || b.period || ''), undefined, { numeric: true })), [classes, allStudents]);
+  const [classId, setClassId] = useState(classOptions[0]?.classId || '');
+  const selectedClass = classOptions.find((entry) => entry.classId === classId) || null;
+  const classPeriod = selectedClass?.period || '';
+  const [courseId, setCourseId] = useState(selectedClass?.course || courseProfiles?.[classPeriod]?.course || 'algebra1');
   const [coverage, setCoverage] = useState(null);
   const [standardCode, setStandardCode] = useState('mixed');
   const [roundCount, setRoundCount] = useState(10);
@@ -76,14 +81,15 @@ export default function LiveChallengeTeacher({
   const now = useNow(room?.status === 'running');
 
   useEffect(() => {
-    if (!classPeriod && classPeriods.length) setClassPeriod(classPeriods[0]);
-  }, [classPeriods, classPeriod]);
+    if (!classId && classOptions.length) setClassId(classOptions[0].classId);
+    if (classId && !classOptions.some((entry) => entry.classId === classId)) setClassId(classOptions[0]?.classId || '');
+  }, [classOptions, classId]);
 
   useEffect(() => {
-    const resolved = courseProfiles?.[classPeriod]?.course || 'algebra1';
+    const resolved = selectedClass?.course || courseProfiles?.[classPeriod]?.course || 'algebra1';
     setCourseId(resolved);
     setStandardCode('mixed');
-  }, [classPeriod, courseProfiles]);
+  }, [classId, classPeriod, selectedClass, courseProfiles]);
 
   useEffect(() => {
     let alive = true;
@@ -130,12 +136,13 @@ export default function LiveChallengeTeacher({
 
   const create = async () => {
     const result = await run('create', () => createLiveChallenge({
+      classId,
       classPeriod,
       courseId,
       standardCode,
       roundCount,
       roundSeconds,
-      title: title.trim() || `${classPeriod} Live Challenge`,
+      title: title.trim() || `${selectedClass?.name || classPeriod || 'Class'} Live Challenge`,
     }));
     if (result?.roomId) {
       setRoomId(result.roomId);
@@ -156,20 +163,17 @@ export default function LiveChallengeTeacher({
         </div>
         <section style={panel}>
           <h3 style={{ marginTop: 0 }}>Create a challenge</h3>
-          {classPeriods.length === 0 ? (
-            <p style={{ color: '#a50e0e' }}>No students are currently assigned to your classes, so there is nobody to invite yet.</p>
+          {classOptions.length === 0 ? (
+            <p style={{ color: '#a50e0e' }}>No students are currently assigned to an active Algebra I or Algebra II class, so there is nobody to invite yet.</p>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14 }}>
-              <label style={{ fontWeight: 800 }}>Class period
-                <select value={classPeriod} onChange={(event) => setClassPeriod(event.target.value)} style={{ display: 'block', width: '100%', marginTop: 6, padding: 10, borderRadius: 8, border: '1px solid #b7bec8' }}>
-                  {classPeriods.map((period) => <option key={period} value={period}>{period}</option>)}
+              <label style={{ fontWeight: 800 }}>Class
+                <select value={classId} onChange={(event) => setClassId(event.target.value)} style={{ display: 'block', width: '100%', marginTop: 6, padding: 10, borderRadius: 8, border: '1px solid #b7bec8' }}>
+                  {classOptions.map((entry) => <option key={entry.classId} value={entry.classId}>{entry.name || entry.period || entry.classId}{entry.period ? ` · ${entry.period}` : ''}</option>)}
                 </select>
               </label>
               <label style={{ fontWeight: 800 }}>Course
-                <select value={courseId} onChange={(event) => { setCourseId(event.target.value); setStandardCode('mixed'); }} style={{ display: 'block', width: '100%', marginTop: 6, padding: 10, borderRadius: 8, border: '1px solid #b7bec8' }}>
-                  <option value="algebra1">Algebra I</option>
-                  <option value="algebra2">Algebra II</option>
-                </select>
+                <input value={courseLabel(courseId)} readOnly style={{ display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 6, padding: 10, borderRadius: 8, border: '1px solid #d8dde6', background: '#f8f9fa', color: '#3c4043' }} />
               </label>
               <label style={{ fontWeight: 800 }}>Skill set
                 <select value={standardCode} onChange={(event) => setStandardCode(event.target.value)} style={{ display: 'block', width: '100%', marginTop: 6, padding: 10, borderRadius: 8, border: '1px solid #b7bec8' }}>
@@ -188,14 +192,14 @@ export default function LiveChallengeTeacher({
                 </select>
               </label>
               <label style={{ fontWeight: 800, gridColumn: '1 / -1' }}>Challenge title
-                <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={`${classPeriod || 'Class'} Live Challenge`} style={{ display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 6, padding: 10, borderRadius: 8, border: '1px solid #b7bec8' }} />
+                <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={`${selectedClass?.name || classPeriod || 'Class'} Live Challenge`} style={{ display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 6, padding: 10, borderRadius: 8, border: '1px solid #b7bec8' }} />
               </label>
             </div>
           )}
           <div style={{ marginTop: 16, padding: 12, borderRadius: 10, background: '#e8f0fe', color: '#174ea6', fontSize: 13, lineHeight: 1.5 }}>
             <strong>Scoring:</strong> up to 1,000 points for mathematical correctness, at most 100 for speed, and at most 100 for a streak. Partial-credit tools earn proportional base points. Game results do not change report-card grades or mastery in this first version.
           </div>
-          <button type="button" disabled={!classPeriod || busy === 'create'} onClick={create} style={{ ...primary, marginTop: 16, opacity: !classPeriod || busy === 'create' ? 0.55 : 1 }}>{busy === 'create' ? 'Building secure rounds…' : 'Create Lobby'}</button>
+          <button type="button" disabled={!classId || busy === 'create'} onClick={create} style={{ ...primary, marginTop: 16, opacity: !classId || busy === 'create' ? 0.55 : 1 }}>{busy === 'create' ? 'Building secure rounds…' : 'Create Lobby'}</button>
         </section>
         {message && <div role="alert" style={{ padding: 12, borderRadius: 9, background: '#fff4ce', color: '#7a4f00' }}>{message}</div>}
       </div>

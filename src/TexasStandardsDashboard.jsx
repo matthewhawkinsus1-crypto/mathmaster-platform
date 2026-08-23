@@ -15,6 +15,9 @@ import {
   buildItemAnalytics,
   buildStandardsExportPayload,
 } from './masteryEngine.js';
+import { legacyPerformanceTone, toneChip } from './platform/profile/performanceTone.js';
+import CognitiveDemandView from './components/teacher/CognitiveDemandView.jsx';
+import CcmrDashboard from './components/teacher/CcmrDashboard.jsx';
 
 const pct = (value) => `${Math.round(Number(value) || 0)}%`;
 const escapeCsv = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
@@ -32,22 +35,16 @@ const download = (filename, content, type = 'text/plain;charset=utf-8') => {
   URL.revokeObjectURL(url);
 };
 
-const performanceTone = (key) => ({
-  didNotMeet: ['#fce8e6', '#a50e0e'],
-  approaches: ['#fef7e0', '#8a5a00'],
-  meets: ['#e8f0fe', '#174ea6'],
-  masters: ['#e6f4ea', '#137333'],
-  insufficient: ['#f1f3f4', '#5f6368'],
-}[key] || ['#f1f3f4', '#5f6368']);
-
-const PerformanceBadge = ({ performance }) => {
-  const [background, color] = performanceTone(performance?.key);
-  return (
-    <span style={{ padding: '4px 8px', borderRadius: '999px', background, color, fontSize: '11px', fontWeight: 900, whiteSpace: 'nowrap' }}>
-      {performance?.shortLabel || performance?.label || 'Insufficient'}
-    </span>
-  );
-};
+// The colours were written out here, a fifth independent copy of the same
+// mapping. The vocabulary was already the profile's — didNotMeet, approaches,
+// meets, masters — so only the table was separate, which is the worst version
+// of the problem: the labels agreed and the colours did not, and colour is what
+// a teacher scanning a table actually reads.
+const PerformanceBadge = ({ performance }) => (
+  <span style={toneChip(legacyPerformanceTone(performance?.key))}>
+    {performance?.shortLabel || performance?.label || 'Insufficient'}
+  </span>
+);
 
 const standardBadgeTone = (classification) => {
   if (classification === 'readiness') return ['#e6f4ea', '#137333'];
@@ -127,8 +124,8 @@ const PathwayCard = ({ standard, label, emphasis = false, onSelect }) => {
   );
 };
 
-export default function TexasStandardsDashboard({ allStudents = [], assignments = [] }) {
-  const [classPeriod, setClassPeriod] = useState('All');
+export default function TexasStandardsDashboard({ allStudents = [], assignments = [], classes = [], learningProfilesByStudentId = {}, courseLevelByStudentId = {}, onOpenStudent = null, className = 'this class' }) {
+  const [classId, setClassId] = useState('All');
   const [view, setView] = useState('matrix');
   const [search, setSearch] = useState('');
   const [readinessOnly, setReadinessOnly] = useState(false);
@@ -142,14 +139,17 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
 
   const selectedCourse = getTexasCourse(selectedCourseId) || TEXAS_MATH_ACTIVE_COURSES[0];
   const selectedRegistry = useMemo(() => getTexasStandardsForCourse(selectedCourseId), [selectedCourseId]);
+  const classOptions = useMemo(() => (Array.isArray(classes) ? classes : [])
+    .filter((entry) => entry?.status !== 'archived' && allStudents.some((student) => student?.classId === entry.classId))
+    .slice()
+    .sort((a, b) => String(a.name || a.period || '').localeCompare(String(b.name || b.period || ''), undefined, { numeric: true })), [classes, allStudents]);
   const students = useMemo(
-    () => allStudents.filter((student) => classPeriod === 'All' || String(student.classPeriod || 'Unassigned') === classPeriod),
-    [allStudents, classPeriod],
+    () => allStudents.filter((student) => classId === 'All' || String(student.classId || '') === classId),
+    [allStudents, classId],
   );
   const profiles = useMemo(() => buildClassMasteryProfiles({ students, assignments }), [students, assignments]);
   const profileMap = useMemo(() => Object.fromEntries(profiles.map((profile) => [profile.studentId, profile])), [profiles]);
   const itemAnalytics = useMemo(() => buildItemAnalytics({ students, assignments }), [students, assignments]);
-  const classPeriods = useMemo(() => [...new Set(allStudents.map((student) => String(student.classPeriod || 'Unassigned')))].sort(), [allStudents]);
   const courseItemAnalytics = useMemo(
     () => itemAnalytics.filter((row) => row.courseIds?.includes(selectedCourseId)),
     [itemAnalytics, selectedCourseId],
@@ -274,6 +274,12 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
 
   const viewButtons = [
     ['matrix', 'Student Matrix'],
+    // The class-level question the standards matrix cannot answer: is this
+    // class failing because the numbers are hard, or because they cannot say
+    // what the question is asking?
+    ['demand', 'Demand & Complexity'],
+    // Course knowledge versus transfer. The gap a gradebook cannot show.
+    ['ccmr', 'CCMR Readiness'],
     ['items', 'Item Analysis'],
     ['registry', 'TEKS Registry'],
     ['pathway', 'TEKS Pathway'],
@@ -309,9 +315,9 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
         {viewButtons.map(([key, label]) => (
           <button key={key} type="button" onClick={() => setView(key)} style={{ fontWeight: 900, borderColor: view === key ? '#1a73e8' : '#bdc7d6', background: view === key ? '#e8f0fe' : '#fff', color: view === key ? '#174ea6' : '#3c4043' }}>{label}</button>
         ))}
-        <select value={classPeriod} onChange={(event) => setClassPeriod(event.target.value)} style={{ marginLeft: 'auto' }}>
+        <select value={classId} onChange={(event) => setClassId(event.target.value)} style={{ marginLeft: 'auto' }}>
           <option value="All">All classes</option>
-          {classPeriods.map((period) => <option key={period} value={period}>{period}</option>)}
+          {classOptions.map((entry) => <option key={entry.classId} value={entry.classId}>{entry.name || entry.period || entry.classId}{entry.period ? ` · ${entry.period}` : ''}</option>)}
         </select>
       </div>
 
@@ -391,6 +397,23 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
             ) : <p style={{ color: '#5f6368' }}>No student evidence yet.</p>}
           </aside>
         </div>
+      )}
+
+      {view === 'demand' && (
+        <CognitiveDemandView
+          students={students}
+          profilesByStudentId={learningProfilesByStudentId}
+          className={className}
+        />
+      )}
+
+      {view === 'ccmr' && (
+        <CcmrDashboard
+          students={students}
+          profilesByStudentId={learningProfilesByStudentId}
+          courseLevelByStudentId={courseLevelByStudentId}
+          onOpenStudent={onOpenStudent}
+        />
       )}
 
       {view === 'items' && (

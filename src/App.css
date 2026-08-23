@@ -1371,3 +1371,130 @@
     animation: none;
   }
 }
+
+/* ===========================================================================
+ * THE FIVE SCREENS THIS DASHBOARD ACTUALLY RUNS ON
+ *
+ * "Chromebook, laptop, desktop, interactive display, tablet" is not five sizes
+ * of the same screen. It is five different reading distances and two different
+ * input devices, and the rules below are organised by which of those is doing
+ * the work rather than by breakpoint alone.
+ *
+ *   Chromebook   1366x768, and the height is the constraint nobody designs for.
+ *   Laptop       the default this was built at. No rules needed.
+ *   Desktop      wide. Long line lengths are the risk, not small text.
+ *   Tablet       a finger, at reading distance.
+ *   Display      a finger, from across a room, at two metres.
+ *
+ * The narrow-viewport rules above already handle a phone. These handle the rest.
+ * =========================================================================== */
+
+/* --- CHROMEBOOK: short, not narrow ----------------------------------------
+ * A 768px-tall viewport with browser chrome leaves roughly 600px of page. The
+ * dashboard's vertical furniture — a 28px header, a 30px content pad, a 22px
+ * panel gap — costs about a fifth of that before any content appears, which on
+ * a gradebook is three rows of students a teacher has to scroll for. Height is
+ * the thing to reclaim here; the width is fine. */
+@media (max-height: 820px) and (min-width: 861px) {
+  .mm-dashboard-shell > div > header {
+    padding-top: 16px !important;
+    padding-bottom: 16px !important;
+  }
+
+  .mm-dashboard-content {
+    padding-top: 18px !important;
+    padding-bottom: 18px !important;
+  }
+
+  /* The rail scrolls independently so a long tab list never forces the page to. */
+  .mm-dashboard-nav {
+    max-height: 100vh;
+    overflow-y: auto;
+  }
+}
+
+/* --- TABLET AND INTERACTIVE DISPLAY: a finger, not a cursor ----------------
+ * A 24px-tall inline-styled button is comfortable with a mouse and genuinely
+ * hard with a fingertip, and this dashboard is full of them. 44px is the size
+ * at which a target stops being a game of chance. Scoped to coarse pointers so
+ * the mouse layout is untouched. */
+@media (pointer: coarse) and (min-width: 861px) {
+  .mm-dashboard-content :is(button, select, a[role="button"]) {
+    min-height: 44px;
+  }
+
+  .mm-dashboard-content input:not([type="checkbox"]):not([type="radio"]) {
+    min-height: 44px;
+  }
+
+  /* Checkboxes are the worst offenders — often 13px, and used for supports and
+     question inclusion where a mis-tap changes a student's work. */
+  .mm-dashboard-content input[type="checkbox"],
+  .mm-dashboard-content input[type="radio"] {
+    width: 22px;
+    height: 22px;
+  }
+
+  /* Table rows get room so a finger lands on one row rather than between two. */
+  .mm-dashboard-content td,
+  .mm-dashboard-content th {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+}
+
+/* --- INTERACTIVE DISPLAY: two metres away ---------------------------------
+ * A 75-inch panel at the front of a room is read standing up, from across it,
+ * usually by a class rather than by the teacher. Text sized for a laptop at
+ * 50cm is unreadable at 2m. This is the one case where scaling type UP is the
+ * accessibility fix rather than the vanity one.
+ *
+ * Keyed on width AND a coarse pointer together, deliberately: a 1920px desktop
+ * monitor with a mouse must not get classroom-projector type. */
+@media (min-width: 1600px) and (pointer: coarse) {
+  .mm-dashboard-content {
+    font-size: 1.18rem;
+  }
+
+  .mm-dashboard-content h2 { font-size: 1.9rem; }
+  .mm-dashboard-content h3 { font-size: 1.45rem; }
+
+  .mm-dashboard-content :is(button, select, input) {
+    font-size: 1.05rem;
+    min-height: 52px;
+  }
+
+  .mm-dashboard-content table {
+    font-size: 1.05rem;
+  }
+}
+
+/* --- DESKTOP: wide, and line length is the risk ----------------------------
+ * On a 2560px monitor a full-width paragraph runs past 200 characters, which is
+ * where the eye starts losing its place returning to the next line. The panels
+ * cap their own prose, so this only needs to stop the shell itself from
+ * stretching without limit. */
+@media (min-width: 1800px) {
+  .mm-dashboard-shell {
+    max-width: 1680px;
+  }
+}
+
+/* --- PRINT: a class list a teacher carries ---------------------------------
+ * Rosters and gradebooks do get printed, and the navigation rail, drawers and
+ * modals are noise on paper. */
+@media print {
+  .mm-dashboard-nav,
+  .mm-dashboard-shell > div > header {
+    display: none !important;
+  }
+
+  .mm-dashboard-shell {
+    box-shadow: none !important;
+    max-width: none;
+  }
+
+  .mm-dashboard-content table {
+    min-width: 0;
+  }
+}
