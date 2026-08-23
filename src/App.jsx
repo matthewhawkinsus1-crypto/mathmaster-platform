@@ -2798,6 +2798,21 @@ function App() {
     await fetchAssignments();
   };
 
+  // Students in the class the teacher is working in.
+  //
+  // Membership follows `classId`. A student whose record predates the class
+  // migration has no classId at all, so they are matched on the period the
+  // class publishes — which is a compatibility path, not the rule, and it is
+  // why an unmigrated student can still appear in exactly one roster.
+  const studentsInActiveClass = useMemo(() => studentsInClass({
+    students: allStudents,
+    classes,
+    classId: activeClass.classId,
+    // Only when a class is actually selected. With no class chosen the roster is
+    // every student, and passing a stale period here would silently filter it.
+    classPeriod: activeClass.classId ? activeClass.classPeriod : null,
+  }), [allStudents, classes, activeClass.classId, activeClass.classPeriod]);
+
   // THE NEEDS-ATTENTION QUEUE.
   //
   // Assembled here rather than inside Teacher Home because every input already
@@ -3196,21 +3211,6 @@ function App() {
       setSectionAccessBusyKey(null);
     }
   };
-
-  // Students in the class the teacher is working in.
-  //
-  // Membership follows `classId`. A student whose record predates the class
-  // migration has no classId at all, so they are matched on the period the
-  // class publishes — which is a compatibility path, not the rule, and it is
-  // why an unmigrated student can still appear in exactly one roster.
-  const studentsInActiveClass = useMemo(() => studentsInClass({
-    students: allStudents,
-    classes,
-    classId: activeClass.classId,
-    // Only when a class is actually selected. With no class chosen the roster is
-    // every student, and passing a stale period here would silently filter it.
-    classPeriod: activeClass.classId ? activeClass.classPeriod : null,
-  }), [allStudents, classes, activeClass.classId, activeClass.classPeriod]);
 
   const handleLoadDeliveredRigor = async (studentIds = []) => {
     const ids = (Array.isArray(studentIds) ? studentIds : []).filter(Boolean);
