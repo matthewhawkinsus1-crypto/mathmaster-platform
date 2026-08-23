@@ -107,6 +107,88 @@ compound query that would need one), and no manual database work beyond Block 4.
 | Teacher sees "restricted to the root administrator" | Wrong account. The message names the one to use. |
 | Website looks unchanged | Hard refresh: **Ctrl+Shift+R**. |
 | Students still see old questions | Block 4 was skipped. |
+| **"Functions deploy had errors"** / several functions failed | See the section below — this one is expected occasionally and is not a code problem. |
+
+---
+
+## If several functions fail to deploy
+
+This is the common one, and it usually means nothing is wrong with the code.
+
+The project ships **76 Cloud Functions from one codebase**. `firebase deploy`
+pushes them in big parallel batches, and Google rate-limits how many function
+updates a project may make per minute. Past that ceiling the extra ones come
+back as failures. Hosting and Firestore rules still went out fine; only some
+functions are stale.
+
+The giveaway is that the failures name *different* functions each time you try,
+or the error text mentions **quota**, **rate**, **429**, **too many requests**
+or **operation timed out**. If the same one or two functions fail every single
+time with the same message, that is a real error — jump to step 3.
+
+### Step 1 — retry exactly what the CLI told you to
+
+When it fails, the CLI prints a ready-made command near the bottom, like:
+
+```
+To try redeploying those functions, run:
+    firebase deploy --only "functions:listClasses,functions:saveClass"
+```
+
+Copy that line, add the project, and run it:
+
+```
+cd ~/mathmaster-platform && firebase deploy --only "functions:PASTE_THE_NAMES_HERE" --project mathmaster-aleks
+```
+
+Most of the time this finishes clean, because you are now deploying a handful
+instead of 76.
+
+### Step 2 — if it keeps failing, deploy them a few at a time
+
+This walks the whole list in groups of ten, waits between groups so the
+per-minute quota refills, and retries a group that fails. It takes roughly
+20–30 minutes and needs no babysitting.
+
+```
+cd ~/mathmaster-platform && git pull origin main && bash scripts/deploy-functions-in-groups.sh
+```
+
+It prints `All 76 functions deployed.` at the end. If some still fail it lists
+them by name and prints the exact command to retry just those.
+
+Smaller groups if the network is unhappy:
+
+```
+cd ~/mathmaster-platform && GROUP_SIZE=5 bash scripts/deploy-functions-in-groups.sh
+```
+
+### Step 3 — if the same functions fail every time
+
+Then it is a real error and I need to see it. Run this and send me everything
+it prints:
+
+```
+cd ~/mathmaster-platform && firebase deploy --only functions --project mathmaster-aleks 2>&1 | tail -60
+```
+
+Two causes worth knowing about:
+
+- **Missing secrets.** The Google Classroom functions need three secrets to
+  exist. Check with `firebase functions:secrets:access GOOGLE_OAUTH_CLIENT_ID --project mathmaster-aleks`
+  (repeat for `GOOGLE_OAUTH_CLIENT_SECRET` and `LINK_ENCRYPTION_KEY`). If one is
+  missing, every Classroom function fails and nothing else does.
+- **A disabled API.** A first-time deploy needs Cloud Build, Artifact Registry
+  and Cloud Run enabled. The error names the API and gives a link that turns it
+  on.
+
+### Checking what actually landed
+
+```
+cd ~/mathmaster-platform && firebase functions:list --project mathmaster-aleks | wc -l
+```
+
+76 functions plus a header row or two. Far fewer means the retry is still owed.
 
 ### Starting over
 
