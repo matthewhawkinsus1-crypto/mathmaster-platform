@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
   "framework": "digitalSAT",
   "domainId": "problemSolvingData",
@@ -19,16 +19,16 @@
   "notes": [
     "Table 25 (Algebra I) and Table 26 (Algebra II) are the authority for direct Texas-TEKS-to-Digital-SAT claims in this ledger.",
     "Do not promote Grade 6, Grade 7, or Grade 8 prerequisite TEKS to direct SAT alignment merely because their mathematics appears in PSDA; the College Board Texas report aligns Grade 8 mathematics to PSAT 8/9 rather than SAT.",
-    "SAT-native PSDA constructs that lack a direct Algebra I/II TEKS row must be covered without misrepresenting prerequisite TEKS as an official SAT alignment.",
+    "SAT-native banks use nativeSkillId and carry no texas: alignment key. This preserves authentic SAT coverage without manufacturing an official Texas alignment.",
     "Two-variable data on SAT explicitly includes scatterplot interpretation, prediction, fitting linear/quadratic/exponential models, reading model graphs, and comparing linear and exponential growth."
   ],
   "standards": {
     "A.3B": {
-      "status": "author",
+      "status": "authored",
       "primarySkill": "two-variable data: models and scatterplots",
       "secondarySkill": "linear functions",
       "allowed": ["interpret contextual rate of change between two quantities using tables, graphs, equations, or fitted models"],
-      "note": "Table 25 marks both Linear functions and PSDA Two-variable data; the PSDA bank must use different task grammar from the existing Algebra A.3B bank."
+      "note": "The PSDA bank uses observed-interval and fitted-trend grammar distinct from the existing Algebra A.3B bank."
     },
     "A.4A": {
       "status": "exclude-direct-sat",
@@ -73,28 +73,32 @@
       "allowed": ["make predictions or decisions from linear, quadratic, and exponential models", "judge model-based conclusions against a given data context"]
     }
   },
-  "satNativeCoverageGaps": [
-    {
-      "skillFamily": "percentages",
-      "status": "architecture-needed",
-      "reason": "No direct Algebra I/II Table 25/26 row currently supplies the breadth of SAT percentage content. Do not mislabel middle-school prerequisite TEKS as official SAT-aligned TEKS."
+  "nativeSkills": {
+    "ratiosRatesProportionsUnits": {
+      "status": "author",
+      "officialSkillFamily": "ratios, rates, proportional relationships, and units",
+      "reason": "A2.6L supplies an aligned inverse-variation slice, but SAT PSDA requires broader direct ratio/rate/unit coverage."
     },
-    {
-      "skillFamily": "one-variable data: distributions and measures of center and spread",
-      "status": "architecture-needed"
+    "percentages": {
+      "status": "author",
+      "officialSkillFamily": "percentages"
     },
-    {
-      "skillFamily": "probability and conditional probability",
-      "status": "architecture-needed"
+    "oneVariableData": {
+      "status": "author",
+      "officialSkillFamily": "one-variable data: distributions and measures of center and spread"
     },
-    {
-      "skillFamily": "inference from sample statistics and margin of error",
-      "status": "architecture-needed"
+    "probabilityConditionalProbability": {
+      "status": "author",
+      "officialSkillFamily": "probability and conditional probability"
     },
-    {
-      "skillFamily": "evaluating statistical claims: observational studies and experiments",
-      "status": "architecture-needed",
-      "note": "A.4B is topically related but is not checked in College Board Table 25, so V2.1 will not use it as an official direct-alignment shortcut."
+    "inferenceMarginOfError": {
+      "status": "author",
+      "officialSkillFamily": "inference from sample statistics and margin of error"
+    },
+    "evaluatingStatisticalClaims": {
+      "status": "author",
+      "officialSkillFamily": "evaluating statistical claims: observational studies and experiments",
+      "note": "A.4B is topically related but is not checked in College Board Table 25, so this is a SAT-native bank rather than a fabricated direct TEKS alignment."
     }
-  ]
+  }
 }
