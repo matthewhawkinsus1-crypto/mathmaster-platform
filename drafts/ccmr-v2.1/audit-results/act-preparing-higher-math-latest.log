@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+  "framework": "act",
+  "mode": "domain-authoring",
+  "domain": "preparingHigherMath",
+  "scopeUnits": 5,
+  "documents": 40,
+  "direct": 25,
+  "challenge": 15,
+  "multipleChoice": 40,
+  "studentProducedResponse": 0,
+  "modelingTagged": 5,
+  "domains": {
+    "preparingHigherMath": 40
+  },
+  "highSimilarityPairs": [],
+  "failures": [
+    "Exact ACT task-grammar clone: mm_act_alg_3_radical-equation_v21 and mm_act_alg_1_linear-distribution_v21",
+    "Exact ACT task-grammar clone: mm_act_alg_4_exponential-same-base_v21 and mm_act_alg_1_linear-distribution_v21",
+    "Exact ACT task-grammar clone: mm_act_alg_ch1_rational-equation_v21 and mm_act_alg_1_linear-distribution_v21",
+    "Exact ACT task-grammar clone: mm_act_fn_5_logarithmic-value_v21 and mm_act_alg_1_linear-distribution_v21",
+    "Exact ACT task-grammar clone: mm_act_nq_ch1_complex-conjugates_v21 and mm_act_nq_1_rational-exponent-value_v21",
+    "Cross-framework prompt clone: ACT mm_act_alg_5_two-equation-system_v21 matches Digital SAT mm_sat_A_5C_challenge_3_combined_value_v21",
+    "Cross-framework prompt clone: ACT mm_act_nq_1_rational-exponent-value_v21 matches Digital SAT mm_sat_A_11A_challenge_2_radical-product-shared-core_v21",
+    "Cross-framework prompt clone: ACT mm_act_nq_ch1_complex-conjugates_v21 matches Digital SAT mm_sat_A_11A_challenge_2_radical-product-shared-core_v21"
+  ],
+  "warnings": []
+}
