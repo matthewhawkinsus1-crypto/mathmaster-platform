@@ -1,19 +1,22 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "artifactType": "completionManifest",
   "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
   "framework": "digitalSAT",
   "domainId": "problemSolvingData",
-  "completedStandards": ["A.4C", "A.8B", "A.9E", "A2.6L", "A2.8A", "A2.8C"],
-  "completedStandardsCount": 6,
-  "familiesTotal": 48,
+  "completedStandards": ["A.3B", "A.4C", "A.8B", "A.9E", "A2.6L", "A2.8A", "A2.8C"],
+  "completedNativeSkills": [],
+  "completedStandardsCount": 7,
+  "completedNativeSkillsCount": 0,
+  "familiesTotal": 56,
   "validation": {
-    "randomizedInstancesPerStandard": 2000,
-    "randomizedInstancesTotal": 12000,
+    "randomizedInstancesPerScopeUnit": 2000,
+    "randomizedInstancesTotal": 14000,
     "checks": [
       "inverse-variation constant-product relationships",
       "scale-factor and reciprocal-factor reasoning",
       "contextual rate and work relationships",
+      "observed interval rates versus fitted trend rates and cross-data-set trend comparisons",
       "linear-model prediction, fitted-line selection, slope interpretation, residuals, extrapolation, and model comparison",
       "quadratic-model fit selection, prediction, vertex interpretation, residuals, second-difference identification, and model comparison",
       "exponential-model fit selection, prediction, growth-factor interpretation, residuals, constant-ratio identification, and model comparison",
@@ -25,17 +28,17 @@
       "no unresolved generator placeholders",
       "no malformed signed-factor rendering",
       "five direct plus three independently authored challenge families",
-      "no exact generator reuse within a standard"
+      "no exact generator reuse within a scope unit"
     ]
   },
   "coverageStatus": {
-    "ratiosRatesProportionsUnits": "started",
-    "percentages": "architecture-needed",
-    "oneVariableData": "architecture-needed",
-    "twoVariableData": "authoring-in-progress",
-    "probabilityConditionalProbability": "architecture-needed",
-    "inferenceMarginOfError": "architecture-needed",
-    "evaluatingStatisticalClaims": "architecture-needed"
+    "ratiosRatesProportionsUnits": "native-authoring-next",
+    "percentages": "native-authoring-next",
+    "oneVariableData": "native-authoring-next",
+    "twoVariableData": "teks-backed-complete",
+    "probabilityConditionalProbability": "native-authoring-next",
+    "inferenceMarginOfError": "native-authoring-next",
+    "evaluatingStatisticalClaims": "native-authoring-next"
   },
-  "note": "A2.6L supplies inverse-variation ratio/rate evidence. A.4C, A.8B, A.9E, A2.8A, and A2.8C establish the direct-TEKS two-variable-data model tranche."
+  "note": "TEKS-backed PSDA authoring is complete for the directly aligned Algebra I/II rows. Native SAT skill banks will cover remaining PSDA constructs without false Texas alignment claims."
 }
