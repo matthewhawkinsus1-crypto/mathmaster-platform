@@ -5,28 +5,30 @@
   "framework": "digitalSAT",
   "domainId": "geometryTrigonometry",
   "completedStandards": [],
-  "completedNativeSkills": [],
+  "completedNativeSkills": ["areaVolume"],
   "completedStandardsCount": 0,
-  "completedNativeSkillsCount": 0,
-  "completedScopeUnitsCount": 0,
-  "familiesTotal": 0,
+  "completedNativeSkillsCount": 1,
+  "completedScopeUnitsCount": 1,
+  "familiesTotal": 8,
   "validation": {
     "randomizedInstancesPerScopeUnit": 2000,
-    "randomizedInstancesTotal": 0,
+    "randomizedInstancesTotal": 2000,
     "checks": [
       "five direct plus three independently authored challenge families",
+      "rectangular-prism, triangle, cylinder, surface-area, similar-figure, similar-solid, and composite-volume relationships",
+      "semantic scale-factor validation for length, area, and volume",
       "four unique rendered MCQ choices where applicable",
       "no unresolved generator placeholders",
       "no exact generator reuse within a scope unit",
       "SAT-native banks carry no fabricated Texas alignment",
-      "semantic validation of generated geometry and trigonometry relationships"
+      "semantic validation of generated geometry relationships"
     ]
   },
   "coverageStatus": {
-    "areaVolume": "native-authoring-next",
+    "areaVolume": "complete",
     "linesAnglesTriangles": "native-authoring-next",
     "rightTrianglesTrigonometry": "native-authoring-next",
     "circles": "native-authoring-next"
   },
-  "note": "Geometry/Trig V2.1 begins as SAT-native content because MathMaster's Geometry course is planned but its G.* standards registry is not yet active."
+  "note": "Area and Volume is complete as SAT-native V2.1 content. The Geometry course remains planned, so no G.* alignment is fabricated."
 }
