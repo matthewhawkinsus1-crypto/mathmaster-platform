@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+  "framework": "act",
+  "domainId": "preparingHigherMath",
+  "officialShare": 0.80,
+  "source": {
+    "mathDescription": "https://www.act.org/content/act/en/products-and-services/the-act/test-preparation/description-of-math-test.html",
+    "enhancedFaq": "https://www.act.org/content/act/en/products-and-services/the-act-educator/the-act-test/enhancements-k12/faqs.html",
+    "designFramework2026": "https://www.act.org/content/dam/act/unsecured/documents/R2519-Design-Framework-for-the-ACT-Enhancements-2026-02.pdf"
+  },
+  "notes": [
+    "Enhanced ACT Math uses four answer choices and contains 45 questions in 50 minutes, including 41 operational items and 4 embedded field-test items.",
+    "Preparing for Higher Math accounts for about 80% of operational Math content and is divided into Number & Quantity, Algebra, Functions, Geometry, and Statistics & Probability.",
+    "Modeling is cross-cutting and should be tagged on appropriate content items rather than authored as a stand-alone domain.",
+    "ACT V2.1 native banks may later be crosswalked to active Texas standards where the relationship is defensible, but no TEKS is fabricated simply to host ACT-only constructs such as vectors or matrices."
+  ],
+  "nativeSkills": {
+    "numberQuantity": {
+      "status": "author",
+      "officialShare": "10-12%",
+      "constructs": [
+        "rational and irrational numbers",
+        "properties of integer and rational exponents",
+        "relationship between exponents and radicals",
+        "vectors and matrices",
+        "complex numbers",
+        "quantities and units"
+      ]
+    },
+    "algebra": {
+      "status": "author",
+      "officialShare": "17-20%",
+      "constructs": [
+        "linear expressions, equations, and inequalities",
+        "polynomial, radical, rational, and exponential relationships",
+        "systems of equations",
+        "algebraic operations and modeling"
+      ]
+    },
+    "functions": {
+      "status": "author",
+      "officialShare": "17-20%",
+      "constructs": [
+        "function definition and notation",
+        "function representations and applications",
+        "linear, radical, piecewise, polynomial, exponential, and logarithmic functions",
+        "translations and key graph features"
+      ]
+    },
+    "geometry": {
+      "status": "author",
+      "officialShare": "17-20%",
+      "constructs": [
+        "congruence and similarity",
+        "surface area and volume",
+        "triangles and circles",
+        "trigonometric ratios",
+        "conic sections",
+        "composite figures and solids"
+      ]
+    },
+    "statisticsProbability": {
+      "status": "author",
+      "officialShare": "12-15%",
+      "constructs": [
+        "center and spread of distributions",
+        "data collection methods",
+        "bivariate data and models",
+        "probability and sample spaces"
+      ]
+    }
+  }
+}
