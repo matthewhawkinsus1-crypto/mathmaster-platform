@@ -14,6 +14,6 @@
     "areaVolume":{"status":"authored","officialSkillFamily":"area and volume","allowed":["area, perimeter, surface area, and volume","scale factors and their effects on lengths, areas, and volumes","mathematical and real-world geometric figures"]},
     "linesAnglesTriangles":{"status":"authored","officialSkillFamily":"lines, angles, and triangles","allowed":["triangle sum theorem","vertical angles","parallel lines cut by a transversal","triangle congruence and similarity","scale factor effects on lengths while preserving angle measures"]},
     "rightTrianglesTrigonometry":{"status":"authored","officialSkillFamily":"right triangles and trigonometry","allowed":["Pythagorean theorem","special right triangles","sine, cosine, and tangent in right triangles","similar-triangle trigonometric ratios","sine and cosine of complementary angles"]},
-    "circles":{"status":"author","officialSkillFamily":"circles","allowed":["radii, diameters, tangents, central and inscribed angles","arc length and sector area","degree-radian conversion","equations and graphs of circles","distance-formula and completing-square connections","unit-circle relationships when appropriate to the SAT construct"]}
+    "circles":{"status":"authored","officialSkillFamily":"circles","allowed":["radii, diameters, tangents, central and inscribed angles","arc length and sector area","degree-radian conversion","equations and graphs of circles","distance-formula and completing-square connections","unit-circle relationships when appropriate to the SAT construct"]}
   }
 }
