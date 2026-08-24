@@ -16,6 +16,7 @@ test('ordinary aligned questions expose TEKS meaning and CCMR connections withou
   const info = buildQuestionAlignmentInfo({ code: 'A.2B' });
   assert.equal(info.displayCode, 'A.2B');
   assert.match(info.description, /linear equations/i);
+  assert.equal(info.studentLabel, 'Writing linear equations from a point and slope');
   assert.equal(info.isExamStyle, false);
   assert.equal(info.activeFramework, null);
   assert.equal(info.connections.length, 4);
@@ -81,10 +82,14 @@ test('student UI has one alignment owner per question and the details are clicka
   assert.doesNotMatch(toolShellSource, /StandardBadge/);
   assert.doesNotMatch(toolShellSource, /Skill focus/);
   assert.match(badgeSource, /role="dialog"/);
-  assert.match(badgeSource, /What this question is building/);
-  assert.match(badgeSource, /This is a course question/);
-  assert.match(badgeSource, /This is \{info\.activeFrameworkLabel\}-style practice/);
+  assert.match(badgeSource, /What you are learning/);
+  assert.match(badgeSource, /Where this math shows up/);
+  assert.match(badgeSource, /The skill to remember/);
+  assert.match(badgeSource, /Texas learning target/);
+  assert.match(badgeSource, /This is still a course-practice question/);
+  assert.match(badgeSource, /You are practicing this in \{info\.activeFrameworkLabel\} format right now/);
   assert.match(badgeSource, /CCMR connection/);
+  assert.match(badgeSource, /Calculator available throughout math/);
   assert.match(badgeSource, /event\.key === 'Escape'/);
   assert.match(badgeSource, /autoFocus aria-label="Close standards details"/);
 });

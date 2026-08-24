@@ -117,7 +117,10 @@ export const MyMathPathExperience = ({
   const [activeTab, setActiveTab] = useState(() => initialTab);
   const [sessionConfig, setSessionConfig] = useState(null);
   const teacherReadOnlyNotice = 'Teacher view is read-only. Use Path Simulator to test questions or routing without changing this student.';
-  const visibleTabs = readOnly ? TABS.filter(([tab]) => tab !== 'ccmr') : TABS;
+  // Teachers inspecting a real student now get the same CCMR evidence and
+  // official-standard explorer the student sees. The hub itself is read-only,
+  // so teachers can search and inspect without changing goals or launching work.
+  const visibleTabs = TABS;
 
   const recommendedTeks = useMemo(
     () => chooseRecommendedTeks({ profiles: masteryData.masteryProfilesByTEKS, pathOptions, courseId }),
@@ -284,14 +287,18 @@ export const MyMathPathExperience = ({
     setActiveTab('session');
   };
 
-  // Launch once per target. Without the ref a return to the dashboard would
-  // immediately bounce the student back into the session they just left.
+  // Launch once per target, but only AFTER secure coverage has loaded.
+  // Recommended-for-You used to set the ref before coverage arrived. The first
+  // attempt therefore failed closed as "still checking", and the ref then
+  // prevented the exact skill the student chose from ever retrying. The result
+  // was seventeen different recommendation buttons that all behaved like the
+  // same generic "open My Math Path" button.
   const launchedRef = useRef(null);
   useEffect(() => {
-    if (!launchTeksCode || launchedRef.current === launchTeksCode) return;
+    if (!launchTeksCode || launchedRef.current === launchTeksCode || !coverageLoaded) return;
     launchedRef.current = launchTeksCode;
     startSession(launchTeksCode);
-  }, [launchTeksCode]);
+  }, [launchTeksCode, coverageLoaded, coverage]);
 
   const returnToDashboard = () => {
     setSessionConfig(null);
@@ -350,6 +357,7 @@ export const MyMathPathExperience = ({
             onChangeGoals={changeGoals}
             onPractise={(item) => { const code = teksCodeFromSkillId(item.skillId); if (code) startSession(code, { framework: item.framework }); }}
             onReturnToCourse={() => setActiveTab('path')}
+            readOnly={readOnly}
           />
         </div>
       )}

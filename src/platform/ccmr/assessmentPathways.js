@@ -22,6 +22,7 @@ import { describeSkill } from '../path/skillGraph.js';
 import { ASSESSMENT_FRAMEWORKS, FRAMEWORK_LABELS, listFrameworkAlignments, resolveAlignment } from './assessmentCrosswalk.js';
 import { EVIDENCE_BASIS, getEvidence, hasPractised } from './assessmentEvidence.js';
 import { getAssessmentProfile } from './assessmentProfiles.js';
+import { getAssessmentStandardReferences } from './assessmentStandardReferences.js';
 
 export const READINESS = Object.freeze({
   NOT_AVAILABLE: 'not_available',
@@ -239,6 +240,7 @@ export const getAssessmentPathOptions = ({
       available: verdict.available,
       alignmentType: alignment?.alignmentType || null,
       domainTitle: alignment?.domainTitle || null,
+      references: getAssessmentStandardReferences(skillId, framework),
       practised: verdict.practised,
       proficiency: verdict.proficiency,
       status: verdict.status,
@@ -306,6 +308,7 @@ export const getAssessmentRecommendations = ({
       framework,
       domainId: alignment?.domainId || null,
       domainTitle: alignment?.domainTitle || null,
+      references: getAssessmentStandardReferences(row.skillId, framework),
       coreMastery: verdict.coreMastery,
       assessmentProficiency: verdict.proficiency,
       status: verdict.status,

@@ -1173,12 +1173,19 @@ function App() {
           classesById: Object.fromEntries(loadedClasses.map((entry) => [entry.classId, entry])),
           courseProfiles: loadedCourseProfiles,
         });
+        const rosterDisplayName = formatStudentName(
+          { ...studentData, id: studentId },
+          { lastFirst: false, fallbackToId: false },
+        );
         setUser({
           id: studentId,
           uid: session.uid,
           role: 'student',
           email: session.email,
-          displayName: session.displayName || studentId,
+          // Student-facing screens should greet the person, not the SIS ID.
+          // The roster is authoritative because student passcode sessions do
+          // not necessarily carry a useful Firebase Auth displayName.
+          displayName: rosterDisplayName || session.displayName || studentId,
           classId: studentData.classId || null,
           className: courseContext.className,
           classPeriod: courseContext.classPeriod,
@@ -5531,7 +5538,7 @@ function App() {
     return (
       <StudentDashboardView
         dashboard={dashboard}
-        student={{ id: user.id, classPeriod: user.classPeriod, inclusionStatus: user.profile?.inclusionStatus }}
+        student={{ id: user.id, displayName: user.displayName, classPeriod: user.classPeriod, inclusionStatus: user.profile?.inclusionStatus }}
         supportPresentation={supportPresentation}
         onStartAssignment={startAssignment}
         onOpenMathPath={() => setStudentDashboardMode('mathPath')}

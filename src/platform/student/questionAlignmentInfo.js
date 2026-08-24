@@ -2,6 +2,8 @@ import { getTexasStandard, normalizeTeksCode } from '../../texasStandards.js';
 import { toDisplayCode } from '../../utils/teksUtils.js';
 import { FRAMEWORK_LABELS, getSkillCrosswalk } from '../ccmr/assessmentCrosswalk.js';
 import { EXAM_DOMAIN_REGISTRY } from '../assessment/examDomainRegistry.js';
+import { studentLabelForTeks } from '../path/skillLabels.js';
+import { getAssessmentStandardReferences } from '../ccmr/assessmentStandardReferences.js';
 
 const EXAM_FRAMEWORKS = new Set(['digitalSAT', 'act', 'tsia2', 'asvab']);
 
@@ -34,6 +36,7 @@ export const buildQuestionAlignmentInfo = ({ code, framework = null, domainId = 
       allowedAspects: Array.isArray(entry.allowedAspects) ? entry.allowedAspects : [],
       excludedAspects: Array.isArray(entry.excludedAspects) ? entry.excludedAspects : [],
       active: id === examFramework,
+      references: getAssessmentStandardReferences(normalized, id),
     };
   });
 
@@ -42,6 +45,7 @@ export const buildQuestionAlignmentInfo = ({ code, framework = null, domainId = 
     displayCode: toDisplayCode(normalized) || normalized,
     course: standard.course || '',
     strandLabel: standard.strandLabel || '',
+    studentLabel: studentLabelForTeks(normalized) || standard.description || '',
     description: standard.description || '',
     classification: standard.classification || '',
     activeFramework: examFramework,

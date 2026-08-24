@@ -3,6 +3,8 @@ import { describeSkill } from '../../platform/path/skillGraph';
 import { ASSESSMENT_FRAMEWORKS, FRAMEWORK_LABELS, READINESS, getAssessmentPathOptions } from '../../platform/ccmr/assessmentPathways';
 import { getSkillCrosswalk, resolveAlignment } from '../../platform/ccmr/assessmentCrosswalk';
 import { getEvidence } from '../../platform/ccmr/assessmentEvidence';
+import { getAssessmentStandardReferences } from '../../platform/ccmr/assessmentStandardReferences.js';
+import CcmrReferenceList from '../common/CcmrReferenceList.jsx';
 
 // §28 teacher skill inspector, and §29 simulator controls, in one component.
 //
@@ -81,6 +83,7 @@ export default function AssessmentSkillInspector({
           const pathway = options.pathways.find((entry) => entry.framework === framework);
           const evidence = getEvidence(assessmentEvidence, skillId, framework);
           const color = STATUS_COLOR[pathway?.status] || '#5f6368';
+          const references = alignment ? getAssessmentStandardReferences(skillId, framework) : [];
 
           return (
             <div key={framework} style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid #dadce0', background: alignment ? '#fff' : '#f8f9fa' }}>
@@ -107,6 +110,15 @@ export default function AssessmentSkillInspector({
                   <>Crosswalk: No — this skill is not matched to this assessment, so no pathway is offered.</>
                 )}
               </div>
+
+              {alignment && references.length > 0 && (
+                <div style={{ marginTop: 9 }}>
+                  <div style={{ marginBottom: 6, color: '#3c4043', fontSize: 11.5, fontWeight: 850 }}>
+                    Official assessment reference{references.length === 1 ? '' : 's'} shown to students
+                  </div>
+                  <CcmrReferenceList references={references} compact={false} />
+                </div>
+              )}
 
               {onSimulate && alignment && (
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
