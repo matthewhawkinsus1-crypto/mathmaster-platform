@@ -19,7 +19,7 @@
   "notes": [
     "Table 25 (Algebra I) and Table 26 (Algebra II) are the authority for direct Texas-TEKS-to-Digital-SAT claims in this ledger.",
     "Do not promote Grade 6, Grade 7, or Grade 8 prerequisite TEKS to direct SAT alignment merely because their mathematics appears in PSDA; the College Board Texas report aligns Grade 8 mathematics to PSAT 8/9 rather than SAT.",
-    "SAT-native PSDA constructs that lack a direct Algebra I/II TEKS row must be covered without misrepresenting prerequisite TEKS as an official SAT alignment. That architecture remains a release-blocking coverage item.",
+    "SAT-native PSDA constructs that lack a direct Algebra I/II TEKS row must be covered without misrepresenting prerequisite TEKS as an official SAT alignment.",
     "Two-variable data on SAT explicitly includes scatterplot interpretation, prediction, fitting linear/quadratic/exponential models, reading model graphs, and comparing linear and exponential growth."
   ],
   "standards": {
@@ -27,7 +27,7 @@
       "status": "author",
       "primarySkill": "two-variable data: models and scatterplots",
       "secondarySkill": "linear functions",
-      "allowed": ["interpret contextual rate of change between two quantities using tables, graphs, equations, or models"],
+      "allowed": ["interpret contextual rate of change between two quantities using tables, graphs, equations, or fitted models"],
       "note": "Table 25 marks both Linear functions and PSDA Two-variable data; the PSDA bank must use different task grammar from the existing Algebra A.3B bank."
     },
     "A.4A": {
@@ -59,7 +59,7 @@
       "allowed": ["inverse variation as a proportional relationship", "constant product", "scale-factor and reciprocal-factor reasoning", "applied inverse-variation rates"]
     },
     "A2.8A": {
-      "status": "author",
+      "status": "authored",
       "primarySkill": "two-variable data: models and scatterplots",
       "allowed": ["select an appropriate linear, quadratic, or exponential model from data", "compare model structures against observed data"]
     },
@@ -68,7 +68,7 @@
       "reason": "College Board Table 26 shows no Digital SAT alignment check for the technology-regression standard 2A.8(B)."
     },
     "A2.8C": {
-      "status": "author",
+      "status": "authored",
       "primarySkill": "two-variable data: models and scatterplots",
       "allowed": ["make predictions or decisions from linear, quadratic, and exponential models", "judge model-based conclusions against a given data context"]
     }
