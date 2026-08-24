@@ -15,13 +15,7 @@
     "essentialSkills": 72
   },
   "highSimilarityPairs": [],
-  "failures": [
-    "drafts/ccmr-v2.1/act/essentialSkills/ACT_NATIVE_linesAnglesShapes.v2.1.json: scope is not confirmed by the completion manifest",
-    "drafts/ccmr-v2.1/act/essentialSkills/ACT_NATIVE_perimeterCircumferenceArea.v2.1.json: scope is not confirmed by the completion manifest",
-    "drafts/ccmr-v2.1/act/essentialSkills/ACT_NATIVE_surfaceAreaVolume.v2.1.json: scope is not confirmed by the completion manifest",
-    "essentialSkills native linesAnglesShapes: ledger says authored but completion manifest does not confirm it",
-    "essentialSkills native perimeterCircumferenceArea: ledger says authored but completion manifest does not confirm it",
-    "essentialSkills native surfaceAreaVolume: ledger says authored but completion manifest does not confirm it"
-  ],
-  "warnings": []
+  "failures": [],
+  "warnings": [],
+  "output": null
 }
