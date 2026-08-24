@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 3,
+  "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+  "mode": "domain-authoring",
+  "domain": "problemSolvingData",
+  "scopeUnits": 13,
+  "documents": 104,
+  "direct": 65,
+  "challenge": 39,
+  "formats": {
+    "multipleChoice": 62,
+    "studentProducedResponse": 42,
+    "mcqRate": 0.5961538461538461
+  },
+  "domains": {
+    "problemSolvingData": 104
+  },
+  "antiCloneOverridesApplied": 7,
+  "highSimilarityPairs": [],
+  "failures": [
+    "drafts/ccmr-v2.1/digitalSAT/algebra/A.12A.v2.1.json: invalid JSON: Bad escaped character in JSON at position 15417",
+    "drafts/ccmr-v2.1/digitalSAT/algebra/A.3D.v2.1.json: invalid JSON: Bad escaped character in JSON at position 3676",
+    "drafts/ccmr-v2.1/digitalSAT/algebra/A.3H.v2.1.json: invalid JSON: Bad escaped character in JSON at position 1091"
+  ],
+  "warnings": []
+}

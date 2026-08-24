@@ -1,0 +1,4 @@
+source_sha=60ba3526dce6b3c3da3b630dd7b590b6b7314d99
+run_id=32777567748
+exit_code=1
+recorded_at=2026-08-24T21:05:39Z
