@@ -44,12 +44,12 @@
       "allowed": ["fit or select a linear model for two-variable data", "use a linear model to estimate or predict", "interpret a fitted linear relationship in context"]
     },
     "A.8B": {
-      "status": "author",
+      "status": "authored",
       "primarySkill": "two-variable data: models and scatterplots",
       "allowed": ["fit or select a quadratic model for two-variable data", "use a quadratic model to estimate solutions or make predictions"]
     },
     "A.9E": {
-      "status": "author",
+      "status": "authored",
       "primarySkill": "two-variable data: models and scatterplots",
       "allowed": ["fit or select an exponential model for two-variable data", "use an exponential model to make predictions"]
     },
