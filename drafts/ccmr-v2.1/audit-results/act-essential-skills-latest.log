@@ -4,18 +4,19 @@
   "framework": "act",
   "mode": "domain-authoring",
   "domain": "essentialSkills",
-  "scopeUnits": 4,
-  "documents": 32,
-  "direct": 20,
-  "challenge": 12,
-  "multipleChoice": 32,
+  "scopeUnits": 5,
+  "documents": 40,
+  "direct": 25,
+  "challenge": 15,
+  "multipleChoice": 40,
   "studentProducedResponse": 0,
-  "modelingTagged": 16,
+  "modelingTagged": 20,
   "domains": {
-    "essentialSkills": 32
+    "essentialSkills": 40
   },
   "highSimilarityPairs": [],
   "failures": [
+    "drafts/ccmr-v2.1/act/essentialSkills/ACT_NATIVE_simpleEquationsInequalities.v2.1.json: scope is not confirmed by the completion manifest",
     "drafts/ccmr-v2.1/act/essentialSkills/ACT_NATIVE_writingAlgebraicExpressions.v2.1.json: scope is not confirmed by the completion manifest"
   ],
   "warnings": []
