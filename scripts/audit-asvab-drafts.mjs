@@ -23,7 +23,7 @@ const result = {
   suspiciousArithmeticPrompts: [],
 };
 
-const arContextSignals = /\b(machine|worker|crew|store|shop|price|cost|dollar|account|loan|saves?|saving|purchase|tax|interest|discount|coupon|rebate|recipe|batch|bottle|faucet|car|traveler|runner|cyclist|printer|parts?|pages?|miles?|kilometers?|meters?|feet|inches|yards|pounds|ounces|liters?|minutes?|hours?|students?|class|club|bag|tiles?|counters?|grid|strip|group|quantity|temperature|plan|company|program|college|family|borrower|balance|payment|rate|trip|length|distance|volume|amount|register|deposit|withdrawal|transfer|attendance|members?|product|service|theater|supply|shipment|tank|fuel|team|unit|material|inventory|warehouse|route|depot|shipments?|readiness|report|supervisor|exercise|temperatures?)\b|mix|batch|blend|shipment|order|stock|floor|back|crew|shift|detail|van|truck|bus|pickup|depot|counter|outlet|press|labeler|sorter|conveyor|stamping|bolts?|washers?|clamps?|rivets?|nuts?|screws?|pins?|anchors?|sacks?|bins?|barrels?|totes?|drums?|pallets?|loaders?|drivers?|welders?|inspectors?|helpers?|packers?|fitters?|checkers?|sand|cement|resin|filler|hardener|concentrate|base|stretch|log|gallons?|fuel|panels?|filters?|cartons?|crates?|brackets?|grinder|compressor|drill|generator|welder|fee|register|discounts?|ledger|inspection|shipments?|load|shares?|strip|grid|squares?|marked down|listed|tool|bill|tip|deposit|rail|beam|pipe|channel|crate|tank|pump|quarts?|yards?|trim|cable|hose|edging|job|piece|spare|material|conversion|entry|entries|per each/i;
+const arContextSignals = /\b(machine|worker|crew|store|shop|price|cost|dollar|account|loan|saves?|saving|purchase|tax|interest|discount|coupon|rebate|recipe|batch|bottle|faucet|car|traveler|runner|cyclist|printer|parts?|pages?|miles?|kilometers?|meters?|feet|inches|yards|pounds|ounces|liters?|minutes?|hours?|students?|class|club|bag|tiles?|counters?|grid|strip|group|quantity|temperature|plan|company|program|college|family|borrower|balance|payment|rate|trip|length|distance|volume|amount|register|deposit|withdrawal|transfer|attendance|members?|product|service|theater|supply|shipment|tank|fuel|team|unit|material|inventory|warehouse|route|depot|shipments?|readiness|report|supervisor|exercise|temperatures?)\b|mix|batch|blend|shipment|order|stock|floor|back|crew|shift|detail|van|truck|bus|pickup|depot|counter|outlet|press|labeler|sorter|conveyor|stamping|bolts?|washers?|clamps?|rivets?|nuts?|screws?|pins?|anchors?|sacks?|bins?|barrels?|totes?|drums?|pallets?|loaders?|drivers?|welders?|inspectors?|helpers?|packers?|fitters?|checkers?|sand|cement|resin|filler|hardener|concentrate|base|stretch|log|gallons?|fuel|panels?|filters?|cartons?|crates?|brackets?|grinder|compressor|drill|generator|welder|fee|register|discounts?|ledger|inspection|shipments?|load|shares?|strip|grid|squares?|marked down|listed|tool|bill|tip|deposit|rail|beam|pipe|channel|crate|tank|pump|quarts?|yards?|trim|cable|hose|edging|job|piece|spare|material|conversion|entry|entries|per each|model|mast|axle|boom|strut|centimet(re|er)s?|millimet(re|er)s?|scale|plan|wall|drawn/i;
 const suspiciousStarts = /^(find|write|solve|compute|convert|for\s+\$|which (?:expression|equation|percent|decimal)|on a number line|use the table|the ratio begins|a benchmark percent|a model has)/i;
 
 const plansByCode = new Map();
@@ -55,7 +55,12 @@ for (const q of documents) {
     if (labels.length === 4 && new Set(labels).size !== 4) result.duplicateChoices.push({ id: q.id, draw: index + 1, labels });
   });
   if (subtest === 'arithmeticReasoning') {
-    const p = String(q.prompt || '').replace(/\s+/g, ' ').trim();
+    // Check a GENERATED prompt, not the template. Context words often arrive
+    // through a drawn parameter, so the template reads "how many {{small}} are
+    // in {{bigCount}} {{big}}?" and looks contextless while every instance a
+    // student sees names real units.
+    const rendered = instances[0]?.prompt || q.prompt;
+    const p = String(rendered || '').replace(/\s+/g, ' ').trim();
     if (!arContextSignals.test(p) || suspiciousStarts.test(p)) result.suspiciousArithmeticPrompts.push({ id: q.id, prompt: p });
   }
 
