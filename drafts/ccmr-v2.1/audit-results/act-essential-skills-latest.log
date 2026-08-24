@@ -4,19 +4,20 @@
   "framework": "act",
   "mode": "domain-authoring",
   "domain": "essentialSkills",
-  "scopeUnits": 7,
-  "documents": 56,
-  "direct": 35,
-  "challenge": 21,
-  "multipleChoice": 56,
+  "scopeUnits": 8,
+  "documents": 64,
+  "direct": 40,
+  "challenge": 24,
+  "multipleChoice": 64,
   "studentProducedResponse": 0,
-  "modelingTagged": 26,
+  "modelingTagged": 30,
   "domains": {
-    "essentialSkills": 56
+    "essentialSkills": 64
   },
   "highSimilarityPairs": [],
   "failures": [
-    "drafts/ccmr-v2.1/act/essentialSkills/ACT_NATIVE_linesAnglesShapes.v2.1.json: scope is not confirmed by the completion manifest"
+    "drafts/ccmr-v2.1/act/essentialSkills/ACT_NATIVE_linesAnglesShapes.v2.1.json: scope is not confirmed by the completion manifest",
+    "drafts/ccmr-v2.1/act/essentialSkills/ACT_NATIVE_perimeterCircumferenceArea.v2.1.json: scope is not confirmed by the completion manifest"
   ],
   "warnings": []
 }
