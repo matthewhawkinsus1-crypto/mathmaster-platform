@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "artifactType": "antiCloneOverrides",
+  "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+  "framework": "digitalSAT",
+  "domainId": "problemSolvingData",
+  "reason": "Release-authoritative rewrites for families flagged by the 104-family PSDA task-grammar audit. Overrides preserve validated mathematics where possible while changing the effective reasoning task and assessment language.",
+  "patches": {
+    "mathmaster:sat:A.8B:second-difference-model": {
+      "taskType": "patternExtension",
+      "representation": "table",
+      "prompt": "A quadratic model gives $f(0)={{y0}}$, $f(1)={{y1}}$, $f(2)={{y2}}$, and $f(3)={{y3}}$. If the constant-second-difference pattern continues, what is the predicted value of $f(4)$?",
+      "generator": {
+        "derived": {
+          "y4": "16*a+4*b+c"
+        }
+      },
+      "assessmentItemFormat": "studentProducedResponse",
+      "choices": [],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{y4}}"
+        }
+      ],
+      "ccmrAuthenticLanguage": {
+        "stemProfile": "extend-constant-second-difference"
+      }
+    },
+    "mathmaster:sat:A.9E:constant-ratio-model": {
+      "taskType": "multiplicativePatternExtension",
+      "representation": "table",
+      "prompt": "The outputs $f(0)={{v0}}$, $f(1)={{v1}}$, $f(2)={{v2}}$, and $f(3)={{v3}}$ follow the same multiplicative pattern. What value does that pattern predict for $f(4)$?",
+      "generator": {
+        "derived": {
+          "v4": "A*b^4"
+        }
+      },
+      "assessmentItemFormat": "studentProducedResponse",
+      "choices": [],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{v4}}"
+        }
+      ],
+      "ccmrAuthenticLanguage": {
+        "stemProfile": "extend-constant-ratio"
+      }
+    },
+    "mathmaster:sat:A2.8A:linear-pattern": {
+      "taskType": "additivePatternClassification",
+      "prompt": "For equal increases of 1 in $x$, the outputs are {{y0}}, {{y1}}, {{y2}}, and {{y3}}. The increase in $y$ is {{m}} each time. Which model type is consistent with this constant additive change?",
+      "ccmrAuthenticLanguage": {
+        "stemProfile": "constant-additive-change"
+      }
+    },
+    "mathmaster:sat:A2.8A:quadratic-pattern": {
+      "taskType": "secondDifferenceClassification",
+      "prompt": "For equal increases of 1 in $x$, the successive changes in $y$ are {{d01}}, {{d12}}, and {{d23}}. Those changes themselves increase by the constant amount {{secondDiff}}. Which model type is consistent with this pattern?",
+      "generator": {
+        "derived": {
+          "d01": "a+b",
+          "d12": "3*a+b",
+          "d23": "5*a+b",
+          "secondDiff": "2*a"
+        }
+      },
+      "ccmrAuthenticLanguage": {
+        "stemProfile": "constant-second-difference-classification"
+      }
+    },
+    "mathmaster:sat:A2.8A:exponential-pattern": {
+      "taskType": "multiplicativePatternClassification",
+      "prompt": "For equal increases of 1 in $x$, each output is {{r}} times the preceding output: {{y0}}, {{y1}}, {{y2}}, {{y3}}. Which model type is consistent with this constant multiplicative factor?",
+      "ccmrAuthenticLanguage": {
+        "stemProfile": "constant-multiplicative-factor"
+      }
+    },
+    "mathmaster:sat:A.8B:ccmr-challenge-compare-quadratic-models": {
+      "taskType": "diagnosticPointErrorComparison",
+      "representation": "values",
+      "prompt": "At $x={{h}}$, the observed value is {{y2}}. Model A predicts {{k}} and model B predicts {{k2}}. By how much is model A's absolute prediction error smaller than model B's absolute prediction error at this $x$-value?",
+      "generator": {
+        "derived": {
+          "advantage": "abs(3-e1)-1"
+        }
+      },
+      "assessmentItemFormat": "studentProducedResponse",
+      "choices": [],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{advantage}}"
+        }
+      ],
+      "ccmrAuthenticLanguage": {
+        "stemProfile": "quadratic-single-point-error-gap"
+      }
+    },
+    "mathmaster:sat:A.9E:ccmr-challenge-compare-exponential-models": {
+      "taskType": "diagnosticPointErrorComparison",
+      "representation": "values",
+      "prompt": "For the observation at $x=1$, model A predicts ${{A}}({{b}})$ and model B predicts ${{A2}}({{b2}})$. The observed value is {{y1}}. By how much does model B's absolute prediction error exceed model A's absolute prediction error?",
+      "generator": {
+        "derived": {
+          "errorGap": "A+3*b+2-e1"
+        }
+      },
+      "assessmentItemFormat": "studentProducedResponse",
+      "choices": [],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{errorGap}}"
+        }
+      ],
+      "ccmrAuthenticLanguage": {
+        "stemProfile": "exponential-single-point-error-gap"
+      }
+    }
+  }
+}
