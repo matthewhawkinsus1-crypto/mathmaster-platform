@@ -1666,6 +1666,350 @@ ar('6.5C', 'build-equivalent-fraction', {
   feedback: 'Both numbers grow by the same factor, not by the same amount.',
 });
 
+// ================================================================ 7.4B
+// Unit rates from rates.
+
+ar('7.4B', 'wage-per-hour', {
+  difficultyBand: 2, dok: 1, taskType: 'procedural', representation: 'context',
+  prompt: 'A {{worker}} earned $\\${{pay}}$ for {{hours}} hours. What is the hourly rate?',
+  generator: {
+    parameters: {
+      worker: contextParam(['mechanic', 'driver', 'loader', 'welder', 'technician']),
+      rate: { type: 'int', min: 12, max: 40 },
+      hours: { type: 'int', min: 12, max: 40 },
+    },
+    derived: {
+      pay: 'rate*hours',
+      answer: 'rate',
+      d_operationInverted: 'hours',
+      d_offByOneStep: 'round(pay/(hours+2))',
+      d_arithmeticSlip: 'round(pay/(hours-2))',
+    },
+    constraints: ['hours>4'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: money('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: money('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['The pay covers every hour worked.', '{{pay}} shared over {{hours}} hours is {{answer}} an hour.'],
+  answerSummary: { headline: 'An hourly rate divides the pay by the hours.', text: 'The rate is $\\${{answer}}$ an hour.' },
+  hint: 'Decide which quantity is being shared across the other.',
+  feedback: 'Check which number counts hours and which counts dollars.',
+});
+
+ar('7.4B', 'best-unit-rate-of-three', {
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'Three {{shop}} offers are listed. What is the lowest price per {{item}}?',
+  stimulus: {
+    kind: 'table',
+    title: 'Offers',
+    table: { headers: ['offer', 'count', 'price'], rows: [['A', '{{n1}}', '{{p1}}'], ['B', '{{n2}}', '{{p2}}'], ['C', '{{n3}}', '{{p3}}']] },
+  },
+  generator: {
+    parameters: {
+      shop: SHOPS, item: GOODS,
+      low: { type: 'int', min: 3, max: 14 },
+      gap1: { type: 'int', min: 1, max: 8 },
+      gap2: { type: 'int', min: 1, max: 8 },
+      n1: { type: 'int', min: 3, max: 12 },
+      n2: { type: 'int', min: 3, max: 14 },
+      n3: { type: 'int', min: 3, max: 12 },
+    },
+    derived: {
+      mid: 'low+gap1',
+      high: 'low+gap1+gap2',
+      p1: 'n1*high',
+      p2: 'n2*low',
+      p3: 'n3*mid',
+      answer: 'low',
+      d_operationInverted: 'gap1',
+      d_usedGivenValue: 'n2',
+      d_partialTotal: 'p2',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Offer A is {{high}} each, B is {{low}} each and C is {{mid}} each.', 'The lowest of the three is {{answer}}.'],
+  answerSummary: { headline: 'Three totals only rank once each is per item.', text: 'The lowest price is $\\${{answer}}$ each.' },
+  hint: 'Work out what one item costs under each offer.',
+  feedback: 'The cheapest total is not always the cheapest per item.',
+});
+
+ar('7.4B', 'restate-rate-per-ten', {
+  difficultyBand: 3, dok: 2, taskType: 'representationTranslation', representation: 'verbal',
+  prompt: 'A {{machine}} uses {{ml}} millilitres of oil every {{cycles}} cycles. How much does it use every 10 cycles?',
+  generator: {
+    parameters: {
+      machine: MACHINES,
+      unit: { type: 'int', min: 1, max: 5 },
+      cycles: { type: 'choice', values: [20, 25, 40, 50] },
+    },
+    derived: {
+      ml: 'unit*cycles',
+      answer: 'unit*10',
+      d_forgotFinalStep: 'unit',
+      d_operationInverted: 'cycles',
+      d_usedGivenValue: 'ml',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{ml}} over {{cycles}} cycles is {{unit}} millilitres a cycle.', 'Ten cycles use ten times that, or {{answer}}.'],
+  answerSummary: { headline: 'Restating a rate goes through the amount for one.', text: 'It uses ${{answer}}$ millilitres every 10 cycles.' },
+  hint: 'Work out the oil for a single cycle first.',
+  feedback: 'The quoted figure covers a different number of cycles.',
+});
+
+ar('7.4B', 'unit-rate-then-order', {
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A supplier charges $\\${{total}}$ for {{count}} {{item}}. At the same rate, what do {{want}} {{item}} cost?',
+  generator: {
+    parameters: {
+      item: GOODS,
+      each: { type: 'int', min: 3, max: 20 },
+      count: { type: 'int', min: 4, max: 24 },
+      want: { type: 'int', min: 4, max: 24 },
+    },
+    derived: {
+      total: 'each*count',
+      answer: 'each*want',
+      d_partialTotal: 'total',
+      d_forgotFinalStep: 'each',
+      d_offByOneStep: 'each*(want+1)',
+    },
+    constraints: ['count!=want'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['{{count}} for {{total}} is {{each}} each.', '{{want}} at {{each}} each is {{answer}}.'],
+  answerSummary: { headline: 'Come down to one, then up to the amount ordered.', text: '{{want}} cost $\\${{answer}}$.' },
+  hint: 'What does a single one cost?',
+  feedback: 'The quoted total covers a different quantity from the one ordered.',
+});
+
+ar('7.4B', 'rate-from-two-readings', {
+  difficultyBand: 3, dok: 3, taskType: 'reverseReasoning', representation: 'table',
+  prompt: 'A meter read {{r1}} at {{h1}} hours and {{r2}} at {{h2}} hours. How much does it climb each hour?',
+  stimulus: {
+    kind: 'table',
+    title: 'Meter log',
+    table: { headers: ['hours', 'reading'], rows: [['{{h1}}', '{{r1}}'], ['{{h2}}', '{{r2}}']] },
+  },
+  generator: {
+    parameters: {
+      rate: { type: 'int', min: 3, max: 12 },
+      h1: { type: 'int', min: 1, max: 8 },
+      gap: { type: 'int', min: 2, max: 12 },
+      start: { type: 'int', min: 10, max: 60, step: 5 },
+    },
+    derived: {
+      h2: 'h1+gap',
+      r1: 'start+rate*h1',
+      r2: 'start+rate*h1+rate*gap',
+      answer: 'rate',
+      d_forgotFinalStep: 'r2-r1',
+      d_operationInverted: 'gap',
+      d_offByOneStep: 'round((r2-r1)/(2*gap))',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['The reading rose by {{d_forgotFinalStep}} over {{gap}} hours.', 'That is {{answer}} an hour.'],
+  answerSummary: { headline: 'A per-hour climb needs the change in both columns.', text: 'It climbs ${{answer}}$ an hour.' },
+  hint: 'Both the reading and the hours changed. Compare the two changes.',
+  feedback: 'The total rise is not the hourly rise.',
+});
+
+// ================================================================ 7.4C
+// The constant of proportionality.
+
+ar('7.4C', 'constant-from-pair', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'A {{machine}} produces {{y}} {{item}} in {{x}} hours at a steady rate. How many does it produce each hour?',
+  generator: {
+    parameters: {
+      machine: MACHINES, item: GOODS,
+      k: { type: 'int', min: 4, max: 30 },
+      x: { type: 'int', min: 4, max: 30 },
+    },
+    derived: {
+      y: 'k*x',
+      answer: 'k',
+      d_operationInverted: 'x',
+      d_offByOneStep: 'round(y/(x+2))',
+      d_arithmeticSlip: 'round(y/(x-2))',
+    },
+    constraints: ['x>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['A steady rate means every hour contributes the same amount.', '{{y}} over {{x}} hours is {{answer}} an hour.'],
+  answerSummary: { headline: 'A steady rate is the output divided by the input.', text: 'It produces ${{answer}}$ an hour.' },
+  hint: 'One hour is the unit the question wants.',
+  feedback: 'Check which column counts hours.',
+});
+
+ar('7.4C', 'which-table-is-proportional', {
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'table',
+  rankAnalysisNotApplicable: true,
+  prompt: 'One row of this steady-rate table is wrong. Which entry does not match the others?',
+  stimulus: {
+    kind: 'table',
+    title: 'Rate table',
+    table: { headers: ['hours', 'output'], rows: [['{{x1}}', '{{y1}}'], ['{{x2}}', '{{y2}}'], ['{{x3}}', '{{bad}}']] },
+  },
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 3, max: 15 },
+      x1: { type: 'int', min: 2, max: 6 },
+      step1: { type: 'int', min: 1, max: 5 },
+      step2: { type: 'int', min: 1, max: 5 },
+      off: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      x2: 'x1+step1',
+      x3: 'x1+step1+step2',
+      y1: 'k*x1',
+      y2: 'k*x2',
+      y3: 'k*x3',
+      bad: 'k*x3+off',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{bad}}'), correct: true },
+    { label: plain('{{y1}}'), error: 'usedGivenValue' },
+    { label: plain('{{y2}}'), error: 'partialTotal' },
+    { label: plain('{{y3}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['The first two rows both give {{k}} per hour.', 'At {{x3}} hours a steady rate gives {{y3}}, not {{bad}}.'],
+  answerSummary: { headline: 'A steady rate gives the same amount per hour in every row.', text: 'The entry ${{bad}}$ breaks the pattern.' },
+  hint: 'Work out the per-hour amount from the first two rows.',
+  feedback: 'Check each row against the rate the earlier rows set.',
+});
+
+ar('7.4C', 'output-from-constant', {
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'verbal',
+  prompt: 'A pump moves {{k}} litres a minute. How many litres does it move in {{x}} minutes?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 4, max: 30 },
+      x: { type: 'int', min: 4, max: 30 },
+    },
+    derived: {
+      answer: 'k*x',
+      d_operationInverted: 'x*x',
+      d_offByOneStep: 'k*(x-1)',
+      d_arithmeticSlip: 'k*(x+1)',
+    },
+    constraints: ['k!=x'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['Every minute accounts for {{k}} litres.', '{{x}} minutes gives {{answer}}.'],
+  answerSummary: { headline: 'A constant rate multiplies by the time.', text: 'It moves ${{answer}}$ litres.' },
+  hint: 'One minute is worth the stated amount.',
+  feedback: 'Pair the per-minute amount with the number of minutes.',
+});
+
+ar('7.4C', 'input-from-constant', {
+  difficultyBand: 3, dok: 2, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'A {{vehicle}} burns {{k}} litres of fuel an hour. How long can it run on {{total}} litres?',
+  generator: {
+    parameters: {
+      vehicle: VEHICLES,
+      k: { type: 'int', min: 4, max: 25 },
+      hours: { type: 'int', min: 4, max: 25 },
+    },
+    derived: {
+      total: 'k*hours',
+      answer: 'hours',
+      d_operationInverted: 'k',
+      d_offByOneStep: 'round(total/(k+2))',
+      d_arithmeticSlip: 'round(total/(k-2))',
+    },
+    constraints: ['k>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['Each hour costs {{k}} litres.', '{{total}} divided by {{k}} is {{answer}} hours.'],
+  answerSummary: { headline: 'A total and a rate give the time.', text: 'It runs ${{answer}}$ hours.' },
+  hint: 'How many hours worth of fuel does the tank hold?',
+  feedback: 'The tank size is shared out at the hourly rate.',
+});
+
+ar('7.4C', 'compare-two-constants', {
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'Two {{machine}}s ran as logged. How many more {{item}} an hour does the faster one make?',
+  stimulus: {
+    kind: 'table',
+    title: 'Run log',
+    table: { headers: ['machine', 'hours', 'output'], rows: [['A', '{{hA}}', '{{outA}}'], ['B', '{{hB}}', '{{outB}}']] },
+  },
+  generator: {
+    parameters: {
+      machine: MACHINES, item: GOODS,
+      slow: { type: 'int', min: 5, max: 25 },
+      gap: { type: 'int', min: 2, max: 20 },
+      hA: { type: 'int', min: 2, max: 9 },
+      hB: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      fast: 'slow+gap',
+      outA: 'fast*hA',
+      outB: 'slow*hB',
+      answer: 'gap',
+      d_partialTotal: 'abs(outA-outB)',
+      d_operationInverted: 'slow',
+      d_offByOneStep: 'abs(hA-hB)',
+    },
+    constraints: ['hA!=hB'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['Machine A makes {{fast}} an hour and B makes {{slow}}.', 'The difference is {{answer}}.'],
+  answerSummary: { headline: 'Compare the two rates, not the two totals.', text: 'It makes ${{answer}}$ more an hour.' },
+  hint: 'Neither total means anything until both are per hour.',
+  feedback: 'The machines ran for different lengths of time.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {

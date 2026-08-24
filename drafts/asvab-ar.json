@@ -7033,6 +7033,1454 @@
      "expected": "choice-b"
     }
    ]
+  },
+  {
+   "id": "mm_asvab_7_4B_wage_per_hour",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.4B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.4B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:7.4B:wage-per-hour",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.4B",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{worker}} earned $\\${{pay}}$ for {{hours}} hours. What is the hourly rate?",
+   "solutionReview": {
+    "headline": "An hourly rate divides the pay by the hours.",
+    "reasoning": [
+     "The pay covers every hour worked.",
+     "{{pay}} shared over {{hours}} hours is {{answer}} an hour."
+    ],
+    "answerSummary": "The rate is $\\${{answer}}$ an hour."
+   },
+   "attemptFeedback": [
+    "Check which number counts hours and which counts dollars."
+   ],
+   "supportHints": [
+    "Decide which quantity is being shared across the other."
+   ],
+   "generator": {
+    "parameters": {
+     "worker": {
+      "type": "choice",
+      "values": [
+       "mechanic",
+       "driver",
+       "loader",
+       "welder",
+       "technician"
+      ]
+     },
+     "rate": {
+      "type": "int",
+      "min": 12,
+      "max": 40
+     },
+     "hours": {
+      "type": "int",
+      "min": 12,
+      "max": 40
+     }
+    },
+    "derived": {
+     "pay": "rate*hours",
+     "answer": "rate",
+     "d_operationInverted": "hours",
+     "d_offByOneStep": "round(pay/(hours+2))",
+     "d_arithmeticSlip": "round(pay/(hours-2))"
+    },
+    "constraints": [
+     "hours>4",
+     "answer!=d_operationInverted",
+     "answer!=d_offByOneStep",
+     "answer!=d_arithmeticSlip",
+     "d_operationInverted!=d_offByOneStep",
+     "d_operationInverted!=d_arithmeticSlip",
+     "d_offByOneStep!=d_arithmeticSlip"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_arithmeticSlip}}$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_4B_best_unit_rate_of_three",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.4B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.4B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:7.4B:best-unit-rate-of-three",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.4B",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Three {{shop}} offers are listed. What is the lowest price per {{item}}?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Offers",
+    "table": {
+     "headers": [
+      "offer",
+      "count",
+      "price"
+     ],
+     "rows": [
+      [
+       "A",
+       "{{n1}}",
+       "{{p1}}"
+      ],
+      [
+       "B",
+       "{{n2}}",
+       "{{p2}}"
+      ],
+      [
+       "C",
+       "{{n3}}",
+       "{{p3}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Three totals only rank once each is per item.",
+    "reasoning": [
+     "Offer A is {{high}} each, B is {{low}} each and C is {{mid}} each.",
+     "The lowest of the three is {{answer}}."
+    ],
+    "answerSummary": "The lowest price is $\\${{answer}}$ each."
+   },
+   "attemptFeedback": [
+    "The cheapest total is not always the cheapest per item."
+   ],
+   "supportHints": [
+    "Work out what one item costs under each offer."
+   ],
+   "generator": {
+    "parameters": {
+     "shop": {
+      "type": "choice",
+      "values": [
+       "hardware store",
+       "supply depot",
+       "warehouse outlet",
+       "parts counter"
+      ]
+     },
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "low": {
+      "type": "int",
+      "min": 3,
+      "max": 14
+     },
+     "gap1": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     },
+     "gap2": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     },
+     "n1": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     },
+     "n2": {
+      "type": "int",
+      "min": 3,
+      "max": 14
+     },
+     "n3": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     }
+    },
+    "derived": {
+     "mid": "low+gap1",
+     "high": "low+gap1+gap2",
+     "p1": "n1*high",
+     "p2": "n2*low",
+     "p3": "n3*mid",
+     "answer": "low",
+     "d_operationInverted": "gap1",
+     "d_usedGivenValue": "n2",
+     "d_partialTotal": "p2"
+    },
+    "constraints": [
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "answer!=d_partialTotal",
+     "d_operationInverted!=d_usedGivenValue",
+     "d_operationInverted!=d_partialTotal",
+     "d_usedGivenValue!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_4B_restate_rate_per_ten",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.4B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.4B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:7.4B:restate-rate-per-ten",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.4B",
+   "taskType": "representationTranslation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{machine}} uses {{ml}} millilitres of oil every {{cycles}} cycles. How much does it use every 10 cycles?",
+   "solutionReview": {
+    "headline": "Restating a rate goes through the amount for one.",
+    "reasoning": [
+     "{{ml}} over {{cycles}} cycles is {{unit}} millilitres a cycle.",
+     "Ten cycles use ten times that, or {{answer}}."
+    ],
+    "answerSummary": "It uses ${{answer}}$ millilitres every 10 cycles."
+   },
+   "attemptFeedback": [
+    "The quoted figure covers a different number of cycles."
+   ],
+   "supportHints": [
+    "Work out the oil for a single cycle first."
+   ],
+   "generator": {
+    "parameters": {
+     "machine": {
+      "type": "choice",
+      "values": [
+       "press",
+       "labeler",
+       "sorter",
+       "stamping machine",
+       "conveyor"
+      ]
+     },
+     "unit": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     },
+     "cycles": {
+      "type": "choice",
+      "values": [
+       20,
+       25,
+       40,
+       50
+      ]
+     }
+    },
+    "derived": {
+     "ml": "unit*cycles",
+     "answer": "unit*10",
+     "d_forgotFinalStep": "unit",
+     "d_operationInverted": "cycles",
+     "d_usedGivenValue": "ml"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_operationInverted!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_4B_unit_rate_then_order",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.4B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.4B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:7.4B:unit-rate-then-order",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.4B",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A supplier charges $\\${{total}}$ for {{count}} {{item}}. At the same rate, what do {{want}} {{item}} cost?",
+   "solutionReview": {
+    "headline": "Come down to one, then up to the amount ordered.",
+    "reasoning": [
+     "{{count}} for {{total}} is {{each}} each.",
+     "{{want}} at {{each}} each is {{answer}}."
+    ],
+    "answerSummary": "{{want}} cost $\\${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The quoted total covers a different quantity from the one ordered."
+   ],
+   "supportHints": [
+    "What does a single one cost?"
+   ],
+   "generator": {
+    "parameters": {
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "each": {
+      "type": "int",
+      "min": 3,
+      "max": 20
+     },
+     "count": {
+      "type": "int",
+      "min": 4,
+      "max": 24
+     },
+     "want": {
+      "type": "int",
+      "min": 4,
+      "max": 24
+     }
+    },
+    "derived": {
+     "total": "each*count",
+     "answer": "each*want",
+     "d_partialTotal": "total",
+     "d_forgotFinalStep": "each",
+     "d_offByOneStep": "each*(want+1)"
+    },
+    "constraints": [
+     "count!=want",
+     "answer!=d_partialTotal",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_offByOneStep",
+     "d_partialTotal!=d_forgotFinalStep",
+     "d_partialTotal!=d_offByOneStep",
+     "d_forgotFinalStep!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_4B_rate_from_two_readings",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.4B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.4B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:7.4B:rate-from-two-readings",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.4B",
+   "taskType": "reverseReasoning",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A meter read {{r1}} at {{h1}} hours and {{r2}} at {{h2}} hours. How much does it climb each hour?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Meter log",
+    "table": {
+     "headers": [
+      "hours",
+      "reading"
+     ],
+     "rows": [
+      [
+       "{{h1}}",
+       "{{r1}}"
+      ],
+      [
+       "{{h2}}",
+       "{{r2}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "A per-hour climb needs the change in both columns.",
+    "reasoning": [
+     "The reading rose by {{d_forgotFinalStep}} over {{gap}} hours.",
+     "That is {{answer}} an hour."
+    ],
+    "answerSummary": "It climbs ${{answer}}$ an hour."
+   },
+   "attemptFeedback": [
+    "The total rise is not the hourly rise."
+   ],
+   "supportHints": [
+    "Both the reading and the hours changed. Compare the two changes."
+   ],
+   "generator": {
+    "parameters": {
+     "rate": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     },
+     "h1": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     },
+     "gap": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "start": {
+      "type": "int",
+      "min": 10,
+      "max": 60,
+      "step": 5
+     }
+    },
+    "derived": {
+     "h2": "h1+gap",
+     "r1": "start+rate*h1",
+     "r2": "start+rate*h1+rate*gap",
+     "answer": "rate",
+     "d_forgotFinalStep": "r2-r1",
+     "d_operationInverted": "gap",
+     "d_offByOneStep": "round((r2-r1)/(2*gap))"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_offByOneStep",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_offByOneStep",
+     "d_operationInverted!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_4C_constant_from_pair",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.4C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.4C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:7.4C:constant-from-pair",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.4C",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{machine}} produces {{y}} {{item}} in {{x}} hours at a steady rate. How many does it produce each hour?",
+   "solutionReview": {
+    "headline": "A steady rate is the output divided by the input.",
+    "reasoning": [
+     "A steady rate means every hour contributes the same amount.",
+     "{{y}} over {{x}} hours is {{answer}} an hour."
+    ],
+    "answerSummary": "It produces ${{answer}}$ an hour."
+   },
+   "attemptFeedback": [
+    "Check which column counts hours."
+   ],
+   "supportHints": [
+    "One hour is the unit the question wants."
+   ],
+   "generator": {
+    "parameters": {
+     "machine": {
+      "type": "choice",
+      "values": [
+       "press",
+       "labeler",
+       "sorter",
+       "stamping machine",
+       "conveyor"
+      ]
+     },
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "k": {
+      "type": "int",
+      "min": 4,
+      "max": 30
+     },
+     "x": {
+      "type": "int",
+      "min": 4,
+      "max": 30
+     }
+    },
+    "derived": {
+     "y": "k*x",
+     "answer": "k",
+     "d_operationInverted": "x",
+     "d_offByOneStep": "round(y/(x+2))",
+     "d_arithmeticSlip": "round(y/(x-2))"
+    },
+    "constraints": [
+     "x>4",
+     "answer!=d_operationInverted",
+     "answer!=d_offByOneStep",
+     "answer!=d_arithmeticSlip",
+     "d_operationInverted!=d_offByOneStep",
+     "d_operationInverted!=d_arithmeticSlip",
+     "d_offByOneStep!=d_arithmeticSlip"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_arithmeticSlip}}$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_4C_which_table_is_proportional",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.4C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.4C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:7.4C:which-table-is-proportional",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.4C",
+   "taskType": "errorAnalysis",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "One row of this steady-rate table is wrong. Which entry does not match the others?",
+   "rankAnalysisNotApplicable": true,
+   "stimulus": {
+    "kind": "table",
+    "title": "Rate table",
+    "table": {
+     "headers": [
+      "hours",
+      "output"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "{{y1}}"
+      ],
+      [
+       "{{x2}}",
+       "{{y2}}"
+      ],
+      [
+       "{{x3}}",
+       "{{bad}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "A steady rate gives the same amount per hour in every row.",
+    "reasoning": [
+     "The first two rows both give {{k}} per hour.",
+     "At {{x3}} hours a steady rate gives {{y3}}, not {{bad}}."
+    ],
+    "answerSummary": "The entry ${{bad}}$ breaks the pattern."
+   },
+   "attemptFeedback": [
+    "Check each row against the rate the earlier rows set."
+   ],
+   "supportHints": [
+    "Work out the per-hour amount from the first two rows."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 3,
+      "max": 15
+     },
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "step1": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     },
+     "step2": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     },
+     "off": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "x2": "x1+step1",
+     "x3": "x1+step1+step2",
+     "y1": "k*x1",
+     "y2": "k*x2",
+     "y3": "k*x3",
+     "bad": "k*x3+off"
+    },
+    "constraints": [
+     "bad!=y1",
+     "bad!=y2",
+     "bad!=y3",
+     "y1!=y2",
+     "y1!=y3",
+     "y2!=y3"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{bad}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{y3}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{y2}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{y1}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_4C_output_from_constant",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.4C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.4C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:7.4C:output-from-constant",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.4C",
+   "taskType": "application",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A pump moves {{k}} litres a minute. How many litres does it move in {{x}} minutes?",
+   "solutionReview": {
+    "headline": "A constant rate multiplies by the time.",
+    "reasoning": [
+     "Every minute accounts for {{k}} litres.",
+     "{{x}} minutes gives {{answer}}."
+    ],
+    "answerSummary": "It moves ${{answer}}$ litres."
+   },
+   "attemptFeedback": [
+    "Pair the per-minute amount with the number of minutes."
+   ],
+   "supportHints": [
+    "One minute is worth the stated amount."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 4,
+      "max": 30
+     },
+     "x": {
+      "type": "int",
+      "min": 4,
+      "max": 30
+     }
+    },
+    "derived": {
+     "answer": "k*x",
+     "d_operationInverted": "x*x",
+     "d_offByOneStep": "k*(x-1)",
+     "d_arithmeticSlip": "k*(x+1)"
+    },
+    "constraints": [
+     "k!=x",
+     "answer!=d_operationInverted",
+     "answer!=d_offByOneStep",
+     "answer!=d_arithmeticSlip",
+     "d_operationInverted!=d_offByOneStep",
+     "d_operationInverted!=d_arithmeticSlip",
+     "d_offByOneStep!=d_arithmeticSlip"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_arithmeticSlip}}$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_4C_input_from_constant",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.4C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.4C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:7.4C:input-from-constant",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.4C",
+   "taskType": "reverseReasoning",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{vehicle}} burns {{k}} litres of fuel an hour. How long can it run on {{total}} litres?",
+   "solutionReview": {
+    "headline": "A total and a rate give the time.",
+    "reasoning": [
+     "Each hour costs {{k}} litres.",
+     "{{total}} divided by {{k}} is {{answer}} hours."
+    ],
+    "answerSummary": "It runs ${{answer}}$ hours."
+   },
+   "attemptFeedback": [
+    "The tank size is shared out at the hourly rate."
+   ],
+   "supportHints": [
+    "How many hours worth of fuel does the tank hold?"
+   ],
+   "generator": {
+    "parameters": {
+     "vehicle": {
+      "type": "choice",
+      "values": [
+       "delivery van",
+       "service truck",
+       "shuttle bus",
+       "work van",
+       "pickup"
+      ]
+     },
+     "k": {
+      "type": "int",
+      "min": 4,
+      "max": 25
+     },
+     "hours": {
+      "type": "int",
+      "min": 4,
+      "max": 25
+     }
+    },
+    "derived": {
+     "total": "k*hours",
+     "answer": "hours",
+     "d_operationInverted": "k",
+     "d_offByOneStep": "round(total/(k+2))",
+     "d_arithmeticSlip": "round(total/(k-2))"
+    },
+    "constraints": [
+     "k>4",
+     "answer!=d_operationInverted",
+     "answer!=d_offByOneStep",
+     "answer!=d_arithmeticSlip",
+     "d_operationInverted!=d_offByOneStep",
+     "d_operationInverted!=d_arithmeticSlip",
+     "d_offByOneStep!=d_arithmeticSlip"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_arithmeticSlip}}$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_4C_compare_two_constants",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.4C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.4C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:7.4C:compare-two-constants",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.4C",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two {{machine}}s ran as logged. How many more {{item}} an hour does the faster one make?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Run log",
+    "table": {
+     "headers": [
+      "machine",
+      "hours",
+      "output"
+     ],
+     "rows": [
+      [
+       "A",
+       "{{hA}}",
+       "{{outA}}"
+      ],
+      [
+       "B",
+       "{{hB}}",
+       "{{outB}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Compare the two rates, not the two totals.",
+    "reasoning": [
+     "Machine A makes {{fast}} an hour and B makes {{slow}}.",
+     "The difference is {{answer}}."
+    ],
+    "answerSummary": "It makes ${{answer}}$ more an hour."
+   },
+   "attemptFeedback": [
+    "The machines ran for different lengths of time."
+   ],
+   "supportHints": [
+    "Neither total means anything until both are per hour."
+   ],
+   "generator": {
+    "parameters": {
+     "machine": {
+      "type": "choice",
+      "values": [
+       "press",
+       "labeler",
+       "sorter",
+       "stamping machine",
+       "conveyor"
+      ]
+     },
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "slow": {
+      "type": "int",
+      "min": 5,
+      "max": 25
+     },
+     "gap": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "hA": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "hB": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "fast": "slow+gap",
+     "outA": "fast*hA",
+     "outB": "slow*hB",
+     "answer": "gap",
+     "d_partialTotal": "abs(outA-outB)",
+     "d_operationInverted": "slow",
+     "d_offByOneStep": "abs(hA-hB)"
+    },
+    "constraints": [
+     "hA!=hB",
+     "answer!=d_partialTotal",
+     "answer!=d_operationInverted",
+     "answer!=d_offByOneStep",
+     "d_partialTotal!=d_operationInverted",
+     "d_partialTotal!=d_offByOneStep",
+     "d_operationInverted!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
   }
  ]
 }
