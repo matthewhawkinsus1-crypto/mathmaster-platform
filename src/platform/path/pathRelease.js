@@ -2,6 +2,6 @@
 // Path that must move together: the web client and Cloud Functions.  Keeping
 // this visible in Administration makes a stale Firebase Hosting deployment obvious
 // instead of surfacing as a mysterious callable `internal` error.
-export const PATH_WEB_RELEASE = 'path-bank-2026-08-23-r10-server-authoritative-coverage';
+export const PATH_WEB_RELEASE = 'path-bank-2026-08-23-r11-ccmr-fidelity-v2';
 
 export default PATH_WEB_RELEASE;

@@ -16,6 +16,8 @@ import { toDisplayCode } from '../../utils/teksUtils.js';
 import StandardBadge from '../common/StandardBadge.jsx';
 import { FRAMEWORK_LABELS } from '../../platform/ccmr/assessmentCrosswalk.js';
 import { questionAssessmentFramework } from '../../platform/student/questionAlignmentInfo.js';
+import { getAssessmentStandardReferences, referenceLabel } from '../../platform/ccmr/assessmentStandardReferences.js';
+import { assessmentItemTypeLabel, describeChallengeTier, frameworkExperience } from '../../platform/ccmr/assessmentFidelity.js';
 
 // Three ways a path question can arrive, in order of preference.
 //
@@ -107,6 +109,13 @@ function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowe
   const directFramework = authoredAssessment.examStyle
     ? authoredAssessment.framework
     : (!bridgeFramework && assessmentFramework && !questionInstance?.assessmentContext ? assessmentFramework : null);
+  const challengeTier = Number(questionInstance?.ccmrChallengeTier || session?.ccmrChallengeTier || 1);
+  const challenge = describeChallengeTier(challengeTier, directFramework);
+  const experience = directFramework ? frameworkExperience(directFramework) : null;
+  const assessmentReferences = directFramework && questionCode
+    ? getAssessmentStandardReferences(teksSkillId(questionCode), directFramework)
+    : [];
+  const primaryAssessmentReference = assessmentReferences[0] || null;
 
   return (
     <header style={{ marginBottom: 12 }}>
@@ -144,6 +153,40 @@ function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowe
           {attemptsAllowed > 1 && attemptsLeft > 0 ? ` · ${attemptsLeft} ${attemptsLeft === 1 ? 'try' : 'tries'} left` : ''}
         </span>
       </div>
+      {directFramework && !bridgeFramework && (
+        <div
+          role="status"
+          style={{
+            margin: '9px 0 0', padding: '11px 13px', borderRadius: 11,
+            background: challengeTier >= 2 ? '#f3ecfd' : '#e8f0fe',
+            border: `2px solid ${challengeTier >= 2 ? '#7e57c2' : '#1a73e8'}`,
+            color: '#202124', lineHeight: 1.45,
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'baseline' }}>
+            <strong style={{ color: challengeTier >= 2 ? '#5b21b6' : '#174ea6', fontSize: 13, letterSpacing: 0.35 }}>
+              {experience?.shortLabel || FRAMEWORK_LABELS[directFramework] || directFramework} · {challenge.shortLabel}
+            </strong>
+            <span style={{ color: '#5f6368', fontSize: 11.5, fontWeight: 800 }}>
+              {assessmentItemTypeLabel(questionInstance || {})}
+            </span>
+          </div>
+          {primaryAssessmentReference && (
+            <div style={{ marginTop: 4, color: '#5b21b6', fontWeight: 850, fontSize: 12 }}>
+              {referenceLabel(primaryAssessmentReference)}
+            </div>
+          )}
+          <div style={{ marginTop: 5, display: 'flex', flexWrap: 'wrap', gap: '4px 12px', color: '#5f6368', fontSize: 11.5 }}>
+            <span>{experience?.calculatorSummary || (questionInstance?.calculatorPolicy === 'none' ? 'No calculator' : 'Calculator policy follows the assessment')}</span>
+            <span>{tierInfo.label}</span>
+          </div>
+          {challengeTier >= 2 && (
+            <div style={{ marginTop: 5, color: '#5b21b6', fontSize: 11.5, fontWeight: 750 }}>
+              {challenge.explanation}
+            </div>
+          )}
+        </div>
+      )}
       {bridgeFramework && (
         <p role="status" style={{ margin: '6px 0 0', padding: '7px 10px', width: 'fit-content', maxWidth: '100%', borderRadius: 8, background: '#fef7e0', border: '1px solid #f0d489', color: '#7a4f00', fontSize: 12.5, fontWeight: 800, lineHeight: 1.45 }}>
           Foundation bridge for {FRAMEWORK_LABELS[bridgeFramework] || bridgeFramework} practice · strengthen this math first, then return to exam-format questions.

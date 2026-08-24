@@ -3,6 +3,8 @@ import * as liveSessionService from '../../services/pathSessionService.js';
 import { generateRuntimeUUID } from '../../utils/idUtils.js';
 import PathSessionPlayer from './PathSessionPlayer.jsx';
 import { explainStepForStudent } from '../../platform/path/pathSessionRouting.js';
+import { FRAMEWORK_LABELS } from '../../platform/ccmr/assessmentCrosswalk.js';
+import { describeChallengeTier } from '../../platform/ccmr/assessmentFidelity.js';
 
 // The session runtime is injected.
 //
@@ -444,9 +446,21 @@ export const MyMathPathProductionContainer = ({
   const sessionOver = session?.status === 'completed' || session?.status === 'teacherSupportNeeded';
   if (sessionOver && !awaitingContinue) {
     const paused = session.status === 'teacherSupportNeeded';
+    const directAssessment = Boolean(session?.assessmentFramework);
+    const challengeTier = Math.max(1, Math.min(3, Number(session?.ccmrChallengeTier || 1)));
+    const challenge = describeChallengeTier(challengeTier, session?.assessmentFramework);
+    const completedCount = Math.max(1, Number(session?.summary?.completedQuestions || session?.requiredQuestions || 1));
+    const sessionAccuracy = Number(session?.summary?.correctQuestions || 0) / completedCount;
+    const independentRate = Number(session?.summary?.independentSuccesses || 0) / completedCount;
+    const challengePassed = sessionAccuracy >= 0.8 && independentRate >= 0.6;
     return (
       <section style={{ maxWidth: 620, margin: '36px auto', padding: 30, border: '1px solid #dadce0', borderRadius: 12, background: '#fff', textAlign: 'center' }}>
-        <h1 style={{ color: '#202124' }}>{paused ? 'Practice paused' : 'Session complete'}</h1>
+        <h1 style={{ color: '#202124' }}>{paused ? 'Practice paused' : directAssessment ? `${challenge.label} complete` : 'Session complete'}</h1>
+        {directAssessment && !paused && (
+          <div style={{ display: 'inline-block', margin: '0 0 10px', padding: '5px 10px', borderRadius: 999, background: challengeTier >= 2 ? '#f3ecfd' : '#e8f0fe', color: challengeTier >= 2 ? '#5b21b6' : '#174ea6', fontSize: 12, fontWeight: 900 }}>
+            {FRAMEWORK_LABELS[session.assessmentFramework] || session.assessmentFramework} · {challenge.shortLabel}
+          </div>
+        )}
         <p style={{ color: '#5f6368', lineHeight: 1.6 }}>
           {paused
             ? (session.teacherMessage || 'Your progress is saved. Check in with your teacher before continuing this skill.')
@@ -456,6 +470,26 @@ export const MyMathPathProductionContainer = ({
           <div style={{ margin: '18px 0', padding: 13, borderRadius: 8, background: '#e6f4ea', color: '#137333', lineHeight: 1.6 }}>
             <strong>{session.summary?.correctQuestions || 0}</strong> right first time or after a retry ·{' '}
             <strong>{session.summary?.independentSuccesses || 0}</strong> of those on your own
+          </div>
+        )}
+        {directAssessment && !paused && (
+          <div style={{ margin: '0 0 18px', padding: 13, borderRadius: 9, background: challengePassed ? '#f3ecfd' : '#fef7e0', color: challengePassed ? '#5b21b6' : '#7a4f00', lineHeight: 1.55, textAlign: 'left' }}>
+            <strong style={{ display: 'block', marginBottom: 3 }}>
+              {challengePassed
+                ? challengeTier === 1
+                  ? 'Harder challenge unlocked'
+                  : challengeTier === 2
+                    ? 'Advanced challenge unlocked'
+                    : 'Assessment challenge complete'
+                : 'Keep building this format'}
+            </strong>
+            {challengePassed
+              ? challengeTier === 1
+                ? 'The next time you choose this skill in this assessment, MathMaster will give you a shorter, harder set instead of repeating the direct-practice level.'
+                : challengeTier === 2
+                  ? 'The next set uses the highest-demand challenge families for this skill.'
+                  : 'This skill will cool down in recommendations. It stays available for maintenance, but MathMaster will push other needs ahead of it.'
+              : 'This set stays at the current level on your next visit so you can strengthen the assessment format before the difficulty rises.'}
           </div>
         )}
         <button type="button" onClick={onReturnToDashboard} style={{ minHeight: 44, padding: '11px 20px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Back to My Math Path</button>

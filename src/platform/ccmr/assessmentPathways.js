@@ -22,6 +22,7 @@ import { describeSkill } from '../path/skillGraph.js';
 import { ASSESSMENT_FRAMEWORKS, FRAMEWORK_LABELS, listFrameworkAlignments, resolveAlignment } from './assessmentCrosswalk.js';
 import { EVIDENCE_BASIS, getEvidence, hasPractised } from './assessmentEvidence.js';
 import { getAssessmentProfile } from './assessmentProfiles.js';
+import { CCMR_STAGE, resolveAssessmentPracticeStage } from './assessmentFidelity.js';
 import { getAssessmentStandardReferences } from './assessmentStandardReferences.js';
 
 export const READINESS = Object.freeze({
@@ -32,6 +33,8 @@ export const READINESS = Object.freeze({
   STRENGTHEN: 'strengthen',
   TRANSFER_GAP: 'transfer_gap',
   STRONG: 'strong',
+  CHALLENGE_READY: 'challenge_ready',
+  MAINTENANCE: 'maintenance',
 });
 
 export const CCMR_REASON = Object.freeze({
@@ -45,6 +48,10 @@ export const CCMR_REASON = Object.freeze({
   LOW_EVIDENCE: 'assessment-context-low-evidence',
   TRANSFER_GAP: 'transfer-gap-detected',
   CONTEXT_STRONG: 'assessment-context-strong',
+  DIRECT_PRACTICE_COMPLETE: 'direct-practice-complete',
+  CHALLENGE_PASSED: 'assessment-challenge-passed',
+  ADVANCED_CHALLENGE_PASSED: 'advanced-assessment-challenge-passed',
+  COOLED_DOWN: 'assessment-skill-cooled-down',
   CONTEXT_BELOW_CORE: 'assessment-context-performance-lower-than-core',
   NOT_PRACTISED: 'not-yet-practiced',
   NO_ALIGNMENT: 'no-meaningful-alignment',
@@ -191,8 +198,23 @@ export const classifyAssessmentSkill = ({
     base = 0.9;
   } else if (proficiency != null && proficiency >= CONTEXT_STRONG) {
     reasons.push(CCMR_REASON.CONTEXT_STRONG);
-    status = READINESS.STRONG;
-    base = 0.25;
+    const stage = resolveAssessmentPracticeStage(evidence);
+    if (stage.stage === CCMR_STAGE.MAINTENANCE) {
+      reasons.push(CCMR_REASON.ADVANCED_CHALLENGE_PASSED, CCMR_REASON.COOLED_DOWN);
+      status = READINESS.MAINTENANCE;
+      base = 0.08;
+    } else if (stage.stage === CCMR_STAGE.ADVANCED_CHALLENGE) {
+      reasons.push(CCMR_REASON.CHALLENGE_PASSED);
+      status = READINESS.CHALLENGE_READY;
+      base = 0.2;
+    } else if (stage.stage === CCMR_STAGE.CHALLENGE_READY) {
+      reasons.push(CCMR_REASON.DIRECT_PRACTICE_COMPLETE);
+      status = READINESS.CHALLENGE_READY;
+      base = 0.32;
+    } else {
+      status = READINESS.STRONG;
+      base = 0.25;
+    }
   } else if (proficiency != null && proficiency < CONTEXT_WEAK) {
     status = READINESS.STRENGTHEN;
     base = 0.75;
@@ -233,6 +255,7 @@ export const getAssessmentPathOptions = ({
     const alignment = resolveAlignment({ skillId, framework, directIndex });
     const evidence = getEvidence(assessmentEvidence, skillId, framework);
     const verdict = classifyAssessmentSkill({ row, framework, alignment, evidence, goals, teacherPriorities });
+    const practiceStage = resolveAssessmentPracticeStage(evidence);
     return {
       framework,
       label: FRAMEWORK_LABELS[framework],
@@ -246,6 +269,8 @@ export const getAssessmentPathOptions = ({
       status: verdict.status,
       score: verdict.score,
       reasonCodes: verdict.reasons,
+      practiceStage,
+      evidence,
     };
   });
 
@@ -278,6 +303,8 @@ const BUCKET_FOR_STATUS = {
   [READINESS.NOT_PRACTICED]: 'recommended',
   [READINESS.READY]: 'available',
   [READINESS.STRONG]: 'challenge',
+  [READINESS.CHALLENGE_READY]: 'challenge',
+  [READINESS.MAINTENANCE]: 'challenge',
   [READINESS.NOT_AVAILABLE]: 'unavailable',
 };
 
@@ -302,6 +329,7 @@ export const getAssessmentRecommendations = ({
     const alignment = resolveAlignment({ skillId: row.skillId, framework, directIndex });
     const evidence = getEvidence(assessmentEvidence, row.skillId, framework);
     const verdict = classifyAssessmentSkill({ row, framework, alignment, evidence, goals, teacherPriorities });
+    const practiceStage = resolveAssessmentPracticeStage(evidence);
     return {
       skillId: row.skillId,
       label: row.label,
@@ -317,6 +345,8 @@ export const getAssessmentRecommendations = ({
       provisional: verdict.provisional,
       score: verdict.score,
       reasons: verdict.reasons,
+      practiceStage,
+      evidence,
     };
   });
 
@@ -335,7 +365,9 @@ export const getAssessmentRecommendations = ({
     summary: {
       readySkills: eligible.length,
       practisedSkills: eligible.filter((item) => item.evidenceBasis === EVIDENCE_BASIS.DIRECT).length,
-      strongSkills: eligible.filter((item) => item.status === READINESS.STRONG).length,
+      strongSkills: eligible.filter((item) => [READINESS.STRONG, READINESS.CHALLENGE_READY, READINESS.MAINTENANCE].includes(item.status)).length,
+      challengeReadySkills: eligible.filter((item) => item.status === READINESS.CHALLENGE_READY).length,
+      maintainedSkills: eligible.filter((item) => item.status === READINESS.MAINTENANCE).length,
       transferGaps: eligible.filter((item) => item.status === READINESS.TRANSFER_GAP).length,
     },
     // §38 — assessment domains are a presentation grouping over canonical
@@ -370,8 +402,14 @@ export const explainAssessmentRecommendation = (item) => {
       return item.coreMastery != null && item.coreMastery >= CORE_MASTERED
         ? `You've already shown strong understanding of this. This practice helps you apply that skill in ${name}-style questions.`
         : `You haven't tried this one in ${name} format yet.`;
+    case READINESS.CHALLENGE_READY:
+      return item.practiceStage?.stage === CCMR_STAGE.ADVANCED_CHALLENGE
+        ? `You passed the first ${name} challenge. The next set is the advanced challenge, with harder families only.`
+        : `You completed the direct ${name} practice. The next set gets harder instead of repeating the same level.`;
+    case READINESS.MAINTENANCE:
+      return `You have already passed the advanced ${name} challenge for this skill. It stays available for maintenance, but MathMaster will prioritize other needs first.`;
     case READINESS.STRONG:
-      return `You're doing well with this on the ${name}. Keep it warm, or try it in another format.`;
+      return `You're doing well with this on the ${name}. Finish the direct set to unlock a harder challenge.`;
     case READINESS.READY:
       return `This skill is ready to practise in ${name} format.`;
     default:

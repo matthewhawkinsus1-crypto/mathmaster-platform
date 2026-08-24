@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { getAssessmentPathOptions, READINESS } from '../../platform/ccmr/assessmentPathways';
 import { referenceLabel } from '../../platform/ccmr/assessmentStandardReferences.js';
 import CcmrReferenceList from '../common/CcmrReferenceList.jsx';
+import { resolveAssessmentPracticeStage } from '../../platform/ccmr/assessmentFidelity.js';
 
 // "Practice This Skill As…" now carries the actual official assessment
 // reference beside the pathway. That means a student choosing ACT can see
@@ -12,6 +13,8 @@ const STATUS_NOTE = {
   [READINESS.TRANSFER_GAP]: { text: 'Worth a look', color: '#a50e0e', background: '#fce8e6' },
   [READINESS.STRENGTHEN]: { text: 'Keep working', color: '#7a4f00', background: '#fef7e0' },
   [READINESS.STRONG]: { text: 'Going well', color: '#137333', background: '#e6f4ea' },
+  [READINESS.CHALLENGE_READY]: { text: 'Challenge ready', color: '#5b21b6', background: '#f3ecfd' },
+  [READINESS.MAINTENANCE]: { text: 'Challenge complete', color: '#137333', background: '#e6f4ea' },
   [READINESS.NOT_PRACTICED]: { text: 'New', color: '#174ea6', background: '#e8f0fe' },
   [READINESS.READY]: { text: 'Ready', color: '#3c4043', background: '#f1f3f4' },
 };
@@ -59,6 +62,7 @@ export default function PracticeAsMenu({
           const note = STATUS_NOTE[pathway.status] || STATUS_NOTE[READINESS.READY];
           const primary = pathway.references?.[0] || null;
           const expanded = expandedFramework === pathway.framework;
+          const stage = pathway.practiceStage || resolveAssessmentPracticeStage(pathway.evidence);
           return (
             <div key={pathway.framework} style={{ border: `2px solid ${activeFramework === pathway.framework ? '#1a73e8' : '#dadce0'}`, borderRadius: 10, background: activeFramework === pathway.framework ? '#e8f0fe' : '#fff', overflow: 'hidden' }}>
               <button
@@ -82,6 +86,9 @@ export default function PracticeAsMenu({
                   {pathway.practised && pathway.proficiency != null
                     ? `${Math.round(pathway.proficiency * 100)}% in this format`
                     : 'Not practised in this format yet'}
+                </span>
+                <span style={{ display: 'block', color: pathway.status === READINESS.MAINTENANCE ? '#137333' : '#5b21b6', fontSize: 11, marginTop: 4, fontWeight: 850 }}>
+                  {stage.actionLabel}
                 </span>
               </button>
               {pathway.references?.length > 0 && (

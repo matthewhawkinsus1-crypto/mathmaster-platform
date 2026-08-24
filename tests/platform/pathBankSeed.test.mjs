@@ -327,14 +327,14 @@ test('nothing a student receives carries the answer', () => {
 });
 
 const ASSESSMENT_BANK_EXPECTATIONS = Object.freeze({
-  digitalSAT: { documents: 1045, standards: 209 },
-  act: { documents: 1125, standards: 225 },
-  tsia2: { documents: 1125, standards: 225 },
-  asvab: { documents: 730, standards: 146 },
+  digitalSAT: { documents: 1672, direct: 1045, challenge: 627, standards: 209 },
+  act: { documents: 1800, direct: 1125, challenge: 675, standards: 225 },
+  tsia2: { documents: 1800, direct: 1125, challenge: 675, standards: 225 },
+  asvab: { documents: 1168, direct: 730, challenge: 438, standards: 146 },
 });
 
 Object.entries(ASSESSMENT_BANK_EXPECTATIONS).forEach(([framework, expected]) => {
-  test(`${framework} standards have five directly-authored exam-style families and stay out of course selection`, () => {
+  test(`${framework} standards have five direct families plus three challenge families and stay out of course selection`, () => {
     const items = SEED.filter((entry) => entry?.assessmentContext?.framework === framework && entry?.assessmentContext?.examStyle === true);
     assert.equal(items.length, expected.documents);
     const byCode = new Map();
@@ -347,7 +347,12 @@ Object.entries(ASSESSMENT_BANK_EXPECTATIONS).forEach(([framework, expected]) => 
     });
     assert.equal(byCode.size, expected.standards);
     byCode.forEach((families, code) => {
-      assert.equal(new Set(families.map((entry) => entry.familyId)).size, 5, `${code} does not have five distinct ${framework} families`);
+      const direct = families.filter((entry) => Number(entry.ccmrChallengeTier || 1) === 1 && entry.ccmrFamilyRole === 'direct');
+      const challenge = families.filter((entry) => Number(entry.ccmrChallengeTier || 1) >= 2 && entry.ccmrFamilyRole === 'challenge');
+      assert.equal(new Set(direct.map((entry) => entry.familyId)).size, 5, `${code} does not have five distinct direct ${framework} families`);
+      assert.equal(new Set(challenge.map((entry) => entry.familyId)).size, 3, `${code} does not have three distinct challenge ${framework} families`);
+      assert.ok(challenge.every((entry) => Number(entry.difficultyBand) >= 4 && Number(entry.dok) >= 2), `${code} has a challenge family below the challenge floor`);
+      assert.ok(families.every((entry) => entry.ccmrFidelity?.version === 2), `${code} has a ${framework} family without Fidelity V2 metadata`);
       assert.ok(families.every((entry) => entry.assessmentContext.framework === framework));
       assert.ok(families.every((entry) => !candidatesFor(code).includes(entry)), `${code} leaked ${framework} content into course candidates`);
     });

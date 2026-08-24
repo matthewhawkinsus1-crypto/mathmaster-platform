@@ -5,6 +5,7 @@ import { getSkillCrosswalk, resolveAlignment } from '../../platform/ccmr/assessm
 import { getEvidence } from '../../platform/ccmr/assessmentEvidence';
 import { getAssessmentStandardReferences } from '../../platform/ccmr/assessmentStandardReferences.js';
 import CcmrReferenceList from '../common/CcmrReferenceList.jsx';
+import { assessmentTierStats, resolveAssessmentPracticeStage } from '../../platform/ccmr/assessmentFidelity.js';
 
 // §28 teacher skill inspector, and §29 simulator controls, in one component.
 //
@@ -21,6 +22,8 @@ const STATUS_COLOR = {
   [READINESS.TRANSFER_GAP]: '#a50e0e',
   [READINESS.STRENGTHEN]: '#7a4f00',
   [READINESS.STRONG]: '#137333',
+  [READINESS.CHALLENGE_READY]: '#5b21b6',
+  [READINESS.MAINTENANCE]: '#137333',
   [READINESS.NOT_PRACTICED]: '#174ea6',
   [READINESS.READY]: '#3c4043',
   [READINESS.NOT_AVAILABLE]: '#5f6368',
@@ -30,6 +33,8 @@ const STATUS_TEXT = {
   [READINESS.TRANSFER_GAP]: 'TRANSFER GAP',
   [READINESS.STRENGTHEN]: 'Strengthen',
   [READINESS.STRONG]: 'Strong',
+  [READINESS.CHALLENGE_READY]: 'Challenge ready',
+  [READINESS.MAINTENANCE]: 'Challenge complete',
   [READINESS.NOT_PRACTICED]: 'Not practised',
   [READINESS.READY]: 'Ready',
   [READINESS.NOT_AVAILABLE]: 'Not available',
@@ -82,6 +87,8 @@ export default function AssessmentSkillInspector({
           const alignment = resolveAlignment({ skillId, framework, directIndex });
           const pathway = options.pathways.find((entry) => entry.framework === framework);
           const evidence = getEvidence(assessmentEvidence, skillId, framework);
+          const stage = resolveAssessmentPracticeStage(evidence);
+          const tiers = assessmentTierStats(evidence);
           const color = STATUS_COLOR[pathway?.status] || '#5f6368';
           const references = alignment ? getAssessmentStandardReferences(skillId, framework) : [];
 
@@ -105,6 +112,16 @@ export default function AssessmentSkillInspector({
                       : evidence?.crosswalkItemsAttempted
                         ? `${evidence.crosswalkItemsAttempted} crosswalk item${evidence.crosswalkItemsAttempted === 1 ? '' : 's'} · course performance only`
                         : 'none'}
+                    {evidence?.directItemsAttempted ? (
+                      <>
+                        <br />
+                        Progression: <strong>{stage.label}</strong> · next action: {stage.actionLabel}
+                        <br />
+                        Direct tier: {tiers.tier1.attempts} items{tiers.tier1.accuracy == null ? '' : ` · ${Math.round(tiers.tier1.accuracy * 100)}%`} · {tiers.tier1.passes} pass{tiers.tier1.passes === 1 ? '' : 'es'}
+                        {' · '}Challenge: {tiers.tier2.attempts} items{tiers.tier2.accuracy == null ? '' : ` · ${Math.round(tiers.tier2.accuracy * 100)}%`} · {tiers.tier2.passes} pass{tiers.tier2.passes === 1 ? '' : 'es'}
+                        {' · '}Advanced: {tiers.tier3.attempts} items{tiers.tier3.accuracy == null ? '' : ` · ${Math.round(tiers.tier3.accuracy * 100)}%`} · {tiers.tier3.passes} pass{tiers.tier3.passes === 1 ? '' : 'es'}
+                      </>
+                    ) : null}
                   </>
                 ) : (
                   <>Crosswalk: No — this skill is not matched to this assessment, so no pathway is offered.</>

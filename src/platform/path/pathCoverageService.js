@@ -145,7 +145,7 @@ export const initializeBundledPathBankStarter = async ({ onProgress = null } = {
   const seed = { ...raw, documentCount: raw.received ?? 0 };
   if (!seed.imported) return { initialized: false, seed, coverage: null };
   // The server initializer already rebuilt coverage from the bank it just
-  // installed. Rebuilding it again here used to validate all 5,186 templates a
+  // installed. Rebuilding it again here used to validate the full bundled bank a
   // third time and could turn a successful import into a client-visible error.
   onProgress?.({ phase: 'coverage-complete', chunk: 0, chunks: 0 });
   return { initialized: true, seed, coverage: raw.coverage || null };

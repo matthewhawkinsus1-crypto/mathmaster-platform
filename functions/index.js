@@ -1411,7 +1411,7 @@ async function pathCoverage() {
 
 const COVERAGE_COLLECTION = "pathCoverage";
 
-const PATH_RUNTIME_RELEASE = "path-bank-2026-08-23-r10-server-authoritative-coverage";
+const PATH_RUNTIME_RELEASE = "path-bank-2026-08-23-r11-ccmr-fidelity-v2";
 const PATH_COURSE_IDS = Object.freeze(["grade6", "grade7", "grade8", "algebra1", "algebra2"]);
 
 let texasStandardsModule = null;
@@ -4761,6 +4761,77 @@ function pathQuestionMatchesFramework(question = {}, assessmentFramework = null)
   return authoredFramework === "course";
 }
 
+const CCMR_PROGRESS_SUBCOLLECTION = "ccmrProgress";
+
+function ccmrProgressRef(db, studentId, alignmentKey, framework) {
+  return db.collection("grades").doc(studentId).collection(CCMR_PROGRESS_SUBCOLLECTION)
+    .doc(mathPath.opaqueId("ccmr-progress", alignmentKey, framework));
+}
+
+function resolveServerCcmrChallengeTier(progress = {}) {
+  if (Number(progress.tier3SessionsPassed || 0) > 0) return 3;
+  if (Number(progress.tier2SessionsPassed || 0) > 0) return 3;
+  if (Number(progress.tier1SessionsPassed || 0) > 0) return 2;
+  const attempts = Number(progress.directItemsAttempted || 0);
+  const correct = Number(progress.directItemsCorrect || 0);
+  if (attempts >= 5 && attempts > 0 && correct / attempts >= 0.8) return 2;
+  return 1;
+}
+
+async function loadCcmrProgress(db, studentId, alignmentKey, framework) {
+  const ref = ccmrProgressRef(db, studentId, alignmentKey, framework);
+  const snapshot = await ref.get();
+  if (snapshot.exists) return snapshot.data() || {};
+
+  // CCMR Fidelity V2 shipped after students already had direct assessment
+  // evidence. Bootstrap the private progression record from immutable evidence
+  // so a student who already earned 5/5 SAT items does not get sent back to
+  // beginner SAT practice just because the new progress document is absent.
+  const evidenceSnapshot = await db.collection("grades").doc(studentId).collection("evidenceEvents")
+    .where("masteryEvidenceKeys", "array-contains", alignmentKey)
+    .limit(150)
+    .get();
+  let directItemsAttempted = 0;
+  let directItemsCorrect = 0;
+  const tierSessionsPassed = { 1: 0, 2: 0, 3: 0 };
+  const tierSessionsCompleted = { 1: 0, 2: 0, 3: 0 };
+  evidenceSnapshot.docs.forEach((doc) => {
+    const event = doc.data() || {};
+    if (event?.source?.kind !== "myMathPath") return;
+    if (normalizePathAssessmentFramework(event?.source?.assessmentFramework) !== framework) return;
+    if (event?.performance?.status && event.performance.status !== "finalized") return;
+    directItemsAttempted += 1;
+    if (event?.performance?.isCorrect === true || Number(event?.performance?.score || 0) >= 1) directItemsCorrect += 1;
+    const tier = Math.max(1, Math.min(3, Number(event?.source?.ccmrChallengeTier || event?.questionSnapshot?.ccmrChallengeTier || 1)));
+    if (event?.source?.ccmrSessionCompleted === true) tierSessionsCompleted[tier] += 1;
+    if (event?.source?.ccmrSessionPassed === true) tierSessionsPassed[tier] += 1;
+  });
+  const progress = {
+    schemaVersion: 2,
+    studentId,
+    alignmentKey,
+    framework,
+    directItemsAttempted,
+    directItemsCorrect,
+    tier1SessionsCompleted: tierSessionsCompleted[1],
+    tier1SessionsPassed: tierSessionsPassed[1],
+    tier2SessionsCompleted: tierSessionsCompleted[2],
+    tier2SessionsPassed: tierSessionsPassed[2],
+    tier3SessionsCompleted: tierSessionsCompleted[3],
+    tier3SessionsPassed: tierSessionsPassed[3],
+    bootstrappedFromEvidence: true,
+    updatedAt: Date.now(),
+  };
+  if (directItemsAttempted > 0) await ref.set(progress, { merge: true });
+  return progress;
+}
+
+function ccmrSessionPasses(summary = {}, requiredQuestions = 5) {
+  const total = Math.max(1, Number(summary.completedQuestions || requiredQuestions || 1));
+  const accuracy = Number(summary.correctQuestions || 0) / total;
+  const independentRate = Number(summary.independentSuccesses || 0) / total;
+  return accuracy >= 0.8 && independentRate >= 0.6;
+}
 
 const WEEKLY_PATH_GOAL_SNAPSHOTS = "weeklyPathGoalSnapshots";
 
@@ -4971,7 +5042,7 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
   let targetAlignmentKey = mathPath.canonicalAlignmentKey(request.data?.targetAlignmentKey);
   if (!targetAlignmentKey) throw new HttpsError("invalid-argument", "targetAlignmentKey is required.");
   const sessionKind = request.data?.sessionKind === "retentionProbe" ? "retentionProbe" : "practice";
-  const requiredQuestions = pathSessionRequiredQuestions(sessionKind, request.data?.requiredQuestions);
+  let requiredQuestions = pathSessionRequiredQuestions(sessionKind, request.data?.requiredQuestions);
   let assessmentFramework = normalizePathAssessmentFramework(request.data?.assessmentFramework);
   const db = getFirestore();
 
@@ -4985,6 +5056,15 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
   const legacyCourse = legacyCourseSettings.data()?.profiles?.[studentData.classPeriod] || {};
   const courseId = studentClass?.course || legacyCourse.course || coverageCourseIdFor(targetAlignmentKey);
   const courseLevel = studentClass?.courseLevel || legacyCourse.courseLevel || "standard";
+  let ccmrChallengeTier = 1;
+  let ccmrProgress = null;
+  if (assessmentFramework) {
+    ccmrProgress = await loadCcmrProgress(db, studentId, targetAlignmentKey, assessmentFramework);
+    ccmrChallengeTier = resolveServerCcmrChallengeTier(ccmrProgress);
+    // Once direct practice has been demonstrated, a repeat visit becomes a
+    // short harder set instead of another five questions at the same level.
+    if (ccmrChallengeTier >= 2 && sessionKind !== "retentionProbe") requiredQuestions = 3;
+  }
 
   // Weekly launches are resolved against the frozen server commitment. The
   // browser may choose which assigned row the student clicks, but it cannot
@@ -5014,6 +5094,14 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
       throw new HttpsError("failed-precondition", "That launch does not match the assigned weekly assessment context.");
     }
     assessmentFramework = assignedFramework;
+  }
+
+  // A weekly slot can supply the assessment framework after the initial request
+  // was normalized, so resolve its progression after that authority check too.
+  if (assessmentFramework && !ccmrProgress) {
+    ccmrProgress = await loadCcmrProgress(db, studentId, targetAlignmentKey, assessmentFramework);
+    ccmrChallengeTier = resolveServerCcmrChallengeTier(ccmrProgress);
+    if (ccmrChallengeTier >= 2 && sessionKind !== "retentionProbe") requiredQuestions = 3;
   }
 
   // Refuse a standard the secure bank cannot issue a question for, and refuse
@@ -5104,6 +5192,14 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
       status: "active",
       sessionKind,
       assessmentFramework,
+      ccmrChallengeTier: assessmentFramework ? ccmrChallengeTier : null,
+      ccmrProgressAtStart: assessmentFramework ? {
+        directItemsAttempted: Number(ccmrProgress?.directItemsAttempted || 0),
+        directItemsCorrect: Number(ccmrProgress?.directItemsCorrect || 0),
+        tier1SessionsPassed: Number(ccmrProgress?.tier1SessionsPassed || 0),
+        tier2SessionsPassed: Number(ccmrProgress?.tier2SessionsPassed || 0),
+        tier3SessionsPassed: Number(ccmrProgress?.tier3SessionsPassed || 0),
+      } : null,
       courseId,
       courseLevel,
       classId: studentClass?.classId || null,
@@ -5189,6 +5285,23 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
   let candidates = issuable.map((entry) => entry.question);
   let usingCourseBridge = false;
 
+  // Fidelity V2 progression: the first assessment session uses direct/foundation
+  // families. A repeat after strong direct evidence uses authored challenge
+  // families and never silently cycles the same five introductory tasks.
+  if (session.assessmentFramework) {
+    const tier = Math.max(1, Math.min(3, Number(session.ccmrChallengeTier || 1)));
+    const foundation = candidates.filter((question) => Number(question.ccmrChallengeTier || 1) <= 1);
+    const challenge = candidates.filter((question) => Number(question.ccmrChallengeTier || 1) >= 2);
+    if (tier === 1 && foundation.length) candidates = foundation;
+    if (tier >= 2) {
+      if (challenge.length >= 2) candidates = challenge;
+      else {
+        const highFoundation = foundation.filter((question) => Number(question.difficultyBand || 3) >= 4);
+        candidates = [...challenge, ...highFoundation];
+      }
+    }
+  }
+
   // A CCMR session may route down to a mathematical prerequisite that the exam
   // itself does not test. Stranding the student there with "start again" is a
   // bad learning experience. Use the ordinary course family as a clearly
@@ -5253,12 +5366,16 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
   const masteryProfile = masterySnapshot.data()?.profiles?.[activeDisplayCode] || {};
   const adaptiveRigor = rigorPolicy.resolveAdaptiveRigor({ courseLevel, profile: masteryProfile });
   const onAssignedWeeklyTarget = Boolean(session.weeklySlotKey && activeDisplayCode === targetDisplayCode && !session.diagnosing);
-  const preferredDifficultyBand = onAssignedWeeklyTarget && Number.isFinite(Number(session.intendedDifficultyBand))
+  let preferredDifficultyBand = onAssignedWeeklyTarget && Number.isFinite(Number(session.intendedDifficultyBand))
     ? Number(session.intendedDifficultyBand)
     : adaptiveRigor.preferredDifficultyBand;
-  const preferredDok = onAssignedWeeklyTarget && Number.isFinite(Number(session.intendedDok))
+  let preferredDok = onAssignedWeeklyTarget && Number.isFinite(Number(session.intendedDok))
     ? Number(session.intendedDok)
     : adaptiveRigor.preferredDok;
+  if (session.assessmentFramework && Number(session.ccmrChallengeTier || 1) >= 2) {
+    preferredDifficultyBand = Number(session.ccmrChallengeTier) >= 3 ? 5 : Math.max(4, Number(preferredDifficultyBand || 3));
+    preferredDok = Number(session.ccmrChallengeTier) >= 3 ? Math.max(3, Number(preferredDok || 2)) : Math.max(2, Number(preferredDok || 2));
+  }
   // Selection prefers an UNUSED family, widening to the closest adjacent band
   // before it repeats anything. Narrowing to the nearest band first and cycling
   // inside it — which is what this used to do — trapped a five-question session
@@ -5338,6 +5455,8 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
     skillCode: activeDisplayCode,
     pathRole,
     assessmentBridgeFramework: usingCourseBridge ? session.assessmentFramework : null,
+    ccmrChallengeTier: session.assessmentFramework ? Math.max(1, Math.min(3, Number(session.ccmrChallengeTier || 1))) : null,
+    ccmrFamilyRole: authored.ccmrFamilyRole || (Number(authored.ccmrChallengeTier || 1) >= 2 ? "challenge" : "direct"),
     // Teacher/QA metadata. `buildSanitizedQuestion` does not copy these onto the
     // student payload; the Path Simulator reads them from the session document.
     selectionReason: choice.reason,
@@ -5656,6 +5775,8 @@ exports.submitPathResponse = onCall(async (request) => {
         questionType: currentQuestion.questionType,
         difficultyBand: currentQuestion.difficultyBand,
         dok: currentQuestion.dok,
+        ccmrChallengeTier: currentQuestion.ccmrChallengeTier || null,
+        ccmrFamilyRole: currentQuestion.ccmrFamilyRole || null,
       },
       // A retention probe is not ordinary practice, and recording it as such
       // made "has this stayed with you?" evidence indistinguishable from
@@ -5676,6 +5797,11 @@ exports.submitPathResponse = onCall(async (request) => {
           ? normalizePathAssessmentFramework(currentQuestion.assessmentContext.framework)
           : null,
         assessmentBridgeFramework: currentQuestion.assessmentBridgeFramework || null,
+        ccmrChallengeTier: currentQuestion.assessmentContext?.examStyle === true
+          ? Math.max(1, Math.min(3, Number(session.ccmrChallengeTier || currentQuestion.ccmrChallengeTier || 1)))
+          : null,
+        ccmrSessionCompleted: Boolean(currentQuestion.assessmentContext?.examStyle === true && nextStatus === "completed"),
+        ccmrSessionPassed: Boolean(currentQuestion.assessmentContext?.examStyle === true && nextStatus === "completed" && ccmrSessionPasses(nextSummary, session.requiredQuestions)),
       },
       performance: { score: gradingCore.score, isCorrect: gradingCore.isCorrect, attemptNumber, status: questionFinalized ? "finalized" : "attempted", isMathematicallyIndependent: independent },
       supportUsage: { ...supportUsage, isMathematicallyIndependent: independent },
@@ -5704,6 +5830,37 @@ exports.submitPathResponse = onCall(async (request) => {
       };
       transaction.set(retentionRef, { schedules: { ...schedules, [displayCode]: updatedSchedule }, updatedAt: now }, { merge: true });
       nextSession.retentionOutcome = passed ? "passed" : "failed";
+    }
+
+    if (questionFinalized && currentQuestion.assessmentContext?.examStyle === true) {
+      const directFramework = normalizePathAssessmentFramework(currentQuestion.assessmentContext.framework);
+      if (directFramework) {
+        const tier = Math.max(1, Math.min(3, Number(session.ccmrChallengeTier || currentQuestion.ccmrChallengeTier || 1)));
+        const progressRef = ccmrProgressRef(db, studentId, mathPath.canonicalAlignmentKey(activeSkillCode), directFramework);
+        const progressUpdate = {
+          schemaVersion: 2,
+          studentId,
+          alignmentKey: mathPath.canonicalAlignmentKey(activeSkillCode),
+          teksCode: activeSkillCode,
+          framework: directFramework,
+          directItemsAttempted: FieldValue.increment(1),
+          directItemsCorrect: FieldValue.increment(gradingCore.isCorrect ? 1 : 0),
+          [`tier${tier}ItemsAttempted`]: FieldValue.increment(1),
+          [`tier${tier}ItemsCorrect`]: FieldValue.increment(gradingCore.isCorrect ? 1 : 0),
+          lastChallengeTierSeen: tier,
+          lastPracticedAt: now,
+          updatedAt: now,
+        };
+        if (nextStatus === "completed") {
+          progressUpdate[`tier${tier}SessionsCompleted`] = FieldValue.increment(1);
+          if (ccmrSessionPasses(nextSummary, session.requiredQuestions)) {
+            progressUpdate[`tier${tier}SessionsPassed`] = FieldValue.increment(1);
+            progressUpdate.lastPassedTier = tier;
+            progressUpdate.lastPassedAt = now;
+          }
+        }
+        transaction.set(progressRef, progressUpdate, { merge: true });
+      }
     }
 
     transaction.set(evidenceRef, event);

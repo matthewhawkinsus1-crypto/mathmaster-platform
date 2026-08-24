@@ -23,6 +23,7 @@ test('read-only My Math Path blocks CCMR goal writes', () => {
   assert.match(pathApp, /const changeGoals = useCallback\(\(next\) => \{[\s\S]*if \(readOnly\)/);
 });
 
-test('teacher read-only mode removes the editable CCMR tab', () => {
-  assert.match(pathApp, /visibleTabs = readOnly \? TABS\.filter\(\(\[tab\]\) => tab !== 'ccmr'\) : TABS/);
+test('teacher read-only mode keeps the CCMR explorer but prevents writes and practice', () => {
+  assert.match(pathApp, /const visibleTabs = TABS/);
+  assert.match(pathApp, /<CCMRHub[\s\S]*readOnly=\{readOnly\}/);
 });

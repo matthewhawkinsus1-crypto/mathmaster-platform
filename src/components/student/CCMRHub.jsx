@@ -7,6 +7,7 @@ import { getAssessmentProfile } from '../../platform/ccmr/assessmentProfiles';
 import { matchesAssessmentReferenceSearch, referenceLabel } from '../../platform/ccmr/assessmentStandardReferences.js';
 import CcmrReferenceList from '../common/CcmrReferenceList.jsx';
 import CCMRReadinessWheel from './CCMRReadinessWheel.jsx';
+import { resolveAssessmentPracticeStage } from '../../platform/ccmr/assessmentFidelity.js';
 
 // 9F — College, Career & Military Readiness.
 //
@@ -26,6 +27,8 @@ const STATUS_STYLE = {
   [READINESS.NOT_PRACTICED]: { label: 'Not practised yet', border: '#1a73e8', background: '#e8f0fe', chip: '#174ea6' },
   [READINESS.READY]: { label: 'Ready', border: '#dadce0', background: '#fff', chip: '#3c4043' },
   [READINESS.STRONG]: { label: 'Strong', border: '#137333', background: '#e6f4ea', chip: '#137333' },
+  [READINESS.CHALLENGE_READY]: { label: 'Challenge ready', border: '#7e57c2', background: '#f3ecfd', chip: '#5b21b6' },
+  [READINESS.MAINTENANCE]: { label: 'Challenge complete', border: '#137333', background: '#e6f4ea', chip: '#137333' },
   [READINESS.NOT_AVAILABLE]: { label: 'Not open yet', border: '#bdc1c6', background: '#f8f9fa', chip: '#5f6368' },
 };
 
@@ -33,13 +36,14 @@ const BUCKET_TITLES = [
   ['recommended', 'Recommended'],
   ['strengthen', 'Strengthen'],
   ['available', 'Ready'],
-  ['challenge', 'Going well'],
+  ['challenge', 'Challenge / completed'],
 ];
 
 function SkillRow({ item, onPractise, showFramework = false, readOnly = false }) {
   const [showReference, setShowReference] = useState(false);
   const style = STATUS_STYLE[item.status] || STATUS_STYLE[READINESS.READY];
   const primary = item.references?.[0] || null;
+  const stage = item.practiceStage || resolveAssessmentPracticeStage(item.evidence);
   return (
     <div
       style={{
@@ -69,6 +73,9 @@ function SkillRow({ item, onPractise, showFramework = false, readOnly = false })
               ? 'this format: not practised yet'
               : `this format: ${Math.round(item.assessmentProficiency * 100)}%${item.provisional ? ' (early)' : ''}`}
           </span>
+          <span style={{ display: 'block', color: item.status === READINESS.MAINTENANCE ? '#137333' : '#5b21b6', fontSize: 11.5, marginTop: 5, fontWeight: 900 }}>
+            {stage.label} · {stage.actionLabel}
+          </span>
         </div>
         {item.status === READINESS.NOT_AVAILABLE ? (
           <span style={{ minHeight: 38, display: 'inline-flex', alignItems: 'center', padding: '8px 12px', borderRadius: 8, background: '#f1f3f4', color: '#5f6368', fontWeight: 850, fontSize: 12 }}>
@@ -79,8 +86,8 @@ function SkillRow({ item, onPractise, showFramework = false, readOnly = false })
             Student can practise this
           </span>
         ) : (
-          <button type="button" onClick={() => onPractise?.(item)} style={{ minHeight: 38, padding: '8px 12px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>
-            Start {showFramework ? FRAMEWORK_LABELS[item.framework] : 'practice'}
+          <button type="button" onClick={() => onPractise?.(item)} style={{ minHeight: 38, padding: '8px 12px', border: 0, borderRadius: 8, background: item.status === READINESS.MAINTENANCE ? '#137333' : '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>
+            {stage.actionLabel}
           </button>
         )}
       </div>
@@ -113,6 +120,8 @@ function PathwayCard({ framework, summary, active, onSelect }) {
         {summary.readySkills} skill{summary.readySkills === 1 ? '' : 's'} ready
         {' · '}
         {summary.practisedSkills} practised
+        {summary.challengeReadySkills ? ` · ${summary.challengeReadySkills} challenge-ready` : ''}
+        {summary.maintainedSkills ? ` · ${summary.maintainedSkills} challenge complete` : ''}
       </span>
       {summary.transferGaps > 0 && (
         <span style={{ display: 'inline-block', marginTop: 6, fontSize: 10, fontWeight: 900, padding: '2px 8px', borderRadius: 999, color: '#a50e0e', background: '#fce8e6' }}>

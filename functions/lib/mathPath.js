@@ -300,11 +300,24 @@ function buildSanitizedQuestion(question, { questionInstanceId, attemptsAllowed,
         return {
           framework,
           domainId: String(question.assessmentContext.domainId || directAlignment?.domainId || ''),
+          subtest: question.assessmentContext.subtest ? String(question.assessmentContext.subtest) : null,
           examStyle: question.assessmentContext.examStyle === true,
         };
       })()
       : null,
     assessmentBridgeFramework: question.assessmentBridgeFramework ? String(question.assessmentBridgeFramework) : null,
+    assessmentItemFormat: question.assessmentItemFormat ? String(question.assessmentItemFormat) : null,
+    examCalculatorMode: question.examCalculatorMode ? String(question.examCalculatorMode) : null,
+    ccmrChallengeTier: Math.max(1, Math.min(3, Number(question.ccmrChallengeTier || 1) || 1)),
+    ccmrFamilyRole: question.ccmrFamilyRole ? String(question.ccmrFamilyRole) : null,
+    ccmrFidelity: question.ccmrFidelity && typeof question.ccmrFidelity === 'object' ? {
+      version: Number(question.ccmrFidelity.version) || 2,
+      variantKind: question.ccmrFidelity.variantKind ? String(question.ccmrFidelity.variantKind) : null,
+      responseMode: question.ccmrFidelity.responseMode ? String(question.ccmrFidelity.responseMode) : null,
+      officialReferenceIds: Array.isArray(question.ccmrFidelity.officialReferenceIds)
+        ? question.ccmrFidelity.officialReferenceIds.map(String).slice(0, 8)
+        : [],
+    } : null,
     prompt: String(question.prompt || ''),
     choices: normalizeChoices(question.choices),
     formulaLatex: question.formulaLatex ? String(question.formulaLatex) : null,
