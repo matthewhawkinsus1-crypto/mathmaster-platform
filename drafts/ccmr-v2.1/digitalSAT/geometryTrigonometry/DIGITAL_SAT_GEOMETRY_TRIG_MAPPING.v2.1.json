@@ -4,12 +4,7 @@
   "framework": "digitalSAT",
   "domainId": "geometryTrigonometry",
   "source": {"collegeBoardContentDomain":"https://satsuite.collegeboard.org/sat/whats-on-the-test/math/types/geometry-trigonometry","collegeBoardQuestionBank":"https://satsuite.collegeboard.org/practice/student-question-bank/math","texasAlignment":"https://satsuite.collegeboard.org/media/pdf/tx-sat-suite-alignment-texas-standards.pdf"},
-  "notes": [
-    "Digital SAT Geometry and Trigonometry has four official skill families: area and volume; lines, angles, and triangles; right triangles and trigonometry; circles.",
-    "MathMaster's Geometry course is currently planned and does not yet have an active G.* TEKS registry. V2.1 therefore authors these four SAT skill families as native SAT banks instead of fabricating active Geometry TEKS alignments.",
-    "Grade 6-8 geometry TEKS remain valuable prerequisite/remediation nodes, but College Board's Texas report aligns those grades to PSAT 8/9 rather than directly to SAT.",
-    "When MathMaster activates its Geometry course and real G.* standards registry, the native SAT families can be crosswalked to those standards without rewriting the assessment content."
-  ],
+  "notes": ["Digital SAT Geometry and Trigonometry has four official skill families: area and volume; lines, angles, and triangles; right triangles and trigonometry; circles.","MathMaster's Geometry course is currently planned and does not yet have an active G.* TEKS registry. V2.1 therefore authors these four SAT skill families as native SAT banks instead of fabricating active Geometry TEKS alignments.","Grade 6-8 geometry TEKS remain valuable prerequisite/remediation nodes, but College Board's Texas report aligns those grades to PSAT 8/9 rather than directly to SAT.","When MathMaster activates its Geometry course and real G.* standards registry, the native SAT families can be crosswalked to those standards without rewriting the assessment content."],
   "standards": {
     "A.2E":{"status":"authored-other-domain","domain":"algebra","reason":"College Board Table 25 aligns the parallel-line equation standard to SAT Algebra, not Geometry and Trigonometry."},
     "A.2F":{"status":"authored-other-domain","domain":"algebra","reason":"College Board Table 25 aligns the perpendicular-line equation standard to SAT Algebra, not Geometry and Trigonometry."},
@@ -18,7 +13,7 @@
   "nativeSkills": {
     "areaVolume":{"status":"authored","officialSkillFamily":"area and volume","allowed":["area, perimeter, surface area, and volume","scale factors and their effects on lengths, areas, and volumes","mathematical and real-world geometric figures"]},
     "linesAnglesTriangles":{"status":"authored","officialSkillFamily":"lines, angles, and triangles","allowed":["triangle sum theorem","vertical angles","parallel lines cut by a transversal","triangle congruence and similarity","scale factor effects on lengths while preserving angle measures"]},
-    "rightTrianglesTrigonometry":{"status":"author","officialSkillFamily":"right triangles and trigonometry","allowed":["Pythagorean theorem","special right triangles","sine, cosine, and tangent in right triangles","similar-triangle trigonometric ratios","sine and cosine of complementary angles"]},
+    "rightTrianglesTrigonometry":{"status":"authored","officialSkillFamily":"right triangles and trigonometry","allowed":["Pythagorean theorem","special right triangles","sine, cosine, and tangent in right triangles","similar-triangle trigonometric ratios","sine and cosine of complementary angles"]},
     "circles":{"status":"author","officialSkillFamily":"circles","allowed":["radii, diameters, tangents, central and inscribed angles","arc length and sector area","degree-radian conversion","equations and graphs of circles","distance-formula and completing-square connections","unit-circle relationships when appropriate to the SAT construct"]}
   }
 }
