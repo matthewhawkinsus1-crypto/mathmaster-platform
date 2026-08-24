@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 2,
+  "artifactType": "completionManifest",
+  "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+  "framework": "digitalSAT",
+  "domainId": "geometryTrigonometry",
+  "completedStandards": [],
+  "completedNativeSkills": [],
+  "completedStandardsCount": 0,
+  "completedNativeSkillsCount": 0,
+  "completedScopeUnitsCount": 0,
+  "familiesTotal": 0,
+  "validation": {
+    "randomizedInstancesPerScopeUnit": 2000,
+    "randomizedInstancesTotal": 0,
+    "checks": [
+      "five direct plus three independently authored challenge families",
+      "four unique rendered MCQ choices where applicable",
+      "no unresolved generator placeholders",
+      "no exact generator reuse within a scope unit",
+      "SAT-native banks carry no fabricated Texas alignment",
+      "semantic validation of generated geometry and trigonometry relationships"
+    ]
+  },
+  "coverageStatus": {
+    "areaVolume": "native-authoring-next",
+    "linesAnglesTriangles": "native-authoring-next",
+    "rightTrianglesTrigonometry": "native-authoring-next",
+    "circles": "native-authoring-next"
+  },
+  "note": "Geometry/Trig V2.1 begins as SAT-native content because MathMaster's Geometry course is planned but its G.* standards registry is not yet active."
+}
