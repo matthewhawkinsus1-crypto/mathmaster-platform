@@ -1,11 +1,10 @@
 #!/usr/bin/env node
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const defaultRoot = path.resolve(here, '..', '..');
-const root = process.env.MATHMASTER_ROOT ? path.resolve(process.env.MATHMASTER_ROOT) : defaultRoot;
+const root = path.resolve(process.env.MATHMASTER_ROOT || path.join(here, '..'));
 const seedDir = path.join(root, 'seed', 'pathQuestionBank');
 const outPath = path.join(root, 'CCMR_FIDELITY_V2_1_AUTHENTIC_LANGUAGE_AUDIT.json');
 
@@ -42,8 +41,8 @@ const CLASSROOM_PROMPT_PATTERNS = [
   /exit ticket/i,
   /practice question/i,
   /teacher/i,
-  /teks/i,
-  /dok\s*[1-4]/i,
+  /\bteks\b/i,
+  /\bdok\s*[1-4]\b/i,
   /difficulty band/i,
 ];
 
@@ -53,10 +52,8 @@ const domainOf = (doc, framework) => doc?.assessmentContext?.domainId || (doc?.a
 const roleOf = (doc) => doc?.ccmrFamilyRole || (Number(doc?.ccmrChallengeTier || 1) >= 2 ? 'challenge' : 'direct');
 const fmtOf = (doc) => String(doc?.assessmentItemFormat || '').toLowerCase() === 'studentproducedresponse' ? 'studentProducedResponse' : 'multipleChoice';
 const generatorSignature = (doc) => JSON.stringify(doc?.generator || null);
-
-function promptOf(doc) {
-  return String(doc?.prompt || doc?.stem || doc?.question?.prompt || '').trim();
-}
+const promptOf = (doc) => String(doc?.prompt || doc?.stem || doc?.question?.prompt || '').trim();
+const sample = (arr, limit = 50) => arr.slice(0, limit);
 
 function stripMathAndValues(text) {
   return String(text || '')
@@ -86,20 +83,16 @@ function jaccard(a, b) {
 function contextLike(doc) {
   const rep = String(doc?.representation || '').toLowerCase();
   const task = String(doc?.taskType || '').toLowerCase();
-  if (rep === 'context' || rep === 'verbal' || task === 'application' || task === 'modeling') return true;
-  const p = promptOf(doc).toLowerCase();
-  return /\b(dollars?|percent|hours?|minutes?|miles?|kilometers?|meters?|feet|inches|students?|people|sample|population|survey|experiment|company|store|school|theater|tank|rate|per\b)/i.test(p);
-}
-
-function sample(arr, limit = 50) {
-  return arr.slice(0, limit);
+  if (rep === 'context' || rep === 'verbal' || task === 'application' || task === 'modeling' || task === 'contextmodel') return true;
+  return /\b(dollars?|percent|hours?|minutes?|miles?|kilometers?|meters?|feet|inches|students?|people|sample|population|survey|experiment|company|store|school|theater|tank|rate|per)\b/i.test(promptOf(doc));
 }
 
 const report = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   releaseTarget: 'ccmr-fidelity-v2.1-authentic-language',
   generatedAt: new Date().toISOString(),
   root,
+  seedDir,
   frameworks: {},
   challengeCloneAudit: {},
   taskGrammarOverlap: {},
@@ -114,6 +107,7 @@ for (const [framework, filename] of Object.entries(CONFIG)) {
     report.failures.push(`${framework}: missing ${path.relative(root, file)}`);
     continue;
   }
+
   const docs = docsIn(JSON.parse(readFileSync(file, 'utf8')));
   all[framework] = docs;
   const direct = docs.filter((doc) => roleOf(doc) === 'direct');
@@ -122,14 +116,18 @@ for (const [framework, filename] of Object.entries(CONFIG)) {
   const classroomPrompt = docs.filter((doc) => CLASSROOM_PROMPT_PATTERNS.some((rx) => rx.test(promptOf(doc))));
   const veryLong = docs.filter((doc) => promptOf(doc).split(/\s+/).filter(Boolean).length > 95);
   const missingPrompt = docs.filter((doc) => !promptOf(doc));
+  const missingV21 = docs.filter((doc) => String(doc?.ccmrAuthenticLanguage?.version || '') !== '2.1' || doc?.ccmrAuthenticLanguage?.authored !== true);
+  const unmarkedChallenges = challenge.filter((doc) => doc?.ccmrAuthenticLanguage?.authoredChallenge !== true);
+
   const byDomain = {};
-  for (const doc of docs) {
-    const d = domainOf(doc, framework) || 'unknown';
-    byDomain[d] = (byDomain[d] || 0) + 1;
-  }
   const formats = {};
-  for (const doc of docs) formats[fmtOf(doc)] = (formats[fmtOf(doc)] || 0) + 1;
+  for (const doc of docs) {
+    const domain = domainOf(doc, framework) || 'unknown';
+    byDomain[domain] = (byDomain[domain] || 0) + 1;
+    formats[fmtOf(doc)] = (formats[fmtOf(doc)] || 0) + 1;
+  }
   const contextual = docs.filter(contextLike).length;
+
   report.frameworks[framework] = {
     documents: docs.length,
     direct: direct.length,
@@ -143,79 +141,108 @@ for (const [framework, filename] of Object.entries(CONFIG)) {
     classroomPromptCount: classroomPrompt.length,
     veryLongPromptCount: veryLong.length,
     missingPromptCount: missingPrompt.length,
+    missingV21AuthorshipCount: missingV21.length,
+    unmarkedChallengeCount: unmarkedChallenges.length,
     examples: {
-      metaPromptIds: sample(metaPrompt.map((d) => d.id), 20),
-      classroomPromptIds: sample(classroomPrompt.map((d) => d.id), 20),
-      veryLongPromptIds: sample(veryLong.map((d) => d.id), 20),
+      metaPromptIds: sample(metaPrompt.map((doc) => doc.id), 20),
+      classroomPromptIds: sample(classroomPrompt.map((doc) => doc.id), 20),
+      missingV21Ids: sample(missingV21.map((doc) => doc.id), 20),
+      unmarkedChallengeIds: sample(unmarkedChallenges.map((doc) => doc.id), 20),
     },
   };
+
   if (missingPrompt.length) report.failures.push(`${framework}: ${missingPrompt.length} documents have no prompt`);
   if (metaPrompt.length) report.failures.push(`${framework}: ${metaPrompt.length} prompts contain assessment/meta coaching language`);
   if (classroomPrompt.length) report.failures.push(`${framework}: ${classroomPrompt.length} prompts contain classroom/internal language`);
+  if (missingV21.length) report.failures.push(`${framework}: ${missingV21.length} documents are not marked as independently authored V2.1 content`);
+  if (unmarkedChallenges.length) report.failures.push(`${framework}: ${unmarkedChallenges.length} challenge families are not marked authoredChallenge=true`);
 }
 
 for (const [framework, docs] of Object.entries(all)) {
-  const directByFamily = new Map(docs.filter((d) => roleOf(d) === 'direct').map((d) => [d.familyId, d]));
-  const challenge = docs.filter((d) => roleOf(d) === 'challenge');
+  const directByFamily = new Map(docs.filter((doc) => roleOf(doc) === 'direct').map((doc) => [doc.familyId, doc]));
+  const challenge = docs.filter((doc) => roleOf(doc) === 'challenge');
   const generatorClones = [];
-  const choiceClones = [];
-  const taskShapeClones = [];
-  for (const q of challenge) {
-    const sourceFamily = q?.ccmrFidelity?.sourceFamilyId;
+  const sourceLinked = [];
+
+  for (const item of challenge) {
+    const sourceFamily = item?.ccmrFidelity?.sourceFamilyId;
+    if (!sourceFamily) continue;
     const source = directByFamily.get(sourceFamily);
     if (!source) continue;
-    if (generatorSignature(q) === generatorSignature(source)) generatorClones.push({ challengeId: q.id, sourceId: source.id, sourceFamilyId: sourceFamily });
-    if (JSON.stringify(q?.choices || null) === JSON.stringify(source?.choices || null)) choiceClones.push({ challengeId: q.id, sourceId: source.id });
-    const shapeQ = [q.taskType, q.representation, fmtOf(q), stripMathAndValues(promptOf(q))].join('|');
-    const shapeS = [source.taskType, source.representation, fmtOf(source), stripMathAndValues(promptOf(source))].join('|');
-    if (shapeQ === shapeS) taskShapeClones.push({ challengeId: q.id, sourceId: source.id });
+    sourceLinked.push(item.id);
+    if (generatorSignature(item) === generatorSignature(source)) {
+      generatorClones.push({ challengeId: item.id, sourceId: source.id, sourceFamilyId: sourceFamily });
+    }
   }
+
+  const byStandard = new Map();
+  for (const item of docs) {
+    const code = codeOf(item);
+    if (!byStandard.has(code)) byStandard.set(code, []);
+    byStandard.get(code).push(item);
+  }
+  const intraStandardGeneratorClones = [];
+  for (const [code, group] of byStandard) {
+    const seen = new Map();
+    for (const item of group) {
+      const signature = generatorSignature(item);
+      if (signature === 'null') continue;
+      const prior = seen.get(signature);
+      if (prior) intraStandardGeneratorClones.push({ code, id: item.id, priorId: prior.id });
+      else seen.set(signature, item);
+    }
+  }
+
   report.challengeCloneAudit[framework] = {
     challengeCount: challenge.length,
-    identicalGeneratorCount: generatorClones.length,
-    identicalChoiceSetCount: choiceClones.length,
-    identicalTaskShapeCount: taskShapeClones.length,
-    generatorCloneExamples: sample(generatorClones, 30),
+    legacySourceLinkedCount: sourceLinked.length,
+    identicalSourceGeneratorCount: generatorClones.length,
+    identicalGeneratorWithinStandardCount: intraStandardGeneratorClones.length,
+    generatorCloneExamples: sample([...generatorClones, ...intraStandardGeneratorClones], 30),
   };
-  if (generatorClones.length) report.failures.push(`${framework}: ${generatorClones.length}/${challenge.length} challenge families reuse the source generator unchanged`);
+  if (generatorClones.length) report.failures.push(`${framework}: ${generatorClones.length} challenge families reuse their legacy source generator unchanged`);
+  if (intraStandardGeneratorClones.length) report.failures.push(`${framework}: ${intraStandardGeneratorClones.length} exact generator duplicates exist within the same standard`);
 }
 
-const pairs = [['digitalSAT','act'],['digitalSAT','tsia2'],['digitalSAT','asvab'],['act','tsia2'],['act','asvab'],['tsia2','asvab']];
-for (const [a, b] of pairs) {
-  const left = all[a] || [];
-  const right = all[b] || [];
+const pairs = [
+  ['digitalSAT', 'act'], ['digitalSAT', 'tsia2'], ['digitalSAT', 'asvab'],
+  ['act', 'tsia2'], ['act', 'asvab'], ['tsia2', 'asvab'],
+];
+for (const [leftName, rightName] of pairs) {
+  const left = all[leftName] || [];
+  const right = all[rightName] || [];
   const rightBuckets = new Map();
-  for (const q of right) {
-    const key = `${codeOf(q)}|${q.taskType || ''}|${q.representation || ''}|${fmtOf(q)}`;
+  for (const item of right) {
+    const key = `${codeOf(item)}|${item.taskType || ''}|${item.representation || ''}|${fmtOf(item)}`;
     if (!rightBuckets.has(key)) rightBuckets.set(key, []);
-    rightBuckets.get(key).push(q);
+    rightBuckets.get(key).push(item);
   }
   let compared = 0;
   const suspicious = [];
-  for (const q of left) {
-    const key = `${codeOf(q)}|${q.taskType || ''}|${q.representation || ''}|${fmtOf(q)}`;
-    const candidates = rightBuckets.get(key) || [];
-    const qTokens = tokenSet(promptOf(q));
-    for (const other of candidates) {
+  for (const item of left) {
+    const key = `${codeOf(item)}|${item.taskType || ''}|${item.representation || ''}|${fmtOf(item)}`;
+    const itemTokens = tokenSet(promptOf(item));
+    for (const other of rightBuckets.get(key) || []) {
       compared += 1;
-      const score = jaccard(qTokens, tokenSet(promptOf(other)));
-      if (score >= 0.82 && qTokens.size >= 5) suspicious.push({ aId: q.id, bId: other.id, score: Number(score.toFixed(3)) });
+      const score = jaccard(itemTokens, tokenSet(promptOf(other)));
+      if (score >= 0.82 && itemTokens.size >= 5) suspicious.push({ leftId: item.id, rightId: other.id, score: Number(score.toFixed(3)) });
     }
   }
-  suspicious.sort((x, y) => y.score - x.score);
-  report.taskGrammarOverlap[`${a}__${b}`] = { compared, suspiciousCount: suspicious.length, examples: sample(suspicious, 40) };
-  if (suspicious.length) report.warnings.push(`${a}/${b}: ${suspicious.length} high-similarity task-grammar pairings require review`);
+  suspicious.sort((a, b) => b.score - a.score);
+  report.taskGrammarOverlap[`${leftName}__${rightName}`] = { compared, suspiciousCount: suspicious.length, examples: sample(suspicious, 40) };
+  if (suspicious.length) report.warnings.push(`${leftName}/${rightName}: ${suspicious.length} high-similarity task-grammar pairings require review`);
 }
 
 if (all.digitalSAT?.length) {
   const sat = report.frameworks.digitalSAT;
   const mcq = sat.formats.multipleChoice || 0;
   const spr = sat.formats.studentProducedResponse || 0;
-  const ratio = mcq / Math.max(1, mcq + spr);
-  sat.mcqRate = ratio;
-  if (ratio < 0.68 || ratio > 0.82) report.failures.push(`digitalSAT: MCQ rate ${(ratio * 100).toFixed(1)}% is too far from the approximately 75% test-form target`);
-  const requiredDomains = ['algebra','advancedMath','problemSolvingData','geometryTrigonometry'];
-  for (const domain of requiredDomains) if (!sat.domains[domain]) report.failures.push(`digitalSAT: missing ${domain} domain content`);
+  const mcqRate = mcq / Math.max(1, mcq + spr);
+  sat.mcqRate = mcqRate;
+  if (mcqRate < 0.68 || mcqRate > 0.82) report.failures.push(`digitalSAT: MCQ rate ${(mcqRate * 100).toFixed(1)}% is too far from the approximately 75% test-form target`);
+  for (const domain of ['algebra', 'advancedMath', 'problemSolvingData', 'geometryTrigonometry']) {
+    if (!sat.domains[domain]) report.failures.push(`digitalSAT: missing ${domain} domain content`);
+  }
 }
 
 writeFileSync(outPath, `${JSON.stringify(report, null, 2)}\n`);
