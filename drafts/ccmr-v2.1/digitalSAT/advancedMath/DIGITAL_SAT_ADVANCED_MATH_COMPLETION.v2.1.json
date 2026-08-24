@@ -31,6 +31,7 @@
     "A2.4D",
     "A2.4F",
     "A2.4G",
+    "A2.5B",
     "A2.5D",
     "A2.6B",
     "A2.6E",
@@ -45,16 +46,16 @@
     "A2.7F",
     "A2.7G"
   ],
-  "completedStandardsCount": 39,
-  "familiesTotal": 312,
+  "completedStandardsCount": 40,
+  "familiesTotal": 320,
   "validation": {
     "randomizedInstancesPerStandard": 2000,
-    "randomizedInstancesTotal": 78000,
+    "randomizedInstancesTotal": 80000,
     "checks": [
       "generated mathematical identity, quotient, factor, rational-expression, radical, quadratic, exponential, reciprocal-function, inverse-variation, cube-root, absolute-value, formula, or system relationship",
       "equation-specific validation for quadratic roots and solution counts",
       "quadratic-function validation for vertex, intercept, extrema, factor, zero, coefficient, point-set construction, standard-to-vertex rewriting, nonlinear function evaluation, inverse-input reasoning, and equivalent-form relationships",
-      "exponential-function validation for initial value, growth or decay factor, interval factor, table/equation connections, contextual models, function evaluation, inverse-input reasoning, intercepts, translated points, horizontal asymptotes, same/related-base equation solving, and exponent-parameter relationships",
+      "exponential-function validation for initial value, growth or decay factor, shifted reference input, nonunit interval, table/equation connections, separated observations, contextual models, function evaluation, inverse-input reasoning, intercepts, translated points, horizontal asymptotes, same/related-base equation solving, and exponent-parameter relationships",
       "reciprocal and inverse-variation validation for asymptotes, y-intercepts, point relationships, constant-product models, contextual inverse variation, parameter recovery, scaled-input behavior, and symmetric-input structure",
       "linear-quadratic system formulation validation for graph properties, points, zeros, and contextual break-even/intersection models",
       "semantic MCQ validation that rejects symmetric-root or parameter draws producing mathematically equivalent distractors",
