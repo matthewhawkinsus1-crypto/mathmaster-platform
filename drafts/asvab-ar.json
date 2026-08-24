@@ -12834,6 +12834,1377 @@
      "expected": "choice-a"
     }
    ]
+  },
+  {
+   "id": "mm_asvab_8_12A_rate_difference_on_one_loan",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.12A:rate-difference-on-one-loan",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12A",
+   "taskType": "interpretation",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A $\\${{principal}}$ loan runs {{years}} years. At {{r1}}% simple interest instead of {{r2}}%, how much more interest is paid?",
+   "solutionReview": {
+    "headline": "Only the difference in the rates changes the cost.",
+    "reasoning": [
+     "At {{r1}} percent the interest is {{int1}}; at {{r2}} percent it is {{int2}}.",
+     "The gap is {{answer}}."
+    ],
+    "answerSummary": "It costs $\\${{answer}}$ more."
+   },
+   "attemptFeedback": [
+    "The question asks for the difference, not either total."
+   ],
+   "supportHints": [
+    "Work out the interest under each rate before comparing."
+   ],
+   "generator": {
+    "parameters": {
+     "hundreds": {
+      "type": "int",
+      "min": 5,
+      "max": 40
+     },
+     "r1": {
+      "type": "choice",
+      "values": [
+       4,
+       6,
+       8,
+       10,
+       12,
+       15,
+       18,
+       22
+      ]
+     },
+     "r2": {
+      "type": "choice",
+      "values": [
+       4,
+       6,
+       8,
+       10,
+       12,
+       15,
+       18,
+       22
+      ]
+     },
+     "years": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     }
+    },
+    "derived": {
+     "principal": "hundreds*100",
+     "int1": "hundreds*100*r1/100*years",
+     "int2": "hundreds*100*r2/100*years",
+     "answer": "abs(hundreds*100*r1/100*years-hundreds*100*r2/100*years)",
+     "d_partialTotal": "min(int1,int2)",
+     "d_signError": "int1+int2",
+     "d_unitConversion": "abs(hundreds*10*r1/100*years-hundreds*10*r2/100*years)"
+    },
+    "constraints": [
+     "r1!=r2",
+     "answer!=d_partialTotal",
+     "answer!=d_signError",
+     "answer!=d_unitConversion",
+     "d_partialTotal!=d_signError",
+     "d_partialTotal!=d_unitConversion",
+     "d_signError!=d_unitConversion"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_unitConversion}}$",
+     "error": "unitConversion"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_signError}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_12A_term_difference_on_one_loan",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.12A:term-difference-on-one-loan",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12A",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A $\\${{principal}}$ loan at {{r}}% simple interest runs {{y1}} years instead of {{y2}}. How much more interest is paid?",
+   "solutionReview": {
+    "headline": "A longer term costs one year’s interest for every extra year.",
+    "reasoning": [
+     "Each year costs {{perYear}} in interest.",
+     "The extra {{answer}} covers the difference of {{y1}} against {{y2}} years."
+    ],
+    "answerSummary": "It costs $\\${{answer}}$ more."
+   },
+   "attemptFeedback": [
+    "Only the extra years add cost, not the whole term."
+   ],
+   "supportHints": [
+    "How many extra years is it, and what does one year cost?"
+   ],
+   "generator": {
+    "parameters": {
+     "hundreds": {
+      "type": "int",
+      "min": 5,
+      "max": 40
+     },
+     "r": {
+      "type": "choice",
+      "values": [
+       4,
+       6,
+       8,
+       10,
+       12,
+       15
+      ]
+     },
+     "y1": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "y2": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "principal": "hundreds*100",
+     "perYear": "hundreds*100*r/100",
+     "answer": "hundreds*100*r/100*abs(y1-y2)",
+     "d_partialTotal": "perYear*min(y1,y2)",
+     "d_signError": "perYear*(y1+y2)",
+     "d_forgotFinalStep": "perYear"
+    },
+    "constraints": [
+     "y1!=y2",
+     "answer!=d_partialTotal",
+     "answer!=d_signError",
+     "answer!=d_forgotFinalStep",
+     "d_partialTotal!=d_signError",
+     "d_partialTotal!=d_forgotFinalStep",
+     "d_signError!=d_forgotFinalStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_signError}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_12A_interest_on_simple_loan",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.12A:interest-on-simple-loan",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12A",
+   "taskType": "procedural",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{worker}} borrows $\\${{principal}}$ at {{r}}% simple interest for {{years}} years. How much interest is owed?",
+   "solutionReview": {
+    "headline": "Simple interest charges the same amount every year.",
+    "reasoning": [
+     "One year costs {{r}} percent of {{principal}}, or {{perYear}}.",
+     "{{years}} years cost {{answer}}."
+    ],
+    "answerSummary": "$\\${{answer}}$ of interest is owed."
+   },
+   "attemptFeedback": [
+    "The question asks for the interest, not what is repaid in total."
+   ],
+   "supportHints": [
+    "Work out one year first."
+   ],
+   "generator": {
+    "parameters": {
+     "worker": {
+      "type": "choice",
+      "values": [
+       "mechanic",
+       "driver",
+       "loader",
+       "welder",
+       "technician"
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 5,
+      "max": 40
+     },
+     "r": {
+      "type": "choice",
+      "values": [
+       6,
+       8,
+       10,
+       12,
+       15,
+       20,
+       25
+      ]
+     },
+     "years": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     }
+    },
+    "derived": {
+     "principal": "hundreds*100",
+     "perYear": "hundreds*100*r/100",
+     "answer": "hundreds*100*r/100*years",
+     "d_forgotFinalStep": "perYear",
+     "d_signError": "principal+hundreds*100*r/100*years",
+     "d_usedGivenValue": "principal"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_signError",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_signError",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_signError!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_signError}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_12A_monthly_payment_from_total",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.12A:monthly-payment-from-total",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12A",
+   "taskType": "reverseReasoning",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A loan is repaid in {{months}} equal monthly payments totalling $\\${{total}}$. What is each payment?",
+   "solutionReview": {
+    "headline": "Equal payments divide the total by their number.",
+    "reasoning": [
+     "Equal payments each carry the same share of the total.",
+     "{{total}} shared over {{months}} payments is {{answer}} each."
+    ],
+    "answerSummary": "Each payment is $\\${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Check which number counts months and which counts dollars."
+   ],
+   "supportHints": [
+    "How many equal shares is the total split into?"
+   ],
+   "generator": {
+    "parameters": {
+     "payment": {
+      "type": "int",
+      "min": 10,
+      "max": 60,
+      "step": 5
+     },
+     "months": {
+      "type": "int",
+      "min": 6,
+      "max": 66,
+      "step": 6
+     }
+    },
+    "derived": {
+     "total": "payment*months",
+     "answer": "payment",
+     "d_operationInverted": "months",
+     "d_signError": "total",
+     "d_offByOneStep": "round(total/(months+6))"
+    },
+    "constraints": [
+     "answer!=d_operationInverted",
+     "answer!=d_signError",
+     "answer!=d_offByOneStep",
+     "d_operationInverted!=d_signError",
+     "d_operationInverted!=d_offByOneStep",
+     "d_signError!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_12A_cheaper_of_two_loans",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.12A:cheaper-of-two-loans",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12A",
+   "taskType": "errorAnalysis",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two loans of $\\${{principal}}$ are offered as shown. How much less interest does the cheaper one cost?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Loan offers",
+    "table": {
+     "headers": [
+      "loan",
+      "rate",
+      "years"
+     ],
+     "rows": [
+      [
+       "A",
+       "{{rA}}%",
+       "{{yA}}"
+      ],
+      [
+       "B",
+       "{{rB}}%",
+       "{{yB}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "A lower rate over a longer term is not automatically cheaper.",
+    "reasoning": [
+     "Loan A costs {{intA}} in interest and loan B costs {{intB}}.",
+     "The gap is {{answer}}."
+    ],
+    "answerSummary": "The cheaper loan saves $\\${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Work out the total interest for each loan before comparing."
+   ],
+   "supportHints": [
+    "Neither the rate nor the term decides it alone."
+   ],
+   "generator": {
+    "parameters": {
+     "hundreds": {
+      "type": "int",
+      "min": 5,
+      "max": 40
+     },
+     "rA": {
+      "type": "choice",
+      "values": [
+       4,
+       6,
+       8,
+       10,
+       12,
+       15
+      ]
+     },
+     "rB": {
+      "type": "choice",
+      "values": [
+       4,
+       6,
+       8,
+       10,
+       12,
+       15
+      ]
+     },
+     "yA": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "yB": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     }
+    },
+    "derived": {
+     "principal": "hundreds*100",
+     "intA": "hundreds*100*rA/100*yA",
+     "intB": "hundreds*100*rB/100*yB",
+     "answer": "abs(hundreds*100*rA/100*yA-hundreds*100*rB/100*yB)",
+     "d_partialTotal": "min(intA,intB)",
+     "d_signError": "intA+intB",
+     "d_unitConversion": "abs(hundreds*10*rA/100*yA-hundreds*10*rB/100*yB)"
+    },
+    "constraints": [
+     "intA!=intB",
+     "answer!=d_partialTotal",
+     "answer!=d_signError",
+     "answer!=d_unitConversion",
+     "d_partialTotal!=d_signError",
+     "d_partialTotal!=d_unitConversion",
+     "d_signError!=d_unitConversion"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_unitConversion}}$",
+     "error": "unitConversion"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_12B_total_repaid_simple_loan",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.12B:total-repaid-simple-loan",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12B",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A $\\${{principal}}$ loan at {{r}}% simple interest runs {{years}} years. What is repaid in total?",
+   "solutionReview": {
+    "headline": "Repaying a loan returns the amount borrowed plus the interest.",
+    "reasoning": [
+     "The interest comes to {{interest}}.",
+     "Repaying the {{principal}} borrowed as well makes {{answer}}."
+    ],
+    "answerSummary": "$\\${{answer}}$ is repaid."
+   },
+   "attemptFeedback": [
+    "The interest alone is not the total repaid."
+   ],
+   "supportHints": [
+    "The borrowed amount has to come back too."
+   ],
+   "generator": {
+    "parameters": {
+     "hundreds": {
+      "type": "int",
+      "min": 5,
+      "max": 40
+     },
+     "r": {
+      "type": "choice",
+      "values": [
+       6,
+       8,
+       10,
+       12,
+       15,
+       20,
+       25
+      ]
+     },
+     "years": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     }
+    },
+    "derived": {
+     "principal": "hundreds*100",
+     "interest": "hundreds*100*r/100*years",
+     "answer": "hundreds*100+hundreds*100*r/100*years",
+     "d_forgotFinalStep": "interest",
+     "d_signError": "hundreds*200+hundreds*100*r/100*years",
+     "d_partialTotal": "hundreds*100*r/100*years*2"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_signError",
+     "answer!=d_partialTotal",
+     "d_forgotFinalStep!=d_signError",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_signError!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_12B_total_from_monthly_payments",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.12B:total-from-monthly-payments",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12B",
+   "taskType": "application",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A loan is repaid at $\\${{payment}}$ a month for {{months}} months. How much more than the $\\${{principal}}$ borrowed is repaid?",
+   "solutionReview": {
+    "headline": "The extra paid is the difference between the payments and the loan.",
+    "reasoning": [
+     "{{months}} payments of {{payment}} come to {{total}}.",
+     "That is {{answer}} more than the {{principal}} borrowed."
+    ],
+    "answerSummary": "$\\${{answer}}$ more is repaid."
+   },
+   "attemptFeedback": [
+    "The question asks for the extra, not the total."
+   ],
+   "supportHints": [
+    "Total the payments first."
+   ],
+   "generator": {
+    "parameters": {
+     "payment": {
+      "type": "int",
+      "min": 40,
+      "max": 600,
+      "step": 10
+     },
+     "months": {
+      "type": "int",
+      "min": 6,
+      "max": 48,
+      "step": 6
+     },
+     "extraHundreds": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     }
+    },
+    "derived": {
+     "total": "payment*months",
+     "principal": "payment*months-extraHundreds*100",
+     "answer": "extraHundreds*100",
+     "d_forgotFinalStep": "total",
+     "d_unitConversion": "extraHundreds*10",
+     "d_operationInverted": "payment"
+    },
+    "constraints": [
+     "principal>0",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_unitConversion",
+     "answer!=d_operationInverted",
+     "d_forgotFinalStep!=d_unitConversion",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_unitConversion!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_unitConversion}}$",
+     "error": "unitConversion"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_12B_card_balance_after_payment",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.12B:card-balance-after-payment",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12B",
+   "taskType": "conceptual",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A card balance of $\\${{balance}}$ is charged {{r}}% interest for the month, then a payment of $\\${{payment}}$ is made. What is owed?",
+   "solutionReview": {
+    "headline": "Interest is charged before the payment is credited.",
+    "reasoning": [
+     "The interest adds {{charge}}, taking the balance to {{d_forgotFinalStep}}.",
+     "The payment of {{payment}} leaves {{answer}}."
+    ],
+    "answerSummary": "$\\${{answer}}$ is owed."
+   },
+   "attemptFeedback": [
+    "Interest raises the balance before anything is paid off."
+   ],
+   "supportHints": [
+    "The charge lands first, then the payment."
+   ],
+   "generator": {
+    "parameters": {
+     "balanceHundreds": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     },
+     "r": {
+      "type": "choice",
+      "values": [
+       2,
+       4,
+       5,
+       10,
+       20,
+       25
+      ]
+     },
+     "payment": {
+      "type": "int",
+      "min": 100,
+      "max": 2300,
+      "step": 20
+     }
+    },
+    "derived": {
+     "balance": "balanceHundreds*100",
+     "charge": "balanceHundreds*100*r/100",
+     "answer": "balanceHundreds*100+balanceHundreds*100*r/100-payment",
+     "d_forgotFinalStep": "balanceHundreds*100+balanceHundreds*100*r/100",
+     "d_signError": "balanceHundreds*100-balanceHundreds*100*r/100-payment",
+     "d_partialTotal": "payment"
+    },
+    "constraints": [
+     "answer>0",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_signError",
+     "answer!=d_partialTotal",
+     "d_forgotFinalStep!=d_signError",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_signError!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_signError}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_12B_cost_of_two_repayment_plans",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.12B:cost-of-two-repayment-plans",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12B",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two repayment plans for the same loan are shown. How much less does the cheaper plan cost in total?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Plans",
+    "table": {
+     "headers": [
+      "plan",
+      "monthly",
+      "months"
+     ],
+     "rows": [
+      [
+       "A",
+       "{{payA}}",
+       "{{monA}}"
+      ],
+      [
+       "B",
+       "{{payB}}",
+       "{{monB}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "A smaller monthly payment can still cost more overall.",
+    "reasoning": [
+     "Plan A costs {{totalA}} and plan B costs {{totalB}}.",
+     "The gap is {{answer}}."
+    ],
+    "answerSummary": "The cheaper plan saves $\\${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Total each plan before comparing."
+   ],
+   "supportHints": [
+    "Neither the payment nor the length settles it alone."
+   ],
+   "generator": {
+    "parameters": {
+     "payA": {
+      "type": "int",
+      "min": 40,
+      "max": 300,
+      "step": 10
+     },
+     "payB": {
+      "type": "int",
+      "min": 40,
+      "max": 300,
+      "step": 10
+     },
+     "monA": {
+      "type": "int",
+      "min": 6,
+      "max": 42,
+      "step": 6
+     },
+     "monB": {
+      "type": "int",
+      "min": 6,
+      "max": 42,
+      "step": 6
+     }
+    },
+    "derived": {
+     "totalA": "payA*monA",
+     "totalB": "payB*monB",
+     "answer": "abs(payA*monA-payB*monB)",
+     "d_partialTotal": "min(totalA,totalB)",
+     "d_signError": "totalA+totalB",
+     "d_operationInverted": "abs(payA-payB)"
+    },
+    "constraints": [
+     "totalA!=totalB",
+     "answer!=d_partialTotal",
+     "answer!=d_signError",
+     "answer!=d_operationInverted",
+     "d_partialTotal!=d_signError",
+     "d_partialTotal!=d_operationInverted",
+     "d_signError!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_signError}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_12B_months_to_clear_balance",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.12B:months-to-clear-balance",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12B",
+   "taskType": "representationTranslation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A balance of $\\${{balance}}$ with no further interest is cleared at $\\${{payment}}$ a month. How many months does that take?",
+   "solutionReview": {
+    "headline": "A fixed payment divides into the balance.",
+    "reasoning": [
+     "Each month clears {{payment}}.",
+     "{{balance}} divided by {{payment}} is {{answer}} months."
+    ],
+    "answerSummary": "It takes ${{answer}}$ months."
+   },
+   "attemptFeedback": [
+    "The answer counts months, not dollars."
+   ],
+   "supportHints": [
+    "How many payments does the balance hold?"
+   ],
+   "generator": {
+    "parameters": {
+     "payment": {
+      "type": "int",
+      "min": 10,
+      "max": 60,
+      "step": 5
+     },
+     "months": {
+      "type": "int",
+      "min": 4,
+      "max": 60
+     }
+    },
+    "derived": {
+     "balance": "payment*months",
+     "answer": "months",
+     "d_operationInverted": "payment",
+     "d_signError": "balance",
+     "d_offByOneStep": "round(balance/(payment+15))"
+    },
+    "constraints": [
+     "answer!=d_operationInverted",
+     "answer!=d_signError",
+     "answer!=d_offByOneStep",
+     "d_operationInverted!=d_signError",
+     "d_operationInverted!=d_offByOneStep",
+     "d_signError!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
   }
  ]
 }

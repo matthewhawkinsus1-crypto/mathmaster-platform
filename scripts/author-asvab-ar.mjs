@@ -3046,6 +3046,336 @@ ar('7.13F', 'best-saving-of-three', {
   feedback: 'The question asks what is saved, not what is paid.',
 });
 
+// ================================================================ 8.12A
+// How the rate and the term change what credit costs.
+
+ar('8.12A', 'rate-difference-on-one-loan', {
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'context',
+  prompt: 'A $\\${{principal}}$ loan runs {{years}} years. At {{r1}}% simple interest instead of {{r2}}%, how much more interest is paid?',
+  generator: {
+    parameters: {
+      hundreds: { type: 'int', min: 5, max: 40 },
+      r1: { type: 'choice', values: [4, 6, 8, 10, 12, 15, 18, 22] },
+      r2: { type: 'choice', values: [4, 6, 8, 10, 12, 15, 18, 22] },
+      years: { type: 'int', min: 2, max: 8 },
+    },
+    derived: {
+      principal: 'hundreds*100',
+      int1: 'hundreds*100*r1/100*years',
+      int2: 'hundreds*100*r2/100*years',
+      answer: 'abs(hundreds*100*r1/100*years-hundreds*100*r2/100*years)',
+      d_partialTotal: 'min(int1,int2)',
+      d_signError: 'int1+int2',
+      d_unitConversion: 'abs(hundreds*10*r1/100*years-hundreds*10*r2/100*years)',
+    },
+    constraints: ['r1!=r2'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_signError}}'), error: 'signError' },
+    { label: money('{{d_unitConversion}}'), error: 'unitConversion' },
+  ],
+  reasoning: ['At {{r1}} percent the interest is {{int1}}; at {{r2}} percent it is {{int2}}.', 'The gap is {{answer}}.'],
+  answerSummary: { headline: 'Only the difference in the rates changes the cost.', text: 'It costs $\\${{answer}}$ more.' },
+  hint: 'Work out the interest under each rate before comparing.',
+  feedback: 'The question asks for the difference, not either total.',
+});
+
+ar('8.12A', 'term-difference-on-one-loan', {
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A $\\${{principal}}$ loan at {{r}}% simple interest runs {{y1}} years instead of {{y2}}. How much more interest is paid?',
+  generator: {
+    parameters: {
+      hundreds: { type: 'int', min: 5, max: 40 },
+      r: { type: 'choice', values: [4, 6, 8, 10, 12, 15] },
+      y1: { type: 'int', min: 2, max: 12 },
+      y2: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      principal: 'hundreds*100',
+      perYear: 'hundreds*100*r/100',
+      answer: 'hundreds*100*r/100*abs(y1-y2)',
+      d_partialTotal: 'perYear*min(y1,y2)',
+      d_signError: 'perYear*(y1+y2)',
+      d_forgotFinalStep: 'perYear',
+    },
+    constraints: ['y1!=y2'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_signError}}'), error: 'signError' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['Each year costs {{perYear}} in interest.', 'The extra {{answer}} covers the difference of {{y1}} against {{y2}} years.'],
+  answerSummary: { headline: 'A longer term costs one year’s interest for every extra year.', text: 'It costs $\\${{answer}}$ more.' },
+  hint: 'How many extra years is it, and what does one year cost?',
+  feedback: 'Only the extra years add cost, not the whole term.',
+});
+
+ar('8.12A', 'interest-on-simple-loan', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'verbal',
+  prompt: 'A {{worker}} borrows $\\${{principal}}$ at {{r}}% simple interest for {{years}} years. How much interest is owed?',
+  generator: {
+    parameters: {
+      worker: contextParam(['mechanic', 'driver', 'loader', 'welder', 'technician']),
+      hundreds: { type: 'int', min: 5, max: 40 },
+      r: { type: 'choice', values: [6, 8, 10, 12, 15, 20, 25] },
+      years: { type: 'int', min: 2, max: 14 },
+    },
+    derived: {
+      principal: 'hundreds*100',
+      perYear: 'hundreds*100*r/100',
+      answer: 'hundreds*100*r/100*years',
+      d_forgotFinalStep: 'perYear',
+      d_signError: 'principal+hundreds*100*r/100*years',
+      d_usedGivenValue: 'principal',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_signError}}'), error: 'signError' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['One year costs {{r}} percent of {{principal}}, or {{perYear}}.', '{{years}} years cost {{answer}}.'],
+  answerSummary: { headline: 'Simple interest charges the same amount every year.', text: '$\\${{answer}}$ of interest is owed.' },
+  hint: 'Work out one year first.',
+  feedback: 'The question asks for the interest, not what is repaid in total.',
+});
+
+ar('8.12A', 'monthly-payment-from-total', {
+  difficultyBand: 2, dok: 2, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'A loan is repaid in {{months}} equal monthly payments totalling $\\${{total}}$. What is each payment?',
+  generator: {
+    parameters: {
+      payment: { type: 'int', min: 10, max: 60, step: 5 },
+      months: { type: 'int', min: 6, max: 66, step: 6 },
+    },
+    derived: {
+      total: 'payment*months',
+      answer: 'payment',
+      d_operationInverted: 'months',
+      d_signError: 'total',
+      d_offByOneStep: 'round(total/(months+6))',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: money('{{d_signError}}'), error: 'signError' },
+    { label: money('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['Equal payments each carry the same share of the total.', '{{total}} shared over {{months}} payments is {{answer}} each.'],
+  answerSummary: { headline: 'Equal payments divide the total by their number.', text: 'Each payment is $\\${{answer}}$.' },
+  hint: 'How many equal shares is the total split into?',
+  feedback: 'Check which number counts months and which counts dollars.',
+});
+
+ar('8.12A', 'cheaper-of-two-loans', {
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'table',
+  prompt: 'Two loans of $\\${{principal}}$ are offered as shown. How much less interest does the cheaper one cost?',
+  stimulus: {
+    kind: 'table',
+    title: 'Loan offers',
+    table: { headers: ['loan', 'rate', 'years'], rows: [['A', '{{rA}}%', '{{yA}}'], ['B', '{{rB}}%', '{{yB}}']] },
+  },
+  generator: {
+    parameters: {
+      hundreds: { type: 'int', min: 5, max: 40 },
+      rA: { type: 'choice', values: [4, 6, 8, 10, 12, 15] },
+      rB: { type: 'choice', values: [4, 6, 8, 10, 12, 15] },
+      yA: { type: 'int', min: 2, max: 8 },
+      yB: { type: 'int', min: 2, max: 8 },
+    },
+    derived: {
+      principal: 'hundreds*100',
+      intA: 'hundreds*100*rA/100*yA',
+      intB: 'hundreds*100*rB/100*yB',
+      answer: 'abs(hundreds*100*rA/100*yA-hundreds*100*rB/100*yB)',
+      d_partialTotal: 'min(intA,intB)',
+      d_signError: 'intA+intB',
+      d_unitConversion: 'abs(hundreds*10*rA/100*yA-hundreds*10*rB/100*yB)',
+    },
+    constraints: ['intA!=intB'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_signError}}'), error: 'signError' },
+    { label: money('{{d_unitConversion}}'), error: 'unitConversion' },
+  ],
+  reasoning: ['Loan A costs {{intA}} in interest and loan B costs {{intB}}.', 'The gap is {{answer}}.'],
+  answerSummary: { headline: 'A lower rate over a longer term is not automatically cheaper.', text: 'The cheaper loan saves $\\${{answer}}$.' },
+  hint: 'Neither the rate nor the term decides it alone.',
+  feedback: 'Work out the total interest for each loan before comparing.',
+});
+
+// ================================================================ 8.12B
+// The total cost of repaying a loan.
+
+ar('8.12B', 'total-repaid-simple-loan', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'A $\\${{principal}}$ loan at {{r}}% simple interest runs {{years}} years. What is repaid in total?',
+  generator: {
+    parameters: {
+      hundreds: { type: 'int', min: 5, max: 40 },
+      r: { type: 'choice', values: [6, 8, 10, 12, 15, 20, 25] },
+      years: { type: 'int', min: 2, max: 14 },
+    },
+    derived: {
+      principal: 'hundreds*100',
+      interest: 'hundreds*100*r/100*years',
+      answer: 'hundreds*100+hundreds*100*r/100*years',
+      d_forgotFinalStep: 'interest',
+      d_signError: 'hundreds*200+hundreds*100*r/100*years',
+      d_partialTotal: 'hundreds*100*r/100*years*2',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_signError}}'), error: 'signError' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The interest comes to {{interest}}.', 'Repaying the {{principal}} borrowed as well makes {{answer}}.'],
+  answerSummary: { headline: 'Repaying a loan returns the amount borrowed plus the interest.', text: '$\\${{answer}}$ is repaid.' },
+  hint: 'The borrowed amount has to come back too.',
+  feedback: 'The interest alone is not the total repaid.',
+});
+
+ar('8.12B', 'total-from-monthly-payments', {
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'verbal',
+  prompt: 'A loan is repaid at $\\${{payment}}$ a month for {{months}} months. How much more than the $\\${{principal}}$ borrowed is repaid?',
+  generator: {
+    parameters: {
+      payment: { type: 'int', min: 40, max: 600, step: 10 },
+      months: { type: 'int', min: 6, max: 48, step: 6 },
+      extraHundreds: { type: 'int', min: 1, max: 5 },
+    },
+    derived: {
+      total: 'payment*months',
+      principal: 'payment*months-extraHundreds*100',
+      answer: 'extraHundreds*100',
+      d_forgotFinalStep: 'total',
+      d_unitConversion: 'extraHundreds*10',
+      d_operationInverted: 'payment',
+    },
+    constraints: ['principal>0'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_unitConversion}}'), error: 'unitConversion' },
+    { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['{{months}} payments of {{payment}} come to {{total}}.', 'That is {{answer}} more than the {{principal}} borrowed.'],
+  answerSummary: { headline: 'The extra paid is the difference between the payments and the loan.', text: '$\\${{answer}}$ more is repaid.' },
+  hint: 'Total the payments first.',
+  feedback: 'The question asks for the extra, not the total.',
+});
+
+ar('8.12B', 'card-balance-after-payment', {
+  difficultyBand: 3, dok: 3, taskType: 'conceptual', representation: 'context',
+  prompt: 'A card balance of $\\${{balance}}$ is charged {{r}}% interest for the month, then a payment of $\\${{payment}}$ is made. What is owed?',
+  generator: {
+    parameters: {
+      balanceHundreds: { type: 'int', min: 3, max: 30 },
+      r: { type: 'choice', values: [2, 4, 5, 10, 20, 25] },
+      payment: { type: 'int', min: 100, max: 2300, step: 20 },
+    },
+    derived: {
+      balance: 'balanceHundreds*100',
+      charge: 'balanceHundreds*100*r/100',
+      answer: 'balanceHundreds*100+balanceHundreds*100*r/100-payment',
+      d_forgotFinalStep: 'balanceHundreds*100+balanceHundreds*100*r/100',
+      d_signError: 'balanceHundreds*100-balanceHundreds*100*r/100-payment',
+      d_partialTotal: 'payment',
+    },
+    constraints: ['answer>0'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_signError}}'), error: 'signError' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The interest adds {{charge}}, taking the balance to {{d_forgotFinalStep}}.', 'The payment of {{payment}} leaves {{answer}}.'],
+  answerSummary: { headline: 'Interest is charged before the payment is credited.', text: '$\\${{answer}}$ is owed.' },
+  hint: 'The charge lands first, then the payment.',
+  feedback: 'Interest raises the balance before anything is paid off.',
+});
+
+ar('8.12B', 'cost-of-two-repayment-plans', {
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'Two repayment plans for the same loan are shown. How much less does the cheaper plan cost in total?',
+  stimulus: {
+    kind: 'table',
+    title: 'Plans',
+    table: { headers: ['plan', 'monthly', 'months'], rows: [['A', '{{payA}}', '{{monA}}'], ['B', '{{payB}}', '{{monB}}']] },
+  },
+  generator: {
+    parameters: {
+      payA: { type: 'int', min: 40, max: 300, step: 10 },
+      payB: { type: 'int', min: 40, max: 300, step: 10 },
+      monA: { type: 'int', min: 6, max: 42, step: 6 },
+      monB: { type: 'int', min: 6, max: 42, step: 6 },
+    },
+    derived: {
+      totalA: 'payA*monA',
+      totalB: 'payB*monB',
+      answer: 'abs(payA*monA-payB*monB)',
+      d_partialTotal: 'min(totalA,totalB)',
+      d_signError: 'totalA+totalB',
+      d_operationInverted: 'abs(payA-payB)',
+    },
+    constraints: ['totalA!=totalB'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_signError}}'), error: 'signError' },
+    { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['Plan A costs {{totalA}} and plan B costs {{totalB}}.', 'The gap is {{answer}}.'],
+  answerSummary: { headline: 'A smaller monthly payment can still cost more overall.', text: 'The cheaper plan saves $\\${{answer}}$.' },
+  hint: 'Neither the payment nor the length settles it alone.',
+  feedback: 'Total each plan before comparing.',
+});
+
+ar('8.12B', 'months-to-clear-balance', {
+  difficultyBand: 3, dok: 2, taskType: 'representationTranslation', representation: 'verbal',
+  prompt: 'A balance of $\\${{balance}}$ with no further interest is cleared at $\\${{payment}}$ a month. How many months does that take?',
+  generator: {
+    parameters: {
+      payment: { type: 'int', min: 10, max: 60, step: 5 },
+      months: { type: 'int', min: 4, max: 60 },
+    },
+    derived: {
+      balance: 'payment*months',
+      answer: 'months',
+      d_operationInverted: 'payment',
+      d_signError: 'balance',
+      d_offByOneStep: 'round(balance/(payment+15))',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['Each month clears {{payment}}.', '{{balance}} divided by {{payment}} is {{answer}} months.'],
+  answerSummary: { headline: 'A fixed payment divides into the balance.', text: 'It takes ${{answer}}$ months.' },
+  hint: 'How many payments does the balance hold?',
+  feedback: 'The answer counts months, not dollars.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
