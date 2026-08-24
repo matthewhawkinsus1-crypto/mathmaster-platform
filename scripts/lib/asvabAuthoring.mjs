@@ -37,6 +37,14 @@
 // function of the same two draws — that is the floor the mathematics allows,
 // not sloppy authoring, and the thresholds in asvabFidelity.mjs are set to it.
 //
+// A THIRD RULE, about constraints. `generatePathInstance` redraws past values
+// listed in `exclude`, but a failed CONSTRAINT costs a whole attempt. So a
+// constraint that fails often does not merely slow generation down — it biases
+// the draws that survive. `num < den` with `num` drawn 1..19 and `den` drawn
+// from {4, 5, 8, 10, 20} silently produced a bank dominated by den = 20,
+// because that was the only value the constraint rarely rejected. Prefer
+// parameter ranges where the constraint is satisfied by construction.
+//
 // The kit emits nothing a student should not see: distractor error codes live
 // on the template and are stripped by functions/lib/mathPath.js normalizeChoices
 // before a question reaches the browser.
@@ -154,7 +162,13 @@ export const asvabItem = ({
   }));
   const keyId = CHOICE_IDS[ordered.findIndex((choice) => choice.correct === true)];
 
-  const comparisonTask = /\b(largest|greatest|smallest|least|biggest|closest)\b/i.test(prompt);
+  // "Which does not match?" belongs here for the same reason as "which is
+  // largest?": three records name one share and the fourth names another, so
+  // the odd one out is necessarily the extreme value. Finding it IS the task,
+  // and the three matching records are written in three different forms, so
+  // nothing gives it away without doing the mathematics.
+  const comparisonTask = /\b(largest|greatest|smallest|least|biggest|closest)\b/i.test(prompt)
+    || /\b(does not match|odd one out|is wrong|do not agree|disagrees)\b/i.test(prompt);
   if (rankAnalysisNotApplicable && !comparisonTask) {
     throw new Error(`${code}/${slug}: rank analysis may only be waived on an item that asks the student to compare the choices.`);
   }

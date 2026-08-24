@@ -1343,6 +1343,329 @@ ar('6.4H', 'unit-table-conversion', {
   feedback: 'Converting to a smaller unit gives a larger count.',
 });
 
+// ================================================================ 6.5B
+// The three percent questions: find the part, the whole, or the percent.
+
+ar('6.5B', 'part-given-whole-and-percent', {
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A {{crew}} inspected {{p}}% of the {{total}} {{item}} delivered. How many did they inspect?',
+  generator: {
+    parameters: {
+      crew: WORKERS, item: GOODS,
+      p: { type: 'choice', values: [10, 20, 25, 30, 60, 70, 75, 80] },
+      hundreds: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {
+      total: 'hundreds*100',
+      answer: 'total*p/100',
+      d_wrongPercentBase: 'total-total*p/100',
+      d_unitConversion: 'total*p/10',
+      d_convertedWrongWay: 'total*p/1000',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_wrongPercentBase}}'), error: 'wrongPercentBase' },
+    { label: plain('{{d_unitConversion}}'), error: 'unitConversion' },
+    { label: plain('{{d_convertedWrongWay}}'), error: 'convertedWrongWay' },
+  ],
+  reasoning: ['One percent of {{total}} is {{hundreds}}.', '{{p}} of those is {{answer}}.'],
+  answerSummary: { headline: 'A percent of a total is a share of it.', text: 'They inspected ${{answer}}$.' },
+  hint: 'Work out one percent of the delivery first.',
+  feedback: 'The question asks for the inspected part, not the rest.',
+});
+
+ar('6.5B', 'whole-given-part-and-percent', {
+  difficultyBand: 3, dok: 2, taskType: 'reverseReasoning', representation: 'context',
+  prompt: '{{part}} {{item}} failed inspection, which was {{p}}% of the batch. How many were in the batch?',
+  generator: {
+    parameters: {
+      item: GOODS,
+      p: { type: 'choice', values: [10, 20, 25, 40, 60, 75, 80, 90] },
+      hundreds: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {
+      answer: 'hundreds*100',
+      part: 'answer*p/100',
+      d_wrongPercentBase: 'round(part*100/(100-p))',
+      d_unitConversion: 'part*100',
+      d_partialTotal: 'answer-part',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_wrongPercentBase}}'), error: 'wrongPercentBase' },
+    { label: plain('{{d_unitConversion}}'), error: 'unitConversion' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['{{part}} is {{p}} percent of the batch.', 'One percent is {{hundreds}}, so a hundred percent is {{answer}}.'],
+  answerSummary: { headline: 'Come down to one percent, then up to the whole.', text: 'The batch held ${{answer}}$ {{item}}.' },
+  hint: 'What would one percent of the batch be?',
+  feedback: 'The failures are part of the batch, so the batch is larger.',
+});
+
+ar('6.5B', 'percent-given-part-and-whole', {
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'context',
+  prompt: 'Of {{total}} {{item}} on a {{vehicle}}, {{part}} were damaged. What percent were damaged?',
+  generator: {
+    parameters: {
+      item: GOODS, vehicle: VEHICLES,
+      p: { type: 'choice', values: [5, 10, 20, 25, 60, 75, 80, 90] },
+      hundreds: { type: 'int', min: 2, max: 16 },
+    },
+    derived: {
+      total: 'hundreds*100',
+      part: 'total*p/100',
+      answer: 'p',
+      d_wrongPercentBase: '100-p',
+      d_usedGivenValue: 'hundreds',
+      d_unitConversion: 'p*10',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}\\%'), correct: true },
+    { label: plain('{{d_wrongPercentBase}}\\%'), error: 'wrongPercentBase' },
+    { label: plain('{{d_usedGivenValue}}\\%'), error: 'usedGivenValue' },
+    { label: plain('{{d_unitConversion}}\\%'), error: 'unitConversion' },
+  ],
+  reasoning: ['One percent of {{total}} is {{hundreds}}.', '{{part}} divided by {{hundreds}} is {{answer}}.'],
+  answerSummary: { headline: 'A part becomes a percent by comparing it with the whole.', text: '${{answer}}\\%$ were damaged.' },
+  hint: 'How many hundredths of the load is the damaged part?',
+  feedback: 'The damaged count is not already a percent.',
+});
+
+ar('6.5B', 'raise-then-reduction', {
+  difficultyBand: 3, dok: 3, taskType: 'procedural', representation: 'verbal',
+  prompt: 'A {{shop}} raised a $\\${{price}}$ charge by {{p}}%, then took $\\${{cut}}$ off for a trade account. What is the charge now?',
+  generator: {
+    parameters: {
+      shop: SHOPS,
+      p: { type: 'choice', values: [5, 10, 20, 25, 30, 40, 50, 60] },
+      hundreds: { type: 'int', min: 3, max: 12 },
+      cutTens: { type: 'int', min: 5, max: 75 },
+    },
+    derived: {
+      price: 'hundreds*100',
+      rise: 'price*p/100',
+      cut: 'cutTens*10',
+      answer: 'price+price*p/100-cutTens*10',
+      d_forgotFinalStep: 'price+price*p/100',
+      d_operationInverted: 'price-cutTens*10',
+      d_partialTotal: 'price*p/100+cutTens*10',
+    },
+    constraints: ['answer>0'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['{{p}} percent of {{price}} is {{rise}}, giving {{d_forgotFinalStep}}.', 'Taking off {{cut}} leaves {{answer}}.'],
+  answerSummary: { headline: 'The rise goes on the original, then the reduction comes off the result.', text: 'The charge is now $\\${{answer}}$.' },
+  hint: 'Handle the two changes in the order the sentence gives them.',
+  feedback: 'The rise is added to the charge before the reduction comes off.',
+});
+
+ar('6.5B', 'percent-table-missing', {
+  difficultyBand: 3, dok: 3, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'The table records the same order two ways. How many {{item}} are still outstanding?',
+  stimulus: {
+    kind: 'table',
+    title: 'Order status',
+    table: { headers: ['status', 'percent', 'count'], rows: [['filled', '{{p}}%', '{{filled}}'], ['outstanding', '{{q}}%', '?']] },
+  },
+  generator: {
+    parameters: {
+      item: GOODS,
+      p: { type: 'choice', values: [10, 20, 25, 30, 60, 70, 75, 80] },
+      hundreds: { type: 'int', min: 2, max: 18 },
+    },
+    derived: {
+      q: '100-p',
+      total: 'hundreds*100',
+      filled: 'total*p/100',
+      answer: 'total-total*p/100',
+      d_wrongPercentBase: 'filled',
+      d_usedGivenValue: 'q',
+      d_partialTotal: 'total',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_wrongPercentBase}}'), error: 'wrongPercentBase' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['{{filled}} is {{p}} percent, so one percent is {{hundreds}} and the order is {{total}}.', 'The remaining {{q}} percent is {{answer}}.'],
+  answerSummary: { headline: 'The two rows are two views of one order.', text: '${{answer}}$ are outstanding.' },
+  hint: 'The filled row tells you the size of the whole order.',
+  feedback: 'The percent in the second row is not a count.',
+});
+
+// ================================================================ 6.5C
+// Equivalent fractions, decimals and percents of the same whole.
+
+ar('6.5C', 'same-share-different-forms', {
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  rankAnalysisNotApplicable: true,
+  prompt: 'Four {{shop}} records show shares of one order. Which is the largest share?',
+  generator: {
+    parameters: {
+      shop: SHOPS,
+      big: { type: 'int', min: 55, max: 95, step: 5 },
+      mid: { type: 'int', min: 20, max: 45, step: 5 },
+      low: { type: 'int', min: 2, max: 15 },
+    },
+    derived: {
+      bigDec: 'big/100',
+      midDec: 'mid/100',
+      lowDec: 'low/100',
+    },
+    constraints: ['big>mid+10'],
+  },
+  choices: [
+    { label: plain('{{big}}\\%'), correct: true },
+    { label: plain('{{midDec}}'), error: 'convertedWrongWay' },
+    { label: plain('\\frac{{{low}}}{100}'), error: 'wrongPercentBase' },
+    { label: plain('{{lowDec}}'), error: 'unitConversion' },
+  ],
+  reasoning: ['Rewrite each record the same way: {{big}}% is {{bigDec}}, and {{midDec}} is {{mid}}%.', 'The largest share is {{big}}%.'],
+  answerSummary: { headline: 'Shares only compare once every form matches.', text: '${{big}}\\%$ is the largest.' },
+  hint: 'Put all four into one form before comparing.',
+  feedback: 'A record can look larger and still name a smaller share.',
+});
+
+ar('6.5C', 'equal-parts-of-one-load', {
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'verbal',
+  prompt: 'A load of {{total}} {{item}} is split into {{den}} equal parts. How many {{item}} are in {{num}} parts?',
+  generator: {
+    parameters: {
+      item: GOODS,
+      den: { type: 'choice', values: [8, 10, 12, 16, 20] },
+      per: { type: 'int', min: 6, max: 20 },
+      num: { type: 'int', min: 1, max: 7 },
+    },
+    derived: {
+      total: 'den*per',
+      answer: 'num*per',
+      d_partialTotal: 'per',
+      d_operationInverted: 'num*den',
+      d_offByOneStep: 'num*per+per',
+    },
+    constraints: ['num<den'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['Each part holds {{total}} divided by {{den}}, or {{per}}.', '{{num}} parts hold {{answer}}.'],
+  answerSummary: { headline: 'Find one part, then take as many as asked.', text: 'There are ${{answer}}$ {{item}}.' },
+  hint: 'Work out the size of a single part first.',
+  feedback: 'The two numbers count parts, not items.',
+});
+
+ar('6.5C', 'decimal-share-to-count', {
+  difficultyBand: 2, dok: 1, taskType: 'procedural', representation: 'context',
+  prompt: 'A {{crew}} finished {{dec}} of a {{total}}-{{item}} job. How many {{item}} is that?',
+  generator: {
+    parameters: {
+      crew: WORKERS, item: GOODS,
+      p: { type: 'choice', values: [10, 20, 25, 40, 60, 75, 80, 90] },
+      hundreds: { type: 'int', min: 2, max: 18 },
+    },
+    derived: {
+      dec: 'p/100',
+      total: 'hundreds*100',
+      answer: 'total*p/100',
+      d_wrongPercentBase: 'total-total*p/100',
+      d_unitConversion: 'total*p',
+      d_convertedWrongWay: 'round(total*p/1000)',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_wrongPercentBase}}'), error: 'wrongPercentBase' },
+    { label: plain('{{d_unitConversion}}'), error: 'unitConversion' },
+    { label: plain('{{d_convertedWrongWay}}'), error: 'convertedWrongWay' },
+  ],
+  reasoning: ['{{dec}} of the job is {{p}} percent of it.', '{{p}} percent of {{total}} is {{answer}}.'],
+  answerSummary: { headline: 'A decimal share reads as hundredths.', text: 'That is ${{answer}}$ {{item}}.' },
+  hint: 'How many hundredths does the decimal name?',
+  feedback: 'A decimal share makes the total smaller, not larger.',
+});
+
+ar('6.5C', 'which-two-match', {
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'table',
+  rankAnalysisNotApplicable: true,
+  prompt: 'Three clerks recorded the same share of one shipment. Which record does not match the others?',
+  stimulus: {
+    kind: 'table',
+    title: 'Clerk records',
+    table: { headers: ['clerk', 'record'], rows: [['A', '{{p}}%'], ['B', '{{dec}}'], ['C', '\\frac{{{p}}}{{{wrongDen}}}'] ] },
+  },
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 5, max: 95, step: 5 },
+      wrongDen: { type: 'choice', values: [10, 1000] },
+    },
+    derived: {
+      dec: 'p/100',
+      wrongVal: 'p/wrongDen',
+      d_tenth: 'p/10',
+      d_hundredth: 'p/1000',
+    },
+    constraints: ['p!=50'],
+  },
+  choices: [
+    { label: plain('\\frac{{{p}}}{{{wrongDen}}}'), correct: true },
+    { label: plain('{{p}}\\%'), error: 'wrongPercentBase' },
+    { label: plain('{{dec}}'), error: 'convertedWrongWay' },
+    { label: plain('\\frac{{{p}}}{100}'), error: 'unitConversion' },
+  ],
+  reasoning: ['{{p}}% and {{dec}} both name {{p}} hundredths.', 'The third record uses {{wrongDen}} on the bottom, so it names a different share.'],
+  answerSummary: { headline: 'Equivalent records must all name the same share of the whole.', text: 'Clerk C’s record is the odd one out.' },
+  hint: 'Two of the records already agree. Find the one that does not.',
+  feedback: 'A percent counts hundredths, so the matching fraction is over 100.',
+});
+
+ar('6.5C', 'build-equivalent-fraction', {
+  difficultyBand: 2, dok: 2, taskType: 'reverseReasoning', representation: 'symbolic',
+  prompt: 'A {{shop}} records {{num}} of {{den}} {{item}} as sold. Out of 100, that is how many?',
+  generator: {
+    parameters: {
+      shop: SHOPS, item: GOODS,
+      den: { type: 'choice', values: [4, 5, 10, 20, 25, 50] },
+      num: { type: 'int', min: 1, max: 40 },
+    },
+    derived: {
+      factor: '100/den',
+      answer: 'num*100/den',
+      d_forgotFinalStep: 'num',
+      d_operationInverted: 'num+den',
+      d_offByOneStep: 'num*100/den+factor',
+    },
+    constraints: ['num<den', 'answer==round(answer)'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['{{den}} goes into 100 exactly {{factor}} times.', 'Scaling {{num}} the same way gives {{answer}}.'],
+  answerSummary: { headline: 'Both parts of a fraction scale by the same factor.', text: 'It is ${{answer}}$ out of 100.' },
+  hint: 'How many times does the bottom number go into 100?',
+  feedback: 'Both numbers grow by the same factor, not by the same amount.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {

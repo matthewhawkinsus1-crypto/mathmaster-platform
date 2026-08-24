@@ -5599,6 +5599,1440 @@
      "expected": "choice-d"
     }
    ]
+  },
+  {
+   "id": "mm_asvab_6_5B_part_given_whole_and_percent",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.5B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.5B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.5B:part-given-whole-and-percent",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.5B",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{crew}} inspected {{p}}% of the {{total}} {{item}} delivered. How many did they inspect?",
+   "solutionReview": {
+    "headline": "A percent of a total is a share of it.",
+    "reasoning": [
+     "One percent of {{total}} is {{hundreds}}.",
+     "{{p}} of those is {{answer}}."
+    ],
+    "answerSummary": "They inspected ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The question asks for the inspected part, not the rest."
+   ],
+   "supportHints": [
+    "Work out one percent of the delivery first."
+   ],
+   "generator": {
+    "parameters": {
+     "crew": {
+      "type": "choice",
+      "values": [
+       "crew",
+       "shift",
+       "team",
+       "work detail"
+      ]
+     },
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "p": {
+      "type": "choice",
+      "values": [
+       10,
+       20,
+       25,
+       30,
+       60,
+       70,
+       75,
+       80
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "total": "hundreds*100",
+     "answer": "total*p/100",
+     "d_wrongPercentBase": "total-total*p/100",
+     "d_unitConversion": "total*p/10",
+     "d_convertedWrongWay": "total*p/1000"
+    },
+    "constraints": [
+     "answer!=d_wrongPercentBase",
+     "answer!=d_unitConversion",
+     "answer!=d_convertedWrongWay",
+     "d_wrongPercentBase!=d_unitConversion",
+     "d_wrongPercentBase!=d_convertedWrongWay",
+     "d_unitConversion!=d_convertedWrongWay"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_wrongPercentBase}}$",
+     "error": "wrongPercentBase"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_convertedWrongWay}}$",
+     "error": "convertedWrongWay"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_unitConversion}}$",
+     "error": "unitConversion"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_5B_whole_given_part_and_percent",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.5B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.5B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.5B:whole-given-part-and-percent",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.5B",
+   "taskType": "reverseReasoning",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "{{part}} {{item}} failed inspection, which was {{p}}% of the batch. How many were in the batch?",
+   "solutionReview": {
+    "headline": "Come down to one percent, then up to the whole.",
+    "reasoning": [
+     "{{part}} is {{p}} percent of the batch.",
+     "One percent is {{hundreds}}, so a hundred percent is {{answer}}."
+    ],
+    "answerSummary": "The batch held ${{answer}}$ {{item}}."
+   },
+   "attemptFeedback": [
+    "The failures are part of the batch, so the batch is larger."
+   ],
+   "supportHints": [
+    "What would one percent of the batch be?"
+   ],
+   "generator": {
+    "parameters": {
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "p": {
+      "type": "choice",
+      "values": [
+       10,
+       20,
+       25,
+       40,
+       60,
+       75,
+       80,
+       90
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "answer": "hundreds*100",
+     "part": "answer*p/100",
+     "d_wrongPercentBase": "round(part*100/(100-p))",
+     "d_unitConversion": "part*100",
+     "d_partialTotal": "answer-part"
+    },
+    "constraints": [
+     "answer!=d_wrongPercentBase",
+     "answer!=d_unitConversion",
+     "answer!=d_partialTotal",
+     "d_wrongPercentBase!=d_unitConversion",
+     "d_wrongPercentBase!=d_partialTotal",
+     "d_unitConversion!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_wrongPercentBase}}$",
+     "error": "wrongPercentBase"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_unitConversion}}$",
+     "error": "unitConversion"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_5B_percent_given_part_and_whole",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.5B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.5B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.5B:percent-given-part-and-whole",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.5B",
+   "taskType": "interpretation",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Of {{total}} {{item}} on a {{vehicle}}, {{part}} were damaged. What percent were damaged?",
+   "solutionReview": {
+    "headline": "A part becomes a percent by comparing it with the whole.",
+    "reasoning": [
+     "One percent of {{total}} is {{hundreds}}.",
+     "{{part}} divided by {{hundreds}} is {{answer}}."
+    ],
+    "answerSummary": "${{answer}}\\%$ were damaged."
+   },
+   "attemptFeedback": [
+    "The damaged count is not already a percent."
+   ],
+   "supportHints": [
+    "How many hundredths of the load is the damaged part?"
+   ],
+   "generator": {
+    "parameters": {
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "vehicle": {
+      "type": "choice",
+      "values": [
+       "delivery van",
+       "service truck",
+       "shuttle bus",
+       "work van",
+       "pickup"
+      ]
+     },
+     "p": {
+      "type": "choice",
+      "values": [
+       5,
+       10,
+       20,
+       25,
+       60,
+       75,
+       80,
+       90
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 2,
+      "max": 16
+     }
+    },
+    "derived": {
+     "total": "hundreds*100",
+     "part": "total*p/100",
+     "answer": "p",
+     "d_wrongPercentBase": "100-p",
+     "d_usedGivenValue": "hundreds",
+     "d_unitConversion": "p*10"
+    },
+    "constraints": [
+     "answer!=d_wrongPercentBase",
+     "answer!=d_usedGivenValue",
+     "answer!=d_unitConversion",
+     "d_wrongPercentBase!=d_usedGivenValue",
+     "d_wrongPercentBase!=d_unitConversion",
+     "d_usedGivenValue!=d_unitConversion"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_wrongPercentBase}}\\%$",
+     "error": "wrongPercentBase"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}\\%$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_unitConversion}}\\%$",
+     "error": "unitConversion"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}\\%$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_5B_raise_then_reduction",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.5B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.5B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.5B:raise-then-reduction",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.5B",
+   "taskType": "procedural",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{shop}} raised a $\\${{price}}$ charge by {{p}}%, then took $\\${{cut}}$ off for a trade account. What is the charge now?",
+   "solutionReview": {
+    "headline": "The rise goes on the original, then the reduction comes off the result.",
+    "reasoning": [
+     "{{p}} percent of {{price}} is {{rise}}, giving {{d_forgotFinalStep}}.",
+     "Taking off {{cut}} leaves {{answer}}."
+    ],
+    "answerSummary": "The charge is now $\\${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The rise is added to the charge before the reduction comes off."
+   ],
+   "supportHints": [
+    "Handle the two changes in the order the sentence gives them."
+   ],
+   "generator": {
+    "parameters": {
+     "shop": {
+      "type": "choice",
+      "values": [
+       "hardware store",
+       "supply depot",
+       "warehouse outlet",
+       "parts counter"
+      ]
+     },
+     "p": {
+      "type": "choice",
+      "values": [
+       5,
+       10,
+       20,
+       25,
+       30,
+       40,
+       50,
+       60
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     },
+     "cutTens": {
+      "type": "int",
+      "min": 5,
+      "max": 75
+     }
+    },
+    "derived": {
+     "price": "hundreds*100",
+     "rise": "price*p/100",
+     "cut": "cutTens*10",
+     "answer": "price+price*p/100-cutTens*10",
+     "d_forgotFinalStep": "price+price*p/100",
+     "d_operationInverted": "price-cutTens*10",
+     "d_partialTotal": "price*p/100+cutTens*10"
+    },
+    "constraints": [
+     "answer>0",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_partialTotal",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_operationInverted!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_5B_percent_table_missing",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.5B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.5B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.5B:percent-table-missing",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.5B",
+   "taskType": "representationTranslation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The table records the same order two ways. How many {{item}} are still outstanding?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Order status",
+    "table": {
+     "headers": [
+      "status",
+      "percent",
+      "count"
+     ],
+     "rows": [
+      [
+       "filled",
+       "{{p}}%",
+       "{{filled}}"
+      ],
+      [
+       "outstanding",
+       "{{q}}%",
+       "?"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "The two rows are two views of one order.",
+    "reasoning": [
+     "{{filled}} is {{p}} percent, so one percent is {{hundreds}} and the order is {{total}}.",
+     "The remaining {{q}} percent is {{answer}}."
+    ],
+    "answerSummary": "${{answer}}$ are outstanding."
+   },
+   "attemptFeedback": [
+    "The percent in the second row is not a count."
+   ],
+   "supportHints": [
+    "The filled row tells you the size of the whole order."
+   ],
+   "generator": {
+    "parameters": {
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "p": {
+      "type": "choice",
+      "values": [
+       10,
+       20,
+       25,
+       30,
+       60,
+       70,
+       75,
+       80
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 2,
+      "max": 18
+     }
+    },
+    "derived": {
+     "q": "100-p",
+     "total": "hundreds*100",
+     "filled": "total*p/100",
+     "answer": "total-total*p/100",
+     "d_wrongPercentBase": "filled",
+     "d_usedGivenValue": "q",
+     "d_partialTotal": "total"
+    },
+    "constraints": [
+     "answer!=d_wrongPercentBase",
+     "answer!=d_usedGivenValue",
+     "answer!=d_partialTotal",
+     "d_wrongPercentBase!=d_usedGivenValue",
+     "d_wrongPercentBase!=d_partialTotal",
+     "d_usedGivenValue!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_wrongPercentBase}}$",
+     "error": "wrongPercentBase"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_5C_same_share_different_forms",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.5C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.5C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.5C:same-share-different-forms",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.5C",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Four {{shop}} records show shares of one order. Which is the largest share?",
+   "rankAnalysisNotApplicable": true,
+   "solutionReview": {
+    "headline": "Shares only compare once every form matches.",
+    "reasoning": [
+     "Rewrite each record the same way: {{big}}% is {{bigDec}}, and {{midDec}} is {{mid}}%.",
+     "The largest share is {{big}}%."
+    ],
+    "answerSummary": "${{big}}\\%$ is the largest."
+   },
+   "attemptFeedback": [
+    "A record can look larger and still name a smaller share."
+   ],
+   "supportHints": [
+    "Put all four into one form before comparing."
+   ],
+   "generator": {
+    "parameters": {
+     "shop": {
+      "type": "choice",
+      "values": [
+       "hardware store",
+       "supply depot",
+       "warehouse outlet",
+       "parts counter"
+      ]
+     },
+     "big": {
+      "type": "int",
+      "min": 55,
+      "max": 95,
+      "step": 5
+     },
+     "mid": {
+      "type": "int",
+      "min": 20,
+      "max": 45,
+      "step": 5
+     },
+     "low": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     }
+    },
+    "derived": {
+     "bigDec": "big/100",
+     "midDec": "mid/100",
+     "lowDec": "low/100"
+    },
+    "constraints": [
+     "big>mid+10",
+     "big!=midDec",
+     "big!=low",
+     "big!=lowDec",
+     "midDec!=low",
+     "midDec!=lowDec",
+     "low!=lowDec"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{midDec}}$",
+     "error": "convertedWrongWay"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{big}}\\%$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{lowDec}}$",
+     "error": "unitConversion"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\frac{{{low}}}{100}$",
+     "error": "wrongPercentBase"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_5C_equal_parts_of_one_load",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.5C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.5C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.5C:equal-parts-of-one-load",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.5C",
+   "taskType": "representationTranslation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A load of {{total}} {{item}} is split into {{den}} equal parts. How many {{item}} are in {{num}} parts?",
+   "solutionReview": {
+    "headline": "Find one part, then take as many as asked.",
+    "reasoning": [
+     "Each part holds {{total}} divided by {{den}}, or {{per}}.",
+     "{{num}} parts hold {{answer}}."
+    ],
+    "answerSummary": "There are ${{answer}}$ {{item}}."
+   },
+   "attemptFeedback": [
+    "The two numbers count parts, not items."
+   ],
+   "supportHints": [
+    "Work out the size of a single part first."
+   ],
+   "generator": {
+    "parameters": {
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "den": {
+      "type": "choice",
+      "values": [
+       8,
+       10,
+       12,
+       16,
+       20
+      ]
+     },
+     "per": {
+      "type": "int",
+      "min": 6,
+      "max": 20
+     },
+     "num": {
+      "type": "int",
+      "min": 1,
+      "max": 7
+     }
+    },
+    "derived": {
+     "total": "den*per",
+     "answer": "num*per",
+     "d_partialTotal": "per",
+     "d_operationInverted": "num*den",
+     "d_offByOneStep": "num*per+per"
+    },
+    "constraints": [
+     "num<den",
+     "answer!=d_partialTotal",
+     "answer!=d_operationInverted",
+     "answer!=d_offByOneStep",
+     "d_partialTotal!=d_operationInverted",
+     "d_partialTotal!=d_offByOneStep",
+     "d_operationInverted!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_5C_decimal_share_to_count",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.5C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.5C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.5C:decimal-share-to-count",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.5C",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{crew}} finished {{dec}} of a {{total}}-{{item}} job. How many {{item}} is that?",
+   "solutionReview": {
+    "headline": "A decimal share reads as hundredths.",
+    "reasoning": [
+     "{{dec}} of the job is {{p}} percent of it.",
+     "{{p}} percent of {{total}} is {{answer}}."
+    ],
+    "answerSummary": "That is ${{answer}}$ {{item}}."
+   },
+   "attemptFeedback": [
+    "A decimal share makes the total smaller, not larger."
+   ],
+   "supportHints": [
+    "How many hundredths does the decimal name?"
+   ],
+   "generator": {
+    "parameters": {
+     "crew": {
+      "type": "choice",
+      "values": [
+       "crew",
+       "shift",
+       "team",
+       "work detail"
+      ]
+     },
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "p": {
+      "type": "choice",
+      "values": [
+       10,
+       20,
+       25,
+       40,
+       60,
+       75,
+       80,
+       90
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 2,
+      "max": 18
+     }
+    },
+    "derived": {
+     "dec": "p/100",
+     "total": "hundreds*100",
+     "answer": "total*p/100",
+     "d_wrongPercentBase": "total-total*p/100",
+     "d_unitConversion": "total*p",
+     "d_convertedWrongWay": "round(total*p/1000)"
+    },
+    "constraints": [
+     "answer!=d_wrongPercentBase",
+     "answer!=d_unitConversion",
+     "answer!=d_convertedWrongWay",
+     "d_wrongPercentBase!=d_unitConversion",
+     "d_wrongPercentBase!=d_convertedWrongWay",
+     "d_unitConversion!=d_convertedWrongWay"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_unitConversion}}$",
+     "error": "unitConversion"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_convertedWrongWay}}$",
+     "error": "convertedWrongWay"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_wrongPercentBase}}$",
+     "error": "wrongPercentBase"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_5C_which_two_match",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.5C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.5C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.5C:which-two-match",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.5C",
+   "taskType": "errorAnalysis",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Three clerks recorded the same share of one shipment. Which record does not match the others?",
+   "rankAnalysisNotApplicable": true,
+   "stimulus": {
+    "kind": "table",
+    "title": "Clerk records",
+    "table": {
+     "headers": [
+      "clerk",
+      "record"
+     ],
+     "rows": [
+      [
+       "A",
+       "{{p}}%"
+      ],
+      [
+       "B",
+       "{{dec}}"
+      ],
+      [
+       "C",
+       "\\frac{{{p}}}{{{wrongDen}}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Equivalent records must all name the same share of the whole.",
+    "reasoning": [
+     "{{p}}% and {{dec}} both name {{p}} hundredths.",
+     "The third record uses {{wrongDen}} on the bottom, so it names a different share."
+    ],
+    "answerSummary": "Clerk C’s record is the odd one out."
+   },
+   "attemptFeedback": [
+    "A percent counts hundredths, so the matching fraction is over 100."
+   ],
+   "supportHints": [
+    "Two of the records already agree. Find the one that does not."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 5,
+      "max": 95,
+      "step": 5
+     },
+     "wrongDen": {
+      "type": "choice",
+      "values": [
+       10,
+       1000
+      ]
+     }
+    },
+    "derived": {
+     "dec": "p/100",
+     "wrongVal": "p/wrongDen",
+     "d_tenth": "p/10",
+     "d_hundredth": "p/1000"
+    },
+    "constraints": [
+     "p!=50",
+     "p!=dec"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{dec}}$",
+     "error": "convertedWrongWay"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\frac{{{p}}}{100}$",
+     "error": "unitConversion"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{p}}\\%$",
+     "error": "wrongPercentBase"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\frac{{{p}}}{{{wrongDen}}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_5C_build_equivalent_fraction",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.5C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.5C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.5C:build-equivalent-fraction",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.5C",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{shop}} records {{num}} of {{den}} {{item}} as sold. Out of 100, that is how many?",
+   "solutionReview": {
+    "headline": "Both parts of a fraction scale by the same factor.",
+    "reasoning": [
+     "{{den}} goes into 100 exactly {{factor}} times.",
+     "Scaling {{num}} the same way gives {{answer}}."
+    ],
+    "answerSummary": "It is ${{answer}}$ out of 100."
+   },
+   "attemptFeedback": [
+    "Both numbers grow by the same factor, not by the same amount."
+   ],
+   "supportHints": [
+    "How many times does the bottom number go into 100?"
+   ],
+   "generator": {
+    "parameters": {
+     "shop": {
+      "type": "choice",
+      "values": [
+       "hardware store",
+       "supply depot",
+       "warehouse outlet",
+       "parts counter"
+      ]
+     },
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "den": {
+      "type": "choice",
+      "values": [
+       4,
+       5,
+       10,
+       20,
+       25,
+       50
+      ]
+     },
+     "num": {
+      "type": "int",
+      "min": 1,
+      "max": 40
+     }
+    },
+    "derived": {
+     "factor": "100/den",
+     "answer": "num*100/den",
+     "d_forgotFinalStep": "num",
+     "d_operationInverted": "num+den",
+     "d_offByOneStep": "num*100/den+factor"
+    },
+    "constraints": [
+     "num<den",
+     "answer==round(answer)",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_offByOneStep",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_offByOneStep",
+     "d_operationInverted!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
   }
  ]
 }
