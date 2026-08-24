@@ -2,21 +2,33 @@
 // Development probe: where does the answer key land among the four choices,
 // family by family? A family whose key sits at one rank every time is
 // answerable by magnitude alone.
+//
+// This deliberately calls the same analyzer the audit and the tests use rather
+// than reimplementing the label parsing. An earlier version had its own copy,
+// which read `\frac{1}{5}` as the integer 15 and cheerfully reported a family
+// as clean that the real gate then rejected.
 import { readFileSync } from 'node:fs';
 import { samplePathInstances } from '../functions/shared/pathQuestionGeneration.mjs';
+import { EXTREME_TOLERANCE, RANK_TOLERANCE, analyzeAnswerKeyBias } from '../functions/shared/asvabFidelity.mjs';
+
 const file = process.argv[2] || 'drafts/asvab-ar.json';
-const docs = JSON.parse(readFileSync(file, 'utf8')).documents || [];
-const num = (s) => { const b = String(s).replace(/\\\$/g, '').replace(/\$|\\[a-zA-Z]+|[{},]/g, '').trim(); return /^-?\d+(\.\d+)?$/.test(b) ? Number(b) : null; };
-for (const q of docs) {
-  const rank = [0, 0, 0, 0]; let bad = 0;
-  for (const s of samplePathInstances(q, 60)) {
-    const inst = s.question; if (!inst) { bad += 1; continue; }
-    const ch = inst.choices || []; const keyId = (inst.responseFields || [])[0]?.expected;
-    const vals = ch.map((c) => num(c.label)); if (vals.some((v) => v === null)) continue;
-    const i = ch.findIndex((c) => c.id === keyId); if (i < 0) continue;
-    rank[[...vals].sort((a, b) => a - b).indexOf(vals[i])] += 1;
-  }
-  const total = rank.reduce((a, b) => a + b, 0) || 1;
-  const worst = Math.max(...rank) / total;
-  console.log(`${worst >= 0.5 ? 'BIAS' : '  ok'}  ${String(q.id).padEnd(46)} ranks=[${rank.join(',')}] worst=${(worst * 100).toFixed(0)}%${bad ? ` ungenerated=${bad}` : ''}`);
+const draws = Number(process.argv[3]) || 60;
+const documents = JSON.parse(readFileSync(file, 'utf8')).documents || [];
+
+console.log(`rank tolerance ${RANK_TOLERANCE}, extreme tolerance ${EXTREME_TOLERANCE}, ${draws} draws per family\n`);
+let flagged = 0;
+for (const question of documents) {
+  const samples = samplePathInstances(question, draws);
+  const instances = samples.map((entry) => entry.question).filter(Boolean);
+  const ungenerated = samples.length - instances.length;
+  const bias = analyzeAnswerKeyBias(instances);
+  const total = bias.rank.reduce((sum, count) => sum + count, 0) || 1;
+  const worst = Math.max(...bias.rank) / total;
+  const bad = bias.issues.length > 0;
+  if (bad) flagged += 1;
+  const note = bias.numeric ? `ranks=[${bias.rank.join(',')}] worst=${(worst * 100).toFixed(0)}%` : 'non-numeric choices, rank analysis not applicable';
+  console.log(`${bad ? 'BIAS' : '  ok'}  ${String(question.id).padEnd(48)} ${note}${ungenerated ? ` ungenerated=${ungenerated}` : ''}`);
+  bias.issues.forEach((issue) => console.log(`        ${issue.code}: ${issue.detail}`));
 }
+console.log(`\n${flagged} of ${documents.length} families flagged.`);
+process.exit(flagged ? 1 : 0);

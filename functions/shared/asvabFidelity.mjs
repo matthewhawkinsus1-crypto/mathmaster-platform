@@ -76,15 +76,24 @@ export const isDistractorErrorCode = (value) => ERROR_CODES.has(String(value || 
 const text = (value) => String(value ?? '');
 
 const numericLabel = (label) => {
-  const bare = text(label)
+  const raw = text(label)
     // `\$` is an escaped dollar sign inside math mode — a money label reads
     // `$\$12$`. Strip the escape before the delimiters, or every money item
     // silently drops out of the bias check instead of failing it.
     .replace(/\\\$/g, '')
     .replace(/\$/g, '')
-    .replace(/\\[a-zA-Z]+/g, '')
-    .replace(/[{},]/g, '')
     .trim();
+
+  // A fraction is a number and belongs in the bias analysis. Stripping the
+  // markup instead would read `\frac{1}{5}` as the integer 15, which is worse
+  // than skipping it: the analysis would run on invented values.
+  const fraction = /^\\d?frac\s*\{\s*(-?\d+)\s*\}\s*\{\s*(-?\d+)\s*\}$/.exec(raw);
+  if (fraction) {
+    const denominator = Number(fraction[2]);
+    return denominator === 0 ? null : Number(fraction[1]) / denominator;
+  }
+
+  const bare = raw.replace(/,/g, '');
   if (!/^-?\d+(?:\.\d+)?$/.test(bare)) return null;
   const value = Number(bare);
   return Number.isFinite(value) ? value : null;
@@ -439,8 +448,54 @@ export const analyzeFamilySet = (code, questions, { overlapLimit = 0.5 } = {}) =
   return { code, families: questions.length, distinctTasks: fingerprints.size, issues };
 };
 
+// --- 7. bank-wide variety -------------------------------------------------------
+
+/**
+ * Cloning that per-standard analysis cannot see.
+ *
+ * `analyzeFamilySet` compares the five families inside one standard. A bank
+ * built standard by standard can still pass that check everywhere and read as
+ * one voice end to end, because the same sentence frame gets reused across
+ * hundreds of standards. This looks at the whole bank at once.
+ */
+export const analyzeBankVariety = (questions, { frameShareLimit = 0.06, contextShareLimit = 0.12 } = {}) => {
+  const frames = new Map();
+  const openers = new Map();
+  const issues = [];
+  for (const question of questions) {
+    const frame = promptSkeleton(question.prompt);
+    if (frame) frames.set(frame, (frames.get(frame) || 0) + 1);
+    const opener = text(question.prompt).trim().split(/\s+/).slice(0, 3).join(' ').toLowerCase();
+    if (opener) openers.set(opener, (openers.get(opener) || 0) + 1);
+  }
+  const total = questions.length || 1;
+  const rank = (map) => [...map.entries()].sort((a, b) => b[1] - a[1]);
+
+  for (const [frame, count] of rank(frames)) {
+    // A frame used once is not reuse, and a handful of prompts cannot support a
+    // percentage claim at all.
+    if (count >= 3 && total >= 25 && count / total > frameShareLimit) {
+      issues.push({ code: 'bankFrameReuse', detail: `${count} of ${total} prompts (${(100 * count / total).toFixed(1)}%) share one sentence frame`, frame });
+    }
+  }
+  for (const [opener, count] of rank(openers)) {
+    if (count >= 3 && total >= 25 && count / total > contextShareLimit) {
+      issues.push({ code: 'bankOpenerReuse', detail: `${count} of ${total} prompts (${(100 * count / total).toFixed(1)}%) open with "${opener}"` });
+    }
+  }
+  return {
+    total,
+    distinctFrames: frames.size,
+    distinctOpeners: openers.size,
+    topFrames: rank(frames).slice(0, 8),
+    topOpeners: rank(openers).slice(0, 8),
+    issues,
+  };
+};
+
 export default {
   ASVAB_DOMAINS,
+  analyzeBankVariety,
   RANK_TOLERANCE,
   EXTREME_TOLERANCE,
   ASVAB_DOMAIN_IDS,

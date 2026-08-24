@@ -7,7 +7,7 @@
 import { readFileSync } from 'node:fs';
 import { samplePathInstances } from '../functions/shared/pathQuestionGeneration.mjs';
 import {
-  ASVAB_DOMAINS, analyzeAnswerKeyBias, analyzeDistractors, analyzeFamilySet, analyzeRegister,
+  ASVAB_DOMAINS, analyzeAnswerKeyBias, analyzeBankVariety, analyzeDistractors, analyzeFamilySet, analyzeRegister,
 } from '../functions/shared/asvabFidelity.mjs';
 
 const args = process.argv.slice(2);
@@ -71,9 +71,15 @@ for (const analysis of clonedStandards.slice(0, 12)) {
   analysis.issues.filter((i) => i.code === 'taskClone').forEach((i) => console.log(`      ${i.detail}`));
 }
 
+const variety = analyzeBankVariety(documents);
+variety.issues.forEach((issue) => note(issue.code));
+console.log(`\nbank voice: ${variety.distinctFrames} distinct sentence frames, ${variety.distinctOpeners} distinct openers across ${variety.total} prompts`);
+variety.topFrames.slice(0, 5).forEach(([frame, count]) => console.log(`  ${String(count).padStart(4)}x  ${frame.slice(0, 90)}`));
+variety.issues.forEach((issue) => console.log(`  ! ${issue.detail}`));
+
 if (showVerdicts) {
   console.log('\nper-family verdicts:');
   verdicts.forEach((v) => console.log(`  ${v.verdict.padEnd(8)} ${v.code.padEnd(8)} ${v.id}  ${v.issues.join(',')}`));
 }
 
-process.exit(tally.replace ? 1 : 0);
+process.exit(tally.replace || variety.issues.length ? 1 : 0);

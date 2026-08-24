@@ -214,6 +214,164 @@ ar('6.4B', 'two-rate-shift-total', {
   feedback: 'Pair each hourly amount with the hours it actually ran.',
 });
 
+// ================================================================ 6.4C
+// Ratios as multiplicative comparisons of two quantities of the same kind.
+
+ar('6.4C', 'times-as-many', {
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A {{shop}} has {{small}} {{item}} on the floor and {{big}} in the back. How many times as many are in the back?',
+  generator: {
+    parameters: {
+      shop: SHOPS, item: GOODS,
+      small: { type: 'int', min: 2, max: 9 },
+      k: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      big: 'small*k',
+      answer: 'k',
+      d_operationInverted: 'big-small',
+      d_usedGivenValue: 'small',
+      d_offByOneStep: 'k-1',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['{{big}} divided by {{small}} is {{answer}}.', 'Comparing two counts of the same thing is a division, not a subtraction.'],
+  answerSummary: { headline: 'How many times as many is a division.', text: 'There are ${{answer}}$ times as many in the back.' },
+  hint: 'Ask how many floor-sized groups fit into the back stock.',
+  feedback: 'How many times as many is not the same as how many more.',
+});
+
+ar('6.4C', 'ratio-in-lowest-terms', {
+  difficultyBand: 2, dok: 1, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'A batch has {{redCount}} {{first}} and {{blueCount}} {{second}}. In lowest terms, what is the ratio of {{first}} to {{second}}?',
+  generator: {
+    parameters: {
+      first: contextParam(['bolts', 'washers', 'clamps', 'rivets']),
+      second: contextParam(['nuts', 'screws', 'pins', 'anchors']),
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 9 },
+      scale: { type: 'int', min: 2, max: 8 },
+    },
+    derived: {
+      redCount: 'a*scale',
+      blueCount: 'b*scale',
+      sumA: 'a+b',
+    },
+    constraints: ['gcd(a,b)==1', 'a!=b'],
+  },
+  choices: [
+    { label: plain('{{a}}:{{b}}'), correct: true },
+    { label: plain('{{b}}:{{a}}'), error: 'ratioReversed' },
+    { label: plain('{{redCount}}:{{blueCount}}'), error: 'forgotFinalStep' },
+    { label: plain('{{a}}:{{sumA}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['{{redCount}} and {{blueCount}} share a factor of {{scale}}.', 'Dividing both by {{scale}} leaves {{a}} to {{b}}.'],
+  answerSummary: { headline: 'Both counts divide by their common factor.', text: 'The ratio is ${{a}}:{{b}}$.' },
+  hint: 'Look for a number that divides both counts.',
+  feedback: 'The order of the two numbers follows the order named in the question.',
+});
+
+ar('6.4C', 'other-count-from-ratio', {
+  difficultyBand: 3, dok: 2, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'In a {{crew}} the ratio of {{first}} to {{second}} is {{a}} to {{b}}. There are {{firstCount}} {{first}}. How many {{second}} are there?',
+  generator: {
+    parameters: {
+      crew: WORKERS,
+      first: contextParam(['loaders', 'drivers', 'welders', 'inspectors']),
+      second: contextParam(['helpers', 'packers', 'fitters', 'checkers']),
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 9 },
+      scale: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      firstCount: 'a*scale',
+      answer: 'b*scale',
+      d_ratioReversed: 'round(a*a*scale/b)',
+      d_operationInverted: 'a*b',
+      d_offByOneStep: 'b*(scale-1)',
+    },
+    constraints: ['a!=b', 'd_offByOneStep>0'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['{{firstCount}} is {{scale}} groups of {{a}}.', 'The same {{scale}} groups of {{b}} gives {{answer}}.'],
+  answerSummary: { headline: 'Both parts of a ratio scale by the same factor.', text: 'There are ${{answer}}$ {{second}}.' },
+  hint: 'Work out how many times the ratio has been scaled up.',
+  feedback: 'Both sides of the ratio grow by the same factor, not by the same amount.',
+});
+
+ar('6.4C', 'part-to-whole-fraction', {
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'A shipment holds {{first}} and {{second}} in a ratio of {{a}} to {{b}}. What fraction of the shipment is {{first}}?',
+  generator: {
+    parameters: {
+      first: contextParam(['cartons', 'crates', 'drums', 'pallets']),
+      second: contextParam(['sacks', 'bins', 'barrels', 'totes']),
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { whole: 'a+b' },
+    constraints: ['gcd(a,b)==1', 'a!=b'],
+  },
+  choices: [
+    { label: plain('\\frac{{{a}}}{{{whole}}}'), correct: true },
+    { label: plain('\\frac{{{a}}}{{{b}}}'), error: 'operationInverted' },
+    { label: plain('\\frac{{{b}}}{{{whole}}}'), error: 'ratioReversed' },
+    { label: plain('\\frac{1}{{{whole}}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The shipment is {{a}}+{{b}} equal parts, or {{whole}} in all.', '{{first}} account for {{a}} of those {{whole}} parts.'],
+  answerSummary: { headline: 'A part-to-part ratio becomes a part-to-whole fraction by adding the parts.', text: '{{first}} are $\\frac{{{a}}}{{{whole}}}$ of the shipment.' },
+  hint: 'Count how many equal parts the whole shipment contains.',
+  feedback: 'The bottom of the fraction is the whole, not the other part.',
+});
+
+ar('6.4C', 'which-count-keeps-ratio', {
+  difficultyBand: 3, dok: 3, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'The mix below must stay at a ratio of {{a}} to {{b}}. How many {{second}} go with {{firstCount}} {{first}}?',
+  stimulus: {
+    kind: 'table',
+    title: 'Mix record',
+    table: { headers: ['{{first}}', '{{second}}'], rows: [['{{a}}', '{{b}}'], ['{{firstCount}}', '?']] },
+  },
+  generator: {
+    parameters: {
+      first: contextParam(['parts sand', 'parts base', 'parts resin', 'units concentrate']),
+      second: contextParam(['parts cement', 'parts filler', 'parts hardener', 'units water']),
+      a: { type: 'int', min: 2, max: 7 },
+      b: { type: 'int', min: 2, max: 7 },
+      scale: { type: 'int', min: 3, max: 9 },
+    },
+    derived: {
+      firstCount: 'a*scale',
+      answer: 'b*scale',
+      d_operationInverted: 'a*b',
+      d_ratioReversed: 'round(a*a*scale/b)',
+      d_offByOneStep: 'b+a*scale-a',
+    },
+    constraints: ['a!=b'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['The first row was multiplied by {{scale}} to reach {{firstCount}}.', '{{b}} times {{scale}} is {{answer}}.'],
+  answerSummary: { headline: 'An equivalent ratio multiplies both entries by the same number.', text: 'It takes ${{answer}}$ {{second}}.' },
+  hint: 'Compare the two rows in the first column.',
+  feedback: 'Adding the same amount to both entries changes the ratio; multiplying keeps it.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {

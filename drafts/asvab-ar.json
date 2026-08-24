@@ -744,6 +744,716 @@
      "expected": "choice-c"
     }
    ]
+  },
+  {
+   "id": "mm_asvab_6_4C_times_as_many",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.4C:times-as-many",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4C",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{shop}} has {{small}} {{item}} on the floor and {{big}} in the back. How many times as many are in the back?",
+   "solutionReview": {
+    "headline": "How many times as many is a division.",
+    "reasoning": [
+     "{{big}} divided by {{small}} is {{answer}}.",
+     "Comparing two counts of the same thing is a division, not a subtraction."
+    ],
+    "answerSummary": "There are ${{answer}}$ times as many in the back."
+   },
+   "attemptFeedback": [
+    "How many times as many is not the same as how many more."
+   ],
+   "supportHints": [
+    "Ask how many floor-sized groups fit into the back stock."
+   ],
+   "generator": {
+    "parameters": {
+     "shop": {
+      "type": "choice",
+      "values": [
+       "hardware store",
+       "supply depot",
+       "warehouse outlet",
+       "parts counter"
+      ]
+     },
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "small": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "big": "small*k",
+     "answer": "k",
+     "d_operationInverted": "big-small",
+     "d_usedGivenValue": "small",
+     "d_offByOneStep": "k-1"
+    },
+    "constraints": [
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "answer!=d_offByOneStep",
+     "d_operationInverted!=d_usedGivenValue",
+     "d_operationInverted!=d_offByOneStep",
+     "d_usedGivenValue!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_4C_ratio_in_lowest_terms",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.4C:ratio-in-lowest-terms",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4C",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A batch has {{redCount}} {{first}} and {{blueCount}} {{second}}. In lowest terms, what is the ratio of {{first}} to {{second}}?",
+   "solutionReview": {
+    "headline": "Both counts divide by their common factor.",
+    "reasoning": [
+     "{{redCount}} and {{blueCount}} share a factor of {{scale}}.",
+     "Dividing both by {{scale}} leaves {{a}} to {{b}}."
+    ],
+    "answerSummary": "The ratio is ${{a}}:{{b}}$."
+   },
+   "attemptFeedback": [
+    "The order of the two numbers follows the order named in the question."
+   ],
+   "supportHints": [
+    "Look for a number that divides both counts."
+   ],
+   "generator": {
+    "parameters": {
+     "first": {
+      "type": "choice",
+      "values": [
+       "bolts",
+       "washers",
+       "clamps",
+       "rivets"
+      ]
+     },
+     "second": {
+      "type": "choice",
+      "values": [
+       "nuts",
+       "screws",
+       "pins",
+       "anchors"
+      ]
+     },
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "scale": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     }
+    },
+    "derived": {
+     "redCount": "a*scale",
+     "blueCount": "b*scale",
+     "sumA": "a+b"
+    },
+    "constraints": [
+     "gcd(a,b)==1",
+     "a!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{a}}:{{b}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{a}}:{{sumA}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{redCount}}:{{blueCount}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{b}}:{{a}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_4C_other_count_from_ratio",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.4C:other-count-from-ratio",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4C",
+   "taskType": "reverseReasoning",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "In a {{crew}} the ratio of {{first}} to {{second}} is {{a}} to {{b}}. There are {{firstCount}} {{first}}. How many {{second}} are there?",
+   "solutionReview": {
+    "headline": "Both parts of a ratio scale by the same factor.",
+    "reasoning": [
+     "{{firstCount}} is {{scale}} groups of {{a}}.",
+     "The same {{scale}} groups of {{b}} gives {{answer}}."
+    ],
+    "answerSummary": "There are ${{answer}}$ {{second}}."
+   },
+   "attemptFeedback": [
+    "Both sides of the ratio grow by the same factor, not by the same amount."
+   ],
+   "supportHints": [
+    "Work out how many times the ratio has been scaled up."
+   ],
+   "generator": {
+    "parameters": {
+     "crew": {
+      "type": "choice",
+      "values": [
+       "crew",
+       "shift",
+       "team",
+       "work detail"
+      ]
+     },
+     "first": {
+      "type": "choice",
+      "values": [
+       "loaders",
+       "drivers",
+       "welders",
+       "inspectors"
+      ]
+     },
+     "second": {
+      "type": "choice",
+      "values": [
+       "helpers",
+       "packers",
+       "fitters",
+       "checkers"
+      ]
+     },
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "scale": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "firstCount": "a*scale",
+     "answer": "b*scale",
+     "d_ratioReversed": "round(a*a*scale/b)",
+     "d_operationInverted": "a*b",
+     "d_offByOneStep": "b*(scale-1)"
+    },
+    "constraints": [
+     "a!=b",
+     "d_offByOneStep>0",
+     "answer!=d_ratioReversed",
+     "answer!=d_operationInverted",
+     "answer!=d_offByOneStep",
+     "d_ratioReversed!=d_operationInverted",
+     "d_ratioReversed!=d_offByOneStep",
+     "d_operationInverted!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_4C_part_to_whole_fraction",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.4C:part-to-whole-fraction",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4C",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A shipment holds {{first}} and {{second}} in a ratio of {{a}} to {{b}}. What fraction of the shipment is {{first}}?",
+   "solutionReview": {
+    "headline": "A part-to-part ratio becomes a part-to-whole fraction by adding the parts.",
+    "reasoning": [
+     "The shipment is {{a}}+{{b}} equal parts, or {{whole}} in all.",
+     "{{first}} account for {{a}} of those {{whole}} parts."
+    ],
+    "answerSummary": "{{first}} are $\\frac{{{a}}}{{{whole}}}$ of the shipment."
+   },
+   "attemptFeedback": [
+    "The bottom of the fraction is the whole, not the other part."
+   ],
+   "supportHints": [
+    "Count how many equal parts the whole shipment contains."
+   ],
+   "generator": {
+    "parameters": {
+     "first": {
+      "type": "choice",
+      "values": [
+       "cartons",
+       "crates",
+       "drums",
+       "pallets"
+      ]
+     },
+     "second": {
+      "type": "choice",
+      "values": [
+       "sacks",
+       "bins",
+       "barrels",
+       "totes"
+      ]
+     },
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "whole": "a+b"
+    },
+    "constraints": [
+     "gcd(a,b)==1",
+     "a!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\frac{{{b}}}{{{whole}}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\frac{1}{{{whole}}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\frac{{{a}}}{{{whole}}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\frac{{{a}}}{{{b}}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_4C_which_count_keeps_ratio",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.4C:which-count-keeps-ratio",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4C",
+   "taskType": "representationTranslation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The mix below must stay at a ratio of {{a}} to {{b}}. How many {{second}} go with {{firstCount}} {{first}}?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Mix record",
+    "table": {
+     "headers": [
+      "{{first}}",
+      "{{second}}"
+     ],
+     "rows": [
+      [
+       "{{a}}",
+       "{{b}}"
+      ],
+      [
+       "{{firstCount}}",
+       "?"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "An equivalent ratio multiplies both entries by the same number.",
+    "reasoning": [
+     "The first row was multiplied by {{scale}} to reach {{firstCount}}.",
+     "{{b}} times {{scale}} is {{answer}}."
+    ],
+    "answerSummary": "It takes ${{answer}}$ {{second}}."
+   },
+   "attemptFeedback": [
+    "Adding the same amount to both entries changes the ratio; multiplying keeps it."
+   ],
+   "supportHints": [
+    "Compare the two rows in the first column."
+   ],
+   "generator": {
+    "parameters": {
+     "first": {
+      "type": "choice",
+      "values": [
+       "parts sand",
+       "parts base",
+       "parts resin",
+       "units concentrate"
+      ]
+     },
+     "second": {
+      "type": "choice",
+      "values": [
+       "parts cement",
+       "parts filler",
+       "parts hardener",
+       "units water"
+      ]
+     },
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "scale": {
+      "type": "int",
+      "min": 3,
+      "max": 9
+     }
+    },
+    "derived": {
+     "firstCount": "a*scale",
+     "answer": "b*scale",
+     "d_operationInverted": "a*b",
+     "d_ratioReversed": "round(a*a*scale/b)",
+     "d_offByOneStep": "b+a*scale-a"
+    },
+    "constraints": [
+     "a!=b",
+     "answer!=d_operationInverted",
+     "answer!=d_ratioReversed",
+     "answer!=d_offByOneStep",
+     "d_operationInverted!=d_ratioReversed",
+     "d_operationInverted!=d_offByOneStep",
+     "d_ratioReversed!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
   }
  ]
 }
