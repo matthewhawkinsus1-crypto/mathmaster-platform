@@ -1,0 +1,817 @@
+{
+  "schemaVersion": 1,
+  "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+  "framework": "digitalSAT",
+  "domainId": "geometryTrigonometry",
+  "officialSkillFamily": "lines, angles, and triangles",
+  "nativeSkillId": "linesAnglesTriangles",
+  "status": "authored-pass-1",
+  "documents": [
+    {
+      "id": "mm_sat_geo_lat_1_triangle-angle-sum_v21",
+      "active": true,
+      "alignmentKeys": [],
+      "alignments": [
+        {
+          "framework": "digitalSAT",
+          "domainId": "geometryTrigonometry",
+          "role": "primary",
+          "evidenceMode": "direct"
+        }
+      ],
+      "assessmentContext": {
+        "framework": "digitalSAT",
+        "examStyle": true,
+        "domainId": "geometryTrigonometry",
+        "nativeSkillId": "linesAnglesTriangles"
+      },
+      "courseId": "geometry",
+      "familyId": "mathmaster:sat:native:linesAnglesTriangles:triangle-angle-sum",
+      "familyVersion": 2,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "linesAnglesTriangles",
+      "taskType": "angleMeasure",
+      "representation": "verbal",
+      "ccmrChallengeTier": 1,
+      "ccmrFamilyRole": "direct",
+      "ccmrAuthenticLanguage": {
+        "version": "2.1",
+        "authored": true,
+        "nativeSkillId": "linesAnglesTriangles",
+        "officialSkillFamily": "lines, angles, and triangles",
+        "stemProfile": "triangle-angle-sum"
+      },
+      "prompt": "Two angles of a triangle measure {{a}}° and {{b}}°. What is the measure, in degrees, of the third angle?",
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 25,
+            "max": 75
+          },
+          "b": {
+            "type": "int",
+            "min": 25,
+            "max": 75
+          }
+        },
+        "derived": {
+          "c": "180-a-b"
+        },
+        "constraints": [
+          "a+b<155"
+        ]
+      },
+      "assessmentItemFormat": "studentProducedResponse",
+      "attemptFeedback": [
+        "Use the stated geometric relationships and the information in the figure or description to determine the requested value."
+      ],
+      "supportHints": [
+        "Angle relationships, congruence conditions, and similarity ratios must remain consistent with the given geometry."
+      ],
+      "solutionReview": {
+        "headline": "Use the geometric relationship.",
+        "reasoning": [
+          "Identify the theorem or relationship that connects the given measurements, then apply it to the requested quantity."
+        ],
+        "answerSummary": "Check that the result is consistent with the angle or similarity conditions."
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{c}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_sat_geo_lat_2_exterior-angle_v21",
+      "active": true,
+      "alignmentKeys": [],
+      "alignments": [
+        {
+          "framework": "digitalSAT",
+          "domainId": "geometryTrigonometry",
+          "role": "primary",
+          "evidenceMode": "direct"
+        }
+      ],
+      "assessmentContext": {
+        "framework": "digitalSAT",
+        "examStyle": true,
+        "domainId": "geometryTrigonometry",
+        "nativeSkillId": "linesAnglesTriangles"
+      },
+      "courseId": "geometry",
+      "familyId": "mathmaster:sat:native:linesAnglesTriangles:exterior-angle",
+      "familyVersion": 2,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "linesAnglesTriangles",
+      "taskType": "exteriorAngle",
+      "representation": "verbal",
+      "ccmrChallengeTier": 1,
+      "ccmrFamilyRole": "direct",
+      "ccmrAuthenticLanguage": {
+        "version": "2.1",
+        "authored": true,
+        "nativeSkillId": "linesAnglesTriangles",
+        "officialSkillFamily": "lines, angles, and triangles",
+        "stemProfile": "exterior-angle-theorem"
+      },
+      "prompt": "An exterior angle of a triangle has remote interior angles measuring {{p}}° and {{q}}°. What is the measure, in degrees, of the exterior angle?",
+      "generator": {
+        "parameters": {
+          "p": {
+            "type": "int",
+            "min": 20,
+            "max": 75
+          },
+          "q": {
+            "type": "int",
+            "min": 20,
+            "max": 75
+          }
+        },
+        "derived": {
+          "ext": "p+q"
+        },
+        "constraints": [
+          "p+q<170"
+        ]
+      },
+      "assessmentItemFormat": "studentProducedResponse",
+      "attemptFeedback": [
+        "Use the stated geometric relationships and the information in the figure or description to determine the requested value."
+      ],
+      "supportHints": [
+        "Angle relationships, congruence conditions, and similarity ratios must remain consistent with the given geometry."
+      ],
+      "solutionReview": {
+        "headline": "Use the geometric relationship.",
+        "reasoning": [
+          "Identify the theorem or relationship that connects the given measurements, then apply it to the requested quantity."
+        ],
+        "answerSummary": "Check that the result is consistent with the angle or similarity conditions."
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{ext}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_sat_geo_lat_3_vertical-angles-algebra_v21",
+      "active": true,
+      "alignmentKeys": [],
+      "alignments": [
+        {
+          "framework": "digitalSAT",
+          "domainId": "geometryTrigonometry",
+          "role": "primary",
+          "evidenceMode": "direct"
+        }
+      ],
+      "assessmentContext": {
+        "framework": "digitalSAT",
+        "examStyle": true,
+        "domainId": "geometryTrigonometry",
+        "nativeSkillId": "linesAnglesTriangles"
+      },
+      "courseId": "geometry",
+      "familyId": "mathmaster:sat:native:linesAnglesTriangles:vertical-angles-algebra",
+      "familyVersion": 2,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "linesAnglesTriangles",
+      "taskType": "verticalAngles",
+      "representation": "equations",
+      "ccmrChallengeTier": 1,
+      "ccmrFamilyRole": "direct",
+      "ccmrAuthenticLanguage": {
+        "version": "2.1",
+        "authored": true,
+        "nativeSkillId": "linesAnglesTriangles",
+        "officialSkillFamily": "lines, angles, and triangles",
+        "stemProfile": "vertical-angles-algebra"
+      },
+      "prompt": "Two vertical angles measure ${{m}}x+{{b}}$ degrees and ${{n}}x-{{d}}$ degrees. What is the value of $x$?",
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": 3,
+            "max": 12
+          },
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "n": {
+            "type": "int",
+            "min": 4,
+            "max": 9
+          },
+          "b": {
+            "type": "int",
+            "min": 3,
+            "max": 20
+          }
+        },
+        "derived": {
+          "angle": "m*x+b",
+          "d": "n*x-angle",
+          "xp1": "x+1",
+          "xp2": "x+2",
+          "xp3": "x+3"
+        },
+        "constraints": [
+          "n>m",
+          "d>0",
+          "angle<170"
+        ]
+      },
+      "assessmentItemFormat": "multipleChoice",
+      "attemptFeedback": [
+        "Use the stated geometric relationships and the information in the figure or description to determine the requested value."
+      ],
+      "supportHints": [
+        "Angle relationships, congruence conditions, and similarity ratios must remain consistent with the given geometry."
+      ],
+      "solutionReview": {
+        "headline": "Use the geometric relationship.",
+        "reasoning": [
+          "Identify the theorem or relationship that connects the given measurements, then apply it to the requested quantity."
+        ],
+        "answerSummary": "Check that the result is consistent with the angle or similarity conditions."
+      },
+      "choices": [
+        {
+          "id": "sat-correct",
+          "label": "${{x}}$"
+        },
+        {
+          "id": "sat-d1",
+          "label": "${{xp1}}$"
+        },
+        {
+          "id": "sat-d2",
+          "label": "${{xp2}}$"
+        },
+        {
+          "id": "sat-d3",
+          "label": "${{xp3}}$"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "sat-correct"
+        }
+      ]
+    },
+    {
+      "id": "mm_sat_geo_lat_4_same-side-interior_v21",
+      "active": true,
+      "alignmentKeys": [],
+      "alignments": [
+        {
+          "framework": "digitalSAT",
+          "domainId": "geometryTrigonometry",
+          "role": "primary",
+          "evidenceMode": "direct"
+        }
+      ],
+      "assessmentContext": {
+        "framework": "digitalSAT",
+        "examStyle": true,
+        "domainId": "geometryTrigonometry",
+        "nativeSkillId": "linesAnglesTriangles"
+      },
+      "courseId": "geometry",
+      "familyId": "mathmaster:sat:native:linesAnglesTriangles:same-side-interior",
+      "familyVersion": 2,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "linesAnglesTriangles",
+      "taskType": "parallelLines",
+      "representation": "diagramDescription",
+      "ccmrChallengeTier": 1,
+      "ccmrFamilyRole": "direct",
+      "ccmrAuthenticLanguage": {
+        "version": "2.1",
+        "authored": true,
+        "nativeSkillId": "linesAnglesTriangles",
+        "officialSkillFamily": "lines, angles, and triangles",
+        "stemProfile": "same-side-interior"
+      },
+      "prompt": "Two parallel lines are cut by a transversal. One same-side interior angle measures {{a}}°. What is the measure of the other same-side interior angle?",
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 35,
+            "max": 80,
+            "exclude": [
+              45
+            ]
+          }
+        },
+        "derived": {
+          "answer": "180-a",
+          "sumWrong": "180+a",
+          "diffWrong": "90-a"
+        }
+      },
+      "assessmentItemFormat": "multipleChoice",
+      "attemptFeedback": [
+        "Use the stated geometric relationships and the information in the figure or description to determine the requested value."
+      ],
+      "supportHints": [
+        "Angle relationships, congruence conditions, and similarity ratios must remain consistent with the given geometry."
+      ],
+      "solutionReview": {
+        "headline": "Use the geometric relationship.",
+        "reasoning": [
+          "Identify the theorem or relationship that connects the given measurements, then apply it to the requested quantity."
+        ],
+        "answerSummary": "Check that the result is consistent with the angle or similarity conditions."
+      },
+      "choices": [
+        {
+          "id": "sat-correct",
+          "label": "${{answer}}^\\circ$"
+        },
+        {
+          "id": "sat-d1",
+          "label": "${{a}}^\\circ$"
+        },
+        {
+          "id": "sat-d2",
+          "label": "${{sumWrong}}^\\circ$"
+        },
+        {
+          "id": "sat-d3",
+          "label": "${{diffWrong}}^\\circ$"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "sat-correct"
+        }
+      ]
+    },
+    {
+      "id": "mm_sat_geo_lat_5_similarity-scale-side_v21",
+      "active": true,
+      "alignmentKeys": [],
+      "alignments": [
+        {
+          "framework": "digitalSAT",
+          "domainId": "geometryTrigonometry",
+          "role": "primary",
+          "evidenceMode": "direct"
+        }
+      ],
+      "assessmentContext": {
+        "framework": "digitalSAT",
+        "examStyle": true,
+        "domainId": "geometryTrigonometry",
+        "nativeSkillId": "linesAnglesTriangles"
+      },
+      "courseId": "geometry",
+      "familyId": "mathmaster:sat:native:linesAnglesTriangles:similarity-scale-side",
+      "familyVersion": 2,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "linesAnglesTriangles",
+      "taskType": "similarityScaleFactor",
+      "representation": "verbal",
+      "ccmrChallengeTier": 1,
+      "ccmrFamilyRole": "direct",
+      "ccmrAuthenticLanguage": {
+        "version": "2.1",
+        "authored": true,
+        "nativeSkillId": "linesAnglesTriangles",
+        "officialSkillFamily": "lines, angles, and triangles",
+        "stemProfile": "similarity-scale-side"
+      },
+      "prompt": "Triangle $ABC$ is similar to triangle $DEF$. A side of $ABC$ has length {{s}}, and the corresponding side of $DEF$ is {{k}} times as long. What is the length of that side of $DEF$?",
+      "generator": {
+        "parameters": {
+          "s": {
+            "type": "int",
+            "min": 3,
+            "max": 14
+          },
+          "k": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          }
+        },
+        "derived": {
+          "answer": "s*k",
+          "d1": "s+k",
+          "d2": "s*(k+1)",
+          "d3": "s*k+1"
+        }
+      },
+      "assessmentItemFormat": "multipleChoice",
+      "attemptFeedback": [
+        "Use the stated geometric relationships and the information in the figure or description to determine the requested value."
+      ],
+      "supportHints": [
+        "Angle relationships, congruence conditions, and similarity ratios must remain consistent with the given geometry."
+      ],
+      "solutionReview": {
+        "headline": "Use the geometric relationship.",
+        "reasoning": [
+          "Identify the theorem or relationship that connects the given measurements, then apply it to the requested quantity."
+        ],
+        "answerSummary": "Check that the result is consistent with the angle or similarity conditions."
+      },
+      "choices": [
+        {
+          "id": "sat-correct",
+          "label": "${{answer}}$"
+        },
+        {
+          "id": "sat-d1",
+          "label": "${{d1}}$"
+        },
+        {
+          "id": "sat-d2",
+          "label": "${{d2}}$"
+        },
+        {
+          "id": "sat-d3",
+          "label": "${{d3}}$"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "sat-correct"
+        }
+      ]
+    },
+    {
+      "id": "mm_sat_geo_lat_ch1_similar-perimeter-side_v21",
+      "active": true,
+      "alignmentKeys": [],
+      "alignments": [
+        {
+          "framework": "digitalSAT",
+          "domainId": "geometryTrigonometry",
+          "role": "primary",
+          "evidenceMode": "direct"
+        }
+      ],
+      "assessmentContext": {
+        "framework": "digitalSAT",
+        "examStyle": true,
+        "domainId": "geometryTrigonometry",
+        "nativeSkillId": "linesAnglesTriangles"
+      },
+      "courseId": "geometry",
+      "familyId": "mathmaster:sat:native:linesAnglesTriangles:challenge-similar-perimeter-side",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "linesAnglesTriangles",
+      "taskType": "similarityFromPerimeter",
+      "representation": "verbal",
+      "ccmrChallengeTier": 2,
+      "ccmrFamilyRole": "challenge",
+      "ccmrAuthenticLanguage": {
+        "version": "2.1",
+        "authored": true,
+        "nativeSkillId": "linesAnglesTriangles",
+        "officialSkillFamily": "lines, angles, and triangles",
+        "stemProfile": "challenge-similar-perimeter-side",
+        "authoredChallenge": true
+      },
+      "prompt": "Two triangles are similar. The smaller triangle has side lengths {{a}}, {{b}}, and {{c}}, and the larger triangle has perimeter {{bigper}}. What is the length of the side of the larger triangle that corresponds to the side of length {{b}}?",
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 3,
+            "max": 8
+          },
+          "b": {
+            "type": "int",
+            "min": 4,
+            "max": 10
+          },
+          "c": {
+            "type": "int",
+            "min": 5,
+            "max": 12
+          },
+          "k": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          }
+        },
+        "derived": {
+          "per": "a+b+c",
+          "bigper": "per*k",
+          "answer": "b*k",
+          "d1": "b+k",
+          "d2": "b*(k+1)",
+          "d3": "b*(k-1)"
+        },
+        "constraints": [
+          "a+b>c",
+          "a+c>b",
+          "b+c>a"
+        ]
+      },
+      "assessmentItemFormat": "multipleChoice",
+      "attemptFeedback": [
+        "Use the stated geometric relationships and the information in the figure or description to determine the requested value."
+      ],
+      "supportHints": [
+        "Angle relationships, congruence conditions, and similarity ratios must remain consistent with the given geometry."
+      ],
+      "solutionReview": {
+        "headline": "Use the geometric relationship.",
+        "reasoning": [
+          "Identify the theorem or relationship that connects the given measurements, then apply it to the requested quantity."
+        ],
+        "answerSummary": "Check that the result is consistent with the angle or similarity conditions."
+      },
+      "choices": [
+        {
+          "id": "sat-correct",
+          "label": "${{answer}}$"
+        },
+        {
+          "id": "sat-d1",
+          "label": "${{d1}}$"
+        },
+        {
+          "id": "sat-d2",
+          "label": "${{d2}}$"
+        },
+        {
+          "id": "sat-d3",
+          "label": "${{d3}}$"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "sat-correct"
+        }
+      ]
+    },
+    {
+      "id": "mm_sat_geo_lat_ch2_congruence-sas_v21",
+      "active": true,
+      "alignmentKeys": [],
+      "alignments": [
+        {
+          "framework": "digitalSAT",
+          "domainId": "geometryTrigonometry",
+          "role": "primary",
+          "evidenceMode": "direct"
+        }
+      ],
+      "assessmentContext": {
+        "framework": "digitalSAT",
+        "examStyle": true,
+        "domainId": "geometryTrigonometry",
+        "nativeSkillId": "linesAnglesTriangles"
+      },
+      "courseId": "geometry",
+      "familyId": "mathmaster:sat:native:linesAnglesTriangles:challenge-congruence-sas",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "linesAnglesTriangles",
+      "taskType": "congruenceCriterion",
+      "representation": "givenMeasures",
+      "ccmrChallengeTier": 2,
+      "ccmrFamilyRole": "challenge",
+      "ccmrAuthenticLanguage": {
+        "version": "2.1",
+        "authored": true,
+        "nativeSkillId": "linesAnglesTriangles",
+        "officialSkillFamily": "lines, angles, and triangles",
+        "stemProfile": "challenge-congruence-sas",
+        "authoredChallenge": true
+      },
+      "prompt": "In triangles $ABC$ and $DEF$, $AB={{u}}$, $AC={{v}}$, $DE={{u}}$, $DF={{v}}$, and $\\angle A=\\angle D={{ang}}^\\circ$. Which condition is sufficient to conclude that the triangles are congruent?",
+      "generator": {
+        "parameters": {
+          "u": {
+            "type": "int",
+            "min": 3,
+            "max": 12
+          },
+          "v": {
+            "type": "int",
+            "min": 3,
+            "max": 12
+          },
+          "ang": {
+            "type": "int",
+            "min": 30,
+            "max": 120
+          }
+        },
+        "constraints": [
+          "u!=v"
+        ]
+      },
+      "assessmentItemFormat": "multipleChoice",
+      "attemptFeedback": [
+        "Use the stated geometric relationships and the information in the figure or description to determine the requested value."
+      ],
+      "supportHints": [
+        "Angle relationships, congruence conditions, and similarity ratios must remain consistent with the given geometry."
+      ],
+      "solutionReview": {
+        "headline": "Use the geometric relationship.",
+        "reasoning": [
+          "Identify the theorem or relationship that connects the given measurements, then apply it to the requested quantity."
+        ],
+        "answerSummary": "Check that the result is consistent with the angle or similarity conditions."
+      },
+      "choices": [
+        {
+          "id": "sat-correct",
+          "label": "SAS"
+        },
+        {
+          "id": "sat-d1",
+          "label": "SSS"
+        },
+        {
+          "id": "sat-d2",
+          "label": "ASA"
+        },
+        {
+          "id": "sat-d3",
+          "label": "AA"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "sat-correct"
+        }
+      ]
+    },
+    {
+      "id": "mm_sat_geo_lat_ch3_parallel-triangle-exterior_v21",
+      "active": true,
+      "alignmentKeys": [],
+      "alignments": [
+        {
+          "framework": "digitalSAT",
+          "domainId": "geometryTrigonometry",
+          "role": "primary",
+          "evidenceMode": "direct"
+        }
+      ],
+      "assessmentContext": {
+        "framework": "digitalSAT",
+        "examStyle": true,
+        "domainId": "geometryTrigonometry",
+        "nativeSkillId": "linesAnglesTriangles"
+      },
+      "courseId": "geometry",
+      "familyId": "mathmaster:sat:native:linesAnglesTriangles:challenge-parallel-triangle-exterior",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 5,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "linesAnglesTriangles",
+      "taskType": "combinedAngleReasoning",
+      "representation": "diagramDescription",
+      "ccmrChallengeTier": 2,
+      "ccmrFamilyRole": "challenge",
+      "ccmrAuthenticLanguage": {
+        "version": "2.1",
+        "authored": true,
+        "nativeSkillId": "linesAnglesTriangles",
+        "officialSkillFamily": "lines, angles, and triangles",
+        "stemProfile": "challenge-parallel-triangle-exterior",
+        "authoredChallenge": true
+      },
+      "prompt": "Two parallel lines are cut by a transversal. A corresponding angle measures {{a}}°. That angle is used as one interior angle of a triangle, and a second interior angle measures {{b}}°. What is the measure of the exterior angle at the third vertex of the triangle?",
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 25,
+            "max": 80
+          },
+          "b": {
+            "type": "int",
+            "min": 25,
+            "max": 80
+          }
+        },
+        "derived": {
+          "answer": "a+b",
+          "interior": "180-a-b",
+          "d2": "180-a",
+          "d3": "180-b"
+        },
+        "constraints": [
+          "a+b<165",
+          "a+b!=90",
+          "2*a+b!=180",
+          "a+2*b!=180",
+          "a!=b"
+        ]
+      },
+      "assessmentItemFormat": "multipleChoice",
+      "attemptFeedback": [
+        "Use the stated geometric relationships and the information in the figure or description to determine the requested value."
+      ],
+      "supportHints": [
+        "Angle relationships, congruence conditions, and similarity ratios must remain consistent with the given geometry."
+      ],
+      "solutionReview": {
+        "headline": "Use the geometric relationship.",
+        "reasoning": [
+          "Identify the theorem or relationship that connects the given measurements, then apply it to the requested quantity."
+        ],
+        "answerSummary": "Check that the result is consistent with the angle or similarity conditions."
+      },
+      "choices": [
+        {
+          "id": "sat-correct",
+          "label": "${{answer}}^\\circ$"
+        },
+        {
+          "id": "sat-d1",
+          "label": "${{interior}}^\\circ$"
+        },
+        {
+          "id": "sat-d2",
+          "label": "${{d2}}^\\circ$"
+        },
+        {
+          "id": "sat-d3",
+          "label": "${{d3}}^\\circ$"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "sat-correct"
+        }
+      ]
+    }
+  ]
+}
