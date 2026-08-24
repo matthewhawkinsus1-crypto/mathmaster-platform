@@ -8,42 +8,40 @@ const pairs = [
 ];
 
 test('one stroke may complete several cancellation pairs at once', () => {
-  const result = advanceCancellationProgress({ pairs, hitIndices: [0, 2, 3, 4] });
+  const result = advanceCancellationProgress({ pairs, hitIndices: [0, 2] });
   assert.equal(result.acceptedAny, true);
   assert.deepEqual(new Set(result.completedPairIds), new Set(['P-pair', 't-pair']));
   assert.deepEqual(result.selectedIndices, []);
   assert.equal(result.allPairsComplete, true);
 });
 
-test('several numerator factors can remain selected while denominator factors are marked later', () => {
-  const first = advanceCancellationProgress({ pairs, hitIndices: [0, 2] });
-  assert.deepEqual(new Set(first.selectedIndices), new Set([0, 2]));
-  assert.equal(first.completedPairIds.length, 0);
+test('one hit completes one mathematical cancellation pair', () => {
+  const first = advanceCancellationProgress({ pairs, hitIndices: [0] });
+  assert.deepEqual(first.completedPairIds, ['P-pair']);
+  assert.deepEqual(first.selectedIndices, []);
+  assert.equal(first.allPairsComplete, false);
 
   const second = advanceCancellationProgress({
     pairs,
-    selectedIndices: first.selectedIndices,
     completedPairIds: first.completedPairIds,
-    hitIndices: [3, 4],
+    hitIndices: [2],
   });
   assert.deepEqual(new Set(second.completedPairIds), new Set(['P-pair', 't-pair']));
   assert.deepEqual(second.selectedIndices, []);
   assert.equal(second.allPairsComplete, true);
 });
 
-test('completed pairs stay complete while another pair is still being marked', () => {
-  const first = advanceCancellationProgress({ pairs, hitIndices: [0, 3] });
+test('completed pairs stay complete while another pair remains', () => {
+  const first = advanceCancellationProgress({ pairs, hitIndices: [0] });
   assert.deepEqual(first.completedPairIds, ['P-pair']);
 
-  const second = advanceCancellationProgress({
+  const repeated = advanceCancellationProgress({
     pairs,
     completedPairIds: first.completedPairIds,
-    selectedIndices: first.selectedIndices,
-    hitIndices: [2],
+    hitIndices: [3],
   });
-  assert.deepEqual(second.completedPairIds, ['P-pair']);
-  assert.deepEqual(second.selectedIndices, [2]);
-  assert.equal(second.allPairsComplete, false);
+  assert.deepEqual(repeated.completedPairIds, ['P-pair']);
+  assert.equal(repeated.allPairsComplete, false);
 });
 
 test('unrelated factors do not corrupt cancellation progress', () => {

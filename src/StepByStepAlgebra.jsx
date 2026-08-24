@@ -831,28 +831,28 @@ export default function StepByStepAlgebra({
     if (progress.allPairsComplete) {
       setSelectedCancellationIndices((current) => ({ ...current, [side]: [] }));
       const pairCount = model.pairs.length;
-      if (pairCount > 1) {
-        // Compound cancellation is a batch. Keep every marked pair visible until
-        // the student explicitly finishes the batch, so the first completed
-        // pair cannot trigger a re-render that removes the second target.
-        setMessage({ tone: 'success', text: `All ${pairCount} matching factor pairs are marked. Finish the cancellations to apply them together.` });
-      } else {
-        setMessage({ tone: 'success', text: 'Matching terms are canceled in the equation.' });
-        if (pendingMove) await strikeSide(side);
-        else await commitStandaloneCancellation(side, model);
-      }
+      setMessage({
+        tone: 'success',
+        text: pairCount > 1
+          ? `All ${pairCount} cancellation pairs are complete.`
+          : 'That cancellation pair is complete.',
+      });
+
+      // Once every visible pair has been identified, apply the cancellation
+      // immediately. Requiring a separate "Finish cancellations" click made
+      // a single algebraic cancellation feel like it had to be performed twice.
+      if (pendingMove) await strikeSide(side);
+      else await commitStandaloneCancellation(side, model);
       return;
     }
 
     const remainingPairs = model.pairs.length - progress.completedPairIds.length;
     if (progress.newlyCompletedPairIds.length > 1) {
-      setMessage({ tone: 'success', text: `${progress.newlyCompletedPairIds.length} factor pairs canceled together. ${remainingPairs} pair${remainingPairs === 1 ? '' : 's'} remain.` });
+      setMessage({ tone: 'success', text: `${progress.newlyCompletedPairIds.length} cancellation pairs completed in one gesture. ${remainingPairs} pair${remainingPairs === 1 ? '' : 's'} remain.` });
     } else if (progress.newlyCompletedPairIds.length === 1) {
-      setMessage({ tone: 'success', text: `That pair cancels. ${remainingPairs} matching pair${remainingPairs === 1 ? '' : 's'} remain.` });
-    } else if (progress.selectedIndices.length > 1) {
-      setMessage({ tone: 'growth', text: 'Multiple factors are marked. Slash or tap their matching factors; you do not have to finish one pair before starting another.' });
+      setMessage({ tone: 'success', text: `That cancellation pair is complete. ${remainingPairs} pair${remainingPairs === 1 ? '' : 's'} remain.` });
     } else {
-      setMessage({ tone: 'growth', text: 'Marked. Draw through or tap its matching factor in the same expression.' });
+      setMessage({ tone: 'growth', text: 'Tap or slash one member of a valid cancellation pair. MathMaster will cross out its matching partner with it.' });
     }
   };
 
@@ -1645,19 +1645,13 @@ export default function StepByStepAlgebra({
                       {cancellationHintsEnabled
                         ? (cancellationModel.kind === 'additive'
                           ? (cancellationModel.pairs.length > 1
-                            ? `Cancel ${cancellationModel.pairs.length} matching opposite-term pairs. You may mark several pairs at once.`
-                            : 'Cancel the matching opposite terms directly in the equation. Tap each term or draw through them.')
+                            ? `Cancel ${cancellationModel.pairs.length} opposite-term pairs. Tap or slash one term from each pair; its matching opposite is crossed out with it.`
+                            : 'Tap or slash either opposite term once. MathMaster crosses out the matching term with it.')
                           : (cancellationModel.pairs.length > 1
-                            ? `Cancel ${cancellationModel.pairs.length} matching factor pairs. You may mark several factors at once.`
-                            : 'Slash a matching numerator/denominator pair. Tap works too.'))
+                            ? `Cancel ${cancellationModel.pairs.length} matching factor pairs. Tap or slash one factor from each pair; its matching factor is crossed out with it.`
+                            : 'Tap or slash either matching factor once. MathMaster crosses out its partner with it.'))
                         : 'Cancellation is active directly on the equation.'}
                     </div>
-                    {cancellationModel.pairs.length > 1
-                      && cancellationModel.pairs.every((pair) => (cancelledPairIds[side] || []).includes(pair.id)) && (
-                        <button type="button" className="algebra-finish-cancellations" onClick={() => pendingMove ? strikeSide(side) : commitStandaloneCancellation(side, cancellationModel)} disabled={savingStep || cancelAnimating}>
-                          Finish {cancellationModel.pairs.length} cancellations
-                        </button>
-                      )}
                   </div>
                 )}
                 {target?.canCancel && !cancellationModel && (

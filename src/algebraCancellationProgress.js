@@ -20,21 +20,31 @@ export const advanceCancellationProgress = ({
   );
 
   let acceptedAny = false;
+  const newlyCompletedPairIds = [];
+
+  // A cancellation pair is one mathematical action, not two UI actions.
+  // If a student taps/slashes either member of a uniquely identified pair,
+  // complete that whole pair immediately. The engine already proved the two
+  // visible terms/factors are true opposites or matching numerator/denominator
+  // factors, so requiring a second click on the partner adds interface work
+  // without adding mathematical reasoning. Multiple pairs still require the
+  // student to identify each pair once, and one sweep can hit several pairs.
   for (const rawIndex of hitIndices || []) {
     const index = Number(rawIndex);
     if (!Number.isInteger(index) || !validTokenIndices.has(index)) continue;
     acceptedAny = true;
-    selected.add(index);
-  }
 
-  const newlyCompletedPairIds = [];
-  for (const pair of pairs) {
-    if (completed.has(pair.id)) continue;
-    const indices = pair.indices || [];
-    if (indices.length < 2 || !indices.every((index) => selected.has(index))) continue;
-    completed.add(pair.id);
-    newlyCompletedPairIds.push(pair.id);
-    indices.forEach((index) => selected.delete(index));
+    const matchingPair = pairs.find((pair) => (
+      !completed.has(pair.id)
+      && Array.isArray(pair.indices)
+      && pair.indices.includes(index)
+    ));
+
+    if (!matchingPair) continue;
+
+    completed.add(matchingPair.id);
+    newlyCompletedPairIds.push(matchingPair.id);
+    (matchingPair.indices || []).forEach((pairIndex) => selected.delete(pairIndex));
   }
 
   return {

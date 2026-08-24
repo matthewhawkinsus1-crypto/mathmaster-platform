@@ -4,13 +4,14 @@ import { readFile } from 'node:fs/promises';
 
 const source = await readFile(new URL('../../src/StepByStepAlgebra.jsx', import.meta.url), 'utf8');
 
-test('Step Algebra uses multi-pair cancellation progress instead of one manual selection', () => {
+test('Step Algebra uses multi-pair cancellation progress', () => {
   assert.match(source, /advanceCancellationProgress/);
-  assert.match(source, /selectedCancellationIndices/);
+  assert.match(source, /cancelledPairIds/);
   assert.ok(!source.includes('const [manualSelection'));
 });
 
-test('compound cancellation tells students they may mark several factors at once', () => {
-  assert.match(source, /You may mark several factors at once/);
-  assert.match(source, /you do not have to finish one pair before starting another/);
+test('compound cancellation tells students one gesture identifies one pair', () => {
+  assert.match(source, /one term from each pair/);
+  assert.match(source, /one factor from each pair/);
+  assert.match(source, /crossed out with it/);
 });
