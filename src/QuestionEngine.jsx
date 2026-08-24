@@ -53,7 +53,7 @@ import {
   normalizeQuestionRecord,
 } from './attemptPolicy';
 import { stableStringify } from './utils/idUtils';
-import { focusFirstAnswerControl, shouldSubmitAnswerOnEnter } from './platform/interaction/answerEntryUx.js';
+import { ENTER_TO_CONTINUE_HINT, focusFirstAnswerControl, shouldAdvanceOnEnter, shouldSubmitAnswerOnEnter } from './platform/interaction/answerEntryUx.js';
 
 const EMPTY_ANSWER_STATE = {
   isComplete: false,
@@ -302,6 +302,27 @@ export default function QuestionEngine({
     });
     return () => window.cancelAnimationFrame(frame);
   }, [processedQuestion, record.variantIndex, locked, scaffoldRequired, contextScaffoldRequired]);
+
+  // Two-step keyboard flow: Enter submits a complete single-line answer; after
+  // the platform confirms it is correct, the NEXT Enter advances. Keeping the
+  // advance listener at window level makes the shortcut reliable even after the
+  // now-locked answer field loses focus. It never steals Enter from dialogs or
+  // multiline editing.
+  useEffect(() => {
+    const nextAction = sectionComplete && typeof onContinueSection === 'function'
+      ? onContinueSection
+      : (!sectionComplete && typeof onNextQuestion === 'function' ? onNextQuestion : null);
+    const canAdvance = Boolean(isCorrect && showOutcomeFeedback && nextAction && !scratchpadOpen && !unchangedConfirmOpen);
+    if (!canAdvance || typeof window === 'undefined') return undefined;
+    const handleAdvanceShortcut = (event) => {
+      if (!shouldAdvanceOnEnter({ event, canAdvance })) return;
+      event.preventDefault();
+      event.stopPropagation();
+      nextAction();
+    };
+    window.addEventListener('keydown', handleAdvanceShortcut, true);
+    return () => window.removeEventListener('keydown', handleAdvanceShortcut, true);
+  }, [isCorrect, showOutcomeFeedback, sectionComplete, onContinueSection, onNextQuestion, scratchpadOpen, unchangedConfirmOpen]);
 
   const calculatorPolicy = useMemo(() => resolveCalculatorPolicy({
     questionSpec: processedQuestion || {},
@@ -913,10 +934,13 @@ export default function QuestionEngine({
             <small>You completed all {sectionQuestionCount || ''} {sectionLabel || 'section'} question{Number(sectionQuestionCount) === 1 ? '' : 's'}.</small>
           </div>
           {typeof onContinueSection === 'function' ? (
-            <button type="button" onClick={onContinueSection} className="mathmaster-section-completion-continue">
-              <span>Continue to {continueSectionLabel || 'next section'}</span>
-              <span aria-hidden="true">→</span>
-            </button>
+            <div>
+              <button type="button" onClick={onContinueSection} aria-keyshortcuts="Enter" className="mathmaster-section-completion-continue">
+                <span>Continue to {continueSectionLabel || 'next section'}</span>
+                <span aria-hidden="true">→</span>
+              </button>
+              <small style={{ display: 'block', marginTop: 6, color: '#5f6368', fontWeight: 750, textAlign: 'center' }}>{ENTER_TO_CONTINUE_HINT}</small>
+            </div>
           ) : (
             <div className="mathmaster-section-completion-done">All currently available sections are complete.</div>
           )}
@@ -928,6 +952,7 @@ export default function QuestionEngine({
           <button
             type="button"
             onClick={onNextQuestion}
+            aria-keyshortcuts="Enter"
             className="mathmaster-success-next-question"
             style={{
               width: '100%',
@@ -954,6 +979,7 @@ export default function QuestionEngine({
                   {nextQuestionSectionLabel ? `${nextQuestionSectionLabel} · ` : ''}{nextQuestionLabel}
                 </span>
               )}
+              <span style={{ display: 'block', marginTop: '5px', fontSize: '12px', fontWeight: 800, opacity: 0.9 }}>{ENTER_TO_CONTINUE_HINT}</span>
             </span>
             <span aria-hidden="true" style={{ width: '44px', height: '44px', flex: '0 0 44px', display: 'grid', placeItems: 'center', borderRadius: '999px', background: '#fff', color: '#174ea6', fontSize: '30px', lineHeight: 1, fontWeight: 950 }}>→</span>
           </button>

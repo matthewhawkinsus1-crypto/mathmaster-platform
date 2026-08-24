@@ -26,6 +26,24 @@ export const shouldSubmitAnswerOnEnter = ({ event, responseComplete = false, can
   return isSingleLineAnswerTarget(event.target);
 };
 
+/**
+ * A second Enter press after a correct response advances to the next logical
+ * question/section. This is deliberately broader than answer submission: once
+ * the response is locked the browser may move focus away from the disabled
+ * answer field, so the shortcut has to work from the page, not only the input.
+ * Dialogs and multiline/editable controls keep ownership of Enter.
+ */
+export const shouldAdvanceOnEnter = ({ event, canAdvance = false } = {}) => {
+  if (!event || event.defaultPrevented || event.key !== 'Enter' || event.isComposing || event.repeat) return false;
+  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || !canAdvance) return false;
+  const tag = normalizedTag(event.target);
+  if (tag === 'textarea' || tag === 'select' || event.target?.isContentEditable) return false;
+  if (event.target?.closest?.('[role="dialog"], [aria-modal="true"]')) return false;
+  return true;
+};
+
+export const ENTER_TO_CONTINUE_HINT = 'Shortcut: press Enter again to continue.';
+
 const focusableAnswerSelector = [
   'math-field:not([disabled])',
   'input:not([disabled]):not([type="hidden"]):not([type="radio"]):not([type="checkbox"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="file"])',
@@ -58,4 +76,5 @@ export default {
   focusFirstAnswerControl,
   isSingleLineAnswerTarget,
   shouldSubmitAnswerOnEnter,
+  shouldAdvanceOnEnter,
 };

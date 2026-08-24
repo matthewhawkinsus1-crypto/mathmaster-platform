@@ -18,6 +18,7 @@ import { FRAMEWORK_LABELS } from '../../platform/ccmr/assessmentCrosswalk.js';
 import { questionAssessmentFramework } from '../../platform/student/questionAlignmentInfo.js';
 import { getAssessmentStandardReferences, referenceLabel } from '../../platform/ccmr/assessmentStandardReferences.js';
 import { assessmentItemTypeLabel, describeChallengeTier, frameworkExperience } from '../../platform/ccmr/assessmentFidelity.js';
+import { ENTER_TO_CONTINUE_HINT, shouldAdvanceOnEnter } from '../../platform/interaction/answerEntryUx.js';
 
 // Three ways a path question can arrive, in order of preference.
 //
@@ -178,7 +179,7 @@ function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowe
           )}
           <div style={{ marginTop: 5, display: 'flex', flexWrap: 'wrap', gap: '4px 12px', color: '#5f6368', fontSize: 11.5 }}>
             <span>{experience?.calculatorSummary || (questionInstance?.calculatorPolicy === 'none' ? 'No calculator' : 'Calculator policy follows the assessment')}</span>
-            <span>{tierInfo.label}</span>
+            <span>{challenge.label}</span>
           </div>
           {challengeTier >= 2 && (
             <div style={{ marginTop: 5, color: '#5b21b6', fontSize: 11.5, fontWeight: 750 }}>
@@ -327,6 +328,24 @@ export const PathSessionPlayer = ({
     if (lastFeedback || lastGradingResult) feedbackRef.current?.focus?.();
   }, [lastFeedback, lastGradingResult]);
 
+  // Once a response is correct, Enter becomes the same deliberate continue
+  // action as the visible Next question button. A window listener is used here
+  // because locking the answer can move focus away from the disabled field.
+  // This only activates after correctness is confirmed; wrong/finalized work
+  // still requires the student to review the on-screen next step.
+  useEffect(() => {
+    const canAdvance = Boolean(lastGradingResult?.isCorrect && typeof onContinue === 'function');
+    if (!canAdvance || typeof window === 'undefined') return undefined;
+    const handleContinueShortcut = (event) => {
+      if (!shouldAdvanceOnEnter({ event, canAdvance })) return;
+      event.preventDefault();
+      event.stopPropagation();
+      onContinue();
+    };
+    window.addEventListener('keydown', handleContinueShortcut, true);
+    return () => window.removeEventListener('keydown', handleContinueShortcut, true);
+  }, [lastGradingResult?.isCorrect, onContinue]);
+
   if (!questionInstance) {
     return <div style={{ padding: 50, textAlign: 'center', color: '#5f6368' }}>Preparing the next question…</div>;
   }
@@ -389,7 +408,7 @@ export const PathSessionPlayer = ({
 
         <PathSolutionReview review={solutionReview} wasCorrect={Boolean(lastGradingResult?.isCorrect)} />
         {solutionReview && onContinue && (
-          <button type="button" onClick={onContinue} style={continueButtonStyle}>Next question</button>
+          <ContinueAction onContinue={onContinue} />
         )}
       </main>
     );
@@ -570,13 +589,29 @@ export const PathSessionPlayer = ({
       <PathSolutionReview review={solutionReview} wasCorrect={Boolean(lastGradingResult?.isCorrect)} />
 
       {finalized && onContinue && (
-        <button type="button" onClick={onContinue} style={continueButtonStyle}>Next question</button>
+        <ContinueAction onContinue={onContinue} />
       )}
 
       <CalculatorPanel policy={calculatorPolicy} onCalculatorOpened={() => setCalculatorUsed(true)} />
     </main>
   );
 };
+
+const ContinueAction = ({ onContinue }) => (
+  <div style={{ marginTop: 16 }}>
+    <button
+      type="button"
+      onClick={onContinue}
+      aria-keyshortcuts="Enter"
+      style={{ ...continueButtonStyle, marginTop: 0 }}
+    >
+      Next question
+    </button>
+    <p style={{ margin: '7px 0 0', textAlign: 'center', color: '#5f6368', fontSize: 12.5, fontWeight: 750 }}>
+      {ENTER_TO_CONTINUE_HINT}
+    </p>
+  </div>
+);
 
 const continueButtonStyle = {
   width: '100%',
