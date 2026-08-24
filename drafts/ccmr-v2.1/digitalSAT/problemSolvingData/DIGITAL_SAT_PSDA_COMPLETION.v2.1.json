@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "artifactType": "completionManifest",
+  "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+  "framework": "digitalSAT",
+  "domainId": "problemSolvingData",
+  "completedStandards": ["A2.6L"],
+  "completedStandardsCount": 1,
+  "familiesTotal": 8,
+  "validation": {
+    "randomizedInstancesPerStandard": 2000,
+    "randomizedInstancesTotal": 2000,
+    "checks": [
+      "inverse-variation constant-product relationships",
+      "scale-factor and reciprocal-factor reasoning",
+      "contextual rate and work relationships",
+      "four unique rendered MCQ choices",
+      "no unresolved generator placeholders",
+      "five direct plus three independently authored challenge families",
+      "no exact generator reuse within the standard"
+    ]
+  },
+  "coverageStatus": {
+    "ratiosRatesProportionsUnits": "started",
+    "percentages": "architecture-needed",
+    "oneVariableData": "architecture-needed",
+    "twoVariableData": "authoring-next",
+    "probabilityConditionalProbability": "architecture-needed",
+    "inferenceMarginOfError": "architecture-needed",
+    "evaluatingStatisticalClaims": "architecture-needed"
+  },
+  "note": "This manifest begins with the A2.6L bank reclassified from Advanced Math after College Board Table 26 confirmed its PSDA ratios/rates alignment."
+}
