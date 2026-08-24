@@ -29,27 +29,6 @@ jobs:
         with:
           node-version: '20'
 
-      - name: One-time repair of legacy Algebra JSON escapes
-        shell: bash
-        run: |
-          node --input-type=module <<'NODE'
-          import { readFileSync, writeFileSync } from 'node:fs';
-
-          const files = [
-            'drafts/ccmr-v2.1/digitalSAT/algebra/A.12A.v2.1.json',
-            'drafts/ccmr-v2.1/digitalSAT/algebra/A.3D.v2.1.json',
-            'drafts/ccmr-v2.1/digitalSAT/algebra/A.3H.v2.1.json',
-          ];
-
-          for (const file of files) {
-            const source = readFileSync(file, 'utf8');
-            const repaired = source.replace(/(?<!\\)\\(?=[A-Za-z])/g, () => '\\\\');
-            JSON.parse(repaired);
-            if (repaired !== source) writeFileSync(file, repaired);
-            console.log(`${file}: valid JSON after scoped LaTeX escape repair`);
-          }
-          NODE
-
       - name: Run PSDA fail-closed audit and capture result
         id: audit
         shell: bash
@@ -69,22 +48,17 @@ jobs:
           } > drafts/ccmr-v2.1/audit-results/psda-latest-status.txt
           echo "exit_code=${audit_exit}" >> "$GITHUB_OUTPUT"
 
-      - name: Commit repaired sources and audit diagnostics
+      - name: Commit audit diagnostics to V2.1 branch
         if: always()
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            drafts/ccmr-v2.1/digitalSAT/algebra/A.12A.v2.1.json \
-            drafts/ccmr-v2.1/digitalSAT/algebra/A.3D.v2.1.json \
-            drafts/ccmr-v2.1/digitalSAT/algebra/A.3H.v2.1.json \
-            drafts/ccmr-v2.1/audit-results/psda-latest.log \
-            drafts/ccmr-v2.1/audit-results/psda-latest-status.txt
+          git add drafts/ccmr-v2.1/audit-results/psda-latest.log drafts/ccmr-v2.1/audit-results/psda-latest-status.txt
           if git diff --cached --quiet; then
             exit 0
           fi
-          git commit -m "Repair Digital SAT V2.1 JSON escapes and record PSDA audit"
+          git commit -m "Record CCMR V2.1 PSDA audit result"
           git pull --rebase origin ccmr-fidelity-v2-1-authentic-language
           git push origin HEAD:ccmr-fidelity-v2-1-authentic-language
 
