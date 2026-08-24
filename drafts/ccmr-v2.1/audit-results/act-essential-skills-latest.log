@@ -4,18 +4,19 @@
   "framework": "act",
   "mode": "domain-authoring",
   "domain": "essentialSkills",
-  "scopeUnits": 6,
-  "documents": 48,
-  "direct": 30,
-  "challenge": 18,
-  "multipleChoice": 48,
+  "scopeUnits": 7,
+  "documents": 56,
+  "direct": 35,
+  "challenge": 21,
+  "multipleChoice": 56,
   "studentProducedResponse": 0,
   "modelingTagged": 26,
   "domains": {
-    "essentialSkills": 48
+    "essentialSkills": 56
   },
   "highSimilarityPairs": [],
-  "failures": [],
-  "warnings": [],
-  "output": null
+  "failures": [
+    "drafts/ccmr-v2.1/act/essentialSkills/ACT_NATIVE_linesAnglesShapes.v2.1.json: scope is not confirmed by the completion manifest"
+  ],
+  "warnings": []
 }
