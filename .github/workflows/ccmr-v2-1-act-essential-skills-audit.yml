@@ -1,0 +1,69 @@
+name: CCMR V2.1 ACT Essential Skills Audit
+
+on:
+  push:
+    branches:
+      - ccmr-fidelity-v2-1-authentic-language
+    paths:
+      - 'drafts/ccmr-v2.1/act/essentialSkills/**'
+      - 'scripts/build-act-v2-1.mjs'
+      - '.github/workflows/ccmr-v2-1-act-essential-skills-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  act-essential-skills-v2-1-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out V2.1 branch
+        uses: actions/checkout@v4
+        with:
+          ref: ccmr-fidelity-v2-1-authentic-language
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run ACT Essential Skills fail-closed audit
+        id: audit
+        shell: bash
+        run: |
+          set +e
+          mkdir -p drafts/ccmr-v2.1/audit-results
+          node scripts/build-act-v2-1.mjs --domain essentialSkills --check > /tmp/act-essential-skills-audit.log 2>&1
+          audit_exit=$?
+          set -e
+          cat /tmp/act-essential-skills-audit.log
+          cp /tmp/act-essential-skills-audit.log drafts/ccmr-v2.1/audit-results/act-essential-skills-latest.log
+          {
+            echo "source_sha=${GITHUB_SHA}"
+            echo "run_id=${GITHUB_RUN_ID}"
+            echo "exit_code=${audit_exit}"
+            echo "recorded_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > drafts/ccmr-v2.1/audit-results/act-essential-skills-latest-status.txt
+          echo "exit_code=${audit_exit}" >> "$GITHUB_OUTPUT"
+
+      - name: Commit ACT Essential Skills audit diagnostics
+        if: always()
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            drafts/ccmr-v2.1/audit-results/act-essential-skills-latest.log \
+            drafts/ccmr-v2.1/audit-results/act-essential-skills-latest-status.txt
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "Record CCMR V2.1 ACT Essential Skills audit result"
+          git pull --rebase origin ccmr-fidelity-v2-1-authentic-language
+          git push origin HEAD:ccmr-fidelity-v2-1-authentic-language
+
+      - name: Fail when ACT Essential Skills audit fails
+        if: steps.audit.outputs.exit_code != '0'
+        run: exit 1
