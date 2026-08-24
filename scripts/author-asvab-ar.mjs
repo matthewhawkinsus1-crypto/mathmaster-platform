@@ -2691,6 +2691,361 @@ ar('7.13A', 'price-before-tax', {
   feedback: 'Taking the percent off the total does not undo adding it to the price.',
 });
 
+// ================================================================ 7.13E
+// Simple against compound interest on savings.
+//
+// The principal is a multiple of 1600 so that P*r*r/10000 stays a whole number
+// for every rate drawn. Compound interest without a calculator only works if
+// the second year's figure is exact.
+
+const SAVINGS_RATES = { type: 'choice', values: [10, 20, 25, 50] };
+
+ar('7.13E', 'simple-interest-earned', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'A {{worker}} put $\\${{principal}}$ into an account paying {{r}}% simple interest a year. How much interest is earned in {{years}} years?',
+  generator: {
+    parameters: {
+      worker: contextParam(['mechanic', 'driver', 'loader', 'welder', 'technician']),
+      r: SAVINGS_RATES,
+      k: { type: 'int', min: 1, max: 6 },
+      years: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      principal: 'k*1600',
+      perYear: 'k*1600*r/100',
+      answer: 'k*1600*r/100*years',
+      d_forgotFinalStep: 'perYear',
+      d_signError: 'principal+k*1600*r/100*years',
+      d_usedGivenValue: 'principal',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_signError}}'), error: 'signError' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Each year pays {{r}} percent of {{principal}}, or {{perYear}}.', 'Over {{years}} years that is {{answer}}.'],
+  answerSummary: { headline: 'Simple interest pays the same amount every year.', text: 'It earns $\\${{answer}}$.' },
+  hint: 'Work out one year first.',
+  feedback: 'The question asks for the interest, not the balance.',
+});
+
+ar('7.13E', 'simple-high-rate-versus-compound', {
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'context',
+  prompt: 'One account pays {{rs}}% simple on $\\${{principal}}$; another pays {{rc}}% compounded yearly on the same amount. Over two years, how much more does the better one earn?',
+  generator: {
+    parameters: {
+      rs: SAVINGS_RATES,
+      rc: SAVINGS_RATES,
+      k: { type: 'int', min: 1, max: 6 },
+    },
+    derived: {
+      principal: 'k*1600',
+      simpleEarn: 'k*1600*rs/100*2',
+      compoundEarn: 'k*1600*rc/100*2+k*1600*rc*rc/10000',
+      answer: 'abs(k*1600*rs/100*2-k*1600*rc/100*2-k*1600*rc*rc/10000)',
+      d_partialTotal: 'min(simpleEarn,compoundEarn)',
+      d_unitConversion: 'abs(k*1600*rs/1000*2-k*1600*rc/1000*2-k*1600*rc*rc/100000)',
+      d_signError: 'simpleEarn+compoundEarn',
+    },
+    constraints: ['simpleEarn!=compoundEarn'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_unitConversion}}'), error: 'unitConversion' },
+    { label: money('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['Simple at {{rs}} percent earns {{simpleEarn}} over two years.', 'Compounding at {{rc}} percent earns {{compoundEarn}}, because the second year also pays on the first year’s interest.', 'The gap is {{answer}}.'],
+  answerSummary: { headline: 'A higher simple rate can still beat a lower compounded one over a short run.', text: 'The better account earns $\\${{answer}}$ more.' },
+  hint: 'Work out what each account earns over the two years before comparing.',
+  feedback: 'Compounding is not automatically the larger figure over two years.',
+});
+
+ar('7.13E', 'balance-after-withdrawal', {
+  difficultyBand: 3, dok: 2, taskType: 'application', representation: 'table',
+  prompt: 'An account compounds yearly as logged, with a withdrawal at the end of year one. What is the balance at the end of year two?',
+  stimulus: {
+    kind: 'table',
+    title: 'Account',
+    table: { headers: ['item', 'value'], rows: [['opening', '{{principal}}'], ['rate', '{{r}}%'], ['end of year 1', '{{year1}}'], ['withdrawn', '{{wd}}']] },
+  },
+  generator: {
+    parameters: {
+      r: SAVINGS_RATES,
+      k: { type: 'int', min: 2, max: 6 },
+      wdHundreds: { type: 'int', min: 1, max: 58 },
+    },
+    derived: {
+      principal: 'k*1600',
+      year1: 'k*1600+k*1600*r/100',
+      wd: 'wdHundreds*100',
+      base: 'k*1600+k*1600*r/100-wdHundreds*100',
+      answer: 'base+base*r/100',
+      d_forgotFinalStep: 'base',
+      d_signError: 'year1+year1*r/100',
+      d_partialTotal: 'principal',
+    },
+    constraints: ['base>0', 'answer==round(answer)'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_signError}}'), error: 'signError' },
+    { label: money('{{d_partialTotal}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Year one closes at {{year1}}, and the withdrawal leaves {{base}}.', 'Year two pays {{r}} percent on {{base}}, giving {{answer}}.'],
+  answerSummary: { headline: 'The second year pays interest on what is actually left.', text: 'The balance is $\\${{answer}}$.' },
+  hint: 'The withdrawal happens before the second year’s interest.',
+  feedback: 'Interest in year two is worked out on the balance after the withdrawal.',
+});
+
+ar('7.13E', 'years-to-reach-target-simple', {
+  difficultyBand: 3, dok: 3, taskType: 'reverseReasoning', representation: 'verbal',
+  prompt: 'A deposit of $\\${{principal}}$ earns $\\${{perYear}}$ in simple interest each year. How many years until the interest reaches $\\${{target}}$?',
+  generator: {
+    parameters: {
+      // Simple interest only here, so the rate does not have to keep a squared
+      // term whole; a lower range lets it cross the number of years.
+      r: { type: 'choice', values: [2, 4, 5, 8, 10, 15] },
+      k: { type: 'int', min: 1, max: 6 },
+      years: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      principal: 'k*1600',
+      perYear: 'k*1600*r/100',
+      target: 'k*1600*r/100*years',
+      answer: 'years',
+      d_operationInverted: 'r',
+      d_offByOneStep: 'years+1',
+      d_partialTotal: 'round(years/2)',
+    },
+    constraints: ['years>2'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Each year adds {{perYear}}.', '{{target}} divided by {{perYear}} is {{answer}} years.'],
+  answerSummary: { headline: 'A fixed yearly amount divides into the target.', text: 'It takes ${{answer}}$ years.' },
+  hint: 'How many yearly payments make up the target?',
+  feedback: 'Divide the target by what one year earns.',
+});
+
+ar('7.13E', 'compare-two-accounts', {
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'table',
+  prompt: 'Two deposits ran for one year as shown. How much more interest did the better one earn?',
+  stimulus: {
+    kind: 'table',
+    title: 'Deposits',
+    table: { headers: ['account', 'deposit', 'rate'], rows: [['A', '{{pA}}', '{{rA}}%'], ['B', '{{pB}}', '{{rB}}%']] },
+  },
+  generator: {
+    parameters: {
+      rA: { type: 'choice', values: [8, 10, 12, 15, 20, 25] },
+      rB: { type: 'choice', values: [8, 10, 12, 15, 20, 25] },
+      kA: { type: 'int', min: 2, max: 6 },
+      kB: { type: 'int', min: 2, max: 6 },
+    },
+    derived: {
+      pA: 'kA*1600',
+      pB: 'kB*1600',
+      intA: 'kA*1600*rA/100',
+      intB: 'kB*1600*rB/100',
+      answer: 'abs(kA*1600*rA/100-kB*1600*rB/100)',
+      d_partialTotal: 'min(intA,intB)',
+      d_signError: 'intA+intB',
+      d_unitConversion: 'abs(kA*1600*rA/1000-kB*1600*rB/1000)',
+    },
+    constraints: ['intA!=intB'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_signError}}'), error: 'signError' },
+    { label: money('{{d_unitConversion}}'), error: 'unitConversion' },
+  ],
+  reasoning: ['Account A earns {{intA}} and B earns {{intB}}.', 'The gap is {{answer}}.'],
+  answerSummary: { headline: 'A bigger deposit does not always earn more.', text: 'It earns $\\${{answer}}$ more.' },
+  hint: 'Work out each account’s interest before comparing.',
+  feedback: 'Neither the deposits nor the rates compare on their own.',
+});
+
+// ================================================================ 7.13F
+// Sales, rebates and coupons.
+
+ar('7.13F', 'coupon-then-pay', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'A {{tool}} listed at $\\${{price}}$ has $\\${{coupon}}$ off. What is paid?',
+  generator: {
+    parameters: {
+      tool: contextParam(['grinder', 'compressor', 'drill', 'generator', 'welder']),
+      priceTens: { type: 'int', min: 12, max: 90 },
+      couponTens: { type: 'int', min: 2, max: 60 },
+    },
+    derived: {
+      price: 'priceTens*10',
+      coupon: 'couponTens*10',
+      answer: 'priceTens*10-couponTens*10',
+      d_signError: 'priceTens*10+couponTens*10',
+      d_partialTotal: 'couponTens*10',
+      d_offByOneStep: 'priceTens*10-couponTens*20',
+    },
+    constraints: ['answer>0'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_signError}}'), error: 'signError' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['A coupon comes off the listed price.', '{{price}} minus {{coupon}} is {{answer}}.'],
+  answerSummary: { headline: 'A coupon lowers what is paid.', text: '$\\${{answer}}$ is paid.' },
+  hint: 'The coupon reduces the amount handed over.',
+  feedback: 'The coupon is the discount, not the price.',
+});
+
+ar('7.13F', 'percent-off-versus-coupon', {
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'verbal',
+  prompt: 'A {{tool}} costs $\\${{price}}$. One shop takes {{p}}% off, another takes $\\${{coupon}}$ off. How much better is the stronger offer?',
+  generator: {
+    parameters: {
+      tool: contextParam(['grinder', 'compressor', 'drill', 'generator', 'welder']),
+      p: { type: 'choice', values: [10, 20, 25, 40, 50] },
+      hundreds: { type: 'int', min: 2, max: 14 },
+      couponTens: { type: 'int', min: 2, max: 60 },
+    },
+    derived: {
+      price: 'hundreds*100',
+      percentOff: 'hundreds*100*p/100',
+      coupon: 'couponTens*10',
+      answer: 'abs(hundreds*100*p/100-couponTens*10)',
+      d_partialTotal: 'min(percentOff,coupon)',
+      d_signError: 'percentOff+coupon',
+      d_unitConversion: 'abs(hundreds*100*p/1000-couponTens)',
+    },
+    constraints: ['percentOff!=coupon'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_signError}}'), error: 'signError' },
+    { label: money('{{d_unitConversion}}'), error: 'unitConversion' },
+  ],
+  reasoning: ['{{p}} percent of {{price}} is {{percentOff}}.', 'Against a {{coupon}} coupon the gap is {{answer}}.'],
+  answerSummary: { headline: 'A percent off and an amount off compare only as amounts.', text: 'The stronger offer saves $\\${{answer}}$ more.' },
+  hint: 'Turn the percent into money before comparing.',
+  feedback: 'The question asks for the difference between the two savings.',
+});
+
+ar('7.13F', 'rebate-after-purchase', {
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'Two {{tool}}s at $\\${{price}}$ each carry a $\\${{rebate}}$ rebate apiece. What is the final cost for both?',
+  generator: {
+    parameters: {
+      tool: contextParam(['grinder', 'compressor', 'drill', 'generator', 'welder']),
+      priceTens: { type: 'int', min: 12, max: 90 },
+      rebateTens: { type: 'int', min: 2, max: 60 },
+    },
+    derived: {
+      price: 'priceTens*10',
+      rebate: 'rebateTens*10',
+      answer: 'priceTens*20-rebateTens*20',
+      d_forgotFinalStep: 'priceTens*20',
+      d_partialTotal: 'priceTens*10-rebateTens*10',
+      d_signError: 'rebateTens*20',
+    },
+    constraints: ['answer>0'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['Two at {{price}} come to {{d_forgotFinalStep}}.', 'Two rebates of {{rebate}} take off {{d_signError}} in all, leaving {{answer}}.'],
+  answerSummary: { headline: 'A rebate per item applies to every item bought.', text: 'The final cost is $\\${{answer}}$.' },
+  hint: 'Both units carry a rebate.',
+  feedback: 'The rebate applies once per item, not once per order.',
+});
+
+ar('7.13F', 'stacked-sale-and-coupon', {
+  difficultyBand: 3, dok: 3, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'A {{tool}} at $\\${{price}}$ is cut by {{p}}%, and then $\\${{coupon}}$ comes off the sale price. What is paid?',
+  generator: {
+    parameters: {
+      tool: contextParam(['grinder', 'compressor', 'drill', 'generator', 'welder']),
+      p: { type: 'choice', values: [10, 20, 25, 40, 50] },
+      hundreds: { type: 'int', min: 3, max: 16 },
+      couponTens: { type: 'int', min: 2, max: 50 },
+    },
+    derived: {
+      price: 'hundreds*100',
+      sale: 'hundreds*100-hundreds*100*p/100',
+      coupon: 'couponTens*10',
+      answer: 'hundreds*100-hundreds*100*p/100-couponTens*10',
+      d_offByOneStep: 'hundreds*100-hundreds*100*p/100-couponTens*20',
+      d_partialTotal: 'hundreds*100*p/100+couponTens*10',
+      d_signError: 'hundreds*100-hundreds*100*p/100+couponTens*10',
+    },
+    constraints: ['answer>0'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['The sale takes {{price}} down to {{sale}}.', 'The coupon then takes off {{coupon}}, leaving {{answer}}.'],
+  answerSummary: { headline: 'Each reduction applies to what the one before it left.', text: '$\\${{answer}}$ is paid.' },
+  hint: 'Handle the two reductions in the order given.',
+  feedback: 'The coupon comes off the sale price, not the original.',
+});
+
+ar('7.13F', 'best-saving-of-three', {
+  difficultyBand: 3, dok: 3, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'Three offers on the same $\\${{price}}$ {{tool}} are listed. How much does the best offer save?',
+  stimulus: {
+    kind: 'table',
+    title: 'Offers',
+    table: { headers: ['offer', 'terms'], rows: [['A', '{{pA}}% off'], ['B', '$\\${{couponB}}$ off'], ['C', '{{pC}}% off']] },
+  },
+  generator: {
+    parameters: {
+      tool: contextParam(['grinder', 'compressor', 'drill', 'generator', 'welder']),
+      pA: { type: 'choice', values: [10, 20, 25, 40, 50] },
+      pC: { type: 'choice', values: [10, 20, 25, 40, 50] },
+      hundreds: { type: 'int', min: 3, max: 16 },
+      couponTens: { type: 'int', min: 5, max: 80 },
+    },
+    derived: {
+      price: 'hundreds*100',
+      cutA: 'hundreds*100*pA/100',
+      couponB: 'couponTens*10',
+      cutC: 'hundreds*100*pC/100',
+      answer: 'max(max(hundreds*100*pA/100,couponTens*10),hundreds*100*pC/100)',
+      d_partialTotal: 'min(min(cutA,couponB),cutC)',
+      d_signError: 'cutA+couponB+cutC',
+      d_forgotFinalStep: 'price-max(max(cutA,couponB),cutC)',
+    },
+    constraints: ['cutA!=couponB', 'couponB!=cutC', 'cutA!=cutC', 'couponB<price'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_signError}}'), error: 'signError' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['The three offers take off {{cutA}}, {{couponB}} and {{cutC}}.', 'The largest saving is {{answer}}.'],
+  answerSummary: { headline: 'Percent offers and coupon offers rank only once both are amounts of money.', text: 'The best offer saves $\\${{answer}}$.' },
+  hint: 'Work out what each offer takes off in money.',
+  feedback: 'The question asks what is saved, not what is paid.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
