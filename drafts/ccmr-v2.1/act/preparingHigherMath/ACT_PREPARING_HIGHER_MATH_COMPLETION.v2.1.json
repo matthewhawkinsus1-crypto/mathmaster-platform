@@ -5,16 +5,20 @@
   "framework": "act",
   "domainId": "preparingHigherMath",
   "completedStandards": [],
-  "completedNativeSkills": [],
-  "completedScopeUnitsCount": 0,
-  "familiesTotal": 0,
+  "completedNativeSkills": ["numberQuantity"],
+  "completedScopeUnitsCount": 1,
+  "familiesTotal": 8,
   "validation": {
     "randomizedInstancesPerScopeUnit": 2000,
-    "randomizedInstancesTotal": 0,
+    "randomizedInstancesTotal": 2000,
     "checks": [
       "five direct plus three independently authored challenge families per scope unit",
       "exactly four ACT answer choices per family",
       "no student-produced response items",
+      "rational exponent and irrational-number semantics",
+      "complex-number addition and conjugate multiplication",
+      "matrix multiplication and matrix-vector multiplication",
+      "vector magnitude and compound unit conversion",
       "no unresolved generator placeholders",
       "no exact generator reuse within a scope unit",
       "ACT-native banks carry no fabricated Texas alignment",
@@ -22,7 +26,7 @@
     ]
   },
   "coverageStatus": {
-    "numberQuantity": "native-authoring-next",
+    "numberQuantity": "complete",
     "algebra": "native-authoring-next",
     "functions": "native-authoring-next",
     "geometry": "native-authoring-next",
