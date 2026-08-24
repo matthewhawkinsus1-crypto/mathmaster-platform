@@ -12,10 +12,12 @@ import { samplePathInstances } from '../functions/shared/pathQuestionGeneration.
 import { EXTREME_TOLERANCE, RANK_TOLERANCE, analyzeAnswerKeyBias } from '../functions/shared/asvabFidelity.mjs';
 
 const file = process.argv[2] || 'drafts/asvab-ar.json';
-// 200 rather than 60. A family whose key genuinely splits 50/50 between the two
-// middle ranks sits close to the 0.6 tolerance, and at 60 draws sampling noise
-// alone crosses it often enough to make the gate flaky.
-const draws = Number(process.argv[3]) || 200;
+// 400 draws. A family whose key genuinely splits 50/50 between the two middle
+// ranks sits close to the 0.6 tolerance, so the sample has to be large enough
+// that noise does not cross it: one family measured 62.5% at 120 draws, 56.5%
+// at 200 and 50.7% at 3000. 400 is where the reading settles well inside the
+// tolerance without making a whole-bank run slow.
+const draws = Number(process.argv[3]) || 400;
 const documents = JSON.parse(readFileSync(file, 'utf8')).documents || [];
 
 console.log(`rank tolerance ${RANK_TOLERANCE}, extreme tolerance ${EXTREME_TOLERANCE}, ${draws} draws per family\n`);

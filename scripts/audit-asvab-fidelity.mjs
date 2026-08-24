@@ -12,7 +12,7 @@ import {
 
 const args = process.argv.slice(2);
 const samplesAt = args.indexOf('--samples');
-const samples = samplesAt >= 0 ? Number(args[samplesAt + 1]) || 200 : 200;
+const samples = samplesAt >= 0 ? Number(args[samplesAt + 1]) || 400 : 400;
 const positional = args.filter((entry, index) => !entry.startsWith('--') && !(samplesAt >= 0 && index === samplesAt + 1));
 const file = positional[0] || 'drafts/asvab.json';
 const showVerdicts = args.includes('--verdicts');

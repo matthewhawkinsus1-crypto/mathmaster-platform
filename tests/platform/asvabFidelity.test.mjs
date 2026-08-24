@@ -164,8 +164,11 @@ test('rebuilt families generate cleanly, keep four distinct choices, and keep ex
 });
 
 test('rebuilt families are free of answer-key bias across many draws', () => {
+  // 400, matching the audit and the probe. A family that genuinely splits 50/50
+  // across the two middle ranks reads 62.5% at 120 draws and 50.7% at 3000, so
+  // a smaller sample makes this gate fail on noise rather than on content.
   for (const question of draft) {
-    const instances = samplePathInstances(question, 120).map((entry) => entry.question).filter(Boolean);
+    const instances = samplePathInstances(question, 400).map((entry) => entry.question).filter(Boolean);
     const bias = analyzeAnswerKeyBias(instances);
     assert.deepEqual(bias.issues, [], `${question.id}: ${bias.issues.map((i) => i.detail).join('; ')}`);
   }
