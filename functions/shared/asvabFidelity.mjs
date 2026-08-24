@@ -93,7 +93,10 @@ const numericLabel = (label) => {
     return denominator === 0 ? null : Number(fraction[1]) / denominator;
   }
 
-  const bare = raw.replace(/,/g, '');
+  // `25\%` is a number too. Leaving the percent sign in place made every
+  // percent-valued item non-numeric and therefore exempt from the bias check —
+  // the same hole the escaped dollar sign opened.
+  const bare = raw.replace(/\\?%$/, '').replace(/,/g, '');
   if (!/^-?\d+(?:\.\d+)?$/.test(bare)) return null;
   const value = Number(bare);
   return Number.isFinite(value) ? value : null;
@@ -152,6 +155,15 @@ export const BANK_RANK_BAND = Object.freeze({ min: 0.10, max: 0.40 });
  * touch and which is the channel the previous bank leaked through.
  */
 export const analyzeAnswerKeyBias = (instances, { tolerance = RANK_TOLERANCE, extremeTolerance = EXTREME_TOLERANCE } = {}) => {
+  // "Which of these is the largest?" has the key at the top of the ordering by
+  // construction, and that is the construct, not a leak: the student still has
+  // to convert a percent, a fraction and a decimal into one form before the
+  // ordering means anything. Rank analysis cannot say anything useful about
+  // such an item, so an author may declare it — and the kit only accepts the
+  // declaration on a prompt that really does ask for a comparison.
+  if (instances.some((instance) => instance?.rankAnalysisNotApplicable)) {
+    return { numeric: 0, nonNumeric: instances.length, rank: [0, 0, 0, 0], position: [0, 0, 0, 0], issues: [], exempt: true };
+  }
   const rank = [0, 0, 0, 0];
   const position = [0, 0, 0, 0];
   let numeric = 0;

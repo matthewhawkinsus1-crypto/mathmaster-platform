@@ -702,6 +702,330 @@ ar('6.5A', 'unit-rate-then-budget', {
   feedback: 'Divide the budget by the price of one, not by the number in the first offer.',
 });
 
+// ================================================================ 6.4E
+// Ratios and percents as fractions, decimals and concrete models.
+
+ar('6.4E', 'percent-to-decimal', {
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'A {{shop}} enters a {{p}}% fee into a register that takes decimals. Which decimal does it enter?',
+  generator: {
+    parameters: { shop: SHOPS, p: { type: 'int', min: 4, max: 96 } },
+    derived: {
+      answer: 'p/100',
+      d_unitConversion: 'p/10',
+      d_convertedWrongWay: 'p/1000',
+      d_wrongPercentBase: '(100-p)/100',
+    },
+    constraints: ['p!=50'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_unitConversion}}'), error: 'unitConversion' },
+    { label: plain('{{d_convertedWrongWay}}'), error: 'convertedWrongWay' },
+    { label: plain('{{d_wrongPercentBase}}'), error: 'wrongPercentBase' },
+  ],
+  reasoning: ['A percent counts hundredths.', '{{p}} hundredths is {{answer}}.'],
+  answerSummary: { headline: 'Percent means per hundred.', text: '{{p}}% is ${{answer}}$.' },
+  hint: 'How many hundredths does the percent name?',
+  feedback: 'Moving the point one place gives tenths, not hundredths.',
+});
+
+ar('6.4E', 'shaded-grid-percent', {
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'A 10 by 10 grid has {{shaded}} squares shaded. What percent of the grid is shaded?',
+  stimulus: {
+    kind: 'expressions',
+    title: 'Grid record',
+    note: '{{shaded}} of the 100 squares are shaded and {{unshaded}} are blank.',
+  },
+  generator: {
+    parameters: { shaded: { type: 'int', min: 4, max: 96 } },
+    derived: {
+      unshaded: '100-shaded',
+      answer: 'shaded',
+      d_wrongPercentBase: 'unshaded',
+      d_unitConversion: 'shaded*10',
+      d_convertedWrongWay: 'round(shaded/10)',
+    },
+    constraints: ['shaded!=50'],
+  },
+  choices: [
+    { label: plain('{{answer}}\\%'), correct: true },
+    { label: plain('{{d_wrongPercentBase}}\\%'), error: 'wrongPercentBase' },
+    { label: plain('{{d_unitConversion}}\\%'), error: 'unitConversion' },
+    { label: plain('{{d_convertedWrongWay}}\\%'), error: 'convertedWrongWay' },
+  ],
+  reasoning: ['The grid holds 100 squares, so each square is one percent.', '{{shaded}} squares shaded is {{answer}}%.'],
+  answerSummary: { headline: 'A hundred-square grid reads straight off as a percent.', text: '${{answer}}\\%$ is shaded.' },
+  hint: 'Count how many squares the whole grid holds.',
+  feedback: 'The question asks about the shaded part, not the blank part.',
+});
+
+ar('6.4E', 'fraction-to-percent', {
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'verbal',
+  prompt: '{{num}} out of every {{den}} {{item}} pass inspection. What percent pass?',
+  generator: {
+    parameters: {
+      item: GOODS,
+      den: { type: 'choice', values: [4, 5, 8, 10, 20, 25, 50] },
+      pct: { type: 'int', min: 5, max: 95, step: 5 },
+    },
+    derived: {
+      num: 'pct*den/100',
+      answer: 'pct',
+      d_wrongPercentBase: '100-pct',
+      d_usedGivenValue: 'num',
+      d_unitConversion: 'pct*2',
+    },
+    constraints: ['num==round(num)', 'num>0', 'pct!=50'],
+  },
+  choices: [
+    { label: plain('{{answer}}\\%'), correct: true },
+    { label: plain('{{d_wrongPercentBase}}\\%'), error: 'wrongPercentBase' },
+    { label: plain('{{d_usedGivenValue}}\\%'), error: 'usedGivenValue' },
+    { label: plain('{{d_unitConversion}}\\%'), error: 'unitConversion' },
+  ],
+  reasoning: ['{{den}} goes into 100 a whole number of times.', 'Scaling {{num}} out of {{den}} up to hundredths gives {{answer}} out of 100.'],
+  answerSummary: { headline: 'A percent is the same ratio rewritten out of 100.', text: '${{answer}}\\%$ pass.' },
+  hint: 'Scale the comparison so the second number becomes 100.',
+  feedback: 'The count that passes is not already a percent.',
+});
+
+ar('6.4E', 'percent-of-amount', {
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: '{{p}}% of a {{total}}-{{item}} order arrived early. How many arrived early?',
+  generator: {
+    parameters: {
+      item: GOODS,
+      p: { type: 'choice', values: [10, 20, 25, 40, 60, 75, 80, 90] },
+      hundreds: { type: 'int', min: 1, max: 12 },
+    },
+    derived: {
+      total: 'hundreds*100',
+      answer: 'total*p/100',
+      d_wrongPercentBase: 'total-total*p/100',
+      d_usedGivenValue: 'p',
+      d_unitConversion: 'total*p/10',
+    },
+    constraints: ['p!=50'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_wrongPercentBase}}'), error: 'wrongPercentBase' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_unitConversion}}'), error: 'unitConversion' },
+  ],
+  reasoning: ['One percent of {{total}} is {{hundreds}}.', '{{p}} percent is {{p}} times {{hundreds}}, or {{answer}}.'],
+  answerSummary: { headline: 'Find one percent, then take as many as the percent names.', text: '${{answer}}$ arrived early.' },
+  hint: 'Work out what one percent of the order is.',
+  feedback: 'The percent is a share of the order, not a count on its own.',
+});
+
+ar('6.4E', 'largest-of-mixed-forms', {
+  difficultyBand: 3, dok: 3, taskType: 'conceptual', representation: 'symbolic',
+  rankAnalysisNotApplicable: true,
+  prompt: 'Four {{shop}} discounts are written in different forms. Which is the largest?',
+  generator: {
+    parameters: {
+      shop: SHOPS,
+      big: { type: 'int', min: 60, max: 95 },
+      mid: { type: 'int', min: 30, max: 55 },
+      low: { type: 'int', min: 5, max: 25 },
+    },
+    derived: {
+      bigDec: 'big/100',
+      midDec: 'mid/100',
+      lowDec: 'low/100',
+      tenth: 'mid/1000',
+    },
+    constraints: ['big>mid+5', 'mid>low+5'],
+  },
+  choices: [
+    { label: plain('{{bigDec}}'), correct: true },
+    { label: plain('{{mid}}\\%'), error: 'convertedWrongWay' },
+    { label: plain('\\frac{{{low}}}{100}'), error: 'wrongPercentBase' },
+    { label: plain('{{tenth}}'), error: 'unitConversion' },
+  ],
+  reasoning: ['Put every option in the same form first.', '{{bigDec}} is {{big}}%, {{mid}}% is {{midDec}}, and the last two are {{lowDec}} and {{tenth}}.'],
+  answerSummary: { headline: 'Percents, fractions and decimals only compare in one shared form.', text: '${{bigDec}}$ is the largest.' },
+  hint: 'Rewrite each option the same way before comparing.',
+  feedback: 'A larger-looking number is not larger once the forms match.',
+});
+
+// ================================================================ 6.4F
+// Benchmark fractions and percents.
+
+// A single drawn quantity cannot produce an unbiased item: every distractor is
+// then a fixed multiple of the key, so the ordering never changes and the key
+// sits at the same rank in every draw. Each of these therefore draws the
+// benchmark itself from a list balanced either side of a half, which lets the
+// "used the other part" error land above the key as often as below it.
+
+const BENCHMARK_PERCENTS = { type: 'choice', values: [10, 20, 25, 40, 60, 75, 80, 90] };
+
+ar('6.4F', 'benchmark-percent-of-money', {
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'context',
+  prompt: 'A {{tool}} listed at $\\${{total}}$ is marked down {{p}}%. How much is taken off?',
+  generator: {
+    parameters: {
+      tool: contextParam(['grinder', 'compressor', 'drill', 'generator', 'welder']),
+      p: BENCHMARK_PERCENTS,
+      hundreds: { type: 'int', min: 1, max: 15 },
+    },
+    derived: {
+      total: 'hundreds*100',
+      answer: 'total*p/100',
+      d_wrongPercentBase: 'total*(100-p)/100',
+      d_unitConversion: 'total*p/10',
+      d_convertedWrongWay: 'total*p/1000',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_wrongPercentBase}}'), error: 'wrongPercentBase' },
+    { label: money('{{d_unitConversion}}'), error: 'unitConversion' },
+    { label: money('{{d_convertedWrongWay}}'), error: 'convertedWrongWay' },
+  ],
+  reasoning: ['One percent of {{total}} is {{hundreds}}.', '{{p}} of those is {{answer}}.'],
+  answerSummary: { headline: 'A markdown is a percent of the listed price.', text: '$\\${{answer}}$ is taken off.' },
+  hint: 'Work out one percent of the listed price first.',
+  feedback: 'The markdown is the part taken off, not the part left.',
+});
+
+ar('6.4F', 'two-benchmarks-remaining', {
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A {{crew}} cleared {{p}}% of {{total}} {{item}} on the first day and {{q}}% of the total on the second. How many are left?',
+  generator: {
+    parameters: {
+      crew: WORKERS, item: GOODS,
+      p: { type: 'choice', values: [10, 20, 25, 30, 45] },
+      q: { type: 'choice', values: [10, 20, 25, 30, 45] },
+      hundreds: { type: 'int', min: 2, max: 15 },
+    },
+    derived: {
+      total: 'hundreds*100',
+      cleared: 'total*(p+q)/100',
+      answer: 'total-total*(p+q)/100',
+      d_wrongPercentBase: 'cleared',
+      d_forgotFinalStep: 'total-total*p/100',
+      d_operationInverted: 'total*p*q/10000',
+    },
+    constraints: ['p!=q'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_wrongPercentBase}}'), error: 'wrongPercentBase' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['Together the two days cleared {{p}}+{{q}} percent of the order.', 'That is {{cleared}}, leaving {{answer}}.'],
+  answerSummary: { headline: 'Both percents are of the same total, so they add.', text: '${{answer}}$ are left.' },
+  hint: 'Both days are measured against the original order.',
+  feedback: 'Add the two shares before taking them off the total.',
+});
+
+ar('6.4F', 'one-percent-scaling', {
+  difficultyBand: 2, dok: 2, taskType: 'reverseReasoning', representation: 'context',
+  prompt: '1% of a shipment is {{one}} {{item}}. How many {{item}} are {{p}}% of it?',
+  generator: {
+    parameters: {
+      item: GOODS,
+      one: { type: 'int', min: 3, max: 40 },
+      p: BENCHMARK_PERCENTS,
+    },
+    derived: {
+      answer: 'one*p',
+      d_wrongPercentBase: 'one*(100-p)',
+      d_forgotFinalStep: 'one*100',
+      d_convertedWrongWay: 'round(one*p/10)',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_wrongPercentBase}}'), error: 'wrongPercentBase' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_convertedWrongWay}}'), error: 'convertedWrongWay' },
+  ],
+  reasoning: ['Each percent is worth {{one}} {{item}}.', '{{p}} percent is {{p}} times {{one}}.'],
+  answerSummary: { headline: 'One percent is the unit every other percent is built from.', text: 'That is ${{answer}}$ {{item}}.' },
+  hint: 'One percent is a building block. How many of them does the question want?',
+  feedback: 'The whole shipment is 100 percent; the question asks for less than that.',
+});
+
+ar('6.4F', 'whole-from-benchmark-part', {
+  difficultyBand: 3, dok: 2, taskType: 'reverseReasoning', representation: 'verbal',
+  prompt: '{{part}} {{item}} are {{num}} of the {{den}} equal shares of a load, and {{extra}} more were added. How many {{item}} are there now?',
+  generator: {
+    parameters: {
+      item: GOODS,
+      den: { type: 'choice', values: [3, 4, 5, 6] },
+      num: { type: 'int', min: 1, max: 5 },
+      share: { type: 'int', min: 4, max: 30 },
+      extra: { type: 'int', min: 5, max: 50, step: 5 },
+    },
+    derived: {
+      part: 'num*share',
+      load: 'den*share',
+      answer: 'den*share+extra',
+      d_forgotFinalStep: 'load',
+      d_operationInverted: 'extra*den',
+      d_partialTotal: 'part*den+extra',
+    },
+    constraints: ['num<den', 'num>1'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['{{part}} covers {{num}} shares, so one share is {{share}}.', 'The whole load is {{den}} shares, or {{load}}.', 'With {{extra}} more that is {{answer}}.'],
+  answerSummary: { headline: 'Get to one share before rebuilding the whole.', text: 'There are now ${{answer}}$ {{item}}.' },
+  hint: 'Work out the size of a single share first.',
+  feedback: 'The given count covers several shares, not one.',
+});
+
+ar('6.4F', 'benchmark-strip-reading', {
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'A strip of {{total}} {{item}} is split into the parts shown. What percent is {{label1}}?',
+  stimulus: {
+    kind: 'table',
+    title: 'Strip diagram',
+    table: { headers: ['part', 'count'], rows: [['{{label1}}', '{{part1}}'], ['{{label2}}', '{{part2}}']] },
+  },
+  generator: {
+    parameters: {
+      item: GOODS,
+      label1: contextParam(['inspected', 'packed', 'loaded', 'cleared']),
+      label2: contextParam(['held', 'pending', 'returned', 'flagged']),
+      p: { type: 'choice', values: [10, 20, 25, 40, 60, 75, 80, 90] },
+      hundreds: { type: 'int', min: 1, max: 9 },
+    },
+    derived: {
+      total: 'hundreds*100',
+      part1: 'total*p/100',
+      part2: 'total-total*p/100',
+      answer: 'p',
+      d_wrongPercentBase: '100-p',
+      d_usedGivenValue: 'part1',
+      d_convertedWrongWay: 'round(p/10)',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}\\%'), correct: true },
+    { label: plain('{{d_wrongPercentBase}}\\%'), error: 'wrongPercentBase' },
+    { label: plain('{{d_usedGivenValue}}\\%'), error: 'usedGivenValue' },
+    { label: plain('{{d_convertedWrongWay}}\\%'), error: 'convertedWrongWay' },
+  ],
+  reasoning: ['{{part1}} out of {{total}} is the share being asked for.', 'That is {{answer}} out of every hundred.'],
+  answerSummary: { headline: 'A part of a whole becomes a percent by comparing it to the whole.', text: '${{answer}}\\%$ is {{label1}}.' },
+  hint: 'Compare the part named in the question with the whole strip.',
+  feedback: 'Read the row the question names, not the other one.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {

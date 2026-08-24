@@ -126,7 +126,7 @@ const distinctChoiceConstraints = (choices, generator) => {
 export const asvabItem = ({
   code, domain, slug, courseId, prompt, choices, reasoning, answerSummary,
   hint, feedback, generator, stimulus = null, difficultyBand = 2, dok = 2,
-  taskType = 'application', representation = 'context',
+  taskType = 'application', representation = 'context', rankAnalysisNotApplicable = false,
 }) => {
   if (!code || !slug) throw new Error('An ASVAB item needs a TEKS code and a slug.');
   if (domain !== AR && domain !== MK) throw new Error(`${code}/${slug}: domain must be an ASVAB subtest id.`);
@@ -153,6 +153,11 @@ export const asvabItem = ({
     ...(choice.correct ? {} : { error: choice.error }),
   }));
   const keyId = CHOICE_IDS[ordered.findIndex((choice) => choice.correct === true)];
+
+  const comparisonTask = /\b(largest|greatest|smallest|least|biggest|closest)\b/i.test(prompt);
+  if (rankAnalysisNotApplicable && !comparisonTask) {
+    throw new Error(`${code}/${slug}: rank analysis may only be waived on an item that asks the student to compare the choices.`);
+  }
 
   return {
     id: `mm_asvab_${slugId(code)}_${slugId(slug)}`,
@@ -182,6 +187,7 @@ export const asvabItem = ({
     representation,
     authoring: { source: 'MathMaster ASVAB fidelity rebuild', kit: 'ccmr-asvab-v2.1' },
     prompt,
+    ...(rankAnalysisNotApplicable ? { rankAnalysisNotApplicable: true } : {}),
     ...(stimulus ? { stimulus } : {}),
     solutionReview: { headline: answerSummary.headline, reasoning, answerSummary: answerSummary.text },
     attemptFeedback: [feedback],
