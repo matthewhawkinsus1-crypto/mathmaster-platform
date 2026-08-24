@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 2,
+  "artifactType": "completionManifest",
+  "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+  "framework": "tsia2",
+  "domainId": "probabilisticStatistical",
+  "completedNativeSkills": [],
+  "completedScopeUnitsCount": 0,
+  "familiesTotal": 0,
+  "validation": {
+    "randomizedInstancesPerCompletedScopeUnit": 2000,
+    "randomizedInstancesTotal": 0,
+    "checks": ["five direct plus three independently authored challenge families per completed native skill", "exactly four answer choices per family", "valid item-level calculator mode: none, basic, squareRoot, or graphing", "tsia2TestScope matches the official native-skill ledger", "no fabricated Texas alignment", "generator placeholders resolve from declared parameters or derived values", "no exact prompt or underlying-task clones"]
+  },
+  "coverageStatus": {
+    "probability": "not-started",
+    "centerSpread": "not-started",
+    "dataClassificationRepresentation": "not-started",
+    "dataAnalysisConclusions": "not-started",
+    "sortCountData": "not-started",
+    "simpleGraphsTables": "not-started"
+  }
+}

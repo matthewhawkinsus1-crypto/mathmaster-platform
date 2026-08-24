@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 2,
+  "artifactType": "mappingLedger",
+  "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+  "framework": "tsia2",
+  "domainId": "probabilisticStatistical",
+  "officialTitle": "Probabilistic and Statistical Reasoning",
+  "crcWeight": 0.2,
+  "diagnosticWeight": 0.25,
+  "source": {
+    "testSpecifications": "https://accuplacer.collegeboard.org/accuplacer/pdf/tsia2-mathematics-test-specifications.pdf",
+    "sampleQuestions": "https://accuplacer.collegeboard.org/accuplacer/pdf/tsia2-mathematics-sample-questions.pdf"
+  },
+  "notes": [
+    "TSIA2-native scope is authored independently from Texas course standards.",
+    "crcAndDiagnostic skills may appear in CRC or Diagnostic practice; diagnosticOnly skills are reserved for foundational Diagnostic practice.",
+    "Every completed native skill requires five direct and three independently authored challenge families, all four-choice multiple choice."
+  ],
+  "nativeSkills": {
+    "probability": { "status": "author", "tsia2TestScope": "crcAndDiagnostic", "officialSkillArea": "Probability", "constructs": ["simple and compound probability", "sample spaces", "probability in context"] },
+    "centerSpread": { "status": "author", "tsia2TestScope": "crcAndDiagnostic", "officialSkillArea": "Measures of center and spread", "constructs": ["mean median and mode", "range and variability", "compare distributions"] },
+    "dataClassificationRepresentation": { "status": "author", "tsia2TestScope": "crcAndDiagnostic", "officialSkillArea": "Data classification and representation", "constructs": ["categorical and quantitative data", "tables and graphs", "select and interpret representations"] },
+    "dataAnalysisConclusions": { "status": "author", "tsia2TestScope": "crcAndDiagnostic", "officialSkillArea": "Data analysis and conclusions", "constructs": ["interpret data displays", "draw supported conclusions", "evaluate claims from data"] },
+    "sortCountData": { "status": "author", "tsia2TestScope": "diagnosticOnly", "officialSkillArea": "Sort and count data", "constructs": ["organize observations", "frequency counts", "basic data categorization"] },
+    "simpleGraphsTables": { "status": "author", "tsia2TestScope": "diagnosticOnly", "officialSkillArea": "Simple graphs and tables", "constructs": ["read tables", "read bar and line graphs", "extract values from simple displays"] }
+  }
+}
