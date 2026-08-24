@@ -9,6 +9,7 @@ const sourceRoot = path.join(root, 'drafts', 'ccmr-v2.1', 'digitalSAT');
 const RELEASE_TARGET = 'ccmr-fidelity-v2.1-authentic-language';
 const REQUIRED_DOMAINS = Object.freeze(['algebra', 'advancedMath', 'problemSolvingData', 'geometryTrigonometry']);
 const AUTHORABLE = new Set(['author', 'author-partial', 'authored']);
+const AUTHORING_STATUSES = new Set(['author', 'author-partial']);
 
 const argValue = (name, fallback = null) => {
   const i = process.argv.indexOf(name);
@@ -297,7 +298,7 @@ for (const domainId of targetDomains) {
       if (!completion.completedStandards.has(code)) failures.push(`${domainId} TEKS ${code}: ledger says authored but completion manifest does not confirm it`);
       if (!bankByScope.has(scopeKey(domainId, scope))) failures.push(`${domainId} TEKS ${code}: ledger says authored but no bank exists`);
     }
-    if (releaseMode && AUTHORING_STATUSES?.has?.(entry?.status) && !completion.completedStandards.has(code)) failures.push(`${domainId} TEKS ${code}: full release blocked; authoring is incomplete`);
+    if (releaseMode && AUTHORING_STATUSES.has(entry?.status) && !completion.completedStandards.has(code)) failures.push(`${domainId} TEKS ${code}: full release blocked; authoring is incomplete`);
   }
   for (const [nativeSkillId, entry] of Object.entries(ledger.nativeSkills || {})) {
     const scope = { kind: 'native', id: nativeSkillId };
@@ -305,6 +306,7 @@ for (const domainId of targetDomains) {
       if (!completion.completedNativeSkills.has(nativeSkillId)) failures.push(`${domainId} native ${nativeSkillId}: ledger says authored but completion manifest does not confirm it`);
       if (!bankByScope.has(scopeKey(domainId, scope))) failures.push(`${domainId} native ${nativeSkillId}: ledger says authored but no bank exists`);
     }
+    if (releaseMode && AUTHORING_STATUSES.has(entry?.status) && !completion.completedNativeSkills.has(nativeSkillId)) failures.push(`${domainId} native ${nativeSkillId}: full release blocked; authoring is incomplete`);
   }
 }
 
