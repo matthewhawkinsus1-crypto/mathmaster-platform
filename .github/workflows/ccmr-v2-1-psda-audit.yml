@@ -1,0 +1,25 @@
+name: CCMR V2.1 PSDA Audit
+
+on:
+  push:
+    branches:
+      - ccmr-fidelity-v2-1-authentic-language
+    paths:
+      - 'drafts/ccmr-v2.1/digitalSAT/problemSolvingData/**'
+      - 'scripts/build-digital-sat-v2-1.mjs'
+      - '.github/workflows/ccmr-v2-1-psda-audit.yml'
+  workflow_dispatch:
+
+jobs:
+  psda-v2-1-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out V2.1 branch
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Validate PSDA V2.1 authored bank
+        run: node scripts/build-digital-sat-v2-1.mjs --domain problemSolvingData --check
