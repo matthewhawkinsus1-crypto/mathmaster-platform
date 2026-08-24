@@ -43,6 +43,19 @@ const mappingFor = (examType, domainId) => {
   return domain ? { domainId, weight: domain.weight } : null;
 };
 
+// V2.1 authentic-language scope corrections. These are deliberately kept at
+// the runtime gateway while the broader, multi-framework TEKS crosswalk remains
+// available for ACT/TSIA2/ASVAB. A.2A's discrete/continuous domain-and-range
+// construct is not marked as a Digital SAT alignment in College Board's Texas
+// alignment table, so Path must not offer it as direct SAT evidence.
+const FRAMEWORK_SCOPE_EXCLUSIONS = Object.freeze({
+  [EXAM_TYPES.DIGITAL_SAT]: new Set(['A.2A']),
+});
+
+const isFrameworkScopeExcluded = (code, examType) => (
+  FRAMEWORK_SCOPE_EXCLUSIONS[examType]?.has(code) === true
+);
+
 /**
  * Exam domains for a TEKS code, from the authored crosswalk.
  *
@@ -62,6 +75,7 @@ export const mapTEKSToExamDomains = (teksCode) => {
 
   const result = {};
   Object.values(EXAM_TYPES).forEach((examType) => {
+    if (isFrameworkScopeExcluded(code, examType)) return;
     // Validated here, not in the crosswalk: the registry owns which domain ids
     // exist, so an authored typo is dropped rather than propagated.
     const known = new Set((EXAM_DOMAIN_REGISTRY[examType] || []).map((domain) => domain.id));
