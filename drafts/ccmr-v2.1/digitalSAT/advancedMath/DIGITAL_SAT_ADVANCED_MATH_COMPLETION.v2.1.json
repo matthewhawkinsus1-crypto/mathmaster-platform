@@ -24,6 +24,7 @@
     "A.11B",
     "A.12B",
     "A.12E",
+    "A2.2A",
     "A2.3A",
     "A2.3C",
     "A2.3D",
@@ -46,16 +47,17 @@
     "A2.7F",
     "A2.7G"
   ],
-  "completedStandardsCount": 40,
-  "familiesTotal": 320,
+  "completedStandardsCount": 41,
+  "familiesTotal": 328,
   "validation": {
     "randomizedInstancesPerStandard": 2000,
-    "randomizedInstancesTotal": 80000,
+    "randomizedInstancesTotal": 82000,
     "checks": [
       "generated mathematical identity, quotient, factor, rational-expression, radical, quadratic, exponential, reciprocal-function, inverse-variation, cube-root, absolute-value, formula, or system relationship",
       "equation-specific validation for quadratic roots and solution counts",
       "quadratic-function validation for vertex, intercept, extrema, factor, zero, coefficient, point-set construction, standard-to-vertex rewriting, nonlinear function evaluation, inverse-input reasoning, and equivalent-form relationships",
       "exponential-function validation for initial value, growth or decay factor, shifted reference input, nonunit interval, table/equation connections, separated observations, contextual models, function evaluation, inverse-input reasoning, intercepts, translated points, horizontal asymptotes, same/related-base equation solving, and exponent-parameter relationships",
+      "nonlinear parent-function validation for square-root, cubic, cube-root, absolute-value, and reciprocal interval features plus table/graph representation connections",
       "reciprocal and inverse-variation validation for asymptotes, y-intercepts, point relationships, constant-product models, contextual inverse variation, parameter recovery, scaled-input behavior, and symmetric-input structure",
       "linear-quadratic system formulation validation for graph properties, points, zeros, and contextual break-even/intersection models",
       "semantic MCQ validation that rejects symmetric-root or parameter draws producing mathematically equivalent distractors",
