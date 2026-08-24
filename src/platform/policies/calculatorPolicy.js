@@ -1,6 +1,7 @@
 export const CALCULATOR_MODES = Object.freeze({
   NONE: 'none',
   BASIC: 'basic',
+  SQUARE_ROOT: 'squareRoot',
   SCIENTIFIC: 'scientific',
   GRAPHING: 'graphing',
   TEACHER_CHOICE: 'teacherChoice',
@@ -10,9 +11,45 @@ export const CALCULATOR_MODES = Object.freeze({
 const CONCRETE_MODES = new Set([
   CALCULATOR_MODES.NONE,
   CALCULATOR_MODES.BASIC,
+  CALCULATOR_MODES.SQUARE_ROOT,
   CALCULATOR_MODES.SCIENTIFIC,
   CALCULATOR_MODES.GRAPHING,
 ]);
+
+const BASE_CALCULATOR_BUTTONS = Object.freeze(['C', '(', ')', '÷', '7', '8', '9', '×', '4', '5', '6', '-', '1', '2', '3', '+', '0', '.', '^', '=']);
+const SCIENTIFIC_CALCULATOR_BUTTONS = Object.freeze(['sin(', 'cos(', 'tan(', 'sqrt(', 'log(', 'ln(', 'π']);
+const SQUARE_ROOT_CALCULATOR_BUTTONS = Object.freeze(['√(', ...BASE_CALCULATOR_BUTTONS.filter((button) => button !== '^')]);
+
+export const getCalculatorButtonsForMode = (mode) => {
+  if (mode === CALCULATOR_MODES.SQUARE_ROOT) return [...SQUARE_ROOT_CALCULATOR_BUTTONS];
+  if ([CALCULATOR_MODES.SCIENTIFIC, CALCULATOR_MODES.GRAPHING].includes(mode)) {
+    return [...SCIENTIFIC_CALCULATOR_BUTTONS, ...BASE_CALCULATOR_BUTTONS];
+  }
+  return [...BASE_CALCULATOR_BUTTONS];
+};
+
+export const getCalculatorModeLabel = (mode) => {
+  if (mode === CALCULATOR_MODES.SQUARE_ROOT) return 'SQUARE ROOT';
+  if (mode === CALCULATOR_MODES.SCIENTIFIC) return 'SCIENTIFIC';
+  if (mode === CALCULATOR_MODES.GRAPHING) return 'GRAPHING';
+  if (mode === CALCULATOR_MODES.BASIC) return 'BASIC';
+  return String(mode || CALCULATOR_MODES.BASIC).replace(/([a-z])([A-Z])/g, '$1 $2').toUpperCase();
+};
+
+/**
+ * Mode-level guard used after expression normalization. The Square Root
+ * calculator is intentionally narrower than the generic scientific evaluator:
+ * students may use ordinary arithmetic and sqrt, but keyboard entry must not
+ * unlock trig, logarithms, constants, or exponentiation that the UI does not
+ * expose.
+ */
+export const calculatorModeAllowsExpression = (normalizedExpression, mode) => {
+  if (mode !== CALCULATOR_MODES.SQUARE_ROOT) return true;
+  const text = String(normalizedExpression ?? '');
+  if (text.includes('^')) return false;
+  const names = text.match(/[A-Za-z]+/g) || [];
+  return names.every((name) => name === 'sqrt');
+};
 
 export const ASSESSMENT_CALCULATOR_CONTEXTS = Object.freeze({
   sat: Object.freeze({ mode: CALCULATOR_MODES.GRAPHING, forceAvailable: true, accommodationOverride: false }),

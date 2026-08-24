@@ -1,8 +1,9 @@
 import { evaluate } from 'mathjs';
+import { calculatorModeAllowsExpression } from './calculatorPolicy.js';
 
 const SAFE_FUNCTIONS = new Set(['sqrt', 'sin', 'cos', 'tan', 'log', 'ln', 'abs']);
 
-export const evaluateCalculatorExpression = (expression) => {
+export const evaluateCalculatorExpression = (expression, mode = null) => {
   const raw = String(expression ?? '').trim();
   if (!raw || raw.length > 180) throw new Error('Enter a shorter calculation.');
   const normalized = raw
@@ -12,6 +13,9 @@ export const evaluateCalculatorExpression = (expression) => {
     .replace(/√/g, 'sqrt');
   if (!/^[0-9a-zA-Z+\-*/^().,\s]+$/.test(normalized) || /[=;[\]{}:_]/.test(normalized)) {
     throw new Error('Unsupported calculator input.');
+  }
+  if (!calculatorModeAllowsExpression(normalized, mode)) {
+    throw new Error('Unsupported calculator input for this mode.');
   }
   const names = normalized.match(/[A-Za-z]+/g) || [];
   if (names.some((name) => !SAFE_FUNCTIONS.has(name) && !['pi', 'e'].includes(name))) {

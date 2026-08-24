@@ -27,10 +27,13 @@ export const EXAM_DOMAIN_REGISTRY = Object.freeze({
     Object.freeze({ id: 'essentialSkills', title: 'Integrating Essential Skills', weight: 0.2 }),
   ]),
   [EXAM_TYPES.TSIA2]: Object.freeze([
-    Object.freeze({ id: 'quantitativeReasoning', title: 'Quantitative Reasoning', weight: 0.25 }),
-    Object.freeze({ id: 'algebraicReasoning', title: 'Algebraic Reasoning', weight: 0.25 }),
-    Object.freeze({ id: 'geometricSpatial', title: 'Geometric and Spatial Reasoning', weight: 0.25 }),
-    Object.freeze({ id: 'probabilisticStatistical', title: 'Probabilistic and Statistical Reasoning', weight: 0.25 }),
+    // TSIA2 Math uses different strand distributions in the 20-item CRC and
+    // the 48-item Diagnostic. `weight` remains the readiness/default weight
+    // consumed by existing CCMR surfaces and therefore mirrors `crcWeight`.
+    Object.freeze({ id: 'quantitativeReasoning', title: 'Quantitative Reasoning', weight: 0.30, crcWeight: 0.30, diagnosticWeight: 0.25 }),
+    Object.freeze({ id: 'algebraicReasoning', title: 'Algebraic Reasoning', weight: 0.35, crcWeight: 0.35, diagnosticWeight: 0.25 }),
+    Object.freeze({ id: 'geometricSpatial', title: 'Geometric and Spatial Reasoning', weight: 0.15, crcWeight: 0.15, diagnosticWeight: 0.25 }),
+    Object.freeze({ id: 'probabilisticStatistical', title: 'Probabilistic and Statistical Reasoning', weight: 0.20, crcWeight: 0.20, diagnosticWeight: 0.25 }),
   ]),
   [EXAM_TYPES.ASVAB]: Object.freeze([
     Object.freeze({ id: 'arithmeticReasoning', title: 'Arithmetic Reasoning', weight: 0.5 }),

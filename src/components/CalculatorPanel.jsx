@@ -1,11 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { CALCULATOR_MODES } from '../platform/policies/calculatorPolicy';
+import { getCalculatorButtonsForMode, getCalculatorModeLabel } from '../platform/policies/calculatorPolicy';
 import { evaluateCalculatorExpression } from '../platform/policies/calculatorExpression';
 
 export { evaluateCalculatorExpression } from '../platform/policies/calculatorExpression';
-
-const baseButtons = ['C', '(', ')', '÷', '7', '8', '9', '×', '4', '5', '6', '-', '1', '2', '3', '+', '0', '.', '^', '='];
-const scientificButtons = ['sin(', 'cos(', 'tan(', 'sqrt(', 'log(', 'ln(', 'π'];
 
 export const CalculatorPanel = ({
   policy,
@@ -45,7 +42,7 @@ export const CalculatorPanel = ({
     }
     if (button === '=') {
       try {
-        setDisplay(String(evaluateCalculatorExpression(display)));
+        setDisplay(String(evaluateCalculatorExpression(display, policy.mode)));
       } catch {
         setDisplay('Error');
       }
@@ -54,8 +51,7 @@ export const CalculatorPanel = ({
     setDisplay((current) => (current === '0' || current === 'Error' ? button : `${current}${button}`));
   };
 
-  const advanced = [CALCULATOR_MODES.SCIENTIFIC, CALCULATOR_MODES.GRAPHING].includes(policy.mode);
-  const buttons = advanced ? [...scientificButtons, ...baseButtons] : baseButtons;
+  const buttons = getCalculatorButtonsForMode(policy.mode);
 
   return (
     <div className={`mathmaster-calculator-drawer ${isOpen ? 'is-open' : ''}`} style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 9000 }}>
@@ -65,7 +61,7 @@ export const CalculatorPanel = ({
       {isOpen && (
         <div className="mathmaster-calculator-panel" style={{ position: 'absolute', bottom: '50px', right: 0, width: '300px', background: '#fff', borderRadius: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', border: '1px solid #dadce0', padding: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', alignItems: 'center' }}>
-            <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#3c4043' }}>{String(policy.mode).toUpperCase()} CALCULATOR</span>
+            <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#3c4043' }}>{getCalculatorModeLabel(policy.mode)} CALCULATOR</span>
             <button type="button" aria-label="Close calculator" onClick={() => setIsOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
           </div>
           {!estimateUnlocked ? (
@@ -77,7 +73,7 @@ export const CalculatorPanel = ({
           ) : (
             <div>
               <input inputMode="none" aria-label="Calculator expression" value={display} onChange={(event) => setDisplay(event.target.value)} style={{ width: '100%', boxSizing: 'border-box', background: '#f1f3f4', padding: '12px', borderRadius: '6px', border: 0, textAlign: 'right', fontSize: '20px', fontFamily: 'monospace', marginBottom: '12px' }} />
-              {policy.mode === CALCULATOR_MODES.GRAPHING && <p style={{ margin: '-3px 0 10px', color: '#5f6368', fontSize: '11px' }}>Graph construction stays in the MathMaster graph workspace; this drawer supplies numeric/scientific calculations.</p>}
+              {policy.mode === 'graphing' && <p style={{ margin: '-3px 0 10px', color: '#5f6368', fontSize: '11px' }}>Graph construction stays in the MathMaster graph workspace; this drawer supplies numeric/scientific calculations.</p>}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
                 {buttons.map((button) => (
                   <button key={button} type="button" onClick={() => handleCalculatorButton(button)} style={{ padding: '10px 5px', fontSize: button.length > 2 ? '12px' : '15px', fontWeight: 'bold', borderRadius: '6px', border: '1px solid #dadce0', background: button === '=' ? '#1a73e8' : button === 'C' ? '#fce8e6' : '#fff', color: button === '=' ? '#fff' : button === 'C' ? '#c5221f' : '#202124', cursor: 'pointer' }}>
