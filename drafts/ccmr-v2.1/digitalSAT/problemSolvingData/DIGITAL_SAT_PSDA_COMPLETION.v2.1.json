@@ -4,30 +4,32 @@
   "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
   "framework": "digitalSAT",
   "domainId": "problemSolvingData",
-  "completedStandards": ["A2.6L"],
-  "completedStandardsCount": 1,
-  "familiesTotal": 8,
+  "completedStandards": ["A.4C", "A2.6L"],
+  "completedStandardsCount": 2,
+  "familiesTotal": 16,
   "validation": {
     "randomizedInstancesPerStandard": 2000,
-    "randomizedInstancesTotal": 2000,
+    "randomizedInstancesTotal": 4000,
     "checks": [
       "inverse-variation constant-product relationships",
       "scale-factor and reciprocal-factor reasoning",
       "contextual rate and work relationships",
+      "linear-model prediction, fitted-line selection, slope interpretation, residuals, extrapolation, and model comparison",
+      "semantic validation that intended fitted models outperform distractors for the generated observations",
       "four unique rendered MCQ choices",
       "no unresolved generator placeholders",
       "five direct plus three independently authored challenge families",
-      "no exact generator reuse within the standard"
+      "no exact generator reuse within a standard"
     ]
   },
   "coverageStatus": {
     "ratiosRatesProportionsUnits": "started",
     "percentages": "architecture-needed",
     "oneVariableData": "architecture-needed",
-    "twoVariableData": "authoring-next",
+    "twoVariableData": "authoring-in-progress",
     "probabilityConditionalProbability": "architecture-needed",
     "inferenceMarginOfError": "architecture-needed",
     "evaluatingStatisticalClaims": "architecture-needed"
   },
-  "note": "This manifest begins with the A2.6L bank reclassified from Advanced Math after College Board Table 26 confirmed its PSDA ratios/rates alignment."
+  "note": "A2.6L is the first ratios/rates bank after its official reclassification from Advanced Math. A.4C begins the SAT two-variable-data model tranche."
 }
