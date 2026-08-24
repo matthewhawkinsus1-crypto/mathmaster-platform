@@ -2,73 +2,27 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  AUTHORABLE_STATUSES,
+  AUTHORING_STATUSES,
+  BANNED_PROMPT_PATTERNS,
+  OFFICIAL_SCOPE,
+  RELEASE_TARGET,
+  REQUIRED_DOMAINS,
+  VALID_CALCULATOR_MODES,
+  VALID_TEST_SCOPES,
+  officialSkillCount,
+} from './tsia2-v2-1-contract.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(process.env.MATHMASTER_ROOT || path.join(here, '..'));
 const sourceRoot = path.join(root, 'drafts', 'ccmr-v2.1', 'tsia2');
 const satRoot = path.join(root, 'drafts', 'ccmr-v2.1', 'digitalSAT');
 const actRoot = path.join(root, 'drafts', 'ccmr-v2.1', 'act');
-const RELEASE_TARGET = 'ccmr-fidelity-v2.1-authentic-language';
-
-const OFFICIAL_SCOPE = Object.freeze({
-  quantitativeReasoning: Object.freeze({
-    rationalIrrationalMagnitude: 'crcAndDiagnostic',
-    ratioProportionPercent: 'crcAndDiagnostic',
-    proportionalContext: 'crcAndDiagnostic',
-    linearExpressionsEquationsInterpretation: 'crcAndDiagnostic',
-    basicNumberOperations: 'diagnosticOnly',
-    roundingPlaceValue: 'diagnosticOnly',
-    numberFormsComparison: 'diagnosticOnly',
-  }),
-  algebraicReasoning: Object.freeze({
-    linearEquationsInequalitiesSystems: 'crcAndDiagnostic',
-    linearFunctions: 'crcAndDiagnostic',
-    quadraticExponentialContext: 'crcAndDiagnostic',
-    nonlinearExpressionsEquations: 'crcAndDiagnostic',
-    nonlinearEquationsFunctions: 'crcAndDiagnostic',
-  }),
-  geometricSpatial: Object.freeze({
-    measurementConversion: 'crcAndDiagnostic',
-    perimeterAreaSurfaceVolume: 'crcAndDiagnostic',
-    transformationsCongruenceSimilaritySymmetry: 'crcAndDiagnostic',
-    rightTrianglesTrigonometry: 'crcAndDiagnostic',
-    geometryAlgebraConnections: 'crcAndDiagnostic',
-    commonMeasurementUnits: 'diagnosticOnly',
-    angleTypesRelationships: 'diagnosticOnly',
-  }),
-  probabilisticStatistical: Object.freeze({
-    probability: 'crcAndDiagnostic',
-    centerSpread: 'crcAndDiagnostic',
-    dataClassificationRepresentation: 'crcAndDiagnostic',
-    dataAnalysisConclusions: 'crcAndDiagnostic',
-    sortCountData: 'diagnosticOnly',
-    simpleGraphsTables: 'diagnosticOnly',
-  }),
-});
-
-const REQUIRED_DOMAINS = Object.freeze(Object.keys(OFFICIAL_SCOPE));
-const AUTHORABLE = new Set(['author', 'author-partial', 'authored']);
-const AUTHORING_STATUSES = new Set(['author', 'author-partial']);
-const VALID_TEST_SCOPES = new Set(['crcAndDiagnostic', 'diagnosticOnly']);
-const VALID_CALCULATOR_MODES = new Set(['none', 'basic', 'squareRoot', 'graphing']);
-
-const BANNED_PROMPT_PATTERNS = [
-  /select the best answer/i,
-  /best TSIA2 answer/i,
-  /TSIA2 reasoning/i,
-  /placement-level mathematics/i,
-  /test taker/i,
-  /practice question/i,
-  /^challenge:/i,
-  /show your work/i,
-  /explain your reasoning/i,
-  /use the workspace/i,
-  /use the .* tool/i,
-  /difficulty band/i,
-  /\bdok\s*[1-4]\b/i,
-  /recheck the mathematics/i,
-  /verify .* before (selecting|submitting)/i,
-];
+const AUTHORABLE = new Set(AUTHORABLE_STATUSES);
+const IN_PROGRESS = new Set(AUTHORING_STATUSES);
+const VALID_SCOPES = new Set(VALID_TEST_SCOPES);
+const VALID_CALCULATORS = new Set(VALID_CALCULATOR_MODES);
 
 const argValue = (name) => {
   const index = process.argv.indexOf(name);
@@ -86,14 +40,23 @@ const walk = (dir) => !existsSync(dir) ? [] : readdirSync(dir, { withFileTypes: 
   const full = path.join(dir, entry.name);
   return entry.isDirectory() ? walk(full) : [full];
 });
+const promptOf = (doc) => String(doc?.prompt || '').trim();
 const roleOf = (doc) => doc?.ccmrFamilyRole || (Number(doc?.ccmrChallengeTier || 1) >= 2 ? 'challenge' : 'direct');
 const formatOf = (doc) => String(doc?.assessmentItemFormat || '').toLowerCase();
-const promptOf = (doc) => String(doc?.prompt || '').trim();
 const generatorSignature = (doc) => JSON.stringify(doc?.generator || null);
+const calculatorModeOf = (doc) => String(doc?.examCalculatorMode || '').trim();
 const nativeSkillIdOf = (doc) => String(doc?.assessmentContext?.nativeSkillId || doc?.ccmrAuthenticLanguage?.nativeSkillId || '').trim();
 const testScopeOf = (doc) => String(doc?.assessmentContext?.tsia2TestScope || '').trim();
-const calculatorModeOf = (doc) => String(doc?.examCalculatorMode || '').trim();
-const texasAlignmentOf = (doc) => (doc?.alignmentKeys || []).find((key) => /^texas:/i.test(String(key))) || null;
+const hasTexasAlignment = (doc) => (doc?.alignmentKeys || []).some((key) => /^texas:/i.test(String(key)));
+
+function normalizeSkeleton(text) {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/\{\{[^}]+\}\}/g, '<value>')
+    .replace(/-?\d+(?:\.\d+)?/g, '<number>')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 function normalizeGrammar(text) {
   return String(text || '')
@@ -103,15 +66,6 @@ function normalizeGrammar(text) {
     .replace(/-?\d+(?:\.\d+)?/g, '<number>')
     .replace(/[^a-z<>\s'-]/g, ' ')
     .replace(/\b(a|an|the)\b/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function normalizeSkeleton(text) {
-  return String(text || '')
-    .toLowerCase()
-    .replace(/\{\{[^}]+\}\}/g, '<value>')
-    .replace(/-?\d+(?:\.\d+)?/g, '<number>')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -143,7 +97,7 @@ function declaredGeneratorNames(doc) {
   ]);
 }
 
-function crossFrameworkDocuments(dir, framework) {
+function loadFrameworkDocs(dir, framework) {
   const docs = [];
   for (const file of walk(dir).filter((entry) => entry.endsWith('.v2.1.json')).sort()) {
     let parsed;
@@ -209,18 +163,18 @@ for (const domainId of targetDomains) {
   const ledger = ledgers.get(domainId);
   const completion = completions.get(domainId);
   if (!official || !ledger) continue;
-  const authoredSkills = ledger.nativeSkills || {};
-  const officialIds = Object.keys(official);
-  for (const nativeSkillId of officialIds) {
-    const entry = authoredSkills[nativeSkillId];
+  const ledgerSkills = ledger.nativeSkills || {};
+
+  for (const [nativeSkillId, expectedScope] of Object.entries(official)) {
+    const entry = ledgerSkills[nativeSkillId];
     if (!entry) {
       failures.push(`${domainId}: mapping ledger missing official native skill ${nativeSkillId}`);
       continue;
     }
     if (!AUTHORABLE.has(entry.status)) failures.push(`${domainId} native ${nativeSkillId}: unsupported authoring status ${entry.status}`);
-    if (entry.tsia2TestScope !== official[nativeSkillId]) failures.push(`${domainId} native ${nativeSkillId}: ledger tsia2TestScope mismatch; expected ${official[nativeSkillId]}`);
+    if (entry.tsia2TestScope !== expectedScope) failures.push(`${domainId} native ${nativeSkillId}: ledger tsia2TestScope mismatch; expected ${expectedScope}`);
   }
-  for (const nativeSkillId of Object.keys(authoredSkills)) {
+  for (const nativeSkillId of Object.keys(ledgerSkills)) {
     if (!(nativeSkillId in official)) failures.push(`${domainId}: mapping ledger contains unknown TSIA2 native skill ${nativeSkillId}`);
   }
   if (completion) {
@@ -254,7 +208,7 @@ for (const { file, parsed } of selectedBanks) {
   if (!ledgerEntry) failures.push(`${relative}: native skill is absent from the TSIA2 mapping ledger`);
   else if (!AUTHORABLE.has(ledgerEntry.status)) failures.push(`${relative}: scope status ${ledgerEntry.status} is not authorable`);
   if (!completions.get(domainId)?.completedNativeSkills.has(nativeSkillId)) failures.push(`${relative}: native skill is not confirmed by the completion manifest`);
-  if (!VALID_TEST_SCOPES.has(parsed.tsia2TestScope)) failures.push(`${relative}: missing or invalid bank tsia2TestScope`);
+  if (!VALID_SCOPES.has(parsed.tsia2TestScope)) failures.push(`${relative}: missing or invalid bank tsia2TestScope`);
   else if (expectedScope && parsed.tsia2TestScope !== expectedScope) failures.push(`${relative}: bank tsia2TestScope mismatch; expected ${expectedScope}`);
 
   const docs = parsed.documents || [];
@@ -267,6 +221,7 @@ for (const { file, parsed } of selectedBanks) {
     const id = String(doc?.id || '').trim();
     const familyId = String(doc?.familyId || '').trim();
     const prompt = promptOf(doc);
+
     if (!id) failures.push(`${relative}: document missing id`);
     else if (ids.has(id)) failures.push(`${relative}: duplicate id ${id}`);
     else ids.add(id);
@@ -278,7 +233,7 @@ for (const { file, parsed } of selectedBanks) {
     if (doc?.assessmentContext?.domainId !== domainId) failures.push(`${id}: TSIA2 domain does not match bank domain ${domainId}`);
     if (nativeSkillIdOf(doc) !== nativeSkillId) failures.push(`${id}: nativeSkillId mismatch`);
     if (testScopeOf(doc) !== expectedScope) failures.push(`${id}: tsia2TestScope mismatch; expected ${expectedScope || '(unknown)'}`);
-    if (texasAlignmentOf(doc)) failures.push(`${id}: TSIA2-native bank must not carry a texas: alignment key`);
+    if (hasTexasAlignment(doc)) failures.push(`${id}: TSIA2-native bank must not carry a texas: alignment key`);
 
     if (!doc?.ccmrAuthenticLanguage?.authored || String(doc?.ccmrAuthenticLanguage?.version || '') !== '2.1') failures.push(`${id}: missing authored V2.1 language marker`);
     if (doc?.ccmrAuthenticLanguage?.nativeSkillId && doc.ccmrAuthenticLanguage.nativeSkillId !== nativeSkillId) failures.push(`${id}: V2.1 language marker nativeSkillId mismatch`);
@@ -304,12 +259,11 @@ for (const { file, parsed } of selectedBanks) {
     if (!expected || !choiceIds.has(String(expected))) failures.push(`${id}: expected choice id is not present in choices`);
 
     const calculatorMode = calculatorModeOf(doc);
-    if (!VALID_CALCULATOR_MODES.has(calculatorMode)) failures.push(`${id}: invalid TSIA2 calculator mode ${calculatorMode || '(missing)'}; expected none, basic, squareRoot, or graphing`);
+    if (!VALID_CALCULATORS.has(calculatorMode)) failures.push(`${id}: invalid TSIA2 calculator mode ${calculatorMode || '(missing)'}; expected none, basic, squareRoot, or graphing`);
 
     if (!doc?.generator || typeof doc.generator !== 'object' || Array.isArray(doc.generator)) failures.push(`${id}: missing generator`);
     const declared = declaredGeneratorNames(doc);
-    const templatedContent = [prompt, doc?.formulaLatex || '', doc?.stimulus || null, doc?.choices || []];
-    for (const token of placeholderNames(templatedContent)) {
+    for (const token of placeholderNames([prompt, doc?.formulaLatex || '', doc?.stimulus || null, doc?.choices || []])) {
       if (!declared.has(token)) failures.push(`${id}: unresolved generator placeholder ${token}`);
     }
     const generator = generatorSignature(doc);
@@ -327,6 +281,7 @@ for (const domainId of targetDomains) {
   const ledger = ledgers.get(domainId);
   const completion = completions.get(domainId);
   if (!official || !ledger || !completion) continue;
+
   for (const nativeSkillId of Object.keys(official)) {
     const completed = completion.completedNativeSkills.has(nativeSkillId);
     const hasBank = bankByScope.has(`${domainId}|${nativeSkillId}`);
@@ -334,17 +289,17 @@ for (const domainId of targetDomains) {
     if (completed && !hasBank) failures.push(`${domainId} native ${nativeSkillId}: completion says complete but bank is missing`);
     if (status === 'authored' && !completed) failures.push(`${domainId} native ${nativeSkillId}: ledger says authored but completion manifest does not confirm it`);
     if (status === 'authored' && !hasBank) failures.push(`${domainId} native ${nativeSkillId}: ledger says authored but bank is missing`);
-    if (releaseMode && (!completed || !hasBank || AUTHORING_STATUSES.has(status))) failures.push(`${domainId} native ${nativeSkillId}: full TSIA2 release blocked; authoring is incomplete`);
+    if (releaseMode && (!completed || !hasBank || IN_PROGRESS.has(status))) failures.push(`${domainId} native ${nativeSkillId}: full TSIA2 release blocked; authoring is incomplete`);
   }
 }
 
-const exactPromptSkeletons = new Map();
+const promptSkeletons = new Map();
 const underlyingTasks = new Map();
 for (const doc of effective) {
   const skeleton = normalizeSkeleton(promptOf(doc));
-  const priorPrompt = exactPromptSkeletons.get(skeleton);
+  const priorPrompt = promptSkeletons.get(skeleton);
   if (priorPrompt) failures.push(`Exact TSIA2 prompt clone: ${doc.id} and ${priorPrompt.id}`);
-  else if (skeleton) exactPromptSkeletons.set(skeleton, doc);
+  else if (skeleton) promptSkeletons.set(skeleton, doc);
 
   const taskKey = JSON.stringify([doc.taskType || '', doc.representation || '', generatorSignature(doc)]);
   const priorTask = underlyingTasks.get(taskKey);
@@ -354,23 +309,23 @@ for (const doc of effective) {
 
 const highSimilarityPairs = [];
 for (let i = 0; i < effective.length; i += 1) {
-  const a = effective[i];
-  const aTokens = tokenSet(promptOf(a));
-  if (aTokens.size < 8) continue;
+  const left = effective[i];
+  const leftTokens = tokenSet(promptOf(left));
+  if (leftTokens.size < 8) continue;
   for (let j = i + 1; j < effective.length; j += 1) {
-    const b = effective[j];
-    if (a.taskType !== b.taskType && a.representation !== b.representation) continue;
-    const bTokens = tokenSet(promptOf(b));
-    if (bTokens.size < 8) continue;
-    const score = jaccard(aTokens, bTokens);
-    if (score >= 0.94) highSimilarityPairs.push({ leftId: a.id, rightId: b.id, score: Number(score.toFixed(3)) });
+    const right = effective[j];
+    if (left.taskType !== right.taskType && left.representation !== right.representation) continue;
+    const rightTokens = tokenSet(promptOf(right));
+    if (rightTokens.size < 8) continue;
+    const score = jaccard(leftTokens, rightTokens);
+    if (score >= 0.94) highSimilarityPairs.push({ leftId: left.id, rightId: right.id, score: Number(score.toFixed(3)) });
   }
 }
 if (highSimilarityPairs.length) failures.push(`${highSimilarityPairs.length} high-similarity TSIA2 task-grammar pairs remain`);
 
 const externalDocs = [
-  ...crossFrameworkDocuments(satRoot, 'digitalSAT').map((doc) => ({ framework: 'Digital SAT', doc })),
-  ...crossFrameworkDocuments(actRoot, 'act').map((doc) => ({ framework: 'ACT', doc })),
+  ...loadFrameworkDocs(satRoot, 'digitalSAT').map((doc) => ({ framework: 'Digital SAT', doc })),
+  ...loadFrameworkDocs(actRoot, 'act').map((doc) => ({ framework: 'ACT', doc })),
 ];
 const externalSkeletons = new Map();
 const externalLongGrammar = [];
@@ -397,14 +352,16 @@ for (const doc of documents) {
   byDomain[domainId] = (byDomain[domainId] || 0) + 1;
 }
 for (const domainId of targetDomains) {
-  if (!byDomain[domainId] && ledgers.has(domainId) && completions.has(domainId)) failures.push(`${domainId}: no completed TSIA2 V2.1 content selected`);
+  const completionCount = completions.get(domainId)?.completedNativeSkills.size || 0;
+  if (!byDomain[domainId] && completionCount > 0) failures.push(`${domainId}: completion manifest names completed skills but no TSIA2 V2.1 content was selected`);
 }
 
 if (releaseMode) {
-  if (bankByScope.size !== 25) failures.push(`Full TSIA2 release requires 25 completed native-skill banks; found ${bankByScope.size}`);
-  if (documents.length !== 200) failures.push(`Full TSIA2 release requires 200 generative families; found ${documents.length}`);
-  if (documents.filter((doc) => roleOf(doc) === 'direct').length !== 125) failures.push('Full TSIA2 release requires exactly 125 direct families.');
-  if (documents.filter((doc) => roleOf(doc) === 'challenge').length !== 75) failures.push('Full TSIA2 release requires exactly 75 challenge families.');
+  const expectedSkills = officialSkillCount();
+  if (bankByScope.size !== expectedSkills) failures.push(`Full TSIA2 release requires ${expectedSkills} completed native-skill banks; found ${bankByScope.size}`);
+  if (documents.length !== expectedSkills * 8) failures.push(`Full TSIA2 release requires ${expectedSkills * 8} generative families; found ${documents.length}`);
+  if (documents.filter((doc) => roleOf(doc) === 'direct').length !== expectedSkills * 5) failures.push(`Full TSIA2 release requires exactly ${expectedSkills * 5} direct families.`);
+  if (documents.filter((doc) => roleOf(doc) === 'challenge').length !== expectedSkills * 3) failures.push(`Full TSIA2 release requires exactly ${expectedSkills * 3} challenge families.`);
 }
 
 const summary = {
@@ -418,7 +375,7 @@ const summary = {
   direct: documents.filter((doc) => roleOf(doc) === 'direct').length,
   challenge: documents.filter((doc) => roleOf(doc) === 'challenge').length,
   multipleChoice: documents.filter((doc) => formatOf(doc) === 'multiplechoice').length,
-  calculators: Object.fromEntries([...VALID_CALCULATOR_MODES].map((mode) => [mode, documents.filter((doc) => calculatorModeOf(doc) === mode).length])),
+  calculators: Object.fromEntries(VALID_CALCULATOR_MODES.map((mode) => [mode, documents.filter((doc) => calculatorModeOf(doc) === mode).length])),
   testScopes: {
     crcAndDiagnostic: documents.filter((doc) => testScopeOf(doc) === 'crcAndDiagnostic').length,
     diagnosticOnly: documents.filter((doc) => testScopeOf(doc) === 'diagnosticOnly').length,
