@@ -39,7 +39,7 @@
       "reason": "College Board Table 25 shows no Digital SAT alignment check for 1A.4(B); do not infer an Evaluating Statistical Claims alignment from topic similarity alone."
     },
     "A.4C": {
-      "status": "author",
+      "status": "authored",
       "primarySkill": "two-variable data: models and scatterplots",
       "allowed": ["fit or select a linear model for two-variable data", "use a linear model to estimate or predict", "interpret a fitted linear relationship in context"]
     },
