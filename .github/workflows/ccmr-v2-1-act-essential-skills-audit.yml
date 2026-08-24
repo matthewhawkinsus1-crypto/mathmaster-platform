@@ -13,6 +13,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: ccmr-v2-1-act-essential-skills-audit
+  cancel-in-progress: true
+
 jobs:
   act-essential-skills-v2-1-audit:
     runs-on: ubuntu-latest
