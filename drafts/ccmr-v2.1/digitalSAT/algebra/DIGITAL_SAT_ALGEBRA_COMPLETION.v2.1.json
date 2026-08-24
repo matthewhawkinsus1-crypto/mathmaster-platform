@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 2,
+  "artifactType": "completionManifest",
+  "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+  "framework": "digitalSAT",
+  "domainId": "algebra",
+  "completedStandards": [
+    "A.2B", "A.2C", "A.2D", "A.2E", "A.2F", "A.2G", "A.2H", "A.2I",
+    "A.3A", "A.3B", "A.3C", "A.3D", "A.3E", "A.3F", "A.3G", "A.3H",
+    "A.5A", "A.5B", "A.5C",
+    "A.12A", "A.12B", "A.12E",
+    "A2.3E", "A2.3F", "A2.3G"
+  ],
+  "completedNativeSkills": [],
+  "completedStandardsCount": 25,
+  "completedNativeSkillsCount": 0,
+  "completedScopeUnitsCount": 25,
+  "familiesTotal": 200,
+  "validation": {
+    "randomizedInstancesPerScopeUnit": 2000,
+    "randomizedInstancesTotal": 50000,
+    "checks": [
+      "five direct plus three independently authored challenge families per standard",
+      "linear equations and functions across point, slope, table, graph, equation, and contextual representations",
+      "parallel, perpendicular, horizontal, and vertical line relationships",
+      "linear inequalities and feasible-region reasoning",
+      "systems of two linear equations and systems of linear inequalities",
+      "function notation, evaluation, and literal-formula relationships restricted to SAT Algebra scope",
+      "four unique rendered MCQ choices where applicable",
+      "semantic validation that generated distractors remain mathematically distinct",
+      "no unresolved generator placeholders",
+      "no malformed signed-number rendering",
+      "no exact generator reuse within a standard",
+      "A.2A excluded from direct SAT evidence and Algebra II nonlinear/three-variable system content routed outside SAT Algebra"
+    ]
+  },
+  "coverageStatus": {
+    "linearEquationsOneVariable": "complete",
+    "linearFunctions": "complete",
+    "linearEquationsTwoVariables": "complete",
+    "systemsTwoLinearEquations": "complete",
+    "linearInequalitiesOneOrTwoVariables": "complete"
+  },
+  "note": "This manifest backfills the completion evidence for the Algebra authoring tranche created before V2.1 introduced mandatory completion manifests. Scope approval remains in DIGITAL_SAT_ALGEBRA_MAPPING.v2.1.json."
+}
