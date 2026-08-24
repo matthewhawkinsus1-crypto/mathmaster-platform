@@ -5,28 +5,25 @@
   "framework": "digitalSAT",
   "domainId": "problemSolvingData",
   "completedStandards": ["A.3B", "A.4C", "A.8B", "A.9E", "A2.6L", "A2.8A", "A2.8C"],
-  "completedNativeSkills": ["percentages", "oneVariableData", "probabilityConditionalProbability", "inferenceMarginOfError"],
+  "completedNativeSkills": ["percentages", "oneVariableData", "probabilityConditionalProbability", "inferenceMarginOfError", "evaluatingStatisticalClaims"],
   "completedStandardsCount": 7,
-  "completedNativeSkillsCount": 4,
-  "completedScopeUnitsCount": 11,
-  "familiesTotal": 88,
+  "completedNativeSkillsCount": 5,
+  "completedScopeUnitsCount": 12,
+  "familiesTotal": 96,
   "validation": {
     "randomizedInstancesPerScopeUnit": 2000,
-    "randomizedInstancesTotal": 22000,
+    "randomizedInstancesTotal": 24000,
     "checks": [
-      "inverse-variation constant-product relationships",
-      "scale-factor and reciprocal-factor reasoning",
-      "contextual rate and work relationships",
-      "observed interval rates versus fitted trend rates and cross-data-set trend comparisons",
-      "linear, quadratic, exponential, and cross-model two-variable-data reasoning",
+      "inverse-variation constant-product relationships and contextual rate/work relationships",
+      "two-variable linear, quadratic, exponential, and cross-model reasoning",
       "percent-of, percent change, reverse percent, successive percent changes, and percent-versus-percentage-point reasoning",
       "one-variable data center, spread, transformations, outliers, weighted means, standard-deviation comparison, and interquartile range",
       "simple, complement, joint, conditional, union, expected-count, subgroup, and independence probability reasoning",
       "sample estimates, margin-of-error intervals, sample-size effects, population estimates, recovered margins, and interval-based population bounds",
+      "observational-study association limits, random-assignment causation, random-sample generalization, convenience-sample bias, and combined sampling/assignment conclusions",
       "semantic validation that mathematically equivalent distractors are rejected",
       "four unique rendered MCQ choices",
       "no unresolved generator placeholders",
-      "no malformed signed-factor rendering",
       "five direct plus three independently authored challenge families",
       "no exact generator reuse within a scope unit"
     ]
@@ -38,7 +35,7 @@
     "twoVariableData": "teks-backed-complete",
     "probabilityConditionalProbability": "complete",
     "inferenceMarginOfError": "complete",
-    "evaluatingStatisticalClaims": "native-authoring-next"
+    "evaluatingStatisticalClaims": "complete"
   },
-  "note": "PSDA now includes four completed SAT-native skill banks without false Texas alignment claims. Remaining native work is broad ratios/rates/units and evaluating statistical claims."
+  "note": "All PSDA skill families except the broad native ratios/rates/proportions/units bank are now complete. Native banks carry no fabricated Texas alignment."
 }
