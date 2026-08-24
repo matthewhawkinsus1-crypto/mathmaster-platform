@@ -9985,6 +9985,1412 @@
      "expected": "choice-c"
     }
    ]
+  },
+  {
+   "id": "mm_asvab_6_14C_register_closing_balance",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.14C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.14C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.14C:register-closing-balance",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.14C",
+   "taskType": "procedural",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A register opened at $\\${{start}}$ and recorded the entries shown. What is the closing balance?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Register",
+    "table": {
+     "headers": [
+      "entry",
+      "amount"
+     ],
+     "rows": [
+      [
+       "deposit",
+       "{{dep}}"
+      ],
+      [
+       "withdrawal",
+       "{{wd}}"
+      ],
+      [
+       "deposit",
+       "{{dep2}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "A register runs down the entries in order.",
+    "reasoning": [
+     "Deposits add and withdrawals take away.",
+     "{{start}} plus {{dep}} minus {{wd}} plus {{dep2}} is {{answer}}."
+    ],
+    "answerSummary": "The closing balance is $\\${{answer}}$."
+   },
+   "attemptFeedback": [
+    "A withdrawal lowers the balance, and the opening figure is only the starting point."
+   ],
+   "supportHints": [
+    "Work down the entries one at a time from the opening balance."
+   ],
+   "generator": {
+    "parameters": {
+     "start": {
+      "type": "int",
+      "min": 100,
+      "max": 900,
+      "step": 10
+     },
+     "dep": {
+      "type": "int",
+      "min": 20,
+      "max": 400,
+      "step": 10
+     },
+     "wd": {
+      "type": "int",
+      "min": 20,
+      "max": 800,
+      "step": 10
+     },
+     "dep2": {
+      "type": "int",
+      "min": 20,
+      "max": 400,
+      "step": 10
+     }
+    },
+    "derived": {
+     "answer": "start+dep-wd+dep2",
+     "d_signError": "start+dep+wd+dep2",
+     "d_forgotFinalStep": "start+dep-wd",
+     "d_partialTotal": "start"
+    },
+    "constraints": [
+     "answer>0",
+     "answer!=d_signError",
+     "answer!=d_partialTotal",
+     "answer!=d_forgotFinalStep",
+     "d_signError!=d_partialTotal",
+     "d_signError!=d_forgotFinalStep",
+     "d_partialTotal!=d_forgotFinalStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_14C_missing_register_entry",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.14C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.14C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.14C:missing-register-entry",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.14C",
+   "taskType": "reverseReasoning",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A register opened at $\\${{start}}$, took a deposit of $\\${{dep}}$ and one withdrawal, and closed at $\\${{end}}$. What was the withdrawal?",
+   "solutionReview": {
+    "headline": "Work forward to the point before the unknown entry.",
+    "reasoning": [
+     "After the deposit the balance stood at {{start}} plus {{dep}}.",
+     "Falling to {{end}} means {{answer}} was taken out."
+    ],
+    "answerSummary": "The withdrawal was $\\${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The deposit lands before the withdrawal, so it counts too."
+   ],
+   "supportHints": [
+    "What was the balance just after the deposit?"
+   ],
+   "generator": {
+    "parameters": {
+     "start": {
+      "type": "int",
+      "min": 100,
+      "max": 900,
+      "step": 10
+     },
+     "dep": {
+      "type": "int",
+      "min": 20,
+      "max": 500,
+      "step": 10
+     },
+     "wd": {
+      "type": "int",
+      "min": 20,
+      "max": 500,
+      "step": 10
+     }
+    },
+    "derived": {
+     "end": "start+dep-wd",
+     "answer": "wd",
+     "d_signError": "start+dep+end",
+     "d_partialTotal": "abs(start-end)",
+     "d_forgotFinalStep": "dep"
+    },
+    "constraints": [
+     "end>0",
+     "answer!=d_signError",
+     "answer!=d_partialTotal",
+     "answer!=d_forgotFinalStep",
+     "d_signError!=d_partialTotal",
+     "d_signError!=d_forgotFinalStep",
+     "d_partialTotal!=d_forgotFinalStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_signError}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_14C_transfer_between_accounts",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.14C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.14C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.14C:transfer-between-accounts",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.14C",
+   "taskType": "application",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "An account holding $\\${{a}}$ transfers $\\${{move}}$ to one holding $\\${{b}}$. How much more does the second account now hold than the first?",
+   "solutionReview": {
+    "headline": "A transfer moves the amount twice: out of one and into the other.",
+    "reasoning": [
+     "The first account falls to {{newA}} and the second rises to {{newB}}.",
+     "{{newB}} minus {{newA}} is {{answer}}."
+    ],
+    "answerSummary": "The second holds $\\${{answer}}$ more."
+   },
+   "attemptFeedback": [
+    "The gap widens by twice the transfer, because one side loses what the other gains."
+   ],
+   "supportHints": [
+    "Both balances change, not just one."
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 100,
+      "max": 900,
+      "step": 20
+     },
+     "move": {
+      "type": "int",
+      "min": 20,
+      "max": 300,
+      "step": 20
+     },
+     "gap": {
+      "type": "int",
+      "min": 20,
+      "max": 300,
+      "step": 20
+     }
+    },
+    "derived": {
+     "a": "b+2*move-gap",
+     "newA": "b+move-gap",
+     "newB": "b+move",
+     "answer": "gap",
+     "d_forgotFinalStep": "abs(gap-move)",
+     "d_signError": "a+b",
+     "d_partialTotal": "move"
+    },
+    "constraints": [
+     "newA>0",
+     "a>move",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_signError",
+     "answer!=d_partialTotal",
+     "d_forgotFinalStep!=d_signError",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_signError!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_14C_overdraft_check",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.14C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.14C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.14C:overdraft-check",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.14C",
+   "taskType": "interpretation",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A register holds $\\${{start}}$ with $\\${{pending}}$ of payments still to clear. What is the largest whole-dollar withdrawal that keeps the balance at or above zero?",
+   "solutionReview": {
+    "headline": "Money already committed is not available.",
+    "reasoning": [
+     "The pending payments are already committed.",
+     "Only {{start}} minus {{pending}}, or {{answer}}, is free to withdraw."
+    ],
+    "answerSummary": "The largest safe withdrawal is $\\${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The pending payments still have to clear."
+   ],
+   "supportHints": [
+    "Some of the balance is already spoken for."
+   ],
+   "generator": {
+    "parameters": {
+     "start": {
+      "type": "int",
+      "min": 200,
+      "max": 1200,
+      "step": 10
+     },
+     "pending": {
+      "type": "int",
+      "min": 50,
+      "max": 700,
+      "step": 10
+     }
+    },
+    "derived": {
+     "answer": "start-pending",
+     "d_forgotFinalStep": "start",
+     "d_signError": "abs(start-2*pending)",
+     "d_partialTotal": "pending"
+    },
+    "constraints": [
+     "answer>0",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_signError",
+     "answer!=d_partialTotal",
+     "d_forgotFinalStep!=d_signError",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_signError!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_signError}}$",
+     "error": "offByOneStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_14C_weekly_register_average",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.14C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.14C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.14C:weekly-register-average",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.14C",
+   "taskType": "representationTranslation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A register logged the four weekly net changes shown. What was the average change per week?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Net change by week",
+    "table": {
+     "headers": [
+      "week",
+      "change"
+     ],
+     "rows": [
+      [
+       "1",
+       "{{w1}}"
+      ],
+      [
+       "2",
+       "{{w2}}"
+      ],
+      [
+       "3",
+       "{{w3}}"
+      ],
+      [
+       "4",
+       "{{w4}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "An average change shares the total across the weeks.",
+    "reasoning": [
+     "The four weeks total {{total}}.",
+     "Shared over four weeks that is {{answer}}."
+    ],
+    "answerSummary": "The average is $\\${{answer}}$ a week."
+   },
+   "attemptFeedback": [
+    "Divide by the number of weeks, not by one more or fewer."
+   ],
+   "supportHints": [
+    "Total the four weeks first, including the ones that fell."
+   ],
+   "generator": {
+    "parameters": {
+     "mean": {
+      "type": "int",
+      "min": 20,
+      "max": 190,
+      "step": 5
+     },
+     "s1": {
+      "type": "int",
+      "min": -60,
+      "max": 60,
+      "step": 5
+     },
+     "s2": {
+      "type": "int",
+      "min": -60,
+      "max": 60,
+      "step": 5
+     },
+     "s3": {
+      "type": "int",
+      "min": -60,
+      "max": 60,
+      "step": 5
+     }
+    },
+    "derived": {
+     "w1": "mean+s1",
+     "w2": "mean+s2",
+     "w3": "mean+s3",
+     "w4": "mean-s1-s2-s3",
+     "total": "mean*4",
+     "answer": "mean",
+     "d_forgotFinalStep": "total",
+     "d_operationInverted": "max(max(w1,w2),max(w3,w4))-min(min(w1,w2),min(w3,w4))",
+     "d_offByOneStep": "round(total/5)"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_offByOneStep",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_offByOneStep",
+     "d_operationInverted!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_13A_tax_gap_between_counties",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.13A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.13A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:7.13A:tax-gap-between-counties",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.13A",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{worker}} earning $\\${{price}}$ pays {{p}}% income tax in one bracket and {{q}}% in another. How much more tax is paid at the higher rate?",
+   "solutionReview": {
+    "headline": "The extra tax comes from the difference in the rates.",
+    "reasoning": [
+     "The two rates differ by {{p}} against {{q}} percent.",
+     "That difference applied to {{price}} is {{answer}}."
+    ],
+    "answerSummary": "It is $\\${{answer}}$ more."
+   },
+   "attemptFeedback": [
+    "The question asks for the difference, not either tax on its own."
+   ],
+   "supportHints": [
+    "Only the gap between the two rates matters."
+   ],
+   "generator": {
+    "parameters": {
+     "worker": {
+      "type": "choice",
+      "values": [
+       "mechanic",
+       "driver",
+       "loader",
+       "welder",
+       "technician"
+      ]
+     },
+     "p": {
+      "type": "choice",
+      "values": [
+       3,
+       5,
+       7,
+       9,
+       12,
+       15,
+       18,
+       22
+      ]
+     },
+     "q": {
+      "type": "choice",
+      "values": [
+       3,
+       5,
+       7,
+       9,
+       12,
+       15,
+       18,
+       22
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "price": "hundreds*100",
+     "answer": "price*abs(p-q)/100",
+     "d_partialTotal": "price*min(p,q)/100",
+     "d_unitConversion": "price*abs(p-q)/1000",
+     "d_signError": "price*(p+q)/100"
+    },
+    "constraints": [
+     "p!=q",
+     "answer!=d_partialTotal",
+     "answer!=d_unitConversion",
+     "answer!=d_signError",
+     "d_partialTotal!=d_unitConversion",
+     "d_partialTotal!=d_signError",
+     "d_unitConversion!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_unitConversion}}$",
+     "error": "unitConversion"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_13A_tax_rate_from_receipt",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.13A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.13A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:7.13A:tax-rate-from-receipt",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.13A",
+   "taskType": "reverseReasoning",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A receipt shows $\\${{price}}$ before tax and $\\${{total}}$ after. What was the tax rate?",
+   "solutionReview": {
+    "headline": "The rate compares the tax with the pre-tax price.",
+    "reasoning": [
+     "The tax added was {{total}} minus {{price}}, or {{tax}}.",
+     "One percent of {{price}} is {{hundreds}}, so the rate is {{answer}}%."
+    ],
+    "answerSummary": "The rate was ${{answer}}\\%$."
+   },
+   "attemptFeedback": [
+    "Compare the tax with the price before tax, not with the total."
+   ],
+   "supportHints": [
+    "How much tax was actually added?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "choice",
+      "values": [
+       4,
+       5,
+       6,
+       8,
+       60,
+       70,
+       75,
+       80
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "price": "hundreds*100",
+     "tax": "price*p/100",
+     "total": "price+price*p/100",
+     "answer": "p",
+     "d_wrongPercentBase": "100-p",
+     "d_usedGivenValue": "hundreds",
+     "d_unitConversion": "p*10"
+    },
+    "constraints": [
+     "answer!=d_wrongPercentBase",
+     "answer!=d_usedGivenValue",
+     "answer!=d_unitConversion",
+     "d_wrongPercentBase!=d_usedGivenValue",
+     "d_wrongPercentBase!=d_unitConversion",
+     "d_usedGivenValue!=d_unitConversion"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_usedGivenValue}}\\%$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_unitConversion}}\\%$",
+     "error": "unitConversion"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_wrongPercentBase}}\\%$",
+     "error": "wrongPercentBase"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}\\%$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_13A_take_home_after_tax_and_dues",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.13A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.13A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:7.13A:take-home-after-tax-and-dues",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.13A",
+   "taskType": "application",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{worker}} earned $\\${{gross}}$, paid {{p}}% income tax and $\\${{dues}}$ in union dues. What was left?",
+   "solutionReview": {
+    "headline": "Both deductions come off the earnings.",
+    "reasoning": [
+     "{{p}} percent of {{gross}} is {{tax}}.",
+     "Taking off the tax and the {{dues}} in dues leaves {{answer}}."
+    ],
+    "answerSummary": "$\\${{answer}}$ was left."
+   },
+   "attemptFeedback": [
+    "The dues come off as well as the tax."
+   ],
+   "supportHints": [
+    "Two amounts come off, not one."
+   ],
+   "generator": {
+    "parameters": {
+     "worker": {
+      "type": "choice",
+      "values": [
+       "mechanic",
+       "driver",
+       "loader",
+       "welder",
+       "technician"
+      ]
+     },
+     "p": {
+      "type": "choice",
+      "values": [
+       10,
+       15,
+       20,
+       25,
+       30,
+       40
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 4,
+      "max": 30
+     },
+     "duesTens": {
+      "type": "int",
+      "min": 2,
+      "max": 130
+     }
+    },
+    "derived": {
+     "gross": "hundreds*100",
+     "tax": "gross*p/100",
+     "dues": "duesTens*10",
+     "answer": "gross-gross*p/100-duesTens*10",
+     "d_forgotFinalStep": "gross-gross*p/100",
+     "d_offByOneStep": "gross-gross*p/100-duesTens*20",
+     "d_partialTotal": "gross*p/100+duesTens*10"
+    },
+    "constraints": [
+     "answer>0",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_offByOneStep",
+     "answer!=d_partialTotal",
+     "d_forgotFinalStep!=d_offByOneStep",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_offByOneStep!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_13A_which_item_carries_more_tax",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.13A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.13A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:7.13A:which-item-carries-more-tax",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.13A",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Both items below are taxed at {{p}}%. How much more tax does the dearer one carry?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Order",
+    "table": {
+     "headers": [
+      "item",
+      "price"
+     ],
+     "rows": [
+      [
+       "{{item1}}",
+       "{{price1}}"
+      ],
+      [
+       "{{item2}}",
+       "{{price2}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "The tax gap comes from the price gap.",
+    "reasoning": [
+     "The prices differ by {{answer}} divided by {{p}} percent, that is by the gap between {{price1}} and {{price2}}.",
+     "{{p}} percent of that gap is {{answer}}."
+    ],
+    "answerSummary": "It is $\\${{answer}}$ more."
+   },
+   "attemptFeedback": [
+    "The question asks for the difference between the two taxes."
+   ],
+   "supportHints": [
+    "The rate is the same, so only the price difference matters."
+   ],
+   "generator": {
+    "parameters": {
+     "item1": {
+      "type": "choice",
+      "values": [
+       "grinder",
+       "compressor",
+       "drill"
+      ]
+     },
+     "item2": {
+      "type": "choice",
+      "values": [
+       "hose",
+       "cable",
+       "toolbox"
+      ]
+     },
+     "p": {
+      "type": "choice",
+      "values": [
+       4,
+       5,
+       6,
+       8,
+       10,
+       20,
+       25
+      ]
+     },
+     "h1": {
+      "type": "int",
+      "min": 1,
+      "max": 14
+     },
+     "h2": {
+      "type": "int",
+      "min": 1,
+      "max": 14
+     }
+    },
+    "derived": {
+     "price1": "h1*100",
+     "price2": "h2*100",
+     "answer": "abs(h1-h2)*100*p/100",
+     "d_partialTotal": "min(h1,h2)*100*p/100",
+     "d_unitConversion": "abs(h1-h2)*100*p/1000",
+     "d_signError": "(h1+h2)*100*p/100"
+    },
+    "constraints": [
+     "h1!=h2",
+     "answer!=d_partialTotal",
+     "answer!=d_unitConversion",
+     "answer!=d_signError",
+     "d_partialTotal!=d_unitConversion",
+     "d_partialTotal!=d_signError",
+     "d_unitConversion!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_unitConversion}}$",
+     "error": "unitConversion"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_signError}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_13A_price_before_tax",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.13A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.13A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:7.13A:price-before-tax",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.13A",
+   "taskType": "conceptual",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A bill of $\\${{total}}$ covers a purchase, {{p}}% sales tax on it, and a $\\${{fee}}$ untaxed fee. What was the purchase price?",
+   "solutionReview": {
+    "headline": "The tax is a percent of the pre-tax price, not of the total.",
+    "reasoning": [
+     "Taking the {{fee}} fee off the bill leaves the price plus {{p}} percent of it.",
+     "A price of {{answer}} gives exactly that."
+    ],
+    "answerSummary": "The price before tax was $\\${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Taking the percent off the total does not undo adding it to the price."
+   ],
+   "supportHints": [
+    "The fee was not taxed, so take it off before working back through the tax."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "choice",
+      "values": [
+       4,
+       5,
+       8,
+       10,
+       20,
+       25
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "feeTens": {
+      "type": "int",
+      "min": 2,
+      "max": 220
+     }
+    },
+    "derived": {
+     "price": "hundreds*100",
+     "fee": "feeTens*10",
+     "total": "price+price*p/100+feeTens*10",
+     "answer": "price",
+     "d_wrongPercentBase": "total*p/100",
+     "d_partialTotal": "feeTens*10",
+     "d_signError": "total"
+    },
+    "constraints": [
+     "answer!=d_wrongPercentBase",
+     "answer!=d_partialTotal",
+     "answer!=d_signError",
+     "d_wrongPercentBase!=d_partialTotal",
+     "d_wrongPercentBase!=d_signError",
+     "d_partialTotal!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_wrongPercentBase}}$",
+     "error": "wrongPercentBase"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_signError}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
   }
  ]
 }

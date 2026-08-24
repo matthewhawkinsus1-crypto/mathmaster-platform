@@ -2355,6 +2355,342 @@ ar('6.3B', 'grow-then-shrink', {
   feedback: 'Apply the two factors one after the other.',
 });
 
+// ================================================================ 6.14C
+// Balancing a register of deposits, withdrawals and transfers.
+
+ar('6.14C', 'register-closing-balance', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'table',
+  prompt: 'A register opened at $\\${{start}}$ and recorded the entries shown. What is the closing balance?',
+  stimulus: {
+    kind: 'table',
+    title: 'Register',
+    table: { headers: ['entry', 'amount'], rows: [['deposit', '{{dep}}'], ['withdrawal', '{{wd}}'], ['deposit', '{{dep2}}']] },
+  },
+  generator: {
+    parameters: {
+      start: { type: 'int', min: 100, max: 900, step: 10 },
+      dep: { type: 'int', min: 20, max: 400, step: 10 },
+      wd: { type: 'int', min: 20, max: 800, step: 10 },
+      dep2: { type: 'int', min: 20, max: 400, step: 10 },
+    },
+    derived: {
+      answer: 'start+dep-wd+dep2',
+      d_signError: 'start+dep+wd+dep2',
+      d_forgotFinalStep: 'start+dep-wd',
+      d_partialTotal: 'start',
+    },
+    constraints: ['answer>0'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_signError}}'), error: 'signError' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['Deposits add and withdrawals take away.', '{{start}} plus {{dep}} minus {{wd}} plus {{dep2}} is {{answer}}.'],
+  answerSummary: { headline: 'A register runs down the entries in order.', text: 'The closing balance is $\\${{answer}}$.' },
+  hint: 'Work down the entries one at a time from the opening balance.',
+  feedback: 'A withdrawal lowers the balance, and the opening figure is only the starting point.',
+});
+
+ar('6.14C', 'missing-register-entry', {
+  difficultyBand: 3, dok: 3, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'A register opened at $\\${{start}}$, took a deposit of $\\${{dep}}$ and one withdrawal, and closed at $\\${{end}}$. What was the withdrawal?',
+  generator: {
+    parameters: {
+      start: { type: 'int', min: 100, max: 900, step: 10 },
+      dep: { type: 'int', min: 20, max: 500, step: 10 },
+      wd: { type: 'int', min: 20, max: 500, step: 10 },
+    },
+    derived: {
+      end: 'start+dep-wd',
+      answer: 'wd',
+      d_signError: 'start+dep+end',
+      d_partialTotal: 'abs(start-end)',
+      d_forgotFinalStep: 'dep',
+    },
+    constraints: ['end>0'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_signError}}'), error: 'signError' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['After the deposit the balance stood at {{start}} plus {{dep}}.', 'Falling to {{end}} means {{answer}} was taken out.'],
+  answerSummary: { headline: 'Work forward to the point before the unknown entry.', text: 'The withdrawal was $\\${{answer}}$.' },
+  hint: 'What was the balance just after the deposit?',
+  feedback: 'The deposit lands before the withdrawal, so it counts too.',
+});
+
+ar('6.14C', 'transfer-between-accounts', {
+  difficultyBand: 3, dok: 2, taskType: 'application', representation: 'verbal',
+  prompt: 'An account holding $\\${{a}}$ transfers $\\${{move}}$ to one holding $\\${{b}}$. How much more does the second account now hold than the first?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 100, max: 900, step: 20 },
+      move: { type: 'int', min: 20, max: 300, step: 20 },
+      gap: { type: 'int', min: 20, max: 300, step: 20 },
+    },
+    derived: {
+      a: 'b+2*move-gap',
+      newA: 'b+move-gap',
+      newB: 'b+move',
+      answer: 'gap',
+      d_forgotFinalStep: 'abs(gap-move)',
+      d_signError: 'a+b',
+      d_partialTotal: 'move',
+    },
+    constraints: ['newA>0', 'a>move'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_signError}}'), error: 'signError' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The first account falls to {{newA}} and the second rises to {{newB}}.', '{{newB}} minus {{newA}} is {{answer}}.'],
+  answerSummary: { headline: 'A transfer moves the amount twice: out of one and into the other.', text: 'The second holds $\\${{answer}}$ more.' },
+  hint: 'Both balances change, not just one.',
+  feedback: 'The gap widens by twice the transfer, because one side loses what the other gains.',
+});
+
+ar('6.14C', 'overdraft-check', {
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'context',
+  prompt: 'A register holds $\\${{start}}$ with $\\${{pending}}$ of payments still to clear. What is the largest whole-dollar withdrawal that keeps the balance at or above zero?',
+  generator: {
+    parameters: {
+      start: { type: 'int', min: 200, max: 1200, step: 10 },
+      pending: { type: 'int', min: 50, max: 700, step: 10 },
+    },
+    derived: {
+      answer: 'start-pending',
+      d_forgotFinalStep: 'start',
+      d_signError: 'abs(start-2*pending)',
+      d_partialTotal: 'pending',
+    },
+    constraints: ['answer>0'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_signError}}'), error: 'offByOneStep' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The pending payments are already committed.', 'Only {{start}} minus {{pending}}, or {{answer}}, is free to withdraw.'],
+  answerSummary: { headline: 'Money already committed is not available.', text: 'The largest safe withdrawal is $\\${{answer}}$.' },
+  hint: 'Some of the balance is already spoken for.',
+  feedback: 'The pending payments still have to clear.',
+});
+
+ar('6.14C', 'weekly-register-average', {
+  difficultyBand: 3, dok: 3, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'A register logged the four weekly net changes shown. What was the average change per week?',
+  stimulus: {
+    kind: 'table',
+    title: 'Net change by week',
+    table: { headers: ['week', 'change'], rows: [['1', '{{w1}}'], ['2', '{{w2}}'], ['3', '{{w3}}'], ['4', '{{w4}}']] },
+  },
+  generator: {
+    parameters: {
+      mean: { type: 'int', min: 20, max: 190, step: 5 },
+      s1: { type: 'int', min: -60, max: 60, step: 5 },
+      s2: { type: 'int', min: -60, max: 60, step: 5 },
+      s3: { type: 'int', min: -60, max: 60, step: 5 },
+    },
+    derived: {
+      w1: 'mean+s1',
+      w2: 'mean+s2',
+      w3: 'mean+s3',
+      w4: 'mean-s1-s2-s3',
+      total: 'mean*4',
+      answer: 'mean',
+      d_forgotFinalStep: 'total',
+      d_operationInverted: 'max(max(w1,w2),max(w3,w4))-min(min(w1,w2),min(w3,w4))',
+      d_offByOneStep: 'round(total/5)',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: money('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['The four weeks total {{total}}.', 'Shared over four weeks that is {{answer}}.'],
+  answerSummary: { headline: 'An average change shares the total across the weeks.', text: 'The average is $\\${{answer}}$ a week.' },
+  hint: 'Total the four weeks first, including the ones that fell.',
+  feedback: 'Divide by the number of weeks, not by one more or fewer.',
+});
+
+// ================================================================ 7.13A
+// Sales tax and income tax on wages.
+
+ar('7.13A', 'tax-gap-between-counties', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'A {{worker}} earning $\\${{price}}$ pays {{p}}% income tax in one bracket and {{q}}% in another. How much more tax is paid at the higher rate?',
+  generator: {
+    parameters: {
+      worker: contextParam(['mechanic', 'driver', 'loader', 'welder', 'technician']),
+      p: { type: 'choice', values: [3, 5, 7, 9, 12, 15, 18, 22] },
+      q: { type: 'choice', values: [3, 5, 7, 9, 12, 15, 18, 22] },
+      hundreds: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {
+      price: 'hundreds*100',
+      answer: 'price*abs(p-q)/100',
+      d_partialTotal: 'price*min(p,q)/100',
+      d_unitConversion: 'price*abs(p-q)/1000',
+      d_signError: 'price*(p+q)/100',
+    },
+    constraints: ['p!=q'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_unitConversion}}'), error: 'unitConversion' },
+    { label: money('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['The two rates differ by {{p}} against {{q}} percent.', 'That difference applied to {{price}} is {{answer}}.'],
+  answerSummary: { headline: 'The extra tax comes from the difference in the rates.', text: 'It is $\\${{answer}}$ more.' },
+  hint: 'Only the gap between the two rates matters.',
+  feedback: 'The question asks for the difference, not either tax on its own.',
+});
+
+ar('7.13A', 'tax-rate-from-receipt', {
+  difficultyBand: 3, dok: 3, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'A receipt shows $\\${{price}}$ before tax and $\\${{total}}$ after. What was the tax rate?',
+  generator: {
+    parameters: {
+      p: { type: 'choice', values: [4, 5, 6, 8, 60, 70, 75, 80] },
+      hundreds: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {
+      price: 'hundreds*100',
+      tax: 'price*p/100',
+      total: 'price+price*p/100',
+      answer: 'p',
+      d_wrongPercentBase: '100-p',
+      d_usedGivenValue: 'hundreds',
+      d_unitConversion: 'p*10',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}\\%'), correct: true },
+    { label: plain('{{d_wrongPercentBase}}\\%'), error: 'wrongPercentBase' },
+    { label: plain('{{d_usedGivenValue}}\\%'), error: 'usedGivenValue' },
+    { label: plain('{{d_unitConversion}}\\%'), error: 'unitConversion' },
+  ],
+  reasoning: ['The tax added was {{total}} minus {{price}}, or {{tax}}.', 'One percent of {{price}} is {{hundreds}}, so the rate is {{answer}}%.'],
+  answerSummary: { headline: 'The rate compares the tax with the pre-tax price.', text: 'The rate was ${{answer}}\\%$.' },
+  hint: 'How much tax was actually added?',
+  feedback: 'Compare the tax with the price before tax, not with the total.',
+});
+
+ar('7.13A', 'take-home-after-tax-and-dues', {
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'verbal',
+  prompt: 'A {{worker}} earned $\\${{gross}}$, paid {{p}}% income tax and $\\${{dues}}$ in union dues. What was left?',
+  generator: {
+    parameters: {
+      worker: contextParam(['mechanic', 'driver', 'loader', 'welder', 'technician']),
+      p: { type: 'choice', values: [10, 15, 20, 25, 30, 40] },
+      hundreds: { type: 'int', min: 4, max: 30 },
+      duesTens: { type: 'int', min: 2, max: 130 },
+    },
+    derived: {
+      gross: 'hundreds*100',
+      tax: 'gross*p/100',
+      dues: 'duesTens*10',
+      answer: 'gross-gross*p/100-duesTens*10',
+      d_forgotFinalStep: 'gross-gross*p/100',
+      d_offByOneStep: 'gross-gross*p/100-duesTens*20',
+      d_partialTotal: 'gross*p/100+duesTens*10',
+    },
+    constraints: ['answer>0'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['{{p}} percent of {{gross}} is {{tax}}.', 'Taking off the tax and the {{dues}} in dues leaves {{answer}}.'],
+  answerSummary: { headline: 'Both deductions come off the earnings.', text: '$\\${{answer}}$ was left.' },
+  hint: 'Two amounts come off, not one.',
+  feedback: 'The dues come off as well as the tax.',
+});
+
+ar('7.13A', 'which-item-carries-more-tax', {
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'Both items below are taxed at {{p}}%. How much more tax does the dearer one carry?',
+  stimulus: {
+    kind: 'table',
+    title: 'Order',
+    table: { headers: ['item', 'price'], rows: [['{{item1}}', '{{price1}}'], ['{{item2}}', '{{price2}}']] },
+  },
+  generator: {
+    parameters: {
+      item1: contextParam(['grinder', 'compressor', 'drill']),
+      item2: contextParam(['hose', 'cable', 'toolbox']),
+      p: { type: 'choice', values: [4, 5, 6, 8, 10, 20, 25] },
+      h1: { type: 'int', min: 1, max: 14 },
+      h2: { type: 'int', min: 1, max: 14 },
+    },
+    derived: {
+      price1: 'h1*100',
+      price2: 'h2*100',
+      answer: 'abs(h1-h2)*100*p/100',
+      d_partialTotal: 'min(h1,h2)*100*p/100',
+      d_unitConversion: 'abs(h1-h2)*100*p/1000',
+      d_signError: '(h1+h2)*100*p/100',
+    },
+    constraints: ['h1!=h2'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_unitConversion}}'), error: 'unitConversion' },
+    { label: money('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['The prices differ by {{answer}} divided by {{p}} percent, that is by the gap between {{price1}} and {{price2}}.', '{{p}} percent of that gap is {{answer}}.'],
+  answerSummary: { headline: 'The tax gap comes from the price gap.', text: 'It is $\\${{answer}}$ more.' },
+  hint: 'The rate is the same, so only the price difference matters.',
+  feedback: 'The question asks for the difference between the two taxes.',
+});
+
+ar('7.13A', 'price-before-tax', {
+  difficultyBand: 3, dok: 3, taskType: 'conceptual', representation: 'context',
+  prompt: 'A bill of $\\${{total}}$ covers a purchase, {{p}}% sales tax on it, and a $\\${{fee}}$ untaxed fee. What was the purchase price?',
+  generator: {
+    parameters: {
+      p: { type: 'choice', values: [4, 5, 8, 10, 20, 25] },
+      hundreds: { type: 'int', min: 2, max: 20 },
+      feeTens: { type: 'int', min: 2, max: 220 },
+    },
+    derived: {
+      price: 'hundreds*100',
+      fee: 'feeTens*10',
+      total: 'price+price*p/100+feeTens*10',
+      answer: 'price',
+      d_wrongPercentBase: 'total*p/100',
+      d_partialTotal: 'feeTens*10',
+      d_signError: 'total',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_wrongPercentBase}}'), error: 'wrongPercentBase' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['Taking the {{fee}} fee off the bill leaves the price plus {{p}} percent of it.', 'A price of {{answer}} gives exactly that.'],
+  answerSummary: { headline: 'The tax is a percent of the pre-tax price, not of the total.', text: 'The price before tax was $\\${{answer}}$.' },
+  hint: 'The fee was not taxed, so take it off before working back through the tax.',
+  feedback: 'Taking the percent off the total does not undo adding it to the price.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
