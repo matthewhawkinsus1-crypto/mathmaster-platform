@@ -1,0 +1,34 @@
+name: TSIA2 V2.1 Content Audit
+
+on:
+  push:
+    branches:
+      - ccmr-fidelity-v2-1-authentic-language
+    paths:
+      - 'drafts/ccmr-v2.1/tsia2/**'
+      - 'scripts/build-tsia2-v2-1.mjs'
+      - 'tests/platform/tsia2QuantitativeReasoningContent.test.mjs'
+      - '.github/workflows/ccmr-v2-1-tsia2-content-audit.yml'
+  workflow_dispatch:
+
+jobs:
+  content-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run TSIA2 generated-content semantics
+        run: node --test tests/platform/tsia2QuantitativeReasoningContent.test.mjs
+      - name: Check every TSIA2 strand authoring state
+        run: |
+          node scripts/build-tsia2-v2-1.mjs --domain quantitativeReasoning --check
+          node scripts/build-tsia2-v2-1.mjs --domain algebraicReasoning --check
+          node scripts/build-tsia2-v2-1.mjs --domain geometricSpatial --check
+          node scripts/build-tsia2-v2-1.mjs --domain probabilisticStatistical --check
