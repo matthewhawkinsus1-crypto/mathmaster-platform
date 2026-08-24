@@ -1,9 +1,38 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import MathText from '../../components/common/MathText.jsx';
+import { focusFirstAnswerControl, isSingleLineAnswerTarget } from '../../platform/interaction/answerEntryUx.js';
 
 export default function ToolShell({ title, subtitle, badge, children, footer }) {
+  const shellRef = useRef(null);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => focusFirstAnswerControl(shellRef.current));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  const handleAnswerEnter = (event) => {
+    if (event.defaultPrevented || event.key !== 'Enter' || event.isComposing) return;
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (!isSingleLineAnswerTarget(event.target)) return;
+
+    const findPrimary = (root) => {
+      if (!root?.querySelectorAll) return null;
+      const explicit = root.querySelector('button[data-primary-answer-action="true"]:not([disabled])');
+      if (explicit) return explicit;
+      return [...root.querySelectorAll('button:not([disabled])')].find((button) => (
+        /^(check|submit|verify|evaluate|lock in|record answer|apply)\b/i.test(String(button.textContent || '').trim())
+      )) || null;
+    };
+
+    const panel = event.target?.closest?.('.mathmaster-tool-panel');
+    const primary = findPrimary(panel) || findPrimary(shellRef.current);
+    if (!primary) return;
+    event.preventDefault();
+    primary.click();
+  };
+
   return (
-    <section className="mathmaster-tool-shell" style={{
+    <section ref={shellRef} onKeyDown={handleAnswerEnter} className="mathmaster-tool-shell" style={{
       // Takes the room it is given, up to a limit generous enough for a
       // coordinate plane beside its controls. The old fixed 980px capped a
       // graph well below the width available on a school Chromebook.

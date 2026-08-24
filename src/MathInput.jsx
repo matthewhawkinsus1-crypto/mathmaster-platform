@@ -140,6 +140,7 @@ export default function MathInput({
   maxWidth = 540,
   contextSymbols = [],
   collapseSignal = 0,
+  onSubmit = null,
 }) {
   const mfRef = useRef(null);
   const onChangeRef = useRef(onChange);
@@ -200,6 +201,12 @@ export default function MathInput({
     };
 
     const preventUnusedModes = (event) => {
+      if (event.key === 'Enter' && onSubmit && !event.isComposing && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        onSubmit();
+        return;
+      }
       if (event.key === 'Escape') event.preventDefault();
       if (event.key === '\\') {
         event.preventDefault();
@@ -226,7 +233,7 @@ export default function MathInput({
       mathField.removeEventListener('keydown', preventUnusedModes, { capture: true });
       mathField.removeEventListener('contextmenu', preventContextMenu);
     };
-  }, [placeholder, isMobile, toolProfile]);
+  }, [placeholder, isMobile, toolProfile, onSubmit]);
 
   useEffect(() => {
     if (mfRef.current && mfRef.current.value !== value) mfRef.current.value = value || '';

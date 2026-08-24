@@ -53,6 +53,7 @@ import {
   normalizeQuestionRecord,
 } from './attemptPolicy';
 import { stableStringify } from './utils/idUtils';
+import { focusFirstAnswerControl, shouldSubmitAnswerOnEnter } from './platform/interaction/answerEntryUx.js';
 
 const EMPTY_ANSWER_STATE = {
   isComplete: false,
@@ -217,6 +218,7 @@ export default function QuestionEngine({
   const [scratchpadLoading, setScratchpadLoading] = useState(false);
   const previousSectionCompleteRef = useRef(Boolean(sectionComplete));
   const [sectionCompletionCelebrating, setSectionCompletionCelebrating] = useState(false);
+  const questionEngineRef = useRef(null);
 
   useEffect(() => {
     const wasComplete = previousSectionCompleteRef.current;
@@ -290,6 +292,17 @@ export default function QuestionEngine({
   const contextScaffoldEnabled = Boolean(processedQuestion?.context?.scenario && processedQuestion?.context?.scaffold?.enabled !== false);
   const contextScaffoldRequired = contextScaffoldEnabled && !contextScaffoldComplete && !locked;
   const terminalFeedbackHidden = !showOutcomeFeedback && (isCorrect || isExpired);
+
+  // Every ordinary assignment and canonical Path question passes through this
+  // runtime. Focus the first real answer control once the question is ready.
+  useEffect(() => {
+    if (locked || scaffoldRequired || contextScaffoldRequired) return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      focusFirstAnswerControl(questionEngineRef.current);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [processedQuestion, record.variantIndex, locked, scaffoldRequired, contextScaffoldRequired]);
+
   const calculatorPolicy = useMemo(() => resolveCalculatorPolicy({
     questionSpec: processedQuestion || {},
     activityPolicy: resolvedActivityPolicy,
@@ -765,7 +778,21 @@ export default function QuestionEngine({
 
   return (
     <div
+      ref={questionEngineRef}
       className={`mathmaster-question-engine mathmaster-question-engine-has-anchor ${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`}
+      onKeyDownCapture={(event) => {
+        // Enter activates the one primary Check/Submit action only after the
+        // response is complete. Incomplete multi-step tools and textareas retain
+        // their own Enter behavior. Capturing here also works for MathLive.
+        if (!shouldSubmitAnswerOnEnter({
+          event,
+          responseComplete: answerState.isComplete,
+          canSubmit: shouldShowSubmit && !submitDisabled,
+        })) return;
+        event.preventDefault();
+        event.stopPropagation();
+        handleSubmit();
+      }}
       style={{ position: 'relative', padding: '10px', textAlign: 'center', fontFamily: 'sans-serif', overflow: 'hidden' }}
     >
       <MobileViewportContainer

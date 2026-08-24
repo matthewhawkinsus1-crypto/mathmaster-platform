@@ -5,6 +5,7 @@ const { initializeApp } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
 const { getFirestore, FieldPath, FieldValue } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
+const { setGlobalOptions } = require("firebase-functions/v2");
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 const { onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/firestore");
 const logger = require("firebase-functions/logger");
@@ -43,6 +44,13 @@ const rigorPolicy = require("./lib/rigorPolicy");
 // engine in functions/shared/pathSessionRouting.mjs; this seam supplies the
 // server-side facts (mastery documents, coverage indexes) it reasons over.
 const pathRouting = require("./lib/pathRouting");
+
+// HTTPS/callable transport must be reachable by the Firebase client SDK.
+// MathMaster authorization still happens INSIDE each callable through
+// requireStudent/requireTeacher/requireRootAdmin. Source-controlling this
+// prevents a redeploy from silently returning a Cloud Run service to
+// "Require authentication" before Firebase Auth can be inspected.
+setGlobalOptions({ invoker: "public" });
 
 initializeApp();
 
@@ -5515,7 +5523,7 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
  * transaction. submissionId is a real idempotency key, so a network retry can
  * safely repeat the request without creating a second attempt.
  */
-exports.submitPathResponse = onCall(async (request) => {
+exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("submitPathResponse", async () => {
   const { studentId } = requireStudent(request);
   const sessionId = String(request.data?.sessionId || "").trim();
   const questionInstanceId = String(request.data?.questionInstanceId || "").trim();
@@ -5887,7 +5895,7 @@ exports.submitPathResponse = onCall(async (request) => {
   });
 
   return transactionResult.result;
-});
+}));
 
 // Phase 6A: DOK 3/4 modeling labs are graded from a teacher-authored private
 // definition. The browser submits only student telemetry; it never supplies the

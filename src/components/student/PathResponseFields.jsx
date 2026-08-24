@@ -212,11 +212,10 @@ function WordField({ field, value, onChange, onSubmit, disabled, autoFocus }) {
  * editor and grades what comes back with the real server grader — the evidence
  * that the graders accept it, rather than the assumption.
  *
- * Enter does not submit here: in a math field Enter is a structural key, and
- * binding it to "check my answer" would end the question mid-expression. The
- * Check button is directly below and follows the student down the page.
+ * Enter checks here because this renderer has one unambiguous primary action.
+ * Multi-step algebra editors do not pass an onSubmit prop to MathInput.
  */
-function MathField({ field, profile, value, onChange, disabled, autoFocus }) {
+function MathField({ field, profile, value, onChange, onSubmit, disabled, autoFocus }) {
   const hint = field.responseHint || DEFAULT_HINT[profile] || null;
   return (
     <div>
@@ -230,6 +229,7 @@ function MathField({ field, profile, value, onChange, disabled, autoFocus }) {
         placeholder={field.placeholder || ''}
         ariaLabel={field.label || 'Answer'}
         focusSignal={autoFocus ? 1 : 0}
+        onSubmit={disabled ? null : onSubmit}
         showToolsInitially
         maxWidth={640}
         inputStatus={disabled ? 'neutral' : 'neutral'}
@@ -292,6 +292,7 @@ export const PathResponseFields = ({
             profile={profile}
             value={values[field.id]}
             onChange={(next) => onChangeField(field.id, next)}
+            onSubmit={onSubmit}
             disabled={disabled}
             autoFocus={index === 0}
           />

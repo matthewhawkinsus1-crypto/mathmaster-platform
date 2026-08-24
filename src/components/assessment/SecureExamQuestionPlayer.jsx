@@ -62,6 +62,7 @@ export const SecureExamQuestionPlayer = ({ examType, question, initialResponsePa
                 }) : (
                   <input
                     autoComplete="off"
+                    autoFocus={fieldIndex === 0}
                     // Keep this a text input even for numeric SPR items. HTML
                     // number inputs reject valid assessment responses such as
                     // 3/4; inputMode still gives a numeric-friendly keyboard.

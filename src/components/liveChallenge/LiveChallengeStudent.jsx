@@ -59,9 +59,10 @@ function FieldQuestion({ question, disabled, onSubmit }) {
       <div style={{ color: '#174ea6', fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>{question?.teksCode || 'Live Challenge'}</div>
       <h2 style={{ margin: '8px 0 18px', whiteSpace: 'pre-wrap', lineHeight: 1.45, fontSize: 22 }}>{question?.prompt}</h2>
       <div style={{ display: 'grid', gap: 12 }}>
-        {fields.map((field) => (
+        {fields.map((field, fieldIndex) => (
           <label key={field.id} style={{ fontWeight: 800 }}>{field.label || 'Answer'}{field.unit ? ` (${field.unit})` : ''}
             <input
+              autoFocus={fieldIndex === 0}
               type={['number', 'numeric'].includes(field.inputProfile) ? 'number' : 'text'}
               inputMode={['number', 'numeric'].includes(field.inputProfile) ? 'decimal' : undefined}
               value={responses[field.id] ?? ''}
