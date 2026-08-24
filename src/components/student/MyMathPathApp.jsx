@@ -4,6 +4,7 @@ import StudentLearningPath from './StudentLearningPath.jsx';
 import CCMRHub from './CCMRHub.jsx';
 import MyMathPathProductionContainer from './MyMathPathProductionContainer.jsx';
 import StudentPracticeHistory from './StudentPracticeHistory.jsx';
+import WeeklyPathGoalPanel from './WeeklyPathGoalPanel.jsx';
 import { fetchStudentMasteryState } from '../../services/masteryStateService.js';
 import { fetchStudentEvidenceEvents } from '../../platform/history/evidencePersistence.js';
 import { toCanonicalKey, toDisplayCode } from '../../utils/teksUtils.js';
@@ -283,6 +284,17 @@ export const MyMathPathExperience = ({
       weekKey: options.weekKey || null,
       weeklySlotKey: options.weeklySlotKey || null,
       weeklySlot: options.weeklySlot || null,
+      weeklyGoalRequired: options.weeklySlotKey
+        ? (weeklyProgress?.required ?? weeklyGoal?.goalSessions ?? null)
+        : null,
+      // Completion is session-based. If this is the one remaining frozen slot,
+      // the session-complete screen can celebrate the weekly target immediately
+      // instead of waiting for another Firestore read and a quiet dashboard refresh.
+      completesWeeklyGoal: Boolean(
+        options.weeklySlotKey
+        && weeklyProgress?.remaining === 1
+        && !completedSlots.includes(Number(options.weeklySlot)),
+      ),
     });
     setActiveTab('session');
   };
@@ -299,6 +311,22 @@ export const MyMathPathExperience = ({
     launchedRef.current = launchTeksCode;
     startSession(launchTeksCode);
   }, [launchTeksCode, coverageLoaded, coverage]);
+
+  const startWeeklySession = (session) => {
+    const code = session?.teksCode || teksCodeFromSkillId(session?.skillId);
+    if (!code) return;
+    startSession(code, {
+      weekKey: weeklyGoal?.weekKey || null,
+      weeklySlotKey: session?.weeklySlotKey || null,
+      weeklySlot: session?.slot || null,
+      framework: session?.context && session.context !== 'course' ? session.context : null,
+    });
+  };
+
+  const weeklyFreeChoiceLocked = Boolean(weeklyGoal && weeklyProgress && weeklyProgress.remaining > 0);
+  const weeklyFreeChoiceMessage = weeklyFreeChoiceLocked
+    ? `${weeklyProgress.completed} of ${weeklyProgress.required} weekly sessions complete. Finish ${weeklyProgress.remaining} more ${weeklyProgress.remaining === 1 ? 'session' : 'sessions'} above to unlock free-choice paths.`
+    : null;
 
   const returnToDashboard = () => {
     setSessionConfig(null);
@@ -330,21 +358,35 @@ export const MyMathPathExperience = ({
         </div>
       )}
       {activeTab === 'path' && (
-        <StudentLearningPath
-          pathOptions={pathOptions}
-          // Availability is checked BEFORE the card is drawn, not after the
-          // student clicks it. `startSession` still fails closed on top of
-          // this; a student should simply never reach that path.
-          isCovered={coverageLoaded
-            ? (skillId) => isSkillLaunchable(coverage, teksCodeFromSkillId(skillId))
-            : null}
-          onChooseSkill={(card) => { const code = teksCodeFromSkillId(card.skillId); if (code) startSession(code); }}
-          assessmentContext={assessmentContext}
-          onPracticeAs={({ skillId, framework }) => {
-            const code = teksCodeFromSkillId(skillId);
-            if (code) startSession(code, { framework });
-          }}
-        />
+        <>
+          {weeklyGoal && (
+            <div style={{ maxWidth: '940px', margin: '0 auto', padding: '20px 16px 0' }}>
+              <WeeklyPathGoalPanel
+                goal={weeklyGoal}
+                progress={weeklyProgress}
+                completedSlots={completedSlots}
+                onStartSession={startWeeklySession}
+              />
+            </div>
+          )}
+          <StudentLearningPath
+            pathOptions={pathOptions}
+            // Availability is checked BEFORE the card is drawn, not after the
+            // student clicks it. `startSession` still fails closed on top of
+            // this; a student should simply never reach that path.
+            isCovered={coverageLoaded
+              ? (skillId) => isSkillLaunchable(coverage, teksCodeFromSkillId(skillId))
+              : null}
+            freeChoiceLocked={weeklyFreeChoiceLocked}
+            freeChoiceMessage={weeklyFreeChoiceMessage}
+            onChooseSkill={(card) => { const code = teksCodeFromSkillId(card.skillId); if (code) startSession(code); }}
+            assessmentContext={assessmentContext}
+            onPracticeAs={({ skillId, framework }) => {
+              const code = teksCodeFromSkillId(skillId);
+              if (code) startSession(code, { framework });
+            }}
+          />
+        </>
       )}
       {activeTab === 'ccmr' && (
         <div style={{ maxWidth: '940px', margin: '0 auto', padding: '20px 16px 40px' }}>
@@ -361,7 +403,7 @@ export const MyMathPathExperience = ({
           />
         </div>
       )}
-      {activeTab === 'dashboard' && <MyMathPathDashboard studentName={studentName || studentId || 'Student'} masteryProfilesByTEKS={masteryData.masteryProfilesByTEKS} retentionSchedulesByTEKS={masteryData.retentionSchedulesByTEKS} recommendedTeks={recommendedTeks} courseId={courseId} pathOptions={pathOptions} assessmentContext={assessmentContext} weeklyGoal={weeklyGoal} weeklyProgress={weeklyProgress} completedSlots={completedSlots} onPracticeAs={({ skillId, framework }) => { const code = teksCodeFromSkillId(skillId); if (code) startSession(code, { framework }); }} onStartSession={startSession} />}
+      {activeTab === 'dashboard' && <MyMathPathDashboard studentName={studentName || studentId || 'Student'} masteryProfilesByTEKS={masteryData.masteryProfilesByTEKS} retentionSchedulesByTEKS={masteryData.retentionSchedulesByTEKS} recommendedTeks={recommendedTeks} courseId={courseId} pathOptions={pathOptions} assessmentContext={assessmentContext} weeklyGoal={weeklyGoal} weeklyProgress={weeklyProgress} completedSlots={completedSlots} onPracticeAs={({ skillId, framework }) => { const code = teksCodeFromSkillId(skillId); if (code) startSession(code, { framework }); }} onStartSession={startSession} onStartWeeklySession={startWeeklySession} onOpenPath={() => setActiveTab('path')} />}
       {activeTab === 'history' && <StudentPracticeHistory evidenceEvents={evidenceEvents} availableTeks={availableTeks} loading={loading} error={historyError} />}
       {activeTab === 'session' && sessionConfig && <MyMathPathProductionContainer {...sessionConfig} studentProfile={studentProfile} sessionProvider={sessionProvider} onSimulationController={onSimulationController} onSimulationEvent={onSimulationEvent} onReturnToDashboard={returnToDashboard} onSessionComplete={() => onReload?.()} />}
     </div>

@@ -87,7 +87,7 @@ const skillNameFor = (questionInstance, session) => {
  * on a practice session turns every question into a grade, which is the
  * opposite of what practice is for.
  */
-function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowed, assessmentFramework = null, onExit = null }) {
+function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowed, assessmentFramework = null, weeklyGoalRequired = null, onExit = null }) {
   const total = Number(session?.requiredQuestions) || 5;
   const done = Number(session?.summary?.completedQuestions) || 0;
   const current = Math.min(total, done + 1);
@@ -154,6 +154,11 @@ function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowe
           {attemptsAllowed > 1 && attemptsLeft > 0 ? ` · ${attemptsLeft} ${attemptsLeft === 1 ? 'try' : 'tries'} left` : ''}
         </span>
       </div>
+      {session?.weeklySlotKey && (
+        <div role="status" style={{ marginTop: 8, padding: '9px 11px', borderRadius: 9, background: '#e6f4ea', border: '1px solid #b7e0c4', color: '#12633a', fontSize: 12.5, fontWeight: 850, lineHeight: 1.45 }}>
+          WEEKLY PATH · Session {session?.weeklySlot || '?'}{weeklyGoalRequired ? ` of ${weeklyGoalRequired}` : ''} · Completing this session counts toward your weekly target.
+        </div>
+      )}
       {directFramework && !bridgeFramework && (
         <div
           role="status"
@@ -254,6 +259,7 @@ export const PathSessionPlayer = ({
   routeNotice = null,
   isSubmitting,
   assessmentFramework = null,
+  weeklyGoalRequired = null,
   studentProfile,
   onSubmitAnswer,
   onContinue = null,
@@ -366,6 +372,7 @@ export const PathSessionPlayer = ({
           attemptsLeft={attemptsLeft}
           attemptsAllowed={attemptsAllowed}
           assessmentFramework={assessmentFramework}
+          weeklyGoalRequired={weeklyGoalRequired}
           onExit={onExit}
         />
         <DecisionBanner notice={routeNotice} />
@@ -471,6 +478,7 @@ export const PathSessionPlayer = ({
         attemptsLeft={attemptsLeft}
         attemptsAllowed={attemptsAllowed}
         assessmentFramework={assessmentFramework}
+        weeklyGoalRequired={weeklyGoalRequired}
         onExit={onExit}
       />
       <DecisionBanner notice={routeNotice} />

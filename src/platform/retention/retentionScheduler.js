@@ -17,6 +17,12 @@ export const RETENTION_STATUS = Object.freeze({
 });
 
 const asMillis = (value, fallback) => {
+  // Firestore fields that have never been written arrive as null/undefined,
+  // and older local records sometimes carry an empty string. Number(null) and
+  // Number('') are both 0, which used to schedule the next retention check from
+  // Jan. 1, 1970 and produce messages like "20,675 days overdue." Missing is
+  // not epoch zero: use the supplied fallback.
+  if (value == null || value === '') return fallback;
   if (value && typeof value.toMillis === 'function') return value.toMillis();
   if (value instanceof Date) return value.getTime();
   const numeric = Number(value);

@@ -26,6 +26,8 @@ export const MyMathPathProductionContainer = ({
   weekKey = null,
   weeklySlotKey = null,
   weeklySlot = null,
+  weeklyGoalRequired = null,
+  completesWeeklyGoal = false,
   studentProfile,
   sessionProvider = null,
   onReturnToDashboard,
@@ -453,9 +455,28 @@ export const MyMathPathProductionContainer = ({
     const sessionAccuracy = Number(session?.summary?.correctQuestions || 0) / completedCount;
     const independentRate = Number(session?.summary?.independentSuccesses || 0) / completedCount;
     const challengePassed = sessionAccuracy >= 0.8 && independentRate >= 0.6;
+    const weeklyTargetReached = Boolean(completesWeeklyGoal && !paused);
     return (
-      <section style={{ maxWidth: 620, margin: '36px auto', padding: 30, border: '1px solid #dadce0', borderRadius: 12, background: '#fff', textAlign: 'center' }}>
-        <h1 style={{ color: '#202124' }}>{paused ? 'Practice paused' : directAssessment ? `${challenge.label} complete` : 'Session complete'}</h1>
+      <section style={{
+        maxWidth: 650, margin: '36px auto', padding: weeklyTargetReached ? 38 : 30,
+        border: weeklyTargetReached ? '4px solid #58a96b' : '1px solid #dadce0',
+        borderRadius: 16,
+        background: weeklyTargetReached ? 'linear-gradient(135deg, #e6f4ea 0%, #fff4ce 100%)' : '#fff',
+        textAlign: 'center',
+        boxShadow: weeklyTargetReached ? '0 16px 46px rgba(19,115,51,.20)' : 'none',
+      }}>
+        {weeklyTargetReached && <div aria-hidden="true" style={{ fontSize: 54, lineHeight: 1, marginBottom: 8 }}>🎉</div>}
+        <h1 style={{ color: weeklyTargetReached ? '#12633a' : '#202124', fontSize: weeklyTargetReached ? 30 : undefined, marginBottom: weeklyTargetReached ? 8 : undefined }}>
+          {weeklyTargetReached ? 'Weekly target reached!' : paused ? 'Practice paused' : directAssessment ? `${challenge.label} complete` : 'Session complete'}
+        </h1>
+        {weeklyTargetReached && (
+          <div style={{ margin: '0 auto 16px', maxWidth: 520, color: '#245c33', fontSize: 16, fontWeight: 800, lineHeight: 1.55 }}>
+            {weeklyGoalRequired
+              ? `You completed all ${weeklyGoalRequired} of ${weeklyGoalRequired} weekly Path sessions.`
+              : 'You completed every assigned weekly Path session.'}
+            {' '}Free-choice paths are unlocked for the rest of the week.
+          </div>
+        )}
         {directAssessment && !paused && (
           <div style={{ display: 'inline-block', margin: '0 0 10px', padding: '5px 10px', borderRadius: 999, background: challengeTier >= 2 ? '#f3ecfd' : '#e8f0fe', color: challengeTier >= 2 ? '#5b21b6' : '#174ea6', fontSize: 12, fontWeight: 900 }}>
             {FRAMEWORK_LABELS[session.assessmentFramework] || session.assessmentFramework} · {challenge.shortLabel}
@@ -515,6 +536,7 @@ export const MyMathPathProductionContainer = ({
         routeNotice={routeNotice}
         isSubmitting={submitting}
         assessmentFramework={assessmentFramework}
+        weeklyGoalRequired={weeklyGoalRequired}
         studentProfile={studentProfile}
         onSubmitAnswer={handleSubmitAnswer}
         onContinue={awaitingContinue

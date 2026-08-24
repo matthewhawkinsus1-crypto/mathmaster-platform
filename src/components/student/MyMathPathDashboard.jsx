@@ -28,6 +28,8 @@ export const MyMathPathDashboard = ({
   completedSlots = [],
   onPracticeAs = null,
   onStartSession,
+  onStartWeeklySession = null,
+  onOpenPath = null,
 }) => {
   const [selectedTeks, setSelectedTeks] = useState(null);
   const retentionReport = useMemo(
@@ -67,16 +69,18 @@ export const MyMathPathDashboard = ({
             goal={weeklyGoal}
             progress={weeklyProgress}
             completedSlots={completedSlots}
-            onStartSession={(session) => {
-              const code = session?.teksCode || teksCodeFromSkillId(session?.skillId);
-              if (code) onStartSession?.(code, {
-                weekKey: weeklyGoal?.weekKey || null,
-                weeklySlotKey: session?.weeklySlotKey || null,
-                weeklySlot: session?.slot || null,
-                framework: session?.context && session.context !== 'course' ? session.context : null,
-              });
-            }}
+            onStartSession={onStartWeeklySession}
+            compact
           />
+          {onOpenPath && (
+            <button
+              type="button"
+              onClick={onOpenPath}
+              style={{ marginTop: 9, minHeight: 42, padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: 9, background: '#fff', color: '#174ea6', fontWeight: 850, cursor: 'pointer' }}
+            >
+              View and continue this week&apos;s Path
+            </button>
+          )}
         </div>
       )}
 

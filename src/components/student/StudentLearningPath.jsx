@@ -50,12 +50,12 @@ const whyLabel = (blockedBy) => (
         : 'Why this comes first'
 );
 
-function PathNode({ node, onChoose, practiceAs }) {
+function PathNode({ node, onChoose, practiceAs, disabled = false }) {
   const [showWhy, setShowWhy] = useState(false);
-  const clickable = node.selectable && typeof onChoose === 'function';
+  const clickable = node.selectable && typeof onChoose === 'function' && !disabled;
 
   return (
-    <div style={cardStyle(node.tone, node.selectable, node.blockedBy)}>
+    <div style={{ ...cardStyle(node.tone, node.selectable && !disabled, node.blockedBy), opacity: disabled && node.selectable ? 0.58 : 1 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
         <span aria-hidden="true" style={{ fontSize: 15 }}>{node.symbol}</span>
         <strong style={{ fontSize: 16 }}>{node.title}</strong>
@@ -114,6 +114,12 @@ function PathNode({ node, onChoose, practiceAs }) {
         </button>
       )}
 
+      {disabled && node.selectable && (
+        <div style={{ marginTop: 2, padding: '8px 10px', borderRadius: 8, background: '#f1f3f4', color: '#5f6368', fontSize: 12, fontWeight: 800 }}>
+          Finish your weekly target first
+        </div>
+      )}
+
       {clickable && (
         <button
           type="button"
@@ -141,7 +147,7 @@ function PathNode({ node, onChoose, practiceAs }) {
   );
 }
 
-function PathSection({ title, note, nodes, onChoose, practiceAs }) {
+function PathSection({ title, note, nodes, onChoose, practiceAs, disabled = false }) {
   if (!nodes.length) return null;
   return (
     <section style={section}>
@@ -149,7 +155,7 @@ function PathSection({ title, note, nodes, onChoose, practiceAs }) {
       {note && <p style={{ margin: '0 0 12px', fontSize: 12, color: '#5f6368' }}>{note}</p>}
       <div style={nodeRow}>
         {nodes.map((node) => (
-          <PathNode key={node.skillId} node={node} onChoose={onChoose} practiceAs={practiceAs} />
+          <PathNode key={node.skillId} node={node} onChoose={onChoose} practiceAs={practiceAs} disabled={disabled} />
         ))}
       </div>
     </section>
@@ -169,6 +175,13 @@ export const StudentLearningPath = ({
   // the map happily draws a Start button in front of a standard with no
   // content, and the student learns about it only after clicking.
   isCovered = null,
+  // Weekly Path is the actual student commitment. Ordinary classroom assignment
+  // TEKS no longer create an invisible permanent gate. While a weekly target is
+  // unfinished, this screen says exactly how many sessions remain and keeps
+  // free-choice cards closed so practice launched without the weekly slot key
+  // cannot look complete while failing to count.
+  freeChoiceLocked = false,
+  freeChoiceMessage = null,
 }) => {
   const map = useMemo(
     () => buildPathMap(pathOptions, { ...(limits ? { limits } : {}), ...(isCovered ? { isCovered } : {}) }),
@@ -224,18 +237,26 @@ export const StudentLearningPath = ({
         </p>
       </header>
 
+      {freeChoiceLocked && (
+        <div role="status" style={{ margin: '0 0 16px', padding: '12px 14px', borderRadius: 11, background: '#fff4ce', border: '1px solid #f0d489', color: '#7a4f00', fontSize: 13.5, fontWeight: 750, lineHeight: 1.55 }}>
+          {freeChoiceMessage || 'Finish your weekly target above to unlock free-choice paths.'}
+        </div>
+      )}
+
       <PathSection
         title="Current learning"
         nodes={map.focus}
         onChoose={choose}
         practiceAs={practiceAs}
+        disabled={freeChoiceLocked}
       />
       <PathSection
         title="Also open to you"
-        note="Pick any of these. They stay open even when something else needs work first."
+        note={freeChoiceLocked ? 'These open as soon as your weekly target is complete.' : 'Pick any of these. They stay open even when something else needs work first.'}
         nodes={map.branches}
         onChoose={choose}
         practiceAs={practiceAs}
+        disabled={freeChoiceLocked}
       />
       <PathSection
         title="Needs support"
@@ -243,12 +264,14 @@ export const StudentLearningPath = ({
         nodes={map.needsSupport}
         onChoose={choose}
         practiceAs={practiceAs}
+        disabled={freeChoiceLocked}
       />
       <PathSection
         title="Coming up next"
         nodes={map.comingUp}
         onChoose={choose}
         practiceAs={practiceAs}
+        disabled={freeChoiceLocked}
       />
       <PathSection
         title="Challenge"
@@ -256,6 +279,7 @@ export const StudentLearningPath = ({
         nodes={map.challenge}
         onChoose={choose}
         practiceAs={practiceAs}
+        disabled={freeChoiceLocked}
       />
       {/* Retention sits between "mastered" and "current": it is work on a skill
           the student has already shown, offered briefly and with a reason, so it
@@ -266,13 +290,15 @@ export const StudentLearningPath = ({
         nodes={map.retentionDue}
         onChoose={choose}
         practiceAs={practiceAs}
+        disabled={freeChoiceLocked}
       />
       <PathSection
         title="Mastered"
-        note="Yours already. You can practise any of them again whenever you want to."
+        note={freeChoiceLocked ? 'Your mastered skills stay yours. Free-choice review reopens when the weekly target is complete.' : 'Yours already. You can practise any of them again whenever you want to.'}
         nodes={map.mastered}
         onChoose={choose}
         practiceAs={practiceAs}
+        disabled={freeChoiceLocked}
       />
     </div>
   );

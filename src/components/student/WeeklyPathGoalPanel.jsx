@@ -1,18 +1,9 @@
 import React from 'react';
 import { PURPOSE } from '../../platform/path/recommendationV2.js';
 
-// The student's week.
-//
-// WHAT THIS SCREEN IS FOR. A student opening MathMaster asks one question:
-// "what should I do now?" Everything else — the wheel, the standards list, the
-// mastery percentages — answers questions they did not ask. This panel answers
-// theirs, in order, with a reason attached to each item.
-//
-// WHAT IT DELIBERATELY DOES NOT SHOW. No level label. No projection. No
-// "Below Level" anywhere on a student's own screen. Those exist so a TEACHER
-// can adapt instruction; handing them to a fourteen-year-old as a verdict about
-// themselves does no instructional work and a great deal of harm. The student
-// sees the work and the reason for it.
+// The student's week is a commitment the platform can count, not a vague list
+// of topics. This panel is intentionally shared by Path and Mastery Overview so
+// a student never sees two different stories about whether their week is done.
 
 const PURPOSE_TONE = {
   [PURPOSE.CURRENT_LEARNING]: { bg: '#eef3fb', fg: '#174ea6', border: '#c9daf8' },
@@ -28,53 +19,67 @@ const MUTED = { color: '#5f6368', fontSize: 13, lineHeight: 1.6 };
 
 function ProgressDots({ required, completed }) {
   return (
-    <div style={{ display: 'flex', gap: 6 }} role="img" aria-label={`${completed} of ${required} sessions complete`}>
-      {Array.from({ length: required }, (_, index) => (
-        <span
-          key={index}
-          style={{
-            width: 11, height: 11, borderRadius: 999,
-            background: index < completed ? '#12633a' : '#e3e6eb',
-          }}
-        />
-      ))}
+    <div style={{ display: 'flex', alignItems: 'center', gap: 9 }} role="img" aria-label={`${completed} of ${required} weekly sessions complete`}>
+      <strong style={{ color: completed >= required ? '#12633a' : '#174ea6', fontSize: 13 }}>{completed}/{required}</strong>
+      <div style={{ display: 'flex', gap: 6 }}>
+        {Array.from({ length: required }, (_, index) => (
+          <span
+            key={index}
+            style={{
+              width: 12, height: 12, borderRadius: 999,
+              background: index < completed ? '#12633a' : '#e3e6eb',
+              boxShadow: index < completed ? '0 0 0 2px #d7f2df' : 'none',
+            }}
+          />
+        ))}
+      </div>
     </div>
   );
 }
 
-function SessionCard({ session, done, onStart, disabled }) {
+function SessionCard({ session, done, onStart, disabled, total }) {
   const tone = PURPOSE_TONE[session.purpose] || PURPOSE_TONE[PURPOSE.CURRENT_LEARNING];
   return (
     <li style={{ listStyle: 'none' }}>
       <div style={{
         ...CARD,
         padding: 15,
-        opacity: done ? 0.62 : 1,
         display: 'grid',
         gap: 9,
-      }}
-      >
+        border: done ? '2px solid #b7dfc3' : CARD.border,
+        background: done ? '#f0fdf6' : '#fff',
+      }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', padding: '3px 10px', borderRadius: 999,
-            fontSize: 11, fontWeight: 900, letterSpacing: '.02em',
-            background: tone.bg, color: tone.fg, border: `1px solid ${tone.border}`,
-          }}
-          >
-            {session.purposeLabel}
-          </span>
-          {done && <span style={{ fontSize: 12, fontWeight: 900, color: '#12633a' }}>Done ✓</span>}
+          <div style={{ display: 'flex', gap: 7, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', padding: '3px 10px', borderRadius: 999,
+              fontSize: 11, fontWeight: 900, letterSpacing: '.02em',
+              background: tone.bg, color: tone.fg, border: `1px solid ${tone.border}`,
+            }}>
+              {session.purposeLabel}
+            </span>
+            <span style={{ color: '#5f6368', fontSize: 11.5, fontWeight: 800 }}>
+              Weekly session {session.slot} of {total}
+            </span>
+          </div>
+          {done && (
+            <span style={{ padding: '4px 9px', borderRadius: 999, background: '#d7f2df', color: '#12633a', fontSize: 12, fontWeight: 950 }}>
+              Completed ✓
+            </span>
+          )}
         </div>
 
         <div style={{ fontSize: 15.5, fontWeight: 800, color: '#202124', lineHeight: 1.45 }}>
           {session.studentLabel || session.teksCode}
         </div>
 
-        {/* The reason. Every session carries one, in the student's own terms —
-            never "score 0.82" and never a difficulty band number. */}
         <div style={MUTED}>{session.studentExplanation}</div>
 
-        {!done && (
+        {done ? (
+          <div style={{ color: '#12633a', fontSize: 12.5, fontWeight: 800 }}>
+            This session counted toward your weekly target.
+          </div>
+        ) : (
           <button
             type="button"
             onClick={() => onStart?.(session)}
@@ -84,11 +89,10 @@ function SessionCard({ session, done, onStart, disabled }) {
               marginTop: 2, padding: '11px 16px', borderRadius: 11, border: 0,
               background: disabled ? '#c7ccd4' : '#174ea6', color: '#fff',
               fontSize: 14.5, fontWeight: 900, cursor: disabled ? 'default' : 'pointer',
-              // Chromebook and phone: a target a thumb can actually hit.
               minHeight: 44, width: '100%',
             }}
           >
-            Start
+            Start weekly session
           </button>
         )}
       </div>
@@ -102,11 +106,12 @@ export default function WeeklyPathGoalPanel({
   completedSlots = [],
   onStartSession = null,
   busy = false,
+  compact = false,
 }) {
   if (!goal || !goal.sessions?.length) {
     return (
       <section style={CARD}>
-        <h2 style={{ margin: 0, fontSize: 18, color: '#202124' }}>Your week</h2>
+        <h2 style={{ margin: 0, fontSize: 18, color: '#202124' }}>Your weekly target</h2>
         <p style={{ ...MUTED, marginTop: 8 }}>
           MathMaster is putting this week&apos;s Path together. Check back in a moment — and if it
           stays like this, tell your teacher, because that is not supposed to happen.
@@ -119,19 +124,59 @@ export default function WeeklyPathGoalPanel({
   const required = progress?.required ?? goal.goalSessions;
   const completed = progress?.completed ?? done.size;
   const remaining = Math.max(0, required - completed);
+  const complete = remaining === 0;
   const next = goal.sessions.find((session) => !done.has(session.slot));
+
+  if (compact) {
+    return (
+      <section style={{
+        ...CARD,
+        border: complete ? '2px solid #8fd2a2' : '2px solid #c9daf8',
+        background: complete ? '#effbf2' : '#f8fbff',
+        display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', flexWrap: 'wrap',
+      }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 950, letterSpacing: '.07em', textTransform: 'uppercase', color: complete ? '#12633a' : '#174ea6' }}>
+            {complete ? 'Weekly target complete' : 'Your weekly target'}
+          </div>
+          <strong style={{ display: 'block', marginTop: 4, fontSize: 17, color: '#202124' }}>
+            {complete ? `You hit all ${required} sessions.` : `${completed} of ${required} sessions complete · ${remaining} to go`}
+          </strong>
+          <span style={{ ...MUTED, display: 'block', marginTop: 3 }}>
+            {complete ? 'Free-choice Path practice is unlocked for the rest of the week.' : 'Each completed weekly session unlocks more of your Path.'}
+          </span>
+        </div>
+        <ProgressDots required={required} completed={completed} />
+      </section>
+    );
+  }
 
   return (
     <section style={{ display: 'grid', gap: 14 }}>
-      <header style={{ ...CARD, display: 'grid', gap: 10 }}>
+      <header style={{
+        ...CARD,
+        display: 'grid',
+        gap: 11,
+        border: complete ? '3px solid #58a96b' : '2px solid #c9daf8',
+        background: complete ? 'linear-gradient(135deg, #e6f4ea 0%, #fff8d8 100%)' : '#fff',
+        boxShadow: complete ? '0 10px 30px rgba(19,115,51,.14)' : 'none',
+      }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <h2 style={{ margin: 0, fontSize: 19, color: '#202124' }}>Your week</h2>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 950, textTransform: 'uppercase', letterSpacing: '.08em', color: complete ? '#12633a' : '#174ea6' }}>
+              {complete ? '🎉 Goal hit' : 'This week'}
+            </div>
+            <h2 style={{ margin: '3px 0 0', fontSize: complete ? 24 : 19, color: complete ? '#12633a' : '#202124' }}>
+              {complete ? 'Weekly target complete!' : 'Your Weekly Math Path'}
+            </h2>
+          </div>
           <ProgressDots required={required} completed={completed} />
         </div>
-        <div style={{ ...MUTED, fontSize: 14 }}>
-          {remaining === 0
-            ? 'That is this week done. Anything else you do now is extra — and it still counts toward what you know.'
-            : `${completed} of ${required} done. ${remaining} to go.`}
+
+        <div style={{ ...MUTED, fontSize: complete ? 15 : 14, color: complete ? '#245c33' : MUTED.color, fontWeight: complete ? 700 : 400 }}>
+          {complete
+            ? `You completed all ${required} of ${required} assigned Path sessions. Free-choice paths are now unlocked — anything else you do this week is extra practice.`
+            : `${completed} of ${required} weekly sessions done. ${remaining} ${remaining === 1 ? 'session' : 'sessions'} to go before free-choice paths unlock.`}
         </div>
         {progress?.daysLeft != null && remaining > 0 && progress.daysLeft >= 0 && (
           <div style={{ ...MUTED, fontSize: 12.5 }}>
@@ -139,11 +184,8 @@ export default function WeeklyPathGoalPanel({
           </div>
         )}
         {progress?.overdue && (
-          // Overdue is stated plainly and without alarm. Late work still counts,
-          // and a student who believes it does not simply stops.
           <div style={{ ...MUTED, fontSize: 12.5, color: '#854d0e' }}>
-            This week&apos;s goal is past its due date. You can still do it — the practice still counts
-            toward what you know.
+            This week&apos;s goal is past its due date. You can still finish it — the practice still counts toward what you know.
           </div>
         )}
       </header>
@@ -151,7 +193,7 @@ export default function WeeklyPathGoalPanel({
       {next && (
         <div style={{ ...CARD, background: '#f8fbff', borderColor: '#c9daf8' }}>
           <div style={{ fontSize: 10.5, fontWeight: 950, letterSpacing: '.08em', textTransform: 'uppercase', color: '#174ea6' }}>
-            Do this next
+            Do this next · weekly session {next.slot} of {required}
           </div>
           <div style={{ fontSize: 16, fontWeight: 900, color: '#202124', marginTop: 5 }}>
             {next.studentLabel || next.teksCode}
@@ -169,7 +211,7 @@ export default function WeeklyPathGoalPanel({
               minHeight: 46, width: '100%',
             }}
           >
-            {busy ? 'Starting…' : 'Start'}
+            {busy ? 'Starting…' : `Start session ${next.slot} of ${required}`}
           </button>
         </div>
       )}
@@ -182,6 +224,7 @@ export default function WeeklyPathGoalPanel({
             done={done.has(session.slot)}
             onStart={onStartSession}
             disabled={busy}
+            total={required}
           />
         ))}
       </ul>
