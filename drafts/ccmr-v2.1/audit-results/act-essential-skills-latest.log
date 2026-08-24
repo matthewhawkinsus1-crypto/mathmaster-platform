@@ -4,20 +4,24 @@
   "framework": "act",
   "mode": "domain-authoring",
   "domain": "essentialSkills",
-  "scopeUnits": 5,
-  "documents": 40,
-  "direct": 25,
-  "challenge": 15,
-  "multipleChoice": 40,
+  "scopeUnits": 6,
+  "documents": 48,
+  "direct": 30,
+  "challenge": 18,
+  "multipleChoice": 48,
   "studentProducedResponse": 0,
-  "modelingTagged": 20,
+  "modelingTagged": 26,
   "domains": {
-    "essentialSkills": 40
+    "essentialSkills": 48
   },
   "highSimilarityPairs": [],
   "failures": [
+    "drafts/ccmr-v2.1/act/essentialSkills/ACT_NATIVE_measurementUnitsConversion.v2.1.json: scope is not confirmed by the completion manifest",
     "drafts/ccmr-v2.1/act/essentialSkills/ACT_NATIVE_simpleEquationsInequalities.v2.1.json: scope is not confirmed by the completion manifest",
-    "drafts/ccmr-v2.1/act/essentialSkills/ACT_NATIVE_writingAlgebraicExpressions.v2.1.json: scope is not confirmed by the completion manifest"
+    "drafts/ccmr-v2.1/act/essentialSkills/ACT_NATIVE_writingAlgebraicExpressions.v2.1.json: scope is not confirmed by the completion manifest",
+    "essentialSkills native writingAlgebraicExpressions: ledger says authored but completion manifest does not confirm it",
+    "essentialSkills native simpleEquationsInequalities: ledger says authored but completion manifest does not confirm it",
+    "essentialSkills native measurementUnitsConversion: ledger says authored but completion manifest does not confirm it"
   ],
   "warnings": []
 }
