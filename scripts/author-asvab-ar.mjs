@@ -1026,6 +1026,323 @@ ar('6.4F', 'benchmark-strip-reading', {
   feedback: 'Read the row the question names, not the other one.',
 });
 
+// ================================================================ 6.4G
+// Equivalent forms of fractions, decimals and percents, including money.
+
+ar('6.4G', 'tip-as-fraction-of-bill', {
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A bill of $\\${{bill}}$ is paid with a tip of $\\${{tip}}$. What percent of the bill is the tip?',
+  generator: {
+    parameters: {
+      p: { type: 'choice', values: [10, 20, 25, 30, 60, 70, 75, 80] },
+      hundreds: { type: 'int', min: 1, max: 12 },
+    },
+    derived: {
+      bill: 'hundreds*100',
+      tip: 'bill*p/100',
+      answer: 'p',
+      d_wrongPercentBase: '100-p',
+      d_unitConversion: 'p*10',
+      d_convertedWrongWay: 'round(p/10)',
+    },
+    constraints: ['p!=50'],
+  },
+  choices: [
+    { label: plain('{{answer}}\\%'), correct: true },
+    { label: plain('{{d_wrongPercentBase}}\\%'), error: 'wrongPercentBase' },
+    { label: plain('{{d_unitConversion}}\\%'), error: 'unitConversion' },
+    { label: plain('{{d_convertedWrongWay}}\\%'), error: 'convertedWrongWay' },
+  ],
+  reasoning: ['One percent of {{bill}} is {{hundreds}}.', '{{tip}} divided by {{hundreds}} is {{answer}}.'],
+  answerSummary: { headline: 'A part becomes a percent by comparing it to the whole.', text: 'The tip is ${{answer}}\\%$ of the bill.' },
+  hint: 'Work out what one percent of the bill is worth.',
+  feedback: 'Compare the tip with the bill, not with what is left over.',
+});
+
+ar('6.4G', 'decimal-price-to-total', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'A {{shop}} charges $\\${{cents}}$ cents for each {{item}}. What do {{count}} {{item}} cost in dollars?',
+  generator: {
+    parameters: {
+      shop: SHOPS, item: GOODS,
+      cents: { type: 'choice', values: [5, 10, 20, 25, 40, 50] },
+      hundreds: { type: 'int', min: 2, max: 50 },
+    },
+    derived: {
+      count: 'hundreds*100/cents',
+      totalCents: 'hundreds*100',
+      answer: 'hundreds',
+      d_unitConversion: 'hundreds*100',
+      d_convertedWrongWay: 'round(hundreds/10)',
+      d_operationInverted: 'cents',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_unitConversion}}'), error: 'unitConversion' },
+    { label: money('{{d_convertedWrongWay}}'), error: 'convertedWrongWay' },
+    { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['{{count}} at {{cents}} cents each is {{totalCents}} cents.', 'A hundred cents is a dollar, so that is {{answer}} dollars.'],
+  answerSummary: { headline: 'Cents become dollars a hundred at a time.', text: 'They cost $\\${{answer}}$.' },
+  hint: 'Total the cents first, then change to dollars.',
+  feedback: 'A hundred cents make a dollar.',
+});
+
+ar('6.4G', 'discount-two-forms', {
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'verbal',
+  prompt: 'A {{tool}} costs $\\${{price}}$. One {{shop}} takes {{p}}% off and another takes $\\${{flat}}$ off. How much cheaper is the better offer?',
+  generator: {
+    parameters: {
+      tool: contextParam(['grinder', 'compressor', 'drill', 'generator', 'welder']),
+      shop: SHOPS,
+      p: { type: 'choice', values: [10, 20, 25, 40, 50] },
+      hundreds: { type: 'int', min: 2, max: 12 },
+      flatTens: { type: 'int', min: 1, max: 30 },
+    },
+    derived: {
+      price: 'hundreds*100',
+      percentOff: 'price*p/100',
+      flat: 'flatTens*10',
+      answer: 'abs(percentOff-flat)',
+      d_partialTotal: 'percentOff',
+      d_usedGivenValue: 'flat',
+      d_forgotFinalStep: 'abs(p-flatTens)',
+    },
+    constraints: ['percentOff!=flat'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['{{p}} percent of {{price}} is {{percentOff}}.', 'The flat offer takes off {{flat}}.', 'The two savings differ by {{answer}}.'],
+  answerSummary: { headline: 'A percent off and an amount off only compare once both are amounts.', text: 'The better offer saves $\\${{answer}}$ more.' },
+  hint: 'Turn the percent into an amount of money before comparing.',
+  feedback: 'The question asks for the difference between the two savings.',
+});
+
+ar('6.4G', 'fraction-of-dollar', {
+  difficultyBand: 1, dok: 1, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'A {{shop}} rounds a price to {{num}} of {{den}} equal parts of a dollar. How many cents is that?',
+  generator: {
+    parameters: {
+      shop: SHOPS,
+      den: { type: 'choice', values: [2, 4, 5, 10, 20, 25] },
+      num: { type: 'int', min: 1, max: 19 },
+    },
+    derived: {
+      answer: '100*num/den',
+      d_convertedWrongWay: '100*den/num',
+      d_usedGivenValue: 'num*den',
+      d_unitConversion: '10*num/den',
+    },
+    constraints: ['num<den', 'answer==round(answer)', 'd_convertedWrongWay==round(d_convertedWrongWay)', 'd_unitConversion==round(d_unitConversion)'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_convertedWrongWay}}'), error: 'convertedWrongWay' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_unitConversion}}'), error: 'unitConversion' },
+  ],
+  reasoning: ['A dollar is 100 cents split into {{den}} parts.', '{{num}} of those parts is {{answer}} cents.'],
+  answerSummary: { headline: 'A fraction of a dollar is that fraction of 100 cents.', text: 'It is ${{answer}}$ cents.' },
+  hint: 'Split 100 cents into the number of parts named.',
+  feedback: 'Check which of the two numbers counts the parts.',
+});
+
+ar('6.4G', 'full-price-from-deposit', {
+  difficultyBand: 3, dok: 2, taskType: 'reverseReasoning', representation: 'verbal',
+  prompt: 'A {{p}}% deposit on a {{tool}} comes to $\\${{deposit}}$. What is the full price?',
+  generator: {
+    parameters: {
+      tool: contextParam(['grinder', 'compressor', 'drill', 'generator', 'welder']),
+      p: { type: 'choice', values: [10, 20, 25, 40, 60, 75, 80, 90] },
+      hundreds: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {
+      price: 'hundreds*100',
+      deposit: 'price*p/100',
+      answer: 'price',
+      d_wrongPercentBase: 'round(deposit*100/(100-p))',
+      d_unitConversion: 'deposit*100',
+      d_partialTotal: 'price-deposit',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_wrongPercentBase}}'), error: 'wrongPercentBase' },
+    { label: money('{{d_unitConversion}}'), error: 'unitConversion' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['$\\${{deposit}}$ is {{p}} percent of the price.', 'One percent is {{hundreds}}, so the full hundred percent is {{answer}}.'],
+  answerSummary: { headline: 'Work back from the percent paid to the whole.', text: 'The full price is $\\${{answer}}$.' },
+  hint: 'Find what one percent of the price is worth.',
+  feedback: 'The deposit is part of the price, so the price is larger.',
+});
+
+// ================================================================ 6.4H
+// Converting units within one measurement system.
+
+ar('6.4H', 'feet-to-inches', {
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'context',
+  prompt: 'A {{part}} measures {{feet}} feet {{inches}} inches. How many inches is that in all?',
+  generator: {
+    parameters: {
+      part: contextParam(['rail', 'bracket', 'beam', 'pipe', 'channel']),
+      feet: { type: 'int', min: 2, max: 11 },
+      inches: { type: 'int', min: 2, max: 11 },
+    },
+    derived: {
+      answer: 'feet*12+inches',
+      d_unitConversion: 'feet*10+inches',
+      d_convertedWrongWay: 'inches*12+feet',
+      d_offByOneStep: 'feet*12+inches+12',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_unitConversion}}'), error: 'unitConversion' },
+    { label: plain('{{d_convertedWrongWay}}'), error: 'convertedWrongWay' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['{{feet}} feet is {{feet}} times 12 inches.', 'The extra {{inches}} inches bring it to {{answer}}.'],
+  answerSummary: { headline: 'Only the feet need converting; the inches are already inches.', text: 'It is ${{answer}}$ inches.' },
+  hint: 'A foot is twelve inches.',
+  feedback: 'Check which measurement counts feet and which counts inches.',
+});
+
+ar('6.4H', 'ounces-to-pounds-remainder', {
+  difficultyBand: 3, dok: 2, taskType: 'application', representation: 'verbal',
+  prompt: 'A crate holds {{ounces}} ounces of {{item}}. How many whole pounds is that?',
+  generator: {
+    parameters: {
+      item: GOODS,
+      pounds: { type: 'int', min: 2, max: 16 },
+      spare: { type: 'int', min: 1, max: 15 },
+    },
+    derived: {
+      ounces: 'pounds*16+spare',
+      answer: 'pounds',
+      d_unitConversion: 'round(ounces/12)',
+      d_convertedWrongWay: 'round(ounces/32)',
+      d_partialTotal: 'spare',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_unitConversion}}'), error: 'unitConversion' },
+    { label: plain('{{d_convertedWrongWay}}'), error: 'convertedWrongWay' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['A pound is 16 ounces.', '{{ounces}} ounces holds {{answer}} whole pounds with {{spare}} ounces over.'],
+  answerSummary: { headline: 'Sixteen ounces make a pound.', text: 'That is ${{answer}}$ whole pounds.' },
+  hint: 'How many groups of sixteen fit in the total?',
+  feedback: 'Check how many ounces make one pound.',
+});
+
+ar('6.4H', 'gallons-to-quarts-rate', {
+  difficultyBand: 2, dok: 2, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'A tank takes {{quarts}} quarts to fill. A pump moves {{gpm}} gallons a minute. How many minutes does filling take?',
+  generator: {
+    parameters: {
+      gpm: { type: 'int', min: 2, max: 12 },
+      mins: { type: 'int', min: 3, max: 20 },
+    },
+    derived: {
+      gallons: 'gpm*mins',
+      quarts: 'gpm*mins*4',
+      answer: 'mins',
+      d_unitConversion: 'quarts/gpm',
+      d_operationInverted: 'gpm',
+      d_partialTotal: 'round(gallons/4)',
+    },
+    constraints: ['gpm!=mins'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_unitConversion}}'), error: 'unitConversion' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Four quarts make a gallon, so {{quarts}} quarts is {{gallons}} gallons.', '{{gallons}} at {{gpm}} a minute takes {{answer}} minutes.'],
+  answerSummary: { headline: 'Match the units before using the rate.', text: 'It takes ${{answer}}$ minutes.' },
+  hint: 'The tank is measured in quarts but the pump works in gallons.',
+  feedback: 'Convert to the pump’s units before dividing.',
+});
+
+ar('6.4H', 'yards-of-material', {
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'verbal',
+  prompt: 'A job needs {{pieces}} pieces of {{part}}, each {{feetEach}} feet long, plus {{extra}} yards spare. Material is sold by the yard. How many yards are needed?',
+  generator: {
+    parameters: {
+      part: contextParam(['trim', 'cable', 'hose', 'edging', 'strip']),
+      pieces: { type: 'int', min: 3, max: 24 },
+      yardsEach: { type: 'int', min: 1, max: 6 },
+      extra: { type: 'int', min: 2, max: 40 },
+    },
+    derived: {
+      feetEach: 'yardsEach*3',
+      totalFeet: 'pieces*yardsEach*3',
+      answer: 'pieces*yardsEach+extra',
+      d_forgotFinalStep: 'pieces*yardsEach',
+      d_convertedWrongWay: 'totalFeet+extra',
+      d_partialTotal: 'extra*3',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_convertedWrongWay}}'), error: 'convertedWrongWay' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['{{pieces}} pieces at {{feetEach}} feet is {{totalFeet}} feet, or {{d_forgotFinalStep}} yards.', 'With {{extra}} yards spare that is {{answer}}.'],
+  answerSummary: { headline: 'Total in one unit, then convert once.', text: 'It needs ${{answer}}$ yards.' },
+  hint: 'Add up all the material first, then change units.',
+  feedback: 'Three feet make a yard, so the yard count is smaller than the foot count.',
+});
+
+ar('6.4H', 'unit-table-conversion', {
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'Using the table, how many {{small}} are in {{bigCount}} {{big}}?',
+  stimulus: {
+    kind: 'table',
+    title: 'Conversion table',
+    table: { headers: ['{{big}}', '{{small}}'], rows: [['1', '{{per}}'], ['{{bigCount}}', '?']] },
+  },
+  generator: {
+    parameters: {
+      big: contextParam(['pounds', 'gallons', 'feet', 'hours']),
+      small: contextParam(['ounces', 'quarts', 'inches', 'minutes']),
+      per: { type: 'choice', values: [4, 12, 16, 60] },
+      bigCount: { type: 'int', min: 3, max: 30 },
+    },
+    derived: {
+      answer: 'per*bigCount',
+      d_operationInverted: 'per+bigCount',
+      d_unitConversion: 'bigCount*bigCount',
+      d_offByOneStep: 'per*(bigCount+1)',
+    },
+    constraints: ['per!=bigCount'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_unitConversion}}'), error: 'unitConversion' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['One {{big}} holds {{per}} {{small}}.', '{{bigCount}} of them hold {{per}} times {{bigCount}}.'],
+  answerSummary: { headline: 'A conversion table gives the rate for one unit.', text: 'There are ${{answer}}$ {{small}}.' },
+  hint: 'Read what a single unit is worth from the first row.',
+  feedback: 'Converting to a smaller unit gives a larger count.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {

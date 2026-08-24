@@ -4242,6 +4242,1363 @@
      "expected": "choice-c"
     }
    ]
+  },
+  {
+   "id": "mm_asvab_6_4G_tip_as_fraction_of_bill",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.4G:tip-as-fraction-of-bill",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4G",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A bill of $\\${{bill}}$ is paid with a tip of $\\${{tip}}$. What percent of the bill is the tip?",
+   "solutionReview": {
+    "headline": "A part becomes a percent by comparing it to the whole.",
+    "reasoning": [
+     "One percent of {{bill}} is {{hundreds}}.",
+     "{{tip}} divided by {{hundreds}} is {{answer}}."
+    ],
+    "answerSummary": "The tip is ${{answer}}\\%$ of the bill."
+   },
+   "attemptFeedback": [
+    "Compare the tip with the bill, not with what is left over."
+   ],
+   "supportHints": [
+    "Work out what one percent of the bill is worth."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "choice",
+      "values": [
+       10,
+       20,
+       25,
+       30,
+       60,
+       70,
+       75,
+       80
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 1,
+      "max": 12
+     }
+    },
+    "derived": {
+     "bill": "hundreds*100",
+     "tip": "bill*p/100",
+     "answer": "p",
+     "d_wrongPercentBase": "100-p",
+     "d_unitConversion": "p*10",
+     "d_convertedWrongWay": "round(p/10)"
+    },
+    "constraints": [
+     "p!=50",
+     "answer!=d_wrongPercentBase",
+     "answer!=d_unitConversion",
+     "answer!=d_convertedWrongWay",
+     "d_wrongPercentBase!=d_unitConversion",
+     "d_wrongPercentBase!=d_convertedWrongWay",
+     "d_unitConversion!=d_convertedWrongWay"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_wrongPercentBase}}\\%$",
+     "error": "wrongPercentBase"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_convertedWrongWay}}\\%$",
+     "error": "convertedWrongWay"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}\\%$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_unitConversion}}\\%$",
+     "error": "unitConversion"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_4G_decimal_price_to_total",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.4G:decimal-price-to-total",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4G",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{shop}} charges $\\${{cents}}$ cents for each {{item}}. What do {{count}} {{item}} cost in dollars?",
+   "solutionReview": {
+    "headline": "Cents become dollars a hundred at a time.",
+    "reasoning": [
+     "{{count}} at {{cents}} cents each is {{totalCents}} cents.",
+     "A hundred cents is a dollar, so that is {{answer}} dollars."
+    ],
+    "answerSummary": "They cost $\\${{answer}}$."
+   },
+   "attemptFeedback": [
+    "A hundred cents make a dollar."
+   ],
+   "supportHints": [
+    "Total the cents first, then change to dollars."
+   ],
+   "generator": {
+    "parameters": {
+     "shop": {
+      "type": "choice",
+      "values": [
+       "hardware store",
+       "supply depot",
+       "warehouse outlet",
+       "parts counter"
+      ]
+     },
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "cents": {
+      "type": "choice",
+      "values": [
+       5,
+       10,
+       20,
+       25,
+       40,
+       50
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 2,
+      "max": 50
+     }
+    },
+    "derived": {
+     "count": "hundreds*100/cents",
+     "totalCents": "hundreds*100",
+     "answer": "hundreds",
+     "d_unitConversion": "hundreds*100",
+     "d_convertedWrongWay": "round(hundreds/10)",
+     "d_operationInverted": "cents"
+    },
+    "constraints": [
+     "answer!=d_unitConversion",
+     "answer!=d_convertedWrongWay",
+     "answer!=d_operationInverted",
+     "d_unitConversion!=d_convertedWrongWay",
+     "d_unitConversion!=d_operationInverted",
+     "d_convertedWrongWay!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_convertedWrongWay}}$",
+     "error": "convertedWrongWay"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_unitConversion}}$",
+     "error": "unitConversion"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_4G_discount_two_forms",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.4G:discount-two-forms",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4G",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{tool}} costs $\\${{price}}$. One {{shop}} takes {{p}}% off and another takes $\\${{flat}}$ off. How much cheaper is the better offer?",
+   "solutionReview": {
+    "headline": "A percent off and an amount off only compare once both are amounts.",
+    "reasoning": [
+     "{{p}} percent of {{price}} is {{percentOff}}.",
+     "The flat offer takes off {{flat}}.",
+     "The two savings differ by {{answer}}."
+    ],
+    "answerSummary": "The better offer saves $\\${{answer}}$ more."
+   },
+   "attemptFeedback": [
+    "The question asks for the difference between the two savings."
+   ],
+   "supportHints": [
+    "Turn the percent into an amount of money before comparing."
+   ],
+   "generator": {
+    "parameters": {
+     "tool": {
+      "type": "choice",
+      "values": [
+       "grinder",
+       "compressor",
+       "drill",
+       "generator",
+       "welder"
+      ]
+     },
+     "shop": {
+      "type": "choice",
+      "values": [
+       "hardware store",
+       "supply depot",
+       "warehouse outlet",
+       "parts counter"
+      ]
+     },
+     "p": {
+      "type": "choice",
+      "values": [
+       10,
+       20,
+       25,
+       40,
+       50
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "flatTens": {
+      "type": "int",
+      "min": 1,
+      "max": 30
+     }
+    },
+    "derived": {
+     "price": "hundreds*100",
+     "percentOff": "price*p/100",
+     "flat": "flatTens*10",
+     "answer": "abs(percentOff-flat)",
+     "d_partialTotal": "percentOff",
+     "d_usedGivenValue": "flat",
+     "d_forgotFinalStep": "abs(p-flatTens)"
+    },
+    "constraints": [
+     "percentOff!=flat",
+     "answer!=d_partialTotal",
+     "answer!=d_usedGivenValue",
+     "answer!=d_forgotFinalStep",
+     "d_partialTotal!=d_usedGivenValue",
+     "d_partialTotal!=d_forgotFinalStep",
+     "d_usedGivenValue!=d_forgotFinalStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_4G_fraction_of_dollar",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.4G:fraction-of-dollar",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4G",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{shop}} rounds a price to {{num}} of {{den}} equal parts of a dollar. How many cents is that?",
+   "solutionReview": {
+    "headline": "A fraction of a dollar is that fraction of 100 cents.",
+    "reasoning": [
+     "A dollar is 100 cents split into {{den}} parts.",
+     "{{num}} of those parts is {{answer}} cents."
+    ],
+    "answerSummary": "It is ${{answer}}$ cents."
+   },
+   "attemptFeedback": [
+    "Check which of the two numbers counts the parts."
+   ],
+   "supportHints": [
+    "Split 100 cents into the number of parts named."
+   ],
+   "generator": {
+    "parameters": {
+     "shop": {
+      "type": "choice",
+      "values": [
+       "hardware store",
+       "supply depot",
+       "warehouse outlet",
+       "parts counter"
+      ]
+     },
+     "den": {
+      "type": "choice",
+      "values": [
+       2,
+       4,
+       5,
+       10,
+       20,
+       25
+      ]
+     },
+     "num": {
+      "type": "int",
+      "min": 1,
+      "max": 19
+     }
+    },
+    "derived": {
+     "answer": "100*num/den",
+     "d_convertedWrongWay": "100*den/num",
+     "d_usedGivenValue": "num*den",
+     "d_unitConversion": "10*num/den"
+    },
+    "constraints": [
+     "num<den",
+     "answer==round(answer)",
+     "d_convertedWrongWay==round(d_convertedWrongWay)",
+     "d_unitConversion==round(d_unitConversion)",
+     "answer!=d_convertedWrongWay",
+     "answer!=d_usedGivenValue",
+     "answer!=d_unitConversion",
+     "d_convertedWrongWay!=d_usedGivenValue",
+     "d_convertedWrongWay!=d_unitConversion",
+     "d_usedGivenValue!=d_unitConversion"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_unitConversion}}$",
+     "error": "unitConversion"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_convertedWrongWay}}$",
+     "error": "convertedWrongWay"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_4G_full_price_from_deposit",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.4G:full-price-from-deposit",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4G",
+   "taskType": "reverseReasoning",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{p}}% deposit on a {{tool}} comes to $\\${{deposit}}$. What is the full price?",
+   "solutionReview": {
+    "headline": "Work back from the percent paid to the whole.",
+    "reasoning": [
+     "$\\${{deposit}}$ is {{p}} percent of the price.",
+     "One percent is {{hundreds}}, so the full hundred percent is {{answer}}."
+    ],
+    "answerSummary": "The full price is $\\${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The deposit is part of the price, so the price is larger."
+   ],
+   "supportHints": [
+    "Find what one percent of the price is worth."
+   ],
+   "generator": {
+    "parameters": {
+     "tool": {
+      "type": "choice",
+      "values": [
+       "grinder",
+       "compressor",
+       "drill",
+       "generator",
+       "welder"
+      ]
+     },
+     "p": {
+      "type": "choice",
+      "values": [
+       10,
+       20,
+       25,
+       40,
+       60,
+       75,
+       80,
+       90
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "price": "hundreds*100",
+     "deposit": "price*p/100",
+     "answer": "price",
+     "d_wrongPercentBase": "round(deposit*100/(100-p))",
+     "d_unitConversion": "deposit*100",
+     "d_partialTotal": "price-deposit"
+    },
+    "constraints": [
+     "answer!=d_wrongPercentBase",
+     "answer!=d_unitConversion",
+     "answer!=d_partialTotal",
+     "d_wrongPercentBase!=d_unitConversion",
+     "d_wrongPercentBase!=d_partialTotal",
+     "d_unitConversion!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_wrongPercentBase}}$",
+     "error": "wrongPercentBase"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_unitConversion}}$",
+     "error": "unitConversion"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_4H_feet_to_inches",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4H"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4H",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.4H:feet-to-inches",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4H",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{part}} measures {{feet}} feet {{inches}} inches. How many inches is that in all?",
+   "solutionReview": {
+    "headline": "Only the feet need converting; the inches are already inches.",
+    "reasoning": [
+     "{{feet}} feet is {{feet}} times 12 inches.",
+     "The extra {{inches}} inches bring it to {{answer}}."
+    ],
+    "answerSummary": "It is ${{answer}}$ inches."
+   },
+   "attemptFeedback": [
+    "Check which measurement counts feet and which counts inches."
+   ],
+   "supportHints": [
+    "A foot is twelve inches."
+   ],
+   "generator": {
+    "parameters": {
+     "part": {
+      "type": "choice",
+      "values": [
+       "rail",
+       "bracket",
+       "beam",
+       "pipe",
+       "channel"
+      ]
+     },
+     "feet": {
+      "type": "int",
+      "min": 2,
+      "max": 11
+     },
+     "inches": {
+      "type": "int",
+      "min": 2,
+      "max": 11
+     }
+    },
+    "derived": {
+     "answer": "feet*12+inches",
+     "d_unitConversion": "feet*10+inches",
+     "d_convertedWrongWay": "inches*12+feet",
+     "d_offByOneStep": "feet*12+inches+12"
+    },
+    "constraints": [
+     "answer!=d_unitConversion",
+     "answer!=d_convertedWrongWay",
+     "answer!=d_offByOneStep",
+     "d_unitConversion!=d_convertedWrongWay",
+     "d_unitConversion!=d_offByOneStep",
+     "d_convertedWrongWay!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_convertedWrongWay}}$",
+     "error": "convertedWrongWay"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_unitConversion}}$",
+     "error": "unitConversion"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_4H_ounces_to_pounds_remainder",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4H"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4H",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.4H:ounces-to-pounds-remainder",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4H",
+   "taskType": "application",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A crate holds {{ounces}} ounces of {{item}}. How many whole pounds is that?",
+   "solutionReview": {
+    "headline": "Sixteen ounces make a pound.",
+    "reasoning": [
+     "A pound is 16 ounces.",
+     "{{ounces}} ounces holds {{answer}} whole pounds with {{spare}} ounces over."
+    ],
+    "answerSummary": "That is ${{answer}}$ whole pounds."
+   },
+   "attemptFeedback": [
+    "Check how many ounces make one pound."
+   ],
+   "supportHints": [
+    "How many groups of sixteen fit in the total?"
+   ],
+   "generator": {
+    "parameters": {
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "pounds": {
+      "type": "int",
+      "min": 2,
+      "max": 16
+     },
+     "spare": {
+      "type": "int",
+      "min": 1,
+      "max": 15
+     }
+    },
+    "derived": {
+     "ounces": "pounds*16+spare",
+     "answer": "pounds",
+     "d_unitConversion": "round(ounces/12)",
+     "d_convertedWrongWay": "round(ounces/32)",
+     "d_partialTotal": "spare"
+    },
+    "constraints": [
+     "answer!=d_unitConversion",
+     "answer!=d_convertedWrongWay",
+     "answer!=d_partialTotal",
+     "d_unitConversion!=d_convertedWrongWay",
+     "d_unitConversion!=d_partialTotal",
+     "d_convertedWrongWay!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_convertedWrongWay}}$",
+     "error": "convertedWrongWay"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_unitConversion}}$",
+     "error": "unitConversion"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_4H_gallons_to_quarts_rate",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4H"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4H",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.4H:gallons-to-quarts-rate",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4H",
+   "taskType": "reverseReasoning",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A tank takes {{quarts}} quarts to fill. A pump moves {{gpm}} gallons a minute. How many minutes does filling take?",
+   "solutionReview": {
+    "headline": "Match the units before using the rate.",
+    "reasoning": [
+     "Four quarts make a gallon, so {{quarts}} quarts is {{gallons}} gallons.",
+     "{{gallons}} at {{gpm}} a minute takes {{answer}} minutes."
+    ],
+    "answerSummary": "It takes ${{answer}}$ minutes."
+   },
+   "attemptFeedback": [
+    "Convert to the pump’s units before dividing."
+   ],
+   "supportHints": [
+    "The tank is measured in quarts but the pump works in gallons."
+   ],
+   "generator": {
+    "parameters": {
+     "gpm": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "mins": {
+      "type": "int",
+      "min": 3,
+      "max": 20
+     }
+    },
+    "derived": {
+     "gallons": "gpm*mins",
+     "quarts": "gpm*mins*4",
+     "answer": "mins",
+     "d_unitConversion": "quarts/gpm",
+     "d_operationInverted": "gpm",
+     "d_partialTotal": "round(gallons/4)"
+    },
+    "constraints": [
+     "gpm!=mins",
+     "answer!=d_unitConversion",
+     "answer!=d_operationInverted",
+     "answer!=d_partialTotal",
+     "d_unitConversion!=d_operationInverted",
+     "d_unitConversion!=d_partialTotal",
+     "d_operationInverted!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_unitConversion}}$",
+     "error": "unitConversion"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_4H_yards_of_material",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4H"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4H",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.4H:yards-of-material",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4H",
+   "taskType": "application",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A job needs {{pieces}} pieces of {{part}}, each {{feetEach}} feet long, plus {{extra}} yards spare. Material is sold by the yard. How many yards are needed?",
+   "solutionReview": {
+    "headline": "Total in one unit, then convert once.",
+    "reasoning": [
+     "{{pieces}} pieces at {{feetEach}} feet is {{totalFeet}} feet, or {{d_forgotFinalStep}} yards.",
+     "With {{extra}} yards spare that is {{answer}}."
+    ],
+    "answerSummary": "It needs ${{answer}}$ yards."
+   },
+   "attemptFeedback": [
+    "Three feet make a yard, so the yard count is smaller than the foot count."
+   ],
+   "supportHints": [
+    "Add up all the material first, then change units."
+   ],
+   "generator": {
+    "parameters": {
+     "part": {
+      "type": "choice",
+      "values": [
+       "trim",
+       "cable",
+       "hose",
+       "edging",
+       "strip"
+      ]
+     },
+     "pieces": {
+      "type": "int",
+      "min": 3,
+      "max": 24
+     },
+     "yardsEach": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "extra": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     }
+    },
+    "derived": {
+     "feetEach": "yardsEach*3",
+     "totalFeet": "pieces*yardsEach*3",
+     "answer": "pieces*yardsEach+extra",
+     "d_forgotFinalStep": "pieces*yardsEach",
+     "d_convertedWrongWay": "totalFeet+extra",
+     "d_partialTotal": "extra*3"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_convertedWrongWay",
+     "answer!=d_partialTotal",
+     "d_forgotFinalStep!=d_convertedWrongWay",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_convertedWrongWay!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_convertedWrongWay}}$",
+     "error": "convertedWrongWay"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_4H_unit_table_conversion",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4H"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4H",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.4H:unit-table-conversion",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4H",
+   "taskType": "representationTranslation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Using the table, how many {{small}} are in {{bigCount}} {{big}}?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Conversion table",
+    "table": {
+     "headers": [
+      "{{big}}",
+      "{{small}}"
+     ],
+     "rows": [
+      [
+       "1",
+       "{{per}}"
+      ],
+      [
+       "{{bigCount}}",
+       "?"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "A conversion table gives the rate for one unit.",
+    "reasoning": [
+     "One {{big}} holds {{per}} {{small}}.",
+     "{{bigCount}} of them hold {{per}} times {{bigCount}}."
+    ],
+    "answerSummary": "There are ${{answer}}$ {{small}}."
+   },
+   "attemptFeedback": [
+    "Converting to a smaller unit gives a larger count."
+   ],
+   "supportHints": [
+    "Read what a single unit is worth from the first row."
+   ],
+   "generator": {
+    "parameters": {
+     "big": {
+      "type": "choice",
+      "values": [
+       "pounds",
+       "gallons",
+       "feet",
+       "hours"
+      ]
+     },
+     "small": {
+      "type": "choice",
+      "values": [
+       "ounces",
+       "quarts",
+       "inches",
+       "minutes"
+      ]
+     },
+     "per": {
+      "type": "choice",
+      "values": [
+       4,
+       12,
+       16,
+       60
+      ]
+     },
+     "bigCount": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     }
+    },
+    "derived": {
+     "answer": "per*bigCount",
+     "d_operationInverted": "per+bigCount",
+     "d_unitConversion": "bigCount*bigCount",
+     "d_offByOneStep": "per*(bigCount+1)"
+    },
+    "constraints": [
+     "per!=bigCount",
+     "answer!=d_operationInverted",
+     "answer!=d_unitConversion",
+     "answer!=d_offByOneStep",
+     "d_operationInverted!=d_unitConversion",
+     "d_operationInverted!=d_offByOneStep",
+     "d_unitConversion!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_unitConversion}}$",
+     "error": "unitConversion"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
   }
  ]
 }
