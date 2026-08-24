@@ -4,12 +4,15 @@
   "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
   "framework": "tsia2",
   "domainId": "quantitativeReasoning",
-  "completedNativeSkills": ["rationalIrrationalMagnitude"],
-  "completedScopeUnitsCount": 1,
-  "familiesTotal": 8,
+  "completedNativeSkills": [
+    "rationalIrrationalMagnitude",
+    "ratioProportionPercent"
+  ],
+  "completedScopeUnitsCount": 2,
+  "familiesTotal": 16,
   "validation": {
     "randomizedInstancesPerCompletedScopeUnit": 2000,
-    "randomizedInstancesTotal": 2000,
+    "randomizedInstancesTotal": 4000,
     "checks": [
       "five direct plus three independently authored challenge families per completed native skill",
       "exactly four answer choices per family",
@@ -18,17 +21,18 @@
       "no fabricated Texas alignment",
       "generator placeholders resolve from declared parameters or derived values",
       "no exact prompt or underlying-task clones",
-      "rational/irrational magnitude semantics across comparison, consecutive-integer bounds, radical simplification, irrationality under rational shifts, like-radical operations, transformed intervals, balanced radical comparisons, and conjugate products"
+      "rational/irrational magnitude semantics across comparison, consecutive-integer bounds, radical simplification, irrationality under rational shifts, like-radical operations, transformed intervals, balanced radical comparisons, and conjugate products",
+      "ratio/proportion/percent semantics across part-whole ratios, proportional scaling, percent counts, percent-from-part, symbolic proportions, changed ratios, nested percentages, and mixture percentages"
     ]
   },
   "coverageStatus": {
     "rationalIrrationalMagnitude": "complete",
-    "ratioProportionPercent": "not-started",
+    "ratioProportionPercent": "complete",
     "proportionalContext": "not-started",
     "linearExpressionsEquationsInterpretation": "not-started",
     "basicNumberOperations": "not-started",
     "roundingPlaceValue": "not-started",
     "numberFormsComparison": "not-started"
   },
-  "note": "1 of 7 Quantitative Reasoning native skill areas is complete in V2.1. Full TSIA2 release remains blocked until all 25 official native skill areas are complete."
+  "note": "2 of 7 Quantitative Reasoning native skill areas are complete in V2.1. Full TSIA2 release remains blocked until all 25 official native skill areas are complete."
 }

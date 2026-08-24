@@ -15,7 +15,8 @@
     "TSIA2-native scope is authored independently from Texas course standards.",
     "crcAndDiagnostic skills may appear in CRC or Diagnostic practice; diagnosticOnly skills are reserved for foundational Diagnostic practice.",
     "Every completed native skill requires five direct and three independently authored challenge families, all four-choice multiple choice.",
-    "rationalIrrationalMagnitude is authored in V2.1 with 8 generator-backed families and 2,000 randomized semantic checks."
+    "rationalIrrationalMagnitude is authored in V2.1 with 8 generator-backed families and 2,000 randomized semantic checks.",
+    "ratioProportionPercent is authored in V2.1 with 8 independently authored generator-backed families and 2,000 randomized semantic checks."
   ],
   "nativeSkills": {
     "rationalIrrationalMagnitude": {
@@ -29,40 +30,64 @@
       ]
     },
     "ratioProportionPercent": {
-      "status": "author",
+      "status": "authored",
       "tsia2TestScope": "crcAndDiagnostic",
       "officialSkillArea": "Ratio, proportion, and percent",
-      "constructs": ["ratios and rates", "proportions", "percent applications"]
+      "constructs": [
+        "ratios and rates",
+        "proportions",
+        "percent applications"
+      ]
     },
     "proportionalContext": {
       "status": "author",
       "tsia2TestScope": "crcAndDiagnostic",
       "officialSkillArea": "Proportional relationships in context",
-      "constructs": ["proportional relationships", "financial numeracy", "real-world rate reasoning"]
+      "constructs": [
+        "proportional relationships",
+        "financial numeracy",
+        "real-world rate reasoning"
+      ]
     },
     "linearExpressionsEquationsInterpretation": {
       "status": "author",
       "tsia2TestScope": "crcAndDiagnostic",
       "officialSkillArea": "Linear expressions, equations, and inequalities",
-      "constructs": ["interpret linear expressions", "manipulate linear equations and inequalities", "connect verbal and symbolic linear relationships"]
+      "constructs": [
+        "interpret linear expressions",
+        "manipulate linear equations and inequalities",
+        "connect verbal and symbolic linear relationships"
+      ]
     },
     "basicNumberOperations": {
       "status": "author",
       "tsia2TestScope": "diagnosticOnly",
       "officialSkillArea": "Basic number operations",
-      "constructs": ["whole-number operations", "fraction and decimal operations", "signed-number computation"]
+      "constructs": [
+        "whole-number operations",
+        "fraction and decimal operations",
+        "signed-number computation"
+      ]
     },
     "roundingPlaceValue": {
       "status": "author",
       "tsia2TestScope": "diagnosticOnly",
       "officialSkillArea": "Rounding and place value",
-      "constructs": ["place value", "rounding", "estimation"]
+      "constructs": [
+        "place value",
+        "rounding",
+        "estimation"
+      ]
     },
     "numberFormsComparison": {
       "status": "author",
       "tsia2TestScope": "diagnosticOnly",
       "officialSkillArea": "Number forms and comparison",
-      "constructs": ["fractions decimals and percents", "equivalent number forms", "compare numerical values"]
+      "constructs": [
+        "fractions decimals and percents",
+        "equivalent number forms",
+        "compare numerical values"
+      ]
     }
   }
 }
