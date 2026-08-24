@@ -2010,6 +2010,351 @@ ar('7.4C', 'compare-two-constants', {
   feedback: 'The machines ran for different lengths of time.',
 });
 
+// ================================================================ 6.12C
+// Mean, median, range: the summary questions the ASVAB actually asks.
+
+ar('6.12C', 'mean-of-shifts', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'table',
+  prompt: 'A {{crew}} loaded the counts shown over four days. What is the daily average?',
+  stimulus: {
+    kind: 'table',
+    title: 'Daily loads',
+    table: { headers: ['day', 'loaded'], rows: [['1', '{{a}}'], ['2', '{{b}}'], ['3', '{{c}}'], ['4', '{{d}}']] },
+  },
+  generator: {
+    parameters: {
+      crew: WORKERS,
+      mean: { type: 'int', min: 8, max: 22 },
+      s1: { type: 'int', min: -10, max: 10 },
+      s2: { type: 'int', min: -10, max: 10 },
+      s3: { type: 'int', min: -10, max: 10 },
+    },
+    derived: {
+      a: 'mean+s1',
+      b: 'mean+s2',
+      c: 'mean+s3',
+      d: 'mean-s1-s2-s3',
+      total: 'mean*4',
+      answer: 'mean',
+      d_forgotFinalStep: 'total',
+      d_operationInverted: 'max(max(a,b),max(c,d))-min(min(a,b),min(c,d))',
+      d_offByOneStep: 'round(total/5)',
+    },
+    constraints: ['a>0', 'b>0', 'c>0', 'd>0'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['The four days total {{total}}.', 'Shared over four days that is {{answer}} a day.'],
+  answerSummary: { headline: 'An average shares the total evenly across the entries.', text: 'The average is ${{answer}}$ a day.' },
+  hint: 'Total the four days, then split the total evenly.',
+  feedback: 'Divide by how many days there are, not by more or fewer.',
+});
+
+ar('6.12C', 'missing-value-from-mean', {
+  difficultyBand: 3, dok: 3, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'Four deliveries averaged {{mean}} {{item}}. Three of them carried {{a}}, {{b}} and {{c}}. How many did the fourth carry?',
+  generator: {
+    parameters: {
+      item: GOODS,
+      mean: { type: 'int', min: 10, max: 40 },
+      s1: { type: 'int', min: -8, max: 8 },
+      s2: { type: 'int', min: -8, max: 8 },
+      s3: { type: 'int', min: -8, max: 8 },
+    },
+    derived: {
+      a: 'mean+s1',
+      b: 'mean+s2',
+      c: 'mean+s3',
+      answer: 'mean-s1-s2-s3',
+      total: 'mean*4',
+      d_forgotFinalStep: 'mean',
+      d_partialTotal: 'a+b+c',
+      d_operationInverted: 'min(min(a,b),c)',
+    },
+    constraints: ['a>0', 'b>0', 'c>0', 'answer>0'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['Four deliveries averaging {{mean}} carried {{total}} in all.', 'The first three carried {{d_partialTotal}}, so the fourth carried {{answer}}.'],
+  answerSummary: { headline: 'The average fixes the total, and the total fixes the missing entry.', text: 'The fourth carried ${{answer}}$.' },
+  hint: 'What must all four add up to?',
+  feedback: 'Work out the total the average implies before looking at the missing one.',
+});
+
+ar('6.12C', 'median-of-five', {
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'table',
+  prompt: 'Five runs recorded the times shown in minutes. What is the median time?',
+  stimulus: {
+    kind: 'table',
+    title: 'Run times',
+    table: { headers: ['run', 'minutes'], rows: [['1', '{{v3}}'], ['2', '{{v1}}'], ['3', '{{v5}}'], ['4', '{{v2}}'], ['5', '{{v4}}']] },
+  },
+  generator: {
+    parameters: {
+      v1: { type: 'int', min: 8, max: 20 },
+      g1: { type: 'int', min: 1, max: 6 },
+      g2: { type: 'int', min: 1, max: 6 },
+      g3: { type: 'int', min: 1, max: 6 },
+      g4: { type: 'int', min: 1, max: 6 },
+    },
+    derived: {
+      v2: 'v1+g1',
+      v3: 'v1+g1+g2',
+      v4: 'v1+g1+g2+g3',
+      v5: 'v1+g1+g2+g3+g4',
+      answer: 'v1+g1+g2',
+      d_usedGivenValue: 'v1',
+      d_operationInverted: 'v5',
+      d_partialTotal: 'round((v1+v2+v3+v4+v5)/5)',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['In order the times run {{v1}}, {{v2}}, {{v3}}, {{v4}}, {{v5}}.', 'The middle one of five is {{answer}}.'],
+  answerSummary: { headline: 'The median is the middle value once the list is in order.', text: 'The median is ${{answer}}$ minutes.' },
+  hint: 'Put the times in order first.',
+  feedback: 'The middle of the table is not the middle of the ordered list.',
+});
+
+ar('6.12C', 'range-of-readings', {
+  difficultyBand: 1, dok: 1, taskType: 'interpretation', representation: 'context',
+  prompt: 'Over {{days}} days a {{crew}} logged temperatures from {{low}} to {{high}} degrees. What is the range?',
+  generator: {
+    parameters: {
+      crew: WORKERS,
+      low: { type: 'int', min: 5, max: 40 },
+      spread: { type: 'int', min: 6, max: 45 },
+      days: { type: 'int', min: 5, max: 40 },
+    },
+    derived: {
+      high: 'low+spread',
+      answer: 'spread',
+      d_partialTotal: 'low+high',
+      d_usedGivenValue: 'days',
+      d_operationInverted: 'low',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The range measures how far apart the extremes are.', '{{high}} minus {{low}} is {{answer}}.'],
+  answerSummary: { headline: 'Range is the distance between the highest and lowest.', text: 'The range is ${{answer}}$ degrees.' },
+  hint: 'How far is it from the lowest reading to the highest?',
+  feedback: 'The range is a difference, not a total and not the number of days.',
+});
+
+ar('6.12C', 'average-after-one-more', {
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'verbal',
+  prompt: 'Three loads averaged {{mean}} {{item}}. A fourth load of {{fourth}} arrives. What is the new average?',
+  generator: {
+    parameters: {
+      item: GOODS,
+      mean: { type: 'int', min: 24, max: 44 },
+      step: { type: 'int', min: 1, max: 5 },
+      dir: { type: 'choice', values: [-1, 1] },
+    },
+    derived: {
+      fourth: 'mean+dir*step*4',
+      answer: 'mean+dir*step',
+      total: 'mean*3+mean+dir*step*4',
+      d_forgotFinalStep: 'mean',
+      d_partialTotal: 'fourth',
+      d_operationInverted: 'round((mean+fourth)/2)',
+    },
+    constraints: ['fourth>0', 'answer>0'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The first three carried {{mean}} times 3.', 'With the fourth the total is {{total}} over four loads, or {{answer}}.'],
+  answerSummary: { headline: 'A new entry moves the average toward itself, not all the way.', text: 'The new average is ${{answer}}$.' },
+  hint: 'Rebuild the total, then share it over four loads.',
+  feedback: 'Averaging the old average with the new load is not the same as averaging all four.',
+});
+
+// ================================================================ 6.3B
+// Whether multiplying by a fraction makes a quantity larger or smaller.
+
+ar('6.3B', 'which-multiplier-grows', {
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  rankAnalysisNotApplicable: true,
+  prompt: 'A {{shop}} scales an order of {{total}} {{item}} by one of these factors. Which gives the largest new order?',
+  generator: {
+    parameters: {
+      shop: SHOPS, item: GOODS,
+      total: { type: 'int', min: 20, max: 400, step: 20 },
+      whole: { type: 'int', min: 2, max: 5 },
+      den: { type: 'choice', values: [3, 4, 5] },
+    },
+    derived: { topHeavy: 'whole*den+1' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('\\frac{{{topHeavy}}}{{{den}}}'), correct: true },
+    { label: plain('\\frac{1}{{{den}}}'), error: 'partialTotal' },
+    { label: plain('\\frac{{{den}}}{{{topHeavy}}}'), error: 'ratioReversed' },
+    { label: plain('\\frac{1}{{{topHeavy}}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['A factor bigger than 1 grows the order; a factor smaller than 1 shrinks it.', 'Only $\\frac{{{topHeavy}}}{{{den}}}$ has a top larger than its bottom.'],
+  answerSummary: { headline: 'A fraction grows a quantity only when its top exceeds its bottom.', text: '$\\frac{{{topHeavy}}}{{{den}}}$ gives the largest order.' },
+  hint: 'Compare the top and bottom of each factor with each other.',
+  feedback: 'Multiplying by a fraction below 1 makes the result smaller.',
+});
+
+ar('6.3B', 'scale-up-by-improper', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'A {{crew}} increased a run of {{total}} {{item}} to {{num}} for every {{den}} it had been. How many {{item}} now?',
+  generator: {
+    parameters: {
+      crew: WORKERS, item: GOODS,
+      den: { type: 'choice', values: [2, 3, 4, 5] },
+      extra: { type: 'int', min: 1, max: 5 },
+      unit: { type: 'int', min: 6, max: 40 },
+    },
+    derived: {
+      num: 'den+extra',
+      total: 'den*unit',
+      answer: 'unit*(den+extra)',
+      d_ratioReversed: 'round(total*den/(den+extra))',
+      d_partialTotal: 'unit*den*2',
+      d_offByOneStep: 'unit*(den+extra+1)',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['{{total}} splits into {{den}} shares of {{unit}}.', '{{num}} of those shares is {{answer}}, which is more than it started with.'],
+  answerSummary: { headline: 'A factor above one grows the run.', text: 'There are now ${{answer}}$ {{item}}.' },
+  hint: 'Work out one share of the original run first.',
+  feedback: 'The new run is larger than the old one.',
+});
+
+ar('6.3B', 'scale-down-by-proper', {
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A {{machine}} run of {{total}} {{item}} was cut to {{num}} of every {{den}}. How many {{item}} now?',
+  generator: {
+    parameters: {
+      machine: MACHINES, item: GOODS,
+      den: { type: 'choice', values: [3, 4, 5, 6, 8] },
+      num: { type: 'int', min: 1, max: 7 },
+      unit: { type: 'int', min: 6, max: 40 },
+    },
+    derived: {
+      total: 'den*unit',
+      answer: 'unit*num',
+      d_ratioReversed: 'unit*(den-num)',
+      d_partialTotal: 'unit',
+      d_offByOneStep: 'unit*(num+1)',
+    },
+    constraints: ['num<den'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['{{total}} splits into {{den}} shares of {{unit}}.', 'Keeping {{num}} of them leaves {{answer}}.'],
+  answerSummary: { headline: 'A factor below one shrinks the run.', text: 'There are now ${{answer}}$ {{item}}.' },
+  hint: 'How big is a single share of the original run?',
+  feedback: 'Cutting a run down leaves fewer than before.',
+});
+
+ar('6.3B', 'identify-the-factor', {
+  difficultyBand: 3, dok: 3, taskType: 'reverseReasoning', representation: 'verbal',
+  prompt: 'An order of {{total}} {{item}} was changed to {{after}}. How many of every {{den}} were kept?',
+  generator: {
+    parameters: {
+      item: GOODS,
+      den: { type: 'choice', values: [3, 4, 5, 6, 8] },
+      num: { type: 'int', min: 1, max: 12 },
+      unit: { type: 'int', min: 5, max: 30 },
+    },
+    derived: {
+      total: 'den*unit',
+      after: 'num*unit',
+      answer: 'num',
+      d_ratioReversed: 'den',
+      d_partialTotal: 'unit',
+      d_offByOneStep: 'abs(num-den)',
+    },
+    constraints: ['num!=den', 'd_offByOneStep>0'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['{{total}} splits into {{den}} shares of {{unit}}.', '{{after}} is {{answer}} of those shares.'],
+  answerSummary: { headline: 'Work back from the new size to the number of shares kept.', text: '${{answer}}$ of every {{den}} were kept.' },
+  hint: 'How big is one share of the original order?',
+  feedback: 'The answer counts shares, not items.',
+});
+
+ar('6.3B', 'grow-then-shrink', {
+  difficultyBand: 3, dok: 3, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'A run was scaled twice as recorded. How many {{item}} are there at the end?',
+  stimulus: {
+    kind: 'table',
+    title: 'Scaling record',
+    table: { headers: ['step', 'factor'], rows: [['start', '{{total}} {{item}}'], ['first', '{{n1}} of every {{d1}}'], ['second', '{{n2}} of every {{d2}}']] },
+  },
+  generator: {
+    parameters: {
+      item: GOODS,
+      d1: { type: 'choice', values: [2, 3, 4] },
+      n1: { type: 'int', min: 3, max: 8 },
+      d2: { type: 'choice', values: [2, 3, 4] },
+      n2: { type: 'int', min: 1, max: 3 },
+      unit: { type: 'int', min: 4, max: 24 },
+    },
+    derived: {
+      total: 'd1*d2*unit',
+      middle: 'n1*d2*unit',
+      answer: 'n1*n2*unit',
+      d_forgotFinalStep: 'middle',
+      d_operationInverted: 'total',
+      d_partialTotal: 'd1*n2*unit',
+    },
+    constraints: ['n2<d2', 'n1>d1'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The first step grows {{total}} to {{middle}}.', 'The second step cuts that to {{answer}}.'],
+  answerSummary: { headline: 'Each factor applies to what the step before it left.', text: 'There are ${{answer}}$ {{item}}.' },
+  hint: 'The second factor works on the result of the first, not on the start.',
+  feedback: 'Apply the two factors one after the other.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {

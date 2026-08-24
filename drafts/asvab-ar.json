@@ -8481,6 +8481,1510 @@
      "expected": "choice-c"
     }
    ]
+  },
+  {
+   "id": "mm_asvab_6_12C_mean_of_shifts",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.12C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.12C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.12C:mean-of-shifts",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.12C",
+   "taskType": "procedural",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{crew}} loaded the counts shown over four days. What is the daily average?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Daily loads",
+    "table": {
+     "headers": [
+      "day",
+      "loaded"
+     ],
+     "rows": [
+      [
+       "1",
+       "{{a}}"
+      ],
+      [
+       "2",
+       "{{b}}"
+      ],
+      [
+       "3",
+       "{{c}}"
+      ],
+      [
+       "4",
+       "{{d}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "An average shares the total evenly across the entries.",
+    "reasoning": [
+     "The four days total {{total}}.",
+     "Shared over four days that is {{answer}} a day."
+    ],
+    "answerSummary": "The average is ${{answer}}$ a day."
+   },
+   "attemptFeedback": [
+    "Divide by how many days there are, not by more or fewer."
+   ],
+   "supportHints": [
+    "Total the four days, then split the total evenly."
+   ],
+   "generator": {
+    "parameters": {
+     "crew": {
+      "type": "choice",
+      "values": [
+       "crew",
+       "shift",
+       "team",
+       "work detail"
+      ]
+     },
+     "mean": {
+      "type": "int",
+      "min": 8,
+      "max": 22
+     },
+     "s1": {
+      "type": "int",
+      "min": -10,
+      "max": 10
+     },
+     "s2": {
+      "type": "int",
+      "min": -10,
+      "max": 10
+     },
+     "s3": {
+      "type": "int",
+      "min": -10,
+      "max": 10
+     }
+    },
+    "derived": {
+     "a": "mean+s1",
+     "b": "mean+s2",
+     "c": "mean+s3",
+     "d": "mean-s1-s2-s3",
+     "total": "mean*4",
+     "answer": "mean",
+     "d_forgotFinalStep": "total",
+     "d_operationInverted": "max(max(a,b),max(c,d))-min(min(a,b),min(c,d))",
+     "d_offByOneStep": "round(total/5)"
+    },
+    "constraints": [
+     "a>0",
+     "b>0",
+     "c>0",
+     "d>0",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_offByOneStep",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_offByOneStep",
+     "d_operationInverted!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_12C_missing_value_from_mean",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.12C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.12C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.12C:missing-value-from-mean",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.12C",
+   "taskType": "reverseReasoning",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Four deliveries averaged {{mean}} {{item}}. Three of them carried {{a}}, {{b}} and {{c}}. How many did the fourth carry?",
+   "solutionReview": {
+    "headline": "The average fixes the total, and the total fixes the missing entry.",
+    "reasoning": [
+     "Four deliveries averaging {{mean}} carried {{total}} in all.",
+     "The first three carried {{d_partialTotal}}, so the fourth carried {{answer}}."
+    ],
+    "answerSummary": "The fourth carried ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Work out the total the average implies before looking at the missing one."
+   ],
+   "supportHints": [
+    "What must all four add up to?"
+   ],
+   "generator": {
+    "parameters": {
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "mean": {
+      "type": "int",
+      "min": 10,
+      "max": 40
+     },
+     "s1": {
+      "type": "int",
+      "min": -8,
+      "max": 8
+     },
+     "s2": {
+      "type": "int",
+      "min": -8,
+      "max": 8
+     },
+     "s3": {
+      "type": "int",
+      "min": -8,
+      "max": 8
+     }
+    },
+    "derived": {
+     "a": "mean+s1",
+     "b": "mean+s2",
+     "c": "mean+s3",
+     "answer": "mean-s1-s2-s3",
+     "total": "mean*4",
+     "d_forgotFinalStep": "mean",
+     "d_partialTotal": "a+b+c",
+     "d_operationInverted": "min(min(a,b),c)"
+    },
+    "constraints": [
+     "a>0",
+     "b>0",
+     "c>0",
+     "answer>0",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "answer!=d_operationInverted",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_partialTotal!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_12C_median_of_five",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.12C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.12C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.12C:median-of-five",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.12C",
+   "taskType": "conceptual",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Five runs recorded the times shown in minutes. What is the median time?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Run times",
+    "table": {
+     "headers": [
+      "run",
+      "minutes"
+     ],
+     "rows": [
+      [
+       "1",
+       "{{v3}}"
+      ],
+      [
+       "2",
+       "{{v1}}"
+      ],
+      [
+       "3",
+       "{{v5}}"
+      ],
+      [
+       "4",
+       "{{v2}}"
+      ],
+      [
+       "5",
+       "{{v4}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "The median is the middle value once the list is in order.",
+    "reasoning": [
+     "In order the times run {{v1}}, {{v2}}, {{v3}}, {{v4}}, {{v5}}.",
+     "The middle one of five is {{answer}}."
+    ],
+    "answerSummary": "The median is ${{answer}}$ minutes."
+   },
+   "attemptFeedback": [
+    "The middle of the table is not the middle of the ordered list."
+   ],
+   "supportHints": [
+    "Put the times in order first."
+   ],
+   "generator": {
+    "parameters": {
+     "v1": {
+      "type": "int",
+      "min": 8,
+      "max": 20
+     },
+     "g1": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "g2": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "g3": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "g4": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     }
+    },
+    "derived": {
+     "v2": "v1+g1",
+     "v3": "v1+g1+g2",
+     "v4": "v1+g1+g2+g3",
+     "v5": "v1+g1+g2+g3+g4",
+     "answer": "v1+g1+g2",
+     "d_usedGivenValue": "v1",
+     "d_operationInverted": "v5",
+     "d_partialTotal": "round((v1+v2+v3+v4+v5)/5)"
+    },
+    "constraints": [
+     "answer!=d_usedGivenValue",
+     "answer!=d_operationInverted",
+     "answer!=d_partialTotal",
+     "d_usedGivenValue!=d_operationInverted",
+     "d_usedGivenValue!=d_partialTotal",
+     "d_operationInverted!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_12C_range_of_readings",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.12C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.12C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.12C:range-of-readings",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.12C",
+   "taskType": "interpretation",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Over {{days}} days a {{crew}} logged temperatures from {{low}} to {{high}} degrees. What is the range?",
+   "solutionReview": {
+    "headline": "Range is the distance between the highest and lowest.",
+    "reasoning": [
+     "The range measures how far apart the extremes are.",
+     "{{high}} minus {{low}} is {{answer}}."
+    ],
+    "answerSummary": "The range is ${{answer}}$ degrees."
+   },
+   "attemptFeedback": [
+    "The range is a difference, not a total and not the number of days."
+   ],
+   "supportHints": [
+    "How far is it from the lowest reading to the highest?"
+   ],
+   "generator": {
+    "parameters": {
+     "crew": {
+      "type": "choice",
+      "values": [
+       "crew",
+       "shift",
+       "team",
+       "work detail"
+      ]
+     },
+     "low": {
+      "type": "int",
+      "min": 5,
+      "max": 40
+     },
+     "spread": {
+      "type": "int",
+      "min": 6,
+      "max": 45
+     },
+     "days": {
+      "type": "int",
+      "min": 5,
+      "max": 40
+     }
+    },
+    "derived": {
+     "high": "low+spread",
+     "answer": "spread",
+     "d_partialTotal": "low+high",
+     "d_usedGivenValue": "days",
+     "d_operationInverted": "low"
+    },
+    "constraints": [
+     "answer!=d_partialTotal",
+     "answer!=d_usedGivenValue",
+     "answer!=d_operationInverted",
+     "d_partialTotal!=d_usedGivenValue",
+     "d_partialTotal!=d_operationInverted",
+     "d_usedGivenValue!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_12C_average_after_one_more",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.12C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.12C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.12C:average-after-one-more",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.12C",
+   "taskType": "application",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Three loads averaged {{mean}} {{item}}. A fourth load of {{fourth}} arrives. What is the new average?",
+   "solutionReview": {
+    "headline": "A new entry moves the average toward itself, not all the way.",
+    "reasoning": [
+     "The first three carried {{mean}} times 3.",
+     "With the fourth the total is {{total}} over four loads, or {{answer}}."
+    ],
+    "answerSummary": "The new average is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Averaging the old average with the new load is not the same as averaging all four."
+   ],
+   "supportHints": [
+    "Rebuild the total, then share it over four loads."
+   ],
+   "generator": {
+    "parameters": {
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "mean": {
+      "type": "int",
+      "min": 24,
+      "max": 44
+     },
+     "step": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     },
+     "dir": {
+      "type": "choice",
+      "values": [
+       -1,
+       1
+      ]
+     }
+    },
+    "derived": {
+     "fourth": "mean+dir*step*4",
+     "answer": "mean+dir*step",
+     "total": "mean*3+mean+dir*step*4",
+     "d_forgotFinalStep": "mean",
+     "d_partialTotal": "fourth",
+     "d_operationInverted": "round((mean+fourth)/2)"
+    },
+    "constraints": [
+     "fourth>0",
+     "answer>0",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "answer!=d_operationInverted",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_partialTotal!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_3B_which_multiplier_grows",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.3B:which-multiplier-grows",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3B",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{shop}} scales an order of {{total}} {{item}} by one of these factors. Which gives the largest new order?",
+   "rankAnalysisNotApplicable": true,
+   "solutionReview": {
+    "headline": "A fraction grows a quantity only when its top exceeds its bottom.",
+    "reasoning": [
+     "A factor bigger than 1 grows the order; a factor smaller than 1 shrinks it.",
+     "Only $\\frac{{{topHeavy}}}{{{den}}}$ has a top larger than its bottom."
+    ],
+    "answerSummary": "$\\frac{{{topHeavy}}}{{{den}}}$ gives the largest order."
+   },
+   "attemptFeedback": [
+    "Multiplying by a fraction below 1 makes the result smaller."
+   ],
+   "supportHints": [
+    "Compare the top and bottom of each factor with each other."
+   ],
+   "generator": {
+    "parameters": {
+     "shop": {
+      "type": "choice",
+      "values": [
+       "hardware store",
+       "supply depot",
+       "warehouse outlet",
+       "parts counter"
+      ]
+     },
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "total": {
+      "type": "int",
+      "min": 20,
+      "max": 400,
+      "step": 20
+     },
+     "whole": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     },
+     "den": {
+      "type": "choice",
+      "values": [
+       3,
+       4,
+       5
+      ]
+     }
+    },
+    "derived": {
+     "topHeavy": "whole*den+1"
+    },
+    "constraints": [
+     "den!=topHeavy"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\frac{{{topHeavy}}}{{{den}}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\frac{1}{{{den}}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\frac{{{den}}}{{{topHeavy}}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\frac{1}{{{topHeavy}}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_3B_scale_up_by_improper",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.3B:scale-up-by-improper",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3B",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{crew}} increased a run of {{total}} {{item}} to {{num}} for every {{den}} it had been. How many {{item}} now?",
+   "solutionReview": {
+    "headline": "A factor above one grows the run.",
+    "reasoning": [
+     "{{total}} splits into {{den}} shares of {{unit}}.",
+     "{{num}} of those shares is {{answer}}, which is more than it started with."
+    ],
+    "answerSummary": "There are now ${{answer}}$ {{item}}."
+   },
+   "attemptFeedback": [
+    "The new run is larger than the old one."
+   ],
+   "supportHints": [
+    "Work out one share of the original run first."
+   ],
+   "generator": {
+    "parameters": {
+     "crew": {
+      "type": "choice",
+      "values": [
+       "crew",
+       "shift",
+       "team",
+       "work detail"
+      ]
+     },
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "den": {
+      "type": "choice",
+      "values": [
+       2,
+       3,
+       4,
+       5
+      ]
+     },
+     "extra": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     },
+     "unit": {
+      "type": "int",
+      "min": 6,
+      "max": 40
+     }
+    },
+    "derived": {
+     "num": "den+extra",
+     "total": "den*unit",
+     "answer": "unit*(den+extra)",
+     "d_ratioReversed": "round(total*den/(den+extra))",
+     "d_partialTotal": "unit*den*2",
+     "d_offByOneStep": "unit*(den+extra+1)"
+    },
+    "constraints": [
+     "answer!=d_ratioReversed",
+     "answer!=d_partialTotal",
+     "answer!=d_offByOneStep",
+     "d_ratioReversed!=d_partialTotal",
+     "d_ratioReversed!=d_offByOneStep",
+     "d_partialTotal!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_3B_scale_down_by_proper",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.3B:scale-down-by-proper",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3B",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{machine}} run of {{total}} {{item}} was cut to {{num}} of every {{den}}. How many {{item}} now?",
+   "solutionReview": {
+    "headline": "A factor below one shrinks the run.",
+    "reasoning": [
+     "{{total}} splits into {{den}} shares of {{unit}}.",
+     "Keeping {{num}} of them leaves {{answer}}."
+    ],
+    "answerSummary": "There are now ${{answer}}$ {{item}}."
+   },
+   "attemptFeedback": [
+    "Cutting a run down leaves fewer than before."
+   ],
+   "supportHints": [
+    "How big is a single share of the original run?"
+   ],
+   "generator": {
+    "parameters": {
+     "machine": {
+      "type": "choice",
+      "values": [
+       "press",
+       "labeler",
+       "sorter",
+       "stamping machine",
+       "conveyor"
+      ]
+     },
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "den": {
+      "type": "choice",
+      "values": [
+       3,
+       4,
+       5,
+       6,
+       8
+      ]
+     },
+     "num": {
+      "type": "int",
+      "min": 1,
+      "max": 7
+     },
+     "unit": {
+      "type": "int",
+      "min": 6,
+      "max": 40
+     }
+    },
+    "derived": {
+     "total": "den*unit",
+     "answer": "unit*num",
+     "d_ratioReversed": "unit*(den-num)",
+     "d_partialTotal": "unit",
+     "d_offByOneStep": "unit*(num+1)"
+    },
+    "constraints": [
+     "num<den",
+     "answer!=d_ratioReversed",
+     "answer!=d_partialTotal",
+     "answer!=d_offByOneStep",
+     "d_ratioReversed!=d_partialTotal",
+     "d_ratioReversed!=d_offByOneStep",
+     "d_partialTotal!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_3B_identify_the_factor",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.3B:identify-the-factor",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3B",
+   "taskType": "reverseReasoning",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "An order of {{total}} {{item}} was changed to {{after}}. How many of every {{den}} were kept?",
+   "solutionReview": {
+    "headline": "Work back from the new size to the number of shares kept.",
+    "reasoning": [
+     "{{total}} splits into {{den}} shares of {{unit}}.",
+     "{{after}} is {{answer}} of those shares."
+    ],
+    "answerSummary": "${{answer}}$ of every {{den}} were kept."
+   },
+   "attemptFeedback": [
+    "The answer counts shares, not items."
+   ],
+   "supportHints": [
+    "How big is one share of the original order?"
+   ],
+   "generator": {
+    "parameters": {
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "den": {
+      "type": "choice",
+      "values": [
+       3,
+       4,
+       5,
+       6,
+       8
+      ]
+     },
+     "num": {
+      "type": "int",
+      "min": 1,
+      "max": 12
+     },
+     "unit": {
+      "type": "int",
+      "min": 5,
+      "max": 30
+     }
+    },
+    "derived": {
+     "total": "den*unit",
+     "after": "num*unit",
+     "answer": "num",
+     "d_ratioReversed": "den",
+     "d_partialTotal": "unit",
+     "d_offByOneStep": "abs(num-den)"
+    },
+    "constraints": [
+     "num!=den",
+     "d_offByOneStep>0",
+     "answer!=d_ratioReversed",
+     "answer!=d_partialTotal",
+     "answer!=d_offByOneStep",
+     "d_ratioReversed!=d_partialTotal",
+     "d_ratioReversed!=d_offByOneStep",
+     "d_partialTotal!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_3B_grow_then_shrink",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.3B:grow-then-shrink",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3B",
+   "taskType": "representationTranslation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A run was scaled twice as recorded. How many {{item}} are there at the end?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Scaling record",
+    "table": {
+     "headers": [
+      "step",
+      "factor"
+     ],
+     "rows": [
+      [
+       "start",
+       "{{total}} {{item}}"
+      ],
+      [
+       "first",
+       "{{n1}} of every {{d1}}"
+      ],
+      [
+       "second",
+       "{{n2}} of every {{d2}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Each factor applies to what the step before it left.",
+    "reasoning": [
+     "The first step grows {{total}} to {{middle}}.",
+     "The second step cuts that to {{answer}}."
+    ],
+    "answerSummary": "There are ${{answer}}$ {{item}}."
+   },
+   "attemptFeedback": [
+    "Apply the two factors one after the other."
+   ],
+   "supportHints": [
+    "The second factor works on the result of the first, not on the start."
+   ],
+   "generator": {
+    "parameters": {
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "d1": {
+      "type": "choice",
+      "values": [
+       2,
+       3,
+       4
+      ]
+     },
+     "n1": {
+      "type": "int",
+      "min": 3,
+      "max": 8
+     },
+     "d2": {
+      "type": "choice",
+      "values": [
+       2,
+       3,
+       4
+      ]
+     },
+     "n2": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     },
+     "unit": {
+      "type": "int",
+      "min": 4,
+      "max": 24
+     }
+    },
+    "derived": {
+     "total": "d1*d2*unit",
+     "middle": "n1*d2*unit",
+     "answer": "n1*n2*unit",
+     "d_forgotFinalStep": "middle",
+     "d_operationInverted": "total",
+     "d_partialTotal": "d1*n2*unit"
+    },
+    "constraints": [
+     "n2<d2",
+     "n1>d1",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_partialTotal",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_operationInverted!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
   }
  ]
 }
