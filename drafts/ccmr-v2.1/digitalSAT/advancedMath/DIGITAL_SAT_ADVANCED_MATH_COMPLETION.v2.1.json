@@ -36,10 +36,10 @@
     "A2.5D",
     "A2.6B",
     "A2.6E",
+    "A2.6F",
     "A2.6G",
     "A2.6I",
     "A2.6J",
-    "A2.6L",
     "A2.7B",
     "A2.7C",
     "A2.7D",
@@ -53,12 +53,13 @@
     "randomizedInstancesPerStandard": 2000,
     "randomizedInstancesTotal": 82000,
     "checks": [
-      "generated mathematical identity, quotient, factor, rational-expression, radical, quadratic, exponential, reciprocal-function, inverse-variation, cube-root, absolute-value, formula, or system relationship",
+      "generated mathematical identity, quotient, factor, rational-expression, radical, quadratic, exponential, reciprocal-function, cube-root, absolute-value equation/inequality, formula, or system relationship",
       "equation-specific validation for quadratic roots and solution counts",
       "quadratic-function validation for vertex, intercept, extrema, factor, zero, coefficient, point-set construction, standard-to-vertex rewriting, nonlinear function evaluation, inverse-input reasoning, and equivalent-form relationships",
       "exponential-function validation for initial value, growth or decay factor, shifted reference input, nonunit interval, table/equation connections, separated observations, contextual models, function evaluation, inverse-input reasoning, intercepts, translated points, horizontal asymptotes, same/related-base equation solving, and exponent-parameter relationships",
       "nonlinear parent-function validation for square-root, cubic, cube-root, absolute-value, and reciprocal interval features plus table/graph representation connections",
-      "reciprocal and inverse-variation validation for asymptotes, y-intercepts, point relationships, constant-product models, contextual inverse variation, parameter recovery, scaled-input behavior, and symmetric-input structure",
+      "reciprocal-function validation for asymptotes, y-intercepts, point relationships, parameter recovery, scaled-input behavior, and symmetric-input structure",
+      "absolute-value inequality validation for open/closed boundaries, integer counts, scaled forms, contextual tolerances, parameter inclusion, and interval-boundary structure",
       "linear-quadratic system formulation validation for graph properties, points, zeros, and contextual break-even/intersection models",
       "semantic MCQ validation that rejects symmetric-root or parameter draws producing mathematically equivalent distractors",
       "equation-specific validation for linear-quadratic system intersections and tangent/no-intersection conditions",
@@ -73,5 +74,13 @@
       "no exact generator reuse within a standard"
     ]
   },
+  "reclassifiedForOtherDomain": [
+    {
+      "standard": "A2.6L",
+      "domainId": "problemSolvingData",
+      "primarySkill": "ratios, rates, proportional relationships, and units",
+      "reason": "College Board Table 26 places inverse variation in Problem-Solving and Data Analysis rather than Advanced Math. The existing V2.1 authored bank is preserved for the PSDA pass."
+    }
+  ],
   "note": "Scope approval lives in DIGITAL_SAT_ADVANCED_MATH_MAPPING.v2.1.json. This manifest records which approved standards have completed V2.1 authoring and randomized validation."
 }
