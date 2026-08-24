@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "artifactType": "completionManifest",
+  "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+  "framework": "digitalSAT",
+  "domainId": "advancedMath",
+  "completedStandards": [
+    "A.10A",
+    "A.10B",
+    "A.10C",
+    "A.10D",
+    "A.10E",
+    "A.10F",
+    "A.11A",
+    "A.11B"
+  ],
+  "validation": {
+    "randomizedInstancesPerStandard": 2000,
+    "randomizedInstancesTotal": 16000,
+    "checks": [
+      "generated mathematical identity or radical relationship",
+      "four unique rendered MCQ choices",
+      "no unresolved generator placeholders",
+      "no malformed plus-minus coefficient rendering",
+      "five direct plus three independently authored challenge families",
+      "no exact generator reuse within a standard"
+    ]
+  },
+  "note": "Scope approval lives in DIGITAL_SAT_ADVANCED_MATH_MAPPING.v2.1.json. This manifest records which approved standards have completed V2.1 authoring and randomized validation."
+}
