@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "artifactType": "completionManifest",
+  "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+  "framework": "act",
+  "domainId": "preparingHigherMath",
+  "completedStandards": [],
+  "completedNativeSkills": [],
+  "completedScopeUnitsCount": 0,
+  "familiesTotal": 0,
+  "validation": {
+    "randomizedInstancesPerScopeUnit": 2000,
+    "randomizedInstancesTotal": 0,
+    "checks": [
+      "five direct plus three independently authored challenge families per scope unit",
+      "exactly four ACT answer choices per family",
+      "no student-produced response items",
+      "no unresolved generator placeholders",
+      "no exact generator reuse within a scope unit",
+      "ACT-native banks carry no fabricated Texas alignment",
+      "semantic validation of generated mathematics and distractor uniqueness"
+    ]
+  },
+  "coverageStatus": {
+    "numberQuantity": "native-authoring-next",
+    "algebra": "native-authoring-next",
+    "functions": "native-authoring-next",
+    "geometry": "native-authoring-next",
+    "statisticsProbability": "native-authoring-next"
+  }
+}
