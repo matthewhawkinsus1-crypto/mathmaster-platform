@@ -15,13 +15,7 @@
     "essentialSkills": 48
   },
   "highSimilarityPairs": [],
-  "failures": [
-    "drafts/ccmr-v2.1/act/essentialSkills/ACT_NATIVE_measurementUnitsConversion.v2.1.json: scope is not confirmed by the completion manifest",
-    "drafts/ccmr-v2.1/act/essentialSkills/ACT_NATIVE_simpleEquationsInequalities.v2.1.json: scope is not confirmed by the completion manifest",
-    "drafts/ccmr-v2.1/act/essentialSkills/ACT_NATIVE_writingAlgebraicExpressions.v2.1.json: scope is not confirmed by the completion manifest",
-    "essentialSkills native writingAlgebraicExpressions: ledger says authored but completion manifest does not confirm it",
-    "essentialSkills native simpleEquationsInequalities: ledger says authored but completion manifest does not confirm it",
-    "essentialSkills native measurementUnitsConversion: ledger says authored but completion manifest does not confirm it"
-  ],
-  "warnings": []
+  "failures": [],
+  "warnings": [],
+  "output": null
 }
