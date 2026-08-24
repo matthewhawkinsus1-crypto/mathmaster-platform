@@ -23,82 +23,23 @@
     "Two-variable data on SAT explicitly includes scatterplot interpretation, prediction, fitting linear/quadratic/exponential models, reading model graphs, and comparing linear and exponential growth."
   ],
   "standards": {
-    "A.3B": {
-      "status": "authored",
-      "primarySkill": "two-variable data: models and scatterplots",
-      "secondarySkill": "linear functions",
-      "allowed": ["interpret contextual rate of change between two quantities using tables, graphs, equations, or fitted models"],
-      "note": "The PSDA bank uses observed-interval and fitted-trend grammar distinct from the existing Algebra A.3B bank."
-    },
-    "A.4A": {
-      "status": "exclude-direct-sat",
-      "reason": "College Board Table 25 shows no Digital SAT alignment check for 1A.4(A), despite the legacy MathMaster crosswalk mapping the whole A.4 strand to PSDA."
-    },
-    "A.4B": {
-      "status": "exclude-direct-sat",
-      "reason": "College Board Table 25 shows no Digital SAT alignment check for 1A.4(B); do not infer an Evaluating Statistical Claims alignment from topic similarity alone."
-    },
-    "A.4C": {
-      "status": "authored",
-      "primarySkill": "two-variable data: models and scatterplots",
-      "allowed": ["fit or select a linear model for two-variable data", "use a linear model to estimate or predict", "interpret a fitted linear relationship in context"]
-    },
-    "A.8B": {
-      "status": "authored",
-      "primarySkill": "two-variable data: models and scatterplots",
-      "allowed": ["fit or select a quadratic model for two-variable data", "use a quadratic model to estimate solutions or make predictions"]
-    },
-    "A.9E": {
-      "status": "authored",
-      "primarySkill": "two-variable data: models and scatterplots",
-      "allowed": ["fit or select an exponential model for two-variable data", "use an exponential model to make predictions"]
-    },
-    "A2.6L": {
-      "status": "authored",
-      "primarySkill": "ratios, rates, proportional relationships, and units",
-      "allowed": ["inverse variation as a proportional relationship", "constant product", "scale-factor and reciprocal-factor reasoning", "applied inverse-variation rates"]
-    },
-    "A2.8A": {
-      "status": "authored",
-      "primarySkill": "two-variable data: models and scatterplots",
-      "allowed": ["select an appropriate linear, quadratic, or exponential model from data", "compare model structures against observed data"]
-    },
-    "A2.8B": {
-      "status": "exclude-direct-sat",
-      "reason": "College Board Table 26 shows no Digital SAT alignment check for the technology-regression standard 2A.8(B)."
-    },
-    "A2.8C": {
-      "status": "authored",
-      "primarySkill": "two-variable data: models and scatterplots",
-      "allowed": ["make predictions or decisions from linear, quadratic, and exponential models", "judge model-based conclusions against a given data context"]
-    }
+    "A.3B": {"status":"authored","primarySkill":"two-variable data: models and scatterplots","secondarySkill":"linear functions","allowed":["interpret contextual rate of change between two quantities using tables, graphs, equations, or fitted models"],"note":"The PSDA bank uses observed-interval and fitted-trend grammar distinct from the existing Algebra A.3B bank."},
+    "A.4A": {"status":"exclude-direct-sat","reason":"College Board Table 25 shows no Digital SAT alignment check for 1A.4(A), despite the legacy MathMaster crosswalk mapping the whole A.4 strand to PSDA."},
+    "A.4B": {"status":"exclude-direct-sat","reason":"College Board Table 25 shows no Digital SAT alignment check for 1A.4(B); do not infer an Evaluating Statistical Claims alignment from topic similarity alone."},
+    "A.4C": {"status":"authored","primarySkill":"two-variable data: models and scatterplots","allowed":["fit or select a linear model for two-variable data","use a linear model to estimate or predict","interpret a fitted linear relationship in context"]},
+    "A.8B": {"status":"authored","primarySkill":"two-variable data: models and scatterplots","allowed":["fit or select a quadratic model for two-variable data","use a quadratic model to estimate solutions or make predictions"]},
+    "A.9E": {"status":"authored","primarySkill":"two-variable data: models and scatterplots","allowed":["fit or select an exponential model for two-variable data","use an exponential model to make predictions"]},
+    "A2.6L": {"status":"authored","primarySkill":"ratios, rates, proportional relationships, and units","allowed":["inverse variation as a proportional relationship","constant product","scale-factor and reciprocal-factor reasoning","applied inverse-variation rates"]},
+    "A2.8A": {"status":"authored","primarySkill":"two-variable data: models and scatterplots","allowed":["select an appropriate linear, quadratic, or exponential model from data","compare model structures against observed data"]},
+    "A2.8B": {"status":"exclude-direct-sat","reason":"College Board Table 26 shows no Digital SAT alignment check for the technology-regression standard 2A.8(B)."},
+    "A2.8C": {"status":"authored","primarySkill":"two-variable data: models and scatterplots","allowed":["make predictions or decisions from linear, quadratic, and exponential models","judge model-based conclusions against a given data context"]}
   },
   "nativeSkills": {
-    "ratiosRatesProportionsUnits": {
-      "status": "author",
-      "officialSkillFamily": "ratios, rates, proportional relationships, and units",
-      "reason": "A2.6L supplies an aligned inverse-variation slice, but SAT PSDA requires broader direct ratio/rate/unit coverage."
-    },
-    "percentages": {
-      "status": "author",
-      "officialSkillFamily": "percentages"
-    },
-    "oneVariableData": {
-      "status": "author",
-      "officialSkillFamily": "one-variable data: distributions and measures of center and spread"
-    },
-    "probabilityConditionalProbability": {
-      "status": "author",
-      "officialSkillFamily": "probability and conditional probability"
-    },
-    "inferenceMarginOfError": {
-      "status": "author",
-      "officialSkillFamily": "inference from sample statistics and margin of error"
-    },
-    "evaluatingStatisticalClaims": {
-      "status": "author",
-      "officialSkillFamily": "evaluating statistical claims: observational studies and experiments",
-      "note": "A.4B is topically related but is not checked in College Board Table 25, so this is a SAT-native bank rather than a fabricated direct TEKS alignment."
-    }
+    "ratiosRatesProportionsUnits": {"status":"author","officialSkillFamily":"ratios, rates, proportional relationships, and units","reason":"A2.6L supplies an aligned inverse-variation slice, but SAT PSDA requires broader direct ratio/rate/unit coverage."},
+    "percentages": {"status":"authored","officialSkillFamily":"percentages"},
+    "oneVariableData": {"status":"authored","officialSkillFamily":"one-variable data: distributions and measures of center and spread"},
+    "probabilityConditionalProbability": {"status":"authored","officialSkillFamily":"probability and conditional probability"},
+    "inferenceMarginOfError": {"status":"author","officialSkillFamily":"inference from sample statistics and margin of error"},
+    "evaluatingStatisticalClaims": {"status":"author","officialSkillFamily":"evaluating statistical claims: observational studies and experiments","note":"A.4B is topically related but is not checked in College Board Table 25, so this is a SAT-native bank rather than a fabricated direct TEKS alignment."}
   }
 }
