@@ -39,7 +39,7 @@
     "percentages": {"status":"authored","officialSkillFamily":"percentages"},
     "oneVariableData": {"status":"authored","officialSkillFamily":"one-variable data: distributions and measures of center and spread"},
     "probabilityConditionalProbability": {"status":"authored","officialSkillFamily":"probability and conditional probability"},
-    "inferenceMarginOfError": {"status":"author","officialSkillFamily":"inference from sample statistics and margin of error"},
+    "inferenceMarginOfError": {"status":"authored","officialSkillFamily":"inference from sample statistics and margin of error"},
     "evaluatingStatisticalClaims": {"status":"author","officialSkillFamily":"evaluating statistical claims: observational studies and experiments","note":"A.4B is topically related but is not checked in College Board Table 25, so this is a SAT-native bank rather than a fabricated direct TEKS alignment."}
   }
 }
