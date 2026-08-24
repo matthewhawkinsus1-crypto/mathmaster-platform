@@ -59,7 +59,7 @@ ar('6.4B', 'scale-prediction', {
       m1: 'g1*mpg',
       m2: 'g2*mpg',
       answer: 'g2',
-      d_ratioReversed: 'round(g1*g1/g2)',
+      d_ratioReversed: 'round(m2/m1)',
       d_usedGivenValue: 'g1',
       d_operationInverted: 'mpg',
     },
@@ -370,6 +370,336 @@ ar('6.4C', 'which-count-keeps-ratio', {
   answerSummary: { headline: 'An equivalent ratio multiplies both entries by the same number.', text: 'It takes ${{answer}}$ {{second}}.' },
   hint: 'Compare the two rows in the first column.',
   feedback: 'Adding the same amount to both entries changes the ratio; multiplying keeps it.',
+});
+
+// ================================================================ 6.4D
+// Rates as a comparison by division of two quantities of different kinds.
+
+ar('6.4D', 'fuel-economy', {
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'context',
+  prompt: 'A {{vehicle}} covers {{miles}} miles on {{gal}} gallons. How many miles per gallon is that?',
+  generator: {
+    parameters: {
+      vehicle: VEHICLES,
+      mpg: { type: 'int', min: 5, max: 25 },
+      gal: { type: 'int', min: 5, max: 25 },
+    },
+    derived: {
+      miles: 'mpg*gal',
+      answer: 'mpg',
+      d_operationInverted: 'gal',
+      d_partialTotal: 'miles-gal',
+      d_offByOneStep: 'round(miles/(gal+3))',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['Miles per gallon shares the miles among the gallons.', '{{miles}} divided by {{gal}} is {{answer}}.'],
+  answerSummary: { headline: 'A rate divides one quantity by the other.', text: 'It gets ${{answer}}$ miles per gallon.' },
+  hint: 'Decide which quantity is being shared out and which does the sharing.',
+  feedback: 'Miles per gallon puts miles on top.',
+});
+
+ar('6.4D', 'cost-per-unit-with-shipping', {
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A case of {{count}} {{item}} costs $\\${{total}}$, and shipping adds $\\${{ship}}$. What does one {{item}} cost delivered?',
+  generator: {
+    parameters: {
+      item: GOODS,
+      each: { type: 'int', min: 2, max: 18 },
+      perItemShip: { type: 'int', min: 1, max: 6 },
+      count: { type: 'int', min: 4, max: 24 },
+    },
+    derived: {
+      total: 'each*count',
+      ship: 'perItemShip*count',
+      answer: 'each+perItemShip',
+      d_forgotFinalStep: 'each',
+      d_operationInverted: 'count',
+      d_partialTotal: 'total+ship',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The case works out to $\\${{each}}$ an item.', 'Shipping adds $\\${{ship}}$ over {{count}} items, or $\\${{perItemShip}}$ each.', 'Delivered, one costs $\\${{answer}}$.'],
+  answerSummary: { headline: 'Both charges have to come down to a single item before they add.', text: 'One costs $\\${{answer}}$ delivered.' },
+  hint: 'Shipping covers the whole case, not one item.',
+  feedback: 'Bring the shipping down to a per-item amount before adding it on.',
+});
+
+ar('6.4D', 'faster-of-two-rates', {
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'Two {{machine}}s ran the outputs shown. How many more {{item}} an hour does the faster one make?',
+  stimulus: {
+    kind: 'table',
+    title: 'Output log',
+    table: { headers: ['machine', '{{item}}', 'hours'], rows: [['A', '{{outA}}', '{{hA}}'], ['B', '{{outB}}', '{{hB}}']] },
+  },
+  generator: {
+    parameters: {
+      machine: MACHINES, item: GOODS,
+      slow: { type: 'int', min: 4, max: 20 },
+      gap: { type: 'int', min: 2, max: 18 },
+      hA: { type: 'int', min: 2, max: 9 },
+      hB: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      fast: 'slow+gap',
+      outA: 'fast*hA',
+      outB: 'slow*hB',
+      answer: 'gap',
+      d_partialTotal: 'abs(outA-outB)',
+      d_operationInverted: 'slow',
+      d_offByOneStep: 'abs(hA-hB)',
+    },
+    constraints: ['hA!=hB'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['Machine A runs at {{outA}} over {{hA}} hours, or {{fast}} an hour.', 'Machine B runs at {{slow}} an hour.', 'The gap is {{answer}}.'],
+  answerSummary: { headline: 'Two totals over different hours only compare per hour.', text: 'The faster one makes ${{answer}}$ more an hour.' },
+  hint: 'Neither total means anything until both are per hour.',
+  feedback: 'Compare the hourly rates, not the totals.',
+});
+
+ar('6.4D', 'total-from-rate', {
+  difficultyBand: 2, dok: 2, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'A {{machine}} fills {{rate}} {{item}} a minute. How many does it fill in {{mins}} minutes?',
+  generator: {
+    parameters: {
+      machine: MACHINES, item: GOODS,
+      rate: { type: 'int', min: 3, max: 30 },
+      mins: { type: 'int', min: 3, max: 30 },
+    },
+    derived: {
+      answer: 'rate*mins',
+      // A product is the hardest shape to build distractors for: adding
+      // instead of multiplying, using a given value and stopping a step early
+      // all land BELOW the key, which leaves it the largest of the four every
+      // time. So one error runs a minute long, and one squares the time.
+      d_operationInverted: 'mins*mins',
+      d_offByOneStep: 'rate*(mins-1)',
+      d_arithmeticSlip: 'rate*(mins+1)',
+    },
+    constraints: ['rate!=mins'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['Each minute accounts for {{rate}} {{item}}.', '{{mins}} minutes gives {{rate}} times {{mins}}.'],
+  answerSummary: { headline: 'A rate multiplied by the time gives the total.', text: 'It fills ${{answer}}$ {{item}}.' },
+  hint: 'One minute is worth the rate. Count the minutes.',
+  feedback: 'A per-minute amount multiplies by the minutes; it does not add to them.',
+});
+
+ar('6.4D', 'per-item-from-per-dozen', {
+  difficultyBand: 3, dok: 2, taskType: 'representationTranslation', representation: 'verbal',
+  prompt: '{{item}} sell at $\\${{perDozen}}$ a dozen. At that rate, what do {{want}} {{item}} cost?',
+  generator: {
+    parameters: {
+      item: GOODS,
+      each: { type: 'int', min: 2, max: 15 },
+      want: { type: 'int', min: 2, max: 24 },
+    },
+    derived: {
+      perDozen: 'each*12',
+      answer: 'each*want',
+      d_forgotFinalStep: 'perDozen',
+      d_operationInverted: 'each+want',
+      d_unitConversion: 'perDozen*want',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: money('{{d_unitConversion}}'), error: 'unitConversion' },
+  ],
+  reasoning: ['A dozen is 12, so one costs $\\${{perDozen}}$ over 12, or $\\${{each}}$.', '{{want}} of them cost $\\${{answer}}$.'],
+  answerSummary: { headline: 'Come down to one before going up to the amount asked.', text: '{{want}} cost $\\${{answer}}$.' },
+  hint: 'Work out what a single one costs first.',
+  feedback: 'The quoted price covers twelve, not one.',
+});
+
+// ================================================================ 6.5A
+// Ratios and rates through scale factors, tables and proportions.
+
+ar('6.5A', 'scale-drawing-length', {
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'On a plan, {{inches}} inch stands for {{feet}} feet. A wall drawn {{drawn}} inches long is how many feet long?',
+  generator: {
+    parameters: {
+      inches: { type: 'choice', values: [1] },
+      feet: { type: 'int', min: 2, max: 16 },
+      drawn: { type: 'int', min: 2, max: 16 },
+    },
+    derived: {
+      answer: 'feet*drawn',
+      d_operationInverted: 'drawn*drawn',
+      d_offByOneStep: 'feet*(drawn-1)',
+      d_arithmeticSlip: 'feet*(drawn+1)',
+    },
+    constraints: ['feet!=drawn', 'd_offByOneStep>0'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['Every drawn inch is {{feet}} real feet.', '{{drawn}} inches is {{drawn}} times {{feet}}.'],
+  answerSummary: { headline: 'A scale converts each drawn unit into real units.', text: 'The wall is ${{answer}}$ feet long.' },
+  hint: 'Decide what one drawn inch is worth in real life.',
+  feedback: 'Each inch on the plan carries the same number of real feet.',
+});
+
+ar('6.5A', 'model-to-real-reverse', {
+  difficultyBand: 3, dok: 2, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'A model is built at {{scale}} to 1. The real {{part}} is {{real}} centimetres. How many centimetres is it on the model?',
+  generator: {
+    parameters: {
+      part: contextParam(['axle', 'boom', 'mast', 'strut', 'beam']),
+      scale: { type: 'int', min: 3, max: 24 },
+      modelLen: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {
+      real: 'scale*modelLen',
+      answer: 'modelLen',
+      d_operationInverted: 'scale',
+      d_forgotFinalStep: 'real',
+      d_offByOneStep: 'round(real/(scale+1))',
+    },
+    constraints: ['scale!=modelLen'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['The real {{part}} is {{scale}} times the model.', '{{real}} divided by {{scale}} is {{answer}}.'],
+  answerSummary: { headline: 'Going from real to model divides by the scale.', text: 'It is ${{answer}}$ centimetres on the model.' },
+  hint: 'The model is the smaller of the two. Which operation makes a number smaller?',
+  feedback: 'Scaling up and scaling down are opposite operations.',
+});
+
+ar('6.5A', 'proportion-missing-entry', {
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'The table keeps a constant rate. What belongs in the empty cell?',
+  stimulus: {
+    kind: 'table',
+    title: 'Rate table',
+    table: { headers: ['{{unitA}}', '{{unitB}}'], rows: [['{{a1}}', '{{b1}}'], ['{{a2}}', '?']] },
+  },
+  generator: {
+    parameters: {
+      unitA: contextParam(['hours', 'cases', 'trips', 'loads']),
+      unitB: contextParam(['units', 'pounds', 'miles', 'dollars']),
+      k: { type: 'int', min: 2, max: 15 },
+      a1: { type: 'int', min: 2, max: 12 },
+      a2: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      b1: 'a1*k',
+      answer: 'a2*k',
+      d_usedGivenValue: 'b1',
+      d_offByOneStep: 'k*(a2-1)',
+      d_arithmeticSlip: 'k*(a2+1)',
+    },
+    constraints: ['a1!=a2'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['The first row pairs {{a1}} with {{b1}}, so each {{unitA}} is worth {{k}}.', '{{a2}} times {{k}} is {{answer}}.'],
+  answerSummary: { headline: 'A constant rate multiplies, row by row.', text: 'The cell holds ${{answer}}$.' },
+  hint: 'Work out what one unit in the left column is worth.',
+  feedback: 'The rows are linked by multiplying, not by adding the same amount.',
+});
+
+ar('6.5A', 'recipe-scale-up', {
+  difficultyBand: 3, dok: 2, taskType: 'application', representation: 'verbal',
+  prompt: 'A mix uses {{partA}} parts {{matA}} to {{partB}} parts {{matB}}. To use {{useA}} pounds of {{matA}}, how many pounds of {{matB}} are needed?',
+  generator: {
+    parameters: {
+      matA: contextParam(['sand', 'gravel', 'base', 'aggregate']),
+      matB: contextParam(['cement', 'binder', 'filler', 'lime']),
+      partA: { type: 'int', min: 2, max: 9 },
+      partB: { type: 'int', min: 2, max: 9 },
+      scale: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      useA: 'partA*scale',
+      answer: 'partB*scale',
+      d_ratioReversed: 'round(partA*partA*scale/partB)',
+      d_offByOneStep: 'partB*(scale-1)',
+      d_arithmeticSlip: 'partB*(scale+1)',
+    },
+    constraints: ['partA!=partB', 'd_offByOneStep>0'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['{{useA}} pounds is {{scale}} batches of {{partA}} parts.', '{{scale}} batches need {{partB}} times {{scale}} pounds of {{matB}}.'],
+  answerSummary: { headline: 'Both ingredients scale by the same number of batches.', text: 'It needs ${{answer}}$ pounds of {{matB}}.' },
+  hint: 'Count how many whole batches the given amount makes.',
+  feedback: 'Both parts of the mix grow by the same factor.',
+});
+
+ar('6.5A', 'unit-rate-then-budget', {
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'context',
+  prompt: '{{count}} {{item}} cost $\\${{total}}$. How many {{item}} can be bought with $\\${{budget}}$?',
+  generator: {
+    parameters: {
+      item: GOODS,
+      each: { type: 'int', min: 2, max: 20 },
+      count: { type: 'int', min: 3, max: 24 },
+      buy: { type: 'int', min: 3, max: 24 },
+    },
+    derived: {
+      total: 'each*count',
+      budget: 'each*buy',
+      answer: 'buy',
+      d_operationInverted: 'each',
+      d_usedGivenValue: 'count',
+      d_partialTotal: 'round(budget/count)',
+    },
+    constraints: ['buy!=count'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['{{count}} for $\\${{total}}$ is $\\${{each}}$ each.', '$\\${{budget}}$ divided by $\\${{each}}$ is {{answer}}.'],
+  answerSummary: { headline: 'Get the price of one, then see how many the budget covers.', text: 'It buys ${{answer}}$ {{item}}.' },
+  hint: 'A budget question needs the price of a single item first.',
+  feedback: 'Divide the budget by the price of one, not by the number in the first offer.',
 });
 
 // ---------------------------------------------------------------- emit

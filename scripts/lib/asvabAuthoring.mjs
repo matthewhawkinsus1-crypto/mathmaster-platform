@@ -17,6 +17,26 @@
 //   an item whose key is wrong. Matching the repository convention in
 //   scripts/author-middle-school-dok3.mjs.
 //
+// THE DISTRACTOR RECIPE, learned the hard way while rebuilding the first few
+// standards. For a numeric key, supply:
+//
+//   1. one error that OVERSHOOTS the key,
+//   2. one error that UNDERSHOOTS it,
+//   3. one that is a different real quantity from the same situation, drawn
+//      from a range that overlaps the key's range so it lands on either side.
+//
+// (1) and (2) bracket the key, so it can never be the smallest or largest of
+// the four — which kills the "always pick the smallest" exploit outright. (3)
+// then moves the key between the two middle ranks as the parameters are drawn.
+//
+// A key computed as the PRODUCT of two drawn quantities is the awkward shape:
+// adding instead of multiplying, using a given value, and stopping a step short
+// all land below it, so without a deliberate overshoot it is the largest of the
+// four every single time. Two-quantity items also cannot do better than a
+// 50/50 split between the two middle ranks, because every distractor is a
+// function of the same two draws — that is the floor the mathematics allows,
+// not sloppy authoring, and the thresholds in asvabFidelity.mjs are set to it.
+//
 // The kit emits nothing a student should not see: distractor error codes live
 // on the template and are stripped by functions/lib/mathPath.js normalizeChoices
 // before a question reaches the browser.

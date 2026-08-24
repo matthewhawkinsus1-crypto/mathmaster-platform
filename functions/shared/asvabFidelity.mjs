@@ -120,8 +120,28 @@ const correctChoiceId = (question) => {
  * is the one that guards the actually cheap exploit — "always pick the smallest"
  * or "always pick the largest" — and is held tighter.
  */
-export const RANK_TOLERANCE = 0.55;
+export const RANK_TOLERANCE = 0.6;
 export const EXTREME_TOLERANCE = 0.45;
+
+/**
+ * Pooled across the whole bank, each rank should be close to chance.
+ *
+ * This is the check that actually protects a test session. A single family
+ * whose key alternates between the two middle values is only weakly
+ * exploitable, and with two drawn quantities it cannot be made better: every
+ * distractor is a function of those two, so the count of distractors below the
+ * key can take at most two values. What must not happen is that tendency
+ * pointing the same way across hundreds of families, because that is what a
+ * student meets over a session and what the old bank got catastrophically
+ * wrong.
+ *
+ * The band is wide on purpose. Sound authoring brackets the key — one distractor
+ * that overshoots, one that undershoots — which keeps the key off both extremes
+ * and therefore concentrates it on the two middle ranks. Demanding a uniform
+ * pooled distribution would penalise exactly the practice that makes the cheap
+ * exploits impossible. What this catches is a bank that leans one way overall.
+ */
+export const BANK_RANK_BAND = Object.freeze({ min: 0.10, max: 0.40 });
 
 /**
  * Where does the key land among the choices, across many draws?
@@ -448,6 +468,29 @@ export const analyzeFamilySet = (code, questions, { overlapLimit = 0.5 } = {}) =
   return { code, families: questions.length, distinctTasks: fingerprints.size, issues };
 };
 
+/**
+ * The pooled rank distribution over every family in the bank.
+ */
+export const analyzeBankAnswerKeyBias = (samplesByFamily, { band = BANK_RANK_BAND } = {}) => {
+  const rank = [0, 0, 0, 0];
+  let numeric = 0;
+  for (const instances of samplesByFamily) {
+    const result = analyzeAnswerKeyBias(instances);
+    result.rank.forEach((count, index) => { rank[index] += count; });
+    numeric += result.numeric;
+  }
+  const issues = [];
+  if (numeric >= 200) {
+    rank.forEach((count, index) => {
+      const share = count / numeric;
+      if (share < band.min || share > band.max) {
+        issues.push({ code: 'bankRankImbalance', detail: `pooled over the bank the key is rank ${index + 1} of 4 in ${(share * 100).toFixed(1)}% of draws (chance is 25%)` });
+      }
+    });
+  }
+  return { numeric, rank, shares: rank.map((count) => (numeric ? count / numeric : 0)), issues };
+};
+
 // --- 7. bank-wide variety -------------------------------------------------------
 
 /**
@@ -495,7 +538,9 @@ export const analyzeBankVariety = (questions, { frameShareLimit = 0.06, contextS
 
 export default {
   ASVAB_DOMAINS,
+  analyzeBankAnswerKeyBias,
   analyzeBankVariety,
+  BANK_RANK_BAND,
   RANK_TOLERANCE,
   EXTREME_TOLERANCE,
   ASVAB_DOMAIN_IDS,

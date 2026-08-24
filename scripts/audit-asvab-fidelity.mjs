@@ -12,8 +12,8 @@ import {
 
 const args = process.argv.slice(2);
 const samplesAt = args.indexOf('--samples');
-const samples = samplesAt >= 0 ? Number(args[samplesAt + 1]) || 24 : 24;
-const positional = args.filter((entry, index) => !entry.startsWith('--') && index !== samplesAt + 1);
+const samples = samplesAt >= 0 ? Number(args[samplesAt + 1]) || 200 : 200;
+const positional = args.filter((entry, index) => !entry.startsWith('--') && !(samplesAt >= 0 && index === samplesAt + 1));
 const file = positional[0] || 'drafts/asvab.json';
 const showVerdicts = args.includes('--verdicts');
 
