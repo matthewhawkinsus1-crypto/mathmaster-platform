@@ -4,12 +4,12 @@
   "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
   "framework": "digitalSAT",
   "domainId": "problemSolvingData",
-  "completedStandards": ["A.4C", "A.8B", "A.9E", "A2.6L"],
-  "completedStandardsCount": 4,
-  "familiesTotal": 32,
+  "completedStandards": ["A.4C", "A.8B", "A.9E", "A2.6L", "A2.8A", "A2.8C"],
+  "completedStandardsCount": 6,
+  "familiesTotal": 48,
   "validation": {
     "randomizedInstancesPerStandard": 2000,
-    "randomizedInstancesTotal": 8000,
+    "randomizedInstancesTotal": 12000,
     "checks": [
       "inverse-variation constant-product relationships",
       "scale-factor and reciprocal-factor reasoning",
@@ -17,7 +17,10 @@
       "linear-model prediction, fitted-line selection, slope interpretation, residuals, extrapolation, and model comparison",
       "quadratic-model fit selection, prediction, vertex interpretation, residuals, second-difference identification, and model comparison",
       "exponential-model fit selection, prediction, growth-factor interpretation, residuals, constant-ratio identification, and model comparison",
+      "cross-model selection among linear, quadratic, and exponential candidates",
+      "model-based threshold decisions, extrapolation, and conclusion checks",
       "semantic validation that intended fitted models outperform generated distractors for the observations",
+      "semantic validation that model-comparison questions do not tie accidentally",
       "four unique rendered MCQ choices",
       "no unresolved generator placeholders",
       "no malformed signed-factor rendering",
@@ -34,5 +37,5 @@
     "inferenceMarginOfError": "architecture-needed",
     "evaluatingStatisticalClaims": "architecture-needed"
   },
-  "note": "A2.6L supplies inverse-variation ratio/rate evidence. A.4C, A.8B, and A.9E establish linear, quadratic, and exponential two-variable-data model families."
+  "note": "A2.6L supplies inverse-variation ratio/rate evidence. A.4C, A.8B, A.9E, A2.8A, and A2.8C establish the direct-TEKS two-variable-data model tranche."
 }
