@@ -5,6 +5,11 @@
   "framework": "digitalSAT",
   "domainId": "advancedMath",
   "completedStandards": [
+    "A.6B",
+    "A.6C",
+    "A.7A",
+    "A.7B",
+    "A.7C",
     "A.8A",
     "A.10A",
     "A.10B",
@@ -30,14 +35,16 @@
     "A2.7F",
     "A2.7G"
   ],
-  "completedStandardsCount": 24,
-  "familiesTotal": 192,
+  "completedStandardsCount": 29,
+  "familiesTotal": 232,
   "validation": {
     "randomizedInstancesPerStandard": 2000,
-    "randomizedInstancesTotal": 48000,
+    "randomizedInstancesTotal": 58000,
     "checks": [
       "generated mathematical identity, quotient, factor, rational-expression, radical, quadratic, cube-root, absolute-value, formula, or system relationship",
       "equation-specific validation for quadratic roots and solution counts",
+      "quadratic-function validation for vertex, intercept, extrema, factor, zero, coefficient, and equivalent-form relationships",
+      "semantic MCQ validation that rejects symmetric-root draws producing algebraically equivalent distractors",
       "equation-specific validation for linear-quadratic system intersections and tangent/no-intersection conditions",
       "equation-specific validation for square-root and cube-root equations and extraneous-solution rejection",
       "equation-specific validation for absolute-value distance relationships and structural solution properties",
