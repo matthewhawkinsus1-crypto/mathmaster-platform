@@ -5,21 +5,23 @@
   "framework": "digitalSAT",
   "domainId": "geometryTrigonometry",
   "completedStandards": [],
-  "completedNativeSkills": ["areaVolume", "linesAnglesTriangles", "rightTrianglesTrigonometry"],
+  "completedNativeSkills": ["areaVolume", "linesAnglesTriangles", "rightTrianglesTrigonometry", "circles"],
   "completedStandardsCount": 0,
-  "completedNativeSkillsCount": 3,
-  "completedScopeUnitsCount": 3,
-  "familiesTotal": 24,
+  "completedNativeSkillsCount": 4,
+  "completedScopeUnitsCount": 4,
+  "familiesTotal": 32,
   "validation": {
     "randomizedInstancesPerScopeUnit": 2000,
-    "randomizedInstancesTotal": 6000,
+    "randomizedInstancesTotal": 8000,
     "checks": [
       "five direct plus three independently authored challenge families per skill",
       "area, surface-area, volume, and dimensional scale-factor relationships",
       "triangle angle, parallel-line, congruence, and similarity relationships",
       "Pythagorean theorem and special right-triangle relationships",
       "sine, cosine, tangent, complementary-angle, and similar-right-triangle reasoning",
+      "circle angles, tangents, arc length, sector area, angle-unit conversion, and circle equations",
       "semantic validation of integer Pythagorean triples and trigonometric side ratios",
+      "semantic validation of central/inscribed-angle, tangent-radius, arc/sector, radian, and completing-square circle relationships",
       "four unique rendered MCQ choices where applicable",
       "no unresolved generator placeholders",
       "no exact generator reuse within a scope unit",
@@ -30,7 +32,7 @@
     "areaVolume": "complete",
     "linesAnglesTriangles": "complete",
     "rightTrianglesTrigonometry": "complete",
-    "circles": "native-authoring-next"
+    "circles": "complete"
   },
-  "note": "Three of four official Digital SAT Geometry and Trigonometry skill families are complete as SAT-native V2.1 content."
+  "note": "All four official Digital SAT Geometry and Trigonometry skill families are complete as SAT-native V2.1 content."
 }
