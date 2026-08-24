@@ -4,18 +4,19 @@
   "framework": "act",
   "mode": "domain-authoring",
   "domain": "essentialSkills",
-  "scopeUnits": 9,
-  "documents": 72,
-  "direct": 45,
-  "challenge": 27,
-  "multipleChoice": 72,
+  "scopeUnits": 10,
+  "documents": 80,
+  "direct": 50,
+  "challenge": 30,
+  "multipleChoice": 80,
   "studentProducedResponse": 0,
   "modelingTagged": 32,
   "domains": {
-    "essentialSkills": 72
+    "essentialSkills": 80
   },
   "highSimilarityPairs": [],
-  "failures": [],
-  "warnings": [],
-  "output": null
+  "failures": [
+    "drafts/ccmr-v2.1/act/essentialSkills/ACT_NATIVE_coordinatePlane.v2.1.json: scope is not confirmed by the completion manifest"
+  ],
+  "warnings": []
 }

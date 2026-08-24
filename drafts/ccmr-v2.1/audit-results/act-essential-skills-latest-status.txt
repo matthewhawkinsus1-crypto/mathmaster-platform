@@ -1,4 +1,4 @@
-source_sha=427fc18b9763f7fa2e9d4e738f9d0b4c0860bf34
-run_id=32781811018
-exit_code=0
-recorded_at=2026-08-24T21:57:29Z
+source_sha=4d58645a7b10f8b5551b955a1926aced31e3197d
+run_id=32782321806
+exit_code=1
+recorded_at=2026-08-24T21:58:46Z
