@@ -43,18 +43,41 @@ const mappingFor = (examType, domainId) => {
   return domain ? { domainId, weight: domain.weight } : null;
 };
 
-// V2.1 authentic-language scope corrections. These are deliberately kept at
-// the runtime gateway while the broader, multi-framework TEKS crosswalk remains
-// available for ACT/TSIA2/ASVAB. A.2A's discrete/continuous domain-and-range
-// construct is not marked as a Digital SAT alignment in College Board's Texas
-// alignment table, so Path must not offer it as direct SAT evidence.
+// V2.1 assessment-scope corrections. The broad TEKS table is shared by all
+// frameworks, but direct assessment evidence must match what that assessment
+// actually measures. These guards keep an over-broad curriculum relationship
+// from becoming a false student-facing CCMR pathway.
 const FRAMEWORK_SCOPE_EXCLUSIONS = Object.freeze({
-  [EXAM_TYPES.DIGITAL_SAT]: new Set(['A.2A']),
+  [EXAM_TYPES.DIGITAL_SAT]: new Set([
+    // College Board's Texas alignment table does not mark A.2A for Digital SAT.
+    'A.2A',
+    // A2.3B is specifically three linear equations in three variables. Digital
+    // SAT Algebra tests systems of two linear equations in two variables.
+    'A2.3B',
+  ]),
+});
+
+// Some broad TEKS contain mathematics from more than one SAT domain. Excluding
+// only the unsupported domain preserves the legitimate portion for its later
+// domain-specific authoring pass.
+const FRAMEWORK_DOMAIN_EXCLUSIONS = Object.freeze({
+  [EXAM_TYPES.DIGITAL_SAT]: Object.freeze({
+    // A2.3A includes 3x3 linear systems and linear+quadratic systems. The former
+    // is outside SAT Algebra; the latter belongs to Advanced Math systems in two
+    // variables, so Algebra must not claim this standard directly.
+    'A2.3A': new Set(['algebra']),
+  }),
 });
 
 const isFrameworkScopeExcluded = (code, examType) => (
   FRAMEWORK_SCOPE_EXCLUSIONS[examType]?.has(code) === true
 );
+
+const filterFrameworkDomains = (code, examType, domainIds) => {
+  const excluded = FRAMEWORK_DOMAIN_EXCLUSIONS[examType]?.[code];
+  if (!excluded) return domainIds;
+  return domainIds.filter((domainId) => !excluded.has(domainId));
+};
 
 /**
  * Exam domains for a TEKS code, from the authored crosswalk.
@@ -79,7 +102,8 @@ export const mapTEKSToExamDomains = (teksCode) => {
     // Validated here, not in the crosswalk: the registry owns which domain ids
     // exist, so an authored typo is dropped rather than propagated.
     const known = new Set((EXAM_DOMAIN_REGISTRY[examType] || []).map((domain) => domain.id));
-    const domainIds = getExamDomainIds(code, examType).filter((id) => known.has(id));
+    const rawDomainIds = getExamDomainIds(code, examType).filter((id) => known.has(id));
+    const domainIds = filterFrameworkDomains(code, examType, rawDomainIds);
     if (!domainIds.length) return;
     const primary = mappingFor(examType, domainIds[0]);
     if (!primary) return;
