@@ -4,18 +4,19 @@
   "framework": "act",
   "mode": "domain-authoring",
   "domain": "essentialSkills",
-  "scopeUnits": 3,
-  "documents": 24,
-  "direct": 15,
-  "challenge": 9,
-  "multipleChoice": 24,
+  "scopeUnits": 4,
+  "documents": 32,
+  "direct": 20,
+  "challenge": 12,
+  "multipleChoice": 32,
   "studentProducedResponse": 0,
-  "modelingTagged": 11,
+  "modelingTagged": 16,
   "domains": {
-    "essentialSkills": 24
+    "essentialSkills": 32
   },
   "highSimilarityPairs": [],
-  "failures": [],
-  "warnings": [],
-  "output": null
+  "failures": [
+    "drafts/ccmr-v2.1/act/essentialSkills/ACT_NATIVE_writingAlgebraicExpressions.v2.1.json: scope is not confirmed by the completion manifest"
+  ],
+  "warnings": []
 }
