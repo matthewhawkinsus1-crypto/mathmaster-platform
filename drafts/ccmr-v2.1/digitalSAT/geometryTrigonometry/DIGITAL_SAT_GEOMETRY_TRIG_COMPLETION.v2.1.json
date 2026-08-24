@@ -5,30 +5,32 @@
   "framework": "digitalSAT",
   "domainId": "geometryTrigonometry",
   "completedStandards": [],
-  "completedNativeSkills": ["areaVolume"],
+  "completedNativeSkills": ["areaVolume", "linesAnglesTriangles"],
   "completedStandardsCount": 0,
-  "completedNativeSkillsCount": 1,
-  "completedScopeUnitsCount": 1,
-  "familiesTotal": 8,
+  "completedNativeSkillsCount": 2,
+  "completedScopeUnitsCount": 2,
+  "familiesTotal": 16,
   "validation": {
     "randomizedInstancesPerScopeUnit": 2000,
-    "randomizedInstancesTotal": 2000,
+    "randomizedInstancesTotal": 4000,
     "checks": [
-      "five direct plus three independently authored challenge families",
-      "rectangular-prism, triangle, cylinder, surface-area, similar-figure, similar-solid, and composite-volume relationships",
-      "semantic scale-factor validation for length, area, and volume",
+      "five direct plus three independently authored challenge families per skill",
+      "area, surface-area, volume, and dimensional scale-factor relationships",
+      "triangle sum and exterior-angle relationships",
+      "vertical, corresponding, and same-side interior angle relationships",
+      "triangle congruence and similarity reasoning",
+      "semantic scale-factor validation for corresponding triangle sides and perimeters",
       "four unique rendered MCQ choices where applicable",
       "no unresolved generator placeholders",
       "no exact generator reuse within a scope unit",
-      "SAT-native banks carry no fabricated Texas alignment",
-      "semantic validation of generated geometry relationships"
+      "SAT-native banks carry no fabricated Texas alignment"
     ]
   },
   "coverageStatus": {
     "areaVolume": "complete",
-    "linesAnglesTriangles": "native-authoring-next",
+    "linesAnglesTriangles": "complete",
     "rightTrianglesTrigonometry": "native-authoring-next",
     "circles": "native-authoring-next"
   },
-  "note": "Area and Volume is complete as SAT-native V2.1 content. The Geometry course remains planned, so no G.* alignment is fabricated."
+  "note": "Area and Volume plus Lines, Angles, and Triangles are complete as SAT-native V2.1 content."
 }
