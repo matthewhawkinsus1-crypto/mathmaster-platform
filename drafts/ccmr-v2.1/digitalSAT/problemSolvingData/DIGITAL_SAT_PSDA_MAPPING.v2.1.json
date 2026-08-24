@@ -19,7 +19,7 @@
     "A2.8C":{"status":"authored","primarySkill":"two-variable data: models and scatterplots","allowed":["make predictions or decisions from linear, quadratic, and exponential models","judge model-based conclusions against a given data context"]}
   },
   "nativeSkills": {
-    "ratiosRatesProportionsUnits":{"status":"author","officialSkillFamily":"ratios, rates, proportional relationships, and units","reason":"A2.6L supplies an aligned inverse-variation slice, but SAT PSDA requires broader direct ratio/rate/unit coverage."},
+    "ratiosRatesProportionsUnits":{"status":"authored","officialSkillFamily":"ratios, rates, proportional relationships, and units","reason":"A2.6L supplies an aligned inverse-variation slice, and this native bank completes broader direct ratio/rate/unit coverage."},
     "percentages":{"status":"authored","officialSkillFamily":"percentages"},
     "oneVariableData":{"status":"authored","officialSkillFamily":"one-variable data: distributions and measures of center and spread"},
     "probabilityConditionalProbability":{"status":"authored","officialSkillFamily":"probability and conditional probability"},
