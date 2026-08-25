@@ -4,20 +4,30 @@
   "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
   "framework": "tsia2",
   "domainId": "probabilisticStatistical",
-  "completedNativeSkills": [],
-  "completedScopeUnitsCount": 0,
-  "familiesTotal": 0,
+  "completedNativeSkills": ["probability"],
+  "completedScopeUnitsCount": 1,
+  "familiesTotal": 8,
   "validation": {
     "randomizedInstancesPerCompletedScopeUnit": 2000,
-    "randomizedInstancesTotal": 0,
-    "checks": ["five direct plus three independently authored challenge families per completed native skill", "exactly four answer choices per family", "valid item-level calculator mode: none, basic, squareRoot, or graphing", "tsia2TestScope matches the official native-skill ledger", "no fabricated Texas alignment", "generator placeholders resolve from declared parameters or derived values", "no exact prompt or underlying-task clones"]
+    "randomizedInstancesTotal": 2000,
+    "checks": [
+      "five direct plus three independently authored challenge families per completed native skill",
+      "exactly four answer choices per family",
+      "valid item-level calculator mode: none, basic, squareRoot, or graphing",
+      "tsia2TestScope matches the official native-skill ledger",
+      "no fabricated Texas alignment",
+      "generator placeholders resolve from declared parameters or derived values",
+      "no exact prompt or underlying-task clones",
+      "probability semantics across simple events, complements, sample spaces, empirical probability, independent compound probability, inverse count reasoning, and without-replacement probability"
+    ]
   },
   "coverageStatus": {
-    "probability": "not-started",
+    "probability": "complete",
     "centerSpread": "not-started",
     "dataClassificationRepresentation": "not-started",
     "dataAnalysisConclusions": "not-started",
     "sortCountData": "not-started",
     "simpleGraphsTables": "not-started"
-  }
+  },
+  "note": "1 of 6 Probabilistic and Statistical Reasoning native skill areas is complete in TSIA2 V2.1: 8 independently authored generator-backed families and 2,000 randomized semantic checks."
 }
