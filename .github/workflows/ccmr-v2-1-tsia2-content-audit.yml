@@ -32,3 +32,5 @@ jobs:
           node scripts/build-tsia2-v2-1.mjs --domain algebraicReasoning --check
           node scripts/build-tsia2-v2-1.mjs --domain geometricSpatial --check
           node scripts/build-tsia2-v2-1.mjs --domain probabilisticStatistical --check
+      - name: Check full TSIA2 V2.1 release
+        run: node scripts/build-tsia2-v2-1.mjs --release --check
