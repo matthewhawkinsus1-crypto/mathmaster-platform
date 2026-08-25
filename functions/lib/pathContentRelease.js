@@ -1,6 +1,7 @@
 "use strict";
 
 const RELEASE_CHANGE_REASON = "ccmr-content-release-changed";
+const RELEASE_UPDATE_REASON = "ccmr-content-release-updating";
 
 function clean(value) {
   const text = String(value ?? "").trim();
@@ -9,6 +10,13 @@ function clean(value) {
 
 function recordFramework(record = {}) {
   return clean(record?.assessmentContext?.framework);
+}
+
+function cleanReleaseMap(value = {}) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value)
+    .map(([framework, release]) => [clean(framework), clean(release)])
+    .filter(([framework, release]) => framework && release));
 }
 
 function resolveAssessmentContentRelease(records = [], frameworkValue = null) {
@@ -49,6 +57,127 @@ function resolveAssessmentContentRelease(records = [], frameworkValue = null) {
   };
 }
 
+function resolveManifestAssessmentContentRelease(manifest = null, frameworkValue = null) {
+  const framework = clean(frameworkValue);
+  if (!framework) {
+    return {
+      framework: null,
+      authoritative: false,
+      tracked: false,
+      available: true,
+      release: null,
+      pendingRelease: null,
+      reason: null,
+    };
+  }
+
+  const activeReleases = cleanReleaseMap(manifest?.activeReleases);
+  const pendingReleases = cleanReleaseMap(manifest?.pendingReleases);
+  const activeRelease = activeReleases[framework] || null;
+  const pendingRelease = pendingReleases[framework] || null;
+  const authoritative = Boolean(activeRelease || pendingRelease);
+  if (!authoritative) {
+    return {
+      framework,
+      authoritative: false,
+      tracked: false,
+      available: true,
+      release: null,
+      pendingRelease: null,
+      reason: null,
+    };
+  }
+
+  const status = clean(manifest?.status) || "active";
+  if (status === "updating") {
+    return {
+      framework,
+      authoritative: true,
+      tracked: true,
+      available: false,
+      release: activeRelease || pendingRelease,
+      pendingRelease,
+      reason: RELEASE_UPDATE_REASON,
+    };
+  }
+  if (status !== "active") {
+    throw new Error(`Assessment content release manifest has unsupported status ${status}.`);
+  }
+  if (!activeRelease) {
+    throw new Error(`${framework} is tracked by the assessment release manifest but has no active release.`);
+  }
+
+  return {
+    framework,
+    authoritative: true,
+    tracked: true,
+    available: true,
+    release: activeRelease,
+    pendingRelease: null,
+    reason: null,
+  };
+}
+
+function resolveAssessmentContentReleaseAuthority(records = [], frameworkValue = null, manifest = null) {
+  const manifestState = resolveManifestAssessmentContentRelease(manifest, frameworkValue);
+  if (manifestState.authoritative) return manifestState;
+  const legacy = resolveAssessmentContentRelease(records, frameworkValue);
+  return {
+    ...legacy,
+    authoritative: false,
+    available: true,
+    pendingRelease: null,
+    reason: null,
+  };
+}
+
+function collectAssessmentContentReleases(records = []) {
+  const active = (Array.isArray(records) ? records : []).filter((record) => record?.active !== false);
+  const frameworks = [...new Set(active.map(recordFramework).filter(Boolean))].sort();
+  const releases = {};
+  for (const framework of frameworks) {
+    const state = resolveAssessmentContentRelease(active, framework);
+    if (state.tracked) releases[framework] = state.release;
+  }
+  return releases;
+}
+
+function finiteTimestamp(value, label) {
+  const now = Number(value);
+  if (!Number.isFinite(now)) throw new Error(`A finite ${label} timestamp is required.`);
+  return now;
+}
+
+function beginAssessmentContentReleaseUpdate(manifest = {}, pendingReleaseValue = {}, nowValue = Date.now()) {
+  const pendingReleases = cleanReleaseMap(pendingReleaseValue);
+  if (!Object.keys(pendingReleases).length) throw new Error("At least one pending assessment content release is required.");
+  const now = finiteTimestamp(nowValue, "release update");
+  return {
+    ...manifest,
+    schemaVersion: 1,
+    status: "updating",
+    activeReleases: cleanReleaseMap(manifest?.activeReleases),
+    pendingReleases,
+    updateStartedAt: now,
+    updatedAt: now,
+  };
+}
+
+function completeAssessmentContentReleaseUpdate(manifest = {}, activeReleaseValue = null, nowValue = Date.now()) {
+  const activeReleases = cleanReleaseMap(activeReleaseValue || manifest?.pendingReleases);
+  if (!Object.keys(activeReleases).length) throw new Error("At least one active assessment content release is required.");
+  const now = finiteTimestamp(nowValue, "release activation");
+  return {
+    ...manifest,
+    schemaVersion: 1,
+    status: "active",
+    activeReleases,
+    pendingReleases: {},
+    activatedAt: now,
+    updatedAt: now,
+  };
+}
+
 function assessSessionContentRelease(session = {}, current = {}) {
   const framework = clean(session?.assessmentFramework);
   const tracked = Boolean(framework && current?.tracked && clean(current?.release));
@@ -75,6 +204,16 @@ function assessSessionContentRelease(session = {}, current = {}) {
 }
 
 function planSessionContentReleaseAction(session = {}, current = {}) {
+  if (current?.tracked && current?.available === false) {
+    return {
+      action: session?.currentQuestion ? "finish-open-question" : "hold-release-update",
+      tracked: true,
+      stale: false,
+      currentRelease: clean(current?.release),
+      reason: clean(current?.reason) || RELEASE_UPDATE_REASON,
+    };
+  }
+
   const state = assessSessionContentRelease(session, current);
   if (!state.tracked || !state.stale) {
     return {
@@ -116,7 +255,13 @@ function supersedeSessionForContentRelease(session = {}, currentReleaseValue, no
 
 module.exports = {
   RELEASE_CHANGE_REASON,
+  RELEASE_UPDATE_REASON,
   resolveAssessmentContentRelease,
+  resolveManifestAssessmentContentRelease,
+  resolveAssessmentContentReleaseAuthority,
+  collectAssessmentContentReleases,
+  beginAssessmentContentReleaseUpdate,
+  completeAssessmentContentReleaseUpdate,
   assessSessionContentRelease,
   planSessionContentReleaseAction,
   supersedeSessionForContentRelease,
