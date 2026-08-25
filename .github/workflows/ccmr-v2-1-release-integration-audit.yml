@@ -15,8 +15,12 @@ on:
       - 'scripts/build-act-v2-1.mjs'
       - 'scripts/build-tsia2-v2-1.mjs'
       - 'scripts/build-tsia2-production-seed.mjs'
+      - 'scripts/lib/digital-sat-production-seed.mjs'
+      - 'scripts/lib/act-production-seed.mjs'
       - 'scripts/lib/ccmr-v2-1-release-integration.mjs'
       - 'scripts/audit-ccmr-v2-1-release-integration.mjs'
+      - 'tests/platform/digitalSatProductionSeedContent.test.mjs'
+      - 'tests/platform/actProductionSeedContent.test.mjs'
       - 'tests/platform/ccmrV21ReleaseIntegrationContent.test.mjs'
       - '.github/workflows/ccmr-v2-1-release-integration-audit.yml'
   workflow_dispatch:
@@ -33,6 +37,10 @@ jobs:
           node-version: 20
       - name: Run SAT ACT TSIA2 integration contract
         run: node --test tests/platform/ccmrV21ReleaseIntegrationContent.test.mjs
+      - name: Run Digital SAT production compiler contract
+        run: node --test tests/platform/digitalSatProductionSeedContent.test.mjs
+      - name: Run ACT production compiler contract
+        run: node --test tests/platform/actProductionSeedContent.test.mjs
       - name: Inventory current production assessment seeds
         if: always()
         run: |
