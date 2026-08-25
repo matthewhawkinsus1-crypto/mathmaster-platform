@@ -12741,7 +12741,9 @@
      "sum": "a+b",
      "prod": "a*b"
     },
-    "constraints": []
+    "constraints": [
+     "sum!=prod"
+    ]
    },
    "assessmentItemFormat": "multipleChoice",
    "choices": [
@@ -14945,6 +14947,2898 @@
      "label": "Choose the correct answer",
      "inputProfile": "choice",
      "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_2_set_containing_every_value",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.2"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.2",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.2:set-containing-every-value",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.2",
+   "taskType": "interpretation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which set contains all three of $-{{a}}$, ${{b}}$ and $\\frac{{{num}}}{{{d}}}$?",
+   "solutionReview": {
+    "headline": "The rationals hold every value that can be written as a ratio.",
+    "reasoning": [
+     "$\\frac{{{num}}}{{{d}}}$ does not divide evenly, so it is not an integer.",
+     "Every one of the three can be written as a ratio, so all three are rational."
+    ],
+    "answerSummary": "All three are rational numbers."
+   },
+   "attemptFeedback": [
+    "A fraction that does not divide evenly is not an integer."
+   ],
+   "supportHints": [
+    "Find the value that rules out the smaller sets."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     },
+     "n": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     },
+     "d": {
+      "type": "choice",
+      "values": [
+       3,
+       4,
+       6,
+       7,
+       8
+      ]
+     }
+    },
+    "derived": {
+     "num": "n*d+1"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The whole numbers.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "The counting numbers.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "The integers.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "The rational numbers."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_2_whole_numbers_inside_integers",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.2"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.2",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.2:whole-numbers-inside-integers",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.2",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which statement about the whole numbers and the integers is true?",
+   "solutionReview": {
+    "headline": "The whole numbers sit inside the integers, not the other way round.",
+    "reasoning": [
+     "${{sum}}$ is whole and is also an integer, and that holds for every whole number.",
+     "${{neg}}$ is an integer but is not whole, so the integers reach further."
+    ],
+    "answerSummary": "Every whole number is an integer; the reverse fails."
+   },
+   "attemptFeedback": [
+    "The negatives belong to only one of the two sets."
+   ],
+   "supportHints": [
+    "Think of a value in one set but not the other."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     }
+    },
+    "derived": {
+     "neg": "0-a",
+     "sum": "a+b"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Every integer is whole, but not every whole number is an integer.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "No value belongs to both sets.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "The two sets hold exactly the same values.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "Every whole number is an integer, but not every integer is whole."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_2_nested_rings_of_numbers",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.2"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.2",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.2:nested-rings-of-numbers",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.2",
+   "taskType": "representationTranslation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Three sets are drawn as nested rings. Which arrangement is right?",
+   "stimulus": {
+    "kind": "expressions",
+    "title": "A value from each set",
+    "note": "Whole: ${{w}}$    Integer: $-{{a}}$    Rational: $\\frac{{{num}}}{{{d}}}$"
+   },
+   "solutionReview": {
+    "headline": "Each ring contains the one before it.",
+    "reasoning": [
+     "${{w}}$ is whole, an integer and rational, so it sits in all three rings.",
+     "$\\frac{{{num}}}{{{d}}}$ is only rational, so the rational ring is the outer one."
+    ],
+    "answerSummary": "Whole, then integer, then rational."
+   },
+   "attemptFeedback": [
+    "The rings do overlap: some values belong to all three."
+   ],
+   "supportHints": [
+    "Which value belongs to all three sets?"
+   ],
+   "generator": {
+    "parameters": {
+     "w": {
+      "type": "int",
+      "min": 0,
+      "max": 40
+     },
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     },
+     "n": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     },
+     "d": {
+      "type": "choice",
+      "values": [
+       3,
+       4,
+       6,
+       7,
+       8
+      ]
+     }
+    },
+    "derived": {
+     "num": "n*d+1",
+     "prod": "n*d"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Rational inside integer, and integer inside whole.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "The three rings sit side by side and never overlap.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "Whole inside integer, and integer inside rational."
+    },
+    {
+     "id": "choice-d",
+     "label": "Integer inside whole, and whole inside rational.",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_2_operation_that_leaves_the_integers",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.2"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.2",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.2:operation-that-leaves-the-integers",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.2",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which operation on two integers can give a value that is not an integer?",
+   "solutionReview": {
+    "headline": "Only division can take you out of the integers.",
+    "reasoning": [
+     "${{num}} \\div {{d}}$ does not divide evenly, so the result is not an integer.",
+     "Adding, subtracting or multiplying two integers always lands on another integer."
+    ],
+    "answerSummary": "Division."
+   },
+   "attemptFeedback": [
+    "Subtracting integers gives a negative at worst, which is still an integer."
+   ],
+   "supportHints": [
+    "Which operation can leave a remainder?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 30
+     },
+     "d": {
+      "type": "choice",
+      "values": [
+       3,
+       4,
+       6,
+       7,
+       8
+      ]
+     },
+     "n": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     }
+    },
+    "derived": {
+     "num": "n*d+1",
+     "diff": "a-n"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Division."
+    },
+    {
+     "id": "choice-b",
+     "label": "Addition.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "Multiplication.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "Subtraction.",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_2_every_rational_is_not_an_integer",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.2"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.2",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.2:every-rational-is-not-an-integer",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.2",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student says every rational number is an integer. What is wrong?",
+   "solutionReview": {
+    "headline": "A single counter-example disproves a claim about every value.",
+    "reasoning": [
+     "One counter-example settles it: $\\frac{{{num}}}{{{d}}}$ leaves a remainder.",
+     "The reverse claim, that every integer is rational, is in fact true."
+    ],
+    "answerSummary": "$\\frac{{{num}}}{{{d}}}$ is the counter-example."
+   },
+   "attemptFeedback": [
+    "A fraction that does divide evenly does not test the claim."
+   ],
+   "supportHints": [
+    "Find one rational number that is not an integer."
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     },
+     "d": {
+      "type": "choice",
+      "values": [
+       3,
+       4,
+       6,
+       7,
+       8
+      ]
+     },
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "num": "n*d+1",
+     "prod": "k*d"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The claim fails only for negative rational numbers.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "It should say every integer is rational, which is also false.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\frac{{{num}}}{{{d}}}$ is rational and is not an integer."
+    },
+    {
+     "id": "choice-d",
+     "label": "Nothing is wrong, because $\\frac{{{prod}}}{{{d}}}$ is an integer.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_3A_sum_of_two_fractions",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.3A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.3A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.3A:sum-of-two-fractions",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.3A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is $\\frac{{{a}}}{{{d}}} + \\frac{{{b}}}{{{d}}}$?",
+   "solutionReview": {
+    "headline": "Like denominators add their numerators and keep the denominator.",
+    "reasoning": [
+     "The denominators already match, so only the numerators are added.",
+     "${{a}} + {{b}} = {{sum}}$, over the same ${{d}}$."
+    ],
+    "answerSummary": "It is $\\frac{{{sum}}}{{{d}}}$."
+   },
+   "attemptFeedback": [
+    "Adding the denominators too would shrink the result."
+   ],
+   "supportHints": [
+    "What happens to the denominator?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "d": {
+      "type": "choice",
+      "values": [
+       5,
+       7,
+       11,
+       13
+      ]
+     }
+    },
+    "derived": {
+     "sum": "a+b",
+     "prod": "a*b",
+     "twoD": "2*d"
+    },
+    "constraints": [
+     "gcd(a,d)==1",
+     "gcd(b,d)==1",
+     "sum!=prod"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\frac{{{sum}}}{{{d}}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\frac{{{sum}}}{{{twoD}}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\frac{{{prod}}}{{{twoD}}}$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\frac{{{prod}}}{{{d}}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_3A_difference_of_two_decimals",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.3A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.3A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.3A:difference-of-two-decimals",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.3A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Work out ${{x}} - {{y}}$.",
+   "solutionReview": {
+    "headline": "Subtract in tenths, then put the point back.",
+    "reasoning": [
+     "Line the points up and subtract: ${{p}} - {{q}} = {{p}}$ minus ${{q}}$ in tenths.",
+     "That gives ${{answer}}$."
+    ],
+    "answerSummary": "It is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Reversing the order flips the sign of the answer."
+   ],
+   "supportHints": [
+    "Which value is larger?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 11,
+      "max": 99
+     },
+     "q": {
+      "type": "int",
+      "min": 11,
+      "max": 99
+     }
+    },
+    "derived": {
+     "x": "p/10",
+     "y": "q/10",
+     "answer": "(p-q)/10",
+     "d_signError": "(p+q)/10",
+     "d_ratioReversed": "(q-p)/10",
+     "d_operationInverted": "(0-p-q)/10"
+    },
+    "constraints": [
+     "answer!=d_signError",
+     "answer!=d_ratioReversed",
+     "answer!=d_operationInverted",
+     "d_signError!=d_ratioReversed",
+     "d_signError!=d_operationInverted",
+     "d_ratioReversed!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_3A_negative_fraction_times_a_whole",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.3A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.3A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.3A:negative-fraction-times-a-whole",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.3A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Work out $-\\frac{{{a}}}{{{b}}} \\times {{c}}$.",
+   "solutionReview": {
+    "headline": "Cancel first, then settle the sign.",
+    "reasoning": [
+     "${{c}}$ divided by ${{b}}$ is ${{k}}$, and ${{a}} \\times {{k}} = {{d_signError}}$.",
+     "One negative factor makes the result negative: ${{answer}}$."
+    ],
+    "answerSummary": "It is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "A single negative factor cannot give a positive result."
+   ],
+   "supportHints": [
+    "Does the denominator divide the whole number?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "c": "b*k",
+     "answer": "0-a*k",
+     "d_signError": "a*k",
+     "d_forgotFinalStep": "0-a*b*k",
+     "d_usedGivenValue": "0-c"
+    },
+    "constraints": [
+     "gcd(a,b)==1",
+     "answer!=d_signError",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_signError!=d_forgotFinalStep",
+     "d_signError!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_3A_balance_after_weekly_falls",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.3A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.3A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.3A:balance-after-weekly-falls",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.3A",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A tank holds ${{b}}$ litres and loses ${{fall}}$ litres a week for ${{w}}$ weeks. How much is left?",
+   "solutionReview": {
+    "headline": "Work out the total loss, then take it off the start.",
+    "reasoning": [
+     "${{w}}$ weeks at ${{fall}}$ litres take ${{lost}}$ litres away.",
+     "Starting from ${{b}}$ that leaves ${{answer}}$."
+    ],
+    "answerSummary": "It leaves ${{answer}}$ litres."
+   },
+   "attemptFeedback": [
+    "The amount lost is not the amount left."
+   ],
+   "supportHints": [
+    "How much goes in total?"
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 10,
+      "max": 50
+     },
+     "q": {
+      "type": "int",
+      "min": 11,
+      "max": 99
+     },
+     "w": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "fall": "q/10",
+     "lost": "q*w/10",
+     "answer": "(10*b-q*w)/10",
+     "d_signError": "(10*b+q*w)/10",
+     "d_forgotFinalStep": "(0-q*w)/10",
+     "d_ratioReversed": "(q*w-10*b)/10"
+    },
+    "constraints": [
+     "answer!=d_signError",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_ratioReversed",
+     "d_signError!=d_forgotFinalStep",
+     "d_signError!=d_ratioReversed",
+     "d_forgotFinalStep!=d_ratioReversed"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_3A_adding_the_denominators",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.3A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.3A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.3A:adding-the-denominators",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.3A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student writes $\\frac{{{a}}}{{{d}}} + \\frac{{{b}}}{{{d}}}$ as $\\frac{{{sum}}}{{{twoD}}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "Adding fractions counts parts; it does not resize them.",
+    "reasoning": [
+     "Both fractions already count ${{d}}$ths, so the parts being counted do not change size.",
+     "Doubling the denominator halves every part, which changes the value."
+    ],
+    "answerSummary": "The denominator stays ${{d}}$."
+   },
+   "attemptFeedback": [
+    "Counting the parts is right; changing their size is not."
+   ],
+   "supportHints": [
+    "What does the denominator actually tell you?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "d": {
+      "type": "choice",
+      "values": [
+       5,
+       7,
+       11,
+       13
+      ]
+     }
+    },
+    "derived": {
+     "sum": "a+b",
+     "twoD": "2*d",
+     "prod": "a*b"
+    },
+    "constraints": [
+     "gcd(a,d)==1",
+     "gcd(b,d)==1",
+     "sum!=prod"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Nothing is wrong, because both parts were counted.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "The numerators should have been multiplied to give ${{prod}}$.",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-c",
+     "label": "The denominators are right but the numerators should stay apart.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "The denominator names the size of the parts, so it stays ${{d}}$."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_4A_rate_from_a_table",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.4A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.4A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.4A:rate-from-a-table",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.4A",
+   "taskType": "representationTranslation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The table records a steady journey. What is the speed?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Journey log",
+    "table": {
+     "headers": [
+      "hours",
+      "km"
+     ],
+     "rows": [
+      [
+       "{{t1}}",
+       "{{d1}}"
+      ],
+      [
+       "{{t2}}",
+       "{{d2}}"
+      ],
+      [
+       "{{t3}}",
+       "{{d3}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "A constant rate is the same quotient in every row.",
+    "reasoning": [
+     "Each row divides out the same way: ${{d1}} \\div {{t1}} = {{answer}}$.",
+     "A steady journey covers ${{answer}}$ km every hour."
+    ],
+    "answerSummary": "The speed is ${{answer}}$ km an hour."
+   },
+   "attemptFeedback": [
+    "A distance from the table is not a speed."
+   ],
+   "supportHints": [
+    "Divide a distance by its own time."
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 6,
+      "max": 14,
+      "step": 2
+     },
+     "t1": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     }
+    },
+    "derived": {
+     "t2": "t1+3",
+     "t3": "t1+6",
+     "d1": "r*t1",
+     "d2": "r*t2",
+     "d3": "r*t3",
+     "answer": "r",
+     "d_partialTotal": "r/2"
+    },
+    "constraints": [
+     "answer!=d1",
+     "answer!=d_partialTotal",
+     "answer!=t3",
+     "d1!=d_partialTotal",
+     "d1!=t3",
+     "d_partialTotal!=t3"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{t3}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d1}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_4A_equation_for_a_steady_journey",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.4A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.4A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.4A:equation-for-a-steady-journey",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.4A",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A vehicle holds a steady ${{r}}$ km an hour. Which equation gives the distance $d$ after $t$ hours?",
+   "solutionReview": {
+    "headline": "Distance is rate multiplied by time.",
+    "reasoning": [
+     "Every hour adds another ${{r}}$ km.",
+     "After ${{t}}$ hours that is ${{far}}$ km, which is ${{r}}$ times $t$."
+    ],
+    "answerSummary": "It is $d = {{r}}t$."
+   },
+   "attemptFeedback": [
+    "Adding the rate to the time compares two different quantities."
+   ],
+   "supportHints": [
+    "What does one more hour add?"
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 30,
+      "max": 90,
+      "step": 5
+     },
+     "t": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "far": "r*t"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$d = t + {{r}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$t = {{r}}d$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$d = {{r}}t$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$d = \\frac{t}{{{r}}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_4A_how_far_ahead_the_faster_machine_is",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.4A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.4A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.4A:how-far-ahead-the-faster-machine-is",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.4A",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "One machine fills ${{a}}$ crates an hour and another fills ${{b}}$. How many more does the first fill in ${{t}}$ hours?",
+   "solutionReview": {
+    "headline": "Only the difference in the rates opens a gap.",
+    "reasoning": [
+     "The first machine gains ${{g}}$ crates every hour.",
+     "Over ${{t}}$ hours that gap grows to ${{answer}}$."
+    ],
+    "answerSummary": "It fills ${{answer}}$ more."
+   },
+   "attemptFeedback": [
+    "Adding the two rates counts both machines, not the gap."
+   ],
+   "supportHints": [
+    "How much does the first gain each hour?"
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "g": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "t": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "a": "b+g",
+     "answer": "g*t",
+     "d_operationInverted": "(a+b)*t",
+     "d_arithmeticSlip": "g+t",
+     "d_usedGivenValue": "b*t"
+    },
+    "constraints": [
+     "answer!=d_operationInverted",
+     "answer!=d_arithmeticSlip",
+     "answer!=d_usedGivenValue",
+     "d_operationInverted!=d_arithmeticSlip",
+     "d_operationInverted!=d_usedGivenValue",
+     "d_arithmeticSlip!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_arithmeticSlip}}$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_4A_drive_time_after_a_rest",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.4A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.4A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.4A:drive-time-after-a-rest",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.4A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A depot is open ${{rest}}$ hours a day. How long does a ${{d}}$ km drive at ${{r}}$ km an hour take?",
+   "solutionReview": {
+    "headline": "Time is distance divided by rate.",
+    "reasoning": [
+     "${{d}}$ km at ${{r}}$ km an hour takes ${{d}} \\div {{r}} = {{answer}}$ hours.",
+     "When the depot is open has nothing to do with how long the drive takes."
+    ],
+    "answerSummary": "The drive takes ${{answer}}$ hours."
+   },
+   "attemptFeedback": [
+    "The distance in kilometres is not a number of hours."
+   ],
+   "supportHints": [
+    "Which two quantities settle the driving time?"
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 30,
+      "max": 90,
+      "step": 5
+     },
+     "e": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "rest": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "t": "2*e",
+     "d": "r*2*e",
+     "answer": "t",
+     "d_forgotFinalStep": "d",
+     "d_partialTotal": "e"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "answer!=rest",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_forgotFinalStep!=rest",
+     "d_partialTotal!=rest"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{rest}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_4A_doubling_the_speed",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.4A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.4A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.4A:doubling-the-speed",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.4A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student says doubling the speed doubles the time for a fixed distance. What is wrong?",
+   "solutionReview": {
+    "headline": "For a fixed distance, rate and time move in opposite directions.",
+    "reasoning": [
+     "${{d}}$ km at ${{r}}$ km an hour takes ${{t}}$ hours.",
+     "At ${{twiceR}}$ km an hour the same ${{d}}$ km takes ${{halfT}}$ hours, which is half as long."
+    ],
+    "answerSummary": "The time halves to ${{halfT}}$ hours."
+   },
+   "attemptFeedback": [
+    "The rule is right, but doubling one factor while the product is fixed halves the other."
+   ],
+   "supportHints": [
+    "Try the numbers both ways round."
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 20,
+      "max": 60,
+      "step": 5
+     },
+     "e": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     }
+    },
+    "derived": {
+     "t": "2*e",
+     "d": "r*2*e",
+     "twiceR": "2*r",
+     "halfT": "e"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Nothing is wrong, because distance is rate multiplied by time.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "The time stays at ${{t}}$ hours, because the distance has not changed.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "The distance doubles to twice ${{d}}$ km instead.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "Going faster takes less time: at ${{twiceR}}$ km an hour the drive falls to ${{halfT}}$ hours."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_5A_scale_factor_between_two_rectangles",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.5A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.5A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.5A:scale-factor-between-two-rectangles",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.5A",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A rectangle ${{a}}$ by ${{b}}$ cm is enlarged to ${{ka}}$ by ${{kb}}$ cm. What is the scale factor?",
+   "solutionReview": {
+    "headline": "A scale factor is a ratio between matching sides, not a difference.",
+    "reasoning": [
+     "${{ka}} \\div {{a}} = {{answer}}$, and ${{kb}} \\div {{b}} = {{answer}}$ as well.",
+     "A scale factor multiplies every side by the same amount."
+    ],
+    "answerSummary": "The factor is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "How much a side grew by is not how many times it grew."
+   ],
+   "supportHints": [
+    "Divide a new side by the one it came from."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "ka": "k*a",
+     "kb": "k*b",
+     "answer": "k",
+     "d_partialTotal": "a*(k-1)",
+     "d_arithmeticSlip": "k-a"
+    },
+    "constraints": [
+     "answer!=d_partialTotal",
+     "answer!=d_arithmeticSlip",
+     "answer!=a",
+     "d_partialTotal!=d_arithmeticSlip",
+     "d_partialTotal!=a",
+     "d_arithmeticSlip!=a"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_arithmeticSlip}}$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{a}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_5A_ratio_inside_a_shape",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.5A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.5A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.5A:ratio-inside-a-shape",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.5A",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "In one rectangle the ratio of length to width is $\\frac{{{a}}}{{{b}}}$. In a similar rectangle it is what?",
+   "solutionReview": {
+    "headline": "A ratio taken inside a shape survives any enlargement.",
+    "reasoning": [
+     "Both sides are multiplied by the same factor, so the factor cancels.",
+     "$\\frac{{{ka}}}{{{kb}}}$ reduces to $\\frac{{{a}}}{{{b}}}$."
+    ],
+    "answerSummary": "It is still $\\frac{{{a}}}{{{b}}}$."
+   },
+   "attemptFeedback": [
+    "Scaling only one of the two sides would change the shape."
+   ],
+   "supportHints": [
+    "What happens to both sides at once?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     },
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     }
+    },
+    "derived": {
+     "ka": "k*a",
+     "kb": "k*b"
+    },
+    "constraints": [
+     "a!=b",
+     "b*b!=k*a*a",
+     "gcd(a,b)==1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\frac{{{ka}}}{{{b}}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\frac{{{b}}}{{{a}}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\frac{{{a}}}{{{b}}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\frac{{{a}}}{{{kb}}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_5A_matching_side_in_a_similar_triangle",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.5A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.5A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.5A:matching-side-in-a-similar-triangle",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.5A",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A triangle has sides ${{a}}$ and ${{b}}$ cm, and in a similar triangle the side matching ${{a}}$ is ${{ka}}$ cm. What matches ${{b}}$?",
+   "solutionReview": {
+    "headline": "Similar shapes scale every side by one factor.",
+    "reasoning": [
+     "${{ka}} \\div {{a}} = {{k}}$, so every side is multiplied by ${{k}}$.",
+     "${{b}} \\times {{k}} = {{answer}}$."
+    ],
+    "answerSummary": "It is ${{answer}}$ cm."
+   },
+   "attemptFeedback": [
+    "Adding the growth of one side to another only works if the sides are equal."
+   ],
+   "supportHints": [
+    "Find the factor from the pair you were given."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     },
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     }
+    },
+    "derived": {
+     "ka": "k*a",
+     "answer": "k*b",
+     "d_offByOneStep": "k*b+b",
+     "d_operationInverted": "b+a*(k-1)"
+    },
+    "constraints": [
+     "answer!=d_offByOneStep",
+     "answer!=d_operationInverted",
+     "answer!=b",
+     "d_offByOneStep!=d_operationInverted",
+     "d_offByOneStep!=b",
+     "d_operationInverted!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{b}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_5A_what_similarity_requires",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.5A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.5A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.5A:what-similarity-requires",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.5A",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two figures are similar. Which must be true?",
+   "solutionReview": {
+    "headline": "Similarity fixes the angles and the ratio, not the lengths.",
+    "reasoning": [
+     "A side of ${{a}}$ becoming ${{ka}}$ is allowed, so sides need not be equal.",
+     "The angles hold the shape, so they must match exactly."
+    ],
+    "answerSummary": "Equal angles, one common ratio."
+   },
+   "attemptFeedback": [
+    "Equal sides as well as equal angles would make the figures congruent."
+   ],
+   "supportHints": [
+    "Which of the two can change under an enlargement?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     },
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     }
+    },
+    "derived": {
+     "ka": "k*a"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Matching sides are equal and matching angles share one ratio.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "Matching angles are equal, and the sides may be anything.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "Every side and every angle is equal.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "Matching angles are equal and matching sides share one ratio."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_5A_right_angles_are_not_enough",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.5A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.5A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.5A:right-angles-are-not-enough",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.5A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student says any two rectangles are similar because every corner is a right angle. What is wrong?",
+   "solutionReview": {
+    "headline": "Equal angles alone do not fix a shape.",
+    "reasoning": [
+     "Equal angles are necessary but not sufficient.",
+     "A ${{a}}$ by ${{ka}}$ rectangle is a different shape from a ${{a}}$ by ${{wide}}$ one, though both have four right angles."
+    ],
+    "answerSummary": "The side ratios must match too."
+   },
+   "attemptFeedback": [
+    "Some rectangles are similar; the claim is that all of them are."
+   ],
+   "supportHints": [
+    "Picture a square beside a long thin rectangle."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     }
+    },
+    "derived": {
+     "ka": "k*a",
+     "wide": "k*a+a"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Nothing is wrong, because equal angles are all similarity needs.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "The angles must be in one ratio as well as equal.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "Rectangles are never similar, because their sides differ.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "The sides must also share one ratio, and a ${{a}}$ by ${{ka}}$ rectangle does not match a ${{a}}$ by ${{wide}}$ one."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_5B_what_pi_measures",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.5B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.5B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.5B:what-pi-measures",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.5B",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What does $\\pi$ measure?",
+   "solutionReview": {
+    "headline": "Pi is a ratio, and the same one for every circle.",
+    "reasoning": [
+     "Three diameters laid round a circle of diameter ${{d}}$ reach ${{around}}$ cm, a little short of the way round.",
+     "That little bit over three is $\\pi$, and it is the same for every circle."
+    ],
+    "answerSummary": "It counts diameters around the edge."
+   },
+   "attemptFeedback": [
+    "Radii would fit around twice as often as diameters."
+   ],
+   "supportHints": [
+    "What two lengths is it comparing?"
+   ],
+   "generator": {
+    "parameters": {
+     "d": {
+      "type": "int",
+      "min": 4,
+      "max": 40,
+      "step": 2
+     }
+    },
+    "derived": {
+     "r": "d/2",
+     "around": "3*d"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "How many radii fit around the edge of a circle.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "How many diameters fit around the edge of a circle."
+    },
+    {
+     "id": "choice-c",
+     "label": "The area of a circle whose radius is one.",
+     "error": "areaPerimeterSwap"
+    },
+    {
+     "id": "choice-d",
+     "label": "The distance straight across a circle.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_5B_what_the_quotient_comes_to",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.5B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.5B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.5B:what-the-quotient-comes-to",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.5B",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A wheel of diameter ${{d}}$ cm rolls ${{c}}$ cm in one full turn. What is ${{c}}$ divided by ${{d}}$ close to?",
+   "solutionReview": {
+    "headline": "One turn of a wheel covers its own circumference.",
+    "reasoning": [
+     "One turn lays the edge of the wheel out flat, so ${{c}}$ is the way round.",
+     "The way round divided by the diameter is $\\pi$ for every circle."
+    ],
+    "answerSummary": "The quotient is $\\pi$."
+   },
+   "attemptFeedback": [
+    "Dividing by the radius instead would give twice as much."
+   ],
+   "supportHints": [
+    "What distance does one turn cover?"
+   ],
+   "generator": {
+    "parameters": {
+     "d": {
+      "type": "int",
+      "min": 4,
+      "max": 40,
+      "step": 2
+     }
+    },
+    "derived": {
+     "c": "round(314*d/100)",
+     "r": "d/2"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\frac{\\pi}{2}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\pi$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\pi^2$",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-d",
+     "label": "$2\\pi$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_5B_circumference_of_a_pipe",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.5B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.5B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.5B:circumference-of-a-pipe",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.5B",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A pipe has diameter ${{d}}$ cm. What is the distance round it?",
+   "solutionReview": {
+    "headline": "Circumference is pi times the diameter.",
+    "reasoning": [
+     "The way round is $\\pi$ times the diameter.",
+     "With a diameter of ${{d}}$ that is ${{d}}\\pi$ cm."
+    ],
+    "answerSummary": "It is ${{d}}\\pi$ cm."
+   },
+   "attemptFeedback": [
+    "Multiplying by the radius gives only half the way round."
+   ],
+   "supportHints": [
+    "Which length does $\\pi$ multiply?"
+   ],
+   "generator": {
+    "parameters": {
+     "d": {
+      "type": "int",
+      "min": 4,
+      "max": 40,
+      "step": 2
+     }
+    },
+    "derived": {
+     "r": "d/2",
+     "twoD": "2*d",
+     "dsq": "d*d"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{r}}\\pi$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{dsq}}\\pi$",
+     "error": "areaPerimeterSwap"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d}}\\pi$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{twoD}}\\pi$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_5B_diameter_from_the_circumference",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.5B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.5B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.5B:diameter-from-the-circumference",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.5B",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A circle has circumference $C$. Which expression gives its diameter?",
+   "solutionReview": {
+    "headline": "Undo the multiplication by pi.",
+    "reasoning": [
+     "$C$ is $\\pi$ times the diameter, so dividing by $\\pi$ undoes that.",
+     "A circle of diameter ${{d}}$ has $C = {{d}}\\pi$, and ${{d}}\\pi \\div \\pi = {{d}}$."
+    ],
+    "answerSummary": "It is $\\frac{C}{\\pi}$."
+   },
+   "attemptFeedback": [
+    "Dividing by $2\\pi$ returns the radius ${{half}}$, not the diameter."
+   ],
+   "supportHints": [
+    "What was the diameter multiplied by?"
+   ],
+   "generator": {
+    "parameters": {
+     "d": {
+      "type": "int",
+      "min": 4,
+      "max": 40,
+      "step": 2
+     }
+    },
+    "derived": {
+     "half": "d/2"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\frac{C}{2\\pi}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$C\\pi$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\frac{2C}{\\pi}$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\frac{C}{\\pi}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_5B_pi_against_the_radius",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.5B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.5B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.5B:pi-against-the-radius",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.5B",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student says $\\pi$ is the circumference divided by the radius. What is wrong?",
+   "solutionReview": {
+    "headline": "Halving the divisor doubles the quotient.",
+    "reasoning": [
+     "A circle of radius ${{r}}$ cm has diameter ${{d}}$ cm and a way round of about ${{c}}$ cm.",
+     "Dividing by ${{r}}$ rather than ${{d}}$ halves the divisor, so the quotient doubles to $2\\pi$."
+    ],
+    "answerSummary": "It comes to $2\\pi$."
+   },
+   "attemptFeedback": [
+    "A smaller divisor gives a larger quotient, not a smaller one."
+   ],
+   "supportHints": [
+    "How does the radius compare with the diameter?"
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "d": "2*r",
+     "c": "round(314*2*r/100)"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "That quotient comes to $\\frac{\\pi}{2}$, because the radius is smaller.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "The circumference should be divided by the area instead.",
+     "error": "areaPerimeterSwap"
+    },
+    {
+     "id": "choice-c",
+     "label": "Nothing is wrong, because the radius and diameter both measure across.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "That quotient comes to $2\\pi$, because the radius is half the diameter."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
     }
    ]
   }

@@ -45,7 +45,10 @@ for (const q of documents) {
   if (qa.level !== QUESTION_QUALITY.PRODUCTION) result.qualityFailures.push({ id: q.id, level: qa.level, warnings: qa.warnings?.map((x) => x.code) });
 
   let samples;
-  try { samples = samplePathInstances(q, 32); }
+  // 200, not 32. The duplicate-choice check is hunting rare parameter
+  // coincidences — two derived values that happen to agree on one draw in
+  // thirty-six — and 32 samples missed one that the test suite then caught.
+  try { samples = samplePathInstances(q, 200); }
   catch (error) { result.generationFailures.push(`${q.id}:${error.message}`); samples = []; }
   const instances = samples.map((x) => x.question).filter(Boolean);
   const variants = new Set(instances.map(visible));

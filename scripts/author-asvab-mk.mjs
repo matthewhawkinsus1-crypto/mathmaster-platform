@@ -3113,7 +3113,10 @@ mk('6.7C', 'combining-two-like-terms', {
       b: { type: 'int', min: 2, max: 12 },
     },
     derived: { sum: 'a+b', prod: 'a*b' },
-    constraints: [],
+    // At a = b = 2 the sum and the product are both 4, so the key and the
+    // multiply-instead-of-add distractor become the same label. Coefficient
+    // labels carry two placeholders, so no automatic constraint covers this.
+    constraints: ['sum!=prod'],
   },
   choices: [
     { label: plain('{{sum}}x'), correct: true },
@@ -3645,6 +3648,702 @@ mk('6.8D', 'how-much-larger-the-second-triangle-is', {
   answerSummary: { headline: 'Only the difference in the bases contributes the extra area.', text: 'The second is ${{answer}}$ square units larger.' },
   hint: 'What do the two triangles have in common?',
   feedback: 'Adding the two bases measures both triangles, not the gap.',
+});
+
+
+// ================================================================ 7.2
+// Sets and subsets of the rational numbers.
+
+mk('7.2', 'set-containing-every-value', {
+  courseId: 'grade7',
+  difficultyBand: 1, dok: 2, taskType: 'interpretation', representation: 'symbolic',
+  prompt: 'Which set contains all three of $-{{a}}$, ${{b}}$ and $\\frac{{{num}}}{{{d}}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 40 },
+      b: { type: 'int', min: 2, max: 40 },
+      n: { type: 'int', min: 1, max: 9 },
+      d: { type: 'choice', values: [3, 4, 6, 7, 8] },
+    },
+    derived: { num: 'n*d+1' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The rational numbers.', correct: true },
+    { label: 'The integers.', error: 'operationInverted' },
+    { label: 'The whole numbers.', error: 'partialTotal' },
+    { label: 'The counting numbers.', error: 'signError' },
+  ],
+  reasoning: ['$\\frac{{{num}}}{{{d}}}$ does not divide evenly, so it is not an integer.', 'Every one of the three can be written as a ratio, so all three are rational.'],
+  answerSummary: { headline: 'The rationals hold every value that can be written as a ratio.', text: 'All three are rational numbers.' },
+  hint: 'Find the value that rules out the smaller sets.',
+  feedback: 'A fraction that does not divide evenly is not an integer.',
+});
+
+mk('7.2', 'whole-numbers-inside-integers', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'Which statement about the whole numbers and the integers is true?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 40 },
+      b: { type: 'int', min: 2, max: 40 },
+    },
+    derived: { neg: '0-a', sum: 'a+b' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Every whole number is an integer, but not every integer is whole.', correct: true },
+    { label: 'Every integer is whole, but not every whole number is an integer.', error: 'ratioReversed' },
+    { label: 'The two sets hold exactly the same values.', error: 'operationInverted' },
+    { label: 'No value belongs to both sets.', error: 'partialTotal' },
+  ],
+  reasoning: ['${{sum}}$ is whole and is also an integer, and that holds for every whole number.', '${{neg}}$ is an integer but is not whole, so the integers reach further.'],
+  answerSummary: { headline: 'The whole numbers sit inside the integers, not the other way round.', text: 'Every whole number is an integer; the reverse fails.' },
+  hint: 'Think of a value in one set but not the other.',
+  feedback: 'The negatives belong to only one of the two sets.',
+});
+
+mk('7.2', 'nested-rings-of-numbers', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'Three sets are drawn as nested rings. Which arrangement is right?',
+  stimulus: {
+    kind: 'expressions',
+    title: 'A value from each set',
+    note: 'Whole: ${{w}}$    Integer: $-{{a}}$    Rational: $\\frac{{{num}}}{{{d}}}$',
+  },
+  generator: {
+    parameters: {
+      w: { type: 'int', min: 0, max: 40 },
+      a: { type: 'int', min: 2, max: 40 },
+      n: { type: 'int', min: 1, max: 9 },
+      d: { type: 'choice', values: [3, 4, 6, 7, 8] },
+    },
+    derived: { num: 'n*d+1', prod: 'n*d' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Whole inside integer, and integer inside rational.', correct: true },
+    { label: 'Integer inside whole, and whole inside rational.', error: 'ratioReversed' },
+    { label: 'Rational inside integer, and integer inside whole.', error: 'operationInverted' },
+    { label: 'The three rings sit side by side and never overlap.', error: 'partialTotal' },
+  ],
+  reasoning: ['${{w}}$ is whole, an integer and rational, so it sits in all three rings.', '$\\frac{{{num}}}{{{d}}}$ is only rational, so the rational ring is the outer one.'],
+  answerSummary: { headline: 'Each ring contains the one before it.', text: 'Whole, then integer, then rational.' },
+  hint: 'Which value belongs to all three sets?',
+  feedback: 'The rings do overlap: some values belong to all three.',
+});
+
+mk('7.2', 'operation-that-leaves-the-integers', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'Which operation on two integers can give a value that is not an integer?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 30 },
+      d: { type: 'choice', values: [3, 4, 6, 7, 8] },
+      n: { type: 'int', min: 1, max: 9 },
+    },
+    derived: { num: 'n*d+1', diff: 'a-n' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Division.', correct: true },
+    { label: 'Subtraction.', error: 'signError' },
+    { label: 'Addition.', error: 'operationInverted' },
+    { label: 'Multiplication.', error: 'partialTotal' },
+  ],
+  reasoning: ['${{num}} \\div {{d}}$ does not divide evenly, so the result is not an integer.', 'Adding, subtracting or multiplying two integers always lands on another integer.'],
+  answerSummary: { headline: 'Only division can take you out of the integers.', text: 'Division.' },
+  hint: 'Which operation can leave a remainder?',
+  feedback: 'Subtracting integers gives a negative at worst, which is still an integer.',
+});
+
+mk('7.2', 'every-rational-is-not-an-integer', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student says every rational number is an integer. What is wrong?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 1, max: 9 },
+      d: { type: 'choice', values: [3, 4, 6, 7, 8] },
+      k: { type: 'int', min: 2, max: 20 },
+    },
+    derived: { num: 'n*d+1', prod: 'k*d' },
+    constraints: [],
+  },
+  choices: [
+    { label: '$\\frac{{{num}}}{{{d}}}$ is rational and is not an integer.', correct: true },
+    { label: 'Nothing is wrong, because $\\frac{{{prod}}}{{{d}}}$ is an integer.', error: 'partialTotal' },
+    { label: 'The claim fails only for negative rational numbers.', error: 'signError' },
+    { label: 'It should say every integer is rational, which is also false.', error: 'operationInverted' },
+  ],
+  reasoning: ['One counter-example settles it: $\\frac{{{num}}}{{{d}}}$ leaves a remainder.', 'The reverse claim, that every integer is rational, is in fact true.'],
+  answerSummary: { headline: 'A single counter-example disproves a claim about every value.', text: '$\\frac{{{num}}}{{{d}}}$ is the counter-example.' },
+  hint: 'Find one rational number that is not an integer.',
+  feedback: 'A fraction that does divide evenly does not test the claim.',
+});
+
+// ================================================================ 7.3A
+// Fluency with rational numbers: fractions, decimals and signs.
+
+mk('7.3A', 'sum-of-two-fractions', {
+  courseId: 'grade7',
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'What is $\\frac{{{a}}}{{{d}}} + \\frac{{{b}}}{{{d}}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 7 },
+      b: { type: 'int', min: 2, max: 7 },
+      d: { type: 'choice', values: [5, 7, 11, 13] },
+    },
+    derived: { sum: 'a+b', prod: 'a*b', twoD: '2*d' },
+    constraints: ['gcd(a,d)==1', 'gcd(b,d)==1', 'sum!=prod'],
+  },
+  choices: [
+    { label: plain('\\frac{{{sum}}}{{{d}}}'), correct: true },
+    { label: plain('\\frac{{{sum}}}{{{twoD}}}'), error: 'operationInverted' },
+    { label: plain('\\frac{{{prod}}}{{{twoD}}}'), error: 'arithmeticSlip' },
+    { label: plain('\\frac{{{prod}}}{{{d}}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The denominators already match, so only the numerators are added.', '${{a}} + {{b}} = {{sum}}$, over the same ${{d}}$.'],
+  answerSummary: { headline: 'Like denominators add their numerators and keep the denominator.', text: 'It is $\\frac{{{sum}}}{{{d}}}$.' },
+  hint: 'What happens to the denominator?',
+  feedback: 'Adding the denominators too would shrink the result.',
+});
+
+mk('7.3A', 'difference-of-two-decimals', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Work out ${{x}} - {{y}}$.',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 11, max: 99 },
+      q: { type: 'int', min: 11, max: 99 },
+    },
+    derived: {
+      x: 'p/10', y: 'q/10',
+      answer: '(p-q)/10',
+      d_signError: '(p+q)/10',
+      d_ratioReversed: '(q-p)/10',
+      d_operationInverted: '(0-p-q)/10',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['Line the points up and subtract: ${{p}} - {{q}} = {{p}}$ minus ${{q}}$ in tenths.', 'That gives ${{answer}}$.'],
+  answerSummary: { headline: 'Subtract in tenths, then put the point back.', text: 'It is ${{answer}}$.' },
+  hint: 'Which value is larger?',
+  feedback: 'Reversing the order flips the sign of the answer.',
+});
+
+mk('7.3A', 'negative-fraction-times-a-whole', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Work out $-\\frac{{{a}}}{{{b}}} \\times {{c}}$.',
+  generator: {
+    parameters: {
+      // a and b share a range so the given multiplier crosses the key.
+      a: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 2, max: 12 },
+      k: { type: 'int', min: 2, max: 9 },
+    },
+    // The fraction is shown to the student, so it has to be in lowest terms.
+    derived: {
+      c: 'b*k',
+      answer: '0-a*k',
+      d_signError: 'a*k',
+      d_forgotFinalStep: '0-a*b*k',
+      d_usedGivenValue: '0-c',
+    },
+    constraints: ['gcd(a,b)==1'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['${{c}}$ divided by ${{b}}$ is ${{k}}$, and ${{a}} \\times {{k}} = {{d_signError}}$.', 'One negative factor makes the result negative: ${{answer}}$.'],
+  answerSummary: { headline: 'Cancel first, then settle the sign.', text: 'It is ${{answer}}$.' },
+  hint: 'Does the denominator divide the whole number?',
+  feedback: 'A single negative factor cannot give a positive result.',
+});
+
+mk('7.3A', 'balance-after-weekly-falls', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A tank holds ${{b}}$ litres and loses ${{fall}}$ litres a week for ${{w}}$ weeks. How much is left?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 10, max: 50 },
+      q: { type: 'int', min: 11, max: 99 },
+      w: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      fall: 'q/10',
+      lost: 'q*w/10',
+      answer: '(10*b-q*w)/10',
+      d_signError: '(10*b+q*w)/10',
+      d_forgotFinalStep: '(0-q*w)/10',
+      d_ratioReversed: '(q*w-10*b)/10',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['${{w}}$ weeks at ${{fall}}$ litres take ${{lost}}$ litres away.', 'Starting from ${{b}}$ that leaves ${{answer}}$.'],
+  answerSummary: { headline: 'Work out the total loss, then take it off the start.', text: 'It leaves ${{answer}}$ litres.' },
+  hint: 'How much goes in total?',
+  feedback: 'The amount lost is not the amount left.',
+});
+
+mk('7.3A', 'adding-the-denominators', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student writes $\\frac{{{a}}}{{{d}}} + \\frac{{{b}}}{{{d}}}$ as $\\frac{{{sum}}}{{{twoD}}}$. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 2, max: 12 },
+      d: { type: 'choice', values: [5, 7, 11, 13] },
+    },
+    derived: { sum: 'a+b', twoD: '2*d', prod: 'a*b' },
+    constraints: ['gcd(a,d)==1', 'gcd(b,d)==1', 'sum!=prod'],
+  },
+  choices: [
+    { label: 'The denominator names the size of the parts, so it stays ${{d}}$.', correct: true },
+    { label: 'Nothing is wrong, because both parts were counted.', error: 'operationInverted' },
+    { label: 'The numerators should have been multiplied to give ${{prod}}$.', error: 'arithmeticSlip' },
+    { label: 'The denominators are right but the numerators should stay apart.', error: 'partialTotal' },
+  ],
+  reasoning: ['Both fractions already count ${{d}}$ths, so the parts being counted do not change size.', 'Doubling the denominator halves every part, which changes the value.'],
+  answerSummary: { headline: 'Adding fractions counts parts; it does not resize them.', text: 'The denominator stays ${{d}}$.' },
+  hint: 'What does the denominator actually tell you?',
+  feedback: 'Counting the parts is right; changing their size is not.',
+});
+
+// ================================================================ 7.4A
+// Constant rates of change, including d = rt.
+
+mk('7.4A', 'rate-from-a-table', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'The table records a steady journey. What is the speed?',
+  stimulus: {
+    kind: 'table',
+    title: 'Journey log',
+    table: {
+      headers: ['hours', 'km'],
+      rows: [['{{t1}}', '{{d1}}'], ['{{t2}}', '{{d2}}'], ['{{t3}}', '{{d3}}']],
+    },
+  },
+  generator: {
+    parameters: {
+      // The last time in the table is offered as a distractor against the
+      // speed, so the two ranges are chosen to overlap.
+      r: { type: 'int', min: 6, max: 14, step: 2 },
+      t1: { type: 'int', min: 2, max: 6 },
+    },
+    derived: {
+      t2: 't1+3', t3: 't1+6',
+      d1: 'r*t1', d2: 'r*t2', d3: 'r*t3',
+      answer: 'r',
+      d_partialTotal: 'r/2',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d1}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{t3}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Each row divides out the same way: ${{d1}} \\div {{t1}} = {{answer}}$.', 'A steady journey covers ${{answer}}$ km every hour.'],
+  answerSummary: { headline: 'A constant rate is the same quotient in every row.', text: 'The speed is ${{answer}}$ km an hour.' },
+  hint: 'Divide a distance by its own time.',
+  feedback: 'A distance from the table is not a speed.',
+});
+
+mk('7.4A', 'equation-for-a-steady-journey', {
+  courseId: 'grade7',
+  difficultyBand: 1, dok: 1, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'A vehicle holds a steady ${{r}}$ km an hour. Which equation gives the distance $d$ after $t$ hours?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 30, max: 90, step: 5 },
+      t: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { far: 'r*t' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('d = {{r}}t'), correct: true },
+    { label: plain('d = t + {{r}}'), error: 'operationInverted' },
+    { label: plain('d = \\frac{t}{{{r}}}'), error: 'ratioReversed' },
+    { label: plain('t = {{r}}d'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Every hour adds another ${{r}}$ km.', 'After ${{t}}$ hours that is ${{far}}$ km, which is ${{r}}$ times $t$.'],
+  answerSummary: { headline: 'Distance is rate multiplied by time.', text: 'It is $d = {{r}}t$.' },
+  hint: 'What does one more hour add?',
+  feedback: 'Adding the rate to the time compares two different quantities.',
+});
+
+mk('7.4A', 'how-far-ahead-the-faster-machine-is', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'One machine fills ${{a}}$ crates an hour and another fills ${{b}}$. How many more does the first fill in ${{t}}$ hours?',
+  generator: {
+    parameters: {
+      // b and g share a range so the slower machine's output crosses the gap.
+      b: { type: 'int', min: 2, max: 14 },
+      g: { type: 'int', min: 2, max: 14 },
+      t: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      a: 'b+g',
+      answer: 'g*t',
+      d_operationInverted: '(a+b)*t',
+      d_arithmeticSlip: 'g+t',
+      d_usedGivenValue: 'b*t',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The first machine gains ${{g}}$ crates every hour.', 'Over ${{t}}$ hours that gap grows to ${{answer}}$.'],
+  answerSummary: { headline: 'Only the difference in the rates opens a gap.', text: 'It fills ${{answer}}$ more.' },
+  hint: 'How much does the first gain each hour?',
+  feedback: 'Adding the two rates counts both machines, not the gap.',
+});
+
+mk('7.4A', 'drive-time-after-a-rest', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'A depot is open ${{rest}}$ hours a day. How long does a ${{d}}$ km drive at ${{r}}$ km an hour take?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 30, max: 90, step: 5 },
+      e: { type: 'int', min: 1, max: 6 },
+      // The opening hours share the drive time's span, so they cross the key.
+      rest: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      t: '2*e',
+      d: 'r*2*e',
+      answer: 't',
+      d_forgotFinalStep: 'd',
+      d_partialTotal: 'e',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{rest}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['${{d}}$ km at ${{r}}$ km an hour takes ${{d}} \\div {{r}} = {{answer}}$ hours.', 'When the depot is open has nothing to do with how long the drive takes.'],
+  answerSummary: { headline: 'Time is distance divided by rate.', text: 'The drive takes ${{answer}}$ hours.' },
+  hint: 'Which two quantities settle the driving time?',
+  feedback: 'The distance in kilometres is not a number of hours.',
+});
+
+mk('7.4A', 'doubling-the-speed', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student says doubling the speed doubles the time for a fixed distance. What is wrong?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 20, max: 60, step: 5 },
+      e: { type: 'int', min: 2, max: 8 },
+    },
+    derived: {
+      t: '2*e',
+      d: 'r*2*e',
+      twiceR: '2*r',
+      halfT: 'e',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Going faster takes less time: at ${{twiceR}}$ km an hour the drive falls to ${{halfT}}$ hours.', correct: true },
+    { label: 'Nothing is wrong, because distance is rate multiplied by time.', error: 'operationInverted' },
+    { label: 'The time stays at ${{t}}$ hours, because the distance has not changed.', error: 'partialTotal' },
+    { label: 'The distance doubles to twice ${{d}}$ km instead.', error: 'ratioReversed' },
+  ],
+  reasoning: ['${{d}}$ km at ${{r}}$ km an hour takes ${{t}}$ hours.', 'At ${{twiceR}}$ km an hour the same ${{d}}$ km takes ${{halfT}}$ hours, which is half as long.'],
+  answerSummary: { headline: 'For a fixed distance, rate and time move in opposite directions.', text: 'The time halves to ${{halfT}}$ hours.' },
+  hint: 'Try the numbers both ways round.',
+  feedback: 'The rule is right, but doubling one factor while the product is fixed halves the other.',
+});
+
+// ================================================================ 7.5A
+// What similarity actually requires, and the ratios that follow.
+
+mk('7.5A', 'scale-factor-between-two-rectangles', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'A rectangle ${{a}}$ by ${{b}}$ cm is enlarged to ${{ka}}$ by ${{kb}}$ cm. What is the scale factor?',
+  generator: {
+    parameters: {
+      // a and k share a range, so the original side crosses the factor.
+      a: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 2, max: 12 },
+      k: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      ka: 'k*a', kb: 'k*b',
+      answer: 'k',
+      d_partialTotal: 'a*(k-1)',
+      d_arithmeticSlip: 'k-a',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+    { label: plain('{{a}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['${{ka}} \\div {{a}} = {{answer}}$, and ${{kb}} \\div {{b}} = {{answer}}$ as well.', 'A scale factor multiplies every side by the same amount.'],
+  answerSummary: { headline: 'A scale factor is a ratio between matching sides, not a difference.', text: 'The factor is ${{answer}}$.' },
+  hint: 'Divide a new side by the one it came from.',
+  feedback: 'How much a side grew by is not how many times it grew.',
+});
+
+mk('7.5A', 'ratio-inside-a-shape', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'In one rectangle the ratio of length to width is $\\frac{{{a}}}{{{b}}}$. In a similar rectangle it is what?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 15 },
+      b: { type: 'int', min: 2, max: 15 },
+      k: { type: 'int', min: 2, max: 6 },
+    },
+    derived: { ka: 'k*a', kb: 'k*b' },
+    // Fraction labels carry two placeholders each, so the kit emits no
+    // automatic distinctness constraint and the author owns the collision.
+    // At a = b the ratio and its reverse are the same label; and b*b = k*a*a
+    // makes the two remaining distractors equal in value even though they read
+    // differently, which would offer the same answer twice.
+    // A ratio is quoted in lowest terms, so a and b share no factor.
+    constraints: ['a!=b', 'b*b!=k*a*a', 'gcd(a,b)==1'],
+  },
+  choices: [
+    { label: plain('\\frac{{{a}}}{{{b}}}'), correct: true },
+    { label: plain('\\frac{{{b}}}{{{a}}}'), error: 'ratioReversed' },
+    { label: plain('\\frac{{{ka}}}{{{b}}}'), error: 'partialTotal' },
+    { label: plain('\\frac{{{a}}}{{{kb}}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['Both sides are multiplied by the same factor, so the factor cancels.', '$\\frac{{{ka}}}{{{kb}}}$ reduces to $\\frac{{{a}}}{{{b}}}$.'],
+  answerSummary: { headline: 'A ratio taken inside a shape survives any enlargement.', text: 'It is still $\\frac{{{a}}}{{{b}}}$.' },
+  hint: 'What happens to both sides at once?',
+  feedback: 'Scaling only one of the two sides would change the shape.',
+});
+
+mk('7.5A', 'matching-side-in-a-similar-triangle', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A triangle has sides ${{a}}$ and ${{b}}$ cm, and in a similar triangle the side matching ${{a}}$ is ${{ka}}$ cm. What matches ${{b}}$?',
+  generator: {
+    parameters: {
+      // a and b share a range: the common error adds the difference instead of
+      // scaling, and which way that lands turns on a against b.
+      a: { type: 'int', min: 2, max: 15 },
+      b: { type: 'int', min: 2, max: 15 },
+      k: { type: 'int', min: 2, max: 8 },
+    },
+    derived: {
+      ka: 'k*a',
+      answer: 'k*b',
+      d_offByOneStep: 'k*b+b',
+      d_operationInverted: 'b+a*(k-1)',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{b}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['${{ka}} \\div {{a}} = {{k}}$, so every side is multiplied by ${{k}}$.', '${{b}} \\times {{k}} = {{answer}}$.'],
+  answerSummary: { headline: 'Similar shapes scale every side by one factor.', text: 'It is ${{answer}}$ cm.' },
+  hint: 'Find the factor from the pair you were given.',
+  feedback: 'Adding the growth of one side to another only works if the sides are equal.',
+});
+
+mk('7.5A', 'what-similarity-requires', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'verbal',
+  prompt: 'Two figures are similar. Which must be true?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 15 },
+      k: { type: 'int', min: 2, max: 6 },
+    },
+    derived: { ka: 'k*a' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Matching angles are equal and matching sides share one ratio.', correct: true },
+    { label: 'Matching sides are equal and matching angles share one ratio.', error: 'ratioReversed' },
+    { label: 'Matching angles are equal, and the sides may be anything.', error: 'partialTotal' },
+    { label: 'Every side and every angle is equal.', error: 'operationInverted' },
+  ],
+  reasoning: ['A side of ${{a}}$ becoming ${{ka}}$ is allowed, so sides need not be equal.', 'The angles hold the shape, so they must match exactly.'],
+  answerSummary: { headline: 'Similarity fixes the angles and the ratio, not the lengths.', text: 'Equal angles, one common ratio.' },
+  hint: 'Which of the two can change under an enlargement?',
+  feedback: 'Equal sides as well as equal angles would make the figures congruent.',
+});
+
+mk('7.5A', 'right-angles-are-not-enough', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student says any two rectangles are similar because every corner is a right angle. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 2, max: 12 },
+      k: { type: 'int', min: 2, max: 6 },
+    },
+    derived: { ka: 'k*a', wide: 'k*a+a' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The sides must also share one ratio, and a ${{a}}$ by ${{ka}}$ rectangle does not match a ${{a}}$ by ${{wide}}$ one.', correct: true },
+    { label: 'Nothing is wrong, because equal angles are all similarity needs.', error: 'partialTotal' },
+    { label: 'Rectangles are never similar, because their sides differ.', error: 'operationInverted' },
+    { label: 'The angles must be in one ratio as well as equal.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Equal angles are necessary but not sufficient.', 'A ${{a}}$ by ${{ka}}$ rectangle is a different shape from a ${{a}}$ by ${{wide}}$ one, though both have four right angles.'],
+  answerSummary: { headline: 'Equal angles alone do not fix a shape.', text: 'The side ratios must match too.' },
+  hint: 'Picture a square beside a long thin rectangle.',
+  feedback: 'Some rectangles are similar; the claim is that all of them are.',
+});
+
+// ================================================================ 7.5B
+// Pi as the ratio of a circle's circumference to its diameter.
+
+mk('7.5B', 'what-pi-measures', {
+  courseId: 'grade7',
+  difficultyBand: 1, dok: 1, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'What does $\\pi$ measure?',
+  generator: {
+    parameters: { d: { type: 'int', min: 4, max: 40, step: 2 } },
+    derived: { r: 'd/2', around: '3*d' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'How many diameters fit around the edge of a circle.', correct: true },
+    { label: 'How many radii fit around the edge of a circle.', error: 'partialTotal' },
+    { label: 'The distance straight across a circle.', error: 'operationInverted' },
+    { label: 'The area of a circle whose radius is one.', error: 'areaPerimeterSwap' },
+  ],
+  reasoning: ['Three diameters laid round a circle of diameter ${{d}}$ reach ${{around}}$ cm, a little short of the way round.', 'That little bit over three is $\\pi$, and it is the same for every circle.'],
+  answerSummary: { headline: 'Pi is a ratio, and the same one for every circle.', text: 'It counts diameters around the edge.' },
+  hint: 'What two lengths is it comparing?',
+  feedback: 'Radii would fit around twice as often as diameters.',
+});
+
+mk('7.5B', 'what-the-quotient-comes-to', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'A wheel of diameter ${{d}}$ cm rolls ${{c}}$ cm in one full turn. What is ${{c}}$ divided by ${{d}}$ close to?',
+  generator: {
+    parameters: { d: { type: 'int', min: 4, max: 40, step: 2 } },
+    derived: { c: 'round(314*d/100)', r: 'd/2' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('\\pi'), correct: true },
+    { label: plain('\\frac{\\pi}{2}'), error: 'partialTotal' },
+    { label: plain('2\\pi'), error: 'operationInverted' },
+    { label: plain('\\pi^2'), error: 'exponentError' },
+  ],
+  reasoning: ['One turn lays the edge of the wheel out flat, so ${{c}}$ is the way round.', 'The way round divided by the diameter is $\\pi$ for every circle.'],
+  answerSummary: { headline: 'One turn of a wheel covers its own circumference.', text: 'The quotient is $\\pi$.' },
+  hint: 'What distance does one turn cover?',
+  feedback: 'Dividing by the radius instead would give twice as much.',
+});
+
+mk('7.5B', 'circumference-of-a-pipe', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A pipe has diameter ${{d}}$ cm. What is the distance round it?',
+  generator: {
+    parameters: { d: { type: 'int', min: 4, max: 40, step: 2 } },
+    derived: { r: 'd/2', twoD: '2*d', dsq: 'd*d' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{d}}\\pi'), correct: true },
+    { label: plain('{{r}}\\pi'), error: 'partialTotal' },
+    { label: plain('{{twoD}}\\pi'), error: 'operationInverted' },
+    { label: plain('{{dsq}}\\pi'), error: 'areaPerimeterSwap' },
+  ],
+  reasoning: ['The way round is $\\pi$ times the diameter.', 'With a diameter of ${{d}}$ that is ${{d}}\\pi$ cm.'],
+  answerSummary: { headline: 'Circumference is pi times the diameter.', text: 'It is ${{d}}\\pi$ cm.' },
+  hint: 'Which length does $\\pi$ multiply?',
+  feedback: 'Multiplying by the radius gives only half the way round.',
+});
+
+mk('7.5B', 'diameter-from-the-circumference', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'A circle has circumference $C$. Which expression gives its diameter?',
+  generator: {
+    parameters: { d: { type: 'int', min: 4, max: 40, step: 2 } },
+    derived: { half: 'd/2' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('\\frac{C}{\\pi}'), correct: true },
+    { label: plain('\\frac{C}{2\\pi}'), error: 'partialTotal' },
+    { label: plain('C\\pi'), error: 'operationInverted' },
+    { label: plain('\\frac{2C}{\\pi}'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['$C$ is $\\pi$ times the diameter, so dividing by $\\pi$ undoes that.', 'A circle of diameter ${{d}}$ has $C = {{d}}\\pi$, and ${{d}}\\pi \\div \\pi = {{d}}$.'],
+  answerSummary: { headline: 'Undo the multiplication by pi.', text: 'It is $\\frac{C}{\\pi}$.' },
+  hint: 'What was the diameter multiplied by?',
+  feedback: 'Dividing by $2\\pi$ returns the radius ${{half}}$, not the diameter.',
+});
+
+mk('7.5B', 'pi-against-the-radius', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student says $\\pi$ is the circumference divided by the radius. What is wrong?',
+  generator: {
+    parameters: { r: { type: 'int', min: 2, max: 20 } },
+    derived: { d: '2*r', c: 'round(314*2*r/100)' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'That quotient comes to $2\\pi$, because the radius is half the diameter.', correct: true },
+    { label: 'Nothing is wrong, because the radius and diameter both measure across.', error: 'operationInverted' },
+    { label: 'That quotient comes to $\\frac{\\pi}{2}$, because the radius is smaller.', error: 'ratioReversed' },
+    { label: 'The circumference should be divided by the area instead.', error: 'areaPerimeterSwap' },
+  ],
+  reasoning: ['A circle of radius ${{r}}$ cm has diameter ${{d}}$ cm and a way round of about ${{c}}$ cm.', 'Dividing by ${{r}}$ rather than ${{d}}$ halves the divisor, so the quotient doubles to $2\\pi$.'],
+  answerSummary: { headline: 'Halving the divisor doubles the quotient.', text: 'It comes to $2\\pi$.' },
+  hint: 'How does the radius compare with the diameter?',
+  feedback: 'A smaller divisor gives a larger quotient, not a smaller one.',
 });
 
 // ---------------------------------------------------------------- emit
