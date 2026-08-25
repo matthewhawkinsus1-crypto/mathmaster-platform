@@ -1,0 +1,91 @@
+name: CCMR V2.1 Production Mirror Refresh
+
+on:
+  push:
+    branches:
+      - ccmr-fidelity-v2-1-authentic-language
+    paths:
+      - '.github/workflows/ccmr-v2-1-production-mirror-refresh.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-production-mirrors:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repair branch
+        uses: actions/checkout@v4
+        with:
+          ref: ccmr-fidelity-v2-1-authentic-language
+          fetch-depth: 1
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run unified production release contract
+        run: node --test tests/platform/ccmrV21ProductionReleaseContent.test.mjs
+
+      - name: Check Digital SAT V2.1 source release
+        run: node scripts/build-digital-sat-v2-1.mjs --release --check
+
+      - name: Check ACT V2.1 source release
+        run: node scripts/build-act-v2-1.mjs --release --check
+
+      - name: Check TSIA2 V2.1 source release
+        run: node scripts/build-tsia2-v2-1.mjs --release --check
+
+      - name: Regenerate coordinated production mirrors
+        run: node scripts/build-ccmr-v2-1-production-release.mjs --write
+
+      - name: Verify regenerated mirrors exactly match source
+        run: node scripts/build-ccmr-v2-1-production-release.mjs --check
+
+      - name: Guard production mirror diff
+        run: |
+          python - <<'PY'
+          import subprocess
+
+          allowed = {
+              'seed/pathQuestionBank/digitalSAT_pathQuestionBank_seed.json',
+              'seed/pathQuestionBank/act_pathQuestionBank_seed.json',
+              'seed/pathQuestionBank/tsia2_pathQuestionBank_seed.json',
+              'functions/seeds/pathQuestionBank/digitalSAT_pathQuestionBank_seed.json',
+              'functions/seeds/pathQuestionBank/act_pathQuestionBank_seed.json',
+              'functions/seeds/pathQuestionBank/tsia2_pathQuestionBank_seed.json',
+          }
+          required_sat = {
+              'seed/pathQuestionBank/digitalSAT_pathQuestionBank_seed.json',
+              'functions/seeds/pathQuestionBank/digitalSAT_pathQuestionBank_seed.json',
+          }
+          changed = {
+              line.strip()
+              for line in subprocess.check_output(['git', 'diff', '--name-only'], text=True).splitlines()
+              if line.strip()
+          }
+          if not required_sat.issubset(changed):
+              raise SystemExit(f'Expected both Digital SAT production mirrors to change; changed={sorted(changed)}')
+          unexpected = changed - allowed
+          if unexpected:
+              raise SystemExit(f'Unexpected changed paths: {sorted(unexpected)}')
+          if any('asvab' in path.lower() for path in changed):
+              raise SystemExit(f'ASVAB must not be touched by this release: {sorted(changed)}')
+          print(f'Guarded production mirror changes: {sorted(changed)}')
+          PY
+
+      - name: Commit coordinated production mirror refresh
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            seed/pathQuestionBank/digitalSAT_pathQuestionBank_seed.json \
+            seed/pathQuestionBank/act_pathQuestionBank_seed.json \
+            seed/pathQuestionBank/tsia2_pathQuestionBank_seed.json \
+            functions/seeds/pathQuestionBank/digitalSAT_pathQuestionBank_seed.json \
+            functions/seeds/pathQuestionBank/act_pathQuestionBank_seed.json \
+            functions/seeds/pathQuestionBank/tsia2_pathQuestionBank_seed.json
+          git commit -m 'Refresh coordinated CCMR V2.1 production mirrors'
+          git push origin HEAD:ccmr-fidelity-v2-1-authentic-language
