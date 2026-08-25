@@ -5768,6 +5768,703 @@ mk('7.10A', 'bracket-that-changes-the-order', {
   feedback: 'Multiplying out the bracket scales the constant too.',
 });
 
+
+// ================================================================ 7.10B
+// Two-step solutions drawn on a number line.
+
+mk('7.10B', 'graph-of-a-two-step-solution', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'numberLine',
+  prompt: 'The solution of ${{m}}x + {{b}} = {{t}}$ is drawn on a number line. Which description fits?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 3, max: 30 },
+      v: { type: 'int', min: 2, max: 20 },
+    },
+    derived: { t: 'm*v+b', stripped: 'm*v', shifted: 'v+b' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'One closed dot at ${{v}}$, with nothing shaded.', correct: true },
+    { label: 'One closed dot at ${{stripped}}$, with nothing shaded.', error: 'forgotFinalStep' },
+    { label: 'A closed dot at ${{v}}$ with an arrow to the right.', error: 'operationInverted' },
+    { label: 'One closed dot at ${{shifted}}$, with nothing shaded.', error: 'orderOfOperations' },
+  ],
+  reasoning: ['Taking ${{b}}$ off leaves ${{stripped}}$, and dividing by ${{m}}$ gives ${{v}}$.', 'An equation is satisfied by that one value, so nothing beyond it is shaded.'],
+  answerSummary: { headline: 'An equation marks a point; an inequality shades a stretch.', text: 'One closed dot at ${{v}}$.' },
+  hint: 'How many values make the equation true?',
+  feedback: 'The subtraction has been done but not the division.',
+});
+
+mk('7.10B', 'endpoint-of-a-two-step-inequality', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'numberLine',
+  prompt: 'How is the solution of ${{m}}x + {{b}} > {{t}}$ drawn?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 3, max: 30 },
+      v: { type: 'int', min: 2, max: 20 },
+    },
+    derived: { t: 'm*v+b', above: 'v+1' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'An open dot at ${{v}}$, with the arrow to the right.', correct: true },
+    { label: 'A closed dot at ${{v}}$, with the arrow to the right.', error: 'offByOneStep' },
+    { label: 'An open dot at ${{v}}$, with the arrow to the left.', error: 'ratioReversed' },
+    { label: 'An open dot at ${{above}}$, with the arrow to the right.', error: 'arithmeticSlip' },
+  ],
+  reasoning: ['Undoing both steps leaves $x > {{v}}$.', 'Strictly greater excludes ${{v}}$ itself, so the endpoint is hollow and the arrow runs right.'],
+  answerSummary: { headline: 'A strict inequality leaves its own boundary out.', text: 'An open dot at ${{v}}$, arrow right.' },
+  hint: 'Does ${{v}}$ itself satisfy the inequality?',
+  feedback: 'A filled dot would include a value that fails it.',
+});
+
+mk('7.10B', 'where-the-single-dot-sits', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Solving ${{m}}x - {{b}} = {{t}}$ puts one dot on the line. At what value?',
+  generator: {
+    parameters: {
+      // m and v share a range so the coefficient crosses the solution.
+      m: { type: 'int', min: 2, max: 14 },
+      v: { type: 'int', min: 2, max: 14 },
+      b: { type: 'int', min: 3, max: 30 },
+    },
+    derived: {
+      t: 'm*v-b',
+      answer: 'v',
+      d_forgotFinalStep: 'm*v',
+      d_operationInverted: 'v-m',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{m}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Adding ${{b}}$ to both sides leaves ${{m}}x = {{d_forgotFinalStep}}$.', 'Dividing by ${{m}}$ puts the dot at ${{answer}}$.'],
+  answerSummary: { headline: 'Undo the addition first, then the multiplication.', text: 'The dot sits at ${{answer}}$.' },
+  hint: 'Which step is undone first?',
+  feedback: 'The division has not been done yet.',
+});
+
+mk('7.10B', 'which-values-a-two-step-shades', {
+  courseId: 'grade7',
+  difficultyBand: 1, dok: 2, taskType: 'interpretation', representation: 'verbal',
+  prompt: 'Which values does ${{m}}x \\le {{t}}$ shade?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      v: { type: 'int', min: 2, max: 20 },
+    },
+    derived: { t: 'm*v', below: 'v-1' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Every value ${{v}}$ and below.', correct: true },
+    { label: 'Every value ${{v}}$ and above.', error: 'ratioReversed' },
+    { label: 'Every value ${{t}}$ and below.', error: 'forgotFinalStep' },
+    { label: 'Every value below ${{v}}$, but not ${{v}}$ itself.', error: 'offByOneStep' },
+  ],
+  reasoning: ['Dividing both sides by ${{m}}$ leaves $x \\le {{v}}$.', 'The bar under the sign admits ${{v}}$, and everything smaller satisfies it too.'],
+  answerSummary: { headline: 'Solve first, then read the direction off the sign.', text: '${{v}}$ and everything below it.' },
+  hint: 'Divide before deciding what is shaded.',
+  feedback: 'The total on the right is not the boundary value.',
+});
+
+mk('7.10B', 'shading-the-wrong-way', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student solves ${{m}}x + {{b}} < {{t}}$ and shades to the right of ${{v}}$. What is wrong?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 3, max: 30 },
+      v: { type: 'int', min: 2, max: 20 },
+    },
+    derived: { t: 'm*v+b', test: 'v+1', lhs: 'm*v+m+b' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Values above ${{v}}$ fail: at $x = {{test}}$ the left side reaches ${{lhs}}$.', correct: true },
+    { label: 'Nothing is wrong, because the arrow follows the larger side.', error: 'operationInverted' },
+    { label: 'The endpoint should be filled, but the direction is right.', error: 'offByOneStep' },
+    { label: 'Dividing by ${{m}}$ flips the sign, so the shading is correct.', error: 'signError' },
+  ],
+  reasoning: ['Less than means the values that satisfy it lie below ${{v}}$.', 'Testing ${{test}}$ gives ${{lhs}}$, which is not below ${{t}}$.'],
+  answerSummary: { headline: 'Test a value on the side you shaded.', text: 'The shading belongs to the left of ${{v}}$.' },
+  hint: 'Try a value on the shaded side.',
+  feedback: 'Dividing by a positive number leaves the sign alone.',
+});
+
+// ================================================================ 7.11A
+// Solving two-step equations and inequalities.
+
+mk('7.11A', 'solve-with-a-divided-variable', {
+  courseId: 'grade7',
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Solve $\\frac{x}{{{m}}} + {{b}} = {{t}}$.',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      // b and g share a range so the given constant crosses the answer.
+      b: { type: 'int', min: 2, max: 20 },
+      g: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {
+      t: 'g+b',
+      answer: 'm*g',
+      d_offByOneStep: 'm*g+m',
+      d_partialTotal: 'g',
+      d_usedGivenValue: 'm*b',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Taking ${{b}}$ off both sides leaves $\\frac{x}{{{m}}} = {{g}}$.', 'Multiplying by ${{m}}$ gives ${{answer}}$.'],
+  answerSummary: { headline: 'Undo the addition, then undo the division.', text: '$x = {{answer}}$.' },
+  hint: 'What undoes dividing by ${{m}}$?',
+  feedback: 'The multiplication has not been done yet.',
+});
+
+mk('7.11A', 'solve-a-two-step-inequality', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Solve ${{m}}x - {{b}} \\ge {{t}}$.',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 3, max: 30 },
+      v: { type: 'int', min: 2, max: 20 },
+    },
+    derived: { t: 'm*v-b', noAdd: 'v-1', wrong: 'm*v' },
+    constraints: ['noAdd!=v', 'wrong!=v'],
+  },
+  choices: [
+    { label: plain('x \\ge {{v}}'), correct: true },
+    { label: plain('x \\le {{v}}'), error: 'ratioReversed' },
+    { label: plain('x \\ge {{wrong}}'), error: 'forgotFinalStep' },
+    { label: plain('x > {{v}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['Adding ${{b}}$ to both sides gives ${{m}}x \\ge {{wrong}}$.', 'Dividing by the positive ${{m}}$ leaves the sign alone: $x \\ge {{v}}$.'],
+  answerSummary: { headline: 'Dividing by a positive number does not flip the sign.', text: 'It is $x \\ge {{v}}$.' },
+  hint: 'Does dividing by a positive number change the direction?',
+  feedback: 'The division has not been carried out.',
+});
+
+mk('7.11A', 'rate-from-two-recorded-costs', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'table',
+  prompt: 'A hire has a fixed fee and a daily rate. What is the daily rate?',
+  stimulus: {
+    kind: 'table',
+    title: 'Recorded costs',
+    table: { headers: ['days', 'cost'], rows: [['{{d1}}', '\\${{c1}}'], ['{{d2}}', '\\${{c2}}']] },
+  },
+  generator: {
+    parameters: {
+      // The fixed fee and the rate share a range, so reading one for the other
+      // lands on either side of the answer.
+      half: { type: 'int', min: 2, max: 15 },
+      b: { type: 'int', min: 4, max: 30 },
+      d1: { type: 'int', min: 1, max: 4 },
+      gap: { type: 'int', min: 2, max: 6 },
+    },
+    derived: {
+      m: '2*half',
+      d2: 'd1+gap',
+      c1: '2*half*d1+b',
+      c2: '2*half*d2+b',
+      answer: 'm',
+      d_usedGivenValue: 'c1',
+      d_partialTotal: 'half',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{b}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Between the two rows the cost rises by $\\${{c2}} - \\${{c1}}$ over ${{gap}}$ extra days.', 'That is ${{answer}}$ dollars a day, and the fee never enters the difference.'],
+  answerSummary: { headline: 'The difference between two rows cancels the fixed fee.', text: 'The rate is $\\${{answer}}$ a day.' },
+  hint: 'What changes between the two rows, and what does not?',
+  feedback: 'A whole cost includes the fee as well as the days.',
+});
+
+mk('7.11A', 'solve-with-a-negative-coefficient', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Solve $-{{m}}x + {{b}} = {{t}}$.',
+  generator: {
+    parameters: {
+      // m and v share a range so the coefficient crosses the solution.
+      m: { type: 'int', min: 2, max: 12 },
+      v: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 5, max: 40 },
+    },
+    derived: {
+      t: 'b-m*v',
+      answer: 'v',
+      d_forgotFinalStep: 'm*v',
+      d_signError: '0-v',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{m}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Taking ${{b}}$ off both sides leaves $-{{m}}x = {{t}} - {{b}}$, which is $-{{d_forgotFinalStep}}$.', 'Dividing by $-{{m}}$ gives ${{answer}}$.'],
+  answerSummary: { headline: 'Two negatives divide to a positive.', text: '$x = {{answer}}$.' },
+  hint: 'What sign does the result of the division carry?',
+  feedback: 'Dividing a negative by a negative does not leave a negative.',
+});
+
+mk('7.11A', 'dividing-only-one-term', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'To solve ${{m}}x + {{b}} = {{t}}$ a student divides only the ${{m}}x$ by ${{m}}$. What is wrong?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 3, max: 30 },
+      v: { type: 'int', min: 2, max: 20 },
+    },
+    derived: { t: 'm*v+b', stripped: 'm*v', claimed: 'm*v+b-b' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Every term must be divided, or take ${{b}}$ off first to leave ${{stripped}}$.', correct: true },
+    { label: 'Nothing is wrong, because only the term in $x$ matters.', error: 'partialTotal' },
+    { label: 'The division should have come before any subtraction.', error: 'orderOfOperations' },
+    { label: 'Dividing by ${{m}}$ flips the equals sign.', error: 'signError' },
+  ],
+  reasoning: ['An operation applies to a whole side, not to one term of it.', 'Taking ${{b}}$ off first leaves ${{m}}x = {{stripped}}$, which then divides cleanly.'],
+  answerSummary: { headline: 'What you do, you do to the whole side.', text: 'Take ${{b}}$ off first.' },
+  hint: 'What does the division act on?',
+  feedback: 'The constant does not disappear when the other term is divided.',
+});
+
+// ================================================================ 7.11B
+// Testing a value in a two-step equation or inequality.
+//
+// As in 6.10B, none of these is "which of these four values satisfies the
+// inequality" — that shape makes the key the large one and gives it away.
+
+mk('7.11B', 'substituting-into-a-two-step-difference', {
+  courseId: 'grade7',
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'What is ${{b}} - {{m}}x$ when $x = {{v}}$?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      v: { type: 'int', min: 2, max: 12 },
+      // The crossing distractor is the subtraction done the other way round,
+      // so it only crosses where the key changes sign. b runs high enough to
+      // make that a coin flip instead of sitting at the tolerance edge.
+      b: { type: 'int', min: 5, max: 70 },
+    },
+    derived: {
+      answer: 'b-m*v',
+      d_signError: 'b+m*v',
+      d_operationInverted: '0-b-m*v',
+      d_ratioReversed: 'm*v-b',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Work out ${{m}} \\times {{v}}$ first.', 'Taking that from ${{b}}$ leaves ${{answer}}$.'],
+  answerSummary: { headline: 'Multiply before subtracting, and keep the order.', text: 'It comes to ${{answer}}$.' },
+  hint: 'Which operation comes first?',
+  feedback: 'Subtracting the other way round flips the sign.',
+});
+
+mk('7.11B', 'does-the-load-fit', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'context',
+  prompt: 'A shelf holds at most ${{t}}$ kg. Do ${{v}}$ boxes of ${{m}}$ kg on a ${{b}}$ kg pallet fit?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      v: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 3, max: 20 },
+      slack: { type: 'int', min: 1, max: 25 },
+    },
+    derived: { load: 'm*v+b', t: 'm*v+b+slack', boxes: 'm*v' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Yes: the boxes weigh ${{boxes}}$ kg and the pallet brings it to ${{load}}$ kg.', correct: true },
+    { label: 'No: ${{load}}$ kg is over the limit.', error: 'signError' },
+    { label: 'Yes: the boxes alone weigh ${{boxes}}$ kg, which is under ${{t}}$.', error: 'partialTotal' },
+    { label: 'It cannot be decided without knowing the shelf width.', error: 'operationInverted' },
+  ],
+  reasoning: ['${{v}}$ boxes weigh ${{boxes}}$ kg, and the pallet adds ${{b}}$ kg more.', '${{load}}$ kg is within the ${{t}}$ kg the shelf takes.'],
+  answerSummary: { headline: 'Count everything on the shelf, not just the boxes.', text: 'They fit, at ${{load}}$ kg.' },
+  hint: 'What else is on the shelf besides the boxes?',
+  feedback: 'Leaving the pallet out understates the load.',
+});
+
+mk('7.11B', 'how-a-claim-is-tested', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'How is a claimed solution of ${{m}}x + {{b}} = {{t}}$ tested?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 3, max: 30 },
+      v: { type: 'int', min: 2, max: 20 },
+    },
+    derived: { t: 'm*v+b', stripped: 'm*v' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Put the value in place of $x$ and see whether the left side reaches ${{t}}$.', correct: true },
+    { label: 'Check that the value is smaller than ${{t}}$.', error: 'partialTotal' },
+    { label: 'Check that ${{m}}$ divides the value exactly.', error: 'usedGivenValue' },
+    { label: 'Add ${{b}}$ to ${{t}}$ and see whether the value appears.', error: 'operationInverted' },
+  ],
+  reasoning: ['A solution is a value that makes the two sides agree.', 'Substituting is the only test of that; ${{m}}x$ must come to ${{stripped}}$ for the total to reach ${{t}}$.'],
+  answerSummary: { headline: 'Substitute and compare the two sides.', text: 'Put the value in and evaluate.' },
+  hint: 'What does being a solution actually mean?',
+  feedback: 'Being smaller than the total is true of many values that are not solutions.',
+});
+
+mk('7.11B', 'what-the-test-gives', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 2, taskType: 'application', representation: 'symbolic',
+  prompt: 'Testing $x = {{v}}$ in ${{m}}x + {{b}} \\le {{t}}$ gives what?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      v: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 3, max: 30 },
+      slack: { type: 'int', min: 1, max: 25 },
+    },
+    derived: { lhs: 'm*v+b', t: 'm*v+b+slack', product: 'm*v', overshoot: 'm*v+b+b' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'It gives ${{lhs}}$, which is at most ${{t}}$, so the value works.', correct: true },
+    { label: 'It gives ${{lhs}}$, which is more than ${{t}}$, so the value fails.', error: 'signError' },
+    { label: 'It gives ${{product}}$, which is at most ${{t}}$, so the value works.', error: 'partialTotal' },
+    { label: 'It gives ${{overshoot}}$, which is more than ${{t}}$, so the value fails.', error: 'arithmeticSlip' },
+  ],
+  reasoning: ['${{m}} \\times {{v}} = {{product}}$, and adding ${{b}}$ gives ${{lhs}}$.', '${{lhs}}$ does not pass ${{t}}$, so the inequality holds.'],
+  answerSummary: { headline: 'Evaluate the left side, then compare it with the limit.', text: 'It gives ${{lhs}}$, and the value works.' },
+  hint: 'Work the left side out in full first.',
+  feedback: 'The constant belongs in the total too.',
+});
+
+mk('7.11B', 'checking-by-undoing-the-wrong-way', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'To check $x = {{w}}$ in ${{m}}x + {{b}} = {{t}}$ a student adds ${{b}}$ to ${{t}}$. What is wrong?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 3, max: 30 },
+      v: { type: 'int', min: 2, max: 20 },
+      slip: { type: 'int', min: 1, max: 8 },
+    },
+    derived: {
+      t: 'm*v+b',
+      w: 'v+slip',
+      got: 'm*v+m*slip+b',
+      wrongSide: 'm*v+b+b',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Substitute instead: ${{w}}$ gives ${{got}}$, which is not ${{t}}$.', correct: true },
+    { label: 'Nothing is wrong, because adding undoes subtracting.', error: 'operationInverted' },
+    { label: 'The ${{b}}$ should be added to the left side, giving ${{wrongSide}}$.', error: 'partialTotal' },
+    { label: 'The check works only once the equation has been solved.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['Checking a value means putting it in, not rearranging the equation.', '${{m}} \\times {{w}} + {{b}} = {{got}}$, and ${{got}}$ is not ${{t}}$.'],
+  answerSummary: { headline: 'A check substitutes; it does not solve.', text: 'It gives ${{got}}$, so the claim fails.' },
+  hint: 'What does checking a value actually involve?',
+  feedback: 'Undoing steps is solving, which is a different job.',
+});
+
+// ================================================================ 7.11C
+// Equations that come out of angle facts.
+
+mk('7.11C', 'equation-for-the-third-angle', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'A triangle has angles ${{a}}^\\circ$, ${{c}}^\\circ$ and $x$. Which equation gives $x$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 20, max: 70 },
+      c: { type: 'int', min: 20, max: 70 },
+    },
+    derived: { ac: 'a+c', diff: 'a-c' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('x + {{ac}} = 180'), correct: true },
+    { label: plain('x + {{ac}} = 360'), error: 'arithmeticSlip' },
+    { label: plain('x + {{a}} = 180'), error: 'partialTotal' },
+    { label: plain('x + {{diff}} = 180'), error: 'operationInverted' },
+  ],
+  reasoning: ['The three angles of a triangle total $180^\\circ$.', 'The two given angles come to ${{ac}}$, so $x$ makes up the rest.'],
+  answerSummary: { headline: 'Write the angle sum, with the unknown left in place.', text: 'It is $x + {{ac}} = 180$.' },
+  hint: 'What do all three angles come to?',
+  feedback: 'Both given angles belong in the equation.',
+});
+
+mk('7.11C', 'angle-on-a-straight-line', {
+  courseId: 'grade7',
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Two angles sit on a straight line and one is ${{a}}^\\circ$. What is the other?',
+  generator: {
+    // a runs either side of 90, so the given angle crosses the answer.
+    parameters: { a: { type: 'int', min: 20, max: 160 } },
+    derived: {
+      answer: '180-a',
+      d_operationInverted: '360-a',
+      d_partialTotal: '90-a',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}^\\circ'), correct: true },
+    { label: plain('{{d_operationInverted}}^\\circ'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}^\\circ'), error: 'partialTotal' },
+    { label: plain('{{a}}^\\circ'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Angles on a straight line total $180^\\circ$.', '$180 - {{a}} = {{answer}}$.'],
+  answerSummary: { headline: 'A straight line is half a full turn.', text: 'The other angle is ${{answer}}^\\circ$.' },
+  hint: 'How much is a straight angle?',
+  feedback: 'A full turn is twice what a straight line covers.',
+});
+
+mk('7.11C', 'solving-for-x-in-a-supplementary-pair', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'An angle of $(2x + {{b}})^\\circ$ is supplementary to ${{a}}^\\circ$. What is $x$?',
+  generator: {
+    parameters: {
+      // b and v share a range, so the constant crosses the answer. Both are
+      // capped so the third angle stays positive without a constraint.
+      v: { type: 'int', min: 5, max: 40 },
+      b: { type: 'int', min: 6, max: 40, step: 2 },
+    },
+    derived: {
+      a: '180-2*v-b',
+      answer: 'v',
+      d_forgotFinalStep: '2*v+b',
+      d_arithmeticSlip: 'v-b/2',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+    { label: plain('{{b}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Supplementary angles total $180^\\circ$, so $2x + {{b}} = {{d_forgotFinalStep}}$.', 'Taking ${{b}}$ off and halving gives ${{answer}}$.'],
+  answerSummary: { headline: 'Write the angle fact as an equation, then solve it.', text: '$x = {{answer}}$.' },
+  hint: 'What do the two angles come to together?',
+  feedback: 'That is the whole angle, not the value of $x$.',
+});
+
+mk('7.11C', 'equation-for-angles-in-a-ratio', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'One angle of a triangle is twice another, and the third is ${{c}}^\\circ$. Which equation gives the smaller unknown angle $x$?',
+  generator: {
+    parameters: { k: { type: 'int', min: 10, max: 50 } },
+    derived: { c: '180-3*k', rest: '3*k', third: 'k' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('3x + {{c}} = 180'), correct: true },
+    { label: plain('x + {{c}} = 180'), error: 'partialTotal' },
+    { label: plain('3x = 180'), error: 'operationInverted' },
+    { label: plain('3x + {{c}} = 360'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['$x$ and $2x$ together make $3x$.', 'With ${{c}}$ that has to reach $180$, leaving ${{rest}}$ for the two unknown angles and ${{third}}$ for $x$ itself.'],
+  answerSummary: { headline: 'Collect the unknown angles before writing the sum.', text: 'It is $3x + {{c}} = 180$.' },
+  hint: 'How many lots of $x$ are there?',
+  feedback: 'The second angle is $2x$, not another $x$.',
+});
+
+mk('7.11C', 'supplementary-against-complementary', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student says two angles adding to $90^\\circ$ are supplementary. What is wrong?',
+  generator: {
+    parameters: { a: { type: 'int', min: 20, max: 70 } },
+    derived: { comp: '90-a', supp: '180-a' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Adding to $90^\\circ$ is complementary; supplementary angles add to $180^\\circ$.', correct: true },
+    { label: 'Nothing is wrong, because both words mean angles that pair up.', error: 'operationInverted' },
+    { label: 'Supplementary angles add to $360^\\circ$, not $90^\\circ$.', error: 'arithmeticSlip' },
+    { label: 'The two words mean the same thing for a right angle.', error: 'partialTotal' },
+  ],
+  reasoning: ['${{a}}^\\circ$ has a complement of ${{comp}}^\\circ$ and a supplement of ${{supp}}^\\circ$.', 'The two are different unless the angle is a right angle, which these are not.'],
+  answerSummary: { headline: 'Complementary makes a right angle; supplementary makes a straight line.', text: 'Ninety degrees is complementary.' },
+  hint: 'Which pairing makes a straight line?',
+  feedback: 'A full turn is not what either word describes.',
+});
+
+// ================================================================ 8.2A
+// Sets and subsets of the real numbers.
+
+mk('8.2A', 'set-that-holds-an-irrational', {
+  courseId: 'grade8',
+  difficultyBand: 1, dok: 2, taskType: 'interpretation', representation: 'symbolic',
+  prompt: 'Which set contains both $\\sqrt{{{n}}}$ and $-{{a}}$?',
+  generator: {
+    parameters: {
+      // n is not a perfect square, so the root is irrational by construction.
+      n: { type: 'choice', values: [2, 3, 5, 6, 7, 8, 10, 11] },
+      a: { type: 'int', min: 2, max: 40 },
+    },
+    derived: { sq: 'a*a' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The real numbers.', correct: true },
+    { label: 'The rational numbers.', error: 'operationInverted' },
+    { label: 'The integers.', error: 'partialTotal' },
+    { label: 'The whole numbers.', error: 'signError' },
+  ],
+  reasoning: ['$\\sqrt{{{n}}}$ cannot be written as a ratio, so it is irrational.', 'The reals are the one set holding both the rationals and the irrationals.'],
+  answerSummary: { headline: 'The reals take in the rationals and the irrationals together.', text: 'The real numbers.' },
+  hint: 'Which of the two values rules out the smaller sets?',
+  feedback: 'A root that does not come out exactly is not rational.',
+});
+
+mk('8.2A', 'rational-or-irrational-root', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Which of these is irrational?',
+  generator: {
+    parameters: {
+      n: { type: 'choice', values: [2, 3, 5, 6, 7, 8, 10, 11] },
+      a: { type: 'int', min: 3, max: 12 },
+      b: { type: 'int', min: 2, max: 30 },
+      d: { type: 'choice', values: [3, 4, 6, 7, 8] },
+    },
+    derived: { sq: 'a*a', num: 'b*d+1' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('\\sqrt{{{n}}}'), correct: true },
+    { label: plain('\\sqrt{{{sq}}}'), error: 'operationInverted' },
+    { label: plain('\\frac{{{num}}}{{{d}}}'), error: 'partialTotal' },
+    { label: plain('-{{b}}'), error: 'signError' },
+  ],
+  reasoning: ['$\\sqrt{{{sq}}}$ comes out exactly as ${{a}}$, so it is rational.', '$\\sqrt{{{n}}}$ does not come out exactly and cannot be written as a ratio.'],
+  answerSummary: { headline: 'A root is irrational only when it does not come out exactly.', text: '$\\sqrt{{{n}}}$ is the irrational one.' },
+  hint: 'Which roots come out to a whole number?',
+  feedback: 'A fraction is rational however awkward it looks.',
+});
+
+mk('8.2A', 'where-the-reals-sit', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'The sets are drawn as nested rings. Which arrangement is right?',
+  stimulus: {
+    kind: 'expressions',
+    title: 'A value from each set',
+    note: 'Integer: $-{{a}}$    Rational: $\\frac{{{num}}}{{{d}}}$    Irrational: $\\sqrt{{{n}}}$',
+  },
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 40 },
+      b: { type: 'int', min: 2, max: 20 },
+      d: { type: 'choice', values: [3, 4, 6, 7, 8] },
+      n: { type: 'choice', values: [2, 3, 5, 6, 7, 8, 10, 11] },
+    },
+    derived: { num: 'b*d+1', prod: 'b*d' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Integers inside rationals, with rationals and irrationals both inside the reals.', correct: true },
+    { label: 'Rationals inside integers, with both inside the reals.', error: 'ratioReversed' },
+    { label: 'Irrationals inside the rationals, with rationals inside the reals.', error: 'operationInverted' },
+    { label: 'Rationals and irrationals overlap, sharing the roots between them.', error: 'partialTotal' },
+  ],
+  reasoning: ['$-{{a}}$ is an integer and also rational, so the integers sit inside the rationals.', '$\\sqrt{{{n}}}$ is real but not rational, so the irrationals sit beside the rationals inside the reals.'],
+  answerSummary: { headline: 'Rationals and irrationals divide the reals between them without overlapping.', text: 'Integers inside rationals; rationals and irrationals inside the reals.' },
+  hint: 'Can a value be both rational and irrational?',
+  feedback: 'No value is both rational and irrational.',
+});
+
+mk('8.2A', 'which-value-is-not-real', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'verbal',
+  prompt: 'Which statement about $\\sqrt{{{n}}}$ is true?',
+  generator: {
+    parameters: {
+      n: { type: 'choice', values: [2, 3, 5, 6, 7, 8, 10, 11] },
+      a: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { low: 'a*a', high: 'a*a+2*a+1' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'It is real but not rational, so it has no exact fraction.', correct: true },
+    { label: 'It is not a real number, because it does not come out exactly.', error: 'operationInverted' },
+    { label: 'It is rational, because a decimal for it can be written down.', error: 'partialTotal' },
+    { label: 'It is an integer, because it lies between two whole numbers.', error: 'signError' },
+  ],
+  reasoning: ['Every point on the number line is a real number, and $\\sqrt{{{n}}}$ has a place on it.', 'It cannot be written as a ratio of whole numbers, so it is irrational rather than rational.'],
+  answerSummary: { headline: 'Irrational numbers are real; they simply are not ratios.', text: 'Real, but not rational.' },
+  hint: 'Does the value have a place on the number line?',
+  feedback: 'A rounded decimal is an approximation, not the value itself.',
+});
+
+mk('8.2A', 'every-real-is-rational', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student says every real number is rational. What is wrong?',
+  generator: {
+    parameters: {
+      n: { type: 'choice', values: [2, 3, 5, 6, 7, 8, 10, 11] },
+      a: { type: 'int', min: 3, max: 12 },
+    },
+    derived: { sq: 'a*a', next: 'a+1' },
+    constraints: [],
+  },
+  choices: [
+    { label: '$\\sqrt{{{n}}}$ is real and is not rational.', correct: true },
+    { label: 'Nothing is wrong, because $\\sqrt{{{sq}}}$ works out to ${{a}}$.', error: 'partialTotal' },
+    { label: 'The claim fails only for negative numbers.', error: 'signError' },
+    { label: 'It should say every rational number is real, which is also false.', error: 'operationInverted' },
+  ],
+  reasoning: ['One counter-example settles it: $\\sqrt{{{n}}}$ lies between ${{a}}$ and ${{next}}$ without being a ratio.', 'The reverse claim, that every rational is real, is in fact true.'],
+  answerSummary: { headline: 'The irrationals are the real numbers the rationals miss.', text: '$\\sqrt{{{n}}}$ is the counter-example.' },
+  hint: 'Find one real number that is not a ratio.',
+  feedback: 'A root that does come out exactly does not test the claim.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {

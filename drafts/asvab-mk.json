@@ -23651,6 +23651,2930 @@
      "expected": "choice-b"
     }
    ]
+  },
+  {
+   "id": "mm_asvab_7_10B_graph_of_a_two_step_solution",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.10B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.10B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.10B:graph-of-a-two-step-solution",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.10B",
+   "taskType": "representationTranslation",
+   "representation": "numberLine",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The solution of ${{m}}x + {{b}} = {{t}}$ is drawn on a number line. Which description fits?",
+   "solutionReview": {
+    "headline": "An equation marks a point; an inequality shades a stretch.",
+    "reasoning": [
+     "Taking ${{b}}$ off leaves ${{stripped}}$, and dividing by ${{m}}$ gives ${{v}}$.",
+     "An equation is satisfied by that one value, so nothing beyond it is shaded."
+    ],
+    "answerSummary": "One closed dot at ${{v}}$."
+   },
+   "attemptFeedback": [
+    "The subtraction has been done but not the division."
+   ],
+   "supportHints": [
+    "How many values make the equation true?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "t": "m*v+b",
+     "stripped": "m*v",
+     "shifted": "v+b"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "One closed dot at ${{stripped}}$, with nothing shaded.",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "One closed dot at ${{shifted}}$, with nothing shaded.",
+     "error": "orderOfOperations"
+    },
+    {
+     "id": "choice-c",
+     "label": "A closed dot at ${{v}}$ with an arrow to the right.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "One closed dot at ${{v}}$, with nothing shaded."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_10B_endpoint_of_a_two_step_inequality",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.10B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.10B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.10B:endpoint-of-a-two-step-inequality",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.10B",
+   "taskType": "conceptual",
+   "representation": "numberLine",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "How is the solution of ${{m}}x + {{b}} > {{t}}$ drawn?",
+   "solutionReview": {
+    "headline": "A strict inequality leaves its own boundary out.",
+    "reasoning": [
+     "Undoing both steps leaves $x > {{v}}$.",
+     "Strictly greater excludes ${{v}}$ itself, so the endpoint is hollow and the arrow runs right."
+    ],
+    "answerSummary": "An open dot at ${{v}}$, arrow right."
+   },
+   "attemptFeedback": [
+    "A filled dot would include a value that fails it."
+   ],
+   "supportHints": [
+    "Does ${{v}}$ itself satisfy the inequality?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "t": "m*v+b",
+     "above": "v+1"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "An open dot at ${{v}}$, with the arrow to the left.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "A closed dot at ${{v}}$, with the arrow to the right.",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "An open dot at ${{v}}$, with the arrow to the right."
+    },
+    {
+     "id": "choice-d",
+     "label": "An open dot at ${{above}}$, with the arrow to the right.",
+     "error": "arithmeticSlip"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_10B_where_the_single_dot_sits",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.10B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.10B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.10B:where-the-single-dot-sits",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.10B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solving ${{m}}x - {{b}} = {{t}}$ puts one dot on the line. At what value?",
+   "solutionReview": {
+    "headline": "Undo the addition first, then the multiplication.",
+    "reasoning": [
+     "Adding ${{b}}$ to both sides leaves ${{m}}x = {{d_forgotFinalStep}}$.",
+     "Dividing by ${{m}}$ puts the dot at ${{answer}}$."
+    ],
+    "answerSummary": "The dot sits at ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The division has not been done yet."
+   ],
+   "supportHints": [
+    "Which step is undone first?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     }
+    },
+    "derived": {
+     "t": "m*v-b",
+     "answer": "v",
+     "d_forgotFinalStep": "m*v",
+     "d_operationInverted": "v-m"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=m",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=m",
+     "d_operationInverted!=m"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{m}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_10B_which_values_a_two_step_shades",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.10B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.10B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.10B:which-values-a-two-step-shades",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.10B",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which values does ${{m}}x \\le {{t}}$ shade?",
+   "solutionReview": {
+    "headline": "Solve first, then read the direction off the sign.",
+    "reasoning": [
+     "Dividing both sides by ${{m}}$ leaves $x \\le {{v}}$.",
+     "The bar under the sign admits ${{v}}$, and everything smaller satisfies it too."
+    ],
+    "answerSummary": "${{v}}$ and everything below it."
+   },
+   "attemptFeedback": [
+    "The total on the right is not the boundary value."
+   ],
+   "supportHints": [
+    "Divide before deciding what is shaded."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "t": "m*v",
+     "below": "v-1"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Every value ${{v}}$ and below."
+    },
+    {
+     "id": "choice-b",
+     "label": "Every value ${{v}}$ and above.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "Every value ${{t}}$ and below.",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "Every value below ${{v}}$, but not ${{v}}$ itself.",
+     "error": "offByOneStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_10B_shading_the_wrong_way",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.10B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.10B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.10B:shading-the-wrong-way",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.10B",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student solves ${{m}}x + {{b}} < {{t}}$ and shades to the right of ${{v}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "Test a value on the side you shaded.",
+    "reasoning": [
+     "Less than means the values that satisfy it lie below ${{v}}$.",
+     "Testing ${{test}}$ gives ${{lhs}}$, which is not below ${{t}}$."
+    ],
+    "answerSummary": "The shading belongs to the left of ${{v}}$."
+   },
+   "attemptFeedback": [
+    "Dividing by a positive number leaves the sign alone."
+   ],
+   "supportHints": [
+    "Try a value on the shaded side."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "t": "m*v+b",
+     "test": "v+1",
+     "lhs": "m*v+m+b"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Nothing is wrong, because the arrow follows the larger side.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "The endpoint should be filled, but the direction is right.",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "Dividing by ${{m}}$ flips the sign, so the shading is correct.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "Values above ${{v}}$ fail: at $x = {{test}}$ the left side reaches ${{lhs}}$."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_11A_solve_with_a_divided_variable",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.11A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.11A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.11A:solve-with-a-divided-variable",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.11A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solve $\\frac{x}{{{m}}} + {{b}} = {{t}}$.",
+   "solutionReview": {
+    "headline": "Undo the addition, then undo the division.",
+    "reasoning": [
+     "Taking ${{b}}$ off both sides leaves $\\frac{x}{{{m}}} = {{g}}$.",
+     "Multiplying by ${{m}}$ gives ${{answer}}$."
+    ],
+    "answerSummary": "$x = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "The multiplication has not been done yet."
+   ],
+   "supportHints": [
+    "What undoes dividing by ${{m}}$?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "g": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "t": "g+b",
+     "answer": "m*g",
+     "d_offByOneStep": "m*g+m",
+     "d_partialTotal": "g",
+     "d_usedGivenValue": "m*b"
+    },
+    "constraints": [
+     "answer!=d_offByOneStep",
+     "answer!=d_partialTotal",
+     "answer!=d_usedGivenValue",
+     "d_offByOneStep!=d_partialTotal",
+     "d_offByOneStep!=d_usedGivenValue",
+     "d_partialTotal!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_11A_solve_a_two_step_inequality",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.11A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.11A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.11A:solve-a-two-step-inequality",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.11A",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solve ${{m}}x - {{b}} \\ge {{t}}$.",
+   "solutionReview": {
+    "headline": "Dividing by a positive number does not flip the sign.",
+    "reasoning": [
+     "Adding ${{b}}$ to both sides gives ${{m}}x \\ge {{wrong}}$.",
+     "Dividing by the positive ${{m}}$ leaves the sign alone: $x \\ge {{v}}$."
+    ],
+    "answerSummary": "It is $x \\ge {{v}}$."
+   },
+   "attemptFeedback": [
+    "The division has not been carried out."
+   ],
+   "supportHints": [
+    "Does dividing by a positive number change the direction?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "t": "m*v-b",
+     "noAdd": "v-1",
+     "wrong": "m*v"
+    },
+    "constraints": [
+     "noAdd!=v",
+     "wrong!=v"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x \\ge {{v}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x \\ge {{wrong}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x > {{v}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x \\le {{v}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_11A_rate_from_two_recorded_costs",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.11A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.11A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.11A:rate-from-two-recorded-costs",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.11A",
+   "taskType": "application",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A hire has a fixed fee and a daily rate. What is the daily rate?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Recorded costs",
+    "table": {
+     "headers": [
+      "days",
+      "cost"
+     ],
+     "rows": [
+      [
+       "{{d1}}",
+       "\\${{c1}}"
+      ],
+      [
+       "{{d2}}",
+       "\\${{c2}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "The difference between two rows cancels the fixed fee.",
+    "reasoning": [
+     "Between the two rows the cost rises by $\\${{c2}} - \\${{c1}}$ over ${{gap}}$ extra days.",
+     "That is ${{answer}}$ dollars a day, and the fee never enters the difference."
+    ],
+    "answerSummary": "The rate is $\\${{answer}}$ a day."
+   },
+   "attemptFeedback": [
+    "A whole cost includes the fee as well as the days."
+   ],
+   "supportHints": [
+    "What changes between the two rows, and what does not?"
+   ],
+   "generator": {
+    "parameters": {
+     "half": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     },
+     "b": {
+      "type": "int",
+      "min": 4,
+      "max": 30
+     },
+     "d1": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     },
+     "gap": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     }
+    },
+    "derived": {
+     "m": "2*half",
+     "d2": "d1+gap",
+     "c1": "2*half*d1+b",
+     "c2": "2*half*d2+b",
+     "answer": "m",
+     "d_usedGivenValue": "c1",
+     "d_partialTotal": "half"
+    },
+    "constraints": [
+     "answer!=d_usedGivenValue",
+     "answer!=d_partialTotal",
+     "answer!=b",
+     "d_usedGivenValue!=d_partialTotal",
+     "d_usedGivenValue!=b",
+     "d_partialTotal!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{b}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_11A_solve_with_a_negative_coefficient",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.11A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.11A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.11A:solve-with-a-negative-coefficient",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.11A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solve $-{{m}}x + {{b}} = {{t}}$.",
+   "solutionReview": {
+    "headline": "Two negatives divide to a positive.",
+    "reasoning": [
+     "Taking ${{b}}$ off both sides leaves $-{{m}}x = {{t}} - {{b}}$, which is $-{{d_forgotFinalStep}}$.",
+     "Dividing by $-{{m}}$ gives ${{answer}}$."
+    ],
+    "answerSummary": "$x = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "Dividing a negative by a negative does not leave a negative."
+   ],
+   "supportHints": [
+    "What sign does the result of the division carry?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 5,
+      "max": 40
+     }
+    },
+    "derived": {
+     "t": "b-m*v",
+     "answer": "v",
+     "d_forgotFinalStep": "m*v",
+     "d_signError": "0-v"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_signError",
+     "answer!=m",
+     "d_forgotFinalStep!=d_signError",
+     "d_forgotFinalStep!=m",
+     "d_signError!=m"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{m}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_11A_dividing_only_one_term",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.11A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.11A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.11A:dividing-only-one-term",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.11A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "To solve ${{m}}x + {{b}} = {{t}}$ a student divides only the ${{m}}x$ by ${{m}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "What you do, you do to the whole side.",
+    "reasoning": [
+     "An operation applies to a whole side, not to one term of it.",
+     "Taking ${{b}}$ off first leaves ${{m}}x = {{stripped}}$, which then divides cleanly."
+    ],
+    "answerSummary": "Take ${{b}}$ off first."
+   },
+   "attemptFeedback": [
+    "The constant does not disappear when the other term is divided."
+   ],
+   "supportHints": [
+    "What does the division act on?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "t": "m*v+b",
+     "stripped": "m*v",
+     "claimed": "m*v+b-b"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Every term must be divided, or take ${{b}}$ off first to leave ${{stripped}}$."
+    },
+    {
+     "id": "choice-b",
+     "label": "The division should have come before any subtraction.",
+     "error": "orderOfOperations"
+    },
+    {
+     "id": "choice-c",
+     "label": "Dividing by ${{m}}$ flips the equals sign.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "Nothing is wrong, because only the term in $x$ matters.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_11B_substituting_into_a_two_step_difference",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.11B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.11B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.11B:substituting-into-a-two-step-difference",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.11B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is ${{b}} - {{m}}x$ when $x = {{v}}$?",
+   "solutionReview": {
+    "headline": "Multiply before subtracting, and keep the order.",
+    "reasoning": [
+     "Work out ${{m}} \\times {{v}}$ first.",
+     "Taking that from ${{b}}$ leaves ${{answer}}$."
+    ],
+    "answerSummary": "It comes to ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Subtracting the other way round flips the sign."
+   ],
+   "supportHints": [
+    "Which operation comes first?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 5,
+      "max": 70
+     }
+    },
+    "derived": {
+     "answer": "b-m*v",
+     "d_signError": "b+m*v",
+     "d_operationInverted": "0-b-m*v",
+     "d_ratioReversed": "m*v-b"
+    },
+    "constraints": [
+     "answer!=d_signError",
+     "answer!=d_operationInverted",
+     "answer!=d_ratioReversed",
+     "d_signError!=d_operationInverted",
+     "d_signError!=d_ratioReversed",
+     "d_operationInverted!=d_ratioReversed"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_11B_does_the_load_fit",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.11B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.11B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.11B:does-the-load-fit",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.11B",
+   "taskType": "interpretation",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A shelf holds at most ${{t}}$ kg. Do ${{v}}$ boxes of ${{m}}$ kg on a ${{b}}$ kg pallet fit?",
+   "solutionReview": {
+    "headline": "Count everything on the shelf, not just the boxes.",
+    "reasoning": [
+     "${{v}}$ boxes weigh ${{boxes}}$ kg, and the pallet adds ${{b}}$ kg more.",
+     "${{load}}$ kg is within the ${{t}}$ kg the shelf takes."
+    ],
+    "answerSummary": "They fit, at ${{load}}$ kg."
+   },
+   "attemptFeedback": [
+    "Leaving the pallet out understates the load."
+   ],
+   "supportHints": [
+    "What else is on the shelf besides the boxes?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 20
+     },
+     "slack": {
+      "type": "int",
+      "min": 1,
+      "max": 25
+     }
+    },
+    "derived": {
+     "load": "m*v+b",
+     "t": "m*v+b+slack",
+     "boxes": "m*v"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Yes: the boxes alone weigh ${{boxes}}$ kg, which is under ${{t}}$.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "It cannot be decided without knowing the shelf width.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "Yes: the boxes weigh ${{boxes}}$ kg and the pallet brings it to ${{load}}$ kg."
+    },
+    {
+     "id": "choice-d",
+     "label": "No: ${{load}}$ kg is over the limit.",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_11B_how_a_claim_is_tested",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.11B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.11B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.11B:how-a-claim-is-tested",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.11B",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "How is a claimed solution of ${{m}}x + {{b}} = {{t}}$ tested?",
+   "solutionReview": {
+    "headline": "Substitute and compare the two sides.",
+    "reasoning": [
+     "A solution is a value that makes the two sides agree.",
+     "Substituting is the only test of that; ${{m}}x$ must come to ${{stripped}}$ for the total to reach ${{t}}$."
+    ],
+    "answerSummary": "Put the value in and evaluate."
+   },
+   "attemptFeedback": [
+    "Being smaller than the total is true of many values that are not solutions."
+   ],
+   "supportHints": [
+    "What does being a solution actually mean?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "t": "m*v+b",
+     "stripped": "m*v"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Put the value in place of $x$ and see whether the left side reaches ${{t}}$."
+    },
+    {
+     "id": "choice-b",
+     "label": "Check that ${{m}}$ divides the value exactly.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "Check that the value is smaller than ${{t}}$.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "Add ${{b}}$ to ${{t}}$ and see whether the value appears.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_11B_what_the_test_gives",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.11B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.11B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.11B:what-the-test-gives",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.11B",
+   "taskType": "application",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Testing $x = {{v}}$ in ${{m}}x + {{b}} \\le {{t}}$ gives what?",
+   "solutionReview": {
+    "headline": "Evaluate the left side, then compare it with the limit.",
+    "reasoning": [
+     "${{m}} \\times {{v}} = {{product}}$, and adding ${{b}}$ gives ${{lhs}}$.",
+     "${{lhs}}$ does not pass ${{t}}$, so the inequality holds."
+    ],
+    "answerSummary": "It gives ${{lhs}}$, and the value works."
+   },
+   "attemptFeedback": [
+    "The constant belongs in the total too."
+   ],
+   "supportHints": [
+    "Work the left side out in full first."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     },
+     "slack": {
+      "type": "int",
+      "min": 1,
+      "max": 25
+     }
+    },
+    "derived": {
+     "lhs": "m*v+b",
+     "t": "m*v+b+slack",
+     "product": "m*v",
+     "overshoot": "m*v+b+b"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "It gives ${{lhs}}$, which is at most ${{t}}$, so the value works."
+    },
+    {
+     "id": "choice-b",
+     "label": "It gives ${{product}}$, which is at most ${{t}}$, so the value works.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "It gives ${{overshoot}}$, which is more than ${{t}}$, so the value fails.",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-d",
+     "label": "It gives ${{lhs}}$, which is more than ${{t}}$, so the value fails.",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_11B_checking_by_undoing_the_wrong_way",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.11B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.11B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.11B:checking-by-undoing-the-wrong-way",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.11B",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "To check $x = {{w}}$ in ${{m}}x + {{b}} = {{t}}$ a student adds ${{b}}$ to ${{t}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "A check substitutes; it does not solve.",
+    "reasoning": [
+     "Checking a value means putting it in, not rearranging the equation.",
+     "${{m}} \\times {{w}} + {{b}} = {{got}}$, and ${{got}}$ is not ${{t}}$."
+    ],
+    "answerSummary": "It gives ${{got}}$, so the claim fails."
+   },
+   "attemptFeedback": [
+    "Undoing steps is solving, which is a different job."
+   ],
+   "supportHints": [
+    "What does checking a value actually involve?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "slip": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     }
+    },
+    "derived": {
+     "t": "m*v+b",
+     "w": "v+slip",
+     "got": "m*v+m*slip+b",
+     "wrongSide": "m*v+b+b"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Nothing is wrong, because adding undoes subtracting.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "The check works only once the equation has been solved.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "Substitute instead: ${{w}}$ gives ${{got}}$, which is not ${{t}}$."
+    },
+    {
+     "id": "choice-d",
+     "label": "The ${{b}}$ should be added to the left side, giving ${{wrongSide}}$.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_11C_equation_for_the_third_angle",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.11C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.11C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.11C:equation-for-the-third-angle",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.11C",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A triangle has angles ${{a}}^\\circ$, ${{c}}^\\circ$ and $x$. Which equation gives $x$?",
+   "solutionReview": {
+    "headline": "Write the angle sum, with the unknown left in place.",
+    "reasoning": [
+     "The three angles of a triangle total $180^\\circ$.",
+     "The two given angles come to ${{ac}}$, so $x$ makes up the rest."
+    ],
+    "answerSummary": "It is $x + {{ac}} = 180$."
+   },
+   "attemptFeedback": [
+    "Both given angles belong in the equation."
+   ],
+   "supportHints": [
+    "What do all three angles come to?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 20,
+      "max": 70
+     },
+     "c": {
+      "type": "int",
+      "min": 20,
+      "max": 70
+     }
+    },
+    "derived": {
+     "ac": "a+c",
+     "diff": "a-c"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x + {{ac}} = 360$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x + {{diff}} = 180$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x + {{ac}} = 180$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x + {{a}} = 180$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_11C_angle_on_a_straight_line",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.11C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.11C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.11C:angle-on-a-straight-line",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.11C",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two angles sit on a straight line and one is ${{a}}^\\circ$. What is the other?",
+   "solutionReview": {
+    "headline": "A straight line is half a full turn.",
+    "reasoning": [
+     "Angles on a straight line total $180^\\circ$.",
+     "$180 - {{a}} = {{answer}}$."
+    ],
+    "answerSummary": "The other angle is ${{answer}}^\\circ$."
+   },
+   "attemptFeedback": [
+    "A full turn is twice what a straight line covers."
+   ],
+   "supportHints": [
+    "How much is a straight angle?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 20,
+      "max": 160
+     }
+    },
+    "derived": {
+     "answer": "180-a",
+     "d_operationInverted": "360-a",
+     "d_partialTotal": "90-a"
+    },
+    "constraints": [
+     "answer!=d_operationInverted",
+     "answer!=d_partialTotal",
+     "answer!=a",
+     "d_operationInverted!=d_partialTotal",
+     "d_operationInverted!=a",
+     "d_partialTotal!=a"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}^\\circ$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_partialTotal}}^\\circ$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_operationInverted}}^\\circ$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{a}}^\\circ$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_11C_solving_for_x_in_a_supplementary_pair",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.11C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.11C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.11C:solving-for-x-in-a-supplementary-pair",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.11C",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "An angle of $(2x + {{b}})^\\circ$ is supplementary to ${{a}}^\\circ$. What is $x$?",
+   "solutionReview": {
+    "headline": "Write the angle fact as an equation, then solve it.",
+    "reasoning": [
+     "Supplementary angles total $180^\\circ$, so $2x + {{b}} = {{d_forgotFinalStep}}$.",
+     "Taking ${{b}}$ off and halving gives ${{answer}}$."
+    ],
+    "answerSummary": "$x = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "That is the whole angle, not the value of $x$."
+   ],
+   "supportHints": [
+    "What do the two angles come to together?"
+   ],
+   "generator": {
+    "parameters": {
+     "v": {
+      "type": "int",
+      "min": 5,
+      "max": 40
+     },
+     "b": {
+      "type": "int",
+      "min": 6,
+      "max": 40,
+      "step": 2
+     }
+    },
+    "derived": {
+     "a": "180-2*v-b",
+     "answer": "v",
+     "d_forgotFinalStep": "2*v+b",
+     "d_arithmeticSlip": "v-b/2"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_arithmeticSlip",
+     "answer!=b",
+     "d_forgotFinalStep!=d_arithmeticSlip",
+     "d_forgotFinalStep!=b",
+     "d_arithmeticSlip!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_arithmeticSlip}}$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{b}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_11C_equation_for_angles_in_a_ratio",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.11C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.11C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.11C:equation-for-angles-in-a-ratio",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.11C",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "One angle of a triangle is twice another, and the third is ${{c}}^\\circ$. Which equation gives the smaller unknown angle $x$?",
+   "solutionReview": {
+    "headline": "Collect the unknown angles before writing the sum.",
+    "reasoning": [
+     "$x$ and $2x$ together make $3x$.",
+     "With ${{c}}$ that has to reach $180$, leaving ${{rest}}$ for the two unknown angles and ${{third}}$ for $x$ itself."
+    ],
+    "answerSummary": "It is $3x + {{c}} = 180$."
+   },
+   "attemptFeedback": [
+    "The second angle is $2x$, not another $x$."
+   ],
+   "supportHints": [
+    "How many lots of $x$ are there?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 10,
+      "max": 50
+     }
+    },
+    "derived": {
+     "c": "180-3*k",
+     "rest": "3*k",
+     "third": "k"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$3x + {{c}} = 180$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$3x = 180$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "$3x + {{c}} = 360$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x + {{c}} = 180$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_11C_supplementary_against_complementary",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.11C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.11C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.11C:supplementary-against-complementary",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.11C",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student says two angles adding to $90^\\circ$ are supplementary. What is wrong?",
+   "solutionReview": {
+    "headline": "Complementary makes a right angle; supplementary makes a straight line.",
+    "reasoning": [
+     "${{a}}^\\circ$ has a complement of ${{comp}}^\\circ$ and a supplement of ${{supp}}^\\circ$.",
+     "The two are different unless the angle is a right angle, which these are not."
+    ],
+    "answerSummary": "Ninety degrees is complementary."
+   },
+   "attemptFeedback": [
+    "A full turn is not what either word describes."
+   ],
+   "supportHints": [
+    "Which pairing makes a straight line?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 20,
+      "max": 70
+     }
+    },
+    "derived": {
+     "comp": "90-a",
+     "supp": "180-a"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Nothing is wrong, because both words mean angles that pair up.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "Adding to $90^\\circ$ is complementary; supplementary angles add to $180^\\circ$."
+    },
+    {
+     "id": "choice-c",
+     "label": "The two words mean the same thing for a right angle.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "Supplementary angles add to $360^\\circ$, not $90^\\circ$.",
+     "error": "arithmeticSlip"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_2A_set_that_holds_an_irrational",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.2A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.2A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.2A:set-that-holds-an-irrational",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.2A",
+   "taskType": "interpretation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which set contains both $\\sqrt{{{n}}}$ and $-{{a}}$?",
+   "solutionReview": {
+    "headline": "The reals take in the rationals and the irrationals together.",
+    "reasoning": [
+     "$\\sqrt{{{n}}}$ cannot be written as a ratio, so it is irrational.",
+     "The reals are the one set holding both the rationals and the irrationals."
+    ],
+    "answerSummary": "The real numbers."
+   },
+   "attemptFeedback": [
+    "A root that does not come out exactly is not rational."
+   ],
+   "supportHints": [
+    "Which of the two values rules out the smaller sets?"
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "choice",
+      "values": [
+       2,
+       3,
+       5,
+       6,
+       7,
+       8,
+       10,
+       11
+      ]
+     },
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     }
+    },
+    "derived": {
+     "sq": "a*a"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The rational numbers.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "The whole numbers.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "The real numbers."
+    },
+    {
+     "id": "choice-d",
+     "label": "The integers.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_2A_rational_or_irrational_root",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.2A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.2A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.2A:rational-or-irrational-root",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.2A",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which of these is irrational?",
+   "solutionReview": {
+    "headline": "A root is irrational only when it does not come out exactly.",
+    "reasoning": [
+     "$\\sqrt{{{sq}}}$ comes out exactly as ${{a}}$, so it is rational.",
+     "$\\sqrt{{{n}}}$ does not come out exactly and cannot be written as a ratio."
+    ],
+    "answerSummary": "$\\sqrt{{{n}}}$ is the irrational one."
+   },
+   "attemptFeedback": [
+    "A fraction is rational however awkward it looks."
+   ],
+   "supportHints": [
+    "Which roots come out to a whole number?"
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "choice",
+      "values": [
+       2,
+       3,
+       5,
+       6,
+       7,
+       8,
+       10,
+       11
+      ]
+     },
+     "a": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 30
+     },
+     "d": {
+      "type": "choice",
+      "values": [
+       3,
+       4,
+       6,
+       7,
+       8
+      ]
+     }
+    },
+    "derived": {
+     "sq": "a*a",
+     "num": "b*d+1"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\sqrt{{{sq}}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\frac{{{num}}}{{{d}}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$-{{b}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\sqrt{{{n}}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_2A_where_the_reals_sit",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.2A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.2A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.2A:where-the-reals-sit",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.2A",
+   "taskType": "representationTranslation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The sets are drawn as nested rings. Which arrangement is right?",
+   "stimulus": {
+    "kind": "expressions",
+    "title": "A value from each set",
+    "note": "Integer: $-{{a}}$    Rational: $\\frac{{{num}}}{{{d}}}$    Irrational: $\\sqrt{{{n}}}$"
+   },
+   "solutionReview": {
+    "headline": "Rationals and irrationals divide the reals between them without overlapping.",
+    "reasoning": [
+     "$-{{a}}$ is an integer and also rational, so the integers sit inside the rationals.",
+     "$\\sqrt{{{n}}}$ is real but not rational, so the irrationals sit beside the rationals inside the reals."
+    ],
+    "answerSummary": "Integers inside rationals; rationals and irrationals inside the reals."
+   },
+   "attemptFeedback": [
+    "No value is both rational and irrational."
+   ],
+   "supportHints": [
+    "Can a value be both rational and irrational?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "d": {
+      "type": "choice",
+      "values": [
+       3,
+       4,
+       6,
+       7,
+       8
+      ]
+     },
+     "n": {
+      "type": "choice",
+      "values": [
+       2,
+       3,
+       5,
+       6,
+       7,
+       8,
+       10,
+       11
+      ]
+     }
+    },
+    "derived": {
+     "num": "b*d+1",
+     "prod": "b*d"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Integers inside rationals, with rationals and irrationals both inside the reals."
+    },
+    {
+     "id": "choice-b",
+     "label": "Rationals inside integers, with both inside the reals.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "Irrationals inside the rationals, with rationals inside the reals.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "Rationals and irrationals overlap, sharing the roots between them.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_2A_which_value_is_not_real",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.2A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.2A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.2A:which-value-is-not-real",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.2A",
+   "taskType": "application",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which statement about $\\sqrt{{{n}}}$ is true?",
+   "solutionReview": {
+    "headline": "Irrational numbers are real; they simply are not ratios.",
+    "reasoning": [
+     "Every point on the number line is a real number, and $\\sqrt{{{n}}}$ has a place on it.",
+     "It cannot be written as a ratio of whole numbers, so it is irrational rather than rational."
+    ],
+    "answerSummary": "Real, but not rational."
+   },
+   "attemptFeedback": [
+    "A rounded decimal is an approximation, not the value itself."
+   ],
+   "supportHints": [
+    "Does the value have a place on the number line?"
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "choice",
+      "values": [
+       2,
+       3,
+       5,
+       6,
+       7,
+       8,
+       10,
+       11
+      ]
+     },
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "low": "a*a",
+     "high": "a*a+2*a+1"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "It is not a real number, because it does not come out exactly.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "It is an integer, because it lies between two whole numbers.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "It is real but not rational, so it has no exact fraction."
+    },
+    {
+     "id": "choice-d",
+     "label": "It is rational, because a decimal for it can be written down.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_2A_every_real_is_rational",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.2A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.2A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.2A:every-real-is-rational",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.2A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student says every real number is rational. What is wrong?",
+   "solutionReview": {
+    "headline": "The irrationals are the real numbers the rationals miss.",
+    "reasoning": [
+     "One counter-example settles it: $\\sqrt{{{n}}}$ lies between ${{a}}$ and ${{next}}$ without being a ratio.",
+     "The reverse claim, that every rational is real, is in fact true."
+    ],
+    "answerSummary": "$\\sqrt{{{n}}}$ is the counter-example."
+   },
+   "attemptFeedback": [
+    "A root that does come out exactly does not test the claim."
+   ],
+   "supportHints": [
+    "Find one real number that is not a ratio."
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "choice",
+      "values": [
+       2,
+       3,
+       5,
+       6,
+       7,
+       8,
+       10,
+       11
+      ]
+     },
+     "a": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     }
+    },
+    "derived": {
+     "sq": "a*a",
+     "next": "a+1"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\sqrt{{{n}}}$ is real and is not rational."
+    },
+    {
+     "id": "choice-b",
+     "label": "It should say every rational number is real, which is also false.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "The claim fails only for negative numbers.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "Nothing is wrong, because $\\sqrt{{{sq}}}$ works out to ${{a}}$.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
   }
  ]
 }
