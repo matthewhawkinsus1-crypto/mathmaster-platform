@@ -15,6 +15,7 @@ on:
       - 'src/platform/ccmr/assessmentStandardReferences.js'
       - 'functions/shared/texasStandards.mjs'
       - 'functions/shared/texasMiddleSchoolStandards.mjs'
+      - 'firebase.json'
       - 'tests/platform/tsia2*Content.test.mjs'
       - '.github/workflows/ccmr-v2-1-tsia2-content-audit.yml'
   workflow_dispatch:
@@ -42,3 +43,5 @@ jobs:
           node scripts/build-tsia2-v2-1.mjs --domain probabilisticStatistical --check
       - name: Check full TSIA2 V2.1 release
         run: node scripts/build-tsia2-v2-1.mjs --release --check
+      - name: Check TSIA2 production seed package
+        run: node scripts/build-tsia2-production-seed.mjs --check
