@@ -9,6 +9,7 @@ on:
       - 'scripts/build-digital-sat-v2-1.mjs'
       - 'scripts/lib/digital-sat-production-seed.mjs'
       - 'tests/platform/digitalSatProductionSeedContent.test.mjs'
+      - 'tests/platform/digitalSatV21AuthoringGate.test.mjs'
       - '.github/workflows/ccmr-v2-1-digital-sat-release-check.yml'
   workflow_dispatch:
 
@@ -26,6 +27,9 @@ jobs:
 
       - name: Syntax-check V2.1 publisher
         run: node --check scripts/build-digital-sat-v2-1.mjs
+
+      - name: Run Digital SAT authoring gate regression tests
+        run: node --test tests/platform/digitalSatV21AuthoringGate.test.mjs
 
       - name: Run Digital SAT production compiler contract
         run: node --test tests/platform/digitalSatProductionSeedContent.test.mjs
