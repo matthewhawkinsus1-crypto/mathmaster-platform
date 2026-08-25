@@ -214,6 +214,7 @@ test('built-in Path seed refresh retires stale TSIA2 runtime state only after ba
   assert.ok(removeIndex >= 0, 'built-in refresh must remove superseded bundled bank records');
   assert.ok(coverageIndex > removeIndex, 'coverage rebuild must happen after superseded bank cleanup');
   assert.ok(retirementIndex > coverageIndex, 'TSIA2 runtime retirement must happen only after the refreshed bank and coverage are ready');
+  assert.match(source.slice(retirementIndex), /tsia2PathBankRelease/, 'seed refresh should return the runtime release result to the administrator');
 });
 
 test('TSIA2 content CI watches the runtime release module and Functions wiring', () => {
