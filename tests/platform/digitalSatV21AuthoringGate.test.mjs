@@ -166,7 +166,37 @@ test('true underlying-task clones remain blocked', () => {
   const documents = baseDocuments();
   documents[2].taskType = documents[1].taskType;
   documents[2].representation = documents[1].representation;
+  documents[2].prompt = 'If $x={{n}}$, which value is equal to $x+2$?';
   const result = runBuilder(documents);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Exact underlying-task clone/i);
+});
+
+test('different mathematical structures do not become grammar clones just because the surrounding stem matches', () => {
+  const documents = baseDocuments();
+  documents[3].prompt = 'Which expression is equivalent to $x^2-9$?';
+  documents[4].prompt = 'Which expression is equivalent to $\\sqrt{x+4}$?';
+  const result = runBuilder(documents);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+});
+
+test('the same mathematical structure with only numeric changes remains an exact grammar clone', () => {
+  const documents = baseDocuments();
+  documents[3].prompt = 'Which expression is equivalent to $x^2-9$?';
+  documents[4].prompt = 'Which expression is equivalent to $x^2-16$?';
+  const result = runBuilder(documents);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Exact task-grammar clone/i);
+});
+
+test('static items sharing metadata are not underlying clones when their mathematical structures differ', () => {
+  const documents = baseDocuments();
+  documents[3].taskType = 'evaluation';
+  documents[3].representation = 'equation';
+  documents[3].prompt = 'Evaluate the polynomial $x^2+3x-4$ when $x=2$.';
+  documents[4].taskType = 'evaluation';
+  documents[4].representation = 'equation';
+  documents[4].prompt = 'Evaluate the radical expression $\\sqrt{x+7}$ when $x=2$.';
+  const result = runBuilder(documents);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
 });
