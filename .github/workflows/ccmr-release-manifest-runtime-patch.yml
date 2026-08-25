@@ -49,20 +49,16 @@ jobs:
           from pathlib import Path
           path = Path('functions/index.js')
           text = path.read_text()
-          target = '''    if (assessmentReleaseState.tracked && assessmentReleaseState.available === false) {
-              throw assessmentReleaseUpdateError(assessmentFramework);
-            }
-
-            const now = Date.now();
-            const targetDisplay = mathPath.displayAlignmentKey(targetAlignmentKey);'''.replace('          ', '')
-          replacement = '''    if (assessmentReleaseState.tracked && assessmentReleaseState.available === false) {
-              throw assessmentReleaseUpdateError(assessmentFramework);
-            }
-
-            const targetDisplay = mathPath.displayAlignmentKey(targetAlignmentKey);'''.replace('          ', '')
-          if text.count(target) != 1:
-              raise SystemExit(f'expected one duplicate-now target after patch, found {text.count(target)}')
-          path.write_text(text.replace(target, replacement))
+          start = text.index('  const session = await db.runTransaction(async (transaction) => {')
+          end = text.index('  return { sessionId: session.sessionId', start)
+          block = text[start:end]
+          needle = '    const now = Date.now();\n'
+          if block.count(needle) != 2:
+              raise SystemExit(f'expected two transaction timestamp declarations before repair, found {block.count(needle)}')
+          first = block.index(needle)
+          second = block.index(needle, first + len(needle))
+          block = block[:second] + block[second + len(needle):]
+          path.write_text(text[:start] + block + text[end:])
           PY
       - name: Syntax check Cloud Functions runtime
         run: node --check functions/index.js
