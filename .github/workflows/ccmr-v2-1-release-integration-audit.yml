@@ -15,6 +15,7 @@ on:
       - 'drafts/ccmr-v2.1/act/**'
       - 'drafts/ccmr-v2.1/tsia2/**'
       - 'functions/lib/pathContentRelease.js'
+      - 'functions/index.js'
       - 'scripts/build-digital-sat-v2-1.mjs'
       - 'scripts/build-act-v2-1.mjs'
       - 'scripts/build-tsia2-v2-1.mjs'
@@ -31,6 +32,7 @@ on:
       - 'tests/platform/ccmrV21ReleaseIntegrationContent.test.mjs'
       - 'tests/platform/ccmrV21ProductionReleaseContent.test.mjs'
       - 'tests/platform/ccmrSessionContentRelease.test.mjs'
+      - 'tests/platform/ccmrSessionRuntimeWiring.test.mjs'
       - '.github/workflows/ccmr-v2-1-release-integration-audit.yml'
   workflow_dispatch:
 
@@ -49,6 +51,8 @@ jobs:
           node-version: 20
       - name: Run CCMR session content-release contract
         run: node --test tests/platform/ccmrSessionContentRelease.test.mjs
+      - name: Run CCMR live runtime wiring contract
+        run: node --test tests/platform/ccmrSessionRuntimeWiring.test.mjs
       - name: Run SAT ACT TSIA2 integration contract
         run: node --test tests/platform/ccmrV21ReleaseIntegrationContent.test.mjs
       - name: Run Digital SAT production compiler contract
