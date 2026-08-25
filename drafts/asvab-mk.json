@@ -29487,6 +29487,3074 @@
      "expected": "choice-a"
     }
    ]
+  },
+  {
+   "id": "mm_asvab_8_3C_rule_for_a_dilation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.3C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.3C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.3C:rule-for-a-dilation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.3C",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which rule describes a dilation of factor ${{k}}$ about the origin?",
+   "solutionReview": {
+    "headline": "A dilation multiplies; a translation adds.",
+    "reasoning": [
+     "A dilation multiplies both coordinates by the factor, so ${{x}}$ becomes ${{kx}}$.",
+     "Adding ${{k}}$ would give ${{shifted}}$ instead, which slides the figure rather than scaling it."
+    ],
+    "answerSummary": "It is $(x, y) \\to ({{k}}x, {{k}}y)$."
+   },
+   "attemptFeedback": [
+    "Scaling only one coordinate would stretch the figure out of shape."
+   ],
+   "supportHints": [
+    "What happens to a point twice as far from the origin?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "kx": "k*x",
+     "shifted": "x+k"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$(x, y) \\to ({{k}}x, {{k}}y)$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$(x, y) \\to (x + {{k}}, y + {{k}})$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "$(x, y) \\to ({{k}}x, y)$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$(x, y) \\to (\\frac{x}{{{k}}}, \\frac{y}{{{k}}})$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_3C_what_a_fraction_below_one_does",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.3C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.3C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.3C:what-a-fraction-below-one-does",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.3C",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A dilation about the origin uses the factor $\\frac{{{p}}}{{{q}}}$. What does it do to a figure?",
+   "solutionReview": {
+    "headline": "A factor below one is a reduction, and still a similarity.",
+    "reasoning": [
+     "${{p}}$ is below ${{q}}$, so the factor is less than one.",
+     "A side of ${{side}}$ becomes ${{image}}$, shorter but in the same proportions."
+    ],
+    "answerSummary": "It shrinks towards the origin."
+   },
+   "attemptFeedback": [
+    "Angles survive every dilation, whatever the factor."
+   ],
+   "supportHints": [
+    "Is the fraction above or below one?"
+   ],
+   "generator": {
+    "parameters": {
+     "q": {
+      "type": "int",
+      "min": 3,
+      "max": 9
+     },
+     "drop": {
+      "type": "int",
+      "min": 1,
+      "max": 2
+     },
+     "u": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "p": "q-drop",
+     "side": "q*u",
+     "image": "(q-drop)*u"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Enlarges it away from the origin, keeping its shape.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "Shrinks it towards the origin, keeping its shape."
+    },
+    {
+     "id": "choice-c",
+     "label": "Leaves it the same size, because the factor is a fraction.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "Shrinks it and changes its angles as well.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_3C_image_under_a_rational_factor",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.3C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.3C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.3C:image-under-a-rational-factor",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.3C",
+   "taskType": "procedural",
+   "representation": "orderedPairs",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A dilation of factor $\\frac{{{p}}}{{{q}}}$ about the origin sends $({{x}}, {{y}})$ where?",
+   "solutionReview": {
+    "headline": "Divide by the bottom, then multiply by the top.",
+    "reasoning": [
+     "${{x}} \\div {{q}} = {{u}}$, and ${{u}} \\times {{p}} = {{px}}$.",
+     "The same treatment of ${{y}}$ gives ${{py}}$."
+    ],
+    "answerSummary": "It goes to $({{px}}, {{py}})$."
+   },
+   "attemptFeedback": [
+    "Multiplying by ${{q}}$ as well undoes the division."
+   ],
+   "supportHints": [
+    "Which part of the fraction shrinks the coordinate?"
+   ],
+   "generator": {
+    "parameters": {
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "u": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "x": "q*u",
+     "y": "q*v",
+     "px": "p*u",
+     "py": "p*v",
+     "halfX": "p*u*q",
+     "halfY": "p*v*q"
+    },
+    "constraints": [
+     "u!=v",
+     "p!=q"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$({{px}}, {{py}})$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$({{py}}, {{px}})$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "$({{halfX}}, {{halfY}})$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$({{x}}, {{y}})$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_3C_length_after_a_rational_dilation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.3C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.3C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.3C:length-after-a-rational-dilation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.3C",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two rods along an axis run ${{x}}$ and ${{x2}}$ units from the origin, and the first is dilated by $\\frac{{{p}}}{{{q}}}$. How long is its image?",
+   "solutionReview": {
+    "headline": "A rational factor divides then multiplies.",
+    "reasoning": [
+     "${{x}}$ divided by ${{q}}$ is ${{u}}$.",
+     "Multiplying by ${{p}}$ gives an image of ${{answer}}$ units."
+    ],
+    "answerSummary": "The image is ${{answer}}$ units."
+   },
+   "attemptFeedback": [
+    "That is the second rod, which was not dilated."
+   ],
+   "supportHints": [
+    "Deal with the bottom of the fraction first."
+   ],
+   "generator": {
+    "parameters": {
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "u": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "x2": {
+      "type": "int",
+      "min": 4,
+      "max": 90
+     }
+    },
+    "derived": {
+     "x": "q*u",
+     "answer": "p*u",
+     "d_operationInverted": "p*u*q",
+     "d_partialTotal": "u"
+    },
+    "constraints": [
+     "p!=q",
+     "answer!=d_operationInverted",
+     "answer!=d_partialTotal",
+     "answer!=x2",
+     "d_operationInverted!=d_partialTotal",
+     "d_operationInverted!=x2",
+     "d_partialTotal!=x2"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{x2}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_3C_fraction_factor_read_as_an_enlargement",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.3C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.3C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.3C:fraction-factor-read-as-an-enlargement",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.3C",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student says a factor of $\\frac{{{p}}}{{{q}}}$ enlarges a figure because ${{p}}$ and ${{q}}$ are both above one. What is wrong?",
+   "solutionReview": {
+    "headline": "Compare the fraction with one, not its parts with one.",
+    "reasoning": [
+     "What matters is the value of the whole fraction, not the size of its parts.",
+     "${{p}}$ over ${{q}}$ is less than one, so every length shrinks."
+    ],
+    "answerSummary": "It shrinks: ${{side}}$ becomes ${{image}}$."
+   },
+   "attemptFeedback": [
+    "Multiplying by a value below one makes the result smaller."
+   ],
+   "supportHints": [
+    "What does the fraction come to as a decimal?"
+   ],
+   "generator": {
+    "parameters": {
+     "q": {
+      "type": "int",
+      "min": 3,
+      "max": 9
+     },
+     "drop": {
+      "type": "int",
+      "min": 1,
+      "max": 2
+     },
+     "u": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     }
+    },
+    "derived": {
+     "p": "q-drop",
+     "side": "q*u",
+     "image": "(q-drop)*u"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The factor is $\\frac{{{p}}}{{{q}}}$, which is below one, so a side of ${{side}}$ shrinks to ${{image}}$."
+    },
+    {
+     "id": "choice-b",
+     "label": "It enlarges, but only in one direction.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "The figure stays the same size and only its position moves.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "Nothing is wrong, because multiplying by a fraction still multiplies.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_4A_slope_from_a_different_pair",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.4A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.4A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.4A:slope-from-a-different-pair",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.4A",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The first two of three points on a line give a slope of ${{m}}$. What slope do the last two give?",
+   "solutionReview": {
+    "headline": "Every slope triangle on one line is similar to every other.",
+    "reasoning": [
+     "Over a run of ${{g1}}$ the line rises ${{rise1}}$, and over ${{g2}}$ it rises ${{rise2}}$.",
+     "Both divide out to ${{m}}$, because the slope triangles are similar."
+    ],
+    "answerSummary": "The same, ${{m}}$."
+   },
+   "attemptFeedback": [
+    "A longer run comes with a proportionally larger rise."
+   ],
+   "supportHints": [
+    "What do the two slope triangles have in common?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "g1": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "g2": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     }
+    },
+    "derived": {
+     "rise1": "m*g1",
+     "rise2": "m*g2",
+     "bigger": "m*g2"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Larger, ${{bigger}}$, because those points are further apart.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "It cannot be told without the coordinates.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "Smaller, because the second stretch is shorter.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "The same, ${{m}}$, because slope does not change along a line."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_4A_why_the_triangles_agree",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.4A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.4A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.4A:why-the-triangles-agree",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.4A",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Why do slope triangles drawn between different pairs of points on one line give the same ratio?",
+   "solutionReview": {
+    "headline": "Similar triangles, not equal ones, is what keeps the ratio fixed.",
+    "reasoning": [
+     "A run of ${{g}}$ carries a rise of ${{rise}}$; a run ${{f}}$ times as long carries ${{bigRise}}$.",
+     "Both triangles have the same angles, so multiplying the run multiplies the rise to match."
+    ],
+    "answerSummary": "They are similar."
+   },
+   "attemptFeedback": [
+    "Equal sides would need the points equally spaced, which is not required."
+   ],
+   "supportHints": [
+    "Are the triangles the same size, or the same shape?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "g": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "f": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     }
+    },
+    "derived": {
+     "rise": "m*g",
+     "bigRun": "g*f",
+     "bigRise": "m*g*f"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The ratio only matches when the points are equally spaced.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "They are similar triangles, so their sides stay in one ratio."
+    },
+    {
+     "id": "choice-c",
+     "label": "They are congruent triangles, so their sides are equal.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "The rises are equal, so the ratios must match.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_4A_coordinate_further_along_the_line",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.4A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.4A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.4A:coordinate-further-along-the-line",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.4A",
+   "taskType": "application",
+   "representation": "orderedPairs",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A line of slope ${{m}}$ passes through $({{x1}}, {{y1}})$, and a second line passes through $({{x2}}, {{other}})$. On the first line, what is $y$ when $x = {{x2}}$?",
+   "solutionReview": {
+    "headline": "Slope multiplies the run, not the whole coordinate.",
+    "reasoning": [
+     "From ${{x1}}$ to ${{x2}}$ the run is ${{run}}$.",
+     "A slope of ${{m}}$ raises $y$ by ${{m}} \\times {{run}}$, from ${{y1}}$ to ${{answer}}$."
+    ],
+    "answerSummary": "$y = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "The run is the change in $x$, not its new value."
+   ],
+   "supportHints": [
+    "How far does $x$ actually move?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     },
+     "y1": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     },
+     "run": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "other": {
+      "type": "int",
+      "min": 4,
+      "max": 75
+     }
+    },
+    "derived": {
+     "x2": "x1+run",
+     "answer": "y1+m*run",
+     "d_partialTotal": "y1+m*(x1+run)",
+     "d_operationInverted": "y1+run"
+    },
+    "constraints": [
+     "answer!=d_partialTotal",
+     "answer!=d_operationInverted",
+     "answer!=other",
+     "d_partialTotal!=d_operationInverted",
+     "d_partialTotal!=other",
+     "d_operationInverted!=other"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{other}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_4A_slope_read_from_a_table",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.4A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.4A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.4A:slope-read-from-a-table",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.4A",
+   "taskType": "representationTranslation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The table lists three points on one line. What is its slope?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Points on the line",
+    "table": {
+     "headers": [
+      "x",
+      "y"
+     ],
+     "rows": [
+      [
+       "0",
+       "{{b}}"
+      ],
+      [
+       "{{x2}}",
+       "{{y2}}"
+      ],
+      [
+       "{{x3}}",
+       "{{y3}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Slope is the change in y shared by the change in x.",
+    "reasoning": [
+     "Between the last two rows $x$ moves ${{gap}}$ and $y$ moves ${{y3}} - {{y2}}$.",
+     "Dividing gives ${{answer}}$, and the first two rows give the same."
+    ],
+    "answerSummary": "The slope is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The value at $x = 0$ is where the line starts, not how steep it is."
+   ],
+   "supportHints": [
+    "Compare how much each column changes between rows."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "x2": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "gap": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     }
+    },
+    "derived": {
+     "x3": "x2+gap",
+     "y2": "m*x2+b",
+     "y3": "m*(x2+gap)+b",
+     "answer": "m",
+     "d_partialTotal": "m*x2",
+     "d_arithmeticSlip": "m-x2"
+    },
+    "constraints": [
+     "answer!=d_partialTotal",
+     "answer!=d_arithmeticSlip",
+     "answer!=b",
+     "d_partialTotal!=d_arithmeticSlip",
+     "d_partialTotal!=b",
+     "d_arithmeticSlip!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_arithmeticSlip}}$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{b}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_4A_steeper_looking_stretch",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.4A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.4A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.4A:steeper-looking-stretch",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.4A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student says a longer stretch of a line has a larger slope. What is wrong?",
+   "solutionReview": {
+    "headline": "Both parts of the ratio grow together.",
+    "reasoning": [
+     "The rise does grow, but so does the run, and by the same factor.",
+     "Slope is their ratio, so it stays at ${{m}}$ however far apart the points are."
+    ],
+    "answerSummary": "The slope stays ${{m}}$."
+   },
+   "attemptFeedback": [
+    "The rise alone is not the slope."
+   ],
+   "supportHints": [
+    "What happens to the run at the same time?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "g1": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     },
+     "f": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     }
+    },
+    "derived": {
+     "g2": "g1*f",
+     "rise1": "m*g1",
+     "rise2": "m*g1*f"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "A run of ${{g2}}$ carries a rise of ${{rise2}}$, and ${{rise2}}$ over ${{g2}}$ is still ${{m}}$."
+    },
+    {
+     "id": "choice-b",
+     "label": "Slope can only be measured between neighbouring points.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "The slope shrinks instead, because the run grows faster.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "Nothing is wrong, because the rise grows from ${{rise1}}$ to ${{rise2}}$.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_4B_cost_per_unit_from_a_point",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.4B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.4B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.4B:cost-per-unit-from-a-point",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.4B",
+   "taskType": "interpretation",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A cost graph passes through the origin and $({{w}}, {{c}})$, where ${{w}}$ is a weight in kg. What is the cost per kg?",
+   "solutionReview": {
+    "headline": "On a proportional graph the unit rate is the slope.",
+    "reasoning": [
+     "The line goes through the origin, so the cost is proportional to the weight.",
+     "${{c}} \\div {{w}} = {{answer}}$ for every point on it."
+    ],
+    "answerSummary": "It is ${{answer}}$ per kg."
+   },
+   "attemptFeedback": [
+    "That is the cost of ${{w}}$ kg, not of one."
+   ],
+   "supportHints": [
+    "What does one kilogram cost?"
+   ],
+   "generator": {
+    "parameters": {
+     "w": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "half": {
+      "type": "int",
+      "min": 1,
+      "max": 7
+     }
+    },
+    "derived": {
+     "k": "2*half",
+     "c": "w*2*half",
+     "answer": "k",
+     "d_forgotFinalStep": "c",
+     "d_partialTotal": "half"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "answer!=w",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_forgotFinalStep!=w",
+     "d_partialTotal!=w"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{w}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_4B_what_makes_a_relationship_proportional",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.4B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.4B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.4B:what-makes-a-relationship-proportional",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.4B",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which is true of every proportional relationship?",
+   "solutionReview": {
+    "headline": "Proportional needs both: straight, and through the origin.",
+    "reasoning": [
+     "At $x = {{x}}$ the value is ${{y}}$, and doubling $x$ doubles it to ${{doubled}}$.",
+     "That only happens when the line is straight and starts at the origin."
+    ],
+    "answerSummary": "A straight line through the origin."
+   },
+   "attemptFeedback": [
+    "A straight line that misses the origin is linear but not proportional."
+   ],
+   "supportHints": [
+    "What must happen to $y$ when $x$ doubles?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "y": "k*x",
+     "doubled": "2*k*x"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Its graph is a straight line through the origin."
+    },
+    {
+     "id": "choice-b",
+     "label": "Its graph passes through the origin, straight or not.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "Its graph is a straight line, wherever it crosses the axis.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "Its graph rises by a fixed amount rather than a fixed factor.",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_4B_which_set_of_pairs_is_proportional",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.4B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.4B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.4B:which-set-of-pairs-is-proportional",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.4B",
+   "taskType": "representationTranslation",
+   "representation": "orderedPairs",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which pair of records could come from a proportional relationship?",
+   "solutionReview": {
+    "headline": "Proportional means one quotient across every record.",
+    "reasoning": [
+     "Both records must divide out to the same rate: ${{y1}} \\div {{x1}} = {{k}}$ and ${{y2}} \\div {{x2}} = {{k}}$.",
+     "The pair with a fixed ${{b}}$ added has a different quotient in each record."
+    ],
+    "answerSummary": "The pair $({{x1}}, {{y1}})$ and $({{x2}}, {{y2}})$."
+   },
+   "attemptFeedback": [
+    "A fixed amount added spoils the constant ratio."
+   ],
+   "supportHints": [
+    "Divide each second value by its first."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "x2": "x1+3",
+     "y1": "k*x1",
+     "y2": "k*(x1+3)",
+     "a1": "k*x1+b",
+     "a2": "k*(x1+3)+b",
+     "off": "k*(x1+3)+k"
+    },
+    "constraints": [
+     "b!=k"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$({{x1}}, {{y1}}) \\text{ and } ({{x2}}, {{y2}})$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$({{y1}}, {{x1}}) \\text{ and } ({{y2}}, {{x2}})$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "$({{x1}}, {{y1}}) \\text{ and } ({{x2}}, {{off}})$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "$({{x1}}, {{a1}}) \\text{ and } ({{x2}}, {{a2}})$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_4B_value_further_along_a_proportional_graph",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.4B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.4B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.4B:value-further-along-a-proportional-graph",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.4B",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A proportional graph passes through $({{a}}, {{b}})$, and a second graph through $({{c}}, {{other}})$. On the first, what is $y$ at $x = {{c}}$?",
+   "solutionReview": {
+    "headline": "Find the rate from the point you have, then apply it.",
+    "reasoning": [
+     "${{b}} \\div {{a}} = {{k}}$, so the rate is ${{k}}$.",
+     "At $x = {{c}}$ that gives ${{k}} \\times {{c}} = {{answer}}$."
+    ],
+    "answerSummary": "$y = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "That belongs to the second graph."
+   ],
+   "supportHints": [
+    "What is the value at $x = 1$?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "other": {
+      "type": "int",
+      "min": 3,
+      "max": 110
+     }
+    },
+    "derived": {
+     "b": "k*a",
+     "answer": "k*c",
+     "d_operationInverted": "k+c",
+     "d_partialTotal": "b"
+    },
+    "constraints": [
+     "answer!=d_operationInverted",
+     "answer!=d_partialTotal",
+     "answer!=other",
+     "d_operationInverted!=d_partialTotal",
+     "d_operationInverted!=other",
+     "d_partialTotal!=other"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{other}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_4B_straight_does_not_mean_proportional",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.4B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.4B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.4B:straight-does-not-mean-proportional",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.4B",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student says every straight-line graph is proportional. What is wrong?",
+   "solutionReview": {
+    "headline": "Constant slope is not the same as constant ratio.",
+    "reasoning": [
+     "At $x = {{x}}$ the value is ${{atX}}$; at twice that $x$ it is ${{twiceX}}$.",
+     "Doubling the output would need ${{doubled}}$, so the constant ${{b}}$ breaks proportionality."
+    ],
+    "answerSummary": "The line must also pass through the origin."
+   },
+   "attemptFeedback": [
+    "A constant slope makes a line linear, not proportional."
+   ],
+   "supportHints": [
+    "Try doubling $x$ and see whether $y$ doubles."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 20
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "atX": "k*x+b",
+     "twiceX": "2*k*x+b",
+     "doubled": "2*k*x+2*b"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Nothing is wrong, because every straight line has a constant slope.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "Only curved graphs can be proportional.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "A straight line is proportional only when its slope is one.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "A line missing the origin fails: doubling $x$ gives ${{twiceX}}$, not ${{doubled}}$."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_4C_rate_and_start_from_a_table",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.4C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.4C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.4C:rate-and-start-from-a-table",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.4C",
+   "taskType": "representationTranslation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which pair gives the rate of change and the value at $x = 0$?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Recorded values",
+    "table": {
+     "headers": [
+      "x",
+      "y"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "{{y1}}"
+      ],
+      [
+       "{{x2}}",
+       "{{y2}}"
+      ],
+      [
+       "{{x3}}",
+       "{{y3}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "The rate comes from the steps; the starting value comes from working back to zero.",
+    "reasoning": [
+     "Each step of ${{gap}}$ in $x$ raises $y$ by ${{rise}}$, so the rate is ${{m}}$.",
+     "Working back from $({{x1}}, {{y1}})$ to $x = 0$ removes ${{m}} \\times {{x1}}$, leaving ${{b}}$."
+    ],
+    "answerSummary": "Rate ${{m}}$, value ${{b}}$."
+   },
+   "attemptFeedback": [
+    "The first row is not the value at zero."
+   ],
+   "supportHints": [
+    "The table does not start at $x = 0$."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 30
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     },
+     "gap": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     }
+    },
+    "derived": {
+     "x2": "x1+gap",
+     "x3": "x1+2*gap",
+     "y1": "m*x1+b",
+     "y2": "m*(x1+gap)+b",
+     "y3": "m*(x1+2*gap)+b",
+     "rise": "m*gap"
+    },
+    "constraints": [
+     "m!=b",
+     "rise!=m"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Rate ${{b}}$, value ${{m}}$.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "Rate ${{rise}}$, value ${{y1}}$.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "Rate ${{m}}$, value ${{y1}}$.",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "Rate ${{m}}$, value ${{b}}$."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_4C_what_the_starting_value_means",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.4C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.4C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.4C:what-the-starting-value-means",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.4C",
+   "taskType": "interpretation",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A tank fills so that $y = {{m}}x + {{b}}$ litres after $x$ minutes. What does ${{b}}$ describe?",
+   "solutionReview": {
+    "headline": "The constant is the reading before the rate starts acting.",
+    "reasoning": [
+     "After ${{x}}$ minutes the inflow has added ${{added}}$ litres and the tank holds ${{total}}$.",
+     "The ${{b}}$ is there at $x = 0$, before any minute has passed."
+    ],
+    "answerSummary": "What was already in the tank."
+   },
+   "attemptFeedback": [
+    "The rate per minute is the number multiplying $x$."
+   ],
+   "supportHints": [
+    "What does the rule give when $x$ is zero?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "b": {
+      "type": "int",
+      "min": 5,
+      "max": 60
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "total": "m*x+b",
+     "added": "m*x"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "How much was already in the tank before filling started."
+    },
+    {
+     "id": "choice-b",
+     "label": "How much is in the tank after ${{x}}$ minutes.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "How much runs in each minute.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "How many minutes the filling lasts.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_4C_rate_of_change_between_rows",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.4C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.4C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.4C:rate-of-change-between-rows",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.4C",
+   "taskType": "procedural",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is the rate of change shown in the table?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Recorded values",
+    "table": {
+     "headers": [
+      "x",
+      "y"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "{{y1}}"
+      ],
+      [
+       "{{x2}}",
+       "{{y2}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Divide the rise by the run, not the rise alone.",
+    "reasoning": [
+     "$y$ moves from ${{y1}}$ to ${{y2}}$, a rise of ${{d_partialTotal}}$.",
+     "$x$ moves ${{gap}}$, so the rate is ${{answer}}$."
+    ],
+    "answerSummary": "The rate is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The rise has not yet been shared by the run."
+   ],
+   "supportHints": [
+    "How far does each column move between the rows?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     },
+     "gap": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     }
+    },
+    "derived": {
+     "x2": "x1+gap",
+     "y1": "m*x1+b",
+     "y2": "m*(x1+gap)+b",
+     "answer": "m",
+     "d_partialTotal": "m*gap",
+     "d_arithmeticSlip": "m-gap"
+    },
+    "constraints": [
+     "answer!=d_partialTotal",
+     "answer!=d_arithmeticSlip",
+     "answer!=b",
+     "d_partialTotal!=d_arithmeticSlip",
+     "d_partialTotal!=b",
+     "d_arithmeticSlip!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_arithmeticSlip}}$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{b}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_4C_starting_value_from_a_table",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.4C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.4C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.4C:starting-value-from-a-table",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.4C",
+   "taskType": "application",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is the value at $x = 0$?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Recorded values",
+    "table": {
+     "headers": [
+      "x",
+      "y"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "{{y1}}"
+      ],
+      [
+       "{{x2}}",
+       "{{y2}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Work back to zero one step at a time.",
+    "reasoning": [
+     "The rate is ${{m}}$, so each step back in $x$ removes ${{m}}$ from $y$.",
+     "From $({{x1}}, {{y1}})$ back to zero removes ${{m}} \\times {{x1}}$, leaving ${{answer}}$."
+    ],
+    "answerSummary": "The value at zero is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "One step too many back overshoots the starting value."
+   ],
+   "supportHints": [
+    "How many steps back is $x = 0$?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     },
+     "gap": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     }
+    },
+    "derived": {
+     "x2": "x1+gap",
+     "y1": "m*x1+b",
+     "y2": "m*(x1+gap)+b",
+     "answer": "b",
+     "d_partialTotal": "y1",
+     "d_offByOneStep": "b-m"
+    },
+    "constraints": [
+     "answer!=d_partialTotal",
+     "answer!=d_offByOneStep",
+     "answer!=m",
+     "d_partialTotal!=d_offByOneStep",
+     "d_partialTotal!=m",
+     "d_offByOneStep!=m"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{m}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_4C_first_row_read_as_the_intercept",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.4C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.4C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.4C:first-row-read-as-the-intercept",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.4C",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student reads the starting value as the first $y$ in a table beginning at $x = {{x1}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "The starting value is at x = 0, not at the top of the table.",
+    "reasoning": [
+     "Where the data begins and where $x$ is zero are different places.",
+     "Each of the ${{x1}}$ steps back removes ${{m}}$, so ${{y1}}$ falls to ${{b}}$."
+    ],
+    "answerSummary": "It is ${{b}}$."
+   },
+   "attemptFeedback": [
+    "Stepping back lowers the value; it does not raise it."
+   ],
+   "supportHints": [
+    "Where does the table actually begin?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     },
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     }
+    },
+    "derived": {
+     "y1": "m*x1+b",
+     "back": "m*x1"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The table starts at ${{x1}}$, so ${{back}}$ must come off ${{y1}}$ to reach ${{b}}$."
+    },
+    {
+     "id": "choice-b",
+     "label": "The rate should be added instead, giving ${{y1}}$ plus ${{m}}$.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "Nothing is wrong, because the first row is where the data begins.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "The starting value cannot be found unless the table reaches zero.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5A_constant_of_proportionality_from_a_table",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5A:constant-of-proportionality-from-a-table",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5A",
+   "taskType": "procedural",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is the constant of proportionality?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Proportional values",
+    "table": {
+     "headers": [
+      "x",
+      "y"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "{{y1}}"
+      ],
+      [
+       "{{x2}}",
+       "{{y2}}"
+      ],
+      [
+       "{{x3}}",
+       "{{y3}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "The constant is the quotient every row shares.",
+    "reasoning": [
+     "Every row divides out the same way: ${{y1}} \\div {{x1}} = {{answer}}$.",
+     "That common quotient is the constant of proportionality."
+    ],
+    "answerSummary": "It is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "A $y$ from the table is a value, not the constant."
+   ],
+   "supportHints": [
+    "Divide each $y$ by its own $x$."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "gap": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     }
+    },
+    "derived": {
+     "x2": "x1+gap",
+     "x3": "x1+2*gap",
+     "y1": "k*x1",
+     "y2": "k*(x1+gap)",
+     "y3": "k*(x1+2*gap)",
+     "answer": "k",
+     "d_forgotFinalStep": "y1",
+     "d_arithmeticSlip": "k-gap"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_arithmeticSlip",
+     "answer!=x1",
+     "d_forgotFinalStep!=d_arithmeticSlip",
+     "d_forgotFinalStep!=x1",
+     "d_arithmeticSlip!=x1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{x1}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_arithmeticSlip}}$",
+     "error": "arithmeticSlip"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5A_equation_for_a_proportional_situation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5A:equation-for-a-proportional-situation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5A",
+   "taskType": "representationTranslation",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Cable costs $\\${{k}}$ a metre with no other charge. Which equation gives the cost $y$ of $x$ metres?",
+   "solutionReview": {
+    "headline": "No fixed charge means no constant term.",
+    "reasoning": [
+     "Each metre adds $\\${{k}}$ and nothing is charged on top.",
+     "So ${{x}}$ metres cost $\\${{cost}}$, which is ${{k}}$ times $x$."
+    ],
+    "answerSummary": "It is $y = {{k}}x$."
+   },
+   "attemptFeedback": [
+    "A constant term would be a charge that applies at zero metres."
+   ],
+   "supportHints": [
+    "Is there anything to pay before the first metre?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "cost": "k*x",
+     "plus": "k+x"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = {{k}}x$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = {{k}}x + {{k}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = x + {{k}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x = {{k}}y$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5A_which_pairs_share_one_constant",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5A:which-pairs-share-one-constant",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5A",
+   "taskType": "conceptual",
+   "representation": "orderedPairs",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which two records share a single constant of proportionality?",
+   "solutionReview": {
+    "headline": "One constant has to work for every record, not just one.",
+    "reasoning": [
+     "${{y1}} \\div {{x1}} = {{k}}$ and ${{y2}} \\div {{x2}} = {{k}}$, so both records agree.",
+     "A record with ${{b}}$ added on top divides out to something else."
+    ],
+    "answerSummary": "The pair $({{x1}}, {{y1}})$ and $({{x2}}, {{y2}})$."
+   },
+   "attemptFeedback": [
+    "Adding a fixed amount changes the quotient."
+   ],
+   "supportHints": [
+    "Divide each second value by its first."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "step": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "x2": "x1+step",
+     "y1": "k*x1",
+     "y2": "k*(x1+step)",
+     "shifted": "k*(x1+step)+b",
+     "swapped": "k*x1+k"
+    },
+    "constraints": [
+     "b!=k"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$({{x1}}, {{y1}}) \\text{ and } ({{x1}}, {{swapped}})$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$({{x1}}, {{y1}}) \\text{ and } ({{x2}}, {{shifted}})$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$({{x1}}, {{y1}}) \\text{ and } ({{x2}}, {{y2}})$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$({{y1}}, {{x1}}) \\text{ and } ({{y2}}, {{x2}})$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5A_value_from_the_constant",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5A:value-from-the-constant",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5A",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Rope costs $\\${{k}}$ a metre and chain $\\${{other}}$ a metre. What do ${{x}}$ metres of rope cost?",
+   "solutionReview": {
+    "headline": "A proportional cost is the rate times the amount.",
+    "reasoning": [
+     "Each metre of rope costs $\\${{k}}$.",
+     "${{x}}$ metres therefore cost $\\${{answer}}$."
+    ],
+    "answerSummary": "It costs $\\${{answer}}$."
+   },
+   "attemptFeedback": [
+    "That total belongs to the chain."
+   ],
+   "supportHints": [
+    "Which of the two prices applies to rope?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "other": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     }
+    },
+    "derived": {
+     "answer": "k*x",
+     "d_operationInverted": "k+x",
+     "d_offByOneStep": "k*x+k",
+     "d_usedGivenValue": "other*x"
+    },
+    "constraints": [
+     "answer!=d_operationInverted",
+     "answer!=d_offByOneStep",
+     "answer!=d_usedGivenValue",
+     "d_operationInverted!=d_offByOneStep",
+     "d_operationInverted!=d_usedGivenValue",
+     "d_offByOneStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5A_constant_term_in_a_proportional_claim",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5A:constant-term-in-a-proportional-claim",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student says $y = {{m}}x + {{b}}$ is proportional because it is linear. What is wrong?",
+   "solutionReview": {
+    "headline": "Linear is necessary for proportional but not enough.",
+    "reasoning": [
+     "Proportional needs $y$ to be zero when $x$ is, and here it is ${{b}}$.",
+     "At $x = {{x}}$ the value is ${{atX}}$, which is not ${{m}} \\times {{x}}$."
+    ],
+    "answerSummary": "The constant ${{b}}$ moves it off the origin."
+   },
+   "attemptFeedback": [
+    "A constant term keeps the rule linear but not proportional."
+   ],
+   "supportHints": [
+    "What does the rule give at $x = 0$?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 25
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "atX": "m*x+b",
+     "atZero": "b"
+    },
+    "constraints": [
+     "m!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Nothing is wrong, because a linear rule has a constant slope.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "It is proportional only if ${{b}}$ is larger than ${{m}}$.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "It is not linear either, because of the constant term.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "At $x = 0$ the value is ${{atZero}}$, not zero, so the graph misses the origin."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
   }
  ]
 }

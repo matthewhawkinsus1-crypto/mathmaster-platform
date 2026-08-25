@@ -7207,6 +7207,757 @@ mk('8.3B', 'every-point-moves-the-same-distance', {
   feedback: 'The same multiplier does not mean the same movement.',
 });
 
+
+// ================================================================ 8.3C
+// A dilation written as an algebraic rule, with a rational scale factor.
+
+mk('8.3C', 'rule-for-a-dilation', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'Which rule describes a dilation of factor ${{k}}$ about the origin?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      x: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { kx: 'k*x', shifted: 'x+k' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('(x, y) \\to ({{k}}x, {{k}}y)'), correct: true },
+    { label: plain('(x, y) \\to (x + {{k}}, y + {{k}})'), error: 'operationInverted' },
+    { label: plain('(x, y) \\to ({{k}}x, y)'), error: 'partialTotal' },
+    { label: plain('(x, y) \\to (\\frac{x}{{{k}}}, \\frac{y}{{{k}}})'), error: 'ratioReversed' },
+  ],
+  reasoning: ['A dilation multiplies both coordinates by the factor, so ${{x}}$ becomes ${{kx}}$.', 'Adding ${{k}}$ would give ${{shifted}}$ instead, which slides the figure rather than scaling it.'],
+  answerSummary: { headline: 'A dilation multiplies; a translation adds.', text: 'It is $(x, y) \\to ({{k}}x, {{k}}y)$.' },
+  hint: 'What happens to a point twice as far from the origin?',
+  feedback: 'Scaling only one coordinate would stretch the figure out of shape.',
+});
+
+mk('8.3C', 'what-a-fraction-below-one-does', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'A dilation about the origin uses the factor $\\frac{{{p}}}{{{q}}}$. What does it do to a figure?',
+  generator: {
+    parameters: {
+      // p is built strictly below q, so the factor is always under one.
+      q: { type: 'int', min: 3, max: 9 },
+      drop: { type: 'int', min: 1, max: 2 },
+      u: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { p: 'q-drop', side: 'q*u', image: '(q-drop)*u' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Shrinks it towards the origin, keeping its shape.', correct: true },
+    { label: 'Enlarges it away from the origin, keeping its shape.', error: 'ratioReversed' },
+    { label: 'Shrinks it and changes its angles as well.', error: 'operationInverted' },
+    { label: 'Leaves it the same size, because the factor is a fraction.', error: 'partialTotal' },
+  ],
+  reasoning: ['${{p}}$ is below ${{q}}$, so the factor is less than one.', 'A side of ${{side}}$ becomes ${{image}}$, shorter but in the same proportions.'],
+  answerSummary: { headline: 'A factor below one is a reduction, and still a similarity.', text: 'It shrinks towards the origin.' },
+  hint: 'Is the fraction above or below one?',
+  feedback: 'Angles survive every dilation, whatever the factor.',
+});
+
+mk('8.3C', 'image-under-a-rational-factor', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'orderedPairs',
+  prompt: 'A dilation of factor $\\frac{{{p}}}{{{q}}}$ about the origin sends $({{x}}, {{y}})$ where?',
+  generator: {
+    parameters: {
+      q: { type: 'int', min: 2, max: 6 },
+      p: { type: 'int', min: 2, max: 9 },
+      u: { type: 'int', min: 2, max: 9 },
+      v: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      x: 'q*u', y: 'q*v',
+      px: 'p*u', py: 'p*v',
+      halfX: 'p*u*q', halfY: 'p*v*q',
+    },
+    constraints: ['u!=v', 'p!=q'],
+  },
+  choices: [
+    { label: plain('({{px}}, {{py}})'), correct: true },
+    { label: plain('({{halfX}}, {{halfY}})'), error: 'partialTotal' },
+    { label: plain('({{py}}, {{px}})'), error: 'ratioReversed' },
+    { label: plain('({{x}}, {{y}})'), error: 'operationInverted' },
+  ],
+  reasoning: ['${{x}} \\div {{q}} = {{u}}$, and ${{u}} \\times {{p}} = {{px}}$.', 'The same treatment of ${{y}}$ gives ${{py}}$.'],
+  answerSummary: { headline: 'Divide by the bottom, then multiply by the top.', text: 'It goes to $({{px}}, {{py}})$.' },
+  hint: 'Which part of the fraction shrinks the coordinate?',
+  feedback: 'Multiplying by ${{q}}$ as well undoes the division.',
+});
+
+mk('8.3C', 'length-after-a-rational-dilation', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'Two rods along an axis run ${{x}}$ and ${{x2}}$ units from the origin, and the first is dilated by $\\frac{{{p}}}{{{q}}}$. How long is its image?',
+  generator: {
+    parameters: {
+      q: { type: 'int', min: 2, max: 6 },
+      p: { type: 'int', min: 2, max: 9 },
+      u: { type: 'int', min: 2, max: 12 },
+      // The second rod is drawn separately, so its length crosses the key.
+      x2: { type: 'int', min: 4, max: 90 },
+    },
+    derived: {
+      x: 'q*u',
+      answer: 'p*u',
+      d_operationInverted: 'p*u*q',
+      d_partialTotal: 'u',
+    },
+    constraints: ['p!=q'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{x2}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['${{x}}$ divided by ${{q}}$ is ${{u}}$.', 'Multiplying by ${{p}}$ gives an image of ${{answer}}$ units.'],
+  answerSummary: { headline: 'A rational factor divides then multiplies.', text: 'The image is ${{answer}}$ units.' },
+  hint: 'Deal with the bottom of the fraction first.',
+  feedback: 'That is the second rod, which was not dilated.',
+});
+
+mk('8.3C', 'fraction-factor-read-as-an-enlargement', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student says a factor of $\\frac{{{p}}}{{{q}}}$ enlarges a figure because ${{p}}$ and ${{q}}$ are both above one. What is wrong?',
+  generator: {
+    parameters: {
+      q: { type: 'int', min: 3, max: 9 },
+      drop: { type: 'int', min: 1, max: 2 },
+      u: { type: 'int', min: 3, max: 12 },
+    },
+    derived: { p: 'q-drop', side: 'q*u', image: '(q-drop)*u' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The factor is $\\frac{{{p}}}{{{q}}}$, which is below one, so a side of ${{side}}$ shrinks to ${{image}}$.', correct: true },
+    { label: 'Nothing is wrong, because multiplying by a fraction still multiplies.', error: 'operationInverted' },
+    { label: 'It enlarges, but only in one direction.', error: 'partialTotal' },
+    { label: 'The figure stays the same size and only its position moves.', error: 'ratioReversed' },
+  ],
+  reasoning: ['What matters is the value of the whole fraction, not the size of its parts.', '${{p}}$ over ${{q}}$ is less than one, so every length shrinks.'],
+  answerSummary: { headline: 'Compare the fraction with one, not its parts with one.', text: 'It shrinks: ${{side}}$ becomes ${{image}}$.' },
+  hint: 'What does the fraction come to as a decimal?',
+  feedback: 'Multiplying by a value below one makes the result smaller.',
+});
+
+// ================================================================ 8.4A
+// Slope is the same whichever two points on the line you pick.
+
+mk('8.4A', 'slope-from-a-different-pair', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'verbal',
+  prompt: 'The first two of three points on a line give a slope of ${{m}}$. What slope do the last two give?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      g1: { type: 'int', min: 1, max: 6 },
+      g2: { type: 'int', min: 1, max: 6 },
+    },
+    derived: { rise1: 'm*g1', rise2: 'm*g2', bigger: 'm*g2' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The same, ${{m}}$, because slope does not change along a line.', correct: true },
+    { label: 'Larger, ${{bigger}}$, because those points are further apart.', error: 'partialTotal' },
+    { label: 'Smaller, because the second stretch is shorter.', error: 'ratioReversed' },
+    { label: 'It cannot be told without the coordinates.', error: 'operationInverted' },
+  ],
+  reasoning: ['Over a run of ${{g1}}$ the line rises ${{rise1}}$, and over ${{g2}}$ it rises ${{rise2}}$.', 'Both divide out to ${{m}}$, because the slope triangles are similar.'],
+  answerSummary: { headline: 'Every slope triangle on one line is similar to every other.', text: 'The same, ${{m}}$.' },
+  hint: 'What do the two slope triangles have in common?',
+  feedback: 'A longer run comes with a proportionally larger rise.',
+});
+
+mk('8.4A', 'why-the-triangles-agree', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'Why do slope triangles drawn between different pairs of points on one line give the same ratio?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      g: { type: 'int', min: 2, max: 8 },
+      f: { type: 'int', min: 2, max: 5 },
+    },
+    derived: { rise: 'm*g', bigRun: 'g*f', bigRise: 'm*g*f' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'They are similar triangles, so their sides stay in one ratio.', correct: true },
+    { label: 'They are congruent triangles, so their sides are equal.', error: 'operationInverted' },
+    { label: 'The rises are equal, so the ratios must match.', error: 'partialTotal' },
+    { label: 'The ratio only matches when the points are equally spaced.', error: 'ratioReversed' },
+  ],
+  reasoning: ['A run of ${{g}}$ carries a rise of ${{rise}}$; a run ${{f}}$ times as long carries ${{bigRise}}$.', 'Both triangles have the same angles, so multiplying the run multiplies the rise to match.'],
+  answerSummary: { headline: 'Similar triangles, not equal ones, is what keeps the ratio fixed.', text: 'They are similar.' },
+  hint: 'Are the triangles the same size, or the same shape?',
+  feedback: 'Equal sides would need the points equally spaced, which is not required.',
+});
+
+mk('8.4A', 'coordinate-further-along-the-line', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 2, taskType: 'application', representation: 'orderedPairs',
+  prompt: 'A line of slope ${{m}}$ passes through $({{x1}}, {{y1}})$, and a second line passes through $({{x2}}, {{other}})$. On the first line, what is $y$ when $x = {{x2}}$?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      x1: { type: 'int', min: 1, max: 8 },
+      y1: { type: 'int', min: 1, max: 20 },
+      run: { type: 'int', min: 2, max: 9 },
+      // The other line's y-value is drawn separately, so it crosses the key.
+      other: { type: 'int', min: 4, max: 75 },
+    },
+    derived: {
+      x2: 'x1+run',
+      answer: 'y1+m*run',
+      d_partialTotal: 'y1+m*(x1+run)',
+      d_operationInverted: 'y1+run',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{other}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['From ${{x1}}$ to ${{x2}}$ the run is ${{run}}$.', 'A slope of ${{m}}$ raises $y$ by ${{m}} \\times {{run}}$, from ${{y1}}$ to ${{answer}}$.'],
+  answerSummary: { headline: 'Slope multiplies the run, not the whole coordinate.', text: '$y = {{answer}}$.' },
+  hint: 'How far does $x$ actually move?',
+  feedback: 'The run is the change in $x$, not its new value.',
+});
+
+mk('8.4A', 'slope-read-from-a-table', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'The table lists three points on one line. What is its slope?',
+  stimulus: {
+    kind: 'table',
+    title: 'Points on the line',
+    table: { headers: ['x', 'y'], rows: [['0', '{{b}}'], ['{{x2}}', '{{y2}}'], ['{{x3}}', '{{y3}}']] },
+  },
+  generator: {
+    parameters: {
+      // m and b share a range, so the value at x = 0 crosses the slope.
+      m: { type: 'int', min: 2, max: 14 },
+      b: { type: 'int', min: 2, max: 14 },
+      x2: { type: 'int', min: 2, max: 6 },
+      gap: { type: 'int', min: 2, max: 6 },
+    },
+    derived: {
+      x3: 'x2+gap',
+      y2: 'm*x2+b', y3: 'm*(x2+gap)+b',
+      answer: 'm',
+      d_partialTotal: 'm*x2',
+      d_arithmeticSlip: 'm-x2',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+    { label: plain('{{b}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Between the last two rows $x$ moves ${{gap}}$ and $y$ moves ${{y3}} - {{y2}}$.', 'Dividing gives ${{answer}}$, and the first two rows give the same.'],
+  answerSummary: { headline: 'Slope is the change in y shared by the change in x.', text: 'The slope is ${{answer}}$.' },
+  hint: 'Compare how much each column changes between rows.',
+  feedback: 'The value at $x = 0$ is where the line starts, not how steep it is.',
+});
+
+mk('8.4A', 'steeper-looking-stretch', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student says a longer stretch of a line has a larger slope. What is wrong?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      g1: { type: 'int', min: 1, max: 4 },
+      f: { type: 'int', min: 2, max: 5 },
+    },
+    derived: { g2: 'g1*f', rise1: 'm*g1', rise2: 'm*g1*f' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'A run of ${{g2}}$ carries a rise of ${{rise2}}$, and ${{rise2}}$ over ${{g2}}$ is still ${{m}}$.', correct: true },
+    { label: 'Nothing is wrong, because the rise grows from ${{rise1}}$ to ${{rise2}}$.', error: 'partialTotal' },
+    { label: 'The slope shrinks instead, because the run grows faster.', error: 'ratioReversed' },
+    { label: 'Slope can only be measured between neighbouring points.', error: 'operationInverted' },
+  ],
+  reasoning: ['The rise does grow, but so does the run, and by the same factor.', 'Slope is their ratio, so it stays at ${{m}}$ however far apart the points are.'],
+  answerSummary: { headline: 'Both parts of the ratio grow together.', text: 'The slope stays ${{m}}$.' },
+  hint: 'What happens to the run at the same time?',
+  feedback: 'The rise alone is not the slope.',
+});
+
+// ================================================================ 8.4B
+// Proportional relationships and the unit rate as slope.
+
+mk('8.4B', 'cost-per-unit-from-a-point', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'context',
+  prompt: 'A cost graph passes through the origin and $({{w}}, {{c}})$, where ${{w}}$ is a weight in kg. What is the cost per kg?',
+  generator: {
+    parameters: {
+      // w and the rate share a range, so the weight crosses the answer.
+      w: { type: 'int', min: 2, max: 14 },
+      half: { type: 'int', min: 1, max: 7 },
+    },
+    derived: {
+      k: '2*half',
+      c: 'w*2*half',
+      answer: 'k',
+      d_forgotFinalStep: 'c',
+      d_partialTotal: 'half',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{w}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['The line goes through the origin, so the cost is proportional to the weight.', '${{c}} \\div {{w}} = {{answer}}$ for every point on it.'],
+  answerSummary: { headline: 'On a proportional graph the unit rate is the slope.', text: 'It is ${{answer}}$ per kg.' },
+  hint: 'What does one kilogram cost?',
+  feedback: 'That is the cost of ${{w}}$ kg, not of one.',
+});
+
+mk('8.4B', 'what-makes-a-relationship-proportional', {
+  courseId: 'grade8',
+  difficultyBand: 1, dok: 1, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'Which is true of every proportional relationship?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 12 },
+      x: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { y: 'k*x', doubled: '2*k*x' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Its graph is a straight line through the origin.', correct: true },
+    { label: 'Its graph is a straight line, wherever it crosses the axis.', error: 'partialTotal' },
+    { label: 'Its graph passes through the origin, straight or not.', error: 'operationInverted' },
+    { label: 'Its graph rises by a fixed amount rather than a fixed factor.', error: 'ratioReversed' },
+  ],
+  reasoning: ['At $x = {{x}}$ the value is ${{y}}$, and doubling $x$ doubles it to ${{doubled}}$.', 'That only happens when the line is straight and starts at the origin.'],
+  answerSummary: { headline: 'Proportional needs both: straight, and through the origin.', text: 'A straight line through the origin.' },
+  hint: 'What must happen to $y$ when $x$ doubles?',
+  feedback: 'A straight line that misses the origin is linear but not proportional.',
+});
+
+mk('8.4B', 'which-set-of-pairs-is-proportional', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'orderedPairs',
+  prompt: 'Which pair of records could come from a proportional relationship?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      x1: { type: 'int', min: 2, max: 5 },
+      b: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      x2: 'x1+3',
+      y1: 'k*x1', y2: 'k*(x1+3)',
+      a1: 'k*x1+b', a2: 'k*(x1+3)+b',
+      off: 'k*(x1+3)+k',
+    },
+    constraints: ['b!=k'],
+  },
+  choices: [
+    { label: plain('({{x1}}, {{y1}}) \\text{ and } ({{x2}}, {{y2}})'), correct: true },
+    { label: plain('({{x1}}, {{a1}}) \\text{ and } ({{x2}}, {{a2}})'), error: 'partialTotal' },
+    { label: plain('({{x1}}, {{y1}}) \\text{ and } ({{x2}}, {{off}})'), error: 'offByOneStep' },
+    { label: plain('({{y1}}, {{x1}}) \\text{ and } ({{y2}}, {{x2}})'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Both records must divide out to the same rate: ${{y1}} \\div {{x1}} = {{k}}$ and ${{y2}} \\div {{x2}} = {{k}}$.', 'The pair with a fixed ${{b}}$ added has a different quotient in each record.'],
+  answerSummary: { headline: 'Proportional means one quotient across every record.', text: 'The pair $({{x1}}, {{y1}})$ and $({{x2}}, {{y2}})$.' },
+  hint: 'Divide each second value by its first.',
+  feedback: 'A fixed amount added spoils the constant ratio.',
+});
+
+mk('8.4B', 'value-further-along-a-proportional-graph', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A proportional graph passes through $({{a}}, {{b}})$, and a second graph through $({{c}}, {{other}})$. On the first, what is $y$ at $x = {{c}}$?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      a: { type: 'int', min: 2, max: 8 },
+      c: { type: 'int', min: 2, max: 12 },
+      // The second graph's value is drawn separately, so it crosses the key.
+      other: { type: 'int', min: 3, max: 110 },
+    },
+    derived: {
+      b: 'k*a',
+      answer: 'k*c',
+      d_operationInverted: 'k+c',
+      d_partialTotal: 'b',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{other}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['${{b}} \\div {{a}} = {{k}}$, so the rate is ${{k}}$.', 'At $x = {{c}}$ that gives ${{k}} \\times {{c}} = {{answer}}$.'],
+  answerSummary: { headline: 'Find the rate from the point you have, then apply it.', text: '$y = {{answer}}$.' },
+  hint: 'What is the value at $x = 1$?',
+  feedback: 'That belongs to the second graph.',
+});
+
+mk('8.4B', 'straight-does-not-mean-proportional', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student says every straight-line graph is proportional. What is wrong?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 3, max: 20 },
+      x: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { atX: 'k*x+b', twiceX: '2*k*x+b', doubled: '2*k*x+2*b' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'A line missing the origin fails: doubling $x$ gives ${{twiceX}}$, not ${{doubled}}$.', correct: true },
+    { label: 'Nothing is wrong, because every straight line has a constant slope.', error: 'partialTotal' },
+    { label: 'Only curved graphs can be proportional.', error: 'operationInverted' },
+    { label: 'A straight line is proportional only when its slope is one.', error: 'ratioReversed' },
+  ],
+  reasoning: ['At $x = {{x}}$ the value is ${{atX}}$; at twice that $x$ it is ${{twiceX}}$.', 'Doubling the output would need ${{doubled}}$, so the constant ${{b}}$ breaks proportionality.'],
+  answerSummary: { headline: 'Constant slope is not the same as constant ratio.', text: 'The line must also pass through the origin.' },
+  hint: 'Try doubling $x$ and see whether $y$ doubles.',
+  feedback: 'A constant slope makes a line linear, not proportional.',
+});
+
+// ================================================================ 8.4C
+// Reading both the rate of change and the starting value off a table.
+
+mk('8.4C', 'rate-and-start-from-a-table', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'Which pair gives the rate of change and the value at $x = 0$?',
+  stimulus: {
+    kind: 'table',
+    title: 'Recorded values',
+    table: { headers: ['x', 'y'], rows: [['{{x1}}', '{{y1}}'], ['{{x2}}', '{{y2}}'], ['{{x3}}', '{{y3}}']] },
+  },
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 2, max: 30 },
+      x1: { type: 'int', min: 1, max: 4 },
+      gap: { type: 'int', min: 2, max: 5 },
+    },
+    derived: {
+      x2: 'x1+gap', x3: 'x1+2*gap',
+      y1: 'm*x1+b', y2: 'm*(x1+gap)+b', y3: 'm*(x1+2*gap)+b',
+      rise: 'm*gap',
+    },
+    constraints: ['m!=b', 'rise!=m'],
+  },
+  choices: [
+    { label: 'Rate ${{m}}$, value ${{b}}$.', correct: true },
+    { label: 'Rate ${{b}}$, value ${{m}}$.', error: 'ratioReversed' },
+    { label: 'Rate ${{rise}}$, value ${{y1}}$.', error: 'partialTotal' },
+    { label: 'Rate ${{m}}$, value ${{y1}}$.', error: 'offByOneStep' },
+  ],
+  reasoning: ['Each step of ${{gap}}$ in $x$ raises $y$ by ${{rise}}$, so the rate is ${{m}}$.', 'Working back from $({{x1}}, {{y1}})$ to $x = 0$ removes ${{m}} \\times {{x1}}$, leaving ${{b}}$.'],
+  answerSummary: { headline: 'The rate comes from the steps; the starting value comes from working back to zero.', text: 'Rate ${{m}}$, value ${{b}}$.' },
+  hint: 'The table does not start at $x = 0$.',
+  feedback: 'The first row is not the value at zero.',
+});
+
+mk('8.4C', 'what-the-starting-value-means', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'context',
+  prompt: 'A tank fills so that $y = {{m}}x + {{b}}$ litres after $x$ minutes. What does ${{b}}$ describe?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 20 },
+      b: { type: 'int', min: 5, max: 60 },
+      x: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { total: 'm*x+b', added: 'm*x' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'How much was already in the tank before filling started.', correct: true },
+    { label: 'How much runs in each minute.', error: 'ratioReversed' },
+    { label: 'How much is in the tank after ${{x}}$ minutes.', error: 'partialTotal' },
+    { label: 'How many minutes the filling lasts.', error: 'operationInverted' },
+  ],
+  reasoning: ['After ${{x}}$ minutes the inflow has added ${{added}}$ litres and the tank holds ${{total}}$.', 'The ${{b}}$ is there at $x = 0$, before any minute has passed.'],
+  answerSummary: { headline: 'The constant is the reading before the rate starts acting.', text: 'What was already in the tank.' },
+  hint: 'What does the rule give when $x$ is zero?',
+  feedback: 'The rate per minute is the number multiplying $x$.',
+});
+
+mk('8.4C', 'rate-of-change-between-rows', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'table',
+  prompt: 'What is the rate of change shown in the table?',
+  stimulus: {
+    kind: 'table',
+    title: 'Recorded values',
+    table: { headers: ['x', 'y'], rows: [['{{x1}}', '{{y1}}'], ['{{x2}}', '{{y2}}']] },
+  },
+  generator: {
+    parameters: {
+      // m and b share a range, so the starting value crosses the rate.
+      m: { type: 'int', min: 2, max: 14 },
+      b: { type: 'int', min: 2, max: 14 },
+      x1: { type: 'int', min: 1, max: 5 },
+      gap: { type: 'int', min: 2, max: 6 },
+    },
+    derived: {
+      x2: 'x1+gap',
+      y1: 'm*x1+b', y2: 'm*(x1+gap)+b',
+      answer: 'm',
+      d_partialTotal: 'm*gap',
+      d_arithmeticSlip: 'm-gap',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+    { label: plain('{{b}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['$y$ moves from ${{y1}}$ to ${{y2}}$, a rise of ${{d_partialTotal}}$.', '$x$ moves ${{gap}}$, so the rate is ${{answer}}$.'],
+  answerSummary: { headline: 'Divide the rise by the run, not the rise alone.', text: 'The rate is ${{answer}}$.' },
+  hint: 'How far does each column move between the rows?',
+  feedback: 'The rise has not yet been shared by the run.',
+});
+
+mk('8.4C', 'starting-value-from-a-table', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 2, taskType: 'application', representation: 'table',
+  prompt: 'What is the value at $x = 0$?',
+  stimulus: {
+    kind: 'table',
+    title: 'Recorded values',
+    table: { headers: ['x', 'y'], rows: [['{{x1}}', '{{y1}}'], ['{{x2}}', '{{y2}}']] },
+  },
+  generator: {
+    parameters: {
+      // b and m share a range, so the rate crosses the starting value.
+      m: { type: 'int', min: 2, max: 14 },
+      b: { type: 'int', min: 2, max: 14 },
+      x1: { type: 'int', min: 2, max: 5 },
+      gap: { type: 'int', min: 2, max: 6 },
+    },
+    derived: {
+      x2: 'x1+gap',
+      y1: 'm*x1+b', y2: 'm*(x1+gap)+b',
+      answer: 'b',
+      d_partialTotal: 'y1',
+      d_offByOneStep: 'b-m',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{m}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['The rate is ${{m}}$, so each step back in $x$ removes ${{m}}$ from $y$.', 'From $({{x1}}, {{y1}})$ back to zero removes ${{m}} \\times {{x1}}$, leaving ${{answer}}$.'],
+  answerSummary: { headline: 'Work back to zero one step at a time.', text: 'The value at zero is ${{answer}}$.' },
+  hint: 'How many steps back is $x = 0$?',
+  feedback: 'One step too many back overshoots the starting value.',
+});
+
+mk('8.4C', 'first-row-read-as-the-intercept', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student reads the starting value as the first $y$ in a table beginning at $x = {{x1}}$. What is wrong?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 3, max: 30 },
+      x1: { type: 'int', min: 2, max: 6 },
+    },
+    derived: { y1: 'm*x1+b', back: 'm*x1' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The table starts at ${{x1}}$, so ${{back}}$ must come off ${{y1}}$ to reach ${{b}}$.', correct: true },
+    { label: 'Nothing is wrong, because the first row is where the data begins.', error: 'partialTotal' },
+    { label: 'The rate should be added instead, giving ${{y1}}$ plus ${{m}}$.', error: 'signError' },
+    { label: 'The starting value cannot be found unless the table reaches zero.', error: 'operationInverted' },
+  ],
+  reasoning: ['Where the data begins and where $x$ is zero are different places.', 'Each of the ${{x1}}$ steps back removes ${{m}}$, so ${{y1}}$ falls to ${{b}}$.'],
+  answerSummary: { headline: 'The starting value is at x = 0, not at the top of the table.', text: 'It is ${{b}}$.' },
+  hint: 'Where does the table actually begin?',
+  feedback: 'Stepping back lowers the value; it does not raise it.',
+});
+
+// ================================================================ 8.5A
+// Proportional situations as tables, graphs and y = kx.
+
+mk('8.5A', 'constant-of-proportionality-from-a-table', {
+  courseId: 'grade8',
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'table',
+  prompt: 'What is the constant of proportionality?',
+  stimulus: {
+    kind: 'table',
+    title: 'Proportional values',
+    table: { headers: ['x', 'y'], rows: [['{{x1}}', '{{y1}}'], ['{{x2}}', '{{y2}}'], ['{{x3}}', '{{y3}}']] },
+  },
+  generator: {
+    parameters: {
+      // k and the first x share a range, so a table entry crosses the answer.
+      k: { type: 'int', min: 2, max: 12 },
+      x1: { type: 'int', min: 2, max: 12 },
+      gap: { type: 'int', min: 2, max: 5 },
+    },
+    derived: {
+      x2: 'x1+gap', x3: 'x1+2*gap',
+      y1: 'k*x1', y2: 'k*(x1+gap)', y3: 'k*(x1+2*gap)',
+      answer: 'k',
+      d_forgotFinalStep: 'y1',
+      d_arithmeticSlip: 'k-gap',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+    { label: plain('{{x1}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Every row divides out the same way: ${{y1}} \\div {{x1}} = {{answer}}$.', 'That common quotient is the constant of proportionality.'],
+  answerSummary: { headline: 'The constant is the quotient every row shares.', text: 'It is ${{answer}}$.' },
+  hint: 'Divide each $y$ by its own $x$.',
+  feedback: 'A $y$ from the table is a value, not the constant.',
+});
+
+mk('8.5A', 'equation-for-a-proportional-situation', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'context',
+  prompt: 'Cable costs $\\${{k}}$ a metre with no other charge. Which equation gives the cost $y$ of $x$ metres?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 20 },
+      x: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { cost: 'k*x', plus: 'k+x' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('y = {{k}}x'), correct: true },
+    { label: plain('y = x + {{k}}'), error: 'operationInverted' },
+    { label: plain('y = {{k}}x + {{k}}'), error: 'partialTotal' },
+    { label: plain('x = {{k}}y'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Each metre adds $\\${{k}}$ and nothing is charged on top.', 'So ${{x}}$ metres cost $\\${{cost}}$, which is ${{k}}$ times $x$.'],
+  answerSummary: { headline: 'No fixed charge means no constant term.', text: 'It is $y = {{k}}x$.' },
+  hint: 'Is there anything to pay before the first metre?',
+  feedback: 'A constant term would be a charge that applies at zero metres.',
+});
+
+mk('8.5A', 'which-pairs-share-one-constant', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'orderedPairs',
+  prompt: 'Which two records share a single constant of proportionality?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      x1: { type: 'int', min: 2, max: 6 },
+      step: { type: 'int', min: 2, max: 5 },
+      b: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      x2: 'x1+step',
+      y1: 'k*x1', y2: 'k*(x1+step)',
+      shifted: 'k*(x1+step)+b',
+      swapped: 'k*x1+k',
+    },
+    constraints: ['b!=k'],
+  },
+  choices: [
+    { label: plain('({{x1}}, {{y1}}) \\text{ and } ({{x2}}, {{y2}})'), correct: true },
+    { label: plain('({{x1}}, {{y1}}) \\text{ and } ({{x2}}, {{shifted}})'), error: 'partialTotal' },
+    { label: plain('({{x1}}, {{y1}}) \\text{ and } ({{x1}}, {{swapped}})'), error: 'offByOneStep' },
+    { label: plain('({{y1}}, {{x1}}) \\text{ and } ({{y2}}, {{x2}})'), error: 'ratioReversed' },
+  ],
+  reasoning: ['${{y1}} \\div {{x1}} = {{k}}$ and ${{y2}} \\div {{x2}} = {{k}}$, so both records agree.', 'A record with ${{b}}$ added on top divides out to something else.'],
+  answerSummary: { headline: 'One constant has to work for every record, not just one.', text: 'The pair $({{x1}}, {{y1}})$ and $({{x2}}, {{y2}})$.' },
+  hint: 'Divide each second value by its first.',
+  feedback: 'Adding a fixed amount changes the quotient.',
+});
+
+mk('8.5A', 'value-from-the-constant', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'Rope costs $\\${{k}}$ a metre and chain $\\${{other}}$ a metre. What do ${{x}}$ metres of rope cost?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 15 },
+      x: { type: 'int', min: 2, max: 12 },
+      // The chain's price per metre is drawn separately, so the total for the
+      // chain crosses the key.
+      other: { type: 'int', min: 2, max: 15 },
+    },
+    derived: {
+      answer: 'k*x',
+      d_operationInverted: 'k+x',
+      d_offByOneStep: 'k*x+k',
+      d_usedGivenValue: 'other*x',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: money('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Each metre of rope costs $\\${{k}}$.', '${{x}}$ metres therefore cost $\\${{answer}}$.'],
+  answerSummary: { headline: 'A proportional cost is the rate times the amount.', text: 'It costs $\\${{answer}}$.' },
+  hint: 'Which of the two prices applies to rope?',
+  feedback: 'That total belongs to the chain.',
+});
+
+mk('8.5A', 'constant-term-in-a-proportional-claim', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student says $y = {{m}}x + {{b}}$ is proportional because it is linear. What is wrong?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 3, max: 25 },
+      x: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { atX: 'm*x+b', atZero: 'b' },
+    constraints: ['m!=b'],
+  },
+  choices: [
+    { label: 'At $x = 0$ the value is ${{atZero}}$, not zero, so the graph misses the origin.', correct: true },
+    { label: 'Nothing is wrong, because a linear rule has a constant slope.', error: 'partialTotal' },
+    { label: 'It is proportional only if ${{b}}$ is larger than ${{m}}$.', error: 'usedGivenValue' },
+    { label: 'It is not linear either, because of the constant term.', error: 'operationInverted' },
+  ],
+  reasoning: ['Proportional needs $y$ to be zero when $x$ is, and here it is ${{b}}$.', 'At $x = {{x}}$ the value is ${{atX}}$, which is not ${{m}} \\times {{x}}$.'],
+  answerSummary: { headline: 'Linear is necessary for proportional but not enough.', text: 'The constant ${{b}}$ moves it off the origin.' },
+  hint: 'What does the rule give at $x = 0$?',
+  feedback: 'A constant term keeps the rule linear but not proportional.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
