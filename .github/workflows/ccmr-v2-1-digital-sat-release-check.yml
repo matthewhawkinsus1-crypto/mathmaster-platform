@@ -7,6 +7,8 @@ on:
     paths:
       - 'drafts/ccmr-v2.1/digitalSAT/**'
       - 'scripts/build-digital-sat-v2-1.mjs'
+      - 'scripts/lib/digital-sat-production-seed.mjs'
+      - 'tests/platform/digitalSatProductionSeedContent.test.mjs'
       - '.github/workflows/ccmr-v2-1-digital-sat-release-check.yml'
   workflow_dispatch:
 
@@ -24,6 +26,9 @@ jobs:
 
       - name: Syntax-check V2.1 publisher
         run: node --check scripts/build-digital-sat-v2-1.mjs
+
+      - name: Run Digital SAT production compiler contract
+        run: node --test tests/platform/digitalSatProductionSeedContent.test.mjs
 
       - name: Validate complete Digital SAT V2.1 release
         run: node scripts/build-digital-sat-v2-1.mjs --release --check
