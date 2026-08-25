@@ -43,6 +43,27 @@ jobs:
         run: node --check scripts/patch-ccmr-release-manifest-runtime.mjs
       - name: Apply manifest runtime patch
         run: node scripts/patch-ccmr-release-manifest-runtime.mjs
+      - name: Remove duplicate transaction timestamp declaration
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('functions/index.js')
+          text = path.read_text()
+          target = '''    if (assessmentReleaseState.tracked && assessmentReleaseState.available === false) {
+              throw assessmentReleaseUpdateError(assessmentFramework);
+            }
+
+            const now = Date.now();
+            const targetDisplay = mathPath.displayAlignmentKey(targetAlignmentKey);'''.replace('          ', '')
+          replacement = '''    if (assessmentReleaseState.tracked && assessmentReleaseState.available === false) {
+              throw assessmentReleaseUpdateError(assessmentFramework);
+            }
+
+            const targetDisplay = mathPath.displayAlignmentKey(targetAlignmentKey);'''.replace('          ', '')
+          if text.count(target) != 1:
+              raise SystemExit(f'expected one duplicate-now target after patch, found {text.count(target)}')
+          path.write_text(text.replace(target, replacement))
+          PY
       - name: Syntax check Cloud Functions runtime
         run: node --check functions/index.js
       - name: Run manifest state contract
