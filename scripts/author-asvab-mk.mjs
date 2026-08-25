@@ -2968,6 +2968,685 @@ mk('6.8B', 'area-of-one-of-the-two-triangles', {
   feedback: 'The whole plate is twice one of the pieces.',
 });
 
+
+// ================================================================ 6.7B
+// Telling an expression from an equation.
+
+mk('6.7B', 'which-of-these-is-an-equation', {
+  difficultyBand: 1, dok: 1, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Which of these is an equation?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 2, max: 20 },
+      v: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { t: 'a*v+b' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{a}}x + {{b}} = {{t}}'), correct: true },
+    { label: plain('{{a}}x + {{b}}'), error: 'operationInverted' },
+    { label: plain('{{a}}(x + {{b}})'), error: 'partialTotal' },
+    { label: plain('{{a}}x - {{b}}'), error: 'signError' },
+  ],
+  reasoning: ['An equation states that two quantities are equal, so it carries an equals sign.', 'The other three only describe a quantity.'],
+  answerSummary: { headline: 'An equation makes a claim; an expression only names a value.', text: '${{a}}x + {{b}} = {{t}}$ is the equation.' },
+  hint: 'Look for the equals sign.',
+  feedback: 'Brackets do not make an expression into an equation.',
+});
+
+mk('6.7B', 'expression-for-a-phrase', {
+  difficultyBand: 1, dok: 2, taskType: 'representationTranslation', representation: 'verbal',
+  prompt: 'How is "${{a}}$ more than a number" written?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 3, max: 40 },
+      v: { type: 'int', min: 2, max: 30 },
+    },
+    derived: { t: 'a+v' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('x + {{a}}'), correct: true },
+    { label: plain('x + {{a}} = {{t}}'), error: 'operationInverted' },
+    { label: plain('{{a}} - x'), error: 'ratioReversed' },
+    { label: plain('{{a}}x'), error: 'signError' },
+  ],
+  reasoning: ['The phrase names a quantity but claims nothing about its value.', 'So it is written without an equals sign.'],
+  answerSummary: { headline: 'A phrase becomes an expression; a sentence becomes an equation.', text: 'It is $x + {{a}}$.' },
+  hint: 'Does the phrase say what the result equals?',
+  feedback: 'Adding an equals sign claims more than the phrase does.',
+});
+
+mk('6.7B', 'what-makes-it-an-equation', {
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'table',
+  prompt: 'One of these can be solved and the other cannot. Why?',
+  stimulus: {
+    kind: 'expressions',
+    title: 'Two lines of algebra',
+    note: 'First: ${{a}}x + {{b}}$    Second: ${{a}}x + {{b}} = {{t}}$',
+  },
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 2, max: 20 },
+      v: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { t: 'a*v+b' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The second sets a value for $x$ to satisfy; the first only names a quantity.', correct: true },
+    { label: 'The second has more terms in it than the first.', error: 'partialTotal' },
+    { label: 'The first cannot be solved because it has no brackets.', error: 'operationInverted' },
+    { label: 'Both can be solved, but the first has many answers.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Solving means finding values that make a statement true.', 'The first line makes no statement, so there is nothing to satisfy.'],
+  answerSummary: { headline: 'Only a statement of equality can be solved.', text: 'The second is an equation; the first is not.' },
+  hint: 'What would solving even mean for the first line?',
+  feedback: 'The number of terms has nothing to do with it.',
+});
+
+mk('6.7B', 'evaluating-rather-than-solving', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'What is ${{a}}x + {{b}}$ when $x = {{v}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      // b and v share a range so the mis-paired product crosses the key.
+      b: { type: 'int', min: 2, max: 20 },
+      v: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {
+      answer: 'a*v+b',
+      d_orderOfOperations: '(a+b)*v',
+      d_operationInverted: 'a+b+v',
+      d_arithmeticSlip: 'a*b+v',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_orderOfOperations}}'), error: 'orderOfOperations' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['Only $x$ is replaced, so ${{a}} \\times {{v}} = {{a}}{{v}}$ is worked out first.', 'Adding ${{b}}$ gives ${{answer}}$.'],
+  answerSummary: { headline: 'An expression is evaluated, not solved.', text: 'It comes to ${{answer}}$.' },
+  hint: 'Which number replaces $x$?',
+  feedback: 'The coefficient and the constant are not added together first.',
+});
+
+mk('6.7B', 'nothing-to-solve', {
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student tries to solve ${{a}}x + {{b}}$ for $x$. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 2, max: 20 },
+    },
+    derived: { ratio: '0-b' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'There is no equals sign, so there is no statement to make true.', correct: true },
+    { label: 'Nothing is wrong, and the answer is ${{ratio}}$.', error: 'operationInverted' },
+    { label: 'It can be solved only once a value of $x$ is chosen.', error: 'ratioReversed' },
+    { label: 'It cannot be solved because ${{a}}$ does not divide ${{b}}$.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['An expression names a quantity; it does not claim that quantity equals anything.', 'Without a claim there is nothing for $x$ to satisfy.'],
+  answerSummary: { headline: 'Solving needs an equation to solve.', text: 'There is no equals sign.' },
+  hint: 'What does solving an equation actually find?',
+  feedback: 'Choosing a value for $x$ evaluates the expression; it does not solve it.',
+});
+
+// ================================================================ 6.7C
+// Deciding whether two expressions are the same.
+
+mk('6.7C', 'combining-two-like-terms', {
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Which expression equals ${{a}}x + {{b}}x$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { sum: 'a+b', prod: 'a*b' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{sum}}x'), correct: true },
+    { label: plain('{{prod}}x'), error: 'operationInverted' },
+    { label: plain('{{sum}}x^2'), error: 'exponentError' },
+    { label: plain('{{sum}} + x'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['${{a}}$ lots of $x$ and ${{b}}$ lots of $x$ make ${{sum}}$ lots of $x$.', 'The $x$ itself is not multiplied by anything new.'],
+  answerSummary: { headline: 'Like terms add their counts, not their letters.', text: 'It is ${{sum}}x$.' },
+  hint: 'How many $x$ are there altogether?',
+  feedback: 'Adding two terms does not raise the power.',
+});
+
+mk('6.7C', 'which-pair-is-equivalent', {
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'table',
+  prompt: 'Which two expressions are equal for every value of $x$?',
+  stimulus: {
+    kind: 'expressions',
+    title: 'Values in play',
+    note: '$a = {{a}}$, $b = {{b}}$',
+  },
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { ab: 'a*b', twoA: '2*a' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{a}}(x + {{b}}) \\text{ and } {{a}}x + {{ab}}'), correct: true },
+    { label: plain('{{a}}(x + {{b}}) \\text{ and } {{a}}x + {{b}}'), error: 'partialTotal' },
+    { label: plain('{{a}}x + {{a}}x \\text{ and } {{twoA}}x^2'), error: 'exponentError' },
+    { label: plain('x + {{a}} \\text{ and } {{a}}x'), error: 'operationInverted' },
+  ],
+  reasoning: ['The ${{a}}$ outside the bracket multiplies both terms inside it.', 'That gives ${{a}}x + {{ab}}$, and no other pair matches for every $x$.'],
+  answerSummary: { headline: 'Equivalent means equal for every value, not for one.', text: '${{a}}(x + {{b}})$ and ${{a}}x + {{ab}}$.' },
+  hint: 'Multiply out the bracket in full.',
+  feedback: 'Leaving one term inside the bracket unmultiplied changes the value.',
+});
+
+mk('6.7C', 'expression-equal-to-a-bracket', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Multiplying out ${{a}}(x + {{b}})$ gives which expression?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 2, max: 15 },
+    },
+    derived: { ab: 'a*b' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{a}}x + {{ab}}'), correct: true },
+    { label: plain('{{a}}x + {{b}}'), error: 'partialTotal' },
+    { label: plain('x + {{ab}}'), error: 'operationInverted' },
+    { label: plain('{{a}}x - {{ab}}'), error: 'signError' },
+  ],
+  reasoning: ['Everything inside the bracket is multiplied by ${{a}}$.', '${{a}} \\times {{b}} = {{ab}}$.'],
+  answerSummary: { headline: 'The factor outside reaches every term inside.', text: 'It is ${{a}}x + {{ab}}$.' },
+  hint: 'How many terms are inside the bracket?',
+  feedback: 'The constant inside the bracket must be multiplied too.',
+});
+
+mk('6.7C', 'where-two-plans-agree', {
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'Plan A costs $\\${{a}}$ an hour, and Plan B costs $\\${{b}}$ plus $\\$1$ an hour. At how many hours do they cost the same?',
+  generator: {
+    parameters: {
+      // a from 3 so the two plans always meet at a whole number of hours, and
+      // k over the same span as a so the given rate crosses the answer.
+      a: { type: 'int', min: 3, max: 9 },
+      k: { type: 'int', min: 2, max: 10 },
+    },
+    derived: {
+      b: 'k*(a-1)',
+      answer: 'k',
+      d_usedGivenValue: 'b',
+      d_operationInverted: 'floor(b/a)',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{a}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Each hour Plan A gains $\\$1$ times ${{a}} - 1$ on Plan B.', 'Closing the $\\${{b}}$ head start therefore takes ${{answer}}$ hours.'],
+  answerSummary: { headline: 'The two costs meet where the gap between the rates has closed the head start.', text: 'They agree at ${{answer}}$ hours.' },
+  hint: 'How much does Plan A catch up each hour?',
+  feedback: 'The head start is not itself a number of hours.',
+});
+
+mk('6.7C', 'multiplying-out-by-half', {
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student says ${{a}}(x + {{b}})$ equals ${{a}}x + {{b}}$. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 2, max: 15 },
+      v: { type: 'int', min: 1, max: 9 },
+    },
+    derived: {
+      ab: 'a*b',
+      right: 'a*(v+b)',
+      wrong: 'a*v+b',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The ${{b}}$ was not multiplied, so it should read ${{a}}x + {{ab}}$.', correct: true },
+    { label: 'Nothing is wrong; both give ${{right}}$ at $x = {{v}}$.', error: 'operationInverted' },
+    { label: 'The $x$ should not have been multiplied by ${{a}}$ either.', error: 'ratioReversed' },
+    { label: 'The bracket should have been left alone entirely.', error: 'partialTotal' },
+  ],
+  reasoning: ['At $x = {{v}}$ the first comes to ${{right}}$ and the student’s version to ${{wrong}}$.', 'One counter-example is enough to show two expressions are not equivalent.'],
+  answerSummary: { headline: 'A factor outside a bracket multiplies every term inside.', text: 'It should be ${{a}}x + {{ab}}$.' },
+  hint: 'Try a value of $x$ in both.',
+  feedback: 'The term in $x$ was handled correctly; the constant was not.',
+});
+
+// ================================================================ 6.7D
+// Rewriting an expression using the properties of operations.
+
+mk('6.7D', 'factoring-out-a-common-factor', {
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Which expression equals ${{ab}}x + {{ac}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { ab: 'a*b', ac: 'a*c' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{a}}({{b}}x + {{c}})'), correct: true },
+    { label: plain('{{a}}({{b}}x + {{ac}})'), error: 'partialTotal' },
+    { label: plain('{{ab}}(x + {{ac}})'), error: 'operationInverted' },
+    { label: plain('{{a}}({{b}}x - {{c}})'), error: 'signError' },
+  ],
+  reasoning: ['Both terms carry a factor of ${{a}}$.', 'Taking it out leaves ${{b}}x$ and ${{c}}$ inside.'],
+  answerSummary: { headline: 'Taking a factor out divides every term by it.', text: 'It is ${{a}}({{b}}x + {{c}})$.' },
+  hint: 'What divides both ${{ab}}$ and ${{ac}}$?',
+  feedback: 'A term left undivided would make the bracket too large.',
+});
+
+mk('6.7D', 'which-property-regroups', {
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'Which property turns ${{a}} + (x + {{b}})$ into $({{a}} + x) + {{b}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 20 },
+      b: { type: 'int', min: 2, max: 20 },
+    },
+    derived: { sum: 'a+b' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The associative property of addition.', correct: true },
+    { label: 'The commutative property of addition.', error: 'operationInverted' },
+    { label: 'The distributive property.', error: 'ratioReversed' },
+    { label: 'The identity property of addition.', error: 'partialTotal' },
+  ],
+  reasoning: ['The three terms stay in the same order; only the brackets move.', 'Regrouping without reordering is the associative property.'],
+  answerSummary: { headline: 'Associative moves the brackets; commutative moves the terms.', text: 'It is the associative property.' },
+  hint: 'Did anything change order, or only grouping?',
+  feedback: 'Nothing was reordered, so commuting is not what happened.',
+});
+
+mk('6.7D', 'adding-then-taking-back', {
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Simplify ${{a}}x + {{b}} - {{b}}$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 15 },
+      b: { type: 'int', min: 2, max: 30 },
+    },
+    derived: { twoB: '2*b' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{a}}x'), correct: true },
+    { label: plain('{{a}}x + {{twoB}}'), error: 'signError' },
+    { label: plain('{{a}}x + {{b}}'), error: 'partialTotal' },
+    { label: plain('x'), error: 'operationInverted' },
+  ],
+  reasoning: ['Adding ${{b}}$ and then removing ${{b}}$ leaves nothing behind.', 'The term in $x$ is untouched.'],
+  answerSummary: { headline: 'A number and its opposite cancel to zero.', text: 'It simplifies to ${{a}}x$.' },
+  hint: 'What do $+{{b}}$ and $-{{b}}$ come to together?',
+  feedback: 'The coefficient of $x$ does not disappear.',
+});
+
+mk('6.7D', 'two-properties-in-one-rewrite', {
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'Which steps take the first line to the second?',
+  stimulus: {
+    kind: 'expressions',
+    title: 'A rewrite',
+    note: 'From: ${{a}} + x + {{b}}$    To: $x + {{sum}}$',
+  },
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 20 },
+      b: { type: 'int', min: 2, max: 20 },
+    },
+    derived: { sum: 'a+b', prod: 'a*b' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Reorder the terms, then add ${{a}}$ and ${{b}}$.', correct: true },
+    { label: 'Multiply ${{a}}$ by ${{b}}$ to get ${{prod}}$, then reorder.', error: 'operationInverted' },
+    { label: 'Take $x$ out as a common factor.', error: 'ratioReversed' },
+    { label: 'Add ${{a}}$ to $x$ first, then attach ${{b}}$.', error: 'partialTotal' },
+  ],
+  reasoning: ['Moving $x$ to the front is the commutative property.', '${{a}}$ and ${{b}}$ are then like terms and add to ${{sum}}$.'],
+  answerSummary: { headline: 'Reorder first so the like terms sit together.', text: 'Reorder, then add to ${{sum}}$.' },
+  hint: 'Which two terms can actually be combined?',
+  feedback: '$x$ is not a factor of the constants.',
+});
+
+mk('6.7D', 'subtracting-a-whole-bracket', {
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student rewrites ${{a}} - (x + {{b}})$ as ${{a}} - x + {{b}}$. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 10, max: 40 },
+      b: { type: 'int', min: 2, max: 15 },
+      v: { type: 'int', min: 1, max: 9 },
+    },
+    derived: {
+      right: 'a-v-b',
+      wrong: 'a-v+b',
+      diff: '2*b',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Both terms in the bracket are subtracted, so it is ${{a}} - x - {{b}}$.', correct: true },
+    { label: 'Nothing is wrong, because the bracket only groups the terms.', error: 'operationInverted' },
+    { label: 'The $x$ should keep its plus sign, giving ${{a}} + x - {{b}}$.', error: 'signError' },
+    { label: 'The bracket cannot be removed without a factor outside it.', error: 'partialTotal' },
+  ],
+  reasoning: ['At $x = {{v}}$ the original comes to ${{right}}$ and the rewrite to ${{wrong}}$, a gap of ${{diff}}$.', 'The minus sign in front applies to everything inside.'],
+  answerSummary: { headline: 'A minus sign before a bracket subtracts every term inside it.', text: 'It should be ${{a}} - x - {{b}}$.' },
+  hint: 'Try a value of $x$ in both versions.',
+  feedback: 'The term in $x$ was handled correctly; the constant was not.',
+});
+
+// ================================================================ 6.8C
+// Writing the equation an area or volume problem calls for.
+
+mk('6.8C', 'equation-for-a-rectangle-width', {
+  difficultyBand: 1, dok: 1, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'A rectangle of length ${{L}}$ cm has area ${{A}}$ square cm. Which equation gives its width $w$?',
+  generator: {
+    parameters: {
+      L: { type: 'int', min: 3, max: 25 },
+      w: { type: 'int', min: 3, max: 25 },
+    },
+    derived: { A: 'L*w' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{L}}w = {{A}}'), correct: true },
+    { label: plain('w + {{L}} = {{A}}'), error: 'operationInverted' },
+    { label: plain('\\frac{w}{{{L}}} = {{A}}'), error: 'ratioReversed' },
+    { label: plain('{{A}}w = {{L}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['A rectangle covers its length times its width.', 'So ${{L}}$ times $w$ has to come to ${{A}}$.'],
+  answerSummary: { headline: 'Write the area rule with the unknown left in place.', text: 'It is ${{L}}w = {{A}}$.' },
+  hint: 'What are the two dimensions multiplied together?',
+  feedback: 'Adding the sides measures the way round, not the area.',
+});
+
+mk('6.8C', 'equation-for-a-triangle-area', {
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'A triangle of base ${{b}}$ units and height $h$ covers ${{A}}$ square units. Which equation is right?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 4, max: 24, step: 2 },
+      h: { type: 'int', min: 3, max: 18 },
+    },
+    derived: { A: 'b*h/2', whole: 'b*h' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('\\frac{{{b}}h}{2} = {{A}}'), correct: true },
+    { label: plain('{{b}}h = {{A}}'), error: 'partialTotal' },
+    { label: plain('\\frac{{{b}} + h}{2} = {{A}}'), error: 'areaPerimeterSwap' },
+    { label: plain('2{{b}}h = {{A}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The surrounding parallelogram would cover ${{whole}}$ square units.', 'A triangle covers half of that, so the halving belongs in the equation.'],
+  answerSummary: { headline: 'The triangle rule carries the halving with it.', text: 'It is $\\frac{{{b}}h}{2} = {{A}}$.' },
+  hint: 'What shape is the triangle half of?',
+  feedback: 'Leaving out the halving describes a parallelogram.',
+});
+
+mk('6.8C', 'equation-for-a-box-height', {
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A crate has a base ${{l}}$ by ${{w}}$ centimetres and holds ${{V}}$ cubic centimetres. Which equation gives its height $h$?',
+  generator: {
+    parameters: {
+      l: { type: 'int', min: 3, max: 20 },
+      w: { type: 'int', min: 3, max: 20 },
+      h: { type: 'int', min: 3, max: 20 },
+    },
+    derived: { base: 'l*w', V: 'l*w*h' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{base}}h = {{V}}'), correct: true },
+    { label: plain('{{l}} + {{w}} + h = {{V}}'), error: 'operationInverted' },
+    { label: plain('\\frac{{{base}}}{h} = {{V}}'), error: 'ratioReversed' },
+    { label: plain('\\frac{{{base}}h}{2} = {{V}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The base covers ${{base}}$ square centimetres.', 'Each centimetre of height adds another ${{base}}$, so ${{base}}h$ must reach ${{V}}$.'],
+  answerSummary: { headline: 'A prism stacks its base area through its height.', text: 'It is ${{base}}h = {{V}}$.' },
+  hint: 'What does one centimetre of height contribute?',
+  feedback: 'Halving belongs to a triangle, not to a box.',
+});
+
+mk('6.8C', 'equation-for-a-trapezoid-area', {
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'table',
+  prompt: 'Which equation gives the area $A$ of the shape described?',
+  stimulus: {
+    kind: 'expressions',
+    title: 'A trapezoid',
+    note: 'Parallel sides $a$ and $b$, height $h$; with $a = {{a}}$, $b = {{b}}$ and $h = {{h}}$ it covers ${{area}}$ square units.',
+  },
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 3, max: 15 },
+      b: { type: 'int', min: 3, max: 15 },
+      half: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { h: '2*half', area: '(a+b)*half' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('A = \\frac{(a + b)h}{2}'), correct: true },
+    { label: plain('A = (a + b)h'), error: 'partialTotal' },
+    { label: plain('A = \\frac{abh}{2}'), error: 'operationInverted' },
+    { label: plain('A = \\frac{a + b + h}{2}'), error: 'areaPerimeterSwap' },
+  ],
+  reasoning: ['Two copies of the trapezoid form a parallelogram of base $a + b$ and height $h$.', 'With the numbers given that is ${{a}} + {{b}}$ times ${{h}}$, and one trapezoid holds half of it: ${{area}}$.'],
+  answerSummary: { headline: 'A trapezoid is half a parallelogram built on the two parallel sides.', text: 'It is $A = \\frac{(a + b)h}{2}$.' },
+  hint: 'What do two copies of the shape make?',
+  feedback: 'The parallel sides are added, not multiplied.',
+});
+
+mk('6.8C', 'halving-where-no-halving-belongs', {
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'For a parallelogram of base ${{b}}$ units and height ${{h}}$ units a student writes $A = \\frac{{{b}} \\times {{h}}}{2}$. What is wrong?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 4, max: 24, step: 2 },
+      h: { type: 'int', min: 3, max: 18 },
+    },
+    derived: { area: 'b*h', halved: 'b*h/2' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'A parallelogram is not halved, so the area is ${{area}}$ square units.', correct: true },
+    { label: 'Nothing is wrong; a parallelogram is half a rectangle.', error: 'operationInverted' },
+    { label: 'The halving is right but the base and height should be added.', error: 'areaPerimeterSwap' },
+    { label: 'The area is ${{halved}}$, because the shape leans.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['Cutting a triangle off one end of a parallelogram and moving it makes a rectangle of the same area.', 'So the parallelogram covers the full ${{b}} \\times {{h}} = {{area}}$.'],
+  answerSummary: { headline: 'Only the triangle rule carries a halving.', text: 'The area is ${{area}}$ square units.' },
+  hint: 'What rectangle has the same area as the parallelogram?',
+  feedback: 'Leaning does not reduce the area.',
+});
+
+// ================================================================ 6.8D
+// Working out the area or volume a problem asks for.
+
+mk('6.8D', 'area-of-a-trapezoid-plate', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'A trapezoidal plate has parallel edges of ${{a}}$ and ${{b}}$ cm and a height of ${{h}}$ cm. What area does it cover?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 3, max: 20 },
+      b: { type: 'int', min: 3, max: 20 },
+      half: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      h: '2*half',
+      answer: '(a+b)*half',
+      d_forgotFinalStep: '(a+b)*h',
+      d_partialTotal: 'a*half',
+      d_operationInverted: 'a*b',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The two parallel edges total ${{a}} + {{b}}$.', 'Half the height is ${{half}}$, and the product is ${{answer}}$ square cm.'],
+  answerSummary: { headline: 'Average the parallel edges, then multiply by the height.', text: 'It covers ${{answer}}$ square cm.' },
+  hint: 'Both parallel edges are involved.',
+  feedback: 'Using one parallel edge alone describes a rectangle.',
+});
+
+mk('6.8D', 'height-of-a-crate', {
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A crate of volume ${{V}}$ cubic cm has a base ${{l}}$ by ${{w}}$ cm. How tall is it?',
+  generator: {
+    parameters: {
+      l: { type: 'int', min: 2, max: 12 },
+      w: { type: 'int', min: 2, max: 12 },
+      e: { type: 'int', min: 1, max: 6 },
+    },
+    derived: {
+      h: '2*e',
+      V: 'l*w*2*e',
+      answer: 'h',
+      d_forgotFinalStep: 'V',
+      d_partialTotal: 'e',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{l}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The base covers ${{l}} \\times {{w}}$ square cm.', 'Dividing ${{V}}$ by that base area leaves a height of ${{answer}}$ cm.'],
+  answerSummary: { headline: 'Volume divided by base area gives the height.', text: 'It is ${{answer}}$ cm tall.' },
+  hint: 'What area does one layer cover?',
+  feedback: 'The whole volume is not a length.',
+});
+
+mk('6.8D', 'total-area-of-two-plates', {
+  difficultyBand: 3, dok: 2, taskType: 'interpretation', representation: 'table',
+  prompt: 'The table lists two parallelogram plates. What area do they cover together?',
+  stimulus: {
+    kind: 'table',
+    title: 'Plate sizes',
+    table: {
+      headers: ['plate', 'base (cm)', 'height (cm)'],
+      rows: [['first', '{{b1}}', '{{h1}}'], ['second', '{{b2}}', '{{h2}}']],
+    },
+  },
+  generator: {
+    parameters: {
+      b1: { type: 'int', min: 3, max: 20 },
+      h1: { type: 'int', min: 3, max: 20 },
+      b2: { type: 'int', min: 3, max: 20 },
+      h2: { type: 'int', min: 3, max: 20 },
+    },
+    derived: {
+      answer: 'b1*h1+b2*h2',
+      d_operationInverted: '(b1+b2)*(h1+h2)',
+      d_partialTotal: 'b1*h1',
+      d_arithmeticSlip: 'b1*h2+b2*h1',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['The first plate covers ${{d_partialTotal}}$ square cm.', 'Adding the second plate brings the total to ${{answer}}$.'],
+  answerSummary: { headline: 'Work out each plate on its own, then add.', text: 'Together they cover ${{answer}}$ square cm.' },
+  hint: 'Each plate has its own base and its own height.',
+  feedback: 'Each base belongs with its own height.',
+});
+
+mk('6.8D', 'area-reported-in-the-wrong-unit', {
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student gives the volume of a crate as ${{V}}$ square centimetres. What is wrong?',
+  generator: {
+    parameters: {
+      l: { type: 'int', min: 3, max: 15 },
+      w: { type: 'int', min: 3, max: 15 },
+      h: { type: 'int', min: 3, max: 15 },
+    },
+    derived: { V: 'l*w*h', base: 'l*w' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Volume fills space in three directions, so the unit is cubic centimetres.', correct: true },
+    { label: 'Nothing is wrong, because area and volume share the same unit.', error: 'operationInverted' },
+    { label: 'The number should be ${{base}}$, the area of the base.', error: 'partialTotal' },
+    { label: 'The unit should be plain centimetres, because it is a measurement.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['Three lengths are multiplied together, so three units of length are too.', 'That gives cubic centimetres, not square ones.'],
+  answerSummary: { headline: 'The unit records how many lengths were multiplied.', text: 'It should be ${{V}}$ cubic centimetres.' },
+  hint: 'How many measurements were multiplied?',
+  feedback: 'A base area is not the volume of the crate.',
+});
+
+mk('6.8D', 'how-much-larger-the-second-triangle-is', {
+  difficultyBand: 3, dok: 2, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'Two triangles share a height of ${{h}}$ units and have bases ${{b1}}$ and ${{b2}}$ units. How much larger is the second?',
+  generator: {
+    parameters: {
+      // b1 is offered as a distractor against an AREA, so its range has to
+      // straddle d*g rather than match the other base's span.
+      b1: { type: 'int', min: 2, max: 85 },
+      d: { type: 'int', min: 2, max: 14 },
+      g: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      b2: 'b1+d',
+      h: '2*g',
+      answer: 'd*g',
+      d_operationInverted: '(b1+b2)*g',
+      d_arithmeticSlip: 'd+g',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+    { label: plain('{{b1}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The bases differ by ${{d}}$, and both triangles share the height ${{h}}$.', 'The extra area is half of ${{d}} \\times {{h}}$, which is ${{answer}}$.'],
+  answerSummary: { headline: 'Only the difference in the bases contributes the extra area.', text: 'The second is ${{answer}}$ square units larger.' },
+  hint: 'What do the two triangles have in common?',
+  feedback: 'Adding the two bases measures both triangles, not the gap.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
