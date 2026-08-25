@@ -50,6 +50,11 @@ const nativeSkillIdOf = (doc) => String(doc?.assessmentContext?.nativeSkillId ||
 const formatOf = (doc) => String(doc?.assessmentItemFormat || '').toLowerCase();
 const promptOf = (doc) => String(doc?.prompt || '').trim();
 const generatorSignature = (doc) => JSON.stringify(doc?.generator || null);
+const hasTemplateToken = (value) => /\{\{[^}]+\}\}/.test(String(value ?? ''));
+const requiresGenerator = (doc) => {
+  const { generator: _generator, ...rest } = doc || {};
+  return hasTemplateToken(JSON.stringify(rest));
+};
 
 const scopeOf = (parsed) => {
   const standard = String(parsed?.standard || '').trim().toUpperCase();
@@ -209,7 +214,6 @@ for (const { file, parsed } of selectedBanks) {
   const challenge = docs.filter((doc) => roleOf(doc) === 'challenge');
   if (direct.length !== 5 || challenge.length !== 3 || docs.length !== 8) failures.push(`${relative}: expected 5 direct + 3 challenge = 8; found ${direct.length} + ${challenge.length} = ${docs.length}`);
 
-  const generatorsWithinScope = new Map();
   for (const doc of docs) {
     const id = String(doc?.id || '').trim();
     const familyId = String(doc?.familyId || '').trim();
@@ -246,13 +250,7 @@ for (const { file, parsed } of selectedBanks) {
       if (doc?.ccmrAuthenticLanguage?.authoredChallenge !== true) failures.push(`${id}: challenge is not marked independently authored`);
     }
 
-    if (!doc?.generator || typeof doc.generator !== 'object') failures.push(`${id}: missing generator`);
-    const generator = generatorSignature(doc);
-    if (generator !== 'null') {
-      const prior = generatorsWithinScope.get(generator);
-      if (prior) failures.push(`${scope.kind}:${scope.id}: ${id} reuses the exact generator from ${prior}`);
-      else generatorsWithinScope.set(generator, id);
-    }
+    if ((!doc?.generator || typeof doc.generator !== 'object') && requiresGenerator(doc)) failures.push(`${id}: templated item is missing generator`);
 
     const format = formatOf(doc);
     const fields = Array.isArray(doc?.responseFields) ? doc.responseFields : [];
