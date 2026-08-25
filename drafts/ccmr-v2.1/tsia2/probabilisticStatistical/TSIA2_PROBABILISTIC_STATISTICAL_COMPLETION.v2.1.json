@@ -4,12 +4,12 @@
   "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
   "framework": "tsia2",
   "domainId": "probabilisticStatistical",
-  "completedNativeSkills": ["probability", "centerSpread"],
-  "completedScopeUnitsCount": 2,
-  "familiesTotal": 16,
+  "completedNativeSkills": ["probability", "centerSpread", "dataClassificationRepresentation"],
+  "completedScopeUnitsCount": 3,
+  "familiesTotal": 24,
   "validation": {
     "randomizedInstancesPerCompletedScopeUnit": 2000,
-    "randomizedInstancesTotal": 4000,
+    "randomizedInstancesTotal": 6000,
     "checks": [
       "five direct plus three independently authored challenge families per completed native skill",
       "exactly four answer choices per family",
@@ -19,16 +19,17 @@
       "generator placeholders resolve from declared parameters or derived values",
       "no exact prompt or underlying-task clones",
       "probability semantics across simple events, complements, sample spaces, empirical probability, independent compound probability, inverse count reasoning, and without-replacement probability",
-      "center-and-spread semantics across mean, median, mode, range, changed means, missing-value recovery, comparison of centers, and comparison of spread"
+      "center-and-spread semantics across mean, median, mode, range, changed means, missing-value recovery, comparison of centers, and comparison of spread",
+      "data-classification-and-representation semantics across categorical and quantitative variables, categorical counts, dot plots, histograms, numeric identifiers, time-series displays, and two-way categorical tables"
     ]
   },
   "coverageStatus": {
     "probability": "complete",
     "centerSpread": "complete",
-    "dataClassificationRepresentation": "not-started",
+    "dataClassificationRepresentation": "complete",
     "dataAnalysisConclusions": "not-started",
     "sortCountData": "not-started",
     "simpleGraphsTables": "not-started"
   },
-  "note": "2 of 6 Probabilistic and Statistical Reasoning native skill areas are complete in TSIA2 V2.1: 16 independently authored generator-backed families and 4,000 randomized semantic checks."
+  "note": "3 of 6 Probabilistic and Statistical Reasoning native skill areas are complete in TSIA2 V2.1: 24 independently authored generator-backed families and 6,000 randomized semantic checks."
 }
