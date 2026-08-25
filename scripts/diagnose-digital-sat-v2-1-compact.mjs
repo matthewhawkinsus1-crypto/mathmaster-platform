@@ -33,6 +33,12 @@ if (mode === '--clones') {
       groups: report.sprInventory.groups,
     },
   }, null, 2));
+} else if (mode === '--derived-candidates') {
+  console.log(JSON.stringify({
+    candidates: report.sprInventory.simpleTemplateCandidates
+      .filter((candidate) => candidate.answerSource === 'derived')
+      .sort((a, b) => [a.domain, a.role, a.file, a.id].join('|').localeCompare([b.domain, b.role, b.file, b.id].join('|'))),
+  }, null, 2));
 } else {
   console.log(JSON.stringify({
     documents: report.documents,
