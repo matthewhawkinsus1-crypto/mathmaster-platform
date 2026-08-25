@@ -24,18 +24,19 @@ jobs:
 
           path = Path('functions/index.js')
           source = path.read_text()
-          old = '''  const removedSuperseded = await removeSupersededBuiltInPathSeedRecords(db, taggedItems);
-          const coverage = await rebuildStoredPathCoverage(db);
-          return { ...seed, phase: "complete", removedSuperseded, coverage };
-          '''
-          new = '''  const removedSuperseded = await removeSupersededBuiltInPathSeedRecords(db, taggedItems);
-          const coverage = await rebuildStoredPathCoverage(db);
-          const { retireStaleTsia2PathStateForRelease } = await import("./shared/pathBankRelease.mjs");
-          const tsia2PathBankRelease = await retireStaleTsia2PathStateForRelease(db);
-          return { ...seed, phase: "complete", removedSuperseded, coverage, tsia2PathBankRelease };
-          '''
+          indent = '  '
+          old = (
+              indent + 'const coverage = await rebuildStoredPathCoverage(db);\n'
+              + indent + 'return { ...seed, phase: "complete", removedSuperseded, coverage };'
+          )
+          new = (
+              indent + 'const coverage = await rebuildStoredPathCoverage(db);\n'
+              + indent + 'const { retireStaleTsia2PathStateForRelease } = await import("./shared/pathBankRelease.mjs");\n'
+              + indent + 'const tsia2PathBankRelease = await retireStaleTsia2PathStateForRelease(db);\n'
+              + indent + 'return { ...seed, phase: "complete", removedSuperseded, coverage, tsia2PathBankRelease };'
+          )
           if source.count(old) != 1:
-              raise SystemExit(f'Expected exactly one seed-refresh boundary, found {source.count(old)}')
+              raise SystemExit(f'Expected exactly one post-coverage return boundary, found {source.count(old)}')
           path.write_text(source.replace(old, new, 1))
           PY
       - name: Prove TSIA2 release tests after wiring
