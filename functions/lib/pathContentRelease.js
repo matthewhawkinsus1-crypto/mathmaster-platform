@@ -74,6 +74,27 @@ function assessSessionContentRelease(session = {}, current = {}) {
   };
 }
 
+function planSessionContentReleaseAction(session = {}, current = {}) {
+  const state = assessSessionContentRelease(session, current);
+  if (!state.tracked || !state.stale) {
+    return {
+      action: "continue",
+      tracked: state.tracked,
+      stale: state.stale,
+      currentRelease: state.currentRelease,
+      reason: state.reason,
+    };
+  }
+
+  return {
+    action: session?.currentQuestion ? "finish-open-question" : "supersede",
+    tracked: true,
+    stale: true,
+    currentRelease: state.currentRelease,
+    reason: state.reason,
+  };
+}
+
 function supersedeSessionForContentRelease(session = {}, currentReleaseValue, nowValue = Date.now()) {
   if (session?.currentQuestion) {
     throw new Error("Cannot supersede a session while it has an open current question.");
@@ -97,5 +118,6 @@ module.exports = {
   RELEASE_CHANGE_REASON,
   resolveAssessmentContentRelease,
   assessSessionContentRelease,
+  planSessionContentReleaseAction,
   supersedeSessionForContentRelease,
 };
