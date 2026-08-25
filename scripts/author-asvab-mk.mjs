@@ -303,6 +303,293 @@ mk('6.2B', 'sum-of-absolute-values', {
   feedback: 'Both values become positive before they are added.',
 });
 
+// ================================================================ 6.2C
+// Integers and rationals on a number line.
+
+mk('6.2C', 'least-of-four-values', {
+  difficultyBand: 1, dok: 1, taskType: 'conceptual', representation: 'symbolic',
+  rankAnalysisNotApplicable: true,
+  prompt: 'Which of these four values is the least?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 20, max: 90 },
+      b: { type: 'int', min: 2, max: 19 },
+      c: { type: 'int', min: 2, max: 90 },
+      d: { type: 'choice', values: [2, 4, 5, 8] },
+    },
+    derived: { num: 'c*d+1' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('-{{a}}'), correct: true },
+    { label: plain('-{{b}}'), error: 'signError' },
+    { label: plain('\\frac{{{num}}}{{{d}}}'), error: 'usedGivenValue' },
+    { label: plain('0'), error: 'partialTotal' },
+  ],
+  reasoning: ['Both negatives sit below zero, and $-{{a}}$ is further from it.', 'The fraction is positive.'],
+  answerSummary: { headline: 'Further left on the number line means smaller, however large the digits.', text: '$-{{a}}$ is the least.' },
+  hint: 'Picture where each value sits relative to zero.',
+  feedback: 'A bigger digit after a minus sign means a smaller number.',
+});
+
+mk('6.2C', 'distance-between-two-points', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'numberLine',
+  prompt: 'How far apart are $-{{a}}$ and ${{b}}$ on a number line?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 60 },
+      b: { type: 'int', min: 2, max: 60 },
+    },
+    derived: {
+      answer: 'a+b',
+      d_signError: 'abs(b-a)',
+      d_operationInverted: 'a*2',
+      d_arithmeticSlip: 'a+b+b',
+    },
+    constraints: ['a!=b'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['From $-{{a}}$ to zero is {{a}} units.', 'From zero to ${{b}}$ is another {{b}}, giving {{answer}}.'],
+  answerSummary: { headline: 'Points on opposite sides of zero add their distances.', text: 'They are {{answer}} apart.' },
+  hint: 'Count to zero first, then onwards.',
+  feedback: 'Subtracting treats both points as being on the same side of zero.',
+});
+
+mk('6.2C', 'value-between-two-points', {
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'numberLine',
+  prompt: 'Which value lies between $-{{a}}$ and $-{{b}}$?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 3, max: 40 },
+      gap: { type: 'int', min: 4, max: 30 },
+      out: { type: 'int', min: 2, max: 60 },
+    },
+    derived: {
+      a: 'b+gap',
+      answer: '0-b-round(gap/2)',
+      d_signError: 'b+round(gap/2)',
+      d_operationInverted: '0-b-gap-out',
+      d_usedGivenValue: '0-out',
+    },
+    constraints: ['gap>3', '(out<b)||(out>a)'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The two ends are $-{{a}}$ and $-{{b}}$.', 'Only {{answer}} sits between them.'],
+  answerSummary: { headline: 'Between two negatives means closer to zero than one and further than the other.', text: '{{answer}} lies between them.' },
+  hint: 'Both ends are negative, so the value between them is too.',
+  feedback: 'Check each option against both ends, not just one.',
+});
+
+mk('6.2C', 'order-three-values', {
+  difficultyBand: 2, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'Which ordering is correct, from least to greatest?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 20, max: 80 },
+      b: { type: 'int', min: 2, max: 19 },
+      c: { type: 'int', min: 2, max: 40 },
+    },
+    derived: {},
+    constraints: [],
+  },
+  choices: [
+    { label: plain('-{{a}},\; -{{b}},\; {{c}}'), correct: true },
+    { label: plain('-{{b}},\; -{{a}},\; {{c}}'), error: 'signError' },
+    { label: plain('{{c}},\; -{{b}},\; -{{a}}'), error: 'ratioReversed' },
+    { label: plain('-{{b}},\; {{c}},\; -{{a}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['$-{{a}}$ is further below zero than $-{{b}}$.', 'Both are below the positive ${{c}}$.'],
+  answerSummary: { headline: 'Least to greatest runs left to right on the number line.', text: 'The order is $-{{a}}$, $-{{b}}$, ${{c}}$.' },
+  hint: 'Place all three relative to zero first.',
+  feedback: 'Among negatives, the larger digit is the smaller number.',
+});
+
+mk('6.2C', 'value-at-a-marked-tick', {
+  difficultyBand: 3, dok: 2, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'A line runs from $-{{a}}$ to ${{b}}$ in {{steps}} equal steps. What value sits one step above $-{{a}}$?',
+  generator: {
+    parameters: {
+      stepSize: { type: 'int', min: 2, max: 20 },
+      left: { type: 'int', min: 1, max: 20 },
+      right: { type: 'int', min: 1, max: 20 },
+    },
+    derived: {
+      a: 'left*stepSize',
+      b: 'right*stepSize',
+      steps: 'left+right',
+      answer: '0-left*stepSize+stepSize',
+      d_signError: '0-left*stepSize-stepSize',
+      d_operationInverted: '0-right*stepSize',
+      d_usedGivenValue: 'right*stepSize',
+    },
+    constraints: ['left>1'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The span from $-{{a}}$ to ${{b}}$ is {{steps}} steps, so each step is {{stepSize}}.', 'One step up from $-{{a}}$ is {{answer}}.'],
+  answerSummary: { headline: 'The step size is the whole span divided by the number of steps.', text: 'The value is {{answer}}.' },
+  hint: 'Work out how much one step is worth first.',
+  feedback: 'One step up from the left end is not the right end.',
+});
+
+// ================================================================ 6.2D
+// Ordering rational numbers.
+
+mk('6.2D', 'greatest-of-mixed-forms', {
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  rankAnalysisNotApplicable: true,
+  prompt: 'Which of the four values below is the greatest?',
+  generator: {
+    parameters: {
+      big: { type: 'int', min: 60, max: 95 },
+      mid: { type: 'int', min: 20, max: 50 },
+      low: { type: 'int', min: 2, max: 15 },
+    },
+    derived: { bigDec: 'big/100', midDec: 'mid/100', lowDec: 'low/100' },
+    constraints: ['big>mid+10'],
+  },
+  choices: [
+    { label: plain('{{bigDec}}'), correct: true },
+    { label: plain('\\frac{{{mid}}}{100}'), error: 'wrongPercentBase' },
+    { label: plain('{{lowDec}}'), error: 'convertedWrongWay' },
+    { label: plain('\\frac{{{low}}}{100}'), error: 'unitConversion' },
+  ],
+  reasoning: ['Every option is a number of hundredths.', '{{bigDec}} is {{big}} hundredths, the largest of the four.'],
+  answerSummary: { headline: 'Decimals and fractions compare once both are in hundredths.', text: '{{bigDec}} is the greatest.' },
+  hint: 'Rewrite each option in the same form.',
+  feedback: 'A larger numerator does not mean a larger value when the forms differ.',
+});
+
+mk('6.2D', 'least-of-four-negatives', {
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'symbolic',
+  rankAnalysisNotApplicable: true,
+  prompt: 'Which of these negative values is the least?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 60, max: 95 },
+      b: { type: 'int', min: 20, max: 55 },
+      c: { type: 'int', min: 2, max: 18 },
+      d: { type: 'choice', values: [4, 5, 10] },
+    },
+    derived: { frac: 'a*d-1' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('-\\frac{{{frac}}}{{{d}}}'), correct: true },
+    { label: plain('-{{a}}'), error: 'offByOneStep' },
+    { label: plain('-{{b}}'), error: 'signError' },
+    { label: plain('-{{c}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['$-\\frac{{{frac}}}{{{d}}}$ is a little below $-{{a}}$.', 'Both sit further from zero than $-{{b}}$ or $-{{c}}$.'],
+  answerSummary: { headline: 'Among negatives, further from zero is smaller.', text: '$-\\frac{{{frac}}}{{{d}}}$ is the least.' },
+  hint: 'Work out roughly what the fraction is worth.',
+  feedback: 'The value furthest below zero is the least, not the one with the smallest digits.',
+});
+
+mk('6.2D', 'fraction-between-two-fractions', {
+  difficultyBand: 3, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic',
+  prompt: 'Which fraction lies between $\\frac{1}{{{big}}}$ and $\\frac{1}{{{small}}}$?',
+  generator: {
+    parameters: {
+      small: { type: 'int', min: 2, max: 6 },
+      gap: { type: 'int', min: 4, max: 20 },
+      far: { type: 'int', min: 2, max: 40 },
+    },
+    derived: {
+      big: 'small+gap',
+      mid: 'small+round(gap/2)',
+      answer: '1',
+    },
+    constraints: ['mid!=small', 'mid!=big', 'far!=mid'],
+  },
+  choices: [
+    { label: plain('\\frac{1}{{{mid}}}'), correct: true },
+    { label: plain('\\frac{2}{{{far}}}'), error: 'operationInverted' },
+    { label: plain('\\frac{1}{{{small}}}'), error: 'ratioReversed' },
+    { label: plain('\\frac{1}{{{big}}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['With 1 on top, a larger bottom makes a smaller fraction.', '{{mid}} sits between {{small}} and {{big}}, so $\\frac{1}{{{mid}}}$ sits between the two given fractions.'],
+  answerSummary: { headline: 'For unit fractions the order of the denominators reverses the order of the values.', text: '$\\frac{1}{{{mid}}}$ lies between them.' },
+  hint: 'Ask what happens to a unit fraction as its denominator grows.',
+  feedback: 'A larger denominator gives a smaller unit fraction.',
+});
+
+mk('6.2D', 'closest-to-zero', {
+  difficultyBand: 3, dok: 2, taskType: 'procedural', representation: 'table',
+  prompt: 'Of the values listed, which is closest to zero?',
+  stimulus: {
+    kind: 'expressions',
+    title: 'Values',
+    note: '$-{{p}}$, $-{{q}}$, ${{r}}$, ${{u}}$',
+  },
+  generator: {
+    parameters: {
+      q: { type: 'int', min: 2, max: 12 },
+      pGap: { type: 'int', min: 5, max: 60 },
+      rGap: { type: 'int', min: 3, max: 60 },
+      uGap: { type: 'int', min: 8, max: 60 },
+      rSign: { type: 'choice', values: [-1, 1] },
+      uSign: { type: 'choice', values: [-1, 1] },
+    },
+    derived: {
+      p: 'q+pGap',
+      r: 'rSign*(q+rGap)',
+      u: 'uSign*(q+uGap)',
+      answer: '0-q',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('-{{p}}'), error: 'signError' },
+    { label: plain('{{r}}'), error: 'usedGivenValue' },
+    { label: plain('{{u}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Distance from zero ignores the sign.', '$-{{q}}$ is {{q}} from zero, nearer than any of the others.'],
+  answerSummary: { headline: 'Closest to zero is about distance, not about sign.', text: '$-{{q}}$ is closest to zero.' },
+  hint: 'Compare how far each value is from zero.',
+  feedback: 'A negative value can be closer to zero than a positive one.',
+});
+
+mk('6.2D', 'order-mixed-signs', {
+  difficultyBand: 3, dok: 3, taskType: 'representationTranslation', representation: 'verbal',
+  prompt: 'Which ordering runs from least to greatest?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 30, max: 90 },
+      b: { type: 'int', min: 2, max: 25 },
+      d: { type: 'choice', values: [2, 4, 5] },
+      c: { type: 'int', min: 2, max: 30 },
+    },
+    derived: { num: 'c*d+1' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('-{{a}},\; -{{b}},\; \\frac{{{num}}}{{{d}}}'), correct: true },
+    { label: plain('-{{b}},\; -{{a}},\; \\frac{{{num}}}{{{d}}}'), error: 'signError' },
+    { label: plain('\\frac{{{num}}}{{{d}}},\; -{{a}},\; -{{b}}'), error: 'ratioReversed' },
+    { label: plain('-{{a}},\; \\frac{{{num}}}{{{d}}},\; -{{b}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['Both negatives are below the positive fraction.', '$-{{a}}$ is further below zero than $-{{b}}$.'],
+  answerSummary: { headline: 'Signs decide the grouping; distance from zero decides the order within it.', text: 'The order is $-{{a}}$, $-{{b}}$, $\\frac{{{num}}}{{{d}}}$.' },
+  hint: 'Sort by sign first, then within each sign.',
+  feedback: 'Every negative is less than every positive.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {

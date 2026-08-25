@@ -1167,6 +1167,1234 @@
      "expected": "choice-d"
     }
    ]
+  },
+  {
+   "id": "mm_asvab_6_2C_least_of_four_values",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.2C:least-of-four-values",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2C",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which of these four values is the least?",
+   "rankAnalysisNotApplicable": true,
+   "solutionReview": {
+    "headline": "Further left on the number line means smaller, however large the digits.",
+    "reasoning": [
+     "Both negatives sit below zero, and $-{{a}}$ is further from it.",
+     "The fraction is positive."
+    ],
+    "answerSummary": "$-{{a}}$ is the least."
+   },
+   "attemptFeedback": [
+    "A bigger digit after a minus sign means a smaller number."
+   ],
+   "supportHints": [
+    "Picture where each value sits relative to zero."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 20,
+      "max": 90
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 19
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 90
+     },
+     "d": {
+      "type": "choice",
+      "values": [
+       2,
+       4,
+       5,
+       8
+      ]
+     }
+    },
+    "derived": {
+     "num": "c*d+1"
+    },
+    "constraints": [
+     "a!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$-{{b}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\frac{{{num}}}{{{d}}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$0$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$-{{a}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_2C_distance_between_two_points",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.2C:distance-between-two-points",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2C",
+   "taskType": "procedural",
+   "representation": "numberLine",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "How far apart are $-{{a}}$ and ${{b}}$ on a number line?",
+   "solutionReview": {
+    "headline": "Points on opposite sides of zero add their distances.",
+    "reasoning": [
+     "From $-{{a}}$ to zero is {{a}} units.",
+     "From zero to ${{b}}$ is another {{b}}, giving {{answer}}."
+    ],
+    "answerSummary": "They are {{answer}} apart."
+   },
+   "attemptFeedback": [
+    "Subtracting treats both points as being on the same side of zero."
+   ],
+   "supportHints": [
+    "Count to zero first, then onwards."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 60
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 60
+     }
+    },
+    "derived": {
+     "answer": "a+b",
+     "d_signError": "abs(b-a)",
+     "d_operationInverted": "a*2",
+     "d_arithmeticSlip": "a+b+b"
+    },
+    "constraints": [
+     "a!=b",
+     "answer!=d_signError",
+     "answer!=d_operationInverted",
+     "answer!=d_arithmeticSlip",
+     "d_signError!=d_operationInverted",
+     "d_signError!=d_arithmeticSlip",
+     "d_operationInverted!=d_arithmeticSlip"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_arithmeticSlip}}$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_2C_value_between_two_points",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.2C:value-between-two-points",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2C",
+   "taskType": "interpretation",
+   "representation": "numberLine",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which value lies between $-{{a}}$ and $-{{b}}$?",
+   "solutionReview": {
+    "headline": "Between two negatives means closer to zero than one and further than the other.",
+    "reasoning": [
+     "The two ends are $-{{a}}$ and $-{{b}}$.",
+     "Only {{answer}} sits between them."
+    ],
+    "answerSummary": "{{answer}} lies between them."
+   },
+   "attemptFeedback": [
+    "Check each option against both ends, not just one."
+   ],
+   "supportHints": [
+    "Both ends are negative, so the value between them is too."
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 40
+     },
+     "gap": {
+      "type": "int",
+      "min": 4,
+      "max": 30
+     },
+     "out": {
+      "type": "int",
+      "min": 2,
+      "max": 60
+     }
+    },
+    "derived": {
+     "a": "b+gap",
+     "answer": "0-b-round(gap/2)",
+     "d_signError": "b+round(gap/2)",
+     "d_operationInverted": "0-b-gap-out",
+     "d_usedGivenValue": "0-out"
+    },
+    "constraints": [
+     "gap>3",
+     "(out<b)||(out>a)",
+     "answer!=d_signError",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "d_signError!=d_operationInverted",
+     "d_signError!=d_usedGivenValue",
+     "d_operationInverted!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_2C_order_three_values",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.2C:order-three-values",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2C",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which ordering is correct, from least to greatest?",
+   "solutionReview": {
+    "headline": "Least to greatest runs left to right on the number line.",
+    "reasoning": [
+     "$-{{a}}$ is further below zero than $-{{b}}$.",
+     "Both are below the positive ${{c}}$."
+    ],
+    "answerSummary": "The order is $-{{a}}$, $-{{b}}$, ${{c}}$."
+   },
+   "attemptFeedback": [
+    "Among negatives, the larger digit is the smaller number."
+   ],
+   "supportHints": [
+    "Place all three relative to zero first."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 20,
+      "max": 80
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 19
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     }
+    },
+    "derived": {},
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$-{{a}},; -{{b}},; {{c}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$-{{b}},; {{c}},; -{{a}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{c}},; -{{b}},; -{{a}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "$-{{b}},; -{{a}},; {{c}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_2C_value_at_a_marked_tick",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.2C:value-at-a-marked-tick",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2C",
+   "taskType": "representationTranslation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A line runs from $-{{a}}$ to ${{b}}$ in {{steps}} equal steps. What value sits one step above $-{{a}}$?",
+   "solutionReview": {
+    "headline": "The step size is the whole span divided by the number of steps.",
+    "reasoning": [
+     "The span from $-{{a}}$ to ${{b}}$ is {{steps}} steps, so each step is {{stepSize}}.",
+     "One step up from $-{{a}}$ is {{answer}}."
+    ],
+    "answerSummary": "The value is {{answer}}."
+   },
+   "attemptFeedback": [
+    "One step up from the left end is not the right end."
+   ],
+   "supportHints": [
+    "Work out how much one step is worth first."
+   ],
+   "generator": {
+    "parameters": {
+     "stepSize": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "left": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     },
+     "right": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     }
+    },
+    "derived": {
+     "a": "left*stepSize",
+     "b": "right*stepSize",
+     "steps": "left+right",
+     "answer": "0-left*stepSize+stepSize",
+     "d_signError": "0-left*stepSize-stepSize",
+     "d_operationInverted": "0-right*stepSize",
+     "d_usedGivenValue": "right*stepSize"
+    },
+    "constraints": [
+     "left>1",
+     "answer!=d_signError",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "d_signError!=d_operationInverted",
+     "d_signError!=d_usedGivenValue",
+     "d_operationInverted!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_2D_greatest_of_mixed_forms",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.2D:greatest-of-mixed-forms",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2D",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which of the four values below is the greatest?",
+   "rankAnalysisNotApplicable": true,
+   "solutionReview": {
+    "headline": "Decimals and fractions compare once both are in hundredths.",
+    "reasoning": [
+     "Every option is a number of hundredths.",
+     "{{bigDec}} is {{big}} hundredths, the largest of the four."
+    ],
+    "answerSummary": "{{bigDec}} is the greatest."
+   },
+   "attemptFeedback": [
+    "A larger numerator does not mean a larger value when the forms differ."
+   ],
+   "supportHints": [
+    "Rewrite each option in the same form."
+   ],
+   "generator": {
+    "parameters": {
+     "big": {
+      "type": "int",
+      "min": 60,
+      "max": 95
+     },
+     "mid": {
+      "type": "int",
+      "min": 20,
+      "max": 50
+     },
+     "low": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     }
+    },
+    "derived": {
+     "bigDec": "big/100",
+     "midDec": "mid/100",
+     "lowDec": "low/100"
+    },
+    "constraints": [
+     "big>mid+10",
+     "bigDec!=mid",
+     "bigDec!=lowDec",
+     "bigDec!=low",
+     "mid!=lowDec",
+     "mid!=low",
+     "lowDec!=low"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{bigDec}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{lowDec}}$",
+     "error": "convertedWrongWay"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\frac{{{low}}}{100}$",
+     "error": "unitConversion"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\frac{{{mid}}}{100}$",
+     "error": "wrongPercentBase"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_2D_least_of_four_negatives",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.2D:least-of-four-negatives",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2D",
+   "taskType": "interpretation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which of these negative values is the least?",
+   "rankAnalysisNotApplicable": true,
+   "solutionReview": {
+    "headline": "Among negatives, further from zero is smaller.",
+    "reasoning": [
+     "$-\\frac{{{frac}}}{{{d}}}$ is a little below $-{{a}}$.",
+     "Both sit further from zero than $-{{b}}$ or $-{{c}}$."
+    ],
+    "answerSummary": "$-\\frac{{{frac}}}{{{d}}}$ is the least."
+   },
+   "attemptFeedback": [
+    "The value furthest below zero is the least, not the one with the smallest digits."
+   ],
+   "supportHints": [
+    "Work out roughly what the fraction is worth."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 60,
+      "max": 95
+     },
+     "b": {
+      "type": "int",
+      "min": 20,
+      "max": 55
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 18
+     },
+     "d": {
+      "type": "choice",
+      "values": [
+       4,
+       5,
+       10
+      ]
+     }
+    },
+    "derived": {
+     "frac": "a*d-1"
+    },
+    "constraints": [
+     "a!=b",
+     "a!=c",
+     "b!=c"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$-\\frac{{{frac}}}{{{d}}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$-{{a}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$-{{b}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "$-{{c}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_2D_fraction_between_two_fractions",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.2D:fraction-between-two-fractions",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2D",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which fraction lies between $\\frac{1}{{{big}}}$ and $\\frac{1}{{{small}}}$?",
+   "solutionReview": {
+    "headline": "For unit fractions the order of the denominators reverses the order of the values.",
+    "reasoning": [
+     "With 1 on top, a larger bottom makes a smaller fraction.",
+     "{{mid}} sits between {{small}} and {{big}}, so $\\frac{1}{{{mid}}}$ sits between the two given fractions."
+    ],
+    "answerSummary": "$\\frac{1}{{{mid}}}$ lies between them."
+   },
+   "attemptFeedback": [
+    "A larger denominator gives a smaller unit fraction."
+   ],
+   "supportHints": [
+    "Ask what happens to a unit fraction as its denominator grows."
+   ],
+   "generator": {
+    "parameters": {
+     "small": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "gap": {
+      "type": "int",
+      "min": 4,
+      "max": 20
+     },
+     "far": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     }
+    },
+    "derived": {
+     "big": "small+gap",
+     "mid": "small+round(gap/2)",
+     "answer": "1"
+    },
+    "constraints": [
+     "mid!=small",
+     "mid!=big",
+     "far!=mid",
+     "far!=small",
+     "far!=big",
+     "small!=big"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\frac{2}{{{far}}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\frac{1}{{{big}}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\frac{1}{{{small}}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\frac{1}{{{mid}}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_2D_closest_to_zero",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.2D:closest-to-zero",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2D",
+   "taskType": "procedural",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Of the values listed, which is closest to zero?",
+   "stimulus": {
+    "kind": "expressions",
+    "title": "Values",
+    "note": "$-{{p}}$, $-{{q}}$, ${{r}}$, ${{u}}$"
+   },
+   "solutionReview": {
+    "headline": "Closest to zero is about distance, not about sign.",
+    "reasoning": [
+     "Distance from zero ignores the sign.",
+     "$-{{q}}$ is {{q}} from zero, nearer than any of the others."
+    ],
+    "answerSummary": "$-{{q}}$ is closest to zero."
+   },
+   "attemptFeedback": [
+    "A negative value can be closer to zero than a positive one."
+   ],
+   "supportHints": [
+    "Compare how far each value is from zero."
+   ],
+   "generator": {
+    "parameters": {
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "pGap": {
+      "type": "int",
+      "min": 5,
+      "max": 60
+     },
+     "rGap": {
+      "type": "int",
+      "min": 3,
+      "max": 60
+     },
+     "uGap": {
+      "type": "int",
+      "min": 8,
+      "max": 60
+     },
+     "rSign": {
+      "type": "choice",
+      "values": [
+       -1,
+       1
+      ]
+     },
+     "uSign": {
+      "type": "choice",
+      "values": [
+       -1,
+       1
+      ]
+     }
+    },
+    "derived": {
+     "p": "q+pGap",
+     "r": "rSign*(q+rGap)",
+     "u": "uSign*(q+uGap)",
+     "answer": "0-q"
+    },
+    "constraints": [
+     "answer!=p",
+     "answer!=r",
+     "answer!=u",
+     "p!=r",
+     "p!=u",
+     "r!=u"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$-{{p}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{u}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{r}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_2D_order_mixed_signs",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.2D:order-mixed-signs",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2D",
+   "taskType": "representationTranslation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which ordering runs from least to greatest?",
+   "solutionReview": {
+    "headline": "Signs decide the grouping; distance from zero decides the order within it.",
+    "reasoning": [
+     "Both negatives are below the positive fraction.",
+     "$-{{a}}$ is further below zero than $-{{b}}$."
+    ],
+    "answerSummary": "The order is $-{{a}}$, $-{{b}}$, $\\frac{{{num}}}{{{d}}}$."
+   },
+   "attemptFeedback": [
+    "Every negative is less than every positive."
+   ],
+   "supportHints": [
+    "Sort by sign first, then within each sign."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 30,
+      "max": 90
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 25
+     },
+     "d": {
+      "type": "choice",
+      "values": [
+       2,
+       4,
+       5
+      ]
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 30
+     }
+    },
+    "derived": {
+     "num": "c*d+1"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$-{{a}},; -{{b}},; \\frac{{{num}}}{{{d}}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$-{{b}},; -{{a}},; \\frac{{{num}}}{{{d}}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\frac{{{num}}}{{{d}}},; -{{a}},; -{{b}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "$-{{a}},; \\frac{{{num}}}{{{d}}},; -{{b}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
   }
  ]
 }
