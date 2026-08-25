@@ -8,6 +8,9 @@ on:
       - 'seed/pathQuestionBank/digitalSAT_pathQuestionBank_seed.json'
       - 'seed/pathQuestionBank/act_pathQuestionBank_seed.json'
       - 'seed/pathQuestionBank/tsia2_pathQuestionBank_seed.json'
+      - 'functions/seeds/pathQuestionBank/digitalSAT_pathQuestionBank_seed.json'
+      - 'functions/seeds/pathQuestionBank/act_pathQuestionBank_seed.json'
+      - 'functions/seeds/pathQuestionBank/tsia2_pathQuestionBank_seed.json'
       - 'drafts/ccmr-v2.1/digitalSAT/**'
       - 'drafts/ccmr-v2.1/act/**'
       - 'drafts/ccmr-v2.1/tsia2/**'
@@ -15,13 +18,18 @@ on:
       - 'scripts/build-act-v2-1.mjs'
       - 'scripts/build-tsia2-v2-1.mjs'
       - 'scripts/build-tsia2-production-seed.mjs'
+      - 'scripts/build-ccmr-v2-1-production-release.mjs'
       - 'scripts/lib/digital-sat-production-seed.mjs'
       - 'scripts/lib/act-production-seed.mjs'
+      - 'scripts/lib/tsia2-production-seed.mjs'
       - 'scripts/lib/ccmr-v2-1-release-integration.mjs'
+      - 'scripts/lib/ccmr-v2-1-production-release.mjs'
       - 'scripts/audit-ccmr-v2-1-release-integration.mjs'
       - 'tests/platform/digitalSatProductionSeedContent.test.mjs'
       - 'tests/platform/actProductionSeedContent.test.mjs'
+      - 'tests/platform/tsia2ProductionSeedContent.test.mjs'
       - 'tests/platform/ccmrV21ReleaseIntegrationContent.test.mjs'
+      - 'tests/platform/ccmrV21ProductionReleaseContent.test.mjs'
       - '.github/workflows/ccmr-v2-1-release-integration-audit.yml'
   workflow_dispatch:
 
@@ -41,6 +49,10 @@ jobs:
         run: node --test tests/platform/digitalSatProductionSeedContent.test.mjs
       - name: Run ACT production compiler contract
         run: node --test tests/platform/actProductionSeedContent.test.mjs
+      - name: Run TSIA2 production compiler contract
+        run: node --test tests/platform/tsia2ProductionSeedContent.test.mjs
+      - name: Run unified production coordinator contract
+        run: node --test tests/platform/ccmrV21ProductionReleaseContent.test.mjs
       - name: Inventory current production assessment seeds
         if: always()
         run: |
