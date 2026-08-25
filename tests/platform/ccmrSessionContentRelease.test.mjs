@@ -6,6 +6,7 @@ const require = createRequire(import.meta.url);
 const {
   resolveAssessmentContentRelease,
   assessSessionContentRelease,
+  planSessionContentReleaseAction,
   supersedeSessionForContentRelease,
 } = require('../../functions/lib/pathContentRelease.js');
 
@@ -119,6 +120,63 @@ test('older release session is stale when current bank release changes', () => {
   assert.equal(
     assessSessionContentRelease({ assessmentFramework: 'digitalSAT', assessmentContentRelease: 'ccmr-fidelity-v2.0' }, state).stale,
     true,
+  );
+});
+
+test('runtime continues current and untracked sessions normally', () => {
+  assert.deepEqual(
+    planSessionContentReleaseAction(
+      { assessmentFramework: 'digitalSAT', assessmentContentRelease: RELEASE, currentQuestion: null },
+      resolveAssessmentContentRelease([sat()], 'digitalSAT'),
+    ),
+    { action: 'continue', tracked: true, stale: false, currentRelease: RELEASE, reason: null },
+  );
+  assert.deepEqual(
+    planSessionContentReleaseAction(
+      { assessmentFramework: 'asvab', currentQuestion: null },
+      resolveAssessmentContentRelease([asvab()], 'asvab'),
+    ),
+    { action: 'continue', tracked: false, stale: false, currentRelease: null, reason: null },
+  );
+});
+
+test('runtime preserves a stale session only while its already-issued question is open', () => {
+  assert.deepEqual(
+    planSessionContentReleaseAction(
+      {
+        assessmentFramework: 'digitalSAT',
+        assessmentContentRelease: 'ccmr-fidelity-v2.0',
+        currentQuestion: { questionInstanceId: 'q-1' },
+      },
+      resolveAssessmentContentRelease([sat()], 'digitalSAT'),
+    ),
+    {
+      action: 'finish-open-question',
+      tracked: true,
+      stale: true,
+      currentRelease: RELEASE,
+      reason: 'ccmr-content-release-changed',
+    },
+  );
+});
+
+test('runtime supersedes a stale session as soon as it has no open question', () => {
+  assert.deepEqual(
+    planSessionContentReleaseAction(
+      {
+        assessmentFramework: 'digitalSAT',
+        assessmentContentRelease: 'ccmr-fidelity-v2.0',
+        currentQuestion: null,
+      },
+      resolveAssessmentContentRelease([sat()], 'digitalSAT'),
+    ),
+    {
+      action: 'supersede',
+      tracked: true,
+      stale: true,
+      currentRelease: RELEASE,
+      reason: 'ccmr-content-release-changed',
+    },
   );
 });
 
