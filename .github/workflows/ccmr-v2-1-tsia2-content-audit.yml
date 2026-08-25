@@ -15,6 +15,8 @@ on:
       - 'src/platform/ccmr/assessmentStandardReferences.js'
       - 'functions/shared/texasStandards.mjs'
       - 'functions/shared/texasMiddleSchoolStandards.mjs'
+      - 'functions/shared/pathBankRelease.mjs'
+      - 'functions/index.js'
       - 'firebase.json'
       - 'tests/platform/tsia2*Content.test.mjs'
       - '.github/workflows/ccmr-v2-1-tsia2-content-audit.yml'
