@@ -13156,7 +13156,7 @@
    "solutionReview": {
     "headline": "A factor outside a bracket multiplies every term inside.",
     "reasoning": [
-     "At $x = {{v}}$ the first comes to ${{right}}$ and the student’s version to ${{wrong}}$.",
+     "At $x = {{v}}$ the first comes to ${{right}}$ and the version written to ${{wrong}}$.",
      "One counter-example is enough to show two expressions are not equivalent."
     ],
     "answerSummary": "It should be ${{a}}x + {{ab}}$."
@@ -17831,6 +17831,2878 @@
     {
      "id": "choice-d",
      "label": "That quotient comes to $2\\pi$, because the radius is half the diameter."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_5C_actual_length_from_a_drawing",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.5C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.5C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.5C:actual-length-from-a-drawing",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.5C",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "On a drawing at $1$ cm to ${{s}}$ m, a wall measures ${{c}}$ cm and a door ${{c2}}$ cm. How long is the wall?",
+   "solutionReview": {
+    "headline": "A scale multiplies every drawn length by the same amount.",
+    "reasoning": [
+     "Each drawn centimetre stands for ${{s}}$ m.",
+     "${{c}}$ cm therefore stands for ${{answer}}$ m."
+    ],
+    "answerSummary": "The wall is ${{answer}}$ m long."
+   },
+   "attemptFeedback": [
+    "That is the door, not the wall."
+   ],
+   "supportHints": [
+    "What does one centimetre on the drawing stand for?"
+   ],
+   "generator": {
+    "parameters": {
+     "s": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     },
+     "c2": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     }
+    },
+    "derived": {
+     "answer": "c*s",
+     "d_offByOneStep": "c*s+s",
+     "d_operationInverted": "c+s",
+     "d_usedGivenValue": "c2*s"
+    },
+    "constraints": [
+     "answer!=d_offByOneStep",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "d_offByOneStep!=d_operationInverted",
+     "d_offByOneStep!=d_usedGivenValue",
+     "d_operationInverted!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_5C_what_happens_to_area",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.5C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.5C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.5C:what-happens-to-area",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.5C",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A shape is enlarged by a scale factor of $k$. Its area is multiplied by what?",
+   "solutionReview": {
+    "headline": "Both directions stretch, so area grows by the factor twice over.",
+    "reasoning": [
+     "A square of side ${{side}}$ covers ${{area}}$; enlarged by ${{k}}$ its side becomes ${{k}}$ times as long in both directions.",
+     "That gives ${{bigArea}}$, which is ${{ksq}}$ times the original."
+    ],
+    "answerSummary": "Area is multiplied by $k^2$."
+   },
+   "attemptFeedback": [
+    "Multiplying by the factor once only stretches one direction."
+   ],
+   "supportHints": [
+    "How many directions does the stretch act in?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "side": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "ksq": "k*k",
+     "area": "side*side",
+     "bigArea": "k*k*side*side"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$k^3$",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-b",
+     "label": "$k$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$k^2$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$2k$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_5C_map_distance_from_a_real_one",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.5C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.5C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.5C:map-distance-from-a-real-one",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.5C",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A map is drawn at $1$ cm to ${{s}}$ km. Two towns ${{d}}$ km apart appear how far apart?",
+   "solutionReview": {
+    "headline": "Going from ground to map divides by the scale.",
+    "reasoning": [
+     "Every ${{s}}$ km of ground takes one centimetre on the map.",
+     "${{d}} \\div {{s}} = {{answer}}$ cm."
+    ],
+    "answerSummary": "They appear ${{answer}}$ cm apart."
+   },
+   "attemptFeedback": [
+    "The real distance in kilometres is not a length on the map."
+   ],
+   "supportHints": [
+    "Which way does the scale run here?"
+   ],
+   "generator": {
+    "parameters": {
+     "s": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "half": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     }
+    },
+    "derived": {
+     "c": "2*half",
+     "d": "s*2*half",
+     "answer": "c",
+     "d_forgotFinalStep": "d",
+     "d_partialTotal": "half"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "answer!=s",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_forgotFinalStep!=s",
+     "d_partialTotal!=s"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{s}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_5C_row_drawn_to_the_wrong_scale",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.5C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.5C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.5C:row-drawn-to-the-wrong-scale",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.5C",
+   "taskType": "representationTranslation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Three of these are drawn to one scale and one is not. Which row is wrong?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Drawing against ground",
+    "table": {
+     "headers": [
+      "feature",
+      "drawn (cm)",
+      "actual (m)"
+     ],
+     "rows": [
+      [
+       "wall",
+       "{{c1}}",
+       "{{a1}}"
+      ],
+      [
+       "beam",
+       "{{c2}}",
+       "{{a2}}"
+      ],
+      [
+       "span",
+       "{{c3}}",
+       "{{bad}}"
+      ],
+      [
+       "rail",
+       "{{c4}}",
+       "{{a4}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "One scale must hold for every row of a drawing.",
+    "reasoning": [
+     "Every other row divides out to ${{s}}$ m per centimetre.",
+     "${{bad}} \\div {{c3}}$ does not."
+    ],
+    "answerSummary": "The span row breaks it."
+   },
+   "attemptFeedback": [
+    "That row does divide out to ${{s}}$."
+   ],
+   "supportHints": [
+    "Divide each actual length by its drawn length."
+   ],
+   "generator": {
+    "parameters": {
+     "s": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "c1": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     }
+    },
+    "derived": {
+     "c2": "c1+2",
+     "c3": "c1+4",
+     "c4": "c1+6",
+     "a1": "c1*s",
+     "a2": "c2*s",
+     "a4": "c4*s",
+     "bad": "c3*s+s-1"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$({{c3}}, {{bad}})$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$({{c2}}, {{a2}})$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "$({{c4}}, {{a4}})$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "$({{c1}}, {{a1}})$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_5C_doubling_lengths_and_area",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.5C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.5C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.5C:doubling-lengths-and-area",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.5C",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student says doubling every length of a shape doubles its area. What is wrong?",
+   "solutionReview": {
+    "headline": "A length factor acts once in each direction.",
+    "reasoning": [
+     "A ${{a}}$ by ${{b}}$ rectangle covers ${{area}}$.",
+     "Doubled it is $2 \\times {{a}}$ by $2 \\times {{b}}$, covering ${{real}}$ — four times as much."
+    ],
+    "answerSummary": "The area quadruples to ${{real}}$."
+   },
+   "attemptFeedback": [
+    "Doubling both directions is not the same as doubling the area."
+   ],
+   "supportHints": [
+    "Try it on a rectangle you can picture."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "area": "a*b",
+     "doubled": "2*a*b",
+     "real": "4*a*b"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The area stays at ${{area}}$, because the shape is unchanged.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "The area is doubled twice over, reaching ${{doubled}}$ each time.",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-c",
+     "label": "Both directions double, so the area reaches ${{real}}$, not ${{doubled}}$."
+    },
+    {
+     "id": "choice-d",
+     "label": "Nothing is wrong, because every length was doubled.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_7_equation_that_fits_the_table",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.7"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.7",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.7:equation-that-fits-the-table",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.7",
+   "taskType": "representationTranslation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which equation matches the table?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Recorded values",
+    "table": {
+     "headers": [
+      "x",
+      "y"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "{{y1}}"
+      ],
+      [
+       "{{x2}}",
+       "{{y2}}"
+      ],
+      [
+       "{{x3}}",
+       "{{y3}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Find the step first, then what is left over.",
+    "reasoning": [
+     "Each step of $2$ in $x$ raises $y$ by $2 \\times {{m}}$, so the rate is ${{m}}$.",
+     "At $x = {{x1}}$ the value is ${{y1}}$, which needs a further ${{b}}$ on top of ${{m}} \\times {{x1}}$."
+    ],
+    "answerSummary": "It is $y = {{m}}x + {{b}}$."
+   },
+   "attemptFeedback": [
+    "A rule with no constant misses every row."
+   ],
+   "supportHints": [
+    "How much does $y$ move for each step in $x$?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 25
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     }
+    },
+    "derived": {
+     "x2": "x1+2",
+     "x3": "x1+5",
+     "y1": "m*x1+b",
+     "y2": "m*x2+b",
+     "y3": "m*x3+b",
+     "mPlus": "m+1",
+     "firstGap": "m*x1+b-x1"
+    },
+    "constraints": [
+     "firstGap!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = {{mPlus}}x + {{b}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = x + {{firstGap}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = {{m}}x$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = {{m}}x + {{b}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_7_what_the_constant_stands_for",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.7"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.7",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.7:what-the-constant-stands-for",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.7",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A hire costs $y = {{m}}x + {{b}}$ dollars for $x$ days. What does ${{b}}$ stand for?",
+   "solutionReview": {
+    "headline": "The constant is what you pay before any day is counted.",
+    "reasoning": [
+     "At ${{x}}$ days the daily part comes to $\\${{days}}$ and the total to $\\${{total}}$.",
+     "The extra $\\${{b}}$ is there whatever ${{x}}$ is, so it does not depend on the days."
+    ],
+    "answerSummary": "It is a fixed charge."
+   },
+   "attemptFeedback": [
+    "The daily rate is the number multiplying $x$."
+   ],
+   "supportHints": [
+    "What happens to that term as $x$ changes?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 5,
+      "max": 40,
+      "step": 5
+     },
+     "b": {
+      "type": "int",
+      "min": 10,
+      "max": 90,
+      "step": 5
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "total": "m*x+b",
+     "days": "m*x"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The total cost of the hire.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "The cost of one day of hire.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "A fixed charge that applies however many days the hire runs."
+    },
+    {
+     "id": "choice-d",
+     "label": "The number of days the hire may run.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_7_input_that_gives_a_target",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.7"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.7",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.7:input-that-gives-a-target",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.7",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "In $y = {{m}}x + {{b}}$, what is $x$ when $y = {{t}}$?",
+   "solutionReview": {
+    "headline": "Undo the constant, then undo the rate.",
+    "reasoning": [
+     "Take the ${{b}}$ off first: ${{t}} - {{b}}$ leaves the part that came from ${{m}}x$.",
+     "Dividing that by ${{m}}$ gives ${{answer}}$."
+    ],
+    "answerSummary": "$x = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "The target value of $y$ is not the value of $x$."
+   ],
+   "supportHints": [
+    "Which of the two operations is undone first?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     }
+    },
+    "derived": {
+     "t": "m*v+b",
+     "answer": "v",
+     "d_forgotFinalStep": "t",
+     "d_operationInverted": "v-m"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=m",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=m",
+     "d_operationInverted!=m"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{m}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_7_slope_from_two_points",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.7"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.7",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.7:slope-from-two-points",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.7",
+   "taskType": "application",
+   "representation": "orderedPairs",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A line passes through $({{x1}}, {{y1}})$ and $({{x2}}, {{y2}})$. What is its slope?",
+   "solutionReview": {
+    "headline": "Slope is rise divided by run, not rise alone.",
+    "reasoning": [
+     "From the first point to the second, $x$ moves ${{g}}$ and $y$ moves ${{d_partialTotal}}$.",
+     "The slope is the rise shared by the run: ${{answer}}$."
+    ],
+    "answerSummary": "The slope is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The rise on its own has not been shared by the run."
+   ],
+   "supportHints": [
+    "How far does each coordinate move?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "g": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "y1": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     }
+    },
+    "derived": {
+     "x2": "x1+g",
+     "y2": "y1+m*g",
+     "answer": "m",
+     "d_partialTotal": "m*g",
+     "d_arithmeticSlip": "m-g"
+    },
+    "constraints": [
+     "answer!=d_partialTotal",
+     "answer!=d_arithmeticSlip",
+     "answer!=g",
+     "d_partialTotal!=d_arithmeticSlip",
+     "d_partialTotal!=g",
+     "d_arithmeticSlip!=g"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_arithmeticSlip}}$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{g}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_7_reading_the_slope_off_the_wrong_number",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.7"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.7",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.7:reading-the-slope-off-the-wrong-number",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.7",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student reads the slope of $y = {{m}}x + {{b}}$ as ${{b}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "The number multiplying x is the slope.",
+    "reasoning": [
+     "${{b}}$ is where the line starts, not how steeply it climbs.",
+     "Between $x = 1$ and $x = 2$ the value moves from ${{atOne}}$ to ${{atTwo}}$, a rise of ${{m}}$."
+    ],
+    "answerSummary": "The slope is ${{m}}$."
+   },
+   "attemptFeedback": [
+    "Size does not decide which number is the slope."
+   ],
+   "supportHints": [
+    "Which number changes the value as $x$ moves?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     }
+    },
+    "derived": {
+     "atOne": "m+b",
+     "atTwo": "2*m+b"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Nothing is wrong, because ${{b}}$ is the larger number.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "The slope is ${{atOne}}$, the value of $y$ at $x = 1$.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "The slope cannot be read without a table of values.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "The slope is ${{m}}$: each step in $x$ moves $y$ from ${{atOne}}$ to ${{atTwo}}$."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_8A_how_the_two_volumes_compare",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.8A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.8A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.8A:how-the-two-volumes-compare",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.8A",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A pyramid and a prism share a base and a height. How do their volumes compare?",
+   "solutionReview": {
+    "headline": "Three pyramids fill the prism they share a base and height with.",
+    "reasoning": [
+     "With a base of ${{B}}$ and a height of ${{h}}$ the prism holds ${{prism}}$.",
+     "The pyramid holds ${{pyramid}}$, which is a third of it."
+    ],
+    "answerSummary": "A third."
+   },
+   "attemptFeedback": [
+    "Halving would be right for a triangle against a rectangle, not here."
+   ],
+   "supportHints": [
+    "How many pyramids would fill the prism?"
+   ],
+   "generator": {
+    "parameters": {
+     "B": {
+      "type": "int",
+      "min": 6,
+      "max": 40,
+      "step": 2
+     },
+     "e": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     }
+    },
+    "derived": {
+     "h": "3*e",
+     "prism": "3*B*e",
+     "pyramid": "B*e"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The two hold the same amount.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "The pyramid holds three times the prism.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "The pyramid holds a third of the prism."
+    },
+    {
+     "id": "choice-d",
+     "label": "The pyramid holds half of the prism.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_8A_volume_of_the_pyramid_inside",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.8A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.8A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.8A:volume-of-the-pyramid-inside",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.8A",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A pyramid of base ${{B}}$ square cm and height ${{h}}$ cm sits beside one of base ${{B2}}$ square cm at the same height. What is the volume of the first?",
+   "solutionReview": {
+    "headline": "Base area times height, then a third.",
+    "reasoning": [
+     "The surrounding prism would hold ${{B}} \\times {{h}} = {{d_forgotFinalStep}}$ cubic cm.",
+     "A pyramid holds a third of that: ${{answer}}$."
+    ],
+    "answerSummary": "It holds ${{answer}}$ cubic cm."
+   },
+   "attemptFeedback": [
+    "That is the second pyramid, not the first."
+   ],
+   "supportHints": [
+    "What would the matching prism hold?"
+   ],
+   "generator": {
+    "parameters": {
+     "B": {
+      "type": "int",
+      "min": 4,
+      "max": 30
+     },
+     "B2": {
+      "type": "int",
+      "min": 4,
+      "max": 30
+     },
+     "e": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "h": "3*e",
+     "answer": "B*e",
+     "d_forgotFinalStep": "3*B*e",
+     "d_operationInverted": "B+e",
+     "d_usedGivenValue": "B2*e"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_operationInverted!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_8A_prism_from_a_known_pyramid",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.8A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.8A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.8A:prism-from-a-known-pyramid",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.8A",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "One pyramid of base ${{B}}$ square cm is ${{h}}$ cm tall and a second is ${{h2}}$ cm tall. What does a prism matching the first hold?",
+   "solutionReview": {
+    "headline": "The prism is the plain base-times-height; the third belongs to the pyramid.",
+    "reasoning": [
+     "A prism holds its base area times its height: ${{B}} \\times {{h}} = {{answer}}$ cubic cm.",
+     "The pyramid inside it would hold only a third of that, ${{d_partialTotal}}$."
+    ],
+    "answerSummary": "It holds ${{answer}}$ cubic cm."
+   },
+   "attemptFeedback": [
+    "That is the prism around the second pyramid, not the first."
+   ],
+   "supportHints": [
+    "The prism needs no dividing."
+   ],
+   "generator": {
+    "parameters": {
+     "B": {
+      "type": "int",
+      "min": 4,
+      "max": 30
+     },
+     "e": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     },
+     "h2": {
+      "type": "int",
+      "min": 3,
+      "max": 24,
+      "step": 3
+     }
+    },
+    "derived": {
+     "h": "3*e",
+     "answer": "B*3*e",
+     "d_partialTotal": "B*e",
+     "d_offByOneStep": "3*B*3*e",
+     "d_usedGivenValue": "B*h2"
+    },
+    "constraints": [
+     "answer!=d_partialTotal",
+     "answer!=d_offByOneStep",
+     "answer!=d_usedGivenValue",
+     "d_partialTotal!=d_offByOneStep",
+     "d_partialTotal!=d_usedGivenValue",
+     "d_offByOneStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_8A_expression_for_a_rectangular_pyramid",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.8A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.8A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.8A:expression-for-a-rectangular-pyramid",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.8A",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A rectangular pyramid has base $l$ by $w$ and height $h$. Which expression gives its volume?",
+   "solutionReview": {
+    "headline": "The pyramid formula is the prism formula divided by three.",
+    "reasoning": [
+     "$lwh$ is what the surrounding prism holds.",
+     "With $l = {{l}}$, $w = {{w}}$ and $h = {{h}}$ the pyramid holds ${{vol}}$, a third of that."
+    ],
+    "answerSummary": "It is $\\frac{lwh}{3}$."
+   },
+   "attemptFeedback": [
+    "Halving belongs to a triangle, not to a pyramid."
+   ],
+   "supportHints": [
+    "Start from the prism that surrounds it."
+   ],
+   "generator": {
+    "parameters": {
+     "l": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "w": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "e": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     }
+    },
+    "derived": {
+     "h": "3*e",
+     "vol": "l*w*e"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$lwh$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$3lwh$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\frac{lwh}{2}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\frac{lwh}{3}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_8A_halving_instead_of_thirding",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.8A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.8A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.8A:halving-instead-of-thirding",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.8A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student says a pyramid holds half of the prism around it. What is wrong?",
+   "solutionReview": {
+    "headline": "Three pyramids fill the prism, so the share is a third.",
+    "reasoning": [
+     "Three identical pyramids, not two, fill the prism they share a base and height with.",
+     "So the share is ${{right}}$ out of ${{prism}}$."
+    ],
+    "answerSummary": "It holds ${{right}}$ cubic units."
+   },
+   "attemptFeedback": [
+    "Coming to a point does not make the share a half."
+   ],
+   "supportHints": [
+    "How many would it take to fill the prism?"
+   ],
+   "generator": {
+    "parameters": {
+     "B": {
+      "type": "int",
+      "min": 6,
+      "max": 40,
+      "step": 2
+     },
+     "e": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     }
+    },
+    "derived": {
+     "h": "3*e",
+     "prism": "3*B*e",
+     "right": "B*e",
+     "claimed": "3*B*e/2"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Nothing is wrong, because a pyramid comes to a point halfway up.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "It holds the same as the prism, because the base and height match.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "It holds a third: ${{right}}$ of the prism total of ${{prism}}$, not ${{claimed}}$."
+    },
+    {
+     "id": "choice-d",
+     "label": "It holds a quarter, because the base narrows in both directions.",
+     "error": "exponentError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_8B_volume_of_a_triangular_prism",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.8B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.8B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.8B:volume-of-a-triangular-prism",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.8B",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A triangular prism has an end triangle of base ${{b}}$ cm and height ${{ht}}$ cm, and is ${{L}}$ cm long. What is its volume?",
+   "solutionReview": {
+    "headline": "A prism is its end face carried along its length.",
+    "reasoning": [
+     "The end triangle covers ${{end}}$ square cm.",
+     "Carried ${{L}}$ cm along, that fills ${{answer}}$ cubic cm."
+    ],
+    "answerSummary": "It holds ${{answer}}$ cubic cm."
+   },
+   "attemptFeedback": [
+    "Leaving out the halving describes a box, not a triangular prism."
+   ],
+   "supportHints": [
+    "What area does the end face cover?"
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 4,
+      "max": 12,
+      "step": 2
+     },
+     "ht": {
+      "type": "int",
+      "min": 3,
+      "max": 9
+     },
+     "L": {
+      "type": "int",
+      "min": 3,
+      "max": 9
+     }
+    },
+    "derived": {
+     "end": "b*ht/2",
+     "answer": "b*ht*L/2",
+     "d_partialTotal": "b*ht*L",
+     "d_operationInverted": "b+ht+L",
+     "d_areaPerimeterSwap": "b*ht+b*L+ht*L"
+    },
+    "constraints": [
+     "answer!=d_partialTotal",
+     "answer!=d_operationInverted",
+     "answer!=d_areaPerimeterSwap",
+     "d_partialTotal!=d_operationInverted",
+     "d_partialTotal!=d_areaPerimeterSwap",
+     "d_operationInverted!=d_areaPerimeterSwap"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_areaPerimeterSwap}}$",
+     "error": "areaPerimeterSwap"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_8B_expression_for_a_triangular_pyramid",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.8B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.8B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.8B:expression-for-a-triangular-pyramid",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.8B",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A triangular pyramid has base area $B$ and height $h$. Which expression gives its volume?",
+   "solutionReview": {
+    "headline": "Base area times height, divided by three.",
+    "reasoning": [
+     "$B$ already accounts for the triangle, so no further halving is owed.",
+     "With $B = {{B}}$ and $h = {{h}}$ the prism holds ${{prism}}$ and the pyramid ${{vol}}$."
+    ],
+    "answerSummary": "It is $\\frac{Bh}{3}$."
+   },
+   "attemptFeedback": [
+    "Halving twice would take the triangle into account a second time."
+   ],
+   "supportHints": [
+    "Does $B$ already account for the triangle?"
+   ],
+   "generator": {
+    "parameters": {
+     "B": {
+      "type": "int",
+      "min": 6,
+      "max": 40,
+      "step": 2
+     },
+     "e": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     }
+    },
+    "derived": {
+     "h": "3*e",
+     "vol": "B*e",
+     "prism": "3*B*e"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$Bh$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\frac{Bh}{6}$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\frac{Bh}{2}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\frac{Bh}{3}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_8B_what_three_pours_show",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.8B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.8B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.8B:what-three-pours-show",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.8B",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Three fillings of a triangular pyramid exactly fill a prism with the same base and height. What does that show?",
+   "solutionReview": {
+    "headline": "The pouring result is the formula, stated physically.",
+    "reasoning": [
+     "Each pour adds ${{pyramid}}$, so after two the prism holds ${{afterTwo}}$ and one pour remains.",
+     "Three equal pours filling ${{prism}}$ means each is a third of it."
+    ],
+    "answerSummary": "The pyramid is a third: $\\frac{Bh}{3}$."
+   },
+   "attemptFeedback": [
+    "The prism is the larger of the two, not the smaller."
+   ],
+   "supportHints": [
+    "What does it mean that three fill one?"
+   ],
+   "generator": {
+    "parameters": {
+     "B": {
+      "type": "int",
+      "min": 6,
+      "max": 40,
+      "step": 2
+     },
+     "e": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "h": "3*e",
+     "pyramid": "B*e",
+     "prism": "3*B*e",
+     "afterTwo": "2*B*e"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The pyramid holds three times the prism, so its volume is $3Bh$.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "The two shapes hold the same, because their bases and heights match.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "The pyramid holds a third of the base area, not of the volume.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "The pyramid holds a third of the prism, so its volume is $\\frac{Bh}{3}$."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_8B_extra_room_in_the_prism",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.8B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.8B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.8B:extra-room-in-the-prism",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.8B",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two triangular pyramids of the same height hold ${{p}}$ and ${{p2}}$ cubic cm. How much more than the first does its matching prism hold?",
+   "solutionReview": {
+    "headline": "Three pyramids fill the prism, so two pyramids of room are spare.",
+    "reasoning": [
+     "The prism holds three pyramids, or $3 \\times {{p}} = {{d_partialTotal}}$ cubic cm.",
+     "Beyond the pyramid itself that leaves ${{answer}}$ cubic cm spare."
+    ],
+    "answerSummary": "It holds ${{answer}}$ cubic cm more."
+   },
+   "attemptFeedback": [
+    "That is what the prism holds altogether."
+   ],
+   "supportHints": [
+    "The question asks for the gap, not the whole prism."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 60
+     },
+     "p2": {
+      "type": "int",
+      "min": 2,
+      "max": 60
+     }
+    },
+    "derived": {
+     "answer": "2*p",
+     "d_partialTotal": "3*p",
+     "d_usedGivenValue": "2*p2"
+    },
+    "constraints": [
+     "answer!=d_partialTotal",
+     "answer!=p",
+     "answer!=d_usedGivenValue",
+     "d_partialTotal!=p",
+     "d_partialTotal!=d_usedGivenValue",
+     "p!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{p}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_8B_forgetting_the_triangle",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.8B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.8B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.8B:forgetting-the-triangle",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.8B",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For a triangular prism a student multiplies base by height by length and stops. What is wrong?",
+   "solutionReview": {
+    "headline": "The halving belongs to the triangular end, not to the prism.",
+    "reasoning": [
+     "Multiplying base by height gives the rectangle the triangle sits inside.",
+     "The triangle covers half of it, so the volume is ${{right}}$, not ${{wrong}}$."
+    ],
+    "answerSummary": "The volume is ${{right}}$ cubic units."
+   },
+   "attemptFeedback": [
+    "Dividing by three would turn the prism into a pyramid."
+   ],
+   "supportHints": [
+    "What shape is the end face?"
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 4,
+      "max": 16,
+      "step": 2
+     },
+     "ht": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     },
+     "L": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     }
+    },
+    "derived": {
+     "right": "b*ht*L/2",
+     "wrong": "b*ht*L",
+     "end": "b*ht/2"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The end face is a triangle, so it covers ${{end}}$ and the volume is ${{right}}$."
+    },
+    {
+     "id": "choice-b",
+     "label": "The result ${{wrong}}$ should be divided by three, not by two.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "The length should not be used at all for a prism.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "Nothing is wrong, because all three measurements were used.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_8C_what_the_wedges_make",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.8C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.8C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.8C:what-the-wedges-make",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.8C",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A circle is cut into thin wedges and laid alternately into a near-rectangle. What are the sides of that rectangle?",
+   "solutionReview": {
+    "headline": "The wedges split the edge between the two long sides.",
+    "reasoning": [
+     "Half the wedges point up and half point down, so each long side takes half the edge: about ${{halfC}}$ for a radius of ${{r}}$.",
+     "The short side is one wedge tall, which is the radius."
+    ],
+    "answerSummary": "Half the circumference by the radius."
+   },
+   "attemptFeedback": [
+    "The whole edge is shared between top and bottom."
+   ],
+   "supportHints": [
+    "How much of the edge lies along each long side?"
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "d": "2*r",
+     "halfC": "round(314*r/100)"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Half the way round, by the radius."
+    },
+    {
+     "id": "choice-b",
+     "label": "Half the way round, by the diameter.",
+     "error": "diameterForRadius"
+    },
+    {
+     "id": "choice-c",
+     "label": "The diameter, by the radius.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "The whole way round, by the radius.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_8C_area_from_the_near_rectangle",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.8C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.8C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.8C:area-from-the-near-rectangle",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.8C",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "That near-rectangle has sides $\\pi r$ and $r$. What is its area?",
+   "solutionReview": {
+    "headline": "The wedge rectangle gives the circle formula directly.",
+    "reasoning": [
+     "A rectangle covers one side times the other.",
+     "$\\pi r \\times r$ is $\\pi r^2$, and with $r = {{r}}$ that is ${{rsq}}\\pi$."
+    ],
+    "answerSummary": "It is $\\pi r^2$."
+   },
+   "attemptFeedback": [
+    "That expression measures a distance, not an area."
+   ],
+   "supportHints": [
+    "Multiply the two sides together."
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "rsq": "r*r",
+     "twoR": "2*r",
+     "four": "4*r"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\pi r^2$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$2\\pi r^2$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\pi r$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$2\\pi r$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_8C_area_of_a_disc",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.8C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.8C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.8C:area-of-a-disc",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.8C",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A disc has radius ${{r}}$ cm. What area does it cover?",
+   "solutionReview": {
+    "headline": "Square the radius, then multiply by pi.",
+    "reasoning": [
+     "Area is $\\pi$ times the radius squared.",
+     "${{r}} \\times {{r}} = {{rsq}}$, so the disc covers ${{rsq}}\\pi$ square cm."
+    ],
+    "answerSummary": "It covers ${{rsq}}\\pi$ square cm."
+   },
+   "attemptFeedback": [
+    "That expression is the way round, not the area."
+   ],
+   "supportHints": [
+    "Which length gets squared?"
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 3,
+      "max": 20
+     }
+    },
+    "derived": {
+     "rsq": "r*r",
+     "twoR": "2*r",
+     "dsq": "4*r*r"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{r}}\\pi$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{dsq}}\\pi$",
+     "error": "diameterForRadius"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{rsq}}\\pi$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{twoR}}\\pi$",
+     "error": "areaPerimeterSwap"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_8C_what_the_string_supports",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.8C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.8C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.8C:what-the-string-supports",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.8C",
+   "taskType": "interpretation",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A string laid round a can of diameter ${{d}}$ cm measures about ${{c}}$ cm. Which formula does that support?",
+   "solutionReview": {
+    "headline": "The measured ratio is what the formula records.",
+    "reasoning": [
+     "${{c}}$ divided by ${{d}}$ comes to about $3.14$.",
+     "That is $\\pi$, so the way round is $\\pi$ times the diameter."
+    ],
+    "answerSummary": "It supports $C = \\pi d$."
+   },
+   "attemptFeedback": [
+    "Using the radius would make the ratio about $6.28$."
+   ],
+   "supportHints": [
+    "Divide the string length by the diameter."
+   ],
+   "generator": {
+    "parameters": {
+     "d": {
+      "type": "int",
+      "min": 4,
+      "max": 40,
+      "step": 2
+     }
+    },
+    "derived": {
+     "c": "round(314*d/100)",
+     "r": "d/2"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$C = \\pi d$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$C = 2\\pi d$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "$C = \\pi r$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$C = \\pi d^2$",
+     "error": "areaPerimeterSwap"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_8C_diameter_in_the_area_formula",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.8C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.8C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:7.8C:diameter-in-the-area-formula",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.8C",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student puts the diameter into $\\pi r^2$. What is wrong?",
+   "solutionReview": {
+    "headline": "A squared term doubles twice over.",
+    "reasoning": [
+     "With a radius of ${{r}}$ the area is ${{rsq}}\\pi$.",
+     "Using the diameter ${{d}}$ gives ${{dsq}}\\pi$, four times as much, because the doubling is squared."
+    ],
+    "answerSummary": "The result is four times too large."
+   },
+   "attemptFeedback": [
+    "The error is squared, so it is worse than a factor of two."
+   ],
+   "supportHints": [
+    "What does squaring do to a doubled length?"
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "d": "2*r",
+     "rsq": "r*r",
+     "dsq": "4*r*r"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Nothing is wrong, because both measure across the circle.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "The formula should use the diameter, and the radius is the mistake.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "The answer comes out twice too large, because the diameter is doubled.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "The diameter is twice the radius, so the answer comes out four times too large."
     }
    ],
    "responseFields": [

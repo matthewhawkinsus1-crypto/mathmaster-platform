@@ -3233,7 +3233,7 @@ mk('6.7C', 'multiplying-out-by-half', {
     { label: 'The $x$ should not have been multiplied by ${{a}}$ either.', error: 'ratioReversed' },
     { label: 'The bracket should have been left alone entirely.', error: 'partialTotal' },
   ],
-  reasoning: ['At $x = {{v}}$ the first comes to ${{right}}$ and the student’s version to ${{wrong}}$.', 'One counter-example is enough to show two expressions are not equivalent.'],
+  reasoning: ['At $x = {{v}}$ the first comes to ${{right}}$ and the version written to ${{wrong}}$.', 'One counter-example is enough to show two expressions are not equivalent.'],
   answerSummary: { headline: 'A factor outside a bracket multiplies every term inside.', text: 'It should be ${{a}}x + {{ab}}$.' },
   hint: 'Try a value of $x$ in both.',
   feedback: 'The term in $x$ was handled correctly; the constant was not.',
@@ -4344,6 +4344,719 @@ mk('7.5B', 'pi-against-the-radius', {
   answerSummary: { headline: 'Halving the divisor doubles the quotient.', text: 'It comes to $2\\pi$.' },
   hint: 'How does the radius compare with the diameter?',
   feedback: 'A smaller divisor gives a larger quotient, not a smaller one.',
+});
+
+
+// ================================================================ 7.5C
+// Scale drawings and similar shapes in use.
+
+mk('7.5C', 'actual-length-from-a-drawing', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'On a drawing at $1$ cm to ${{s}}$ m, a wall measures ${{c}}$ cm and a door ${{c2}}$ cm. How long is the wall?',
+  generator: {
+    parameters: {
+      s: { type: 'int', min: 2, max: 12 },
+      // The door's true length is the crossing distractor, so its drawn length
+      // shares the wall's range.
+      c: { type: 'int', min: 2, max: 15 },
+      c2: { type: 'int', min: 2, max: 15 },
+    },
+    derived: {
+      answer: 'c*s',
+      d_offByOneStep: 'c*s+s',
+      d_operationInverted: 'c+s',
+      d_usedGivenValue: 'c2*s',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Each drawn centimetre stands for ${{s}}$ m.', '${{c}}$ cm therefore stands for ${{answer}}$ m.'],
+  answerSummary: { headline: 'A scale multiplies every drawn length by the same amount.', text: 'The wall is ${{answer}}$ m long.' },
+  hint: 'What does one centimetre on the drawing stand for?',
+  feedback: 'That is the door, not the wall.',
+});
+
+mk('7.5C', 'what-happens-to-area', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'A shape is enlarged by a scale factor of $k$. Its area is multiplied by what?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 6 },
+      side: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      ksq: 'k*k',
+      area: 'side*side',
+      bigArea: 'k*k*side*side',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('k^2'), correct: true },
+    { label: plain('k'), error: 'partialTotal' },
+    { label: plain('k^3'), error: 'exponentError' },
+    { label: plain('2k'), error: 'operationInverted' },
+  ],
+  reasoning: ['A square of side ${{side}}$ covers ${{area}}$; enlarged by ${{k}}$ its side becomes ${{k}}$ times as long in both directions.', 'That gives ${{bigArea}}$, which is ${{ksq}}$ times the original.'],
+  answerSummary: { headline: 'Both directions stretch, so area grows by the factor twice over.', text: 'Area is multiplied by $k^2$.' },
+  hint: 'How many directions does the stretch act in?',
+  feedback: 'Multiplying by the factor once only stretches one direction.',
+});
+
+mk('7.5C', 'map-distance-from-a-real-one', {
+  courseId: 'grade7',
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'context',
+  prompt: 'A map is drawn at $1$ cm to ${{s}}$ km. Two towns ${{d}}$ km apart appear how far apart?',
+  generator: {
+    parameters: {
+      // s and the drawn length share a range so the scale crosses the answer.
+      s: { type: 'int', min: 2, max: 12 },
+      half: { type: 'int', min: 1, max: 6 },
+    },
+    derived: {
+      c: '2*half',
+      d: 's*2*half',
+      answer: 'c',
+      d_forgotFinalStep: 'd',
+      d_partialTotal: 'half',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{s}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Every ${{s}}$ km of ground takes one centimetre on the map.', '${{d}} \\div {{s}} = {{answer}}$ cm.'],
+  answerSummary: { headline: 'Going from ground to map divides by the scale.', text: 'They appear ${{answer}}$ cm apart.' },
+  hint: 'Which way does the scale run here?',
+  feedback: 'The real distance in kilometres is not a length on the map.',
+});
+
+mk('7.5C', 'row-drawn-to-the-wrong-scale', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'Three of these are drawn to one scale and one is not. Which row is wrong?',
+  stimulus: {
+    kind: 'table',
+    title: 'Drawing against ground',
+    table: {
+      headers: ['feature', 'drawn (cm)', 'actual (m)'],
+      rows: [['wall', '{{c1}}', '{{a1}}'], ['beam', '{{c2}}', '{{a2}}'], ['span', '{{c3}}', '{{bad}}'], ['rail', '{{c4}}', '{{a4}}']],
+    },
+  },
+  generator: {
+    parameters: {
+      s: { type: 'int', min: 2, max: 12 },
+      c1: { type: 'int', min: 2, max: 6 },
+    },
+    derived: {
+      c2: 'c1+2', c3: 'c1+4', c4: 'c1+6',
+      a1: 'c1*s', a2: 'c2*s', a4: 'c4*s',
+      bad: 'c3*s+s-1',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('({{c3}}, {{bad}})'), correct: true },
+    { label: plain('({{c1}}, {{a1}})'), error: 'partialTotal' },
+    { label: plain('({{c2}}, {{a2}})'), error: 'operationInverted' },
+    { label: plain('({{c4}}, {{a4}})'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Every other row divides out to ${{s}}$ m per centimetre.', '${{bad}} \\div {{c3}}$ does not.'],
+  answerSummary: { headline: 'One scale must hold for every row of a drawing.', text: 'The span row breaks it.' },
+  hint: 'Divide each actual length by its drawn length.',
+  feedback: 'That row does divide out to ${{s}}$.',
+});
+
+mk('7.5C', 'doubling-lengths-and-area', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student says doubling every length of a shape doubles its area. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      area: 'a*b',
+      doubled: '2*a*b',
+      real: '4*a*b',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Both directions double, so the area reaches ${{real}}$, not ${{doubled}}$.', correct: true },
+    { label: 'Nothing is wrong, because every length was doubled.', error: 'operationInverted' },
+    { label: 'The area stays at ${{area}}$, because the shape is unchanged.', error: 'partialTotal' },
+    { label: 'The area is doubled twice over, reaching ${{doubled}}$ each time.', error: 'arithmeticSlip' },
+  ],
+  reasoning: ['A ${{a}}$ by ${{b}}$ rectangle covers ${{area}}$.', 'Doubled it is $2 \\times {{a}}$ by $2 \\times {{b}}$, covering ${{real}}$ — four times as much.'],
+  answerSummary: { headline: 'A length factor acts once in each direction.', text: 'The area quadruples to ${{real}}$.' },
+  hint: 'Try it on a rectangle you can picture.',
+  feedback: 'Doubling both directions is not the same as doubling the area.',
+});
+
+// ================================================================ 7.7
+// Linear relationships in words, tables and equations.
+
+mk('7.7', 'equation-that-fits-the-table', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'Which equation matches the table?',
+  stimulus: {
+    kind: 'table',
+    title: 'Recorded values',
+    table: { headers: ['x', 'y'], rows: [['{{x1}}', '{{y1}}'], ['{{x2}}', '{{y2}}'], ['{{x3}}', '{{y3}}']] },
+  },
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 3, max: 25 },
+      x1: { type: 'int', min: 1, max: 4 },
+    },
+    derived: {
+      x2: 'x1+2', x3: 'x1+5',
+      y1: 'm*x1+b', y2: 'm*x2+b', y3: 'm*x3+b',
+      mPlus: 'm+1',
+      firstGap: 'm*x1+b-x1',
+    },
+    constraints: ['firstGap!=b'],
+  },
+  choices: [
+    { label: plain('y = {{m}}x + {{b}}'), correct: true },
+    { label: plain('y = {{mPlus}}x + {{b}}'), error: 'offByOneStep' },
+    { label: plain('y = x + {{firstGap}}'), error: 'partialTotal' },
+    { label: plain('y = {{m}}x'), error: 'operationInverted' },
+  ],
+  reasoning: ['Each step of $2$ in $x$ raises $y$ by $2 \\times {{m}}$, so the rate is ${{m}}$.', 'At $x = {{x1}}$ the value is ${{y1}}$, which needs a further ${{b}}$ on top of ${{m}} \\times {{x1}}$.'],
+  answerSummary: { headline: 'Find the step first, then what is left over.', text: 'It is $y = {{m}}x + {{b}}$.' },
+  hint: 'How much does $y$ move for each step in $x$?',
+  feedback: 'A rule with no constant misses every row.',
+});
+
+mk('7.7', 'what-the-constant-stands-for', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'verbal',
+  prompt: 'A hire costs $y = {{m}}x + {{b}}$ dollars for $x$ days. What does ${{b}}$ stand for?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 5, max: 40, step: 5 },
+      b: { type: 'int', min: 10, max: 90, step: 5 },
+      x: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { total: 'm*x+b', days: 'm*x' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'A fixed charge that applies however many days the hire runs.', correct: true },
+    { label: 'The cost of one day of hire.', error: 'ratioReversed' },
+    { label: 'The total cost of the hire.', error: 'partialTotal' },
+    { label: 'The number of days the hire may run.', error: 'operationInverted' },
+  ],
+  reasoning: ['At ${{x}}$ days the daily part comes to $\\${{days}}$ and the total to $\\${{total}}$.', 'The extra $\\${{b}}$ is there whatever ${{x}}$ is, so it does not depend on the days.'],
+  answerSummary: { headline: 'The constant is what you pay before any day is counted.', text: 'It is a fixed charge.' },
+  hint: 'What happens to that term as $x$ changes?',
+  feedback: 'The daily rate is the number multiplying $x$.',
+});
+
+mk('7.7', 'input-that-gives-a-target', {
+  courseId: 'grade7',
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'In $y = {{m}}x + {{b}}$, what is $x$ when $y = {{t}}$?',
+  generator: {
+    parameters: {
+      // m and v share a range so the rate crosses the answer.
+      m: { type: 'int', min: 2, max: 14 },
+      v: { type: 'int', min: 2, max: 14 },
+      b: { type: 'int', min: 3, max: 30 },
+    },
+    derived: {
+      t: 'm*v+b',
+      answer: 'v',
+      d_forgotFinalStep: 't',
+      d_operationInverted: 'v-m',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{m}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Take the ${{b}}$ off first: ${{t}} - {{b}}$ leaves the part that came from ${{m}}x$.', 'Dividing that by ${{m}}$ gives ${{answer}}$.'],
+  answerSummary: { headline: 'Undo the constant, then undo the rate.', text: '$x = {{answer}}$.' },
+  hint: 'Which of the two operations is undone first?',
+  feedback: 'The target value of $y$ is not the value of $x$.',
+});
+
+mk('7.7', 'slope-from-two-points', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 2, taskType: 'application', representation: 'orderedPairs',
+  prompt: 'A line passes through $({{x1}}, {{y1}})$ and $({{x2}}, {{y2}})$. What is its slope?',
+  generator: {
+    parameters: {
+      // m and g share a range so the run crosses the slope.
+      m: { type: 'int', min: 2, max: 12 },
+      g: { type: 'int', min: 2, max: 12 },
+      x1: { type: 'int', min: 1, max: 6 },
+      y1: { type: 'int', min: 1, max: 20 },
+    },
+    derived: {
+      x2: 'x1+g',
+      y2: 'y1+m*g',
+      answer: 'm',
+      d_partialTotal: 'm*g',
+      d_arithmeticSlip: 'm-g',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+    { label: plain('{{g}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['From the first point to the second, $x$ moves ${{g}}$ and $y$ moves ${{d_partialTotal}}$.', 'The slope is the rise shared by the run: ${{answer}}$.'],
+  answerSummary: { headline: 'Slope is rise divided by run, not rise alone.', text: 'The slope is ${{answer}}$.' },
+  hint: 'How far does each coordinate move?',
+  feedback: 'The rise on its own has not been shared by the run.',
+});
+
+mk('7.7', 'reading-the-slope-off-the-wrong-number', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student reads the slope of $y = {{m}}x + {{b}}$ as ${{b}}$. What is wrong?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 3, max: 30 },
+    },
+    derived: { atOne: 'm+b', atTwo: '2*m+b' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The slope is ${{m}}$: each step in $x$ moves $y$ from ${{atOne}}$ to ${{atTwo}}$.', correct: true },
+    { label: 'Nothing is wrong, because ${{b}}$ is the larger number.', error: 'partialTotal' },
+    { label: 'The slope is ${{atOne}}$, the value of $y$ at $x = 1$.', error: 'operationInverted' },
+    { label: 'The slope cannot be read without a table of values.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['${{b}}$ is where the line starts, not how steeply it climbs.', 'Between $x = 1$ and $x = 2$ the value moves from ${{atOne}}$ to ${{atTwo}}$, a rise of ${{m}}$.'],
+  answerSummary: { headline: 'The number multiplying x is the slope.', text: 'The slope is ${{m}}$.' },
+  hint: 'Which number changes the value as $x$ moves?',
+  feedback: 'Size does not decide which number is the slope.',
+});
+
+// ================================================================ 7.8A
+// A rectangular pyramid against the prism that surrounds it.
+
+mk('7.8A', 'how-the-two-volumes-compare', {
+  courseId: 'grade7',
+  difficultyBand: 1, dok: 1, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'A pyramid and a prism share a base and a height. How do their volumes compare?',
+  generator: {
+    parameters: {
+      B: { type: 'int', min: 6, max: 40, step: 2 },
+      e: { type: 'int', min: 1, max: 6 },
+    },
+    derived: { h: '3*e', prism: '3*B*e', pyramid: 'B*e' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The pyramid holds a third of the prism.', correct: true },
+    { label: 'The pyramid holds half of the prism.', error: 'partialTotal' },
+    { label: 'The two hold the same amount.', error: 'operationInverted' },
+    { label: 'The pyramid holds three times the prism.', error: 'ratioReversed' },
+  ],
+  reasoning: ['With a base of ${{B}}$ and a height of ${{h}}$ the prism holds ${{prism}}$.', 'The pyramid holds ${{pyramid}}$, which is a third of it.'],
+  answerSummary: { headline: 'Three pyramids fill the prism they share a base and height with.', text: 'A third.' },
+  hint: 'How many pyramids would fill the prism?',
+  feedback: 'Halving would be right for a triangle against a rectangle, not here.',
+});
+
+mk('7.8A', 'volume-of-the-pyramid-inside', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'A pyramid of base ${{B}}$ square cm and height ${{h}}$ cm sits beside one of base ${{B2}}$ square cm at the same height. What is the volume of the first?',
+  generator: {
+    parameters: {
+      // The crossing distractor is the OTHER pyramid's volume, so the two
+      // base areas share a range. An earlier draft used three times the base,
+      // which beats the key only when e < 3 — and the automatic constraints
+      // rule out e = 1 and e = 3, leaving nothing below the threshold at all.
+      B: { type: 'int', min: 4, max: 30 },
+      B2: { type: 'int', min: 4, max: 30 },
+      e: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      h: '3*e',
+      answer: 'B*e',
+      d_forgotFinalStep: '3*B*e',
+      d_operationInverted: 'B+e',
+      d_usedGivenValue: 'B2*e',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The surrounding prism would hold ${{B}} \\times {{h}} = {{d_forgotFinalStep}}$ cubic cm.', 'A pyramid holds a third of that: ${{answer}}$.'],
+  answerSummary: { headline: 'Base area times height, then a third.', text: 'It holds ${{answer}}$ cubic cm.' },
+  hint: 'What would the matching prism hold?',
+  feedback: 'That is the second pyramid, not the first.',
+});
+
+mk('7.8A', 'prism-from-a-known-pyramid', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'One pyramid of base ${{B}}$ square cm is ${{h}}$ cm tall and a second is ${{h2}}$ cm tall. What does a prism matching the first hold?',
+  // The crossing distractor is the volume of the prism matching the SECOND
+  // pyramid. An earlier draft used the base area, which is a factor of the key
+  // and so can never exceed it — the key was the second largest of four in
+  // every single draw.
+  generator: {
+    parameters: {
+      B: { type: 'int', min: 4, max: 30 },
+      e: { type: 'int', min: 1, max: 8 },
+      h2: { type: 'int', min: 3, max: 24, step: 3 },
+    },
+    derived: {
+      h: '3*e',
+      answer: 'B*3*e',
+      d_partialTotal: 'B*e',
+      d_offByOneStep: '3*B*3*e',
+      d_usedGivenValue: 'B*h2',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['A prism holds its base area times its height: ${{B}} \\times {{h}} = {{answer}}$ cubic cm.', 'The pyramid inside it would hold only a third of that, ${{d_partialTotal}}$.'],
+  answerSummary: { headline: 'The prism is the plain base-times-height; the third belongs to the pyramid.', text: 'It holds ${{answer}}$ cubic cm.' },
+  hint: 'The prism needs no dividing.',
+  feedback: 'That is the prism around the second pyramid, not the first.',
+});
+
+mk('7.8A', 'expression-for-a-rectangular-pyramid', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'A rectangular pyramid has base $l$ by $w$ and height $h$. Which expression gives its volume?',
+  generator: {
+    parameters: {
+      l: { type: 'int', min: 2, max: 12 },
+      w: { type: 'int', min: 2, max: 12 },
+      e: { type: 'int', min: 1, max: 6 },
+    },
+    derived: { h: '3*e', vol: 'l*w*e' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('\\frac{lwh}{3}'), correct: true },
+    { label: plain('lwh'), error: 'partialTotal' },
+    { label: plain('\\frac{lwh}{2}'), error: 'operationInverted' },
+    { label: plain('3lwh'), error: 'ratioReversed' },
+  ],
+  reasoning: ['$lwh$ is what the surrounding prism holds.', 'With $l = {{l}}$, $w = {{w}}$ and $h = {{h}}$ the pyramid holds ${{vol}}$, a third of that.'],
+  answerSummary: { headline: 'The pyramid formula is the prism formula divided by three.', text: 'It is $\\frac{lwh}{3}$.' },
+  hint: 'Start from the prism that surrounds it.',
+  feedback: 'Halving belongs to a triangle, not to a pyramid.',
+});
+
+mk('7.8A', 'halving-instead-of-thirding', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student says a pyramid holds half of the prism around it. What is wrong?',
+  generator: {
+    parameters: {
+      B: { type: 'int', min: 6, max: 40, step: 2 },
+      e: { type: 'int', min: 2, max: 8 },
+    },
+    derived: {
+      h: '3*e',
+      prism: '3*B*e',
+      right: 'B*e',
+      claimed: '3*B*e/2',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'It holds a third: ${{right}}$ of the prism total of ${{prism}}$, not ${{claimed}}$.', correct: true },
+    { label: 'Nothing is wrong, because a pyramid comes to a point halfway up.', error: 'operationInverted' },
+    { label: 'It holds a quarter, because the base narrows in both directions.', error: 'exponentError' },
+    { label: 'It holds the same as the prism, because the base and height match.', error: 'partialTotal' },
+  ],
+  reasoning: ['Three identical pyramids, not two, fill the prism they share a base and height with.', 'So the share is ${{right}}$ out of ${{prism}}$.'],
+  answerSummary: { headline: 'Three pyramids fill the prism, so the share is a third.', text: 'It holds ${{right}}$ cubic units.' },
+  hint: 'How many would it take to fill the prism?',
+  feedback: 'Coming to a point does not make the share a half.',
+});
+
+// ================================================================ 7.8B
+// The same relationship with a triangular base, explained in symbols.
+
+mk('7.8B', 'volume-of-a-triangular-prism', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'A triangular prism has an end triangle of base ${{b}}$ cm and height ${{ht}}$ cm, and is ${{L}}$ cm long. What is its volume?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 4, max: 12, step: 2 },
+      ht: { type: 'int', min: 3, max: 9 },
+      L: { type: 'int', min: 3, max: 9 },
+    },
+    derived: {
+      end: 'b*ht/2',
+      answer: 'b*ht*L/2',
+      d_partialTotal: 'b*ht*L',
+      d_operationInverted: 'b+ht+L',
+      d_areaPerimeterSwap: 'b*ht+b*L+ht*L',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_areaPerimeterSwap}}'), error: 'areaPerimeterSwap' },
+  ],
+  reasoning: ['The end triangle covers ${{end}}$ square cm.', 'Carried ${{L}}$ cm along, that fills ${{answer}}$ cubic cm.'],
+  answerSummary: { headline: 'A prism is its end face carried along its length.', text: 'It holds ${{answer}}$ cubic cm.' },
+  hint: 'What area does the end face cover?',
+  feedback: 'Leaving out the halving describes a box, not a triangular prism.',
+});
+
+mk('7.8B', 'expression-for-a-triangular-pyramid', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'A triangular pyramid has base area $B$ and height $h$. Which expression gives its volume?',
+  generator: {
+    parameters: {
+      B: { type: 'int', min: 6, max: 40, step: 2 },
+      e: { type: 'int', min: 1, max: 6 },
+    },
+    derived: { h: '3*e', vol: 'B*e', prism: '3*B*e' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('\\frac{Bh}{3}'), correct: true },
+    { label: plain('Bh'), error: 'partialTotal' },
+    { label: plain('\\frac{Bh}{2}'), error: 'operationInverted' },
+    { label: plain('\\frac{Bh}{6}'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['$B$ already accounts for the triangle, so no further halving is owed.', 'With $B = {{B}}$ and $h = {{h}}$ the prism holds ${{prism}}$ and the pyramid ${{vol}}$.'],
+  answerSummary: { headline: 'Base area times height, divided by three.', text: 'It is $\\frac{Bh}{3}$.' },
+  hint: 'Does $B$ already account for the triangle?',
+  feedback: 'Halving twice would take the triangle into account a second time.',
+});
+
+mk('7.8B', 'what-three-pours-show', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'verbal',
+  prompt: 'Three fillings of a triangular pyramid exactly fill a prism with the same base and height. What does that show?',
+  generator: {
+    parameters: {
+      B: { type: 'int', min: 6, max: 40, step: 2 },
+      e: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { h: '3*e', pyramid: 'B*e', prism: '3*B*e', afterTwo: '2*B*e' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The pyramid holds a third of the prism, so its volume is $\\frac{Bh}{3}$.', correct: true },
+    { label: 'The pyramid holds three times the prism, so its volume is $3Bh$.', error: 'ratioReversed' },
+    { label: 'The two shapes hold the same, because their bases and heights match.', error: 'partialTotal' },
+    { label: 'The pyramid holds a third of the base area, not of the volume.', error: 'operationInverted' },
+  ],
+  reasoning: ['Each pour adds ${{pyramid}}$, so after two the prism holds ${{afterTwo}}$ and one pour remains.', 'Three equal pours filling ${{prism}}$ means each is a third of it.'],
+  answerSummary: { headline: 'The pouring result is the formula, stated physically.', text: 'The pyramid is a third: $\\frac{Bh}{3}$.' },
+  hint: 'What does it mean that three fill one?',
+  feedback: 'The prism is the larger of the two, not the smaller.',
+});
+
+mk('7.8B', 'extra-room-in-the-prism', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'Two triangular pyramids of the same height hold ${{p}}$ and ${{p2}}$ cubic cm. How much more than the first does its matching prism hold?',
+  // Two independently drawn volumes: the spare room around the SECOND pyramid
+  // crosses the key as the two are drawn, which a multiple of the first never
+  // could.
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 60 },
+      p2: { type: 'int', min: 2, max: 60 },
+    },
+    derived: {
+      answer: '2*p',
+      d_partialTotal: '3*p',
+      d_usedGivenValue: '2*p2',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{p}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The prism holds three pyramids, or $3 \\times {{p}} = {{d_partialTotal}}$ cubic cm.', 'Beyond the pyramid itself that leaves ${{answer}}$ cubic cm spare.'],
+  answerSummary: { headline: 'Three pyramids fill the prism, so two pyramids of room are spare.', text: 'It holds ${{answer}}$ cubic cm more.' },
+  hint: 'The question asks for the gap, not the whole prism.',
+  feedback: 'That is what the prism holds altogether.',
+});
+
+mk('7.8B', 'forgetting-the-triangle', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'For a triangular prism a student multiplies base by height by length and stops. What is wrong?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 4, max: 16, step: 2 },
+      ht: { type: 'int', min: 3, max: 12 },
+      L: { type: 'int', min: 3, max: 12 },
+    },
+    derived: {
+      right: 'b*ht*L/2',
+      wrong: 'b*ht*L',
+      end: 'b*ht/2',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The end face is a triangle, so it covers ${{end}}$ and the volume is ${{right}}$.', correct: true },
+    { label: 'Nothing is wrong, because all three measurements were used.', error: 'operationInverted' },
+    { label: 'The result ${{wrong}}$ should be divided by three, not by two.', error: 'partialTotal' },
+    { label: 'The length should not be used at all for a prism.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['Multiplying base by height gives the rectangle the triangle sits inside.', 'The triangle covers half of it, so the volume is ${{right}}$, not ${{wrong}}$.'],
+  answerSummary: { headline: 'The halving belongs to the triangular end, not to the prism.', text: 'The volume is ${{right}}$ cubic units.' },
+  hint: 'What shape is the end face?',
+  feedback: 'Dividing by three would turn the prism into a pyramid.',
+});
+
+// ================================================================ 7.8C
+// Where the circle formulas come from.
+
+mk('7.8C', 'what-the-wedges-make', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'A circle is cut into thin wedges and laid alternately into a near-rectangle. What are the sides of that rectangle?',
+  generator: {
+    parameters: { r: { type: 'int', min: 2, max: 20 } },
+    derived: { d: '2*r', halfC: 'round(314*r/100)' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Half the way round, by the radius.', correct: true },
+    { label: 'The whole way round, by the radius.', error: 'partialTotal' },
+    { label: 'Half the way round, by the diameter.', error: 'diameterForRadius' },
+    { label: 'The diameter, by the radius.', error: 'operationInverted' },
+  ],
+  reasoning: ['Half the wedges point up and half point down, so each long side takes half the edge: about ${{halfC}}$ for a radius of ${{r}}$.', 'The short side is one wedge tall, which is the radius.'],
+  answerSummary: { headline: 'The wedges split the edge between the two long sides.', text: 'Half the circumference by the radius.' },
+  hint: 'How much of the edge lies along each long side?',
+  feedback: 'The whole edge is shared between top and bottom.',
+});
+
+mk('7.8C', 'area-from-the-near-rectangle', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'That near-rectangle has sides $\\pi r$ and $r$. What is its area?',
+  generator: {
+    parameters: { r: { type: 'int', min: 2, max: 20 } },
+    derived: { rsq: 'r*r', twoR: '2*r', four: '4*r' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('\\pi r^2'), correct: true },
+    { label: plain('2\\pi r'), error: 'partialTotal' },
+    { label: plain('\\pi r'), error: 'operationInverted' },
+    { label: plain('2\\pi r^2'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['A rectangle covers one side times the other.', '$\\pi r \\times r$ is $\\pi r^2$, and with $r = {{r}}$ that is ${{rsq}}\\pi$.'],
+  answerSummary: { headline: 'The wedge rectangle gives the circle formula directly.', text: 'It is $\\pi r^2$.' },
+  hint: 'Multiply the two sides together.',
+  feedback: 'That expression measures a distance, not an area.',
+});
+
+mk('7.8C', 'area-of-a-disc', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'A disc has radius ${{r}}$ cm. What area does it cover?',
+  generator: {
+    // From 3: at r = 2 the squared radius and the doubled radius are both 4,
+      // and the labels carry no automatic distinctness constraint.
+      parameters: { r: { type: 'int', min: 3, max: 20 } },
+    derived: { rsq: 'r*r', twoR: '2*r', dsq: '4*r*r' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{rsq}}\\pi'), correct: true },
+    { label: plain('{{twoR}}\\pi'), error: 'areaPerimeterSwap' },
+    { label: plain('{{r}}\\pi'), error: 'partialTotal' },
+    { label: plain('{{dsq}}\\pi'), error: 'diameterForRadius' },
+  ],
+  reasoning: ['Area is $\\pi$ times the radius squared.', '${{r}} \\times {{r}} = {{rsq}}$, so the disc covers ${{rsq}}\\pi$ square cm.'],
+  answerSummary: { headline: 'Square the radius, then multiply by pi.', text: 'It covers ${{rsq}}\\pi$ square cm.' },
+  hint: 'Which length gets squared?',
+  feedback: 'That expression is the way round, not the area.',
+});
+
+mk('7.8C', 'what-the-string-supports', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'context',
+  prompt: 'A string laid round a can of diameter ${{d}}$ cm measures about ${{c}}$ cm. Which formula does that support?',
+  generator: {
+    parameters: { d: { type: 'int', min: 4, max: 40, step: 2 } },
+    derived: { c: 'round(314*d/100)', r: 'd/2' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('C = \\pi d'), correct: true },
+    { label: plain('C = \\pi r'), error: 'partialTotal' },
+    { label: plain('C = 2\\pi d'), error: 'operationInverted' },
+    { label: plain('C = \\pi d^2'), error: 'areaPerimeterSwap' },
+  ],
+  reasoning: ['${{c}}$ divided by ${{d}}$ comes to about $3.14$.', 'That is $\\pi$, so the way round is $\\pi$ times the diameter.'],
+  answerSummary: { headline: 'The measured ratio is what the formula records.', text: 'It supports $C = \\pi d$.' },
+  hint: 'Divide the string length by the diameter.',
+  feedback: 'Using the radius would make the ratio about $6.28$.',
+});
+
+mk('7.8C', 'diameter-in-the-area-formula', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student puts the diameter into $\\pi r^2$. What is wrong?',
+  generator: {
+    parameters: { r: { type: 'int', min: 2, max: 20 } },
+    derived: { d: '2*r', rsq: 'r*r', dsq: '4*r*r' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The diameter is twice the radius, so the answer comes out four times too large.', correct: true },
+    { label: 'Nothing is wrong, because both measure across the circle.', error: 'operationInverted' },
+    { label: 'The answer comes out twice too large, because the diameter is doubled.', error: 'partialTotal' },
+    { label: 'The formula should use the diameter, and the radius is the mistake.', error: 'ratioReversed' },
+  ],
+  reasoning: ['With a radius of ${{r}}$ the area is ${{rsq}}\\pi$.', 'Using the diameter ${{d}}$ gives ${{dsq}}\\pi$, four times as much, because the doubling is squared.'],
+  answerSummary: { headline: 'A squared term doubles twice over.', text: 'The result is four times too large.' },
+  hint: 'What does squaring do to a doubled length?',
+  feedback: 'The error is squared, so it is worse than a factor of two.',
 });
 
 // ---------------------------------------------------------------- emit
