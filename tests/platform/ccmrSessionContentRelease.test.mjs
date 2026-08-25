@@ -4,7 +4,13 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const {
+  RELEASE_UPDATE_REASON,
   resolveAssessmentContentRelease,
+  resolveManifestAssessmentContentRelease,
+  resolveAssessmentContentReleaseAuthority,
+  collectAssessmentContentReleases,
+  beginAssessmentContentReleaseUpdate,
+  completeAssessmentContentReleaseUpdate,
   assessSessionContentRelease,
   planSessionContentReleaseAction,
   supersedeSessionForContentRelease,
@@ -25,10 +31,27 @@ const act = (overrides = {}) => ({
   ccmrContentRelease: RELEASE,
   ...overrides,
 });
+const tsia2 = (overrides = {}) => ({
+  id: 'tsia2-family',
+  active: true,
+  assessmentContext: { framework: 'tsia2', examStyle: true },
+  ccmrContentRelease: RELEASE,
+  ...overrides,
+});
 const asvab = (overrides = {}) => ({
   id: 'asvab-family',
   active: true,
   assessmentContext: { framework: 'asvab', examStyle: true },
+  ...overrides,
+});
+const activeManifest = (overrides = {}) => ({
+  schemaVersion: 1,
+  status: 'active',
+  activeReleases: {
+    digitalSAT: RELEASE,
+    act: RELEASE,
+    tsia2: RELEASE,
+  },
   ...overrides,
 });
 
@@ -79,6 +102,110 @@ test('partially release-marked framework bank fails closed', () => {
       sat({ id: 'sat-unmarked', ccmrContentRelease: undefined }),
     ], 'digitalSAT'),
     /partially.*release|release.*partially|mixed.*release/i,
+  );
+});
+
+test('active manifest is the authoritative release boundary even when a bounded bank slice is stale or mixed', () => {
+  const manifestState = resolveManifestAssessmentContentRelease(activeManifest(), 'digitalSAT');
+  assert.equal(manifestState.authoritative, true);
+  assert.equal(manifestState.available, true);
+  assert.equal(manifestState.tracked, true);
+  assert.equal(manifestState.release, RELEASE);
+
+  const state = resolveAssessmentContentReleaseAuthority([
+    sat({ id: 'sat-old', ccmrContentRelease: 'ccmr-fidelity-v2.0' }),
+    sat({ id: 'sat-new' }),
+  ], 'digitalSAT', activeManifest());
+  assert.equal(state.authoritative, true);
+  assert.equal(state.available, true);
+  assert.equal(state.release, RELEASE);
+});
+
+test('manifest entry absent for ASVAB preserves legacy untracked behavior', () => {
+  const state = resolveAssessmentContentReleaseAuthority([
+    asvab({ id: 'asvab-1' }),
+    asvab({ id: 'asvab-2' }),
+  ], 'asvab', activeManifest());
+  assert.equal(state.authoritative, false);
+  assert.equal(state.tracked, false);
+  assert.equal(state.release, null);
+});
+
+test('release update state holds new issuance but preserves an already-open question', () => {
+  const updating = beginAssessmentContentReleaseUpdate(
+    activeManifest(),
+    { digitalSAT: RELEASE, act: RELEASE, tsia2: RELEASE },
+    100,
+  );
+  const current = resolveManifestAssessmentContentRelease(updating, 'digitalSAT');
+  assert.equal(current.authoritative, true);
+  assert.equal(current.available, false);
+  assert.equal(current.reason, RELEASE_UPDATE_REASON);
+
+  assert.deepEqual(
+    planSessionContentReleaseAction(
+      { assessmentFramework: 'digitalSAT', assessmentContentRelease: RELEASE, currentQuestion: null },
+      current,
+    ),
+    {
+      action: 'hold-release-update',
+      tracked: true,
+      stale: false,
+      currentRelease: RELEASE,
+      reason: RELEASE_UPDATE_REASON,
+    },
+  );
+
+  assert.deepEqual(
+    planSessionContentReleaseAction(
+      {
+        assessmentFramework: 'digitalSAT',
+        assessmentContentRelease: RELEASE,
+        currentQuestion: { questionInstanceId: 'q-1' },
+      },
+      current,
+    ),
+    {
+      action: 'finish-open-question',
+      tracked: true,
+      stale: false,
+      currentRelease: RELEASE,
+      reason: RELEASE_UPDATE_REASON,
+    },
+  );
+});
+
+test('release manifest activates all coordinated frameworks in one completed state', () => {
+  const pending = {
+    digitalSAT: RELEASE,
+    act: RELEASE,
+    tsia2: RELEASE,
+  };
+  const updating = beginAssessmentContentReleaseUpdate(activeManifest(), pending, 100);
+  assert.equal(updating.status, 'updating');
+  assert.deepEqual(updating.pendingReleases, pending);
+  assert.deepEqual(updating.activeReleases, activeManifest().activeReleases);
+
+  const active = completeAssessmentContentReleaseUpdate(updating, pending, 200);
+  assert.equal(active.status, 'active');
+  assert.deepEqual(active.activeReleases, pending);
+  assert.deepEqual(active.pendingReleases, {});
+  assert.equal(active.activatedAt, 200);
+});
+
+test('release inventory collects SAT ACT and TSIA2 without enrolling unmarked ASVAB', () => {
+  assert.deepEqual(
+    collectAssessmentContentReleases([
+      sat({ id: 'sat-1' }),
+      act({ id: 'act-1' }),
+      tsia2({ id: 'tsia2-1' }),
+      asvab({ id: 'asvab-1' }),
+    ]),
+    {
+      digitalSAT: RELEASE,
+      act: RELEASE,
+      tsia2: RELEASE,
+    },
   );
 });
 
