@@ -6,6 +6,7 @@ on:
       - ccmr-fidelity-v2-1-authentic-language
     paths:
       - 'scripts/diagnose-digital-sat-v2-1-release.mjs'
+      - 'scripts/diagnose-digital-sat-v2-1-compact.mjs'
       - '.github/workflows/ccmr-v2-1-digital-sat-diagnostic.yml'
   workflow_dispatch:
 
@@ -13,12 +14,22 @@ permissions:
   contents: read
 
 jobs:
-  diagnose:
+  diagnose-clones:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Diagnose Digital SAT V2.1 release
-        run: node scripts/diagnose-digital-sat-v2-1-release.mjs
+      - name: Report residual Digital SAT clone pairs
+        run: node scripts/diagnose-digital-sat-v2-1-compact.mjs --clones
+
+  diagnose-response-mix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Report Digital SAT response-format inventory
+        run: node scripts/diagnose-digital-sat-v2-1-compact.mjs --spr-summary
