@@ -3,6 +3,7 @@ import * as liveSessionService from '../../services/pathSessionService.js';
 import { generateRuntimeUUID } from '../../utils/idUtils.js';
 import PathSessionPlayer from './PathSessionPlayer.jsx';
 import { explainStepForStudent } from '../../platform/path/pathSessionRouting.js';
+import { fetchQuestionWithContentReleaseRollover } from '../../platform/path/sessionContentReleaseRollover.js';
 import { FRAMEWORK_LABELS } from '../../platform/ccmr/assessmentCrosswalk.js';
 import { describeChallengeTier } from '../../platform/ccmr/assessmentFidelity.js';
 
@@ -69,6 +70,25 @@ export const MyMathPathProductionContainer = ({
   const [retryCount, setRetryCount] = useState(0);
   const [slowLoad, setSlowLoad] = useState(false);
 
+  // One canonical launch description is reused for start and release rollover.
+  // This is what keeps a frozen weekly slot, its assessment framework, and its
+  // question-count contract intact if the assessment bank changes mid-session.
+  const sessionLaunchConfig = useMemo(() => ({
+    targetAlignmentKey,
+    sessionKind,
+    requiredQuestions,
+    assessmentFramework,
+    weekKey,
+    weeklySlotKey,
+    weeklySlot,
+  }), [targetAlignmentKey, sessionKind, requiredQuestions, assessmentFramework, weekKey, weeklySlotKey, weeklySlot]);
+
+  const contentRefreshNotice = {
+    headline: 'Practice updated',
+    message: 'This assessment was updated, so MathMaster started a fresh session for the same skill. Your earlier answers are still saved.',
+    tone: 'return',
+  };
+
   const clearAttemptState = () => {
     setLastGradingResult(null);
     setLastFeedback(null);
@@ -84,16 +104,23 @@ export const MyMathPathProductionContainer = ({
     setSubmissionError(null);
     completionReportedRef.current = false;
     try {
-      const result = await startOrResumePathSession({ targetAlignmentKey, sessionKind, requiredQuestions, assessmentFramework, weekKey, weeklySlotKey, weeklySlot });
+      const result = await startOrResumePathSession(sessionLaunchConfig);
       // A successful load clears the record of past failures, so a student who
       // hits one blip and recovers is not permanently shown the "this is not
       // working" screen.
       setRetryCount(0);
-      setSession(result.session);
       if (result.session.status === 'active') {
-        const next = await fetchNextSanitizedQuestion({ sessionId: result.session.sessionId });
+        const next = await fetchQuestionWithContentReleaseRollover({
+          session: result.session,
+          sessionConfig: sessionLaunchConfig,
+          fetchNextSanitizedQuestion,
+          startOrResumePathSession,
+        });
+        setSession(next.session);
         setCurrentQuestion(next.questionInstance);
+        if (next.rolledOver) setRouteNotice(contentRefreshNotice);
       } else {
+        setSession(result.session);
         setCurrentQuestion(null);
       }
     } catch (caught) {
@@ -105,7 +132,7 @@ export const MyMathPathProductionContainer = ({
     } finally {
       setLoading(false);
     }
-  }, [targetAlignmentKey, sessionKind, requiredQuestions, assessmentFramework, weekKey, weeklySlotKey, weeklySlot]);
+  }, [sessionLaunchConfig, startOrResumePathSession, fetchNextSanitizedQuestion]);
 
   useEffect(() => { initializeSession(); }, [initializeSession]);
 
@@ -150,16 +177,24 @@ export const MyMathPathProductionContainer = ({
     setAwaitingContinue(false);
     setSubmissionError(null);
     try {
-      const next = await fetchNextSanitizedQuestion({ sessionId: session.sessionId });
+      const next = await fetchQuestionWithContentReleaseRollover({
+        session,
+        sessionConfig: sessionLaunchConfig,
+        fetchNextSanitizedQuestion,
+        startOrResumePathSession,
+      });
+      setSession(next.session);
       setCurrentQuestion(next.questionInstance);
       clearAttemptState();
       // The explanation is carried forward onto the question it explains, so a
-      // student meeting a prerequisite reads why on that question's screen.
-      setRouteNotice(decisionNotice);
+      // student meeting a prerequisite reads why on that question's screen. A
+      // content refresh gets its own plain-language explanation instead.
+      if (next.rolledOver) setRouteNotice(contentRefreshNotice);
+      else setRouteNotice(decisionNotice);
     } catch (caught) {
       setSubmissionError(caught.message || 'The next question could not be loaded. Try again.');
     }
-  }, [session, fetchNextSanitizedQuestion, decisionNotice]);
+  }, [session, sessionLaunchConfig, fetchNextSanitizedQuestion, startOrResumePathSession, decisionNotice]);
 
   const handleSubmitAnswer = async (responsePayload, supportUsage = {}, grade = null) => {
     if (!session || !currentQuestion || submitting) return;
