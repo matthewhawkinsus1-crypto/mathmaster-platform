@@ -2328,8 +2328,8 @@ ar('6.3B', 'grow-then-shrink', {
       item: GOODS,
       d1: { type: 'choice', values: [2, 3, 4] },
       n1: { type: 'int', min: 3, max: 8 },
-      d2: { type: 'choice', values: [2, 3, 4] },
-      n2: { type: 'int', min: 1, max: 3 },
+      d2: { type: 'choice', values: [2, 3, 4, 5] },
+      n2: { type: 'int', min: 1, max: 4 },
       unit: { type: 'int', min: 4, max: 24 },
     },
     derived: {
@@ -3703,6 +3703,506 @@ ar('7.4E', 'batches-from-kilograms', {
   answerSummary: { headline: 'Convert to the unit the recipe uses, then share it out.', text: 'It makes ${{answer}}$ batches.' },
   hint: 'The stock and the recipe are in different units.',
   feedback: 'Convert the kilograms to grams before dividing.',
+});
+
+// ================================================================ 7.3B
+// Operations on rational numbers, including negatives.
+
+ar('7.3B', 'temperature-swing', {
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A reading of {{start}} degrees fell {{drop}} degrees overnight and rose {{rise}} degrees by noon. What is it at noon?',
+  generator: {
+    parameters: {
+      start: { type: 'int', min: -20, max: 40, exclude: [1, -1] },
+      drop: { type: 'int', min: 5, max: 45 },
+      rise: { type: 'int', min: 5, max: 45 },
+    },
+    derived: {
+      answer: 'start-drop+rise',
+      d_signError: 'start+drop+rise',
+      d_forgotFinalStep: 'start-drop',
+      d_usedGivenValue: 'start',
+    },
+    constraints: ['drop!=rise'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Falling {{drop}} from {{start}} gives {{d_forgotFinalStep}}.', 'Rising {{rise}} from there gives {{answer}}.'],
+  answerSummary: { headline: 'A fall subtracts and a rise adds, in the order given.', text: 'It is ${{answer}}$ degrees.' },
+  hint: 'Take the two changes one at a time.',
+  feedback: 'A fall lowers the reading even when the reading is already below zero.',
+});
+
+ar('7.3B', 'bags-from-a-load', {
+  difficultyBand: 3, dok: 2, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'A {{crew}} fills {{ounces}}-ounce bags from {{pounds}} pounds of {{mat}}, and {{filled}} are already done. How many are left to fill?',
+  generator: {
+    parameters: {
+      crew: WORKERS,
+      mat: contextParam(['resin', 'filler', 'binder', 'powder', 'sealant']),
+      ounces: { type: 'choice', values: [2, 4, 8] },
+      bags: { type: 'int', min: 10, max: 60 },
+      filled: { type: 'int', min: 2, max: 40 },
+    },
+    derived: {
+      pounds: 'ounces*bags/16',
+      answer: 'bags-filled',
+      d_forgotFinalStep: 'bags',
+      d_usedGivenValue: 'filled',
+      d_operationInverted: 'pounds',
+    },
+    constraints: ['pounds==round(pounds)', 'pounds>1', 'answer>0'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['{{pounds}} pounds of {{mat}} fills {{bags}} bags of {{ounces}} ounces.', '{{filled}} are done, so {{answer}} are left.'],
+  answerSummary: { headline: 'Dividing by a part of a unit gives more pieces, not fewer.', text: '${{answer}}$ bags are left to fill.' },
+  hint: 'Work in ounces throughout.',
+  feedback: 'Bags smaller than a pound mean more bags than pounds, and some are already done.',
+});
+
+ar('7.3B', 'fraction-of-a-remainder', {
+  difficultyBand: 3, dok: 3, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'A {{machine}} finished {{n1}} of every {{d1}} of a run of {{total}} {{item}}, then {{n2}} of every {{d2}} of what was left. How many are still unfinished?',
+  generator: {
+    parameters: {
+      machine: MACHINES, item: GOODS,
+      d1: { type: 'choice', values: [3, 4, 5] },
+      n1: { type: 'int', min: 1, max: 3 },
+      d2: { type: 'choice', values: [2, 3, 4] },
+      n2: { type: 'int', min: 1, max: 3 },
+      unit: { type: 'int', min: 4, max: 30 },
+    },
+    derived: {
+      total: 'd1*d2*unit',
+      leftAfterOne: 'total-n1*d2*unit',
+      answer: 'leftAfterOne-n2*leftAfterOne/d2',
+      d_forgotFinalStep: 'leftAfterOne',
+      d_operationInverted: 'n2*leftAfterOne/d2',
+      d_offByOneStep: 'leftAfterOne-n2*leftAfterOne/d2-unit',
+    },
+    constraints: ['n1<d1', 'n2<d2', 'answer>0', 'd_offByOneStep>0'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['The first pass leaves {{leftAfterOne}}.', 'The second pass finishes {{n2}} of every {{d2}} of that, leaving {{answer}}.'],
+  answerSummary: { headline: 'The second fraction is of what remained, not of the whole run.', text: '${{answer}}$ are still unfinished.' },
+  hint: 'Work out what was left after the first pass before doing anything else.',
+  feedback: 'The second fraction applies to the remainder.',
+});
+
+ar('7.3B', 'signed-net-change', {
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'The four adjustments shown were applied to a stock of {{start}} {{item}}. What is the stock now?',
+  stimulus: {
+    kind: 'table',
+    title: 'Adjustments',
+    table: { headers: ['entry', 'change'], rows: [['1', '{{a}}'], ['2', '{{b}}'], ['3', '{{c}}'], ['4', '{{d}}']] },
+  },
+  generator: {
+    parameters: {
+      item: GOODS,
+      start: { type: 'int', min: 60, max: 400, step: 10 },
+      a: { type: 'int', min: -40, max: 40, step: 5 },
+      b: { type: 'int', min: -40, max: 40, step: 5 },
+      c: { type: 'int', min: -40, max: 40, step: 5 },
+      d: { type: 'int', min: -40, max: 40, step: 5 },
+    },
+    derived: {
+      net: 'a+b+c+d',
+      answer: 'start+a+b+c+d',
+      d_signError: 'start-a-b-c-d',
+      d_partialTotal: 'net',
+      d_forgotFinalStep: 'start+a+b',
+    },
+    constraints: ['answer>0', 'net!=0'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['The four adjustments come to {{net}}.', '{{start}} plus {{net}} is {{answer}}.'],
+  answerSummary: { headline: 'Signed adjustments add together, then apply to the opening stock.', text: 'The stock is ${{answer}}$.' },
+  hint: 'Total the adjustments first, keeping their signs.',
+  feedback: 'A negative entry lowers the stock; it is not subtracted twice.',
+});
+
+ar('7.3B', 'decimal-money-split', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'A {{crew}} of {{people}} split a $\\${{bill}}$ bill evenly after a $\\${{off}}$ credit. What does each pay?',
+  generator: {
+    parameters: {
+      crew: WORKERS,
+      people: { type: 'int', min: 3, max: 12 },
+      each: { type: 'int', min: 3, max: 12 },
+      off: { type: 'int', min: 5, max: 120, step: 5 },
+    },
+    derived: {
+      bill: 'each*people+off',
+      answer: 'each',
+      d_forgotFinalStep: 'round(bill/people)',
+      d_operationInverted: 'people',
+      d_partialTotal: 'round((bill-off)/(people+2))',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The credit brings the bill down to {{d_partialTotal}}.', 'Split {{people}} ways that is {{answer}} each.'],
+  answerSummary: { headline: 'The credit comes off before the split.', text: 'Each pays $\\${{answer}}$.' },
+  hint: 'Apply the credit before dividing.',
+  feedback: 'Splitting the full bill ignores the credit.',
+});
+
+// ================================================================ A.3B
+// Rate of change, including rates that fall.
+
+ar('A.3B', 'depletion-rate', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'A tank held {{start}} litres at the start and {{end}} litres after {{hours}} hours. How many litres an hour is it losing?',
+  generator: {
+    parameters: {
+      rate: { type: 'int', min: 3, max: 40 },
+      hours: { type: 'int', min: 3, max: 40 },
+      end: { type: 'int', min: 10, max: 200, step: 10 },
+    },
+    derived: {
+      start: 'end+rate*hours',
+      answer: 'rate',
+      d_operationInverted: 'hours',
+      d_forgotFinalStep: 'start-end',
+      d_offByOneStep: 'round((start-end)/(hours+3))',
+    },
+    constraints: ['rate!=hours'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['The tank lost {{d_forgotFinalStep}} litres over {{hours}} hours.', 'That is {{answer}} litres an hour.'],
+  answerSummary: { headline: 'A rate of change compares the change with the time it took.', text: 'It loses ${{answer}}$ litres an hour.' },
+  hint: 'Both the level and the clock changed. Compare them.',
+  feedback: 'The total lost is not the hourly loss.',
+});
+
+ar('A.3B', 'rate-from-two-labelled-points', {
+  difficultyBand: 3, dok: 2, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'A cost record is shown. How many dollars does the cost rise for each extra unit?',
+  stimulus: {
+    kind: 'table',
+    title: 'Cost record',
+    table: { headers: ['units', 'cost'], rows: [['{{x1}}', '{{y1}}'], ['{{x2}}', '{{y2}}']] },
+  },
+  generator: {
+    parameters: {
+      rate: { type: 'int', min: 3, max: 30 },
+      x1: { type: 'int', min: 2, max: 20 },
+      step: { type: 'int', min: 3, max: 30 },
+      base: { type: 'int', min: 20, max: 200, step: 10 },
+    },
+    derived: {
+      x2: 'x1+step',
+      y1: 'base+rate*x1',
+      y2: 'base+rate*x1+rate*step',
+      answer: 'rate',
+      d_forgotFinalStep: 'y2-y1',
+      d_operationInverted: 'step',
+      d_offByOneStep: 'round((y2-y1)/(step+3))',
+    },
+    constraints: ['rate!=step'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: money('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['Cost rose by {{d_forgotFinalStep}} across {{step}} more units.', 'Per unit that is {{answer}}.'],
+  answerSummary: { headline: 'A per-unit rise needs the change in both columns.', text: 'It rises $\\${{answer}}$ a unit.' },
+  hint: 'The rows differ in both columns.',
+  feedback: 'The rise in cost alone is not the rise per unit.',
+});
+
+ar('A.3B', 'output-over-a-later-stretch', {
+  difficultyBand: 3, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A {{machine}} has made {{made}} {{item}} by hour {{hours}} and works at a steady {{rate}} an hour. How many more will it make by hour {{later}}?',
+  generator: {
+    parameters: {
+      machine: MACHINES, item: GOODS,
+      rate: { type: 'int', min: 5, max: 40 },
+      hours: { type: 'int', min: 2, max: 10 },
+      gap: { type: 'int', min: 2, max: 20 },
+      base: { type: 'int', min: 10, max: 200, step: 10 },
+    },
+    derived: {
+      made: 'base+rate*hours',
+      later: 'hours+gap',
+      answer: 'rate*gap',
+      d_usedGivenValue: 'made',
+      d_operationInverted: 'rate*later',
+      d_offByOneStep: 'rate*(gap-1)',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['From hour {{hours}} to hour {{later}} is {{gap}} more hours.', '{{gap}} hours at {{rate}} an hour is {{answer}}.'],
+  answerSummary: { headline: 'A steady rate applies only over the stretch asked about.', text: 'It will make ${{answer}}$ more.' },
+  hint: 'Count the additional hours, not the total hours.',
+  feedback: 'The count so far belongs to the earlier stretch.',
+});
+
+ar('A.3B', 'what-the-rate-means', {
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'verbal',
+  rankAnalysisNotApplicable: true,
+  prompt: 'A repair cost rises by $\\${{rate}}$ for each extra hour of labour, starting from $\\${{base}}$. Which statement is closest to correct?',
+  generator: {
+    parameters: {
+      rate: { type: 'int', min: 15, max: 90, step: 5 },
+      base: { type: 'int', min: 40, max: 300, step: 10 },
+    },
+    derived: {
+      twice: 'rate*2',
+      plusBase: 'base+rate',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Two extra hours add $\\${{twice}}$ to the cost.', correct: true },
+    { label: 'Two extra hours add $\\${{rate}}$ to the cost.', error: 'forgotFinalStep' },
+    { label: 'One extra hour brings the cost to $\\${{rate}}$.', error: 'usedGivenValue' },
+    { label: 'Each extra hour multiplies the cost by $\\${{rate}}$.', error: 'operationInverted' },
+  ],
+  reasoning: ['The rate is an amount added for every extra hour.', 'Two extra hours therefore add {{rate}} twice, or {{twice}}.'],
+  answerSummary: { headline: 'A rate of change is added per unit, not multiplied by it.', text: 'Two extra hours add $\\${{twice}}$.' },
+  hint: 'Decide what happens to the cost when one more hour is worked.',
+  feedback: 'The starting cost is separate from the amount each hour adds.',
+});
+
+ar('A.3B', 'rising-against-falling', {
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'table',
+  prompt: 'Two tanks were logged over the same {{hours}} hours. How many litres an hour more does the faster one change by?',
+  stimulus: {
+    kind: 'table',
+    title: 'Tank log',
+    table: { headers: ['tank', 'start', 'end'], rows: [['A', '{{sA}}', '{{eA}}'], ['B', '{{sB}}', '{{eB}}']] },
+  },
+  generator: {
+    parameters: {
+      hours: { type: 'int', min: 4, max: 20 },
+      rA: { type: 'int', min: 2, max: 30 },
+      rB: { type: 'int', min: 2, max: 30 },
+      sA: { type: 'int', min: 200, max: 900, step: 20 },
+      sB: { type: 'int', min: 200, max: 900, step: 20 },
+    },
+    derived: {
+      eA: 'sA-rA*hours',
+      eB: 'sB-rB*hours',
+      answer: 'abs(rA-rB)',
+      d_offByOneStep: 'round(abs(rA-rB)/hours)',
+      d_partialTotal: 'min(rA,rB)',
+      d_signError: 'rA+rB',
+    },
+    constraints: ['rA!=rB', 'eA>0', 'eB>0'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['Tank A changes by {{rA}} litres an hour and tank B by {{rB}}.', 'The gap is {{answer}}.'],
+  answerSummary: { headline: 'Rates compare per hour, not by total change.', text: 'It is ${{answer}}$ litres an hour more.' },
+  hint: 'Both tanks ran for the same time, so compare their hourly rates.',
+  feedback: 'The totals lost are not the hourly rates.',
+});
+
+// ================================================================ A2.6L
+// Inverse variation.
+
+ar('A2.6L', 'constant-of-inverse-variation', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'A {{crew}} of {{workers}} finishes a job in {{hours}} hours. How many worker-hours does the job take?',
+  generator: {
+    parameters: {
+      crew: WORKERS,
+      workers: { type: 'int', min: 2, max: 24 },
+      hours: { type: 'int', min: 2, max: 24 },
+    },
+    derived: {
+      answer: 'workers*hours',
+      d_operationInverted: 'hours*hours',
+      d_offByOneStep: 'workers*(hours-1)',
+      d_arithmeticSlip: 'workers*(hours+1)',
+    },
+    constraints: ['workers!=hours', 'hours>2'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['Each of the {{workers}} works {{hours}} hours.', 'That is {{answer}} worker-hours in all.'],
+  answerSummary: { headline: 'Worker-hours stay fixed however the crew is sized.', text: 'It takes ${{answer}}$ worker-hours.' },
+  hint: 'How much work does one person do, and how many are there?',
+  feedback: 'Worker-hours multiply the crew by the time.',
+});
+
+ar('A2.6L', 'more-workers-less-time', {
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A {{crew}} of {{w1}} finishes a job in {{h1}} hours. How long would a {{crew}} of {{w2}} take at the same pace?',
+  generator: {
+    parameters: {
+      crew: WORKERS,
+      w1: { type: 'int', min: 2, max: 12 },
+      h1: { type: 'int', min: 2, max: 24 },
+      w2: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      work: 'w1*h1',
+      answer: 'w1*h1/w2',
+      d_operationInverted: 'h1*w2/w1',
+      d_offByOneStep: 'round(w1*h1/(w2+w1))',
+      d_partialTotal: 'work',
+    },
+    constraints: ['w1!=w2', 'answer==round(answer)', 'd_operationInverted==round(d_operationInverted)'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The job is {{work}} worker-hours.', 'Shared among {{w2}} that is {{answer}} hours.'],
+  answerSummary: { headline: 'More workers means less time, in the same proportion.', text: 'It takes ${{answer}}$ hours.' },
+  hint: 'The amount of work does not change when the crew does.',
+  feedback: 'Doubling the crew halves the time; it does not double it.',
+});
+
+ar('A2.6L', 'crew-size-for-a-deadline', {
+  difficultyBand: 3, dok: 3, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'A {{crew}} of {{w1}} takes {{h1}} hours on a job. How many people are needed to finish it in {{target}} hours?',
+  generator: {
+    parameters: {
+      crew: WORKERS,
+      // Drawn so the worker-hours divide exactly by construction. Enforcing it
+      // with a constraint instead threw away the draws where the starting crew
+      // would have crossed the answer.
+      w1: { type: 'int', min: 2, max: 20 },
+      target: { type: 'int', min: 2, max: 24 },
+      m: { type: 'int', min: 1, max: 8 },
+    },
+    derived: {
+      h1: 'target*m',
+      work: 'w1*target*m',
+      answer: 'w1*m',
+      d_partialTotal: 'work',
+      d_usedGivenValue: 'h1',
+      d_offByOneStep: 'round(w1*target*m/(target+target*m))',
+    },
+    constraints: ['h1!=target', 'd_offByOneStep>0'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['The job is {{work}} worker-hours.', 'To finish in {{target}} hours takes {{answer}} people.'],
+  answerSummary: { headline: 'A shorter deadline needs proportionally more people.', text: 'It takes ${{answer}}$ people.' },
+  hint: 'The total work is fixed; only how it is shared changes.',
+  feedback: 'Halving the time needs twice the crew, not half.',
+});
+
+ar('A2.6L', 'gears-inverse-table', {
+  difficultyBand: 2, dok: 3, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'The pairs shown vary inversely. What belongs in the empty cell?',
+  stimulus: {
+    kind: 'table',
+    title: 'Paired settings',
+    table: { headers: ['setting', 'speed'], rows: [['{{x1}}', '{{y1}}'], ['{{x2}}', '?']] },
+  },
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 24, max: 240, step: 12 },
+      x1: { type: 'int', min: 2, max: 12 },
+      x2: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      y1: 'k/x1',
+      answer: 'k/x2',
+      d_operationInverted: 'x1*x2',
+      d_usedGivenValue: 'round(y1/x2)',
+      d_partialTotal: 'k',
+    },
+    constraints: ['x1!=x2', 'y1==round(y1)', 'answer==round(answer)'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The pairs multiply to the same {{k}} every time.', '{{k}} divided by {{x2}} is {{answer}}.'],
+  answerSummary: { headline: 'In inverse variation the product stays fixed.', text: 'The cell holds ${{answer}}$.' },
+  hint: 'Multiply the first pair together and see what that tells you.',
+  feedback: 'When one column rises the other falls, so they do not scale together.',
+});
+
+ar('A2.6L', 'which-pairing-fits', {
+  difficultyBand: 3, dok: 3, taskType: 'conceptual', representation: 'verbal',
+  rankAnalysisNotApplicable: true,
+  prompt: 'Setting and speed vary inversely, and a setting of {{x1}} pairs with {{y1}}. Which pairing is wrong?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 24, max: 240, step: 12 },
+      x1: { type: 'int', min: 2, max: 12 },
+      x2: { type: 'int', min: 2, max: 12 },
+      x3: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      y1: 'k/x1',
+      y2: 'k/x2',
+      y3: 'k/x3',
+      bad: 'k/x3+x3',
+    },
+    constraints: ['x1!=x2', 'x2!=x3', 'x1!=x3', 'y1==round(y1)', 'y2==round(y2)', 'y3==round(y3)'],
+  },
+  choices: [
+    { label: plain('{{x3}} \\text{ with } {{bad}}'), correct: true },
+    { label: plain('{{x1}} \\text{ with } {{y1}}'), error: 'usedGivenValue' },
+    { label: plain('{{x2}} \\text{ with } {{y2}}'), error: 'partialTotal' },
+    { label: plain('{{x3}} \\text{ with } {{y3}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['Every correct pairing multiplies to {{k}}.', '{{x3}} with {{bad}} does not, so it breaks the pattern.'],
+  answerSummary: { headline: 'Inverse variation holds only when every pair has the same product.', text: 'The pairing {{x3}} with {{bad}} is wrong.' },
+  hint: 'Multiply each pairing out and compare the products.',
+  feedback: 'Check the product of each pairing against the first one.',
 });
 
 // ---------------------------------------------------------------- emit

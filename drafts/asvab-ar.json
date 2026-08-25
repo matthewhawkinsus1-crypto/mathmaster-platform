@@ -9911,13 +9911,14 @@
       "values": [
        2,
        3,
-       4
+       4,
+       5
       ]
      },
      "n2": {
       "type": "int",
       "min": 1,
-      "max": 3
+      "max": 4
      },
      "unit": {
       "type": "int",
@@ -15545,6 +15546,2120 @@
      "label": "Choose the correct answer",
      "inputProfile": "choice",
      "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_3B_temperature_swing",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.3B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.3B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:7.3B:temperature-swing",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.3B",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A reading of {{start}} degrees fell {{drop}} degrees overnight and rose {{rise}} degrees by noon. What is it at noon?",
+   "solutionReview": {
+    "headline": "A fall subtracts and a rise adds, in the order given.",
+    "reasoning": [
+     "Falling {{drop}} from {{start}} gives {{d_forgotFinalStep}}.",
+     "Rising {{rise}} from there gives {{answer}}."
+    ],
+    "answerSummary": "It is ${{answer}}$ degrees."
+   },
+   "attemptFeedback": [
+    "A fall lowers the reading even when the reading is already below zero."
+   ],
+   "supportHints": [
+    "Take the two changes one at a time."
+   ],
+   "generator": {
+    "parameters": {
+     "start": {
+      "type": "int",
+      "min": -20,
+      "max": 40,
+      "exclude": [
+       1,
+       -1
+      ]
+     },
+     "drop": {
+      "type": "int",
+      "min": 5,
+      "max": 45
+     },
+     "rise": {
+      "type": "int",
+      "min": 5,
+      "max": 45
+     }
+    },
+    "derived": {
+     "answer": "start-drop+rise",
+     "d_signError": "start+drop+rise",
+     "d_forgotFinalStep": "start-drop",
+     "d_usedGivenValue": "start"
+    },
+    "constraints": [
+     "drop!=rise",
+     "answer!=d_signError",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_signError!=d_forgotFinalStep",
+     "d_signError!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_3B_bags_from_a_load",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.3B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.3B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:7.3B:bags-from-a-load",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.3B",
+   "taskType": "reverseReasoning",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{crew}} fills {{ounces}}-ounce bags from {{pounds}} pounds of {{mat}}, and {{filled}} are already done. How many are left to fill?",
+   "solutionReview": {
+    "headline": "Dividing by a part of a unit gives more pieces, not fewer.",
+    "reasoning": [
+     "{{pounds}} pounds of {{mat}} fills {{bags}} bags of {{ounces}} ounces.",
+     "{{filled}} are done, so {{answer}} are left."
+    ],
+    "answerSummary": "${{answer}}$ bags are left to fill."
+   },
+   "attemptFeedback": [
+    "Bags smaller than a pound mean more bags than pounds, and some are already done."
+   ],
+   "supportHints": [
+    "Work in ounces throughout."
+   ],
+   "generator": {
+    "parameters": {
+     "crew": {
+      "type": "choice",
+      "values": [
+       "crew",
+       "shift",
+       "team",
+       "work detail"
+      ]
+     },
+     "mat": {
+      "type": "choice",
+      "values": [
+       "resin",
+       "filler",
+       "binder",
+       "powder",
+       "sealant"
+      ]
+     },
+     "ounces": {
+      "type": "choice",
+      "values": [
+       2,
+       4,
+       8
+      ]
+     },
+     "bags": {
+      "type": "int",
+      "min": 10,
+      "max": 60
+     },
+     "filled": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     }
+    },
+    "derived": {
+     "pounds": "ounces*bags/16",
+     "answer": "bags-filled",
+     "d_forgotFinalStep": "bags",
+     "d_usedGivenValue": "filled",
+     "d_operationInverted": "pounds"
+    },
+    "constraints": [
+     "pounds==round(pounds)",
+     "pounds>1",
+     "answer>0",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_operationInverted",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_usedGivenValue!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_3B_fraction_of_a_remainder",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.3B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.3B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:7.3B:fraction-of-a-remainder",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.3B",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{machine}} finished {{n1}} of every {{d1}} of a run of {{total}} {{item}}, then {{n2}} of every {{d2}} of what was left. How many are still unfinished?",
+   "solutionReview": {
+    "headline": "The second fraction is of what remained, not of the whole run.",
+    "reasoning": [
+     "The first pass leaves {{leftAfterOne}}.",
+     "The second pass finishes {{n2}} of every {{d2}} of that, leaving {{answer}}."
+    ],
+    "answerSummary": "${{answer}}$ are still unfinished."
+   },
+   "attemptFeedback": [
+    "The second fraction applies to the remainder."
+   ],
+   "supportHints": [
+    "Work out what was left after the first pass before doing anything else."
+   ],
+   "generator": {
+    "parameters": {
+     "machine": {
+      "type": "choice",
+      "values": [
+       "press",
+       "labeler",
+       "sorter",
+       "stamping machine",
+       "conveyor"
+      ]
+     },
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "d1": {
+      "type": "choice",
+      "values": [
+       3,
+       4,
+       5
+      ]
+     },
+     "n1": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     },
+     "d2": {
+      "type": "choice",
+      "values": [
+       2,
+       3,
+       4
+      ]
+     },
+     "n2": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     },
+     "unit": {
+      "type": "int",
+      "min": 4,
+      "max": 30
+     }
+    },
+    "derived": {
+     "total": "d1*d2*unit",
+     "leftAfterOne": "total-n1*d2*unit",
+     "answer": "leftAfterOne-n2*leftAfterOne/d2",
+     "d_forgotFinalStep": "leftAfterOne",
+     "d_operationInverted": "n2*leftAfterOne/d2",
+     "d_offByOneStep": "leftAfterOne-n2*leftAfterOne/d2-unit"
+    },
+    "constraints": [
+     "n1<d1",
+     "n2<d2",
+     "answer>0",
+     "d_offByOneStep>0",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_offByOneStep",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_offByOneStep",
+     "d_operationInverted!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_3B_signed_net_change",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.3B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.3B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:7.3B:signed-net-change",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.3B",
+   "taskType": "representationTranslation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The four adjustments shown were applied to a stock of {{start}} {{item}}. What is the stock now?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Adjustments",
+    "table": {
+     "headers": [
+      "entry",
+      "change"
+     ],
+     "rows": [
+      [
+       "1",
+       "{{a}}"
+      ],
+      [
+       "2",
+       "{{b}}"
+      ],
+      [
+       "3",
+       "{{c}}"
+      ],
+      [
+       "4",
+       "{{d}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Signed adjustments add together, then apply to the opening stock.",
+    "reasoning": [
+     "The four adjustments come to {{net}}.",
+     "{{start}} plus {{net}} is {{answer}}."
+    ],
+    "answerSummary": "The stock is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "A negative entry lowers the stock; it is not subtracted twice."
+   ],
+   "supportHints": [
+    "Total the adjustments first, keeping their signs."
+   ],
+   "generator": {
+    "parameters": {
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "start": {
+      "type": "int",
+      "min": 60,
+      "max": 400,
+      "step": 10
+     },
+     "a": {
+      "type": "int",
+      "min": -40,
+      "max": 40,
+      "step": 5
+     },
+     "b": {
+      "type": "int",
+      "min": -40,
+      "max": 40,
+      "step": 5
+     },
+     "c": {
+      "type": "int",
+      "min": -40,
+      "max": 40,
+      "step": 5
+     },
+     "d": {
+      "type": "int",
+      "min": -40,
+      "max": 40,
+      "step": 5
+     }
+    },
+    "derived": {
+     "net": "a+b+c+d",
+     "answer": "start+a+b+c+d",
+     "d_signError": "start-a-b-c-d",
+     "d_partialTotal": "net",
+     "d_forgotFinalStep": "start+a+b"
+    },
+    "constraints": [
+     "answer>0",
+     "net!=0",
+     "answer!=d_signError",
+     "answer!=d_partialTotal",
+     "answer!=d_forgotFinalStep",
+     "d_signError!=d_partialTotal",
+     "d_signError!=d_forgotFinalStep",
+     "d_partialTotal!=d_forgotFinalStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_3B_decimal_money_split",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.3B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.3B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:7.3B:decimal-money-split",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.3B",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{crew}} of {{people}} split a $\\${{bill}}$ bill evenly after a $\\${{off}}$ credit. What does each pay?",
+   "solutionReview": {
+    "headline": "The credit comes off before the split.",
+    "reasoning": [
+     "The credit brings the bill down to {{d_partialTotal}}.",
+     "Split {{people}} ways that is {{answer}} each."
+    ],
+    "answerSummary": "Each pays $\\${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Splitting the full bill ignores the credit."
+   ],
+   "supportHints": [
+    "Apply the credit before dividing."
+   ],
+   "generator": {
+    "parameters": {
+     "crew": {
+      "type": "choice",
+      "values": [
+       "crew",
+       "shift",
+       "team",
+       "work detail"
+      ]
+     },
+     "people": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     },
+     "each": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     },
+     "off": {
+      "type": "int",
+      "min": 5,
+      "max": 120,
+      "step": 5
+     }
+    },
+    "derived": {
+     "bill": "each*people+off",
+     "answer": "each",
+     "d_forgotFinalStep": "round(bill/people)",
+     "d_operationInverted": "people",
+     "d_partialTotal": "round((bill-off)/(people+2))"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_partialTotal",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_operationInverted!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_3B_depletion_rate",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.3B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.3B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:A.3B:depletion-rate",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.3B",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A tank held {{start}} litres at the start and {{end}} litres after {{hours}} hours. How many litres an hour is it losing?",
+   "solutionReview": {
+    "headline": "A rate of change compares the change with the time it took.",
+    "reasoning": [
+     "The tank lost {{d_forgotFinalStep}} litres over {{hours}} hours.",
+     "That is {{answer}} litres an hour."
+    ],
+    "answerSummary": "It loses ${{answer}}$ litres an hour."
+   },
+   "attemptFeedback": [
+    "The total lost is not the hourly loss."
+   ],
+   "supportHints": [
+    "Both the level and the clock changed. Compare them."
+   ],
+   "generator": {
+    "parameters": {
+     "rate": {
+      "type": "int",
+      "min": 3,
+      "max": 40
+     },
+     "hours": {
+      "type": "int",
+      "min": 3,
+      "max": 40
+     },
+     "end": {
+      "type": "int",
+      "min": 10,
+      "max": 200,
+      "step": 10
+     }
+    },
+    "derived": {
+     "start": "end+rate*hours",
+     "answer": "rate",
+     "d_operationInverted": "hours",
+     "d_forgotFinalStep": "start-end",
+     "d_offByOneStep": "round((start-end)/(hours+3))"
+    },
+    "constraints": [
+     "rate!=hours",
+     "answer!=d_operationInverted",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_offByOneStep",
+     "d_operationInverted!=d_forgotFinalStep",
+     "d_operationInverted!=d_offByOneStep",
+     "d_forgotFinalStep!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_3B_rate_from_two_labelled_points",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.3B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.3B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:A.3B:rate-from-two-labelled-points",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.3B",
+   "taskType": "representationTranslation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A cost record is shown. How many dollars does the cost rise for each extra unit?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Cost record",
+    "table": {
+     "headers": [
+      "units",
+      "cost"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "{{y1}}"
+      ],
+      [
+       "{{x2}}",
+       "{{y2}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "A per-unit rise needs the change in both columns.",
+    "reasoning": [
+     "Cost rose by {{d_forgotFinalStep}} across {{step}} more units.",
+     "Per unit that is {{answer}}."
+    ],
+    "answerSummary": "It rises $\\${{answer}}$ a unit."
+   },
+   "attemptFeedback": [
+    "The rise in cost alone is not the rise per unit."
+   ],
+   "supportHints": [
+    "The rows differ in both columns."
+   ],
+   "generator": {
+    "parameters": {
+     "rate": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     },
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "step": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     },
+     "base": {
+      "type": "int",
+      "min": 20,
+      "max": 200,
+      "step": 10
+     }
+    },
+    "derived": {
+     "x2": "x1+step",
+     "y1": "base+rate*x1",
+     "y2": "base+rate*x1+rate*step",
+     "answer": "rate",
+     "d_forgotFinalStep": "y2-y1",
+     "d_operationInverted": "step",
+     "d_offByOneStep": "round((y2-y1)/(step+3))"
+    },
+    "constraints": [
+     "rate!=step",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_offByOneStep",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_offByOneStep",
+     "d_operationInverted!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_3B_output_over_a_later_stretch",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.3B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.3B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:A.3B:output-over-a-later-stretch",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.3B",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{machine}} has made {{made}} {{item}} by hour {{hours}} and works at a steady {{rate}} an hour. How many more will it make by hour {{later}}?",
+   "solutionReview": {
+    "headline": "A steady rate applies only over the stretch asked about.",
+    "reasoning": [
+     "From hour {{hours}} to hour {{later}} is {{gap}} more hours.",
+     "{{gap}} hours at {{rate}} an hour is {{answer}}."
+    ],
+    "answerSummary": "It will make ${{answer}}$ more."
+   },
+   "attemptFeedback": [
+    "The count so far belongs to the earlier stretch."
+   ],
+   "supportHints": [
+    "Count the additional hours, not the total hours."
+   ],
+   "generator": {
+    "parameters": {
+     "machine": {
+      "type": "choice",
+      "values": [
+       "press",
+       "labeler",
+       "sorter",
+       "stamping machine",
+       "conveyor"
+      ]
+     },
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "rate": {
+      "type": "int",
+      "min": 5,
+      "max": 40
+     },
+     "hours": {
+      "type": "int",
+      "min": 2,
+      "max": 10
+     },
+     "gap": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "base": {
+      "type": "int",
+      "min": 10,
+      "max": 200,
+      "step": 10
+     }
+    },
+    "derived": {
+     "made": "base+rate*hours",
+     "later": "hours+gap",
+     "answer": "rate*gap",
+     "d_usedGivenValue": "made",
+     "d_operationInverted": "rate*later",
+     "d_offByOneStep": "rate*(gap-1)"
+    },
+    "constraints": [
+     "answer!=d_usedGivenValue",
+     "answer!=d_operationInverted",
+     "answer!=d_offByOneStep",
+     "d_usedGivenValue!=d_operationInverted",
+     "d_usedGivenValue!=d_offByOneStep",
+     "d_operationInverted!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_3B_what_the_rate_means",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.3B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.3B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:A.3B:what-the-rate-means",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.3B",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A repair cost rises by $\\${{rate}}$ for each extra hour of labour, starting from $\\${{base}}$. Which statement is closest to correct?",
+   "rankAnalysisNotApplicable": true,
+   "solutionReview": {
+    "headline": "A rate of change is added per unit, not multiplied by it.",
+    "reasoning": [
+     "The rate is an amount added for every extra hour.",
+     "Two extra hours therefore add {{rate}} twice, or {{twice}}."
+    ],
+    "answerSummary": "Two extra hours add $\\${{twice}}$."
+   },
+   "attemptFeedback": [
+    "The starting cost is separate from the amount each hour adds."
+   ],
+   "supportHints": [
+    "Decide what happens to the cost when one more hour is worked."
+   ],
+   "generator": {
+    "parameters": {
+     "rate": {
+      "type": "int",
+      "min": 15,
+      "max": 90,
+      "step": 5
+     },
+     "base": {
+      "type": "int",
+      "min": 40,
+      "max": 300,
+      "step": 10
+     }
+    },
+    "derived": {
+     "twice": "rate*2",
+     "plusBase": "base+rate"
+    },
+    "constraints": [
+     "twice!=rate"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Two extra hours add $\\${{rate}}$ to the cost.",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "Each extra hour multiplies the cost by $\\${{rate}}$.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "Two extra hours add $\\${{twice}}$ to the cost."
+    },
+    {
+     "id": "choice-d",
+     "label": "One extra hour brings the cost to $\\${{rate}}$.",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_3B_rising_against_falling",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.3B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.3B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:A.3B:rising-against-falling",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.3B",
+   "taskType": "errorAnalysis",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two tanks were logged over the same {{hours}} hours. How many litres an hour more does the faster one change by?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Tank log",
+    "table": {
+     "headers": [
+      "tank",
+      "start",
+      "end"
+     ],
+     "rows": [
+      [
+       "A",
+       "{{sA}}",
+       "{{eA}}"
+      ],
+      [
+       "B",
+       "{{sB}}",
+       "{{eB}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Rates compare per hour, not by total change.",
+    "reasoning": [
+     "Tank A changes by {{rA}} litres an hour and tank B by {{rB}}.",
+     "The gap is {{answer}}."
+    ],
+    "answerSummary": "It is ${{answer}}$ litres an hour more."
+   },
+   "attemptFeedback": [
+    "The totals lost are not the hourly rates."
+   ],
+   "supportHints": [
+    "Both tanks ran for the same time, so compare their hourly rates."
+   ],
+   "generator": {
+    "parameters": {
+     "hours": {
+      "type": "int",
+      "min": 4,
+      "max": 20
+     },
+     "rA": {
+      "type": "int",
+      "min": 2,
+      "max": 30
+     },
+     "rB": {
+      "type": "int",
+      "min": 2,
+      "max": 30
+     },
+     "sA": {
+      "type": "int",
+      "min": 200,
+      "max": 900,
+      "step": 20
+     },
+     "sB": {
+      "type": "int",
+      "min": 200,
+      "max": 900,
+      "step": 20
+     }
+    },
+    "derived": {
+     "eA": "sA-rA*hours",
+     "eB": "sB-rB*hours",
+     "answer": "abs(rA-rB)",
+     "d_offByOneStep": "round(abs(rA-rB)/hours)",
+     "d_partialTotal": "min(rA,rB)",
+     "d_signError": "rA+rB"
+    },
+    "constraints": [
+     "rA!=rB",
+     "eA>0",
+     "eB>0",
+     "answer!=d_offByOneStep",
+     "answer!=d_partialTotal",
+     "answer!=d_signError",
+     "d_offByOneStep!=d_partialTotal",
+     "d_offByOneStep!=d_signError",
+     "d_partialTotal!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_6L_constant_of_inverse_variation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.6L"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.6L",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:A2.6L:constant-of-inverse-variation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.6L",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{crew}} of {{workers}} finishes a job in {{hours}} hours. How many worker-hours does the job take?",
+   "solutionReview": {
+    "headline": "Worker-hours stay fixed however the crew is sized.",
+    "reasoning": [
+     "Each of the {{workers}} works {{hours}} hours.",
+     "That is {{answer}} worker-hours in all."
+    ],
+    "answerSummary": "It takes ${{answer}}$ worker-hours."
+   },
+   "attemptFeedback": [
+    "Worker-hours multiply the crew by the time."
+   ],
+   "supportHints": [
+    "How much work does one person do, and how many are there?"
+   ],
+   "generator": {
+    "parameters": {
+     "crew": {
+      "type": "choice",
+      "values": [
+       "crew",
+       "shift",
+       "team",
+       "work detail"
+      ]
+     },
+     "workers": {
+      "type": "int",
+      "min": 2,
+      "max": 24
+     },
+     "hours": {
+      "type": "int",
+      "min": 2,
+      "max": 24
+     }
+    },
+    "derived": {
+     "answer": "workers*hours",
+     "d_operationInverted": "hours*hours",
+     "d_offByOneStep": "workers*(hours-1)",
+     "d_arithmeticSlip": "workers*(hours+1)"
+    },
+    "constraints": [
+     "workers!=hours",
+     "hours>2",
+     "answer!=d_operationInverted",
+     "answer!=d_offByOneStep",
+     "answer!=d_arithmeticSlip",
+     "d_operationInverted!=d_offByOneStep",
+     "d_operationInverted!=d_arithmeticSlip",
+     "d_offByOneStep!=d_arithmeticSlip"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_arithmeticSlip}}$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_6L_more_workers_less_time",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.6L"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.6L",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:A2.6L:more-workers-less-time",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.6L",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{crew}} of {{w1}} finishes a job in {{h1}} hours. How long would a {{crew}} of {{w2}} take at the same pace?",
+   "solutionReview": {
+    "headline": "More workers means less time, in the same proportion.",
+    "reasoning": [
+     "The job is {{work}} worker-hours.",
+     "Shared among {{w2}} that is {{answer}} hours."
+    ],
+    "answerSummary": "It takes ${{answer}}$ hours."
+   },
+   "attemptFeedback": [
+    "Doubling the crew halves the time; it does not double it."
+   ],
+   "supportHints": [
+    "The amount of work does not change when the crew does."
+   ],
+   "generator": {
+    "parameters": {
+     "crew": {
+      "type": "choice",
+      "values": [
+       "crew",
+       "shift",
+       "team",
+       "work detail"
+      ]
+     },
+     "w1": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "h1": {
+      "type": "int",
+      "min": 2,
+      "max": 24
+     },
+     "w2": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "work": "w1*h1",
+     "answer": "w1*h1/w2",
+     "d_operationInverted": "h1*w2/w1",
+     "d_offByOneStep": "round(w1*h1/(w2+w1))",
+     "d_partialTotal": "work"
+    },
+    "constraints": [
+     "w1!=w2",
+     "answer==round(answer)",
+     "d_operationInverted==round(d_operationInverted)",
+     "answer!=d_operationInverted",
+     "answer!=d_offByOneStep",
+     "answer!=d_partialTotal",
+     "d_operationInverted!=d_offByOneStep",
+     "d_operationInverted!=d_partialTotal",
+     "d_offByOneStep!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_6L_crew_size_for_a_deadline",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.6L"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.6L",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:A2.6L:crew-size-for-a-deadline",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.6L",
+   "taskType": "reverseReasoning",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{crew}} of {{w1}} takes {{h1}} hours on a job. How many people are needed to finish it in {{target}} hours?",
+   "solutionReview": {
+    "headline": "A shorter deadline needs proportionally more people.",
+    "reasoning": [
+     "The job is {{work}} worker-hours.",
+     "To finish in {{target}} hours takes {{answer}} people."
+    ],
+    "answerSummary": "It takes ${{answer}}$ people."
+   },
+   "attemptFeedback": [
+    "Halving the time needs twice the crew, not half."
+   ],
+   "supportHints": [
+    "The total work is fixed; only how it is shared changes."
+   ],
+   "generator": {
+    "parameters": {
+     "crew": {
+      "type": "choice",
+      "values": [
+       "crew",
+       "shift",
+       "team",
+       "work detail"
+      ]
+     },
+     "w1": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "target": {
+      "type": "int",
+      "min": 2,
+      "max": 24
+     },
+     "m": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     }
+    },
+    "derived": {
+     "h1": "target*m",
+     "work": "w1*target*m",
+     "answer": "w1*m",
+     "d_partialTotal": "work",
+     "d_usedGivenValue": "h1",
+     "d_offByOneStep": "round(w1*target*m/(target+target*m))"
+    },
+    "constraints": [
+     "h1!=target",
+     "d_offByOneStep>0",
+     "answer!=d_partialTotal",
+     "answer!=d_usedGivenValue",
+     "answer!=d_offByOneStep",
+     "d_partialTotal!=d_usedGivenValue",
+     "d_partialTotal!=d_offByOneStep",
+     "d_usedGivenValue!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_6L_gears_inverse_table",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.6L"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.6L",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:A2.6L:gears-inverse-table",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.6L",
+   "taskType": "representationTranslation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The pairs shown vary inversely. What belongs in the empty cell?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Paired settings",
+    "table": {
+     "headers": [
+      "setting",
+      "speed"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "{{y1}}"
+      ],
+      [
+       "{{x2}}",
+       "?"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "In inverse variation the product stays fixed.",
+    "reasoning": [
+     "The pairs multiply to the same {{k}} every time.",
+     "{{k}} divided by {{x2}} is {{answer}}."
+    ],
+    "answerSummary": "The cell holds ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "When one column rises the other falls, so they do not scale together."
+   ],
+   "supportHints": [
+    "Multiply the first pair together and see what that tells you."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 24,
+      "max": 240,
+      "step": 12
+     },
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "x2": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "y1": "k/x1",
+     "answer": "k/x2",
+     "d_operationInverted": "x1*x2",
+     "d_usedGivenValue": "round(y1/x2)",
+     "d_partialTotal": "k"
+    },
+    "constraints": [
+     "x1!=x2",
+     "y1==round(y1)",
+     "answer==round(answer)",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "answer!=d_partialTotal",
+     "d_operationInverted!=d_usedGivenValue",
+     "d_operationInverted!=d_partialTotal",
+     "d_usedGivenValue!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_6L_which_pairing_fits",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.6L"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.6L",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:A2.6L:which-pairing-fits",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.6L",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Setting and speed vary inversely, and a setting of {{x1}} pairs with {{y1}}. Which pairing is wrong?",
+   "rankAnalysisNotApplicable": true,
+   "solutionReview": {
+    "headline": "Inverse variation holds only when every pair has the same product.",
+    "reasoning": [
+     "Every correct pairing multiplies to {{k}}.",
+     "{{x3}} with {{bad}} does not, so it breaks the pattern."
+    ],
+    "answerSummary": "The pairing {{x3}} with {{bad}} is wrong."
+   },
+   "attemptFeedback": [
+    "Check the product of each pairing against the first one."
+   ],
+   "supportHints": [
+    "Multiply each pairing out and compare the products."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 24,
+      "max": 240,
+      "step": 12
+     },
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "x2": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "x3": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "y1": "k/x1",
+     "y2": "k/x2",
+     "y3": "k/x3",
+     "bad": "k/x3+x3"
+    },
+    "constraints": [
+     "x1!=x2",
+     "x2!=x3",
+     "x1!=x3",
+     "y1==round(y1)",
+     "y2==round(y2)",
+     "y3==round(y3)"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{x1}} \\text{ with } {{y1}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{x3}} \\text{ with } {{y3}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{x3}} \\text{ with } {{bad}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{x2}} \\text{ with } {{y2}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
     }
    ]
   }
