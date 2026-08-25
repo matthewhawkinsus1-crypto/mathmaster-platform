@@ -7958,6 +7958,717 @@ mk('8.5A', 'constant-term-in-a-proportional-claim', {
   feedback: 'A constant term keeps the rule linear but not proportional.',
 });
 
+
+// ================================================================ 8.5B
+// Linear situations that do not pass through the origin.
+
+mk('8.5B', 'equation-with-a-joining-fee', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'context',
+  prompt: 'A gym charges $\\${{b}}$ to join and $\\${{m}}$ a month. Which equation gives the cost $y$ after $x$ months?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 15, max: 90, step: 5 },
+      m: { type: 'int', min: 5, max: 40, step: 5 },
+      x: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { total: 'm*x+b', months: 'm*x' },
+    constraints: ['m!=b'],
+  },
+  choices: [
+    { label: plain('y = {{m}}x + {{b}}'), correct: true },
+    { label: plain('y = {{b}}x + {{m}}'), error: 'ratioReversed' },
+    { label: plain('y = {{m}}x'), error: 'partialTotal' },
+    { label: plain('y = ({{m}} + {{b}})x'), error: 'operationInverted' },
+  ],
+  reasoning: ['After ${{x}}$ months the monthly charges come to $\\${{months}}$.', 'The joining fee is paid once, so the total is $\\${{total}}$ and the fee is not multiplied.'],
+  answerSummary: { headline: 'A one-off fee is added; only the repeating charge is multiplied.', text: 'It is $y = {{m}}x + {{b}}$.' },
+  hint: 'How many times is the joining fee paid?',
+  feedback: 'Dropping the fee describes a gym that is free to join.',
+});
+
+mk('8.5B', 'equation-for-a-table-that-misses-the-origin', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'table',
+  prompt: 'Which equation produces every row?',
+  stimulus: {
+    kind: 'table',
+    title: 'Recorded values',
+    table: { headers: ['x', 'y'], rows: [['{{x1}}', '{{y1}}'], ['{{x2}}', '{{y2}}'], ['{{x3}}', '{{y3}}']] },
+  },
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 3, max: 25 },
+      x1: { type: 'int', min: 1, max: 4 },
+      gap: { type: 'int', min: 2, max: 4 },
+    },
+    derived: {
+      x2: 'x1+gap', x3: 'x1+2*gap',
+      y1: 'm*x1+b', y2: 'm*(x1+gap)+b', y3: 'm*(x1+2*gap)+b',
+      ratio: 'round((m*x1+b)/x1)',
+      mPlus: 'm+1',
+    },
+    constraints: ['ratio!=m', 'ratio!=mPlus'],
+  },
+  choices: [
+    { label: plain('y = {{m}}x + {{b}}'), correct: true },
+    { label: plain('y = {{ratio}}x'), error: 'partialTotal' },
+    { label: plain('y = {{mPlus}}x + {{b}}'), error: 'offByOneStep' },
+    { label: plain('y = {{m}}x - {{b}}'), error: 'signError' },
+  ],
+  reasoning: ['Each step of ${{gap}}$ in $x$ raises $y$ by ${{m}}$ times that, so the rate is ${{m}}$.', 'At $x = {{x1}}$ the value ${{y1}}$ needs a further ${{b}}$ beyond ${{m}} \\times {{x1}}$.'],
+  answerSummary: { headline: 'Find the rate from the steps, then what is left over at any row.', text: 'It is $y = {{m}}x + {{b}}$.' },
+  hint: 'Does a rule with no constant fit every row?',
+  feedback: 'A proportional rule would miss every row but at most one.',
+});
+
+mk('8.5B', 'gap-between-two-plans', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'Two plans both charge $\\${{m}}$ a month, with joining fees of $\\${{b1}}$ and $\\${{b2}}$. After ${{x}}$ months, how much more is the first?',
+  generator: {
+    parameters: {
+      // g and m share a range, so the monthly charge crosses the fee gap.
+      b2: { type: 'int', min: 5, max: 60, step: 5 },
+      g: { type: 'int', min: 2, max: 14 },
+      m: { type: 'int', min: 2, max: 14 },
+      x: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      b1: 'b2+g',
+      answer: 'g',
+      d_operationInverted: 'b2+b2+g',
+      d_arithmeticSlip: 'g-m',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: money('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+    { label: money('{{m}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Both plans charge the same each month, so the monthly part cancels.', 'Only the joining fees differ, by $\\${{answer}}$, and that gap never changes.'],
+  answerSummary: { headline: 'Equal rates leave a gap that does not grow with time.', text: 'The first is $\\${{answer}}$ more, whatever ${{x}}$ is.' },
+  hint: 'What is different between the two plans?',
+  feedback: 'The monthly charge is the same on both, so it cannot open a gap.',
+});
+
+mk('8.5B', 'what-a-nonzero-constant-does', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'In $y = {{m}}x + {{b}}$, what does the ${{b}}$ do to the graph?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 3, max: 25 },
+    },
+    derived: { atZero: 'b', atOne: 'm+b', proportional: 'm' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'It lifts the line so it crosses the vertical axis at ${{atZero}}$ instead of the origin.', correct: true },
+    { label: 'It makes the line steeper, raising the rate to ${{atOne}}$.', error: 'ratioReversed' },
+    { label: 'It has no effect on the graph, only on the arithmetic.', error: 'operationInverted' },
+    { label: 'It bends the line, because the two terms disagree.', error: 'partialTotal' },
+  ],
+  reasoning: ['At $x = 0$ the rule gives ${{atZero}}$, so the line starts there rather than at the origin.', 'The steepness still comes from ${{m}}$ alone: at $x = 1$ the value is ${{atOne}}$, one step of ${{m}}$ above ${{atZero}}$.'],
+  answerSummary: { headline: 'The constant moves the line up or down; the coefficient tilts it.', text: 'It lifts the crossing point to ${{atZero}}$.' },
+  hint: 'What does the rule give at $x = 0$?',
+  feedback: 'The rate of climb is unchanged by the constant.',
+});
+
+mk('8.5B', 'fee-left-out-of-the-equation', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'For a $\\${{b}}$ joining fee at $\\${{m}}$ a month a student writes $y = {{m}}x$. What is wrong?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 15, max: 90, step: 5 },
+      m: { type: 'int', min: 5, max: 40, step: 5 },
+      x: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { right: 'm*x+b', wrong: 'm*x' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'At ${{x}}$ months that gives $\\${{wrong}}$, but the real cost is $\\${{right}}$.', correct: true },
+    { label: 'Nothing is wrong, because the fee is paid before the months start.', error: 'partialTotal' },
+    { label: 'The fee should be multiplied in, giving $\\${{m}}$ times $\\${{b}}$ times ${{x}}$.', error: 'operationInverted' },
+    { label: 'The rule is right but only for whole numbers of months.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['The fee is real money and has to appear in the total.', 'It is paid once, so it is added rather than multiplied: $y = {{m}}x + {{b}}$.'],
+  answerSummary: { headline: 'A one-off charge still belongs in the rule.', text: 'It should be $y = {{m}}x + {{b}}$.' },
+  hint: 'Work out the cost after ${{x}}$ months both ways.',
+  feedback: 'Being paid up front does not make the fee disappear.',
+});
+
+// ================================================================ 8.5E
+// Direct variation.
+
+mk('8.5E', 'find-y-under-direct-variation', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: '$y$ varies directly with $x$, and $y = {{y1}}$ when $x = {{x1}}$. What is $y$ when $x = {{x2}}$?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 12 },
+      // x1 and x2 share a range, so the given y crosses the answer.
+      x1: { type: 'int', min: 2, max: 12 },
+      x2: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      y1: 'k*x1',
+      answer: 'k*x2',
+      d_offByOneStep: 'k*x2+k',
+      d_operationInverted: 'k+x2',
+    },
+    constraints: ['x1!=x2'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{y1}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['${{y1}} \\div {{x1}} = {{k}}$, so $y = {{k}}x$.', 'At $x = {{x2}}$ that gives ${{answer}}$.'],
+  answerSummary: { headline: 'Find the constant first, then use it.', text: '$y = {{answer}}$.' },
+  hint: 'What is $y$ when $x$ is one?',
+  feedback: 'That is the value at the first $x$, not the second.',
+});
+
+mk('8.5E', 'find-x-under-direct-variation', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'A direct variation passes through $({{x1}}, {{y1}})$. At which $x$ does $y$ reach ${{y2}}$?',
+  generator: {
+    parameters: {
+      // k and x2 share a range, so the constant crosses the answer.
+      k: { type: 'int', min: 2, max: 12 },
+      x1: { type: 'int', min: 2, max: 9 },
+      x2: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      y1: 'k*x1',
+      y2: 'k*x2',
+      answer: 'x2',
+      d_forgotFinalStep: 'y2',
+      d_operationInverted: 'x2-k',
+    },
+    constraints: ['x1!=x2'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{k}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The constant is ${{y1}} \\div {{x1}} = {{k}}$.', 'Dividing ${{y2}}$ by ${{k}}$ gives $x = {{answer}}$.'],
+  answerSummary: { headline: 'Going from y back to x divides by the constant.', text: '$x = {{answer}}$.' },
+  hint: 'What undoes multiplying by the constant?',
+  feedback: 'The value of $y$ is not the value of $x$.',
+});
+
+mk('8.5E', 'stretch-of-a-spring', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A spring stretches ${{s1}}$ cm under ${{L1}}$ kg, and a second stretches ${{s2}}$ cm under the same load. How far does the first stretch under ${{L2}}$ kg?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      L1: { type: 'int', min: 2, max: 9 },
+      L2: { type: 'int', min: 2, max: 14 },
+      // The second spring's stretch is drawn separately, so it crosses the key.
+      s2: { type: 'int', min: 3, max: 80 },
+    },
+    derived: {
+      s1: 'k*L1',
+      answer: 'k*L2',
+      d_operationInverted: 'k+L2',
+      d_offByOneStep: 'k*L2+k',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{s2}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The first spring stretches ${{s1}} \\div {{L1}} = {{k}}$ cm for each kilogram.', 'Under ${{L2}}$ kg that is ${{answer}}$ cm.'],
+  answerSummary: { headline: 'Direct variation means a fixed amount per unit.', text: 'It stretches ${{answer}}$ cm.' },
+  hint: 'How far does one kilogram stretch the first spring?',
+  feedback: 'That is the second spring, which is a different spring.',
+});
+
+mk('8.5E', 'which-rule-is-direct-variation', {
+  courseId: 'grade8',
+  difficultyBand: 1, dok: 1, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Which equation shows $y$ varying directly with $x$?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 3, max: 25 },
+    },
+    derived: { atOne: 'k', atTwo: '2*k' },
+    constraints: ['k!=b'],
+  },
+  choices: [
+    { label: plain('y = {{k}}x'), correct: true },
+    { label: plain('y = {{k}}x + {{b}}'), error: 'partialTotal' },
+    { label: plain('y = \\frac{{{k}}}{x}'), error: 'ratioReversed' },
+    { label: plain('y = x + {{k}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['Direct variation needs $y$ to be a fixed multiple of $x$ and nothing else.', 'At $x = 1$ it gives ${{atOne}}$ and at $x = 2$ it gives ${{atTwo}}$, exactly double.'],
+  answerSummary: { headline: 'Direct variation is a bare multiple, with no constant and no division.', text: 'It is $y = {{k}}x$.' },
+  hint: 'What must happen to $y$ when $x$ doubles?',
+  feedback: 'A constant term stops the doubling from carrying through.',
+});
+
+mk('8.5E', 'tripling-adds-three', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'In a direct variation a student says tripling $x$ adds $3$ to $y$. What is wrong?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 12 },
+      x: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { y: 'k*x', tripled: '3*k*x', added: 'k*x+3' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Tripling $x$ triples $y$: from ${{y}}$ to ${{tripled}}$, not to ${{added}}$.', correct: true },
+    { label: 'Nothing is wrong, because both changes make $y$ larger.', error: 'operationInverted' },
+    { label: 'Tripling $x$ leaves $y$ alone, because the constant does the work.', error: 'partialTotal' },
+    { label: 'It adds $3$ only when the constant is $3$.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['In $y = {{k}}x$ the output is a fixed multiple of the input.', 'Multiplying the input by three multiplies the output by three as well.'],
+  answerSummary: { headline: 'Direct variation scales the output; it does not shift it.', text: '$y$ triples to ${{tripled}}$.' },
+  hint: 'What happens to a multiple when its input triples?',
+  feedback: 'Both do grow, which is why the mistake slips through.',
+});
+
+// ================================================================ 8.5F
+// Telling proportional from non-proportional across representations.
+
+mk('8.5F', 'is-this-situation-proportional', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'context',
+  prompt: 'A printer charges $\\${{b}}$ for setup and $\\${{m}}$ a copy. Is the cost proportional to the number of copies?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 5, max: 60, step: 5 },
+      m: { type: 'int', min: 2, max: 12 },
+      x: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { atX: 'm*x+b', atTwoX: '2*m*x+b', doubled: '2*m*x+2*b' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'No: doubling the copies gives $\\${{atTwoX}}$, not double $\\${{atX}}$.', correct: true },
+    { label: 'Yes: the cost rises by the same $\\${{m}}$ for every extra copy.', error: 'partialTotal' },
+    { label: 'No: the cost per copy changes as more are printed.', error: 'operationInverted' },
+    { label: 'Yes, as long as the setup charge is paid first.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Proportional needs the cost to double when the copies do.', '${{x}}$ copies cost $\\${{atX}}$ and twice as many cost $\\${{atTwoX}}$, which is short of $\\${{doubled}}$.'],
+  answerSummary: { headline: 'A setup charge breaks the doubling.', text: 'It is not proportional.' },
+  hint: 'Try doubling the number of copies.',
+  feedback: 'A constant rate per copy is not enough on its own.',
+});
+
+mk('8.5F', 'which-equation-is-proportional', {
+  courseId: 'grade8',
+  difficultyBand: 1, dok: 1, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Which of these equations is proportional?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 3, max: 25 },
+    },
+    derived: { sum: 'k+b' },
+    constraints: ['k!=b'],
+  },
+  choices: [
+    { label: plain('y = {{k}}x'), correct: true },
+    { label: plain('y = {{k}}x + {{b}}'), error: 'partialTotal' },
+    { label: plain('y = {{k}}x - {{b}}'), error: 'signError' },
+    { label: plain('y = {{sum}} - x'), error: 'operationInverted' },
+  ],
+  reasoning: ['Proportional means $y$ is zero when $x$ is, and a fixed multiple otherwise.', 'Only $y = {{k}}x$ has no constant term to lift it off the origin.'],
+  answerSummary: { headline: 'A proportional rule has nothing but the multiple.', text: 'It is $y = {{k}}x$.' },
+  hint: 'What does each rule give at $x = 0$?',
+  feedback: 'Subtracting a constant moves the line off the origin just as adding one does.',
+});
+
+mk('8.5F', 'two-straight-graphs', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'verbal',
+  prompt: 'Two graphs are straight lines and only one passes through the origin. What follows?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 3, max: 25 },
+      x: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { through: 'k*x', off: 'k*x+b' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Only the one through the origin is proportional; both are linear.', correct: true },
+    { label: 'Both are proportional, because both are straight.', error: 'partialTotal' },
+    { label: 'Only the one through the origin is linear; the other is not.', error: 'ratioReversed' },
+    { label: 'Neither is proportional unless both pass through the origin.', error: 'operationInverted' },
+  ],
+  reasoning: ['At $x = {{x}}$ one gives ${{through}}$ and the other ${{off}}$.', 'Both climb steadily, so both are linear, but only the first is zero at zero.'],
+  answerSummary: { headline: 'Every proportional graph is linear; not every linear graph is proportional.', text: 'Only the one through the origin.' },
+  hint: 'Which of the two conditions does each graph meet?',
+  feedback: 'Straightness alone settles linearity, not proportionality.',
+});
+
+mk('8.5F', 'row-that-breaks-proportionality', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'procedural', representation: 'table',
+  prompt: 'Three rows fit one proportional rule and one does not. Which row is wrong?',
+  stimulus: {
+    kind: 'table',
+    title: 'Recorded values',
+    table: { headers: ['x', 'y'], rows: [['{{x1}}', '{{y1}}'], ['{{x2}}', '{{y2}}'], ['{{x3}}', '{{bad}}'], ['{{x4}}', '{{y4}}']] },
+  },
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 3, max: 12 },
+      x1: { type: 'int', min: 2, max: 5 },
+      off: { type: 'int', min: 1, max: 9 },
+    },
+    derived: {
+      x2: 'x1+2', x3: 'x1+4', x4: 'x1+6',
+      y1: 'k*x1', y2: 'k*(x1+2)', y4: 'k*(x1+6)',
+      bad: 'k*(x1+4)+off',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('({{x3}}, {{bad}})'), correct: true },
+    { label: plain('({{x1}}, {{y1}})'), error: 'partialTotal' },
+    { label: plain('({{x2}}, {{y2}})'), error: 'operationInverted' },
+    { label: plain('({{x4}}, {{y4}})'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Every other row divides out to ${{k}}$.', '${{bad}} \\div {{x3}}$ does not, because ${{off}}$ has been added on.'],
+  answerSummary: { headline: 'A proportional table has one quotient in every row.', text: 'The row $({{x3}}, {{bad}})$ breaks it.' },
+  hint: 'Divide each $y$ by its own $x$.',
+  feedback: 'That row does divide out to ${{k}}$.',
+});
+
+mk('8.5F', 'steady-increase-read-as-proportional', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student says a table is proportional because $y$ rises steadily. What is wrong?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 3, max: 25 },
+      x1: { type: 'int', min: 1, max: 5 },
+    },
+    derived: {
+      y1: 'm*x1+b',
+      x2: 'x1+1',
+      y2: 'm*x1+m+b',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The quotients differ: ${{y1}}$ over ${{x1}}$ is not ${{y2}}$ over ${{x2}}$.', correct: true },
+    { label: 'Nothing is wrong, because a steady rise is what proportional means.', error: 'partialTotal' },
+    { label: 'The rise is not steady; it grows as $x$ does.', error: 'operationInverted' },
+    { label: 'Only a table starting at $x = 0$ can be judged at all.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['A steady rise makes the table linear, which is a weaker claim.', 'Proportional needs each $y$ divided by its own $x$ to give the same value, and here they do not.'],
+  answerSummary: { headline: 'Equal steps is linear; equal quotients is proportional.', text: 'The quotients do not match.' },
+  hint: 'Divide each $y$ by its own $x$ and compare.',
+  feedback: 'The rise really is steady; that is simply not the test.',
+});
+
+// ================================================================ 8.5G
+// Which relations are functions.
+
+mk('8.5G', 'which-set-of-pairs-is-a-function', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'orderedPairs',
+  prompt: 'Which set of records is a function?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 1, max: 9 },
+      p: { type: 'int', min: 1, max: 9 },
+      q: { type: 'int', min: 1, max: 9 },
+      r: { type: 'int', min: 1, max: 9 },
+    },
+    derived: { b: 'a+1', c: 'a+2', pAlt: 'p+3' },
+    constraints: ['p!=q', 'q!=r', 'p!=r'],
+  },
+  choices: [
+    { label: plain('({{a}}, {{p}}), ({{b}}, {{q}}), ({{c}}, {{r}})'), correct: true },
+    { label: plain('({{a}}, {{p}}), ({{a}}, {{pAlt}}), ({{b}}, {{q}})'), error: 'operationInverted' },
+    { label: plain('({{a}}, {{p}}), ({{b}}, {{q}}), ({{a}}, {{r}})'), error: 'partialTotal' },
+    { label: plain('({{b}}, {{p}}), ({{b}}, {{q}}), ({{c}}, {{r}})'), error: 'ratioReversed' },
+  ],
+  reasoning: ['A function gives each input exactly one output.', 'Only the first set uses ${{a}}$, ${{b}}$ and ${{c}}$ once each.'],
+  answerSummary: { headline: 'One output per input, no exceptions.', text: 'The set with three different inputs.' },
+  hint: 'Look for an input that appears twice.',
+  feedback: 'An input paired with two different outputs breaks the rule.',
+});
+
+mk('8.5G', 'repeated-input-in-a-table', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'table',
+  prompt: 'Is the relation in the table a function?',
+  stimulus: {
+    kind: 'table',
+    title: 'Recorded values',
+    table: { headers: ['input', 'output'], rows: [['{{a}}', '{{p}}'], ['{{b}}', '{{q}}'], ['{{a}}', '{{r}}']] },
+  },
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 1, max: 9 },
+      p: { type: 'int', min: 1, max: 20 },
+      q: { type: 'int', min: 1, max: 20 },
+      diff: { type: 'int', min: 1, max: 9 },
+    },
+    derived: { b: 'a+2', r: 'p+diff' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'No, because ${{a}}$ appears twice with different outputs.', correct: true },
+    { label: 'Yes, because every output is different.', error: 'ratioReversed' },
+    { label: 'No, because two of the outputs are close together.', error: 'partialTotal' },
+    { label: 'Yes, because a table always defines a function.', error: 'operationInverted' },
+  ],
+  reasoning: ['The input ${{a}}$ is listed with ${{p}}$ and again with ${{r}}$.', 'One input cannot have two outputs in a function.'],
+  answerSummary: { headline: 'A repeated input with different outputs settles it.', text: 'No, it is not a function.' },
+  hint: 'Read down the input column first.',
+  feedback: 'Distinct outputs are not what the definition asks about.',
+});
+
+mk('8.5G', 'what-the-vertical-line-test-checks', {
+  courseId: 'grade8',
+  difficultyBand: 1, dok: 1, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'What does the vertical line test check?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 1, max: 9 },
+      p: { type: 'int', min: 1, max: 20 },
+      diff: { type: 'int', min: 1, max: 9 },
+    },
+    derived: { r: 'p+diff', gap: 'diff' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Whether any input has more than one output.', correct: true },
+    { label: 'Whether any output has more than one input.', error: 'ratioReversed' },
+    { label: 'Whether the graph is a straight line.', error: 'operationInverted' },
+    { label: 'Whether the graph passes through the origin.', error: 'partialTotal' },
+  ],
+  reasoning: ['A vertical line gathers every point sharing one input.', 'Two crossings mean that input has two outputs, such as ${{p}}$ and ${{r}}$ at $x = {{a}}$.'],
+  answerSummary: { headline: 'The test looks along one input at a time.', text: 'Whether an input has more than one output.' },
+  hint: 'What do all the points on one vertical line share?',
+  feedback: 'Repeated outputs are allowed in a function.',
+});
+
+mk('8.5G', 'two-inputs-one-output', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'verbal',
+  prompt: 'A mapping sends both ${{a}}$ and ${{b}}$ to ${{p}}$. Is it a function?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 1, max: 9 },
+      p: { type: 'int', min: 1, max: 20 },
+      step: { type: 'int', min: 1, max: 6 },
+      c: { type: 'int', min: 10, max: 20 },
+    },
+    derived: { b: 'a+step', q: 'p+c' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Yes: two inputs may share an output, so long as neither has two.', correct: true },
+    { label: 'No: every input needs an output of its own.', error: 'ratioReversed' },
+    { label: 'Yes, but only because ${{a}}$ and ${{b}}$ are different.', error: 'partialTotal' },
+    { label: 'No, unless one of them also maps to ${{q}}$.', error: 'operationInverted' },
+  ],
+  reasoning: ['The rule is about inputs, not outputs: each input needs exactly one output.', '${{a}}$ has only ${{p}}$ and ${{b}}$ has only ${{p}}$, so both are satisfied.'],
+  answerSummary: { headline: 'Sharing an output is allowed; splitting an input is not.', text: 'Yes, it is a function.' },
+  hint: 'How many outputs does each input have?',
+  feedback: 'Nothing requires outputs to be used only once.',
+});
+
+mk('8.5G', 'shared-output-called-a-failure', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student says a relation is not a function because ${{a}}$ and ${{b}}$ both give ${{p}}$. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 1, max: 9 },
+      p: { type: 'int', min: 1, max: 20 },
+      step: { type: 'int', min: 1, max: 6 },
+      other: { type: 'int', min: 21, max: 40 },
+    },
+    derived: { b: 'a+step', q: 'other' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Sharing an output is allowed; only an input with two outputs would fail.', correct: true },
+    { label: 'Nothing is wrong, because outputs must be used once each.', error: 'ratioReversed' },
+    { label: 'It fails, but because ${{a}}$ and ${{b}}$ are different inputs.', error: 'operationInverted' },
+    { label: 'It fails unless ${{b}}$ also gives ${{q}}$.', error: 'partialTotal' },
+  ],
+  reasoning: ['The definition constrains what leaves each input, not what arrives at each output.', 'A rule such as squaring sends two inputs to one output and is still a function.'],
+  answerSummary: { headline: 'The condition runs from inputs outwards.', text: 'A shared output is fine.' },
+  hint: 'Which side of the pairing does the definition restrict?',
+  feedback: 'Outputs may be reused freely.',
+});
+
+// ================================================================ 8.5H
+// Which real situations are proportional and which are not.
+
+mk('8.5H', 'which-situation-is-proportional', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'Which of these situations is proportional?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 15 },
+      b: { type: 'int', min: 5, max: 40, step: 5 },
+      x: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { plain: 'k*x', withFee: 'k*x+b' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Cloth at $\\${{k}}$ a metre with no other charge.', correct: true },
+    { label: 'A taxi charging $\\${{b}}$ to start and $\\${{k}}$ a km.', error: 'partialTotal' },
+    { label: 'A phone plan of $\\${{b}}$ a month whatever the usage.', error: 'operationInverted' },
+    { label: 'A pool draining from $\\${{b}}$ litres at ${{k}}$ litres a minute.', error: 'signError' },
+  ],
+  reasoning: ['${{x}}$ metres of cloth cost $\\${{plain}}$, and no metres cost nothing.', 'Each of the others is worth something at zero, so none of them passes through the origin.'],
+  answerSummary: { headline: 'Proportional situations charge nothing for nothing.', text: 'The cloth by the metre.' },
+  hint: 'What does each situation cost when the amount is zero?',
+  feedback: 'A starting charge puts the graph above the origin.',
+});
+
+mk('8.5H', 'which-situation-is-not-proportional', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'verbal',
+  prompt: 'Three of these are proportional and one is not. Which is the odd one out?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 15 },
+      b: { type: 'int', min: 5, max: 40, step: 5 },
+      x: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { plain: 'k*x', withFee: 'k*x+b', doubled: '2*k*x' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'A delivery of $\\${{b}}$ plus $\\${{k}}$ an item.', correct: true },
+    { label: 'Wire at $\\${{k}}$ a metre.', error: 'partialTotal' },
+    { label: 'Pay at $\\${{k}}$ an hour with no bonus.', error: 'operationInverted' },
+    { label: 'Fuel at $\\${{k}}$ a litre.', error: 'ratioReversed' },
+  ],
+  reasoning: ['The three by-the-unit charges all cost nothing for nothing and double when the amount doubles.', 'The delivery costs $\\${{b}}$ before any item is bought, so ${{x}}$ items cost $\\${{withFee}}$ rather than $\\${{plain}}$.'],
+  answerSummary: { headline: 'The fixed charge is what breaks it.', text: 'The delivery with a fee.' },
+  hint: 'Which one costs something when the amount is zero?',
+  feedback: 'A plain rate per unit is proportional.',
+});
+
+mk('8.5H', 'cost-of-a-proportional-service', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'Wire costs $\\${{k}}$ a metre and rope $\\${{other}}$ a metre, both with no other charge. What do ${{x}}$ metres of wire cost?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 15 },
+      x: { type: 'int', min: 2, max: 12 },
+      // The rope's rate is drawn separately, so its total crosses the key.
+      other: { type: 'int', min: 2, max: 15 },
+    },
+    derived: {
+      answer: 'k*x',
+      d_operationInverted: 'k+x',
+      d_offByOneStep: 'k*x+k',
+      d_usedGivenValue: 'other*x',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: money('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['With no fixed charge the cost is proportional to the length.', '${{x}}$ metres at $\\${{k}}$ come to $\\${{answer}}$.'],
+  answerSummary: { headline: 'A proportional cost is the rate times the amount.', text: 'It costs $\\${{answer}}$.' },
+  hint: 'Which of the two rates applies to wire?',
+  feedback: 'That total is for the rope.',
+});
+
+mk('8.5H', 'table-of-a-real-situation', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'The table records a taxi fare. Is the fare proportional to the distance?',
+  stimulus: {
+    kind: 'table',
+    title: 'Fares',
+    table: { headers: ['km', 'fare'], rows: [['{{x1}}', '\\${{y1}}'], ['{{x2}}', '\\${{y2}}'], ['{{x3}}', '\\${{y3}}']] },
+  },
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 3, max: 20 },
+      x1: { type: 'int', min: 1, max: 4 },
+    },
+    derived: {
+      x2: 'x1+2', x3: 'x1+4',
+      y1: 'm*x1+b', y2: 'm*(x1+2)+b', y3: 'm*(x1+4)+b',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'No: the fare rises by $\\${{m}}$ a km but starts at $\\${{b}}$.', correct: true },
+    { label: 'Yes: the fare rises by the same amount for each extra km.', error: 'partialTotal' },
+    { label: 'No: the fare per km grows as the trip lengthens.', error: 'operationInverted' },
+    { label: 'Yes: every fare divides by its distance to give $\\${{m}}$.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Each extra kilometre adds $\\${{m}}$, so the fare is linear.', 'A ${{x1}}$ km trip costs $\\${{y1}}$ rather than $\\${{m}}$ times ${{x1}}$, because $\\${{b}}$ is charged before the meter runs.'],
+  answerSummary: { headline: 'A flag fall makes a fare linear but not proportional.', text: 'Not proportional.' },
+  hint: 'What would a trip of zero kilometres cost?',
+  feedback: 'A constant increase per kilometre is not the same as a constant quotient.',
+});
+
+mk('8.5H', 'doubling-the-amount', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student says a $\\${{b}}$ callout plus $\\${{k}}$ an hour is proportional because the hourly rate never changes. What is wrong?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 10, max: 80, step: 5 },
+      k: { type: 'int', min: 5, max: 40, step: 5 },
+      h: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { atH: 'k*h+b', atTwoH: '2*k*h+b', doubled: '2*k*h+2*b' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Doubling the hours takes the bill to $\\${{atTwoH}}$, not to double $\\${{atH}}$.', correct: true },
+    { label: 'Nothing is wrong, because a fixed rate is what proportional means.', error: 'partialTotal' },
+    { label: 'The hourly rate does change once the callout is paid.', error: 'operationInverted' },
+    { label: 'It is proportional only when the callout is larger than the rate.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['${{h}}$ hours cost $\\${{atH}}$, and twice as many cost $\\${{atTwoH}}$.', 'Doubling the bill would need $\\${{doubled}}$, so the callout is counted once but ought to double.'],
+  answerSummary: { headline: 'A fixed charge is paid once however long the job runs.', text: 'The bill does not double.' },
+  hint: 'Work out the bill for twice as many hours.',
+  feedback: 'The rate really is fixed; that alone does not make it proportional.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {

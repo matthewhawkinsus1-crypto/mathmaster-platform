@@ -32555,6 +32555,3011 @@
      "expected": "choice-d"
     }
    ]
+  },
+  {
+   "id": "mm_asvab_8_5B_equation_with_a_joining_fee",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5B:equation-with-a-joining-fee",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5B",
+   "taskType": "representationTranslation",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A gym charges $\\${{b}}$ to join and $\\${{m}}$ a month. Which equation gives the cost $y$ after $x$ months?",
+   "solutionReview": {
+    "headline": "A one-off fee is added; only the repeating charge is multiplied.",
+    "reasoning": [
+     "After ${{x}}$ months the monthly charges come to $\\${{months}}$.",
+     "The joining fee is paid once, so the total is $\\${{total}}$ and the fee is not multiplied."
+    ],
+    "answerSummary": "It is $y = {{m}}x + {{b}}$."
+   },
+   "attemptFeedback": [
+    "Dropping the fee describes a gym that is free to join."
+   ],
+   "supportHints": [
+    "How many times is the joining fee paid?"
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 15,
+      "max": 90,
+      "step": 5
+     },
+     "m": {
+      "type": "int",
+      "min": 5,
+      "max": 40,
+      "step": 5
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "total": "m*x+b",
+     "months": "m*x"
+    },
+    "constraints": [
+     "m!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = {{b}}x + {{m}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = {{m}}x$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = ({{m}} + {{b}})x$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = {{m}}x + {{b}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5B_equation_for_a_table_that_misses_the_origin",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5B:equation-for-a-table-that-misses-the-origin",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5B",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which equation produces every row?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Recorded values",
+    "table": {
+     "headers": [
+      "x",
+      "y"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "{{y1}}"
+      ],
+      [
+       "{{x2}}",
+       "{{y2}}"
+      ],
+      [
+       "{{x3}}",
+       "{{y3}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Find the rate from the steps, then what is left over at any row.",
+    "reasoning": [
+     "Each step of ${{gap}}$ in $x$ raises $y$ by ${{m}}$ times that, so the rate is ${{m}}$.",
+     "At $x = {{x1}}$ the value ${{y1}}$ needs a further ${{b}}$ beyond ${{m}} \\times {{x1}}$."
+    ],
+    "answerSummary": "It is $y = {{m}}x + {{b}}$."
+   },
+   "attemptFeedback": [
+    "A proportional rule would miss every row but at most one."
+   ],
+   "supportHints": [
+    "Does a rule with no constant fit every row?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 25
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     },
+     "gap": {
+      "type": "int",
+      "min": 2,
+      "max": 4
+     }
+    },
+    "derived": {
+     "x2": "x1+gap",
+     "x3": "x1+2*gap",
+     "y1": "m*x1+b",
+     "y2": "m*(x1+gap)+b",
+     "y3": "m*(x1+2*gap)+b",
+     "ratio": "round((m*x1+b)/x1)",
+     "mPlus": "m+1"
+    },
+    "constraints": [
+     "ratio!=m",
+     "ratio!=mPlus"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = {{m}}x - {{b}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = {{m}}x + {{b}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = {{ratio}}x$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = {{mPlus}}x + {{b}}$",
+     "error": "offByOneStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5B_gap_between_two_plans",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5B:gap-between-two-plans",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5B",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two plans both charge $\\${{m}}$ a month, with joining fees of $\\${{b1}}$ and $\\${{b2}}$. After ${{x}}$ months, how much more is the first?",
+   "solutionReview": {
+    "headline": "Equal rates leave a gap that does not grow with time.",
+    "reasoning": [
+     "Both plans charge the same each month, so the monthly part cancels.",
+     "Only the joining fees differ, by $\\${{answer}}$, and that gap never changes."
+    ],
+    "answerSummary": "The first is $\\${{answer}}$ more, whatever ${{x}}$ is."
+   },
+   "attemptFeedback": [
+    "The monthly charge is the same on both, so it cannot open a gap."
+   ],
+   "supportHints": [
+    "What is different between the two plans?"
+   ],
+   "generator": {
+    "parameters": {
+     "b2": {
+      "type": "int",
+      "min": 5,
+      "max": 60,
+      "step": 5
+     },
+     "g": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "b1": "b2+g",
+     "answer": "g",
+     "d_operationInverted": "b2+b2+g",
+     "d_arithmeticSlip": "g-m"
+    },
+    "constraints": [
+     "answer!=d_operationInverted",
+     "answer!=d_arithmeticSlip",
+     "answer!=m",
+     "d_operationInverted!=d_arithmeticSlip",
+     "d_operationInverted!=m",
+     "d_arithmeticSlip!=m"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_arithmeticSlip}}$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{m}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5B_what_a_nonzero_constant_does",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5B:what-a-nonzero-constant-does",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5B",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "In $y = {{m}}x + {{b}}$, what does the ${{b}}$ do to the graph?",
+   "solutionReview": {
+    "headline": "The constant moves the line up or down; the coefficient tilts it.",
+    "reasoning": [
+     "At $x = 0$ the rule gives ${{atZero}}$, so the line starts there rather than at the origin.",
+     "The steepness still comes from ${{m}}$ alone: at $x = 1$ the value is ${{atOne}}$, one step of ${{m}}$ above ${{atZero}}$."
+    ],
+    "answerSummary": "It lifts the crossing point to ${{atZero}}$."
+   },
+   "attemptFeedback": [
+    "The rate of climb is unchanged by the constant."
+   ],
+   "supportHints": [
+    "What does the rule give at $x = 0$?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 25
+     }
+    },
+    "derived": {
+     "atZero": "b",
+     "atOne": "m+b",
+     "proportional": "m"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "It has no effect on the graph, only on the arithmetic.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "It bends the line, because the two terms disagree.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "It makes the line steeper, raising the rate to ${{atOne}}$.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "It lifts the line so it crosses the vertical axis at ${{atZero}}$ instead of the origin."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5B_fee_left_out_of_the_equation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5B:fee-left-out-of-the-equation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5B",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For a $\\${{b}}$ joining fee at $\\${{m}}$ a month a student writes $y = {{m}}x$. What is wrong?",
+   "solutionReview": {
+    "headline": "A one-off charge still belongs in the rule.",
+    "reasoning": [
+     "The fee is real money and has to appear in the total.",
+     "It is paid once, so it is added rather than multiplied: $y = {{m}}x + {{b}}$."
+    ],
+    "answerSummary": "It should be $y = {{m}}x + {{b}}$."
+   },
+   "attemptFeedback": [
+    "Being paid up front does not make the fee disappear."
+   ],
+   "supportHints": [
+    "Work out the cost after ${{x}}$ months both ways."
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 15,
+      "max": 90,
+      "step": 5
+     },
+     "m": {
+      "type": "int",
+      "min": 5,
+      "max": 40,
+      "step": 5
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "right": "m*x+b",
+     "wrong": "m*x"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "At ${{x}}$ months that gives $\\${{wrong}}$, but the real cost is $\\${{right}}$."
+    },
+    {
+     "id": "choice-b",
+     "label": "The fee should be multiplied in, giving $\\${{m}}$ times $\\${{b}}$ times ${{x}}$.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "Nothing is wrong, because the fee is paid before the months start.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "The rule is right but only for whole numbers of months.",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5E_find_y_under_direct_variation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5E:find-y-under-direct-variation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5E",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "$y$ varies directly with $x$, and $y = {{y1}}$ when $x = {{x1}}$. What is $y$ when $x = {{x2}}$?",
+   "solutionReview": {
+    "headline": "Find the constant first, then use it.",
+    "reasoning": [
+     "${{y1}} \\div {{x1}} = {{k}}$, so $y = {{k}}x$.",
+     "At $x = {{x2}}$ that gives ${{answer}}$."
+    ],
+    "answerSummary": "$y = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "That is the value at the first $x$, not the second."
+   ],
+   "supportHints": [
+    "What is $y$ when $x$ is one?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "x2": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "y1": "k*x1",
+     "answer": "k*x2",
+     "d_offByOneStep": "k*x2+k",
+     "d_operationInverted": "k+x2"
+    },
+    "constraints": [
+     "x1!=x2",
+     "answer!=d_offByOneStep",
+     "answer!=d_operationInverted",
+     "answer!=y1",
+     "d_offByOneStep!=d_operationInverted",
+     "d_offByOneStep!=y1",
+     "d_operationInverted!=y1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{y1}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5E_find_x_under_direct_variation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5E:find-x-under-direct-variation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5E",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A direct variation passes through $({{x1}}, {{y1}})$. At which $x$ does $y$ reach ${{y2}}$?",
+   "solutionReview": {
+    "headline": "Going from y back to x divides by the constant.",
+    "reasoning": [
+     "The constant is ${{y1}} \\div {{x1}} = {{k}}$.",
+     "Dividing ${{y2}}$ by ${{k}}$ gives $x = {{answer}}$."
+    ],
+    "answerSummary": "$x = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "The value of $y$ is not the value of $x$."
+   ],
+   "supportHints": [
+    "What undoes multiplying by the constant?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "x2": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "y1": "k*x1",
+     "y2": "k*x2",
+     "answer": "x2",
+     "d_forgotFinalStep": "y2",
+     "d_operationInverted": "x2-k"
+    },
+    "constraints": [
+     "x1!=x2",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=k",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=k",
+     "d_operationInverted!=k"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{k}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5E_stretch_of_a_spring",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5E:stretch-of-a-spring",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5E",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A spring stretches ${{s1}}$ cm under ${{L1}}$ kg, and a second stretches ${{s2}}$ cm under the same load. How far does the first stretch under ${{L2}}$ kg?",
+   "solutionReview": {
+    "headline": "Direct variation means a fixed amount per unit.",
+    "reasoning": [
+     "The first spring stretches ${{s1}} \\div {{L1}} = {{k}}$ cm for each kilogram.",
+     "Under ${{L2}}$ kg that is ${{answer}}$ cm."
+    ],
+    "answerSummary": "It stretches ${{answer}}$ cm."
+   },
+   "attemptFeedback": [
+    "That is the second spring, which is a different spring."
+   ],
+   "supportHints": [
+    "How far does one kilogram stretch the first spring?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "L1": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "L2": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "s2": {
+      "type": "int",
+      "min": 3,
+      "max": 80
+     }
+    },
+    "derived": {
+     "s1": "k*L1",
+     "answer": "k*L2",
+     "d_operationInverted": "k+L2",
+     "d_offByOneStep": "k*L2+k"
+    },
+    "constraints": [
+     "answer!=d_operationInverted",
+     "answer!=d_offByOneStep",
+     "answer!=s2",
+     "d_operationInverted!=d_offByOneStep",
+     "d_operationInverted!=s2",
+     "d_offByOneStep!=s2"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{s2}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5E_which_rule_is_direct_variation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5E:which-rule-is-direct-variation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5E",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which equation shows $y$ varying directly with $x$?",
+   "solutionReview": {
+    "headline": "Direct variation is a bare multiple, with no constant and no division.",
+    "reasoning": [
+     "Direct variation needs $y$ to be a fixed multiple of $x$ and nothing else.",
+     "At $x = 1$ it gives ${{atOne}}$ and at $x = 2$ it gives ${{atTwo}}$, exactly double."
+    ],
+    "answerSummary": "It is $y = {{k}}x$."
+   },
+   "attemptFeedback": [
+    "A constant term stops the doubling from carrying through."
+   ],
+   "supportHints": [
+    "What must happen to $y$ when $x$ doubles?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 25
+     }
+    },
+    "derived": {
+     "atOne": "k",
+     "atTwo": "2*k"
+    },
+    "constraints": [
+     "k!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = {{k}}x$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = \\frac{{{k}}}{x}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = {{k}}x + {{b}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = x + {{k}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5E_tripling_adds_three",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5E:tripling-adds-three",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5E",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "In a direct variation a student says tripling $x$ adds $3$ to $y$. What is wrong?",
+   "solutionReview": {
+    "headline": "Direct variation scales the output; it does not shift it.",
+    "reasoning": [
+     "In $y = {{k}}x$ the output is a fixed multiple of the input.",
+     "Multiplying the input by three multiplies the output by three as well."
+    ],
+    "answerSummary": "$y$ triples to ${{tripled}}$."
+   },
+   "attemptFeedback": [
+    "Both do grow, which is why the mistake slips through."
+   ],
+   "supportHints": [
+    "What happens to a multiple when its input triples?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "y": "k*x",
+     "tripled": "3*k*x",
+     "added": "k*x+3"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Tripling $x$ leaves $y$ alone, because the constant does the work.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "Nothing is wrong, because both changes make $y$ larger.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "Tripling $x$ triples $y$: from ${{y}}$ to ${{tripled}}$, not to ${{added}}$."
+    },
+    {
+     "id": "choice-d",
+     "label": "It adds $3$ only when the constant is $3$.",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5F_is_this_situation_proportional",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5F:is-this-situation-proportional",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5F",
+   "taskType": "interpretation",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A printer charges $\\${{b}}$ for setup and $\\${{m}}$ a copy. Is the cost proportional to the number of copies?",
+   "solutionReview": {
+    "headline": "A setup charge breaks the doubling.",
+    "reasoning": [
+     "Proportional needs the cost to double when the copies do.",
+     "${{x}}$ copies cost $\\${{atX}}$ and twice as many cost $\\${{atTwoX}}$, which is short of $\\${{doubled}}$."
+    ],
+    "answerSummary": "It is not proportional."
+   },
+   "attemptFeedback": [
+    "A constant rate per copy is not enough on its own."
+   ],
+   "supportHints": [
+    "Try doubling the number of copies."
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 5,
+      "max": 60,
+      "step": 5
+     },
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "atX": "m*x+b",
+     "atTwoX": "2*m*x+b",
+     "doubled": "2*m*x+2*b"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "No: doubling the copies gives $\\${{atTwoX}}$, not double $\\${{atX}}$."
+    },
+    {
+     "id": "choice-b",
+     "label": "No: the cost per copy changes as more are printed.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "Yes: the cost rises by the same $\\${{m}}$ for every extra copy.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "Yes, as long as the setup charge is paid first.",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5F_which_equation_is_proportional",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5F:which-equation-is-proportional",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5F",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which of these equations is proportional?",
+   "solutionReview": {
+    "headline": "A proportional rule has nothing but the multiple.",
+    "reasoning": [
+     "Proportional means $y$ is zero when $x$ is, and a fixed multiple otherwise.",
+     "Only $y = {{k}}x$ has no constant term to lift it off the origin."
+    ],
+    "answerSummary": "It is $y = {{k}}x$."
+   },
+   "attemptFeedback": [
+    "Subtracting a constant moves the line off the origin just as adding one does."
+   ],
+   "supportHints": [
+    "What does each rule give at $x = 0$?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 25
+     }
+    },
+    "derived": {
+     "sum": "k+b"
+    },
+    "constraints": [
+     "k!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = {{k}}x + {{b}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = {{k}}x - {{b}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = {{sum}} - x$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = {{k}}x$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5F_two_straight_graphs",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5F:two-straight-graphs",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5F",
+   "taskType": "representationTranslation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two graphs are straight lines and only one passes through the origin. What follows?",
+   "solutionReview": {
+    "headline": "Every proportional graph is linear; not every linear graph is proportional.",
+    "reasoning": [
+     "At $x = {{x}}$ one gives ${{through}}$ and the other ${{off}}$.",
+     "Both climb steadily, so both are linear, but only the first is zero at zero."
+    ],
+    "answerSummary": "Only the one through the origin."
+   },
+   "attemptFeedback": [
+    "Straightness alone settles linearity, not proportionality."
+   ],
+   "supportHints": [
+    "Which of the two conditions does each graph meet?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 25
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "through": "k*x",
+     "off": "k*x+b"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Both are proportional, because both are straight.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "Neither is proportional unless both pass through the origin.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "Only the one through the origin is linear; the other is not.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "Only the one through the origin is proportional; both are linear."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5F_row_that_breaks_proportionality",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5F:row-that-breaks-proportionality",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5F",
+   "taskType": "procedural",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Three rows fit one proportional rule and one does not. Which row is wrong?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Recorded values",
+    "table": {
+     "headers": [
+      "x",
+      "y"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "{{y1}}"
+      ],
+      [
+       "{{x2}}",
+       "{{y2}}"
+      ],
+      [
+       "{{x3}}",
+       "{{bad}}"
+      ],
+      [
+       "{{x4}}",
+       "{{y4}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "A proportional table has one quotient in every row.",
+    "reasoning": [
+     "Every other row divides out to ${{k}}$.",
+     "${{bad}} \\div {{x3}}$ does not, because ${{off}}$ has been added on."
+    ],
+    "answerSummary": "The row $({{x3}}, {{bad}})$ breaks it."
+   },
+   "attemptFeedback": [
+    "That row does divide out to ${{k}}$."
+   ],
+   "supportHints": [
+    "Divide each $y$ by its own $x$."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     },
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     },
+     "off": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     }
+    },
+    "derived": {
+     "x2": "x1+2",
+     "x3": "x1+4",
+     "x4": "x1+6",
+     "y1": "k*x1",
+     "y2": "k*(x1+2)",
+     "y4": "k*(x1+6)",
+     "bad": "k*(x1+4)+off"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$({{x1}}, {{y1}})$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$({{x3}}, {{bad}})$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$({{x4}}, {{y4}})$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "$({{x2}}, {{y2}})$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5F_steady_increase_read_as_proportional",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5F:steady-increase-read-as-proportional",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5F",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student says a table is proportional because $y$ rises steadily. What is wrong?",
+   "solutionReview": {
+    "headline": "Equal steps is linear; equal quotients is proportional.",
+    "reasoning": [
+     "A steady rise makes the table linear, which is a weaker claim.",
+     "Proportional needs each $y$ divided by its own $x$ to give the same value, and here they do not."
+    ],
+    "answerSummary": "The quotients do not match."
+   },
+   "attemptFeedback": [
+    "The rise really is steady; that is simply not the test."
+   ],
+   "supportHints": [
+    "Divide each $y$ by its own $x$ and compare."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 25
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     }
+    },
+    "derived": {
+     "y1": "m*x1+b",
+     "x2": "x1+1",
+     "y2": "m*x1+m+b"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Nothing is wrong, because a steady rise is what proportional means.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "Only a table starting at $x = 0$ can be judged at all.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "The quotients differ: ${{y1}}$ over ${{x1}}$ is not ${{y2}}$ over ${{x2}}$."
+    },
+    {
+     "id": "choice-d",
+     "label": "The rise is not steady; it grows as $x$ does.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5G_which_set_of_pairs_is_a_function",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5G:which-set-of-pairs-is-a-function",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5G",
+   "taskType": "conceptual",
+   "representation": "orderedPairs",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which set of records is a function?",
+   "solutionReview": {
+    "headline": "One output per input, no exceptions.",
+    "reasoning": [
+     "A function gives each input exactly one output.",
+     "Only the first set uses ${{a}}$, ${{b}}$ and ${{c}}$ once each."
+    ],
+    "answerSummary": "The set with three different inputs."
+   },
+   "attemptFeedback": [
+    "An input paired with two different outputs breaks the rule."
+   ],
+   "supportHints": [
+    "Look for an input that appears twice."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     },
+     "p": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     },
+     "q": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     },
+     "r": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     }
+    },
+    "derived": {
+     "b": "a+1",
+     "c": "a+2",
+     "pAlt": "p+3"
+    },
+    "constraints": [
+     "p!=q",
+     "q!=r",
+     "p!=r"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$({{a}}, {{p}}), ({{a}}, {{pAlt}}), ({{b}}, {{q}})$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$({{b}}, {{p}}), ({{b}}, {{q}}), ({{c}}, {{r}})$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "$({{a}}, {{p}}), ({{b}}, {{q}}), ({{a}}, {{r}})$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$({{a}}, {{p}}), ({{b}}, {{q}}), ({{c}}, {{r}})$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5G_repeated_input_in_a_table",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5G:repeated-input-in-a-table",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5G",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Is the relation in the table a function?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Recorded values",
+    "table": {
+     "headers": [
+      "input",
+      "output"
+     ],
+     "rows": [
+      [
+       "{{a}}",
+       "{{p}}"
+      ],
+      [
+       "{{b}}",
+       "{{q}}"
+      ],
+      [
+       "{{a}}",
+       "{{r}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "A repeated input with different outputs settles it.",
+    "reasoning": [
+     "The input ${{a}}$ is listed with ${{p}}$ and again with ${{r}}$.",
+     "One input cannot have two outputs in a function."
+    ],
+    "answerSummary": "No, it is not a function."
+   },
+   "attemptFeedback": [
+    "Distinct outputs are not what the definition asks about."
+   ],
+   "supportHints": [
+    "Read down the input column first."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     },
+     "p": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     },
+     "q": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     },
+     "diff": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     }
+    },
+    "derived": {
+     "b": "a+2",
+     "r": "p+diff"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Yes, because every output is different.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "No, because ${{a}}$ appears twice with different outputs."
+    },
+    {
+     "id": "choice-c",
+     "label": "Yes, because a table always defines a function.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "No, because two of the outputs are close together.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5G_what_the_vertical_line_test_checks",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5G:what-the-vertical-line-test-checks",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5G",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What does the vertical line test check?",
+   "solutionReview": {
+    "headline": "The test looks along one input at a time.",
+    "reasoning": [
+     "A vertical line gathers every point sharing one input.",
+     "Two crossings mean that input has two outputs, such as ${{p}}$ and ${{r}}$ at $x = {{a}}$."
+    ],
+    "answerSummary": "Whether an input has more than one output."
+   },
+   "attemptFeedback": [
+    "Repeated outputs are allowed in a function."
+   ],
+   "supportHints": [
+    "What do all the points on one vertical line share?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     },
+     "p": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     },
+     "diff": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     }
+    },
+    "derived": {
+     "r": "p+diff",
+     "gap": "diff"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Whether any input has more than one output."
+    },
+    {
+     "id": "choice-b",
+     "label": "Whether the graph is a straight line.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "Whether the graph passes through the origin.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "Whether any output has more than one input.",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5G_two_inputs_one_output",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5G:two-inputs-one-output",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5G",
+   "taskType": "representationTranslation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A mapping sends both ${{a}}$ and ${{b}}$ to ${{p}}$. Is it a function?",
+   "solutionReview": {
+    "headline": "Sharing an output is allowed; splitting an input is not.",
+    "reasoning": [
+     "The rule is about inputs, not outputs: each input needs exactly one output.",
+     "${{a}}$ has only ${{p}}$ and ${{b}}$ has only ${{p}}$, so both are satisfied."
+    ],
+    "answerSummary": "Yes, it is a function."
+   },
+   "attemptFeedback": [
+    "Nothing requires outputs to be used only once."
+   ],
+   "supportHints": [
+    "How many outputs does each input have?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     },
+     "p": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     },
+     "step": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "c": {
+      "type": "int",
+      "min": 10,
+      "max": 20
+     }
+    },
+    "derived": {
+     "b": "a+step",
+     "q": "p+c"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Yes: two inputs may share an output, so long as neither has two."
+    },
+    {
+     "id": "choice-b",
+     "label": "No: every input needs an output of its own.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "Yes, but only because ${{a}}$ and ${{b}}$ are different.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "No, unless one of them also maps to ${{q}}$.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5G_shared_output_called_a_failure",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5G:shared-output-called-a-failure",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5G",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student says a relation is not a function because ${{a}}$ and ${{b}}$ both give ${{p}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "The condition runs from inputs outwards.",
+    "reasoning": [
+     "The definition constrains what leaves each input, not what arrives at each output.",
+     "A rule such as squaring sends two inputs to one output and is still a function."
+    ],
+    "answerSummary": "A shared output is fine."
+   },
+   "attemptFeedback": [
+    "Outputs may be reused freely."
+   ],
+   "supportHints": [
+    "Which side of the pairing does the definition restrict?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     },
+     "p": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     },
+     "step": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "other": {
+      "type": "int",
+      "min": 21,
+      "max": 40
+     }
+    },
+    "derived": {
+     "b": "a+step",
+     "q": "other"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "It fails unless ${{b}}$ also gives ${{q}}$.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "Sharing an output is allowed; only an input with two outputs would fail."
+    },
+    {
+     "id": "choice-c",
+     "label": "Nothing is wrong, because outputs must be used once each.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "It fails, but because ${{a}}$ and ${{b}}$ are different inputs.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5H_which_situation_is_proportional",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5H"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5H",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5H:which-situation-is-proportional",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5H",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which of these situations is proportional?",
+   "solutionReview": {
+    "headline": "Proportional situations charge nothing for nothing.",
+    "reasoning": [
+     "${{x}}$ metres of cloth cost $\\${{plain}}$, and no metres cost nothing.",
+     "Each of the others is worth something at zero, so none of them passes through the origin."
+    ],
+    "answerSummary": "The cloth by the metre."
+   },
+   "attemptFeedback": [
+    "A starting charge puts the graph above the origin."
+   ],
+   "supportHints": [
+    "What does each situation cost when the amount is zero?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     },
+     "b": {
+      "type": "int",
+      "min": 5,
+      "max": 40,
+      "step": 5
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "plain": "k*x",
+     "withFee": "k*x+b"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "A taxi charging $\\${{b}}$ to start and $\\${{k}}$ a km.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "A phone plan of $\\${{b}}$ a month whatever the usage.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "A pool draining from $\\${{b}}$ litres at ${{k}}$ litres a minute.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "Cloth at $\\${{k}}$ a metre with no other charge."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5H_which_situation_is_not_proportional",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5H"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5H",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5H:which-situation-is-not-proportional",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5H",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Three of these are proportional and one is not. Which is the odd one out?",
+   "solutionReview": {
+    "headline": "The fixed charge is what breaks it.",
+    "reasoning": [
+     "The three by-the-unit charges all cost nothing for nothing and double when the amount doubles.",
+     "The delivery costs $\\${{b}}$ before any item is bought, so ${{x}}$ items cost $\\${{withFee}}$ rather than $\\${{plain}}$."
+    ],
+    "answerSummary": "The delivery with a fee."
+   },
+   "attemptFeedback": [
+    "A plain rate per unit is proportional."
+   ],
+   "supportHints": [
+    "Which one costs something when the amount is zero?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     },
+     "b": {
+      "type": "int",
+      "min": 5,
+      "max": 40,
+      "step": 5
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "plain": "k*x",
+     "withFee": "k*x+b",
+     "doubled": "2*k*x"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Wire at $\\${{k}}$ a metre.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "Pay at $\\${{k}}$ an hour with no bonus.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "Fuel at $\\${{k}}$ a litre.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "A delivery of $\\${{b}}$ plus $\\${{k}}$ an item."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5H_cost_of_a_proportional_service",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5H"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5H",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5H:cost-of-a-proportional-service",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5H",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Wire costs $\\${{k}}$ a metre and rope $\\${{other}}$ a metre, both with no other charge. What do ${{x}}$ metres of wire cost?",
+   "solutionReview": {
+    "headline": "A proportional cost is the rate times the amount.",
+    "reasoning": [
+     "With no fixed charge the cost is proportional to the length.",
+     "${{x}}$ metres at $\\${{k}}$ come to $\\${{answer}}$."
+    ],
+    "answerSummary": "It costs $\\${{answer}}$."
+   },
+   "attemptFeedback": [
+    "That total is for the rope."
+   ],
+   "supportHints": [
+    "Which of the two rates applies to wire?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "other": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     }
+    },
+    "derived": {
+     "answer": "k*x",
+     "d_operationInverted": "k+x",
+     "d_offByOneStep": "k*x+k",
+     "d_usedGivenValue": "other*x"
+    },
+    "constraints": [
+     "answer!=d_operationInverted",
+     "answer!=d_offByOneStep",
+     "answer!=d_usedGivenValue",
+     "d_operationInverted!=d_offByOneStep",
+     "d_operationInverted!=d_usedGivenValue",
+     "d_offByOneStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5H_table_of_a_real_situation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5H"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5H",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5H:table-of-a-real-situation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5H",
+   "taskType": "representationTranslation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The table records a taxi fare. Is the fare proportional to the distance?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Fares",
+    "table": {
+     "headers": [
+      "km",
+      "fare"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "\\${{y1}}"
+      ],
+      [
+       "{{x2}}",
+       "\\${{y2}}"
+      ],
+      [
+       "{{x3}}",
+       "\\${{y3}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "A flag fall makes a fare linear but not proportional.",
+    "reasoning": [
+     "Each extra kilometre adds $\\${{m}}$, so the fare is linear.",
+     "A ${{x1}}$ km trip costs $\\${{y1}}$ rather than $\\${{m}}$ times ${{x1}}$, because $\\${{b}}$ is charged before the meter runs."
+    ],
+    "answerSummary": "Not proportional."
+   },
+   "attemptFeedback": [
+    "A constant increase per kilometre is not the same as a constant quotient."
+   ],
+   "supportHints": [
+    "What would a trip of zero kilometres cost?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 20
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     }
+    },
+    "derived": {
+     "x2": "x1+2",
+     "x3": "x1+4",
+     "y1": "m*x1+b",
+     "y2": "m*(x1+2)+b",
+     "y3": "m*(x1+4)+b"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "No: the fare rises by $\\${{m}}$ a km but starts at $\\${{b}}$."
+    },
+    {
+     "id": "choice-b",
+     "label": "Yes: every fare divides by its distance to give $\\${{m}}$.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "No: the fare per km grows as the trip lengthens.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "Yes: the fare rises by the same amount for each extra km.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5H_doubling_the_amount",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5H"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5H",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5H:doubling-the-amount",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5H",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student says a $\\${{b}}$ callout plus $\\${{k}}$ an hour is proportional because the hourly rate never changes. What is wrong?",
+   "solutionReview": {
+    "headline": "A fixed charge is paid once however long the job runs.",
+    "reasoning": [
+     "${{h}}$ hours cost $\\${{atH}}$, and twice as many cost $\\${{atTwoH}}$.",
+     "Doubling the bill would need $\\${{doubled}}$, so the callout is counted once but ought to double."
+    ],
+    "answerSummary": "The bill does not double."
+   },
+   "attemptFeedback": [
+    "The rate really is fixed; that alone does not make it proportional."
+   ],
+   "supportHints": [
+    "Work out the bill for twice as many hours."
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 10,
+      "max": 80,
+      "step": 5
+     },
+     "k": {
+      "type": "int",
+      "min": 5,
+      "max": 40,
+      "step": 5
+     },
+     "h": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "atH": "k*h+b",
+     "atTwoH": "2*k*h+b",
+     "doubled": "2*k*h+2*b"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Nothing is wrong, because a fixed rate is what proportional means.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "Doubling the hours takes the bill to $\\${{atTwoH}}$, not to double $\\${{atH}}$."
+    },
+    {
+     "id": "choice-c",
+     "label": "It is proportional only when the callout is larger than the rate.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "The hourly rate does change once the callout is paid.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
   }
  ]
 }
