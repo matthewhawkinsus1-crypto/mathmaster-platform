@@ -46,18 +46,38 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Apply guarded ACT source repair
-        if: github.event_name == 'push' && github.event.head_commit.message == 'Run CCMR V2.1 source repair'
+      - name: Promote coordinated V2.1 production mirrors
+        if: github.event_name == 'push' && github.event.head_commit.message == 'Run CCMR V2.1 production promotion'
         run: |
-          node scripts/ccmr-v2-1-task6-source-repair.mjs
+          node scripts/build-ccmr-v2-1-production-release.mjs --write
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add drafts/ccmr-v2.1/act/essentialSkills/ACT_NATIVE_pythagoreanTheorem.v2.1.json
-          if git diff --cached --quiet; then
-            echo "Source repair produced no change; refusing to continue."
+          git add \
+            seed/pathQuestionBank/digitalSAT_pathQuestionBank_seed.json \
+            seed/pathQuestionBank/act_pathQuestionBank_seed.json \
+            seed/pathQuestionBank/tsia2_pathQuestionBank_seed.json \
+            functions/seeds/pathQuestionBank/digitalSAT_pathQuestionBank_seed.json \
+            functions/seeds/pathQuestionBank/act_pathQuestionBank_seed.json \
+            functions/seeds/pathQuestionBank/tsia2_pathQuestionBank_seed.json
+          changed="$(git diff --cached --name-only | sort)"
+          expected="$(printf '%s\n' \
+            functions/seeds/pathQuestionBank/act_pathQuestionBank_seed.json \
+            functions/seeds/pathQuestionBank/digitalSAT_pathQuestionBank_seed.json \
+            functions/seeds/pathQuestionBank/tsia2_pathQuestionBank_seed.json \
+            seed/pathQuestionBank/act_pathQuestionBank_seed.json \
+            seed/pathQuestionBank/digitalSAT_pathQuestionBank_seed.json \
+            seed/pathQuestionBank/tsia2_pathQuestionBank_seed.json | sort)"
+          if [ "$changed" != "$expected" ]; then
+            echo "Promotion must change exactly the six coordinated SAT/ACT/TSIA2 mirrors."
+            echo "Changed:"
+            printf '%s\n' "$changed"
             exit 1
           fi
-          git commit -m "Differentiate ACT Pythagorean task grammar"
+          if printf '%s\n' "$changed" | grep -qi asvab; then
+            echo "ASVAB must not be modified by this coordinated release."
+            exit 1
+          fi
+          git commit -m "Promote CCMR V2.1 SAT ACT TSIA2 production banks"
           git push origin HEAD:ccmr-fidelity-v2-1-authentic-language
       - name: Run SAT ACT TSIA2 integration contract
         run: node --test tests/platform/ccmrV21ReleaseIntegrationContent.test.mjs
