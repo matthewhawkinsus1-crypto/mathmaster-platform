@@ -4,12 +4,12 @@
   "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
   "framework": "tsia2",
   "domainId": "probabilisticStatistical",
-  "completedNativeSkills": ["probability", "centerSpread", "dataClassificationRepresentation", "dataAnalysisConclusions", "sortCountData"],
-  "completedScopeUnitsCount": 5,
-  "familiesTotal": 40,
+  "completedNativeSkills": ["probability", "centerSpread", "dataClassificationRepresentation", "dataAnalysisConclusions", "sortCountData", "simpleGraphsTables"],
+  "completedScopeUnitsCount": 6,
+  "familiesTotal": 48,
   "validation": {
     "randomizedInstancesPerCompletedScopeUnit": 2000,
-    "randomizedInstancesTotal": 10000,
+    "randomizedInstancesTotal": 12000,
     "checks": [
       "five direct plus three independently authored challenge families per completed native skill",
       "exactly four answer choices per family",
@@ -22,7 +22,8 @@
       "center-and-spread semantics across mean, median, mode, range, changed means, missing-value recovery, comparison of centers, and comparison of spread",
       "data-classification-and-representation semantics across categorical and quantitative variables, categorical counts, dot plots, histograms, numeric identifiers, time-series displays, and two-way categorical tables",
       "data-analysis-and-conclusions semantics across frequency comparisons, table differences, proportions, time-series trends, conditional comparisons, population-claim limits, unequal-group rates, and association-versus-causation reasoning",
-      "sort-and-count-data semantics across ordering observations, reading and totaling frequencies, recovering missing counts, comparing and combining counts, and updating frequencies after added observations"
+      "sort-and-count-data semantics across ordering observations, reading and totaling frequencies, recovering missing counts, comparing and combining counts, and updating frequencies after added observations",
+      "simple-graphs-and-tables semantics across table cell lookup, row totals, table differences, bar values, bar comparisons, greatest bar, line-graph point values, and change between line-graph points"
     ]
   },
   "coverageStatus": {
@@ -31,7 +32,7 @@
     "dataClassificationRepresentation": "complete",
     "dataAnalysisConclusions": "complete",
     "sortCountData": "complete",
-    "simpleGraphsTables": "not-started"
+    "simpleGraphsTables": "complete"
   },
-  "note": "5 of 6 Probabilistic and Statistical Reasoning native skill areas are complete in TSIA2 V2.1: 40 independently authored generator-backed families and 10,000 randomized semantic checks."
+  "note": "All 6 Probabilistic and Statistical Reasoning native skill areas are complete in TSIA2 V2.1: 48 independently authored generator-backed families and 12,000 randomized semantic checks."
 }
