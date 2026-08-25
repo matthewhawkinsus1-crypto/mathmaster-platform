@@ -7,6 +7,12 @@ import { getAssessmentStandardReferences } from '../../src/platform/ccmr/assessm
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..');
 const sourceRoot = path.join(repoRoot, 'drafts', 'ccmr-v2.1', 'tsia2');
+const REQUIRED_DOMAINS = Object.freeze([
+  'quantitativeReasoning',
+  'algebraicReasoning',
+  'geometricSpatial',
+  'probabilisticStatistical',
+]);
 
 export const TSIA2_PRODUCTION_RELEASE = 'ccmr-fidelity-v2.1-authentic-language';
 
@@ -100,11 +106,15 @@ const addRoutingAlignments = (item, codes) => {
   return [...existing, ...texasAlignments];
 };
 
+const roleOf = (item) => item?.ccmrFamilyRole
+  || (Number(item?.ccmrChallengeTier || 1) >= 2 ? 'challenge' : 'direct');
+
 export const compileTsia2ProductionSeed = async () => {
   const banks = readNativeBanks();
   const items = [];
   const nativeSkills = [];
   const unroutedNativeSkills = [];
+  const unroutedItemIds = [];
 
   for (const { filePath, parsed } of banks) {
     const nativeSkillId = String(parsed.nativeSkillId || '').trim();
@@ -128,7 +138,7 @@ export const compileTsia2ProductionSeed = async () => {
     });
 
     for (const sourceItem of parsed.documents) {
-      items.push({
+      const compiledItem = {
         ...sourceItem,
         alignmentKeys: routingAlignmentKeys,
         alignments: addRoutingAlignments(sourceItem, routingCodes),
@@ -150,12 +160,30 @@ export const compileTsia2ProductionSeed = async () => {
           scope: testScope,
         },
         ccmrContentRelease: TSIA2_PRODUCTION_RELEASE,
-      });
+      };
+      if (!routingAlignmentKeys.length) unroutedItemIds.push(String(compiledItem.id || filePath));
+      items.push(compiledItem);
     }
   }
 
+  items.sort((left, right) => String(left.id).localeCompare(String(right.id)));
+  nativeSkills.sort((a, b) => a.nativeSkillId.localeCompare(b.nativeSkillId));
+
   const diagnosticOnlyFamilies = items.filter((item) => item.assessmentContext?.tsia2TestScope === 'diagnosticOnly').length;
   const crcAndDiagnosticFamilies = items.filter((item) => item.assessmentContext?.tsia2TestScope === 'crcAndDiagnostic').length;
+  const directFamilies = items.filter((item) => roleOf(item) === 'direct').length;
+  const challengeFamilies = items.filter((item) => roleOf(item) === 'challenge').length;
+
+  const domains = Object.fromEntries(REQUIRED_DOMAINS.map((domainId) => {
+    const domainItems = items.filter((item) => item.assessmentContext?.domainId === domainId);
+    return [domainId, {
+      items: domainItems.length,
+      direct: domainItems.filter((item) => roleOf(item) === 'direct').length,
+      challenge: domainItems.filter((item) => roleOf(item) === 'challenge').length,
+      crcAndDiagnostic: domainItems.filter((item) => item.assessmentContext?.tsia2TestScope === 'crcAndDiagnostic').length,
+      diagnosticOnly: domainItems.filter((item) => item.assessmentContext?.tsia2TestScope === 'diagnosticOnly').length,
+    }];
+  }));
 
   return {
     schemaVersion: 2,
@@ -164,10 +192,19 @@ export const compileTsia2ProductionSeed = async () => {
     releaseTarget: TSIA2_PRODUCTION_RELEASE,
     sourceOfTruth: 'drafts/ccmr-v2.1/tsia2',
     items,
-    nativeSkills: nativeSkills.sort((a, b) => a.nativeSkillId.localeCompare(b.nativeSkillId)),
+    domains,
+    unroutedItemIds: [...new Set(unroutedItemIds)].sort(),
+    nativeSkills,
     unroutedNativeSkills: [...new Set(unroutedNativeSkills)].sort(),
     diagnosticOnlyFamilies,
     crcAndDiagnosticFamilies,
+    summary: {
+      items: items.length,
+      direct: directFamilies,
+      challenge: challengeFamilies,
+      crcAndDiagnostic: crcAndDiagnosticFamilies,
+      diagnosticOnly: diagnosticOnlyFamilies,
+    },
   };
 };
 
