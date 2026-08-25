@@ -1422,6 +1422,35 @@ const COVERAGE_COLLECTION = "pathCoverage";
 
 const PATH_RUNTIME_RELEASE = "path-bank-2026-08-23-r11-ccmr-fidelity-v2";
 const PATH_COURSE_IDS = Object.freeze(["grade6", "grade7", "grade8", "algebra1", "algebra2"]);
+const CONTENT_RELEASE_MANIFEST_COLLECTION = "pathContentReleases";
+const CONTENT_RELEASE_MANIFEST_DOC = "current";
+const COORDINATED_CCMR_RELEASE_SEED_FILES = Object.freeze([
+  "digitalSAT_pathQuestionBank_seed.json",
+  "act_pathQuestionBank_seed.json",
+  "tsia2_pathQuestionBank_seed.json",
+]);
+
+async function loadAssessmentContentReleaseState(db, framework, records = []) {
+  const manifestSnapshot = await db.collection(CONTENT_RELEASE_MANIFEST_COLLECTION).doc(CONTENT_RELEASE_MANIFEST_DOC).get();
+  const manifest = manifestSnapshot.exists ? manifestSnapshot.data() : null;
+  return pathContentRelease.resolveAssessmentContentReleaseAuthority(records, framework, manifest);
+}
+
+function pathQuestionMatchesSessionContentRelease(question, session = {}) {
+  const sessionFramework = String(session?.assessmentFramework || "").trim();
+  const sessionRelease = String(session?.assessmentContentRelease || "").trim();
+  const questionFramework = String(question?.assessmentContext?.framework || "").trim();
+  if (!sessionFramework || !sessionRelease || questionFramework !== sessionFramework) return true;
+  return String(question?.ccmrContentRelease || "").trim() === sessionRelease;
+}
+
+function assessmentReleaseUpdateError(framework) {
+  return new HttpsError(
+    "unavailable",
+    String(framework) + " practice is being updated. Reopen this practice after the release switch completes.",
+    { reason: pathContentRelease.RELEASE_UPDATE_REASON, assessmentFramework: framework },
+  );
+}
 
 let texasStandardsModule = null;
 async function texasStandardsRegistry() {
@@ -1733,12 +1762,46 @@ function loadBuiltInStarterPathSeed() {
   return builtInStarterPathSeedCache;
 }
 
+function loadCoordinatedCcmrReleaseSeed() {
+  const seedDirectory = path.join(__dirname, "seeds", "pathQuestionBank");
+  const items = COORDINATED_CCMR_RELEASE_SEED_FILES.flatMap((fileName) => {
+    const parsed = JSON.parse(fs.readFileSync(path.join(seedDirectory, fileName), "utf8"));
+    return Array.isArray(parsed) ? parsed : (parsed.documents || parsed.items || parsed.questions || []);
+  });
+  if (!items.length) throw new Error("The coordinated CCMR release package is empty.");
+  const ids = new Set(items.map((item) => String(item?.id || "").trim()));
+  if (ids.size !== items.length || ids.has("")) throw new Error("The coordinated CCMR release package contains missing or duplicate IDs.");
+  return items;
+}
+
 async function removeSupersededBuiltInPathSeedRecords(db, currentItems) {
   const currentIds = new Set(currentItems.map((item) => String(item?.id || "").trim()).filter(Boolean));
   const snapshot = await db.collection("pathQuestionBank").get();
   const obsolete = snapshot.docs.filter((doc) => {
     if (currentIds.has(doc.id)) return false;
     const data = doc.data() || {};
+    return data.builtInPathSeed === BUILT_IN_PATH_SEED_MARKER
+      || data?.seedMetadata?.source === LEGACY_BUILT_IN_PATH_SEED_SOURCE;
+  });
+
+  for (let index = 0; index < obsolete.length; index += 400) {
+    const batch = db.batch();
+    obsolete.slice(index, index + 400).forEach((doc) => batch.delete(doc.ref));
+    // eslint-disable-next-line no-await-in-loop
+    await batch.commit();
+  }
+  return obsolete.length;
+}
+
+async function removeSupersededBuiltInAssessmentSeedRecords(db, currentItems, frameworks) {
+  const currentIds = new Set(currentItems.map((item) => String(item?.id || "").trim()).filter(Boolean));
+  const frameworkSet = new Set((Array.isArray(frameworks) ? frameworks : []).map(String));
+  const snapshot = await db.collection("pathQuestionBank").get();
+  const obsolete = snapshot.docs.filter((doc) => {
+    if (currentIds.has(doc.id)) return false;
+    const data = doc.data() || {};
+    const framework = String(data?.assessmentContext?.framework || "");
+    if (!frameworkSet.has(framework)) return false;
     return data.builtInPathSeed === BUILT_IN_PATH_SEED_MARKER
       || data?.seedMetadata?.source === LEGACY_BUILT_IN_PATH_SEED_SOURCE;
   });
@@ -1862,6 +1925,101 @@ exports.initializeStarterPathQuestionBank = onCall({ timeoutSeconds: 540, memory
   const { retireStaleTsia2PathStateForRelease } = await import("./shared/pathBankRelease.mjs");
   const tsia2PathBankRelease = await retireStaleTsia2PathStateForRelease(db);
   return { ...seed, phase: "complete", removedSuperseded, coverage, tsia2PathBankRelease };
+});
+
+/**
+ * Root-admin coordinated assessment-bank refresh.
+ *
+ * This deliberately loads only Digital SAT, ACT, and TSIA2. ASVAB remains on
+ * its existing release until it is separately authored and promoted. The
+ * manifest enters "updating" before the first Firestore bank mutation and is
+ * activated only after all writes and selective cleanup finish. A failure in
+ * between therefore leaves assessment issuance held rather than mixed.
+ */
+exports.refreshReleasedCcmrPathBanks = onCall({ timeoutSeconds: 540, memory: "1GiB" }, async (request) => {
+  const actor = await requireRootAdmin(request);
+  const db = getFirestore();
+  let items;
+  try {
+    items = loadCoordinatedCcmrReleaseSeed();
+  } catch (error) {
+    logger.error("Could not load coordinated CCMR release package", error);
+    throw new HttpsError("failed-precondition", "The coordinated CCMR release package is unavailable in this deployment.");
+  }
+
+  const taggedItems = items.map((item) => ({
+    ...item,
+    builtInPathSeed: BUILT_IN_PATH_SEED_MARKER,
+    builtInPathSeedRelease: PATH_RUNTIME_RELEASE,
+  }));
+  const pendingReleases = pathContentRelease.collectAssessmentContentReleases(taggedItems);
+  const expectedFrameworks = ["act", "digitalSAT", "tsia2"];
+  const actualFrameworks = Object.keys(pendingReleases).sort();
+  if (JSON.stringify(actualFrameworks) !== JSON.stringify(expectedFrameworks)) {
+    throw new HttpsError(
+      "failed-precondition",
+      "The coordinated CCMR package must contain exactly " + expectedFrameworks.join(", ") + "; found " + (actualFrameworks.join(", ") || "none") + ".",
+    );
+  }
+
+  // First pass is intentionally read-only. The manifest does not close student
+  // issuance unless all 1,000 assessment documents pass the production issuer.
+  const validation = await processPathSeedImport({ db, actor, items: taggedItems, dryRun: true });
+  if (validation.rejected?.length || validation.wouldAccept !== taggedItems.length) {
+    return { ...validation, phase: "validation", pendingReleases };
+  }
+
+  const manifestRef = db.collection(CONTENT_RELEASE_MANIFEST_COLLECTION).doc(CONTENT_RELEASE_MANIFEST_DOC);
+  const manifestSnapshot = await manifestRef.get();
+  const currentManifest = manifestSnapshot.exists ? manifestSnapshot.data() : {};
+  const updatingManifest = pathContentRelease.beginAssessmentContentReleaseUpdate(
+    currentManifest,
+    pendingReleases,
+    Date.now(),
+  );
+  await manifestRef.set({ ...updatingManifest, updatedBy: actor.uid });
+
+  // A second validation inside processPathSeedImport protects the write itself.
+  // If anything fails from this point onward, the manifest intentionally stays
+  // in "updating" so no new assessment question is issued from a partial bank.
+  const seed = await processPathSeedImport({ db, actor, items: taggedItems, dryRun: false });
+  if (!seed.imported) {
+    throw new HttpsError("failed-precondition", "The coordinated CCMR bank failed its write-time validation; assessment issuance remains held.");
+  }
+
+  const removedSuperseded = await removeSupersededBuiltInAssessmentSeedRecords(
+    db,
+    taggedItems,
+    expectedFrameworks,
+  );
+  const { retireStaleTsia2PathStateForRelease } = await import("./shared/pathBankRelease.mjs");
+  const tsia2PathBankRelease = await retireStaleTsia2PathStateForRelease(db);
+
+  const activatedReleases = {
+    ...(currentManifest?.activeReleases || {}),
+    ...pendingReleases,
+  };
+  const activeManifest = pathContentRelease.completeAssessmentContentReleaseUpdate(
+    updatingManifest,
+    activatedReleases,
+    Date.now(),
+  );
+  await manifestRef.set({ ...activeManifest, updatedBy: actor.uid });
+  await writeAdminAudit(db, actor, "ccmr_path_banks_refreshed", CONTENT_RELEASE_MANIFEST_COLLECTION, {
+    frameworks: expectedFrameworks,
+    releases: pendingReleases,
+    accepted: seed.accepted,
+    removedSuperseded,
+  });
+
+  return {
+    ...seed,
+    phase: "complete",
+    releases: pendingReleases,
+    manifestStatus: activeManifest.status,
+    removedSuperseded,
+    tsia2PathBankRelease,
+  };
 });
 
 /** Remove a promoted question from the Path bank without touching the assignment. */
@@ -5166,15 +5324,18 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
       .map((questionDoc) => ({ id: questionDoc.id, ...questionDoc.data() }))
       .filter((question) => question.active !== false)
       .filter((question) => pathQuestionMatchesFramework(question, assessmentFramework));
-    assessmentReleaseState = pathContentRelease.resolveAssessmentContentRelease(frameworkRecords, assessmentFramework);
-    const frameworkPlans = await Promise.all(frameworkRecords.map(async (question) => ({
+    assessmentReleaseState = await loadAssessmentContentReleaseState(db, assessmentFramework, frameworkRecords);
+    const activeFrameworkRecords = assessmentReleaseState.tracked
+      ? frameworkRecords.filter((question) => String(question?.ccmrContentRelease || "").trim() === String(assessmentReleaseState.release || "").trim())
+      : frameworkRecords;
+    const frameworkPlans = assessmentReleaseState.available === false ? [] : await Promise.all(activeFrameworkRecords.map(async (question) => ({
       question, plan: await safeBuildTemplateIssuePlan(question, { operation: "path-runtime-framework-check" }),
     })));
     const issuableFamilies = new Set(frameworkPlans
       .filter((entry) => entry.plan?.issuable)
       .map((entry) => String(entry.question?.familyId || entry.question?.id || ""))
       .filter(Boolean));
-    if (issuableFamilies.size < 5) {
+    if (assessmentReleaseState.available !== false && issuableFamilies.size < 5) {
       throw new HttpsError(
         "failed-precondition",
         `${assessmentFramework} practice for ${mathPath.displayAlignmentKey(targetAlignmentKey)} is not published yet.`,
@@ -5201,7 +5362,11 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
           throw new HttpsError("failed-precondition", "Finish the active session before changing assessment format.");
         }
         const releaseAction = pathContentRelease.planSessionContentReleaseAction(existing.data(), assessmentReleaseState);
-        if (releaseAction.action !== "supersede") return existing.data();
+        if (releaseAction.action === "continue" || releaseAction.action === "finish-open-question") return existing.data();
+        if (releaseAction.action === "hold-release-update") throw assessmentReleaseUpdateError(assessmentFramework);
+        if (releaseAction.action !== "supersede") {
+          throw new HttpsError("aborted", "The assessment content release changed while this session was being resumed.");
+        }
         transaction.set(
           existingRef,
           pathContentRelease.supersedeSessionForContentRelease(existing.data(), assessmentReleaseState.release, now),
@@ -5209,7 +5374,10 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
       }
     }
 
-    const now = Date.now();
+    if (assessmentReleaseState.tracked && assessmentReleaseState.available === false) {
+      throw assessmentReleaseUpdateError(assessmentFramework);
+    }
+
     const targetDisplay = mathPath.displayAlignmentKey(targetAlignmentKey);
     const next = {
       sessionId: proposedSessionRef.id,
@@ -5296,8 +5464,11 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
       .map((questionDoc) => ({ id: questionDoc.id, ...questionDoc.data() }))
       .filter((question) => question.active !== false)
       .filter((question) => pathQuestionMatchesFramework(question, session.assessmentFramework));
-    const issueReleaseState = pathContentRelease.resolveAssessmentContentRelease(targetFrameworkRecords, session.assessmentFramework);
+    const issueReleaseState = await loadAssessmentContentReleaseState(db, session.assessmentFramework, targetFrameworkRecords);
     const releaseAction = pathContentRelease.planSessionContentReleaseAction(session, issueReleaseState);
+    if (releaseAction.action === "hold-release-update") {
+      throw assessmentReleaseUpdateError(session.assessmentFramework);
+    }
 
     if (releaseAction.action === "supersede") {
       const rollover = await db.runTransaction(async (transaction) => {
@@ -5374,6 +5545,7 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
     .filter((question) => question.active !== false);
   const buildFrameworkPlans = async (framework) => Promise.all(bankRecords
     .filter((question) => pathQuestionMatchesFramework(question, framework))
+    .filter((question) => pathQuestionMatchesSessionContentRelease(question, session))
     .map(async (question) => ({ question, plan: await safeBuildTemplateIssuePlan(question, { operation: "path-question-selection" }) })));
 
   let plans = await buildFrameworkPlans(session.assessmentFramework || null);
