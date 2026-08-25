@@ -4,12 +4,12 @@
   "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
   "framework": "tsia2",
   "domainId": "probabilisticStatistical",
-  "completedNativeSkills": ["probability", "centerSpread", "dataClassificationRepresentation", "dataAnalysisConclusions"],
-  "completedScopeUnitsCount": 4,
-  "familiesTotal": 32,
+  "completedNativeSkills": ["probability", "centerSpread", "dataClassificationRepresentation", "dataAnalysisConclusions", "sortCountData"],
+  "completedScopeUnitsCount": 5,
+  "familiesTotal": 40,
   "validation": {
     "randomizedInstancesPerCompletedScopeUnit": 2000,
-    "randomizedInstancesTotal": 8000,
+    "randomizedInstancesTotal": 10000,
     "checks": [
       "five direct plus three independently authored challenge families per completed native skill",
       "exactly four answer choices per family",
@@ -21,7 +21,8 @@
       "probability semantics across simple events, complements, sample spaces, empirical probability, independent compound probability, inverse count reasoning, and without-replacement probability",
       "center-and-spread semantics across mean, median, mode, range, changed means, missing-value recovery, comparison of centers, and comparison of spread",
       "data-classification-and-representation semantics across categorical and quantitative variables, categorical counts, dot plots, histograms, numeric identifiers, time-series displays, and two-way categorical tables",
-      "data-analysis-and-conclusions semantics across frequency comparisons, table differences, proportions, time-series trends, conditional comparisons, population-claim limits, unequal-group rates, and association-versus-causation reasoning"
+      "data-analysis-and-conclusions semantics across frequency comparisons, table differences, proportions, time-series trends, conditional comparisons, population-claim limits, unequal-group rates, and association-versus-causation reasoning",
+      "sort-and-count-data semantics across ordering observations, reading and totaling frequencies, recovering missing counts, comparing and combining counts, and updating frequencies after added observations"
     ]
   },
   "coverageStatus": {
@@ -29,8 +30,8 @@
     "centerSpread": "complete",
     "dataClassificationRepresentation": "complete",
     "dataAnalysisConclusions": "complete",
-    "sortCountData": "not-started",
+    "sortCountData": "complete",
     "simpleGraphsTables": "not-started"
   },
-  "note": "4 of 6 Probabilistic and Statistical Reasoning native skill areas are complete in TSIA2 V2.1: 32 independently authored generator-backed families and 8,000 randomized semantic checks."
+  "note": "5 of 6 Probabilistic and Statistical Reasoning native skill areas are complete in TSIA2 V2.1: 40 independently authored generator-backed families and 10,000 randomized semantic checks."
 }
