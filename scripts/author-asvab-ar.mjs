@@ -1308,38 +1308,36 @@ ar('6.4H', 'yards-of-material', {
   feedback: 'Three feet make a yard, so the yard count is smaller than the foot count.',
 });
 
-ar('6.4H', 'unit-table-conversion', {
+ar('6.4H', 'hours-to-minutes-table', {
   difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'table',
-  prompt: 'Using the table, how many {{small}} are in {{bigCount}} {{big}}?',
+  prompt: 'A {{crew}} logs shifts in hours. Using the table, how many minutes are {{bigCount}} hours?',
   stimulus: {
     kind: 'table',
-    title: 'Conversion table',
-    table: { headers: ['{{big}}', '{{small}}'], rows: [['1', '{{per}}'], ['{{bigCount}}', '?']] },
+    title: 'Conversion',
+    table: { headers: ['hours', 'minutes'], rows: [['1', '60'], ['{{bigCount}}', '?']] },
   },
   generator: {
     parameters: {
-      big: contextParam(['pounds', 'gallons', 'feet', 'hours']),
-      small: contextParam(['ounces', 'quarts', 'inches', 'minutes']),
-      per: { type: 'choice', values: [4, 12, 16, 60] },
-      bigCount: { type: 'int', min: 3, max: 30 },
+      crew: WORKERS,
+      bigCount: { type: 'int', min: 5, max: 120 },
     },
     derived: {
-      answer: 'per*bigCount',
-      d_operationInverted: 'per+bigCount',
-      d_unitConversion: 'bigCount*bigCount',
-      d_offByOneStep: 'per*(bigCount+1)',
+      answer: 'bigCount*60',
+      d_operationInverted: 'bigCount+60',
+      d_unitConversion: 'bigCount*100',
+      d_convertedWrongWay: 'bigCount*bigCount',
     },
-    constraints: ['per!=bigCount'],
+    constraints: [],
   },
   choices: [
     { label: plain('{{answer}}'), correct: true },
     { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_convertedWrongWay}}'), error: 'convertedWrongWay' },
     { label: plain('{{d_unitConversion}}'), error: 'unitConversion' },
-    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
   ],
-  reasoning: ['One {{big}} holds {{per}} {{small}}.', '{{bigCount}} of them hold {{per}} times {{bigCount}}.'],
-  answerSummary: { headline: 'A conversion table gives the rate for one unit.', text: 'There are ${{answer}}$ {{small}}.' },
-  hint: 'Read what a single unit is worth from the first row.',
+  reasoning: ['One hour holds 60 minutes.', '{{bigCount}} hours hold {{answer}}.'],
+  answerSummary: { headline: 'A conversion table gives the rate for a single unit.', text: 'That is ${{answer}}$ minutes.' },
+  hint: 'Read what one hour is worth from the first row.',
   feedback: 'Converting to a smaller unit gives a larger count.',
 });
 
@@ -3374,6 +3372,336 @@ ar('8.12B', 'months-to-clear-balance', {
   answerSummary: { headline: 'A fixed payment divides into the balance.', text: 'It takes ${{answer}}$ months.' },
   hint: 'How many payments does the balance hold?',
   feedback: 'The answer counts months, not dollars.',
+});
+
+// ================================================================ 7.4D
+// Percent increase and decrease, including multi-step.
+
+// Factors of 1600 keep a second percent step whole: 1600 times 0.9 times 0.8
+// is 1152, and every pairing of these rates lands on a whole number.
+const STEP_RATES = { type: 'choice', values: [10, 20, 25, 40, 50] };
+
+ar('7.4D', 'value-lost-this-year', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'A {{tool}} worth $\\${{value}}$ loses {{p}}% this year and is expected to lose {{q}}% of its original value next year. How much is lost this year?',
+  generator: {
+    parameters: {
+      tool: contextParam(['grinder', 'compressor', 'drill', 'generator', 'welder']),
+      p: { type: 'choice', values: [5, 10, 15, 20, 25, 30, 40] },
+      q: { type: 'choice', values: [5, 10, 15, 20, 25, 30, 40] },
+      hundreds: { type: 'int', min: 3, max: 30 },
+    },
+    derived: {
+      value: 'hundreds*100',
+      answer: 'hundreds*100*p/100',
+      d_wrongPercentBase: 'hundreds*100*q/100',
+      d_signError: 'hundreds*100-hundreds*100*p/100',
+      d_unitConversion: 'hundreds*100*p/1000',
+    },
+    constraints: ['p!=q'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_wrongPercentBase}}'), error: 'wrongPercentBase' },
+    { label: money('{{d_signError}}'), error: 'signError' },
+    { label: money('{{d_unitConversion}}'), error: 'unitConversion' },
+  ],
+  reasoning: ['One percent of {{value}} is {{hundreds}}.', 'This year loses {{p}} of those, or {{answer}}.'],
+  answerSummary: { headline: 'Read which year the question is asking about.', text: '$\\${{answer}}$ is lost this year.' },
+  hint: 'Only one of the two percents applies to the question asked.',
+  feedback: 'The question asks about this year, not next year or what is left.',
+});
+
+ar('7.4D', 'value-after-two-decreases', {
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A {{tool}} worth $\\${{value}}$ falls {{p}}% in one year and {{q}}% of its new value the next. What is it worth then?',
+  generator: {
+    parameters: {
+      tool: contextParam(['grinder', 'compressor', 'drill', 'generator', 'welder']),
+      p: STEP_RATES,
+      q: STEP_RATES,
+      k: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      value: 'k*1600',
+      afterOne: 'k*1600*(100-p)/100',
+      answer: 'k*1600*(100-p)/100*(100-q)/100',
+      d_wrongPercentBase: 'k*1600*(100-p-q)/100',
+      d_forgotFinalStep: 'afterOne',
+      d_signError: 'k*1600-k*1600*(100-p)/100*(100-q)/100',
+    },
+    constraints: ['d_wrongPercentBase>0'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_wrongPercentBase}}'), error: 'wrongPercentBase' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['The first fall leaves {{afterOne}}.', 'The second fall takes {{q}} percent of {{afterOne}}, leaving {{answer}}.'],
+  answerSummary: { headline: 'The second fall works on what the first one left.', text: 'It is worth $\\${{answer}}$.' },
+  hint: 'The second percent applies to the reduced value, not the original.',
+  feedback: 'Two percent falls do not add together.',
+});
+
+ar('7.4D', 'original-before-increase', {
+  difficultyBand: 3, dok: 3, taskType: 'reverseReasoning', representation: 'verbal',
+  prompt: 'After rising {{p}}%, a charge stands at $\\${{after}}$. What was it before?',
+  generator: {
+    parameters: {
+      p: { type: 'choice', values: [10, 20, 25, 40, 60, 75, 80] },
+      hundreds: { type: 'int', min: 3, max: 30 },
+    },
+    derived: {
+      answer: 'hundreds*100',
+      after: 'hundreds*100+hundreds*100*p/100',
+      rise: 'hundreds*100*p/100',
+      d_wrongPercentBase: 'after-after*p/100',
+      d_signError: 'after',
+      d_offByOneStep: 'rise*2',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_wrongPercentBase}}'), error: 'wrongPercentBase' },
+    { label: money('{{d_signError}}'), error: 'signError' },
+    { label: money('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['{{after}} is the old charge plus {{p}} percent of it.', 'A charge of {{answer}} rises by {{rise}} to give exactly {{after}}.'],
+  answerSummary: { headline: 'The percent was taken from the old figure, not the new one.', text: 'It was $\\${{answer}}$.' },
+  hint: 'The rise was worked out from the smaller amount.',
+  feedback: 'Taking the same percent off the new figure does not undo the rise.',
+});
+
+ar('7.4D', 'percent-change-from-two-values', {
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'context',
+  prompt: 'Output rose from {{before}} to {{after}} {{item}}. What was the percent increase?',
+  generator: {
+    parameters: {
+      item: GOODS,
+      p: { type: 'choice', values: [10, 20, 25, 40, 50, 60, 75, 80] },
+      hundreds: { type: 'int', min: 2, max: 90 },
+    },
+    derived: {
+      before: 'hundreds*100',
+      rise: 'hundreds*100*p/100',
+      after: 'hundreds*100+hundreds*100*p/100',
+      answer: 'p',
+      d_wrongPercentBase: 'round(rise*100/(hundreds*100+rise))',
+      d_usedGivenValue: 'hundreds',
+      d_unitConversion: 'p*10',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}\\%'), correct: true },
+    { label: plain('{{d_wrongPercentBase}}\\%'), error: 'wrongPercentBase' },
+    { label: plain('{{d_usedGivenValue}}\\%'), error: 'usedGivenValue' },
+    { label: plain('{{d_unitConversion}}\\%'), error: 'unitConversion' },
+  ],
+  reasoning: ['Output rose by {{rise}}.', 'Against the starting {{before}} that is {{answer}} percent.'],
+  answerSummary: { headline: 'A percent increase compares the rise with the starting figure.', text: 'It rose ${{answer}}\\%$.' },
+  hint: 'Compare the rise with where output started.',
+  feedback: 'The rise is measured against the original, not the new total.',
+});
+
+ar('7.4D', 'markup-then-discount', {
+  difficultyBand: 3, dok: 3, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'A {{tool}} is priced through the two steps shown. What is the final price?',
+  stimulus: {
+    kind: 'table',
+    title: 'Pricing',
+    table: { headers: ['step', 'change'], rows: [['cost', '$\\${{cost}}$'], ['markup', '{{p}}%'], ['sale', '{{q}}% off']] },
+  },
+  generator: {
+    parameters: {
+      tool: contextParam(['grinder', 'compressor', 'drill', 'generator', 'welder']),
+      p: { type: 'choice', values: [10, 20, 25, 50, 75, 100] },
+      q: STEP_RATES,
+      k: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      cost: 'k*1600',
+      marked: 'k*1600*(100+p)/100',
+      answer: 'k*1600*(100+p)/100*(100-q)/100',
+      d_wrongPercentBase: 'k*1600*(100-q)/100',
+      d_forgotFinalStep: 'marked',
+      d_unitConversion: 'k*1600',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_wrongPercentBase}}'), error: 'wrongPercentBase' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_unitConversion}}'), error: 'unitConversion' },
+  ],
+  reasoning: ['The markup takes {{cost}} to {{marked}}.', 'The sale takes {{q}} percent off {{marked}}, leaving {{answer}}.'],
+  answerSummary: { headline: 'Each step works on the price the step before it produced.', text: 'The final price is $\\${{answer}}$.' },
+  hint: 'The discount applies to the marked-up price, not to the cost.',
+  feedback: 'A markup and a discount of the same size do not cancel out.',
+});
+
+// ================================================================ 7.4E
+// Converting between measurement systems. The factor is always stated, as it
+// is on the test, so the work is the reasoning and not a memorised constant.
+
+ar('7.4E', 'mixed-units-route-total', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'Using 1 mile = 1.6 kilometres, a route runs {{miles}} miles then {{extra}} kilometres. How many kilometres is the whole route?',
+  generator: {
+    parameters: {
+      fives: { type: 'int', min: 2, max: 40 },
+      extra: { type: 'int', min: 4, max: 200, step: 4 },
+    },
+    derived: {
+      miles: 'fives*5',
+      converted: 'fives*8',
+      answer: 'fives*8+extra',
+      d_forgotFinalStep: 'converted',
+      d_convertedWrongWay: 'fives*5+extra*8/5',
+      d_unitConversion: '(fives*5+extra)*8/5',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_convertedWrongWay}}'), error: 'convertedWrongWay' },
+    { label: plain('{{d_unitConversion}}'), error: 'unitConversion' },
+  ],
+  reasoning: ['{{miles}} miles is {{converted}} kilometres.', 'Adding the {{extra}} kilometres already given makes {{answer}}.'],
+  answerSummary: { headline: 'Only the leg in miles needs converting.', text: 'The route is ${{answer}}$ kilometres.' },
+  hint: 'One leg is already in the unit the question wants.',
+  feedback: 'Converting the whole route treats the kilometre leg as miles.',
+});
+
+ar('7.4E', 'kilograms-to-pounds-total', {
+  difficultyBand: 3, dok: 2, taskType: 'application', representation: 'verbal',
+  prompt: 'Using 1 kilogram = 2.2 pounds, what do {{crates}} crates of {{kg}} kilograms each weigh in pounds, on a {{pallet}}-pound pallet?',
+  generator: {
+    parameters: {
+      fives: { type: 'int', min: 2, max: 20 },
+      crates: { type: 'int', min: 2, max: 12 },
+      pallet: { type: 'int', min: 20, max: 300, step: 10 },
+    },
+    derived: {
+      kg: 'fives*5',
+      perCrate: 'fives*11',
+      answer: 'fives*11*crates+pallet',
+      d_forgotFinalStep: 'fives*11*crates',
+      d_offByOneStep: 'fives*11*(crates+1)+pallet',
+      d_operationInverted: 'pallet*crates',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['One crate is {{kg}} times 2.2, or {{perCrate}} pounds.', '{{crates}} crates plus the {{pallet}}-pound pallet weigh {{answer}}.'],
+  answerSummary: { headline: 'Convert once, then scale to the number of crates.', text: 'They weigh ${{answer}}$ pounds.' },
+  hint: 'Convert one crate before counting them all, and the pallet is already in pounds.',
+  feedback: 'Every crate has to be converted, and the pallet counts too.',
+});
+
+ar('7.4E', 'drums-from-a-tank', {
+  difficultyBand: 3, dok: 2, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'Using 1 gallon = 4 litres, how many {{size}}-gallon drums does a {{litres}}-litre tank fill?',
+  generator: {
+    parameters: {
+      size: { type: 'int', min: 3, max: 25 },
+      drums: { type: 'int', min: 3, max: 25 },
+    },
+    derived: {
+      gallons: 'size*drums',
+      litres: 'size*drums*4',
+      answer: 'drums',
+      d_convertedWrongWay: 'round(litres/(size*16))',
+      d_usedGivenValue: 'size',
+      d_unitConversion: 'gallons',
+    },
+    constraints: ['size!=drums'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_convertedWrongWay}}'), error: 'convertedWrongWay' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_unitConversion}}'), error: 'unitConversion' },
+  ],
+  reasoning: ['{{litres}} litres is {{gallons}} gallons.', '{{gallons}} shared into {{size}}-gallon drums fills {{answer}}.'],
+  answerSummary: { headline: 'Convert to the drum’s unit, then share it out.', text: 'It fills ${{answer}}$ drums.' },
+  hint: 'The tank is measured in litres but the drums in gallons.',
+  feedback: 'Convert first, then divide by the drum size.',
+});
+
+ar('7.4E', 'compare-across-systems', {
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'verbal',
+  prompt: 'Using 1 kilogram = 2.2 pounds, how many pounds heavier is a {{kg}}-kilogram load than a {{lb}}-pound one?',
+  generator: {
+    parameters: {
+      fives: { type: 'int', min: 4, max: 30 },
+      lbTens: { type: 'int', min: 2, max: 30 },
+    },
+    derived: {
+      kg: 'fives*5',
+      kgInLb: 'fives*11',
+      lb: 'lbTens*10',
+      answer: 'fives*11-lbTens*10',
+      d_convertedWrongWay: 'abs(fives*5-lbTens*10)',
+      d_partialTotal: 'lb',
+      d_signError: 'fives*11+lbTens*10',
+    },
+    constraints: ['answer>0'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_convertedWrongWay}}'), error: 'convertedWrongWay' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['{{kg}} kilograms is {{kgInLb}} pounds.', '{{kgInLb}} minus {{lb}} is {{answer}}.'],
+  answerSummary: { headline: 'Two systems only compare once both are in one unit.', text: 'It is ${{answer}}$ pounds heavier.' },
+  hint: 'Put both loads into the same unit first.',
+  feedback: 'The two figures are in different units as given.',
+});
+
+ar('7.4E', 'batches-from-kilograms', {
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'Each batch needs {{grams}} grams of {{mat}}. Using the table, how many full batches come from {{kg}} kilograms?',
+  stimulus: {
+    kind: 'table',
+    title: 'Conversion',
+    table: { headers: ['kilograms', 'grams'], rows: [['1', '1000'], ['{{kg}}', '{{totalGrams}}']] },
+  },
+  generator: {
+    parameters: {
+      mat: contextParam(['resin', 'filler', 'binder', 'powder', 'compound']),
+      grams: { type: 'choice', values: [100, 125, 200, 250, 400, 500] },
+      kg: { type: 'int', min: 2, max: 90 },
+    },
+    derived: {
+      totalGrams: 'kg*1000',
+      answer: 'kg*1000/grams',
+      d_forgotFinalStep: 'totalGrams',
+      d_convertedWrongWay: 'kg',
+      d_unitConversion: 'grams',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_convertedWrongWay}}'), error: 'convertedWrongWay' },
+    { label: plain('{{d_unitConversion}}'), error: 'unitConversion' },
+  ],
+  reasoning: ['{{kg}} kilograms is {{totalGrams}} grams.', '{{totalGrams}} divided by {{grams}} is {{answer}} batches.'],
+  answerSummary: { headline: 'Convert to the unit the recipe uses, then share it out.', text: 'It makes ${{answer}}$ batches.' },
+  hint: 'The stock and the recipe are in different units.',
+  feedback: 'Convert the kilograms to grams before dividing.',
 });
 
 // ---------------------------------------------------------------- emit

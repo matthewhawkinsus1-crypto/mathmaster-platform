@@ -45,6 +45,16 @@
 // because that was the only value the constraint rarely rejected. Prefer
 // parameter ranges where the constraint is satisfied by construction.
 //
+// A FOURTH RULE, about drawn context words. Every `choice` parameter is drawn
+// INDEPENDENTLY, so two of them can never be relied on to agree. Naming a unit
+// in one parameter and its partner in another produced "how many ounces are in
+// 11 hours?" and "how many grams are in 51 kilograms?" with the table saying
+// 1 kilogram = 100 grams — nonsense items that every mathematical gate passed,
+// because the arithmetic was consistent and only the words were wrong. Drawn
+// words must each be valid on their own. Where a unit pair and its conversion
+// factor have to match, fix them for that family and take the variety from the
+// other four families in the standard.
+//
 // The kit emits nothing a student should not see: distractor error codes live
 // on the template and are stripped by functions/lib/mathPath.js normalizeChoices
 // before a question reaches the browser.
