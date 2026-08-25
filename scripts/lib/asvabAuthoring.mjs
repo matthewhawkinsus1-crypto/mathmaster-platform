@@ -119,9 +119,22 @@ const labelPlaceholders = (label) => {
  * without an author having to remember it.
  */
 const distinctChoiceConstraints = (choices, generator) => {
-  const names = choices.map((choice) => labelPlaceholders(choice.label)).filter((list) => list.length === 1).map((list) => list[0]);
   const known = new Set(Object.keys(generator?.parameters || {}).concat(Object.keys(generator?.derived || {})));
-  const usable = [...new Set(names)].filter((name) => known.has(name));
+  // Compare the values the labels DISPLAY, not the parameter names. A label of
+  // `-{{p}}` and one of `{{r}}` are different names but the same number
+  // whenever r = -p, and constraining the names let that through: a
+  // closest-to-zero item shipped a draw reading 5, -2, -35, -35.
+  const valueOf = (label) => {
+    const bare = String(label).replace(/\$/g, '').replace(/\s+/g, '');
+    const match = /^(-?)\{\{([A-Za-z_][A-Za-z0-9_]*)(?:\|[A-Za-z]+)?\}\}$/.exec(bare);
+    if (!match || !known.has(match[2])) return null;
+    return match[1] === '-' ? `0-${match[2]}` : match[2];
+  };
+
+  // Labels built from more than one placeholder (a mixed number, a fraction, a
+  // whole sentence) cannot be reduced to a value expression, so they get no
+  // automatic constraint and the author has to rule out the collision by hand.
+  const usable = [...new Set(choices.map((choice) => valueOf(choice.label)).filter(Boolean))];
   const existing = new Set((generator?.constraints || []).map((entry) => String(entry).replace(/\s+/g, '')));
   const added = [];
   for (let i = 0; i < usable.length; i += 1) {
@@ -133,6 +146,7 @@ const distinctChoiceConstraints = (choices, generator) => {
   }
   return added;
 };
+
 
 /**
  * One ASVAB item.

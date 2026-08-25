@@ -69,7 +69,7 @@ mk('6.2A', 'rational-that-is-not-an-integer', {
     parameters: {
       n: { type: 'int', min: 1, max: 6 },
       d: { type: 'choice', values: [3, 4, 6, 7, 8] },
-      k: { type: 'int', min: 1, max: 6 },
+      k: { type: 'int', min: 1, max: 9 },
       k2: { type: 'int', min: 10, max: 30 },
     },
     derived: { num: 'n*d+1', prod: 'k2*d' },
@@ -588,6 +588,279 @@ mk('6.2D', 'order-mixed-signs', {
   answerSummary: { headline: 'Signs decide the grouping; distance from zero decides the order within it.', text: 'The order is $-{{a}}$, $-{{b}}$, $\\frac{{{num}}}{{{d}}}$.' },
   hint: 'Sort by sign first, then within each sign.',
   feedback: 'Every negative is less than every positive.',
+});
+
+// ================================================================ 6.2E
+// A fraction is a division.
+
+mk('6.2E', 'fraction-written-as-a-quotient', {
+  difficultyBand: 1, dok: 1, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Which division has the same value as $\\frac{{{a}}}{{{b}}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 3, max: 90 },
+      b: { type: 'int', min: 2, max: 40 },
+    },
+    derived: {},
+    constraints: ['a!=b'],
+  },
+  choices: [
+    { label: plain('{{a}} \\div {{b}}'), correct: true },
+    { label: plain('{{b}} \\div {{a}}'), error: 'ratioReversed' },
+    { label: plain('{{a}} \\times {{b}}'), error: 'operationInverted' },
+    { label: plain('{{a}} - {{b}}'), error: 'signError' },
+  ],
+  reasoning: ['The bar in a fraction means divide.', 'The top is shared out by the bottom, so it is ${{a}} \\div {{b}}$.'],
+  answerSummary: { headline: 'A fraction bar is a division sign.', text: '$\\frac{{{a}}}{{{b}}} = {{a}} \\div {{b}}$.' },
+  hint: 'Which number is being shared out?',
+  feedback: 'The top of the fraction is the number being divided.',
+});
+
+mk('6.2E', 'quotient-written-as-a-fraction', {
+  difficultyBand: 1, dok: 1, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'Write ${{a}} \\div {{b}}$ as a fraction.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 40 },
+      b: { type: 'int', min: 2, max: 40 },
+    },
+    derived: { sum: 'a+b' },
+    constraints: ['a!=b'],
+  },
+  choices: [
+    { label: plain('\\frac{{{a}}}{{{b}}}'), correct: true },
+    { label: plain('\\frac{{{b}}}{{{a}}}'), error: 'ratioReversed' },
+    { label: plain('\\frac{{{sum}}}{{{b}}}'), error: 'operationInverted' },
+    { label: plain('\\frac{{{b}}}{{{sum}}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The number being divided goes on top.', 'So ${{a}} \\div {{b}}$ is $\\frac{{{a}}}{{{b}}}$.'],
+  answerSummary: { headline: 'The dividend sits above the bar.', text: 'It is $\\frac{{{a}}}{{{b}}}$.' },
+  hint: 'Which number is being shared out?',
+  feedback: 'Swapping the two changes the value.',
+});
+
+mk('6.2E', 'fraction-as-a-decimal', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'What is $\\frac{{{a}}}{{{b}}}$ as a decimal?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 10 },
+      b: { type: 'choice', values: [2, 4, 5, 8, 10] },
+    },
+    derived: {
+      answer: 'a/b',
+      d_ratioReversed: 'b/a',
+      d_unitConversion: 'a/b*10',
+      d_convertedWrongWay: 'a/b/10',
+    },
+    constraints: ['a!=b'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_unitConversion}}'), error: 'unitConversion' },
+    { label: plain('{{d_convertedWrongWay}}'), error: 'convertedWrongWay' },
+  ],
+  reasoning: ['The bar means divide, so work out ${{a}}$ shared by ${{b}}$.', 'That gives {{answer}}.'],
+  answerSummary: { headline: 'A fraction becomes a decimal by carrying out the division.', text: 'It is {{answer}}.' },
+  hint: 'Divide the top by the bottom.',
+  feedback: 'Check which number is doing the dividing.',
+});
+
+mk('6.2E', 'improper-fraction-as-a-mixed-number', {
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'verbal',
+  prompt: 'Written as a mixed number, what is $\\frac{{{num}}}{{{b}}}$?',
+  generator: {
+    parameters: {
+      whole: { type: 'int', min: 2, max: 12 },
+      rem: { type: 'int', min: 1, max: 9 },
+      b: { type: 'choice', values: [3, 4, 5, 6, 7, 8] },
+    },
+    derived: { num: 'whole*b+rem', wholePlus: 'whole+1' },
+    constraints: ['rem<b', 'whole!=rem'],
+  },
+  choices: [
+    { label: plain('{{whole}}\\frac{{{rem}}}{{{b}}}'), correct: true },
+    { label: plain('{{rem}}\\frac{{{whole}}}{{{b}}}'), error: 'ratioReversed' },
+    { label: plain('{{wholePlus}}\\frac{{{rem}}}{{{b}}}'), error: 'offByOneStep' },
+    { label: plain('{{whole}}\\frac{{{b}}}{{{rem}}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['${{b}}$ goes into ${{num}}$ {{whole}} times with {{rem}} left over.', 'The leftover stays over {{b}}.'],
+  answerSummary: { headline: 'The quotient becomes the whole part and the remainder stays over the divisor.', text: 'It is ${{whole}}\\frac{{{rem}}}{{{b}}}$.' },
+  hint: 'How many whole times does the bottom go into the top?',
+  feedback: 'The remainder keeps the original denominator.',
+});
+
+mk('6.2E', 'value-of-a-grouped-division', {
+  difficultyBand: 3, dok: 2, taskType: 'procedural', representation: 'table',
+  prompt: 'Using the values shown, what is $\\frac{a + b}{c}$?',
+  stimulus: {
+    kind: 'expressions',
+    title: 'Values',
+    note: '$a = {{a}}$, $b = {{b}}$, $c = {{c}}$',
+  },
+  generator: {
+    parameters: {
+      c: { type: 'int', min: 2, max: 12 },
+      q: { type: 'int', min: 2, max: 14 },
+      b: { type: 'int', min: 2, max: 60 },
+    },
+    derived: {
+      a: 'c*q-b',
+      answer: 'q',
+      d_forgotFinalStep: 'c*q',
+      d_usedGivenValue: 'c',
+      d_orderOfOperations: 'round(a/c)',
+    },
+    constraints: ['a>0', 'c!=q'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_orderOfOperations}}'), error: 'orderOfOperations' },
+  ],
+  reasoning: ['The bar groups the top, so add first: ${{a}} + {{b}} = {{d_forgotFinalStep}}$.', 'Dividing by ${{c}}$ gives {{answer}}.'],
+  answerSummary: { headline: 'A fraction bar groups everything above it.', text: 'The value is {{answer}}.' },
+  hint: 'The bar acts like brackets around the top.',
+  feedback: 'Dividing only the first term ignores the grouping.',
+});
+
+// ================================================================ 6.3A
+// Dividing by a rational number is multiplying by its reciprocal.
+
+mk('6.3A', 'equivalent-to-dividing-by-a-fraction', {
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Which expression equals ${{a}} \\div \\frac{{{b}}}{{{c}}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 40 },
+      b: { type: 'int', min: 2, max: 12 },
+      c: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {},
+    constraints: ['b!=c'],
+  },
+  choices: [
+    { label: plain('{{a}} \\times \\frac{{{c}}}{{{b}}}'), correct: true },
+    { label: plain('{{a}} \\times \\frac{{{b}}}{{{c}}}'), error: 'operationInverted' },
+    { label: plain('\\frac{{{b}}}{{{c}}} \\div {{a}}'), error: 'ratioReversed' },
+    { label: plain('{{a}} \\div \\frac{{{c}}}{{{b}}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Dividing by a fraction is multiplying by its reciprocal.', 'The reciprocal of $\\frac{{{b}}}{{{c}}}$ is $\\frac{{{c}}}{{{b}}}$.'],
+  answerSummary: { headline: 'Flip the divisor and multiply.', text: 'It equals ${{a}} \\times \\frac{{{c}}}{{{b}}}$.' },
+  hint: 'What is the reciprocal of the fraction you are dividing by?',
+  feedback: 'The fraction must be flipped as well as the operation changed.',
+});
+
+mk('6.3A', 'reciprocal-of-a-value', {
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'What is the reciprocal of $\\frac{{{b}}}{{{c}}}$?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 2, max: 20 },
+      c: { type: 'int', min: 2, max: 20 },
+    },
+    derived: { negB: '0-b' },
+    constraints: ['b!=c'],
+  },
+  choices: [
+    { label: plain('\\frac{{{c}}}{{{b}}}'), correct: true },
+    { label: plain('\\frac{{{negB}}}{{{c}}}'), error: 'signError' },
+    { label: plain('\\frac{{{b}}}{{{c}}}'), error: 'partialTotal' },
+    { label: plain('\\frac{1}{{{b}}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['A reciprocal swaps the top and the bottom.', 'So $\\frac{{{b}}}{{{c}}}$ becomes $\\frac{{{c}}}{{{b}}}$.'],
+  answerSummary: { headline: 'The reciprocal turns the fraction upside down.', text: 'It is $\\frac{{{c}}}{{{b}}}$.' },
+  hint: 'What must it multiply by to give 1?',
+  feedback: 'A reciprocal is not the negative.',
+});
+
+mk('6.3A', 'dividing-by-a-unit-fraction', {
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'verbal',
+  prompt: 'What is ${{a}} \\div \\frac{1}{{{b}}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 20 },
+      b: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {
+      answer: 'a*b',
+      d_operationInverted: 'round(a/b)',
+      d_partialTotal: 'b*b',
+      d_arithmeticSlip: 'a*b+b',
+    },
+    constraints: ['a!=b'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['Dividing by $\\frac{1}{{{b}}}$ is multiplying by ${{b}}$.', 'So the result is {{answer}}.'],
+  answerSummary: { headline: 'Dividing by a fraction below one makes the result larger.', text: 'It is {{answer}}.' },
+  hint: 'How many {{b}}ths fit into each whole?',
+  feedback: 'Dividing by a number below one increases the value.',
+});
+
+mk('6.3A', 'which-division-gives-more', {
+  difficultyBand: 2, dok: 3, taskType: 'errorAnalysis', representation: 'symbolic',
+  rankAnalysisNotApplicable: true,
+  prompt: 'Which of these has the greatest value?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 4, max: 40 },
+      b: { type: 'int', min: 3, max: 15 },
+    },
+    derived: { bPlus: 'b+1' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{a}} \\div \\frac{1}{{{bPlus}}}'), correct: true },
+    { label: plain('{{a}} \\div \\frac{1}{{{b}}}'), error: 'offByOneStep' },
+    { label: plain('{{a}} \\div {{b}}'), error: 'operationInverted' },
+    { label: plain('{{a}} \\times \\frac{1}{{{bPlus}}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Dividing by a unit fraction multiplies, so the first two grow the value.', 'Dividing by the larger count of parts gives the larger result.'],
+  answerSummary: { headline: 'Dividing by a smaller fraction gives a larger result.', text: '${{a}} \\div \\frac{1}{{{bPlus}}}$ is the greatest.' },
+  hint: 'Decide first which expressions make the value larger.',
+  feedback: 'Dividing by a whole number makes the value smaller.',
+});
+
+mk('6.3A', 'multiply-by-a-reciprocal', {
+  difficultyBand: 3, dok: 2, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'Using the values shown, what is $a \\div \\frac{b}{c}$?',
+  stimulus: {
+    kind: 'expressions',
+    title: 'Values',
+    note: '$a = {{a}}$, $b = {{b}}$, $c = {{c}}$',
+  },
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 2, max: 9 },
+      k: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {
+      a: 'b*k',
+      answer: 'c*k',
+      d_operationInverted: 'round(b*k*b/c)',
+      d_usedGivenValue: 'k',
+      d_arithmeticSlip: 'b*k*c',
+    },
+    constraints: ['b!=c', 'c!=k'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['Flip the divisor: $a \\times \\frac{{{c}}}{{{b}}}$.', '${{a}}$ divided by ${{b}}$ is {{k}}, and {{k}} times ${{c}}$ is {{answer}}.'],
+  answerSummary: { headline: 'Flip and multiply, then cancel before multiplying out.', text: 'The value is {{answer}}.' },
+  hint: 'Cancel with the top before multiplying.',
+  feedback: 'Multiplying by the divisor as given goes the wrong way.',
 });
 
 // ---------------------------------------------------------------- emit

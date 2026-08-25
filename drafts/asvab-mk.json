@@ -95,7 +95,7 @@
      "prod": "k*d"
     },
     "constraints": [
-     "w!=m"
+     "0-w!=m"
     ]
    },
    "assessmentItemFormat": "multipleChoice",
@@ -206,7 +206,7 @@
      "k": {
       "type": "int",
       "min": 1,
-      "max": 6
+      "max": 9
      },
      "k2": {
       "type": "int",
@@ -220,7 +220,7 @@
     },
     "constraints": [
      "k!=k2",
-     "n!=k"
+     "0-n!=k"
     ]
    },
    "assessmentItemFormat": "multipleChoice",
@@ -892,7 +892,9 @@
     },
     "constraints": [
      "a>b",
-     "a!=b"
+     "0-a!=0-b",
+     "0-a!=b",
+     "0-b!=b"
     ]
    },
    "assessmentItemFormat": "multipleChoice",
@@ -1257,7 +1259,7 @@
      "num": "c*d+1"
     },
     "constraints": [
-     "a!=b"
+     "0-a!=0-b"
     ]
    },
    "assessmentItemFormat": "multipleChoice",
@@ -1849,12 +1851,7 @@
     },
     "constraints": [
      "big>mid+10",
-     "bigDec!=mid",
-     "bigDec!=lowDec",
-     "bigDec!=low",
-     "mid!=lowDec",
-     "mid!=low",
-     "lowDec!=low"
+     "bigDec!=lowDec"
     ]
    },
    "assessmentItemFormat": "multipleChoice",
@@ -1976,9 +1973,9 @@
      "frac": "a*d-1"
     },
     "constraints": [
-     "a!=b",
-     "a!=c",
-     "b!=c"
+     "0-a!=0-b",
+     "0-a!=0-c",
+     "0-b!=0-c"
     ]
    },
    "assessmentItemFormat": "multipleChoice",
@@ -2095,10 +2092,7 @@
     "constraints": [
      "mid!=small",
      "mid!=big",
-     "far!=mid",
-     "far!=small",
-     "far!=big",
-     "small!=big"
+     "far!=mid"
     ]
    },
    "assessmentItemFormat": "multipleChoice",
@@ -2238,11 +2232,11 @@
      "answer": "0-q"
     },
     "constraints": [
-     "answer!=p",
+     "answer!=0-p",
      "answer!=r",
      "answer!=u",
-     "p!=r",
-     "p!=u",
+     "0-p!=r",
+     "0-p!=u",
      "r!=u"
     ]
    },
@@ -2384,6 +2378,1164 @@
     {
      "id": "choice-d",
      "label": "$-{{a}},; \\frac{{{num}}}{{{d}}},; -{{b}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_2E_fraction_written_as_a_quotient",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.2E:fraction-written-as-a-quotient",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2E",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which division has the same value as $\\frac{{{a}}}{{{b}}}$?",
+   "solutionReview": {
+    "headline": "A fraction bar is a division sign.",
+    "reasoning": [
+     "The bar in a fraction means divide.",
+     "The top is shared out by the bottom, so it is ${{a}} \\div {{b}}$."
+    ],
+    "answerSummary": "$\\frac{{{a}}}{{{b}}} = {{a}} \\div {{b}}$."
+   },
+   "attemptFeedback": [
+    "The top of the fraction is the number being divided."
+   ],
+   "supportHints": [
+    "Which number is being shared out?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 3,
+      "max": 90
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     }
+    },
+    "derived": {},
+    "constraints": [
+     "a!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{a}} - {{b}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{a}} \\div {{b}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{b}} \\div {{a}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{a}} \\times {{b}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_2E_quotient_written_as_a_fraction",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.2E:quotient-written-as-a-fraction",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2E",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Write ${{a}} \\div {{b}}$ as a fraction.",
+   "solutionReview": {
+    "headline": "The dividend sits above the bar.",
+    "reasoning": [
+     "The number being divided goes on top.",
+     "So ${{a}} \\div {{b}}$ is $\\frac{{{a}}}{{{b}}}$."
+    ],
+    "answerSummary": "It is $\\frac{{{a}}}{{{b}}}$."
+   },
+   "attemptFeedback": [
+    "Swapping the two changes the value."
+   ],
+   "supportHints": [
+    "Which number is being shared out?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     }
+    },
+    "derived": {
+     "sum": "a+b"
+    },
+    "constraints": [
+     "a!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\frac{{{b}}}{{{a}}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\frac{{{b}}}{{{sum}}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\frac{{{a}}}{{{b}}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\frac{{{sum}}}{{{b}}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_2E_fraction_as_a_decimal",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.2E:fraction-as-a-decimal",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2E",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is $\\frac{{{a}}}{{{b}}}$ as a decimal?",
+   "solutionReview": {
+    "headline": "A fraction becomes a decimal by carrying out the division.",
+    "reasoning": [
+     "The bar means divide, so work out ${{a}}$ shared by ${{b}}$.",
+     "That gives {{answer}}."
+    ],
+    "answerSummary": "It is {{answer}}."
+   },
+   "attemptFeedback": [
+    "Check which number is doing the dividing."
+   ],
+   "supportHints": [
+    "Divide the top by the bottom."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 10
+     },
+     "b": {
+      "type": "choice",
+      "values": [
+       2,
+       4,
+       5,
+       8,
+       10
+      ]
+     }
+    },
+    "derived": {
+     "answer": "a/b",
+     "d_ratioReversed": "b/a",
+     "d_unitConversion": "a/b*10",
+     "d_convertedWrongWay": "a/b/10"
+    },
+    "constraints": [
+     "a!=b",
+     "answer!=d_ratioReversed",
+     "answer!=d_unitConversion",
+     "answer!=d_convertedWrongWay",
+     "d_ratioReversed!=d_unitConversion",
+     "d_ratioReversed!=d_convertedWrongWay",
+     "d_unitConversion!=d_convertedWrongWay"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_convertedWrongWay}}$",
+     "error": "convertedWrongWay"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_unitConversion}}$",
+     "error": "unitConversion"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_2E_improper_fraction_as_a_mixed_number",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.2E:improper-fraction-as-a-mixed-number",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2E",
+   "taskType": "representationTranslation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Written as a mixed number, what is $\\frac{{{num}}}{{{b}}}$?",
+   "solutionReview": {
+    "headline": "The quotient becomes the whole part and the remainder stays over the divisor.",
+    "reasoning": [
+     "${{b}}$ goes into ${{num}}$ {{whole}} times with {{rem}} left over.",
+     "The leftover stays over {{b}}."
+    ],
+    "answerSummary": "It is ${{whole}}\\frac{{{rem}}}{{{b}}}$."
+   },
+   "attemptFeedback": [
+    "The remainder keeps the original denominator."
+   ],
+   "supportHints": [
+    "How many whole times does the bottom go into the top?"
+   ],
+   "generator": {
+    "parameters": {
+     "whole": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "rem": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     },
+     "b": {
+      "type": "choice",
+      "values": [
+       3,
+       4,
+       5,
+       6,
+       7,
+       8
+      ]
+     }
+    },
+    "derived": {
+     "num": "whole*b+rem",
+     "wholePlus": "whole+1"
+    },
+    "constraints": [
+     "rem<b",
+     "whole!=rem"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{whole}}\\frac{{{rem}}}{{{b}}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{rem}}\\frac{{{whole}}}{{{b}}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{wholePlus}}\\frac{{{rem}}}{{{b}}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{whole}}\\frac{{{b}}}{{{rem}}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_2E_value_of_a_grouped_division",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.2E:value-of-a-grouped-division",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2E",
+   "taskType": "procedural",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Using the values shown, what is $\\frac{a + b}{c}$?",
+   "stimulus": {
+    "kind": "expressions",
+    "title": "Values",
+    "note": "$a = {{a}}$, $b = {{b}}$, $c = {{c}}$"
+   },
+   "solutionReview": {
+    "headline": "A fraction bar groups everything above it.",
+    "reasoning": [
+     "The bar groups the top, so add first: ${{a}} + {{b}} = {{d_forgotFinalStep}}$.",
+     "Dividing by ${{c}}$ gives {{answer}}."
+    ],
+    "answerSummary": "The value is {{answer}}."
+   },
+   "attemptFeedback": [
+    "Dividing only the first term ignores the grouping."
+   ],
+   "supportHints": [
+    "The bar acts like brackets around the top."
+   ],
+   "generator": {
+    "parameters": {
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 60
+     }
+    },
+    "derived": {
+     "a": "c*q-b",
+     "answer": "q",
+     "d_forgotFinalStep": "c*q",
+     "d_usedGivenValue": "c",
+     "d_orderOfOperations": "round(a/c)"
+    },
+    "constraints": [
+     "a>0",
+     "c!=q",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_orderOfOperations",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_orderOfOperations",
+     "d_usedGivenValue!=d_orderOfOperations"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_orderOfOperations}}$",
+     "error": "orderOfOperations"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_3A_equivalent_to_dividing_by_a_fraction",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.3A:equivalent-to-dividing-by-a-fraction",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3A",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which expression equals ${{a}} \\div \\frac{{{b}}}{{{c}}}$?",
+   "solutionReview": {
+    "headline": "Flip the divisor and multiply.",
+    "reasoning": [
+     "Dividing by a fraction is multiplying by its reciprocal.",
+     "The reciprocal of $\\frac{{{b}}}{{{c}}}$ is $\\frac{{{c}}}{{{b}}}$."
+    ],
+    "answerSummary": "It equals ${{a}} \\times \\frac{{{c}}}{{{b}}}$."
+   },
+   "attemptFeedback": [
+    "The fraction must be flipped as well as the operation changed."
+   ],
+   "supportHints": [
+    "What is the reciprocal of the fraction you are dividing by?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {},
+    "constraints": [
+     "b!=c"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{a}} \\times \\frac{{{b}}}{{{c}}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{a}} \\times \\frac{{{c}}}{{{b}}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{a}} \\div \\frac{{{c}}}{{{b}}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\frac{{{b}}}{{{c}}} \\div {{a}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_3A_reciprocal_of_a_value",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.3A:reciprocal-of-a-value",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is the reciprocal of $\\frac{{{b}}}{{{c}}}$?",
+   "solutionReview": {
+    "headline": "The reciprocal turns the fraction upside down.",
+    "reasoning": [
+     "A reciprocal swaps the top and the bottom.",
+     "So $\\frac{{{b}}}{{{c}}}$ becomes $\\frac{{{c}}}{{{b}}}$."
+    ],
+    "answerSummary": "It is $\\frac{{{c}}}{{{b}}}$."
+   },
+   "attemptFeedback": [
+    "A reciprocal is not the negative."
+   ],
+   "supportHints": [
+    "What must it multiply by to give 1?"
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "negB": "0-b"
+    },
+    "constraints": [
+     "b!=c"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\frac{1}{{{b}}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\frac{{{c}}}{{{b}}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\frac{{{negB}}}{{{c}}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\frac{{{b}}}{{{c}}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_3A_dividing_by_a_unit_fraction",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.3A:dividing-by-a-unit-fraction",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3A",
+   "taskType": "application",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is ${{a}} \\div \\frac{1}{{{b}}}$?",
+   "solutionReview": {
+    "headline": "Dividing by a fraction below one makes the result larger.",
+    "reasoning": [
+     "Dividing by $\\frac{1}{{{b}}}$ is multiplying by ${{b}}$.",
+     "So the result is {{answer}}."
+    ],
+    "answerSummary": "It is {{answer}}."
+   },
+   "attemptFeedback": [
+    "Dividing by a number below one increases the value."
+   ],
+   "supportHints": [
+    "How many {{b}}ths fit into each whole?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "answer": "a*b",
+     "d_operationInverted": "round(a/b)",
+     "d_partialTotal": "b*b",
+     "d_arithmeticSlip": "a*b+b"
+    },
+    "constraints": [
+     "a!=b",
+     "answer!=d_operationInverted",
+     "answer!=d_partialTotal",
+     "answer!=d_arithmeticSlip",
+     "d_operationInverted!=d_partialTotal",
+     "d_operationInverted!=d_arithmeticSlip",
+     "d_partialTotal!=d_arithmeticSlip"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_arithmeticSlip}}$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_3A_which_division_gives_more",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.3A:which-division-gives-more",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3A",
+   "taskType": "errorAnalysis",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which of these has the greatest value?",
+   "rankAnalysisNotApplicable": true,
+   "solutionReview": {
+    "headline": "Dividing by a smaller fraction gives a larger result.",
+    "reasoning": [
+     "Dividing by a unit fraction multiplies, so the first two grow the value.",
+     "Dividing by the larger count of parts gives the larger result."
+    ],
+    "answerSummary": "${{a}} \\div \\frac{1}{{{bPlus}}}$ is the greatest."
+   },
+   "attemptFeedback": [
+    "Dividing by a whole number makes the value smaller."
+   ],
+   "supportHints": [
+    "Decide first which expressions make the value larger."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 4,
+      "max": 40
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 15
+     }
+    },
+    "derived": {
+     "bPlus": "b+1"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{a}} \\div {{b}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{a}} \\times \\frac{1}{{{bPlus}}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{a}} \\div \\frac{1}{{{b}}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{a}} \\div \\frac{1}{{{bPlus}}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_3A_multiply_by_a_reciprocal",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.3A:multiply-by-a-reciprocal",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3A",
+   "taskType": "representationTranslation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Using the values shown, what is $a \\div \\frac{b}{c}$?",
+   "stimulus": {
+    "kind": "expressions",
+    "title": "Values",
+    "note": "$a = {{a}}$, $b = {{b}}$, $c = {{c}}$"
+   },
+   "solutionReview": {
+    "headline": "Flip and multiply, then cancel before multiplying out.",
+    "reasoning": [
+     "Flip the divisor: $a \\times \\frac{{{c}}}{{{b}}}$.",
+     "${{a}}$ divided by ${{b}}$ is {{k}}, and {{k}} times ${{c}}$ is {{answer}}."
+    ],
+    "answerSummary": "The value is {{answer}}."
+   },
+   "attemptFeedback": [
+    "Multiplying by the divisor as given goes the wrong way."
+   ],
+   "supportHints": [
+    "Cancel with the top before multiplying."
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "a": "b*k",
+     "answer": "c*k",
+     "d_operationInverted": "round(b*k*b/c)",
+     "d_usedGivenValue": "k",
+     "d_arithmeticSlip": "b*k*c"
+    },
+    "constraints": [
+     "b!=c",
+     "c!=k",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "answer!=d_arithmeticSlip",
+     "d_operationInverted!=d_usedGivenValue",
+     "d_operationInverted!=d_arithmeticSlip",
+     "d_usedGivenValue!=d_arithmeticSlip"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_arithmeticSlip}}$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
      "error": "operationInverted"
     }
    ],
