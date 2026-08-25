@@ -1,0 +1,61 @@
+name: CCMR release manifest runtime patch
+
+on:
+  push:
+    branches:
+      - ccmr-fidelity-v2-1-authentic-language
+    paths:
+      - 'scripts/patch-ccmr-release-manifest-runtime.mjs'
+      - '.github/workflows/ccmr-release-manifest-runtime-patch.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Normalize nested template literals in temporary patcher
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/patch-ccmr-release-manifest-runtime.mjs')
+          lines = []
+          for line in path.read_text().splitlines():
+              if r'\\`${framework} practice is being updated.' in line:
+                  line = '    String(framework) + " practice is being updated. Reopen this practice after the release switch completes.",'
+              elif r'\\`The coordinated CCMR package must contain exactly ${expectedFrameworks.join' in line:
+                  line = '      "The coordinated CCMR package must contain exactly " + expectedFrameworks.join(", ") + "; found " + (actualFrameworks.join(", ") || "none") + ".",'
+              lines.append(line)
+          path.write_text('\n'.join(lines) + '\n')
+          PY
+      - name: Syntax check guarded patcher
+        run: node --check scripts/patch-ccmr-release-manifest-runtime.mjs
+      - name: Apply manifest runtime patch
+        run: node scripts/patch-ccmr-release-manifest-runtime.mjs
+      - name: Syntax check Cloud Functions runtime
+        run: node --check functions/index.js
+      - name: Run manifest state contract
+        run: node --test tests/platform/ccmrSessionContentRelease.test.mjs
+      - name: Run manifest runtime wiring contract
+        run: node --test tests/platform/ccmrSessionRuntimeWiring.test.mjs
+      - name: Guard changed files
+        run: |
+          git checkout -- scripts/patch-ccmr-release-manifest-runtime.mjs
+          changed="$(git diff --name-only)"
+          echo "$changed"
+          test "$changed" = "functions/index.js"
+      - name: Commit guarded runtime patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add functions/index.js
+          git commit -m "Wire atomic CCMR content release manifest"
+          git push
