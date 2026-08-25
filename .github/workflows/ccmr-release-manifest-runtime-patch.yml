@@ -27,14 +27,17 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           path = Path('scripts/patch-ccmr-release-manifest-runtime.mjs')
-          lines = []
-          for line in path.read_text().splitlines():
-              if r'\\`${framework} practice is being updated.' in line:
-                  line = '    String(framework) + " practice is being updated. Reopen this practice after the release switch completes.",'
-              elif r'\\`The coordinated CCMR package must contain exactly ${expectedFrameworks.join' in line:
-                  line = '      "The coordinated CCMR package must contain exactly " + expectedFrameworks.join(", ") + "; found " + (actualFrameworks.join(", ") || "none") + ".",'
-              lines.append(line)
-          path.write_text('\n'.join(lines) + '\n')
+          text = path.read_text()
+          first = r'\\`${framework} practice is being updated. Reopen this practice after the release switch completes.\\`'
+          first_replacement = 'String(framework) + " practice is being updated. Reopen this practice after the release switch completes."'
+          second = r'\\`The coordinated CCMR package must contain exactly ${expectedFrameworks.join(", ")}; found ${actualFrameworks.join(", ") || "none"}.\\`'
+          second_replacement = '"The coordinated CCMR package must contain exactly " + expectedFrameworks.join(", ") + "; found " + (actualFrameworks.join(", ") || "none") + "."'
+          if text.count(first) != 1:
+              raise SystemExit(f'expected one framework-message normalization target, found {text.count(first)}')
+          if text.count(second) != 1:
+              raise SystemExit(f'expected one package-message normalization target, found {text.count(second)}')
+          text = text.replace(first, first_replacement).replace(second, second_replacement)
+          path.write_text(text)
           PY
       - name: Syntax check guarded patcher
         run: node --check scripts/patch-ccmr-release-manifest-runtime.mjs
