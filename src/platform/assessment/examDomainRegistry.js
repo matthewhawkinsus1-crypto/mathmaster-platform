@@ -79,12 +79,19 @@ const FRAMEWORK_DOMAIN_EXCLUSIONS = Object.freeze({
   }),
 });
 
-// Where the legacy curriculum crosswalk has the right mathematical relationship
-// but the wrong Digital SAT domain, V2.1 supplies the assessment-specific route.
+// Where the curriculum crosswalk has the right mathematical relationship but
+// needs a framework-specific domain correction, V2.1 supplies that route here.
 const FRAMEWORK_DOMAIN_OVERRIDES = Object.freeze({
   [EXAM_TYPES.DIGITAL_SAT]: Object.freeze({
     // Table 26 maps inverse variation to PSDA ratios/rates rather than Advanced Math.
     'A2.6L': Object.freeze(['problemSolvingData']),
+  }),
+  [EXAM_TYPES.TSIA2]: Object.freeze({
+    // 6.4H explicitly asks students to convert units within a measurement
+    // system, including use of proportions and unit rates. That legitimately
+    // overlaps both TSIA2 Quantitative Reasoning and the GSR measurement-
+    // conversion testing point; keeping QR preserves the proportional aspect.
+    '6.4H': Object.freeze(['quantitativeReasoning', 'geometricSpatial']),
   }),
 });
 
