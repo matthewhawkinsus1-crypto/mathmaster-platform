@@ -1858,7 +1858,9 @@ exports.initializeStarterPathQuestionBank = onCall({ timeoutSeconds: 540, memory
   if (!seed.imported) return { ...seed, phase: "validation" };
   const removedSuperseded = await removeSupersededBuiltInPathSeedRecords(db, taggedItems);
   const coverage = await rebuildStoredPathCoverage(db);
-  return { ...seed, phase: "complete", removedSuperseded, coverage };
+  const { retireStaleTsia2PathStateForRelease } = await import("./shared/pathBankRelease.mjs");
+  const tsia2PathBankRelease = await retireStaleTsia2PathStateForRelease(db);
+  return { ...seed, phase: "complete", removedSuperseded, coverage, tsia2PathBankRelease };
 });
 
 /** Remove a promoted question from the Path bank without touching the assignment. */
