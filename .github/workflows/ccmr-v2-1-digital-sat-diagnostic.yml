@@ -22,8 +22,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Report residual Digital SAT clone pairs
-        run: node scripts/diagnose-digital-sat-v2-1-compact.mjs --clones
+      - name: Capture residual Digital SAT clone pairs
+        run: |
+          mkdir -p tmp/digital-sat-diagnostics
+          node scripts/diagnose-digital-sat-v2-1-compact.mjs --clones > tmp/digital-sat-diagnostics/clones.json
+      - name: Upload clone report
+        uses: actions/upload-artifact@v4
+        with:
+          name: digital-sat-clone-diagnostic
+          path: tmp/digital-sat-diagnostics/clones.json
 
   diagnose-response-mix:
     runs-on: ubuntu-latest
@@ -32,5 +39,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Report Digital SAT response-format inventory
-        run: node scripts/diagnose-digital-sat-v2-1-compact.mjs --spr-summary
+      - name: Capture Digital SAT response-format inventory
+        run: |
+          mkdir -p tmp/digital-sat-diagnostics
+          node scripts/diagnose-digital-sat-v2-1-compact.mjs --spr-summary > tmp/digital-sat-diagnostics/spr-summary.json
+      - name: Upload response-format report
+        uses: actions/upload-artifact@v4
+        with:
+          name: digital-sat-response-diagnostic
+          path: tmp/digital-sat-diagnostics/spr-summary.json
