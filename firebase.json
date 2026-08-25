@@ -7,7 +7,7 @@
       "source": "functions",
       "codebase": "default",
       "predeploy": [
-        "node scripts/build-tsia2-production-seed.mjs --write"
+        "node scripts/build-ccmr-v2-1-production-release.mjs --write"
       ],
       "ignore": [
         "node_modules",
