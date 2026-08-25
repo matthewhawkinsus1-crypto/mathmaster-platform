@@ -16,6 +16,7 @@ on:
       - 'drafts/ccmr-v2.1/act/**'
       - 'drafts/ccmr-v2.1/tsia2/**'
       - 'functions/lib/pathContentRelease.js'
+      - 'functions/shared/pathBankRelease.mjs'
       - 'functions/index.js'
       - 'src/platform/path/sessionContentReleaseRollover.js'
       - 'src/components/student/MyMathPathProductionContainer.jsx'
@@ -32,12 +33,14 @@ on:
       - 'tests/platform/digitalSatProductionSeedContent.test.mjs'
       - 'tests/platform/actProductionSeedContent.test.mjs'
       - 'tests/platform/tsia2ProductionSeedContent.test.mjs'
+      - 'tests/platform/tsia2ProductionDeploymentWiringContent.test.mjs'
       - 'tests/platform/ccmrV21ReleaseIntegrationContent.test.mjs'
       - 'tests/platform/ccmrV21ProductionReleaseContent.test.mjs'
       - 'tests/platform/ccmrSessionContentRelease.test.mjs'
       - 'tests/platform/ccmrSessionRuntimeWiring.test.mjs'
       - 'tests/platform/ccmrClientSessionRollover.test.mjs'
       - 'tests/platform/ccmrClientRuntimeWiring.test.mjs'
+      - 'firebase.json'
       - '.github/workflows/ccmr-v2-1-release-integration-audit.yml'
   workflow_dispatch:
 
@@ -72,6 +75,12 @@ jobs:
         run: node --test tests/platform/tsia2ProductionSeedContent.test.mjs
       - name: Run unified production coordinator contract
         run: node --test tests/platform/ccmrV21ProductionReleaseContent.test.mjs
+      - name: Check Digital SAT V2.1 release
+        run: node scripts/build-digital-sat-v2-1.mjs --release --check
+      - name: Check ACT V2.1 release
+        run: node scripts/build-act-v2-1.mjs --release --check
+      - name: Check TSIA2 V2.1 release
+        run: node scripts/build-tsia2-v2-1.mjs --release --check
       - name: Inventory current production assessment seeds
         if: always()
         run: |
