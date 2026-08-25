@@ -65,7 +65,7 @@ test('write plan contains exactly six SAT ACT TSIA2 mirrors and never ASVAB', as
   assert.ok(plan.every((entry) => entry.content.endsWith('\n')));
 });
 
-test('committed mirror comparison is read-only and identifies legacy seed drift before Task 6', async () => {
+test('all six committed production mirrors exactly match regenerated CCMR V2.1 packages', async () => {
   const {
     compileCcmrV21ProductionRelease,
     compareCommittedProductionMirrors,
@@ -73,13 +73,14 @@ test('committed mirror comparison is read-only and identifies legacy seed drift 
   const { packages } = await compileCcmrV21ProductionRelease();
   const report = compareCommittedProductionMirrors(packages);
 
-  assert.ok(Array.isArray(report.failures));
+  assert.deepEqual(report.failures, []);
   assert.deepEqual(Object.keys(report.statusByFramework).sort(), FRAMEWORKS);
   for (const framework of FRAMEWORKS) {
     const status = report.statusByFramework[framework];
-    assert.equal(typeof status.rootMirrorMatch, 'boolean');
-    assert.equal(typeof status.functionsMirrorMatch, 'boolean');
-    assert.equal(typeof status.committedMatchesRegenerated, 'boolean');
+    assert.equal(status.rootMirrorMatch, true, `${framework}: root production mirror drifted`);
+    assert.equal(status.functionsMirrorMatch, true, `${framework}: Functions production mirror drifted`);
+    assert.equal(status.mirrorsEquivalent, true, `${framework}: root and Functions mirrors diverged`);
+    assert.equal(status.committedMatchesRegenerated, true, `${framework}: committed mirrors do not match regenerated V2.1 package`);
   }
 });
 
