@@ -16,7 +16,6 @@ on:
       - 'drafts/ccmr-v2.1/tsia2/**'
       - 'functions/lib/pathContentRelease.js'
       - 'functions/index.js'
-      - 'scripts/apply-ccmr-session-runtime-wiring.mjs'
       - 'scripts/build-digital-sat-v2-1.mjs'
       - 'scripts/build-act-v2-1.mjs'
       - 'scripts/build-tsia2-v2-1.mjs'
@@ -38,7 +37,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   release-integration:
@@ -50,8 +49,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Apply guarded CCMR runtime wiring
-        run: node scripts/apply-ccmr-session-runtime-wiring.mjs
       - name: Run CCMR session content-release contract
         run: node --test tests/platform/ccmrSessionContentRelease.test.mjs
       - name: Run CCMR live runtime wiring contract
@@ -90,15 +87,3 @@ jobs:
           NODE
       - name: Check integrated production release and committed mirrors
         run: node scripts/build-ccmr-v2-1-production-release.mjs --check
-      - name: Commit verified CCMR runtime wiring
-        if: success()
-        run: |
-          if git diff --quiet -- functions/index.js; then
-            echo "functions/index.js already contains the verified wiring."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add functions/index.js
-          git commit -m "Wire CCMR content release guard into Path runtime"
-          git push origin HEAD:ccmr-fidelity-v2-1-authentic-language
