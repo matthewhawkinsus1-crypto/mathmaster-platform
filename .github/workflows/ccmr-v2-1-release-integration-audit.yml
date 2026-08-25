@@ -24,7 +24,6 @@ on:
       - 'scripts/lib/tsia2-production-seed.mjs'
       - 'scripts/lib/ccmr-v2-1-release-integration.mjs'
       - 'scripts/lib/ccmr-v2-1-production-release.mjs'
-      - 'scripts/audit-ccmr-v2-1-release-integration.mjs'
       - 'tests/platform/digitalSatProductionSeedContent.test.mjs'
       - 'tests/platform/actProductionSeedContent.test.mjs'
       - 'tests/platform/tsia2ProductionSeedContent.test.mjs'
@@ -34,7 +33,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   release-integration:
@@ -46,39 +45,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Promote coordinated V2.1 production mirrors
-        if: github.event_name == 'push' && github.event.head_commit.message == 'Run CCMR V2.1 production promotion'
-        run: |
-          node scripts/build-ccmr-v2-1-production-release.mjs --write
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            seed/pathQuestionBank/digitalSAT_pathQuestionBank_seed.json \
-            seed/pathQuestionBank/act_pathQuestionBank_seed.json \
-            seed/pathQuestionBank/tsia2_pathQuestionBank_seed.json \
-            functions/seeds/pathQuestionBank/digitalSAT_pathQuestionBank_seed.json \
-            functions/seeds/pathQuestionBank/act_pathQuestionBank_seed.json \
-            functions/seeds/pathQuestionBank/tsia2_pathQuestionBank_seed.json
-          changed="$(git diff --cached --name-only | sort)"
-          expected="$(printf '%s\n' \
-            functions/seeds/pathQuestionBank/act_pathQuestionBank_seed.json \
-            functions/seeds/pathQuestionBank/digitalSAT_pathQuestionBank_seed.json \
-            functions/seeds/pathQuestionBank/tsia2_pathQuestionBank_seed.json \
-            seed/pathQuestionBank/act_pathQuestionBank_seed.json \
-            seed/pathQuestionBank/digitalSAT_pathQuestionBank_seed.json \
-            seed/pathQuestionBank/tsia2_pathQuestionBank_seed.json | sort)"
-          if [ "$changed" != "$expected" ]; then
-            echo "Promotion must change exactly the six coordinated SAT/ACT/TSIA2 mirrors."
-            echo "Changed:"
-            printf '%s\n' "$changed"
-            exit 1
-          fi
-          if printf '%s\n' "$changed" | grep -qi asvab; then
-            echo "ASVAB must not be modified by this coordinated release."
-            exit 1
-          fi
-          git commit -m "Promote CCMR V2.1 SAT ACT TSIA2 production banks"
-          git push origin HEAD:ccmr-fidelity-v2-1-authentic-language
       - name: Run SAT ACT TSIA2 integration contract
         run: node --test tests/platform/ccmrV21ReleaseIntegrationContent.test.mjs
       - name: Run Digital SAT production compiler contract
@@ -111,5 +77,5 @@ jobs:
             console.log(JSON.stringify({ framework, topLevelReleaseTarget: parsed?.releaseTarget || null, documents: docs.length, v21, matchingFramework, routeable, domains }));
           }
           NODE
-      - name: Run integrated production release audit
-        run: node scripts/audit-ccmr-v2-1-release-integration.mjs
+      - name: Check integrated production release and committed mirrors
+        run: node scripts/build-ccmr-v2-1-production-release.mjs --check
