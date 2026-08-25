@@ -1,8 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 
 const RELEASE = 'ccmr-fidelity-v2.1-authentic-language';
 const FRAMEWORKS = ['act', 'digitalSAT', 'tsia2'];
+const UNIFIED_WRITE = 'node scripts/build-ccmr-v2-1-production-release.mjs --write';
+const UNIFIED_CHECK = 'node scripts/build-ccmr-v2-1-production-release.mjs --check';
 
 test('coordinator compiles exactly SAT ACT TSIA2 and passes integration audit', async () => {
   const { compileCcmrV21ProductionRelease } = await import('../../scripts/lib/ccmr-v2-1-production-release.mjs');
@@ -96,4 +99,32 @@ test('coordinator rejects package sets that are not exactly the three coordinate
     () => buildCcmrV21ProductionWritePlan(invalid),
     /exactly.*digitalSAT.*act.*tsia2|asvab.*not/i,
   );
+});
+
+test('Firebase predeploy uses the unified CCMR writer and never the TSIA2-only writer', () => {
+  const firebase = JSON.parse(fs.readFileSync('firebase.json', 'utf8'));
+  const functions = Array.isArray(firebase.functions) ? firebase.functions : [firebase.functions];
+  const defaultFunctions = functions.find((entry) => entry?.source === 'functions');
+  const predeploy = defaultFunctions?.predeploy || [];
+
+  assert.ok(predeploy.includes(UNIFIED_WRITE), `functions predeploy must run: ${UNIFIED_WRITE}`);
+  assert.ok(!predeploy.some((value) => value.includes('build-tsia2-production-seed.mjs --write')),
+    'functions predeploy must not regenerate TSIA2 independently');
+});
+
+test('release CI checks all three authored frameworks and never rewrites production seeds', () => {
+  const workflow = fs.readFileSync('.github/workflows/ccmr-v2-1-release-integration-audit.yml', 'utf8');
+  const requiredChecks = [
+    'node scripts/build-digital-sat-v2-1.mjs --release --check',
+    'node scripts/build-act-v2-1.mjs --release --check',
+    'node scripts/build-tsia2-v2-1.mjs --release --check',
+    UNIFIED_CHECK,
+  ];
+
+  for (const command of requiredChecks) {
+    assert.ok(workflow.includes(command), `release CI must run: ${command}`);
+  }
+  assert.ok(!workflow.includes(UNIFIED_WRITE), 'release CI must never rewrite coordinated production seeds');
+  assert.ok(!workflow.includes('node scripts/build-tsia2-production-seed.mjs --write'),
+    'release CI must never run the TSIA2-only writer');
 });
