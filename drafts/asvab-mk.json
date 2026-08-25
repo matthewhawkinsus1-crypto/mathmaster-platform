@@ -9323,6 +9323,2789 @@
      "expected": "choice-c"
     }
    ]
+  },
+  {
+   "id": "mm_asvab_6_10A_solve_a_one_step_sum",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.10A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.10A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.10A:solve-a-one-step-sum",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.10A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solve $x + {{a}} = {{t}}$.",
+   "solutionReview": {
+    "headline": "Undo the addition on both sides at once.",
+    "reasoning": [
+     "Take ${{a}}$ from both sides.",
+     "${{t}} - {{a}} = {{answer}}$."
+    ],
+    "answerSummary": "$x = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "Adding ${{a}}$ again moves further from the answer."
+   ],
+   "supportHints": [
+    "What undoes adding ${{a}}$?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 3,
+      "max": 40
+     },
+     "s": {
+      "type": "int",
+      "min": 3,
+      "max": 40
+     }
+    },
+    "derived": {
+     "t": "a+s",
+     "answer": "s",
+     "d_signError": "t+a",
+     "d_ratioReversed": "a-t"
+    },
+    "constraints": [
+     "answer!=d_signError",
+     "answer!=d_ratioReversed",
+     "answer!=a",
+     "d_signError!=d_ratioReversed",
+     "d_signError!=a",
+     "d_ratioReversed!=a"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{a}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_10A_height_from_a_triangle_area",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.10A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.10A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.10A:height-from-a-triangle-area",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.10A",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A triangular plate has area ${{A}}$ square centimetres and base ${{b}}$ centimetres. What is its height?",
+   "solutionReview": {
+    "headline": "A triangle is half its surrounding rectangle, so double before dividing.",
+    "reasoning": [
+     "A triangle covers half of the ${{b}}$ by ${{answer}}$ rectangle.",
+     "So ${{A}}$ doubled is ${{d_forgotFinalStep}}$, and shared by the base ${{b}}$ that is ${{answer}}$."
+    ],
+    "answerSummary": "The height is ${{answer}}$ centimetres."
+   },
+   "attemptFeedback": [
+    "Leaving out the halving loses a factor of two."
+   ],
+   "supportHints": [
+    "What rectangle would the triangle be half of?"
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 20
+     },
+     "half": {
+      "type": "int",
+      "min": 2,
+      "max": 10
+     }
+    },
+    "derived": {
+     "h": "2*half",
+     "A": "b*half",
+     "answer": "h",
+     "d_partialTotal": "half",
+     "d_forgotFinalStep": "2*A"
+    },
+    "constraints": [
+     "answer!=d_partialTotal",
+     "answer!=d_forgotFinalStep",
+     "answer!=b",
+     "d_partialTotal!=d_forgotFinalStep",
+     "d_partialTotal!=b",
+     "d_forgotFinalStep!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{b}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_10A_inequality_after_a_load",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.10A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.10A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.10A:inequality-after-a-load",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.10A",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A shelf holds at most ${{c}}$ kilograms and already carries ${{m}}$ kilograms. Which inequality must the rest $x$ satisfy?",
+   "solutionReview": {
+    "headline": "Subtract what is already there before writing the limit.",
+    "reasoning": [
+     "${{m}}$ of the ${{c}}$ kilograms is already used.",
+     "That leaves ${{room}}$, and the rest must not exceed it."
+    ],
+    "answerSummary": "It is $x \\le {{room}}$."
+   },
+   "attemptFeedback": [
+    "The full limit ignores the load already on the shelf."
+   ],
+   "supportHints": [
+    "How much of the limit is still free?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 5,
+      "max": 60,
+      "step": 5
+     },
+     "room": {
+      "type": "int",
+      "min": 5,
+      "max": 90,
+      "step": 5
+     }
+    },
+    "derived": {
+     "c": "m+room",
+     "over": "c+m"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x \\ge {{room}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x \\le {{c}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x \\le {{room}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x \\le {{over}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_10A_undoing_the_wrong_operation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.10A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.10A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.10A:undoing-the-wrong-operation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.10A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "To solve ${{a}}x = {{t}}$ a student subtracts ${{a}}$ from both sides. What is wrong?",
+   "solutionReview": {
+    "headline": "Undo an operation with its own inverse.",
+    "reasoning": [
+     "$x$ is multiplied by ${{a}}$, so dividing by ${{a}}$ is what releases it.",
+     "${{t}} \\div {{a}} = {{q}}$."
+    ],
+    "answerSummary": "$x = {{q}}$."
+   },
+   "attemptFeedback": [
+    "Doing something to one side only breaks the equality."
+   ],
+   "supportHints": [
+    "What is being done to $x$ in the first place?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 3,
+      "max": 15
+     },
+     "q": {
+      "type": "int",
+      "min": 3,
+      "max": 15
+     }
+    },
+    "derived": {
+     "t": "a*q",
+     "wrong": "a*q-a"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The subtraction should be done on one side only.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "The equation has no solution, because ${{a}}$ does not divide ${{t}}$.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "Nothing is wrong, and the answer is ${{wrong}}$.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "Subtraction undoes addition, not multiplication; dividing gives $x = {{q}}$."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_10A_solve_a_one_step_quotient",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.10A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.10A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.10A:solve-a-one-step-quotient",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.10A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solve $\\frac{x}{{{a}}} = {{q}}$.",
+   "solutionReview": {
+    "headline": "Multiplying undoes dividing.",
+    "reasoning": [
+     "$x$ is divided by ${{a}}$, so multiply both sides by ${{a}}$.",
+     "${{q}} \\times {{a}} = {{answer}}$."
+    ],
+    "answerSummary": "$x = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "Adding the two numbers is not the inverse of dividing."
+   ],
+   "supportHints": [
+    "What undoes dividing by ${{a}}$?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "answer": "a*q",
+     "d_offByOneStep": "a*q+a",
+     "d_operationInverted": "a+q",
+     "d_arithmeticSlip": "a*a"
+    },
+    "constraints": [
+     "answer!=d_offByOneStep",
+     "answer!=d_operationInverted",
+     "answer!=d_arithmeticSlip",
+     "d_offByOneStep!=d_operationInverted",
+     "d_offByOneStep!=d_arithmeticSlip",
+     "d_operationInverted!=d_arithmeticSlip"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_arithmeticSlip}}$",
+     "error": "arithmeticSlip"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_10B_value_that_solves_a_product",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.10B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.10B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.10B:value-that-solves-a-product",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.10B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which value of $x$ makes ${{a}}x = {{t}}$ true?",
+   "solutionReview": {
+    "headline": "Test a value by putting it back into the equation.",
+    "reasoning": [
+     "${{a}} \\times {{answer}} = {{t}}$, so ${{answer}}$ makes it true.",
+     "No other listed value does."
+    ],
+    "answerSummary": "$x = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "The total is what ${{a}}x$ comes to, not what $x$ is."
+   ],
+   "supportHints": [
+    "What times ${{a}}$ gives ${{t}}$?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     }
+    },
+    "derived": {
+     "t": "a*q",
+     "answer": "q",
+     "d_forgotFinalStep": "t",
+     "d_operationInverted": "q-a"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=a",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=a",
+     "d_operationInverted!=a"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{a}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_10B_do_the_boxes_fit",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.10B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.10B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.10B:do-the-boxes-fit",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.10B",
+   "taskType": "interpretation",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A shelf holds at most ${{t}}$ kilograms. Do ${{v}}$ boxes of ${{a}}$ kilograms fit?",
+   "solutionReview": {
+    "headline": "Work out what the load actually weighs, then compare.",
+    "reasoning": [
+     "${{v}}$ boxes at ${{a}}$ kilograms weigh ${{prod}}$ kilograms.",
+     "${{prod}}$ is at most ${{t}}$, so the load is allowed."
+    ],
+    "answerSummary": "They fit, at ${{prod}}$ kilograms."
+   },
+   "attemptFeedback": [
+    "The number of boxes is not their mass."
+   ],
+   "supportHints": [
+    "What do the boxes weigh altogether?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "slack": {
+      "type": "int",
+      "min": 1,
+      "max": 30
+     }
+    },
+    "derived": {
+     "prod": "a*v",
+     "t": "a*v+slack"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Yes, because ${{v}}$ is smaller than ${{t}}$.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "It cannot be decided without knowing the shelf width.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "No, because ${{prod}}$ kilograms is over the limit.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "Yes, because they weigh ${{prod}}$ kilograms, which is under ${{t}}$."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_10B_substituting_into_a_difference",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.10B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.10B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.10B:substituting-into-a-difference",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.10B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What does $x - {{a}}$ equal when $x = {{v}}$?",
+   "solutionReview": {
+    "headline": "Substituting replaces the letter and leaves the operation alone.",
+    "reasoning": [
+     "Put ${{v}}$ where $x$ stands.",
+     "${{v}} - {{a}} = {{answer}}$."
+    ],
+    "answerSummary": "It equals ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The order of the subtraction matters."
+   ],
+   "supportHints": [
+    "Replace $x$ and then subtract."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     }
+    },
+    "derived": {
+     "answer": "v-a",
+     "d_signError": "v+a",
+     "d_operationInverted": "0-v-a",
+     "d_ratioReversed": "a-v"
+    },
+    "constraints": [
+     "answer!=d_signError",
+     "answer!=d_operationInverted",
+     "answer!=d_ratioReversed",
+     "d_signError!=d_operationInverted",
+     "d_signError!=d_ratioReversed",
+     "d_operationInverted!=d_ratioReversed"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_10B_how_to_check_a_claimed_solution",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.10B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.10B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.10B:how-to-check-a-claimed-solution",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.10B",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student claims $x = {{wrong}}$ solves $x + {{a}} = {{t}}$. How is that settled?",
+   "solutionReview": {
+    "headline": "Substitute the claim and see whether both sides agree.",
+    "reasoning": [
+     "A claimed solution is tested by substitution, not by how close it looks.",
+     "${{wrong}} + {{a}} = {{got}}$, which is not ${{t}}$."
+    ],
+    "answerSummary": "It gives ${{got}}$, so the claim fails."
+   },
+   "attemptFeedback": [
+    "Being near the answer is not the same as being the answer."
+   ],
+   "supportHints": [
+    "Put the value back in and see what comes out."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     },
+     "s": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     },
+     "slip": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     }
+    },
+    "derived": {
+     "t": "a+s",
+     "wrong": "s+slip",
+     "got": "a+s+slip"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Add ${{a}}$ to ${{t}}$; if that gives ${{wrong}}$ the claim holds.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "It cannot be checked, because the equation was not solved first.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "It is correct, because ${{wrong}}$ is close to ${{t}} - {{a}}$.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "Put ${{wrong}}$ in place of $x$: it gives ${{got}}$, not ${{t}}$, so it fails."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_10B_what_a_solution_must_satisfy",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.10B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.10B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.10B:what-a-solution-must-satisfy",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.10B",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A value makes ${{a}}x = {{t}}$ true. What must be true of it?",
+   "solutionReview": {
+    "headline": "A one-step equation admits exactly one value.",
+    "reasoning": [
+     "${{a}}x$ reaching ${{t}}$ means $x$ is what ${{t}}$ splits into ${{a}}$ equal parts.",
+     "Only one value does that."
+    ],
+    "answerSummary": "It is ${{t}}$ divided by ${{a}}$."
+   },
+   "attemptFeedback": [
+    "An equation is not satisfied by a whole range of values."
+   ],
+   "supportHints": [
+    "How many values can make it true?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 3,
+      "max": 15
+     },
+     "q": {
+      "type": "int",
+      "min": 3,
+      "max": 15
+     }
+    },
+    "derived": {
+     "t": "a*q",
+     "gap": "a*q-a"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "It equals ${{t}}$ divided by ${{a}}$."
+    },
+    {
+     "id": "choice-b",
+     "label": "It equals ${{a}}$ times ${{t}}$.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "Any value below ${{t}}$ will do.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "It equals ${{t}}$ minus ${{a}}$, which is ${{gap}}$.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_11_quadrant_of_a_point",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.11"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.11",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.11:quadrant-of-a-point",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.11",
+   "taskType": "interpretation",
+   "representation": "orderedPairs",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "In which quadrant does the point $({{a}} - {{b}}, {{q}})$ lie?",
+   "solutionReview": {
+    "headline": "The two signs together fix the quadrant.",
+    "reasoning": [
+     "${{a}} - {{b}} = {{x}}$, which is negative, so the point sits left of the vertical axis.",
+     "The second coordinate is positive, so it sits above the horizontal axis."
+    ],
+    "answerSummary": "It lies in Quadrant II."
+   },
+   "attemptFeedback": [
+    "A negative first coordinate cannot put a point on the right."
+   ],
+   "supportHints": [
+    "Which side of each axis does the point fall on?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     },
+     "g": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     },
+     "q": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     }
+    },
+    "derived": {
+     "b": "a+g",
+     "x": "0-g"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Quadrant III",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "Quadrant IV",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "Quadrant II"
+    },
+    {
+     "id": "choice-d",
+     "label": "Quadrant I",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_11_point_in_a_named_quadrant",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.11"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.11",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.11:point-in-a-named-quadrant",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.11",
+   "taskType": "representationTranslation",
+   "representation": "orderedPairs",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which point lies in Quadrant III?",
+   "solutionReview": {
+    "headline": "Quadrant III is the one where both coordinates are negative.",
+    "reasoning": [
+     "Quadrant III is left of the vertical axis and below the horizontal one.",
+     "Both coordinates are therefore negative."
+    ],
+    "answerSummary": "It is $(-{{p}}, -{{q}})$."
+   },
+   "attemptFeedback": [
+    "One negative coordinate puts the point in a different quadrant."
+   ],
+   "supportHints": [
+    "What signs does Quadrant III require?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     },
+     "q": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     }
+    },
+    "derived": {},
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$(-{{p}}, -{{q}})$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$(-{{p}}, {{q}})$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "$({{p}}, {{q}})$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$({{p}}, -{{q}})$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_11_reflection_across_the_x_axis",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.11"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.11",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.11:reflection-across-the-x-axis",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.11",
+   "taskType": "procedural",
+   "representation": "orderedPairs",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Reflecting $(-{{p}}, {{q}})$ across the horizontal axis gives which point?",
+   "solutionReview": {
+    "headline": "A reflection across an axis flips only the coordinate measured against it.",
+    "reasoning": [
+     "Reflecting across the horizontal axis moves a point straight up or down.",
+     "The first coordinate is untouched and the second changes sign."
+    ],
+    "answerSummary": "It is $(-{{p}}, -{{q}})$."
+   },
+   "attemptFeedback": [
+    "The horizontal position does not move."
+   ],
+   "supportHints": [
+    "Which coordinate measures distance from the horizontal axis?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     },
+     "q": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     }
+    },
+    "derived": {},
+    "constraints": [
+     "p!=q"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$({{p}}, {{q}})$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$({{q}}, -{{p}})$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-c",
+     "label": "$(-{{p}}, -{{q}})$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$({{p}}, -{{q}})$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_11_distance_across_the_vertical_axis",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.11"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.11",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.11:distance-across-the-vertical-axis",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.11",
+   "taskType": "application",
+   "representation": "numberLine",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "How far apart are $(-{{p}}, {{c}})$ and $({{q}}, {{c}})$?",
+   "solutionReview": {
+    "headline": "Points on one horizontal line differ only in their first coordinate.",
+    "reasoning": [
+     "Both points sit at the same height, so only the horizontal positions matter.",
+     "From $-{{p}}$ to $0$ is ${{p}}$, and on to ${{q}}$ is ${{q}}$ more, giving ${{answer}}$."
+    ],
+    "answerSummary": "They are ${{answer}}$ apart."
+   },
+   "attemptFeedback": [
+    "Subtracting the two first coordinates loses the crossing of zero."
+   ],
+   "supportHints": [
+    "Count to the vertical axis and then onward."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     },
+     "q": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     },
+     "c": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     }
+    },
+    "derived": {
+     "answer": "p+q",
+     "d_usedGivenValue": "p+q+c",
+     "d_signError": "q-p",
+     "d_arithmeticSlip": "p+c"
+    },
+    "constraints": [
+     "answer!=d_usedGivenValue",
+     "answer!=d_signError",
+     "answer!=d_arithmeticSlip",
+     "d_usedGivenValue!=d_signError",
+     "d_usedGivenValue!=d_arithmeticSlip",
+     "d_signError!=d_arithmeticSlip"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_arithmeticSlip}}$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_11_plotted_in_the_wrong_direction",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.11"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.11",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.11:plotted-in-the-wrong-direction",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.11",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student plots $(-{{p}}, {{q}})$ by going ${{p}}$ right and ${{q}}$ up. What is wrong?",
+   "solutionReview": {
+    "headline": "The sign of a coordinate sets the direction of its move.",
+    "reasoning": [
+     "A negative first coordinate is a move left from the origin, so the plotted point lands ${{gap}}$ units right of the correct one.",
+     "The second coordinate is positive, so the upward move is right."
+    ],
+    "answerSummary": "The horizontal move should be to the left."
+   },
+   "attemptFeedback": [
+    "Only one of the two moves is in the wrong direction."
+   ],
+   "supportHints": [
+    "What does the minus sign do to the direction?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     },
+     "q": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     }
+    },
+    "derived": {
+     "gap": "2*p"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The vertical move should be ${{q}}$ down, not up.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "The two moves should be swapped, going ${{q}}$ right and ${{p}}$ up.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "Nothing is wrong, because the minus sign only labels the point.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "The first coordinate is negative, so the move is ${{p}} $ to the left."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_8A_third_angle_of_a_triangle",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.8A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.8A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.8A:third-angle-of-a-triangle",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.8A",
+   "taskType": "procedural",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two angles of a triangle measure ${{a}}^\\circ$ and ${{b}}^\\circ$. What is the third?",
+   "solutionReview": {
+    "headline": "The angles of any triangle total 180 degrees.",
+    "reasoning": [
+     "The three angles of a triangle come to $180^\\circ$.",
+     "$180 - {{a}} - {{b}} = {{answer}}$."
+    ],
+    "answerSummary": "The third angle is ${{answer}}^\\circ$."
+   },
+   "attemptFeedback": [
+    "Both given angles have to come off the total."
+   ],
+   "supportHints": [
+    "What do all three angles come to?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 15,
+      "max": 75
+     },
+     "b": {
+      "type": "int",
+      "min": 15,
+      "max": 75
+     }
+    },
+    "derived": {
+     "answer": "180-a-b",
+     "d_forgotFinalStep": "180-a",
+     "d_signError": "b-a",
+     "d_operationInverted": "a+b"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_signError",
+     "answer!=d_operationInverted",
+     "d_forgotFinalStep!=d_signError",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_signError!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}^\\circ$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_signError}}^\\circ$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}^\\circ$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}^\\circ$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_8A_which_lengths_close_a_triangle",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.8A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.8A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.8A:which-lengths-close-a-triangle",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.8A",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which three lengths can form a triangle?",
+   "solutionReview": {
+    "headline": "The two shorter sides must total more than the longest.",
+    "reasoning": [
+     "Two sides have to reach further than the third, or they cannot meet.",
+     "${{p}} + {{q}} = {{sum}}$, which beats ${{rOk}}$ but not the others."
+    ],
+    "answerSummary": "${{p}}, {{q}}, {{rOk}}$ closes."
+   },
+   "attemptFeedback": [
+    "Sides that exactly reach lie flat instead of closing."
+   ],
+   "supportHints": [
+    "Add the two shorter lengths and compare with the longest."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 10,
+      "max": 30
+     },
+     "q": {
+      "type": "int",
+      "min": 10,
+      "max": 30
+     },
+     "g": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     }
+    },
+    "derived": {
+     "sum": "p+q",
+     "rOk": "p+q-g",
+     "rBig": "p+q+g"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{p}}, {{q}}, {{sum}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{p}}, {{q}}, {{rBig}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{p}}, {{g}}, {{rBig}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{p}}, {{q}}, {{rOk}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_8A_longest_side_of_a_triangle",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.8A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.8A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.8A:longest-side-of-a-triangle",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.8A",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A triangle has angles ${{a}}^\\circ$, ${{b}}^\\circ$ and ${{c}}^\\circ$. Which side is longest?",
+   "solutionReview": {
+    "headline": "Bigger angle, longer side opposite it.",
+    "reasoning": [
+     "${{c}}^\\circ$ is the largest of the three angles.",
+     "The longest side of a triangle faces its largest angle."
+    ],
+    "answerSummary": "The side opposite the ${{c}}^\\circ$ angle."
+   },
+   "attemptFeedback": [
+    "Equal sides would need equal angles."
+   ],
+   "supportHints": [
+    "Which angle is the largest?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 30,
+      "max": 45
+     },
+     "g": {
+      "type": "int",
+      "min": 1,
+      "max": 15
+     }
+    },
+    "derived": {
+     "b": "a+g",
+     "c": "180-a-b"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The side opposite the ${{a}}^\\circ$ angle.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "The side opposite the ${{b}}^\\circ$ angle.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "All three sides are the same length.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "The side opposite the ${{c}}^\\circ$ angle."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_8A_apex_angle_of_a_truss",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.8A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.8A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.8A:apex-angle-of-a-truss",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.8A",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A roof truss is a triangle whose two base angles are ${{a}}^\\circ$ each. What is the top angle?",
+   "solutionReview": {
+    "headline": "Take both equal angles off the 180 degree total.",
+    "reasoning": [
+     "The two base angles together take ${{d_operationInverted}}^\\circ$.",
+     "That leaves $180 - {{d_operationInverted}} = {{answer}}$ for the top."
+    ],
+    "answerSummary": "The top angle is ${{answer}}^\\circ$."
+   },
+   "attemptFeedback": [
+    "One base angle is not the pair of them."
+   ],
+   "supportHints": [
+    "Both base angles are the same size."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 15,
+      "max": 75
+     }
+    },
+    "derived": {
+     "answer": "180-2*a",
+     "d_partialTotal": "180-a",
+     "d_operationInverted": "2*a",
+     "d_arithmeticSlip": "90-a"
+    },
+    "constraints": [
+     "answer!=d_partialTotal",
+     "answer!=d_operationInverted",
+     "answer!=d_arithmeticSlip",
+     "d_partialTotal!=d_operationInverted",
+     "d_partialTotal!=d_arithmeticSlip",
+     "d_operationInverted!=d_arithmeticSlip"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}^\\circ$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_partialTotal}}^\\circ$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}^\\circ$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_arithmeticSlip}}^\\circ$",
+     "error": "arithmeticSlip"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_8A_angles_that_cannot_be_a_triangle",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.8A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.8A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.8A:angles-that-cannot-be-a-triangle",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.8A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student says a triangle has angles ${{a}}^\\circ$, ${{b}}^\\circ$ and ${{c}}^\\circ$. Why is that impossible?",
+   "solutionReview": {
+    "headline": "Add the angles before judging whether the triangle exists.",
+    "reasoning": [
+     "${{a}} + {{b}} + {{c}} = {{total}}$.",
+     "Every triangle totals exactly $180^\\circ$, so these three cannot close one."
+    ],
+    "answerSummary": "They total ${{total}}^\\circ$."
+   },
+   "attemptFeedback": [
+    "The total is over 180, not under it."
+   ],
+   "supportHints": [
+    "Add the three measures."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 20,
+      "max": 70
+     },
+     "b": {
+      "type": "int",
+      "min": 20,
+      "max": 70
+     },
+     "e": {
+      "type": "int",
+      "min": 5,
+      "max": 40
+     }
+    },
+    "derived": {
+     "c": "180-a-b+e",
+     "total": "180+e"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The three angles total ${{total}}^\\circ$, which is short of $180^\\circ$.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "A triangle cannot have three angles of different sizes.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "An angle of ${{a}}^\\circ$ is not allowed in a triangle.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "The three angles total ${{total}}^\\circ$, and a triangle totals $180^\\circ$."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_8B_parallelogram_cut_into_a_rectangle",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.8B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.8B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.8B:parallelogram-cut-into-a-rectangle",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.8B",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A triangle is cut from one end of a parallelogram and moved to the other. What results?",
+   "solutionReview": {
+    "headline": "Rearranging pieces moves area about; it does not create or destroy it.",
+    "reasoning": [
+     "Nothing is added or thrown away, so the area cannot change.",
+     "A base of ${{b}}$ and a height of ${{h}}$ give ${{area}}$ either way."
+    ],
+    "answerSummary": "A rectangle of the same area."
+   },
+   "attemptFeedback": [
+    "Moving a piece cannot double what is there."
+   ],
+   "supportHints": [
+    "Was anything added or removed?"
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 4,
+      "max": 24
+     },
+     "h": {
+      "type": "int",
+      "min": 3,
+      "max": 18
+     }
+    },
+    "derived": {
+     "area": "b*h"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "A rectangle of the same base and height, and the same area."
+    },
+    {
+     "id": "choice-b",
+     "label": "A square with the same distance round the outside.",
+     "error": "areaPerimeterSwap"
+    },
+    {
+     "id": "choice-c",
+     "label": "A triangle of half the area.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "A rectangle of the same base and height, but twice the area.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_8B_two_triangles_make_a_parallelogram",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.8B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.8B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.8B:two-triangles-make-a-parallelogram",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.8B",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two identical triangles of base $b$ and height $h$ join into a parallelogram. Which expression gives the area of one of them?",
+   "solutionReview": {
+    "headline": "A triangle is half the parallelogram built from two copies of it.",
+    "reasoning": [
+     "The parallelogram covers $bh$, and the two triangles share it equally.",
+     "With $b = {{b}}$ and $h = {{h}}$ the pair covers ${{pair}}$, so one covers ${{each}}$."
+    ],
+    "answerSummary": "It is $\\frac{bh}{2}$."
+   },
+   "attemptFeedback": [
+    "Adding the base to the height measures neither area."
+   ],
+   "supportHints": [
+    "How many triangles make the parallelogram?"
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 4,
+      "max": 24,
+      "step": 2
+     },
+     "h": {
+      "type": "int",
+      "min": 3,
+      "max": 18
+     }
+    },
+    "derived": {
+     "pair": "b*h",
+     "each": "b*h/2"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\frac{bh}{2}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$2bh$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-c",
+     "label": "$bh$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\frac{b + h}{2}$",
+     "error": "areaPerimeterSwap"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_8B_why_a_triangle_is_half",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.8B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.8B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.8B:why-a-triangle-is-half",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.8B",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Why does a triangle of base ${{b}}$ cm and height ${{h}}$ cm cover ${{half}}$ square cm?",
+   "solutionReview": {
+    "headline": "The halving comes from pairing the triangle with a copy of itself.",
+    "reasoning": [
+     "Turning a second copy of the triangle upside down closes a parallelogram of ${{rect}}$ square cm.",
+     "The two copies are identical, so each holds ${{half}}$."
+    ],
+    "answerSummary": "Two copies make ${{rect}}$ square cm."
+   },
+   "attemptFeedback": [
+    "Halving both dimensions would quarter the area, not halve it."
+   ],
+   "supportHints": [
+    "What shape do two copies of the triangle close?"
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 4,
+      "max": 24,
+      "step": 2
+     },
+     "h": {
+      "type": "int",
+      "min": 3,
+      "max": 18
+     }
+    },
+    "derived": {
+     "rect": "b*h",
+     "half": "b*h/2"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Its base and height are each halved before multiplying.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "The distance round the outside is halved.",
+     "error": "areaPerimeterSwap"
+    },
+    {
+     "id": "choice-c",
+     "label": "Two copies of it form a parallelogram of ${{rect}}$ square cm."
+    },
+    {
+     "id": "choice-d",
+     "label": "Half of the base is multiplied by half of the height.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_8B_rearranging_does_not_change_area",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.8B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.8B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.8B:rearranging-does-not-change-area",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.8B",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student says cutting a parallelogram into a rectangle changes its area. What is wrong?",
+   "solutionReview": {
+    "headline": "Decomposing and rearranging preserves area exactly.",
+    "reasoning": [
+     "The cut piece is moved, not resized, so nothing is gained or lost.",
+     "Both shapes stand on a base of ${{b}}$ with a height of ${{h}}$."
+    ],
+    "answerSummary": "The area is ${{area}}$ either way."
+   },
+   "attemptFeedback": [
+    "A longer slanted side does not add area."
+   ],
+   "supportHints": [
+    "Count what was added and what was removed."
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 4,
+      "max": 24
+     },
+     "h": {
+      "type": "int",
+      "min": 3,
+      "max": 18
+     }
+    },
+    "derived": {
+     "area": "b*h",
+     "slant": "b*h+h"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The same pieces are used, so the area stays ${{area}}$ square units."
+    },
+    {
+     "id": "choice-b",
+     "label": "Nothing is wrong, and the rectangle covers ${{slant}}$ square units.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "The area does change, because the height is measured differently.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "Nothing is wrong, because the slanted side is longer than the base.",
+     "error": "areaPerimeterSwap"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_8B_area_of_one_of_the_two_triangles",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.8B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.8B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.8B:area-of-one-of-the-two-triangles",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.8B",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A parallelogram plate of base ${{b}}$ cm and height ${{h}}$ cm is cut along a diagonal. What area does one piece cover?",
+   "solutionReview": {
+    "headline": "A diagonal halves a parallelogram.",
+    "reasoning": [
+     "The whole plate covers ${{d_forgotFinalStep}}$ square centimetres.",
+     "The diagonal splits it into two equal pieces, so one covers ${{answer}}$."
+    ],
+    "answerSummary": "One piece covers ${{answer}}$ square centimetres."
+   },
+   "attemptFeedback": [
+    "The whole plate is twice one of the pieces."
+   ],
+   "supportHints": [
+    "What does the whole plate cover first?"
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 4,
+      "max": 20,
+      "step": 2
+     },
+     "h": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     }
+    },
+    "derived": {
+     "answer": "b*h/2",
+     "d_forgotFinalStep": "b*h",
+     "d_areaPerimeterSwap": "b+h",
+     "d_operationInverted": "2*(b+h)"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_areaPerimeterSwap",
+     "answer!=d_operationInverted",
+     "d_forgotFinalStep!=d_areaPerimeterSwap",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_areaPerimeterSwap!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_areaPerimeterSwap}}$",
+     "error": "areaPerimeterSwap"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
   }
  ]
 }

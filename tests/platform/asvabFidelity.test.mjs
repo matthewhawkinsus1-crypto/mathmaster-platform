@@ -112,12 +112,14 @@ test('register rejects a prompt that hands over the procedure or borrows another
   assert.deepEqual(clean.issues, []);
 });
 
-test('money and percentage choices still get their distinctness constraints', () => {
-  // Both markups defeated the constraint parser once. `$\\${{a}}$` leaves a
-  // stray backslash when only the delimiters are stripped, and `${{a}}\\%$`
-  // leaves a trailing percent sign; either way the anchored match failed, no
-  // constraint was emitted, and the bank shipped draws reading $8, $64, $8, $8
-  // and 20%, 160%, 20%, 80%.
+test('unit-marked choices still get their distinctness constraints', () => {
+  // Each of these markups defeated the constraint parser once. `$\\${{a}}$`
+  // leaves a stray backslash when only the delimiters are stripped; `${{a}}\\%$`
+  // leaves a trailing percent sign; `${{a}}^\\circ$` leaves a degree marker.
+  // Every time the anchored match failed, no constraint was emitted, and the
+  // bank shipped duplicate choices: $8, $64, $8, $8 — then 20%, 160%, 20%, 80%
+  // — then a repeated angle. Any new unit markup belongs in UNIT_SUFFIXES and
+  // in this list.
   const build = (label) => asvabItem({
     code: '6.4E', slug: 'constraint-probe', domain: AR, courseId: 'grade6',
     prompt: 'What is the value?',
@@ -139,6 +141,7 @@ test('money and percentage choices still get their distinctness constraints', ()
     ['plain', (n) => `$\{\{${n}\}\}$`],
     ['money', (n) => `$\\$\{\{${n}\}\}$`],
     ['percent', (n) => `$\{\{${n}\}\}\\%$`],
+    ['degrees', (n) => `$\{\{${n}\}\}^\\circ$`],
   ]) {
     const built = build(label);
     assert.equal(built.generator.constraints.length, 6, `${name} labels lost their pairwise distinctness constraints`);

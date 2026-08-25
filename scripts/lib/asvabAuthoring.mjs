@@ -118,6 +118,21 @@ const labelPlaceholders = (label) => {
  * Deriving the pairs from the labels means the guarantee holds for every family
  * without an author having to remember it.
  */
+/**
+ * Unit markup that may trail a value in a choice label.
+ *
+ * Every entry here is a trap that has already been sprung: a label ending in
+ * one of these does not reduce to a bare placeholder, so the anchored match in
+ * `distinctChoiceConstraints` fails and the choice silently loses its
+ * distinctness constraint. Percentages shipped 20%, 160%, 20%, 80%; degrees
+ * shipped a repeated angle. ANY new unit markup used in a label must be added
+ * here, or the same failure recurs quietly.
+ */
+const UNIT_SUFFIXES = [
+  ['percent', /\\?%$/],
+  ['degrees', /\^\{?\\circ\}?$/],
+];
+
 const distinctChoiceConstraints = (choices, generator) => {
   const known = new Set(Object.keys(generator?.parameters || {}).concat(Object.keys(generator?.derived || {})));
   // Compare the values the labels DISPLAY, not the parameter names. A label of
@@ -140,10 +155,12 @@ const distinctChoiceConstraints = (choices, generator) => {
       unit = 'money';
       bare = bare.slice(2);
     }
-    const percent = /\\?%$/.exec(bare);
-    if (percent) {
-      unit = 'percent';
-      bare = bare.slice(0, bare.length - percent[0].length);
+    for (const [name, pattern] of UNIT_SUFFIXES) {
+      const found = pattern.exec(bare);
+      if (!found) continue;
+      unit = name;
+      bare = bare.slice(0, bare.length - found[0].length);
+      break;
     }
     const match = /^(-?)\{\{([A-Za-z_][A-Za-z0-9_]*)(?:\|[A-Za-z]+)?\}\}$/.exec(bare);
     if (!match || !known.has(match[2])) return null;

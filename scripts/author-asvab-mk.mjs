@@ -2277,6 +2277,697 @@ mk('6.9B', 'endpoint-drawn-wrongly', {
   feedback: 'There is no largest value below ${{c}}$ to mark.',
 });
 
+
+// ================================================================ 6.10A
+// Solving the one-step equation or inequality a problem sets up.
+
+mk('6.10A', 'solve-a-one-step-sum', {
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Solve $x + {{a}} = {{t}}$.',
+  generator: {
+    parameters: {
+      // Same range for both, so the given value crosses the answer from either
+      // side rather than sitting above it in most draws.
+      a: { type: 'int', min: 3, max: 40 },
+      s: { type: 'int', min: 3, max: 40 },
+    },
+    derived: {
+      t: 'a+s',
+      answer: 's',
+      d_signError: 't+a',
+      d_ratioReversed: 'a-t',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{a}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Take ${{a}}$ from both sides.', '${{t}} - {{a}} = {{answer}}$.'],
+  answerSummary: { headline: 'Undo the addition on both sides at once.', text: '$x = {{answer}}$.' },
+  hint: 'What undoes adding ${{a}}$?',
+  feedback: 'Adding ${{a}}$ again moves further from the answer.',
+});
+
+mk('6.10A', 'height-from-a-triangle-area', {
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A triangular plate has area ${{A}}$ square centimetres and base ${{b}}$ centimetres. What is its height?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 3, max: 20 },
+      half: { type: 'int', min: 2, max: 10 },
+    },
+    derived: {
+      h: '2*half',
+      A: 'b*half',
+      answer: 'h',
+      d_partialTotal: 'half',
+      d_forgotFinalStep: '2*A',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{b}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['A triangle covers half of the ${{b}}$ by ${{answer}}$ rectangle.', 'So ${{A}}$ doubled is ${{d_forgotFinalStep}}$, and shared by the base ${{b}}$ that is ${{answer}}$.'],
+  answerSummary: { headline: 'A triangle is half its surrounding rectangle, so double before dividing.', text: 'The height is ${{answer}}$ centimetres.' },
+  hint: 'What rectangle would the triangle be half of?',
+  feedback: 'Leaving out the halving loses a factor of two.',
+});
+
+mk('6.10A', 'inequality-after-a-load', {
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'A shelf holds at most ${{c}}$ kilograms and already carries ${{m}}$ kilograms. Which inequality must the rest $x$ satisfy?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 5, max: 60, step: 5 },
+      room: { type: 'int', min: 5, max: 90, step: 5 },
+    },
+    derived: {
+      c: 'm+room',
+      over: 'c+m',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('x \\le {{room}}'), correct: true },
+    { label: plain('x \\le {{c}}'), error: 'partialTotal' },
+    { label: plain('x \\ge {{room}}'), error: 'ratioReversed' },
+    { label: plain('x \\le {{over}}'), error: 'signError' },
+  ],
+  reasoning: ['${{m}}$ of the ${{c}}$ kilograms is already used.', 'That leaves ${{room}}$, and the rest must not exceed it.'],
+  answerSummary: { headline: 'Subtract what is already there before writing the limit.', text: 'It is $x \\le {{room}}$.' },
+  hint: 'How much of the limit is still free?',
+  feedback: 'The full limit ignores the load already on the shelf.',
+});
+
+mk('6.10A', 'undoing-the-wrong-operation', {
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'To solve ${{a}}x = {{t}}$ a student subtracts ${{a}}$ from both sides. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 3, max: 15 },
+      q: { type: 'int', min: 3, max: 15 },
+    },
+    derived: {
+      t: 'a*q',
+      wrong: 'a*q-a',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Subtraction undoes addition, not multiplication; dividing gives $x = {{q}}$.', correct: true },
+    { label: 'Nothing is wrong, and the answer is ${{wrong}}$.', error: 'operationInverted' },
+    { label: 'The subtraction should be done on one side only.', error: 'partialTotal' },
+    { label: 'The equation has no solution, because ${{a}}$ does not divide ${{t}}$.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['$x$ is multiplied by ${{a}}$, so dividing by ${{a}}$ is what releases it.', '${{t}} \\div {{a}} = {{q}}$.'],
+  answerSummary: { headline: 'Undo an operation with its own inverse.', text: '$x = {{q}}$.' },
+  hint: 'What is being done to $x$ in the first place?',
+  feedback: 'Doing something to one side only breaks the equality.',
+});
+
+mk('6.10A', 'solve-a-one-step-quotient', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Solve $\\frac{x}{{{a}}} = {{q}}$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 20 },
+      q: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {
+      answer: 'a*q',
+      d_offByOneStep: 'a*q+a',
+      d_operationInverted: 'a+q',
+      d_arithmeticSlip: 'a*a',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['$x$ is divided by ${{a}}$, so multiply both sides by ${{a}}$.', '${{q}} \\times {{a}} = {{answer}}$.'],
+  answerSummary: { headline: 'Multiplying undoes dividing.', text: '$x = {{answer}}$.' },
+  hint: 'What undoes dividing by ${{a}}$?',
+  feedback: 'Adding the two numbers is not the inverse of dividing.',
+});
+
+// ================================================================ 6.10B
+// Deciding whether a given value makes an equation or inequality true.
+//
+// None of these is written as "which of these four values satisfies the
+// inequality". The value that satisfies `x > c` is necessarily the large one,
+// so that shape hands the key to anyone who reads only the choices. Testing a
+// value, or substituting into an expression, asks the same mathematics without
+// making the key the extreme.
+
+mk('6.10B', 'value-that-solves-a-product', {
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Which value of $x$ makes ${{a}}x = {{t}}$ true?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 14 },
+      q: { type: 'int', min: 2, max: 14 },
+    },
+    derived: {
+      t: 'a*q',
+      answer: 'q',
+      d_forgotFinalStep: 't',
+      d_operationInverted: 'q-a',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{a}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['${{a}} \\times {{answer}} = {{t}}$, so ${{answer}}$ makes it true.', 'No other listed value does.'],
+  answerSummary: { headline: 'Test a value by putting it back into the equation.', text: '$x = {{answer}}$.' },
+  hint: 'What times ${{a}}$ gives ${{t}}$?',
+  feedback: 'The total is what ${{a}}x$ comes to, not what $x$ is.',
+});
+
+mk('6.10B', 'do-the-boxes-fit', {
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'context',
+  prompt: 'A shelf holds at most ${{t}}$ kilograms. Do ${{v}}$ boxes of ${{a}}$ kilograms fit?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      v: { type: 'int', min: 2, max: 12 },
+      slack: { type: 'int', min: 1, max: 30 },
+    },
+    derived: {
+      prod: 'a*v',
+      t: 'a*v+slack',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Yes, because they weigh ${{prod}}$ kilograms, which is under ${{t}}$.', correct: true },
+    { label: 'No, because ${{prod}}$ kilograms is over the limit.', error: 'signError' },
+    { label: 'Yes, because ${{v}}$ is smaller than ${{t}}$.', error: 'partialTotal' },
+    { label: 'It cannot be decided without knowing the shelf width.', error: 'operationInverted' },
+  ],
+  reasoning: ['${{v}}$ boxes at ${{a}}$ kilograms weigh ${{prod}}$ kilograms.', '${{prod}}$ is at most ${{t}}$, so the load is allowed.'],
+  answerSummary: { headline: 'Work out what the load actually weighs, then compare.', text: 'They fit, at ${{prod}}$ kilograms.' },
+  hint: 'What do the boxes weigh altogether?',
+  feedback: 'The number of boxes is not their mass.',
+});
+
+mk('6.10B', 'substituting-into-a-difference', {
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'What does $x - {{a}}$ equal when $x = {{v}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 40 },
+      v: { type: 'int', min: 2, max: 40 },
+    },
+    derived: {
+      answer: 'v-a',
+      d_signError: 'v+a',
+      d_operationInverted: '0-v-a',
+      d_ratioReversed: 'a-v',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Put ${{v}}$ where $x$ stands.', '${{v}} - {{a}} = {{answer}}$.'],
+  answerSummary: { headline: 'Substituting replaces the letter and leaves the operation alone.', text: 'It equals ${{answer}}$.' },
+  hint: 'Replace $x$ and then subtract.',
+  feedback: 'The order of the subtraction matters.',
+});
+
+mk('6.10B', 'how-to-check-a-claimed-solution', {
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student claims $x = {{wrong}}$ solves $x + {{a}} = {{t}}$. How is that settled?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 3, max: 30 },
+      s: { type: 'int', min: 3, max: 30 },
+      slip: { type: 'int', min: 1, max: 9 },
+    },
+    derived: {
+      t: 'a+s',
+      wrong: 's+slip',
+      got: 'a+s+slip',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Put ${{wrong}}$ in place of $x$: it gives ${{got}}$, not ${{t}}$, so it fails.', correct: true },
+    { label: 'It is correct, because ${{wrong}}$ is close to ${{t}} - {{a}}$.', error: 'partialTotal' },
+    { label: 'Add ${{a}}$ to ${{t}}$; if that gives ${{wrong}}$ the claim holds.', error: 'operationInverted' },
+    { label: 'It cannot be checked, because the equation was not solved first.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['A claimed solution is tested by substitution, not by how close it looks.', '${{wrong}} + {{a}} = {{got}}$, which is not ${{t}}$.'],
+  answerSummary: { headline: 'Substitute the claim and see whether both sides agree.', text: 'It gives ${{got}}$, so the claim fails.' },
+  hint: 'Put the value back in and see what comes out.',
+  feedback: 'Being near the answer is not the same as being the answer.',
+});
+
+mk('6.10B', 'what-a-solution-must-satisfy', {
+  difficultyBand: 1, dok: 2, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'A value makes ${{a}}x = {{t}}$ true. What must be true of it?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 3, max: 15 },
+      q: { type: 'int', min: 3, max: 15 },
+    },
+    derived: { t: 'a*q', gap: 'a*q-a' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'It equals ${{t}}$ divided by ${{a}}$.', correct: true },
+    { label: 'It equals ${{t}}$ minus ${{a}}$, which is ${{gap}}$.', error: 'operationInverted' },
+    { label: 'It equals ${{a}}$ times ${{t}}$.', error: 'ratioReversed' },
+    { label: 'Any value below ${{t}}$ will do.', error: 'partialTotal' },
+  ],
+  reasoning: ['${{a}}x$ reaching ${{t}}$ means $x$ is what ${{t}}$ splits into ${{a}}$ equal parts.', 'Only one value does that.'],
+  answerSummary: { headline: 'A one-step equation admits exactly one value.', text: 'It is ${{t}}$ divided by ${{a}}$.' },
+  hint: 'How many values can make it true?',
+  feedback: 'An equation is not satisfied by a whole range of values.',
+});
+
+// ================================================================ 6.11
+// Points in all four quadrants.
+//
+// The key is fixed when the family is authored, so the quadrant a family asks
+// about has to be fixed too: a family that drew signs freely would need a
+// different choice to be correct on different draws. Each family therefore
+// pins its own sign pattern, and the variety across the standard covers the
+// plane.
+
+mk('6.11', 'quadrant-of-a-point', {
+  difficultyBand: 1, dok: 1, taskType: 'interpretation', representation: 'orderedPairs',
+  prompt: 'In which quadrant does the point $({{a}} - {{b}}, {{q}})$ lie?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 1, max: 20 },
+      g: { type: 'int', min: 1, max: 20 },
+      q: { type: 'int', min: 1, max: 20 },
+    },
+    derived: { b: 'a+g', x: '0-g' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Quadrant II', correct: true },
+    { label: 'Quadrant I', error: 'signError' },
+    { label: 'Quadrant III', error: 'ratioReversed' },
+    { label: 'Quadrant IV', error: 'operationInverted' },
+  ],
+  reasoning: ['${{a}} - {{b}} = {{x}}$, which is negative, so the point sits left of the vertical axis.', 'The second coordinate is positive, so it sits above the horizontal axis.'],
+  answerSummary: { headline: 'The two signs together fix the quadrant.', text: 'It lies in Quadrant II.' },
+  hint: 'Which side of each axis does the point fall on?',
+  feedback: 'A negative first coordinate cannot put a point on the right.',
+});
+
+mk('6.11', 'point-in-a-named-quadrant', {
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'orderedPairs',
+  prompt: 'Which point lies in Quadrant III?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 1, max: 20 },
+      q: { type: 'int', min: 1, max: 20 },
+    },
+    derived: {},
+    constraints: [],
+  },
+  choices: [
+    { label: plain('(-{{p}}, -{{q}})'), correct: true },
+    { label: plain('({{p}}, -{{q}})'), error: 'signError' },
+    { label: plain('(-{{p}}, {{q}})'), error: 'ratioReversed' },
+    { label: plain('({{p}}, {{q}})'), error: 'operationInverted' },
+  ],
+  reasoning: ['Quadrant III is left of the vertical axis and below the horizontal one.', 'Both coordinates are therefore negative.'],
+  answerSummary: { headline: 'Quadrant III is the one where both coordinates are negative.', text: 'It is $(-{{p}}, -{{q}})$.' },
+  hint: 'What signs does Quadrant III require?',
+  feedback: 'One negative coordinate puts the point in a different quadrant.',
+});
+
+mk('6.11', 'reflection-across-the-x-axis', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'orderedPairs',
+  prompt: 'Reflecting $(-{{p}}, {{q}})$ across the horizontal axis gives which point?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 1, max: 20 },
+      q: { type: 'int', min: 1, max: 20 },
+    },
+    derived: {},
+    // Ordered-pair labels carry two placeholders each, so the kit cannot
+    // reduce them to a value and emits no automatic constraint — the author
+    // owns the collision. At p = q the swapped-coordinates distractor and the
+    // reflect-the-wrong-axis one become the same point.
+    constraints: ['p!=q'],
+  },
+  choices: [
+    { label: plain('(-{{p}}, -{{q}})'), correct: true },
+    { label: plain('({{p}}, {{q}})'), error: 'operationInverted' },
+    { label: plain('({{p}}, -{{q}})'), error: 'ratioReversed' },
+    { label: plain('({{q}}, -{{p}})'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['Reflecting across the horizontal axis moves a point straight up or down.', 'The first coordinate is untouched and the second changes sign.'],
+  answerSummary: { headline: 'A reflection across an axis flips only the coordinate measured against it.', text: 'It is $(-{{p}}, -{{q}})$.' },
+  hint: 'Which coordinate measures distance from the horizontal axis?',
+  feedback: 'The horizontal position does not move.',
+});
+
+mk('6.11', 'distance-across-the-vertical-axis', {
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'numberLine',
+  prompt: 'How far apart are $(-{{p}}, {{c}})$ and $({{q}}, {{c}})$?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 1, max: 20 },
+      q: { type: 'int', min: 1, max: 20 },
+      c: { type: 'int', min: 1, max: 20 },
+    },
+    derived: {
+      answer: 'p+q',
+      d_usedGivenValue: 'p+q+c',
+      d_signError: 'q-p',
+      d_arithmeticSlip: 'p+c',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['Both points sit at the same height, so only the horizontal positions matter.', 'From $-{{p}}$ to $0$ is ${{p}}$, and on to ${{q}}$ is ${{q}}$ more, giving ${{answer}}$.'],
+  answerSummary: { headline: 'Points on one horizontal line differ only in their first coordinate.', text: 'They are ${{answer}}$ apart.' },
+  hint: 'Count to the vertical axis and then onward.',
+  feedback: 'Subtracting the two first coordinates loses the crossing of zero.',
+});
+
+mk('6.11', 'plotted-in-the-wrong-direction', {
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student plots $(-{{p}}, {{q}})$ by going ${{p}}$ right and ${{q}}$ up. What is wrong?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 1, max: 20 },
+      q: { type: 'int', min: 1, max: 20 },
+    },
+    derived: { gap: '2*p' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The first coordinate is negative, so the move is ${{p}} $ to the left.', correct: true },
+    { label: 'The vertical move should be ${{q}}$ down, not up.', error: 'signError' },
+    { label: 'Nothing is wrong, because the minus sign only labels the point.', error: 'operationInverted' },
+    { label: 'The two moves should be swapped, going ${{q}}$ right and ${{p}}$ up.', error: 'ratioReversed' },
+  ],
+  reasoning: ['A negative first coordinate is a move left from the origin, so the plotted point lands ${{gap}}$ units right of the correct one.', 'The second coordinate is positive, so the upward move is right.'],
+  answerSummary: { headline: 'The sign of a coordinate sets the direction of its move.', text: 'The horizontal move should be to the left.' },
+  hint: 'What does the minus sign do to the direction?',
+  feedback: 'Only one of the two moves is in the wrong direction.',
+});
+
+// ================================================================ 6.8A
+// Triangle facts: the angle sum, sides against angles, and which three lengths
+// can close.
+
+mk('6.8A', 'third-angle-of-a-triangle', {
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'verbal',
+  prompt: 'Two angles of a triangle measure ${{a}}^\\circ$ and ${{b}}^\\circ$. What is the third?',
+  generator: {
+    parameters: {
+      // Capped at 75 so the two given angles can never reach 180 between them,
+      // which keeps the third angle positive without a constraint that would
+      // reject draws unevenly.
+      a: { type: 'int', min: 15, max: 75 },
+      b: { type: 'int', min: 15, max: 75 },
+    },
+    derived: {
+      answer: '180-a-b',
+      d_forgotFinalStep: '180-a',
+      d_signError: 'b-a',
+      d_operationInverted: 'a+b',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}^\\circ'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}^\\circ'), error: 'forgotFinalStep' },
+    { label: plain('{{d_signError}}^\\circ'), error: 'signError' },
+    { label: plain('{{d_operationInverted}}^\\circ'), error: 'operationInverted' },
+  ],
+  reasoning: ['The three angles of a triangle come to $180^\\circ$.', '$180 - {{a}} - {{b}} = {{answer}}$.'],
+  answerSummary: { headline: 'The angles of any triangle total 180 degrees.', text: 'The third angle is ${{answer}}^\\circ$.' },
+  hint: 'What do all three angles come to?',
+  feedback: 'Both given angles have to come off the total.',
+});
+
+mk('6.8A', 'which-lengths-close-a-triangle', {
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Which three lengths can form a triangle?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 10, max: 30 },
+      q: { type: 'int', min: 10, max: 30 },
+      g: { type: 'int', min: 1, max: 9 },
+    },
+    derived: {
+      sum: 'p+q',
+      rOk: 'p+q-g',
+      rBig: 'p+q+g',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{p}}, {{q}}, {{rOk}}'), correct: true },
+    { label: plain('{{p}}, {{q}}, {{sum}}'), error: 'offByOneStep' },
+    { label: plain('{{p}}, {{q}}, {{rBig}}'), error: 'signError' },
+    { label: plain('{{p}}, {{g}}, {{rBig}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['Two sides have to reach further than the third, or they cannot meet.', '${{p}} + {{q}} = {{sum}}$, which beats ${{rOk}}$ but not the others.'],
+  answerSummary: { headline: 'The two shorter sides must total more than the longest.', text: '${{p}}, {{q}}, {{rOk}}$ closes.' },
+  hint: 'Add the two shorter lengths and compare with the longest.',
+  feedback: 'Sides that exactly reach lie flat instead of closing.',
+});
+
+mk('6.8A', 'longest-side-of-a-triangle', {
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'verbal',
+  prompt: 'A triangle has angles ${{a}}^\\circ$, ${{b}}^\\circ$ and ${{c}}^\\circ$. Which side is longest?',
+  generator: {
+    parameters: {
+      // a < b < c by construction, so the largest angle is always the derived
+      // one and the key can be a fixed choice.
+      a: { type: 'int', min: 30, max: 45 },
+      g: { type: 'int', min: 1, max: 15 },
+    },
+    derived: {
+      b: 'a+g',
+      c: '180-a-b',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The side opposite the ${{c}}^\\circ$ angle.', correct: true },
+    { label: 'The side opposite the ${{a}}^\\circ$ angle.', error: 'ratioReversed' },
+    { label: 'The side opposite the ${{b}}^\\circ$ angle.', error: 'partialTotal' },
+    { label: 'All three sides are the same length.', error: 'operationInverted' },
+  ],
+  reasoning: ['${{c}}^\\circ$ is the largest of the three angles.', 'The longest side of a triangle faces its largest angle.'],
+  answerSummary: { headline: 'Bigger angle, longer side opposite it.', text: 'The side opposite the ${{c}}^\\circ$ angle.' },
+  hint: 'Which angle is the largest?',
+  feedback: 'Equal sides would need equal angles.',
+});
+
+mk('6.8A', 'apex-angle-of-a-truss', {
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A roof truss is a triangle whose two base angles are ${{a}}^\\circ$ each. What is the top angle?',
+  generator: {
+    parameters: { a: { type: 'int', min: 15, max: 75 } },
+    derived: {
+      answer: '180-2*a',
+      d_partialTotal: '180-a',
+      d_operationInverted: '2*a',
+      d_arithmeticSlip: '90-a',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}^\\circ'), correct: true },
+    { label: plain('{{d_partialTotal}}^\\circ'), error: 'partialTotal' },
+    { label: plain('{{d_operationInverted}}^\\circ'), error: 'operationInverted' },
+    { label: plain('{{d_arithmeticSlip}}^\\circ'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['The two base angles together take ${{d_operationInverted}}^\\circ$.', 'That leaves $180 - {{d_operationInverted}} = {{answer}}$ for the top.'],
+  answerSummary: { headline: 'Take both equal angles off the 180 degree total.', text: 'The top angle is ${{answer}}^\\circ$.' },
+  hint: 'Both base angles are the same size.',
+  feedback: 'One base angle is not the pair of them.',
+});
+
+mk('6.8A', 'angles-that-cannot-be-a-triangle', {
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student says a triangle has angles ${{a}}^\\circ$, ${{b}}^\\circ$ and ${{c}}^\\circ$. Why is that impossible?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 20, max: 70 },
+      b: { type: 'int', min: 20, max: 70 },
+      e: { type: 'int', min: 5, max: 40 },
+    },
+    derived: {
+      c: '180-a-b+e',
+      total: '180+e',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The three angles total ${{total}}^\\circ$, and a triangle totals $180^\\circ$.', correct: true },
+    { label: 'The three angles total ${{total}}^\\circ$, which is short of $180^\\circ$.', error: 'signError' },
+    { label: 'A triangle cannot have three angles of different sizes.', error: 'operationInverted' },
+    { label: 'An angle of ${{a}}^\\circ$ is not allowed in a triangle.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['${{a}} + {{b}} + {{c}} = {{total}}$.', 'Every triangle totals exactly $180^\\circ$, so these three cannot close one.'],
+  answerSummary: { headline: 'Add the angles before judging whether the triangle exists.', text: 'They total ${{total}}^\\circ$.' },
+  hint: 'Add the three measures.',
+  feedback: 'The total is over 180, not under it.',
+});
+
+// ================================================================ 6.8B
+// Where the area formulas come from: cutting a shape up and moving the pieces.
+
+mk('6.8B', 'parallelogram-cut-into-a-rectangle', {
+  difficultyBand: 1, dok: 2, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'A triangle is cut from one end of a parallelogram and moved to the other. What results?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 4, max: 24 },
+      h: { type: 'int', min: 3, max: 18 },
+    },
+    derived: { area: 'b*h' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'A rectangle of the same base and height, and the same area.', correct: true },
+    { label: 'A rectangle of the same base and height, but twice the area.', error: 'operationInverted' },
+    { label: 'A triangle of half the area.', error: 'partialTotal' },
+    { label: 'A square with the same distance round the outside.', error: 'areaPerimeterSwap' },
+  ],
+  reasoning: ['Nothing is added or thrown away, so the area cannot change.', 'A base of ${{b}}$ and a height of ${{h}}$ give ${{area}}$ either way.'],
+  answerSummary: { headline: 'Rearranging pieces moves area about; it does not create or destroy it.', text: 'A rectangle of the same area.' },
+  hint: 'Was anything added or removed?',
+  feedback: 'Moving a piece cannot double what is there.',
+});
+
+mk('6.8B', 'two-triangles-make-a-parallelogram', {
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'Two identical triangles of base $b$ and height $h$ join into a parallelogram. Which expression gives the area of one of them?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 4, max: 24, step: 2 },
+      h: { type: 'int', min: 3, max: 18 },
+    },
+    derived: { pair: 'b*h', each: 'b*h/2' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('\\frac{bh}{2}'), correct: true },
+    { label: plain('bh'), error: 'operationInverted' },
+    { label: plain('2bh'), error: 'arithmeticSlip' },
+    { label: plain('\\frac{b + h}{2}'), error: 'areaPerimeterSwap' },
+  ],
+  reasoning: ['The parallelogram covers $bh$, and the two triangles share it equally.', 'With $b = {{b}}$ and $h = {{h}}$ the pair covers ${{pair}}$, so one covers ${{each}}$.'],
+  answerSummary: { headline: 'A triangle is half the parallelogram built from two copies of it.', text: 'It is $\\frac{bh}{2}$.' },
+  hint: 'How many triangles make the parallelogram?',
+  feedback: 'Adding the base to the height measures neither area.',
+});
+
+mk('6.8B', 'why-a-triangle-is-half', {
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'verbal',
+  prompt: 'Why does a triangle of base ${{b}}$ cm and height ${{h}}$ cm cover ${{half}}$ square cm?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 4, max: 24, step: 2 },
+      h: { type: 'int', min: 3, max: 18 },
+    },
+    derived: { rect: 'b*h', half: 'b*h/2' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Two copies of it form a parallelogram of ${{rect}}$ square cm.', correct: true },
+    { label: 'Its base and height are each halved before multiplying.', error: 'operationInverted' },
+    { label: 'Half of the base is multiplied by half of the height.', error: 'partialTotal' },
+    { label: 'The distance round the outside is halved.', error: 'areaPerimeterSwap' },
+  ],
+  reasoning: ['Turning a second copy of the triangle upside down closes a parallelogram of ${{rect}}$ square cm.', 'The two copies are identical, so each holds ${{half}}$.'],
+  answerSummary: { headline: 'The halving comes from pairing the triangle with a copy of itself.', text: 'Two copies make ${{rect}}$ square cm.' },
+  hint: 'What shape do two copies of the triangle close?',
+  feedback: 'Halving both dimensions would quarter the area, not halve it.',
+});
+
+mk('6.8B', 'rearranging-does-not-change-area', {
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student says cutting a parallelogram into a rectangle changes its area. What is wrong?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 4, max: 24 },
+      h: { type: 'int', min: 3, max: 18 },
+    },
+    derived: { area: 'b*h', slant: 'b*h+h' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The same pieces are used, so the area stays ${{area}}$ square units.', correct: true },
+    { label: 'Nothing is wrong, because the slanted side is longer than the base.', error: 'areaPerimeterSwap' },
+    { label: 'Nothing is wrong, and the rectangle covers ${{slant}}$ square units.', error: 'operationInverted' },
+    { label: 'The area does change, because the height is measured differently.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['The cut piece is moved, not resized, so nothing is gained or lost.', 'Both shapes stand on a base of ${{b}}$ with a height of ${{h}}$.'],
+  answerSummary: { headline: 'Decomposing and rearranging preserves area exactly.', text: 'The area is ${{area}}$ either way.' },
+  hint: 'Count what was added and what was removed.',
+  feedback: 'A longer slanted side does not add area.',
+});
+
+mk('6.8B', 'area-of-one-of-the-two-triangles', {
+  difficultyBand: 3, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A parallelogram plate of base ${{b}}$ cm and height ${{h}}$ cm is cut along a diagonal. What area does one piece cover?',
+  generator: {
+    parameters: {
+      // The crossing distractor is the distance round the outside, and whether
+      // that beats half the area turns on 4(b + h) against bh. Drawn to 24 by
+      // 18 the area ran away with it and the key was the larger of the two in
+      // two draws out of three.
+      b: { type: 'int', min: 4, max: 20, step: 2 },
+      h: { type: 'int', min: 3, max: 12 },
+    },
+    derived: {
+      answer: 'b*h/2',
+      d_forgotFinalStep: 'b*h',
+      d_areaPerimeterSwap: 'b+h',
+      d_operationInverted: '2*(b+h)',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_areaPerimeterSwap}}'), error: 'areaPerimeterSwap' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The whole plate covers ${{d_forgotFinalStep}}$ square centimetres.', 'The diagonal splits it into two equal pieces, so one covers ${{answer}}$.'],
+  answerSummary: { headline: 'A diagonal halves a parallelogram.', text: 'One piece covers ${{answer}}$ square centimetres.' },
+  hint: 'What does the whole plate cover first?',
+  feedback: 'The whole plate is twice one of the pieces.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
