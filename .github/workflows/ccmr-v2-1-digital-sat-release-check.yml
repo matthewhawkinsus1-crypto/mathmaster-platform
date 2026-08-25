@@ -25,6 +25,7 @@ jobs:
         with:
           node-version: '20'
 
+      # Keep audit semantics covered before compiling or releasing authored content.
       - name: Syntax-check V2.1 publisher
         run: node --check scripts/build-digital-sat-v2-1.mjs
 
