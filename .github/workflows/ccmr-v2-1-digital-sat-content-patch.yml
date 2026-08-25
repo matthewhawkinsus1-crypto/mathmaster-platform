@@ -6,6 +6,7 @@ on:
       - ccmr-fidelity-v2-1-authentic-language
     paths:
       - 'scripts/patch-digital-sat-v2-1-content-repair.mjs'
+      - 'scripts/fix-digital-sat-v2-1-content-repair-special-cases.mjs'
       - '.github/workflows/ccmr-v2-1-digital-sat-content-patch.yml'
   workflow_dispatch:
 
@@ -20,7 +21,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Syntax check repair script
-        run: node --check scripts/patch-digital-sat-v2-1-content-repair.mjs
+      - name: Normalize temporary repair-script object keys
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          path = Path('scripts/patch-digital-sat-v2-1-content-repair.mjs')
+          text = path.read_text()
+          text = re.sub(r'^  (mm_sat_[A-Za-z0-9_-]+):', r"  '\1':", text, flags=re.MULTILINE)
+          path.write_text(text)
+          PY
+      - name: Syntax check repair scripts
+        run: |
+          node --check scripts/patch-digital-sat-v2-1-content-repair.mjs
+          node --check scripts/fix-digital-sat-v2-1-content-repair-special-cases.mjs
       - name: Verify guarded repair selection
         run: node scripts/patch-digital-sat-v2-1-content-repair.mjs --check
