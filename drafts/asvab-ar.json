@@ -19647,6 +19647,1985 @@
      "expected": "choice-b"
     }
    ]
+  },
+  {
+   "id": "mm_asvab_8_12C_total_saved_over_years",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.12C:total-saved-over-years",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12C",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{worker}} already has $\\${{start}}$ saved and adds $\\${{monthly}}$ a month for {{years}} years. What is the total saved?",
+   "solutionReview": {
+    "headline": "Regular saving adds to whatever is already there.",
+    "reasoning": [
+     "{{years}} years is {{years}} times 12 months.",
+     "That adds {{added}} to the {{start}} already saved."
+    ],
+    "answerSummary": "The total is $\\${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The amount already saved counts towards the total."
+   ],
+   "supportHints": [
+    "Count the months, not the years, when applying the monthly amount."
+   ],
+   "generator": {
+    "parameters": {
+     "worker": {
+      "type": "choice",
+      "values": [
+       "mechanic",
+       "driver",
+       "loader",
+       "welder",
+       "technician"
+      ]
+     },
+     "monthly": {
+      "type": "int",
+      "min": 20,
+      "max": 300,
+      "step": 10
+     },
+     "years": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "start": {
+      "type": "int",
+      "min": 200,
+      "max": 30000,
+      "step": 100
+     }
+    },
+    "derived": {
+     "added": "monthly*12*years",
+     "answer": "start+monthly*12*years",
+     "d_forgotFinalStep": "added",
+     "d_partialTotal": "start*2",
+     "d_offByOneStep": "start+monthly*12*(years+1)"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "answer!=d_offByOneStep",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_forgotFinalStep!=d_offByOneStep",
+     "d_partialTotal!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_12C_months_to_reach_a_target",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.12C:months-to-reach-a-target",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12C",
+   "taskType": "reverseReasoning",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{worker}} has $\\${{start}}$ and saves $\\${{monthly}}$ a month. How many months until the savings reach $\\${{target}}$?",
+   "solutionReview": {
+    "headline": "What is already saved shortens the wait.",
+    "reasoning": [
+     "Only {{target}} minus {{start}} still has to be saved.",
+     "At {{monthly}} a month that takes {{answer}} months."
+    ],
+    "answerSummary": "It takes ${{answer}}$ months."
+   },
+   "attemptFeedback": [
+    "Dividing the whole target by the monthly amount ignores the starting balance."
+   ],
+   "supportHints": [
+    "Some of the target is already in hand."
+   ],
+   "generator": {
+    "parameters": {
+     "worker": {
+      "type": "choice",
+      "values": [
+       "mechanic",
+       "driver",
+       "loader",
+       "welder",
+       "technician"
+      ]
+     },
+     "monthly": {
+      "type": "int",
+      "min": 20,
+      "max": 200,
+      "step": 10
+     },
+     "months": {
+      "type": "int",
+      "min": 6,
+      "max": 60,
+      "step": 6
+     },
+     "start": {
+      "type": "int",
+      "min": 100,
+      "max": 6000,
+      "step": 100
+     }
+    },
+    "derived": {
+     "target": "start+monthly*months",
+     "answer": "months",
+     "d_forgotFinalStep": "round(target/monthly)",
+     "d_operationInverted": "round(start/monthly)",
+     "d_offByOneStep": "months-6"
+    },
+    "constraints": [
+     "months>6",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_offByOneStep",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_offByOneStep",
+     "d_operationInverted!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_12C_saving_earlier_versus_more",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.12C:saving-earlier-versus-more",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12C",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two savers are compared below. How much more has the better one put away?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Savers",
+    "table": {
+     "headers": [
+      "saver",
+      "monthly",
+      "years"
+     ],
+     "rows": [
+      [
+       "A",
+       "{{mA}}",
+       "{{yA}}"
+      ],
+      [
+       "B",
+       "{{mB}}",
+       "{{yB}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Saving longer can beat saving more each month.",
+    "reasoning": [
+     "Saver A puts away {{totalA}} and saver B {{totalB}}.",
+     "The gap is {{answer}}."
+    ],
+    "answerSummary": "The better saver has $\\${{answer}}$ more."
+   },
+   "attemptFeedback": [
+    "Work out each saver’s total before comparing."
+   ],
+   "supportHints": [
+    "Neither the monthly amount nor the number of years decides it alone."
+   ],
+   "generator": {
+    "parameters": {
+     "mA": {
+      "type": "int",
+      "min": 20,
+      "max": 200,
+      "step": 10
+     },
+     "mB": {
+      "type": "int",
+      "min": 20,
+      "max": 200,
+      "step": 10
+     },
+     "yA": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     },
+     "yB": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     }
+    },
+    "derived": {
+     "totalA": "mA*12*yA",
+     "totalB": "mB*12*yB",
+     "answer": "abs(mA*12*yA-mB*12*yB)",
+     "d_partialTotal": "min(totalA,totalB)",
+     "d_signError": "totalA+totalB",
+     "d_unitConversion": "abs(mA*yA-mB*yB)"
+    },
+    "constraints": [
+     "totalA!=totalB",
+     "answer!=d_partialTotal",
+     "answer!=d_signError",
+     "answer!=d_unitConversion",
+     "d_partialTotal!=d_signError",
+     "d_partialTotal!=d_unitConversion",
+     "d_signError!=d_unitConversion"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_unitConversion}}$",
+     "error": "unitConversion"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_signError}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_12C_monthly_amount_for_a_plan",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.12C:monthly-amount-for-a-plan",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12C",
+   "taskType": "application",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{worker}} wants $\\${{target}}$ in {{years}} years and has $\\${{start}}$ now. How much a month is needed?",
+   "solutionReview": {
+    "headline": "Take off what is already saved, then spread the rest over the months.",
+    "reasoning": [
+     "Only {{target}} minus {{start}} has to be saved, over {{years}} times 12 months.",
+     "That is {{answer}} a month."
+    ],
+    "answerSummary": "It takes $\\${{answer}}$ a month."
+   },
+   "attemptFeedback": [
+    "Spreading the target over the years gives a yearly figure, and ignores what is already saved."
+   ],
+   "supportHints": [
+    "Two adjustments: the starting balance, and years into months."
+   ],
+   "generator": {
+    "parameters": {
+     "worker": {
+      "type": "choice",
+      "values": [
+       "mechanic",
+       "driver",
+       "loader",
+       "welder",
+       "technician"
+      ]
+     },
+     "monthly": {
+      "type": "int",
+      "min": 20,
+      "max": 250,
+      "step": 10
+     },
+     "years": {
+      "type": "int",
+      "min": 2,
+      "max": 10
+     },
+     "start": {
+      "type": "int",
+      "min": 200,
+      "max": 16000,
+      "step": 100
+     }
+    },
+    "derived": {
+     "target": "start+monthly*12*years",
+     "answer": "monthly",
+     "d_forgotFinalStep": "round(target/(12*years))",
+     "d_usedGivenValue": "round(start/(12*years))",
+     "d_offByOneStep": "round((target-start)/(12*years+12))"
+    },
+    "constraints": [
+     "d_usedGivenValue>0",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_offByOneStep",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_offByOneStep",
+     "d_usedGivenValue!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_12C_raising_the_monthly_amount",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.12C:raising-the-monthly-amount",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12C",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Saving $\\${{monthly}}$ a month for {{years}} years reaches $\\${{total}}$. How much more would $\\${{bigger}}$ a month reach over the same years?",
+   "solutionReview": {
+    "headline": "Only the increase in the monthly amount produces the extra.",
+    "reasoning": [
+     "The monthly amount rises by {{bigger}} minus {{monthly}}.",
+     "Over {{years}} times 12 months that extra comes to {{answer}}."
+    ],
+    "answerSummary": "It reaches $\\${{answer}}$ more."
+   },
+   "attemptFeedback": [
+    "The question asks for the extra, not the new total."
+   ],
+   "supportHints": [
+    "The number of months has not changed; only the amount each month has."
+   ],
+   "generator": {
+    "parameters": {
+     "monthly": {
+      "type": "int",
+      "min": 20,
+      "max": 250,
+      "step": 10
+     },
+     "bigger": {
+      "type": "int",
+      "min": 30,
+      "max": 400,
+      "step": 10
+     },
+     "years": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "total": "monthly*12*years",
+     "answer": "bigger*12*years-monthly*12*years",
+     "d_forgotFinalStep": "bigger*12*years",
+     "d_usedGivenValue": "total",
+     "d_unitConversion": "bigger*years-monthly*years"
+    },
+    "constraints": [
+     "bigger>monthly",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_unitConversion",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_unitConversion",
+     "d_usedGivenValue!=d_unitConversion"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_unitConversion}}$",
+     "error": "unitConversion"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_12D_compound_balance_after_a_withdrawal",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.12D:compound-balance-after-a-withdrawal",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12D",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A $\\${{principal}}$ investment compounds yearly at {{r}}%. After two years $\\${{wd}}$ is taken out. What is it worth at the end of year three?",
+   "solutionReview": {
+    "headline": "The last year pays interest on what is actually left.",
+    "reasoning": [
+     "Two years of compounding reach {{y2}}, and the withdrawal leaves {{base}}.",
+     "Year three pays {{r}} percent of {{base}}, giving {{answer}}."
+    ],
+    "answerSummary": "It is worth $\\${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Interest in year three is worked out on the balance after the withdrawal."
+   ],
+   "supportHints": [
+    "The withdrawal happens before the final year of interest."
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "choice",
+      "values": [
+       5,
+       10
+      ]
+     },
+     "k": {
+      "type": "int",
+      "min": 3,
+      "max": 6
+     },
+     "wdT": {
+      "type": "int",
+      "min": 10,
+      "max": 2400
+     }
+    },
+    "derived": {
+     "principal": "k*8000",
+     "y2": "k*8000*(100+r)*(100+r)/10000",
+     "wd": "wdT*20",
+     "base": "k*8000*(100+r)*(100+r)/10000-wdT*20",
+     "answer": "base*(100+r)/100",
+     "d_forgotFinalStep": "y2*(100+r)/100",
+     "d_partialTotal": "base",
+     "d_usedGivenValue": "wd"
+    },
+    "constraints": [
+     "base>0",
+     "answer==round(answer)",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_partialTotal!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_12D_compound_against_a_simple_deposit",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.12D:compound-against-a-simple-deposit",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12D",
+   "taskType": "interpretation",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Over three years at {{r}}%, how much more does $\\${{principal}}$ compounded yearly hold than $\\${{other}}$ at simple interest?",
+   "solutionReview": {
+    "headline": "A larger deposit at simple interest can still fall short of a smaller one compounded.",
+    "reasoning": [
+     "Compounded, the first reaches {{compoundTotal}}.",
+     "At simple interest the second reaches {{simpleTotal}}.",
+     "The gap is {{answer}}."
+    ],
+    "answerSummary": "It holds $\\${{answer}}$ more."
+   },
+   "attemptFeedback": [
+    "Neither the deposit nor the method settles it on its own."
+   ],
+   "supportHints": [
+    "Work out both totals before comparing."
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "choice",
+      "values": [
+       5,
+       10
+      ]
+     },
+     "k": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "otherT": {
+      "type": "int",
+      "min": 5,
+      "max": 90
+     }
+    },
+    "derived": {
+     "principal": "k*8000",
+     "other": "otherT*1000",
+     "compoundTotal": "k*8000*(100+r)*(100+r)*(100+r)/1000000",
+     "simpleTotal": "otherT*1000+otherT*1000*r/100*3",
+     "answer": "abs(k*8000*(100+r)*(100+r)*(100+r)/1000000-otherT*1000-otherT*1000*r/100*3)",
+     "d_partialTotal": "min(compoundTotal,simpleTotal)",
+     "d_signError": "compoundTotal+simpleTotal",
+     "d_unitConversion": "round(abs(k*8000*(100+r)*(100+r)*(100+r)/1000000-otherT*1000-otherT*1000*r/100*3)/10)"
+    },
+    "constraints": [
+     "compoundTotal!=simpleTotal",
+     "answer!=d_partialTotal",
+     "answer!=d_signError",
+     "answer!=d_unitConversion",
+     "d_partialTotal!=d_signError",
+     "d_partialTotal!=d_unitConversion",
+     "d_signError!=d_unitConversion"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_unitConversion}}$",
+     "error": "unitConversion"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_signError}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_12D_yearly_balance_table",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.12D:yearly-balance-table",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12D",
+   "taskType": "representationTranslation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The balances below compound yearly at {{r}}%, with $\\${{wd}}$ taken out at the end of year two. What belongs in the year three row?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Balances",
+    "table": {
+     "headers": [
+      "year",
+      "balance"
+     ],
+     "rows": [
+      [
+       "1",
+       "{{y1}}"
+      ],
+      [
+       "2 (after withdrawal)",
+       "{{base}}"
+      ],
+      [
+       "3",
+       "?"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Each row grows by a percent of the row above it.",
+    "reasoning": [
+     "Year three pays {{r}} percent of the {{base}} left after the withdrawal.",
+     "That gives {{answer}}."
+    ],
+    "answerSummary": "The row holds $\\${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Growing the pre-withdrawal balance ignores the money taken out."
+   ],
+   "supportHints": [
+    "The rate applies to the balance shown for year two."
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "choice",
+      "values": [
+       5,
+       10
+      ]
+     },
+     "k": {
+      "type": "int",
+      "min": 3,
+      "max": 6
+     },
+     "wdT": {
+      "type": "int",
+      "min": 10,
+      "max": 2400
+     }
+    },
+    "derived": {
+     "y1": "k*8000*(100+r)/100",
+     "y2": "k*8000*(100+r)*(100+r)/10000",
+     "wd": "wdT*20",
+     "base": "k*8000*(100+r)*(100+r)/10000-wdT*20",
+     "answer": "base*(100+r)/100",
+     "d_forgotFinalStep": "base",
+     "d_partialTotal": "y2*(100+r)/100",
+     "d_usedGivenValue": "wd"
+    },
+    "constraints": [
+     "base>0",
+     "answer==round(answer)",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_partialTotal!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_12D_which_earns_more",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.12D:which-earns-more",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12D",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two accounts hold $\\${{principal}}$ at {{r}}% for three years, one simple and one compounded yearly. Which statement is closest to correct?",
+   "rankAnalysisNotApplicable": true,
+   "solutionReview": {
+    "headline": "The same rate compounded beats the same rate simple, by the interest on the interest.",
+    "reasoning": [
+     "Both start the same and pay the same rate.",
+     "Compounding also pays interest on interest, which is worth {{gap}} over three years."
+    ],
+    "answerSummary": "It ends $\\${{gap}}$ ahead."
+   },
+   "attemptFeedback": [
+    "The same rate does not mean the same earnings."
+   ],
+   "supportHints": [
+    "Ask what compounding pays that simple interest does not."
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "choice",
+      "values": [
+       5,
+       10
+      ]
+     },
+     "k": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     }
+    },
+    "derived": {
+     "principal": "k*8000",
+     "simpleEarn": "k*8000*r/100*3",
+     "gap": "k*8000*(100+r)*(100+r)*(100+r)/1000000-k*8000-k*8000*r/100*3"
+    },
+    "constraints": [
+     "gap!=simpleEarn"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The two end level, because the rate is the same.",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "The simple account ends ahead, because interest is paid sooner.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "The compounded account ends $\\${{simpleEarn}}$ ahead.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "The compounded account ends $\\${{gap}}$ ahead."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_12D_interest_in_the_final_year",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.12D:interest-in-the-final-year",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12D",
+   "taskType": "errorAnalysis",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "An investment compounding at {{r}}% stands at $\\${{base}}$ after a withdrawal at the end of year two. How much interest does year three pay?",
+   "solutionReview": {
+    "headline": "Each year’s interest is a percent of that year’s opening balance.",
+    "reasoning": [
+     "Year three pays {{r}} percent of {{base}}.",
+     "That is {{answer}}."
+    ],
+    "answerSummary": "Year three pays $\\${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The opening deposit was smaller than the balance year three starts from."
+   ],
+   "supportHints": [
+    "The balance the year starts from is the one shown."
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "choice",
+      "values": [
+       5,
+       10
+      ]
+     },
+     "k": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "wdT": {
+      "type": "int",
+      "min": 10,
+      "max": 300
+     }
+    },
+    "derived": {
+     "principal": "k*8000",
+     "y2": "k*8000*(100+r)*(100+r)/10000",
+     "base": "k*8000*(100+r)*(100+r)/10000-wdT*20",
+     "answer": "(k*8000*(100+r)*(100+r)/10000-wdT*20)*r/100",
+     "d_forgotFinalStep": "y2*r/100",
+     "d_usedGivenValue": "k*8000*r/100",
+     "d_unitConversion": "(k*8000*(100+r)*(100+r)/10000-wdT*20)*r/1000"
+    },
+    "constraints": [
+     "base>0",
+     "answer==round(answer)",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_unitConversion",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_unitConversion",
+     "d_usedGivenValue!=d_unitConversion"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_unitConversion}}$",
+     "error": "unitConversion"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_12G_four_year_cost",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.12G:four-year-cost",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12G",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A college costs $\\${{perYear}}$ a year for tuition and $\\${{living}}$ a year to live on. What do four years cost?",
+   "solutionReview": {
+    "headline": "Both yearly costs run for all four years.",
+    "reasoning": [
+     "One year costs {{perYear}} plus {{living}}, or {{d_partialTotal}}.",
+     "Four years cost {{answer}}."
+    ],
+    "answerSummary": "Four years cost $\\${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Living costs run every year too, not just tuition."
+   ],
+   "supportHints": [
+    "Total one year first."
+   ],
+   "generator": {
+    "parameters": {
+     "perYear": {
+      "type": "int",
+      "min": 4000,
+      "max": 30000,
+      "step": 500
+     },
+     "living": {
+      "type": "int",
+      "min": 3000,
+      "max": 30000,
+      "step": 500
+     }
+    },
+    "derived": {
+     "answer": "perYear*4+living*4",
+     "d_forgotFinalStep": "perYear*4",
+     "d_partialTotal": "perYear*8",
+     "d_offByOneStep": "perYear*5+living*5"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "answer!=d_offByOneStep",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_forgotFinalStep!=d_offByOneStep",
+     "d_partialTotal!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_12G_gap_after_family_contribution",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.12G:gap-after-family-contribution",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12G",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Four years of college cost $\\${{total}}$. A family can contribute $\\${{contribution}}$ and a grant covers $\\${{grant}}$. What is left to find?",
+   "solutionReview": {
+    "headline": "Every source of money comes off the cost.",
+    "reasoning": [
+     "The family and the grant together cover {{contribution}} plus {{grant}}.",
+     "{{total}} minus that leaves {{answer}}."
+    ],
+    "answerSummary": "$\\${{answer}}$ is left to find."
+   },
+   "attemptFeedback": [
+    "The grant reduces what is owed; it does not add to it."
+   ],
+   "supportHints": [
+    "Two sources reduce the bill, not one."
+   ],
+   "generator": {
+    "parameters": {
+     "total": {
+      "type": "int",
+      "min": 50000,
+      "max": 190000,
+      "step": 1000
+     },
+     "contribution": {
+      "type": "int",
+      "min": 5000,
+      "max": 100000,
+      "step": 1000
+     },
+     "grant": {
+      "type": "int",
+      "min": 2000,
+      "max": 80000,
+      "step": 1000
+     }
+    },
+    "derived": {
+     "answer": "total-contribution-grant",
+     "d_forgotFinalStep": "total-contribution",
+     "d_offByOneStep": "total-contribution*2-grant",
+     "d_partialTotal": "contribution+grant"
+    },
+    "constraints": [
+     "answer>0",
+     "d_offByOneStep>0",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_offByOneStep",
+     "answer!=d_partialTotal",
+     "d_forgotFinalStep!=d_offByOneStep",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_offByOneStep!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_12G_shortfall_on_a_savings_plan",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.12G:shortfall-on-a-savings-plan",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12G",
+   "taskType": "reverseReasoning",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A family needs $\\${{gap}}$ in {{years}} years and can save $\\${{monthly}}$ a month. How much short will they be?",
+   "solutionReview": {
+    "headline": "The shortfall is what the plan does not reach.",
+    "reasoning": [
+     "{{years}} years of saving {{monthly}} a month comes to {{saved}}.",
+     "{{gap}} minus {{saved}} leaves {{answer}} short."
+    ],
+    "answerSummary": "They will be $\\${{answer}}$ short."
+   },
+   "attemptFeedback": [
+    "The question asks what is missing, not what is saved."
+   ],
+   "supportHints": [
+    "Work out what the plan actually saves before comparing it with the target."
+   ],
+   "generator": {
+    "parameters": {
+     "monthly": {
+      "type": "int",
+      "min": 50,
+      "max": 900,
+      "step": 10
+     },
+     "years": {
+      "type": "int",
+      "min": 3,
+      "max": 15
+     },
+     "shortT": {
+      "type": "int",
+      "min": 1,
+      "max": 95
+     }
+    },
+    "derived": {
+     "saved": "monthly*12*years",
+     "gap": "monthly*12*years+shortT*1000",
+     "answer": "shortT*1000",
+     "d_partialTotal": "monthly*12*years",
+     "d_forgotFinalStep": "gap",
+     "d_unitConversion": "monthly*years"
+    },
+    "constraints": [
+     "answer!=d_partialTotal",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_unitConversion",
+     "d_partialTotal!=d_forgotFinalStep",
+     "d_partialTotal!=d_unitConversion",
+     "d_forgotFinalStep!=d_unitConversion"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_unitConversion}}$",
+     "error": "unitConversion"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_12G_two_year_versus_four_year",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.12G:two-year-versus-four-year",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12G",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two routes to a degree are costed below. How much does the cheaper route save?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Routes",
+    "table": {
+     "headers": [
+      "route",
+      "a year",
+      "years"
+     ],
+     "rows": [
+      [
+       "community then transfer",
+       "{{cheapYear}}",
+       "{{cheapYears}}"
+      ],
+      [
+       "four-year college",
+       "{{dearYear}}",
+       "4"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "A cheaper year does not settle it when the routes run for different lengths.",
+    "reasoning": [
+     "The first route costs {{cheapTotal}} and the second {{dearTotal}}.",
+     "The gap is {{answer}}."
+    ],
+    "answerSummary": "The cheaper route saves $\\${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Comparing the yearly costs alone ignores the length of each route."
+   ],
+   "supportHints": [
+    "The routes take different numbers of years."
+   ],
+   "generator": {
+    "parameters": {
+     "cheapYear": {
+      "type": "int",
+      "min": 4000,
+      "max": 20000,
+      "step": 500
+     },
+     "dearYear": {
+      "type": "int",
+      "min": 8000,
+      "max": 40000,
+      "step": 500
+     },
+     "cheapYears": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     }
+    },
+    "derived": {
+     "cheapTotal": "cheapYear*cheapYears",
+     "dearTotal": "dearYear*4",
+     "answer": "abs(cheapYear*cheapYears-dearYear*4)",
+     "d_partialTotal": "min(cheapTotal,dearTotal)",
+     "d_forgotFinalStep": "abs(cheapYear-dearYear)",
+     "d_signError": "cheapTotal+dearTotal"
+    },
+    "constraints": [
+     "cheapTotal!=dearTotal",
+     "answer!=d_partialTotal",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_signError",
+     "d_partialTotal!=d_forgotFinalStep",
+     "d_partialTotal!=d_signError",
+     "d_forgotFinalStep!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_12G_years_of_saving_already_done",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.12G:years-of-saving-already-done",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12G",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A family has saved $\\${{saved}}$ towards a $\\${{gap}}$ target and puts away $\\${{monthly}}$ a month. How many more months are needed?",
+   "solutionReview": {
+    "headline": "Savings already made count against the target.",
+    "reasoning": [
+     "{{gap}} minus the {{saved}} already put away leaves the amount still needed.",
+     "At {{monthly}} a month that takes {{answer}} months."
+    ],
+    "answerSummary": "It takes ${{answer}}$ more months."
+   },
+   "attemptFeedback": [
+    "Dividing the whole target by the monthly amount ignores what is saved."
+   ],
+   "supportHints": [
+    "Part of the target is already met."
+   ],
+   "generator": {
+    "parameters": {
+     "monthly": {
+      "type": "int",
+      "min": 50,
+      "max": 800,
+      "step": 10
+     },
+     "months": {
+      "type": "int",
+      "min": 6,
+      "max": 90,
+      "step": 6
+     },
+     "saved": {
+      "type": "int",
+      "min": 1000,
+      "max": 40000,
+      "step": 500
+     }
+    },
+    "derived": {
+     "gap": "saved+monthly*months",
+     "answer": "months",
+     "d_forgotFinalStep": "round(gap/monthly)",
+     "d_operationInverted": "round(saved/monthly)",
+     "d_offByOneStep": "months-6"
+    },
+    "constraints": [
+     "months>6",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_offByOneStep",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_offByOneStep",
+     "d_operationInverted!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
   }
  ]
 }

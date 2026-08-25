@@ -4660,6 +4660,503 @@ ar('8.8B', 'which-plan-wins-long-run', {
   feedback: 'Free to join does not mean cheaper in the long run.',
 });
 
+// ================================================================ 8.12C
+// Small amounts saved regularly.
+
+ar('8.12C', 'total-saved-over-years', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'A {{worker}} already has $\\${{start}}$ saved and adds $\\${{monthly}}$ a month for {{years}} years. What is the total saved?',
+  generator: {
+    parameters: {
+      worker: contextParam(['mechanic', 'driver', 'loader', 'welder', 'technician']),
+      monthly: { type: 'int', min: 20, max: 300, step: 10 },
+      years: { type: 'int', min: 2, max: 12 },
+      start: { type: 'int', min: 200, max: 30000, step: 100 },
+    },
+    derived: {
+      added: 'monthly*12*years',
+      answer: 'start+monthly*12*years',
+      d_forgotFinalStep: 'added',
+      d_partialTotal: 'start*2',
+      d_offByOneStep: 'start+monthly*12*(years+1)',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['{{years}} years is {{years}} times 12 months.', 'That adds {{added}} to the {{start}} already saved.'],
+  answerSummary: { headline: 'Regular saving adds to whatever is already there.', text: 'The total is $\\${{answer}}$.' },
+  hint: 'Count the months, not the years, when applying the monthly amount.',
+  feedback: 'The amount already saved counts towards the total.',
+});
+
+ar('8.12C', 'months-to-reach-a-target', {
+  difficultyBand: 3, dok: 2, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'A {{worker}} has $\\${{start}}$ and saves $\\${{monthly}}$ a month. How many months until the savings reach $\\${{target}}$?',
+  generator: {
+    parameters: {
+      worker: contextParam(['mechanic', 'driver', 'loader', 'welder', 'technician']),
+      monthly: { type: 'int', min: 20, max: 200, step: 10 },
+      months: { type: 'int', min: 6, max: 60, step: 6 },
+      start: { type: 'int', min: 100, max: 6000, step: 100 },
+    },
+    derived: {
+      target: 'start+monthly*months',
+      answer: 'months',
+      d_forgotFinalStep: 'round(target/monthly)',
+      d_operationInverted: 'round(start/monthly)',
+      d_offByOneStep: 'months-6',
+    },
+    constraints: ['months>6'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['Only {{target}} minus {{start}} still has to be saved.', 'At {{monthly}} a month that takes {{answer}} months.'],
+  answerSummary: { headline: 'What is already saved shortens the wait.', text: 'It takes ${{answer}}$ months.' },
+  hint: 'Some of the target is already in hand.',
+  feedback: 'Dividing the whole target by the monthly amount ignores the starting balance.',
+});
+
+ar('8.12C', 'saving-earlier-versus-more', {
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'Two savers are compared below. How much more has the better one put away?',
+  stimulus: {
+    kind: 'table',
+    title: 'Savers',
+    table: { headers: ['saver', 'monthly', 'years'], rows: [['A', '{{mA}}', '{{yA}}'], ['B', '{{mB}}', '{{yB}}']] },
+  },
+  generator: {
+    parameters: {
+      mA: { type: 'int', min: 20, max: 200, step: 10 },
+      mB: { type: 'int', min: 20, max: 200, step: 10 },
+      yA: { type: 'int', min: 2, max: 15 },
+      yB: { type: 'int', min: 2, max: 15 },
+    },
+    derived: {
+      totalA: 'mA*12*yA',
+      totalB: 'mB*12*yB',
+      answer: 'abs(mA*12*yA-mB*12*yB)',
+      d_partialTotal: 'min(totalA,totalB)',
+      d_signError: 'totalA+totalB',
+      d_unitConversion: 'abs(mA*yA-mB*yB)',
+    },
+    constraints: ['totalA!=totalB'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_signError}}'), error: 'signError' },
+    { label: money('{{d_unitConversion}}'), error: 'unitConversion' },
+  ],
+  reasoning: ['Saver A puts away {{totalA}} and saver B {{totalB}}.', 'The gap is {{answer}}.'],
+  answerSummary: { headline: 'Saving longer can beat saving more each month.', text: 'The better saver has $\\${{answer}}$ more.' },
+  hint: 'Neither the monthly amount nor the number of years decides it alone.',
+  feedback: 'Work out each saver’s total before comparing.',
+});
+
+ar('8.12C', 'monthly-amount-for-a-plan', {
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'verbal',
+  prompt: 'A {{worker}} wants $\\${{target}}$ in {{years}} years and has $\\${{start}}$ now. How much a month is needed?',
+  generator: {
+    parameters: {
+      worker: contextParam(['mechanic', 'driver', 'loader', 'welder', 'technician']),
+      monthly: { type: 'int', min: 20, max: 250, step: 10 },
+      years: { type: 'int', min: 2, max: 10 },
+      start: { type: 'int', min: 200, max: 16000, step: 100 },
+    },
+    derived: {
+      target: 'start+monthly*12*years',
+      answer: 'monthly',
+      d_forgotFinalStep: 'round(target/(12*years))',
+      d_usedGivenValue: 'round(start/(12*years))',
+      d_offByOneStep: 'round((target-start)/(12*years+12))',
+    },
+    constraints: ['d_usedGivenValue>0'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: money('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['Only {{target}} minus {{start}} has to be saved, over {{years}} times 12 months.', 'That is {{answer}} a month.'],
+  answerSummary: { headline: 'Take off what is already saved, then spread the rest over the months.', text: 'It takes $\\${{answer}}$ a month.' },
+  hint: 'Two adjustments: the starting balance, and years into months.',
+  feedback: 'Spreading the target over the years gives a yearly figure, and ignores what is already saved.',
+});
+
+ar('8.12C', 'raising-the-monthly-amount', {
+  difficultyBand: 2, dok: 3, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'Saving $\\${{monthly}}$ a month for {{years}} years reaches $\\${{total}}$. How much more would $\\${{bigger}}$ a month reach over the same years?',
+  generator: {
+    parameters: {
+      monthly: { type: 'int', min: 20, max: 250, step: 10 },
+      bigger: { type: 'int', min: 30, max: 400, step: 10 },
+      years: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      total: 'monthly*12*years',
+      answer: 'bigger*12*years-monthly*12*years',
+      d_forgotFinalStep: 'bigger*12*years',
+      d_usedGivenValue: 'total',
+      d_unitConversion: 'bigger*years-monthly*years',
+    },
+    constraints: ['bigger>monthly'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: money('{{d_unitConversion}}'), error: 'unitConversion' },
+  ],
+  reasoning: ['The monthly amount rises by {{bigger}} minus {{monthly}}.', 'Over {{years}} times 12 months that extra comes to {{answer}}.'],
+  answerSummary: { headline: 'Only the increase in the monthly amount produces the extra.', text: 'It reaches $\\${{answer}}$ more.' },
+  hint: 'The number of months has not changed; only the amount each month has.',
+  feedback: 'The question asks for the extra, not the new total.',
+});
+
+// ================================================================ 8.12D
+// Simple against compound over a longer run.
+//
+// The principal is a multiple of 8000 so that a THIRD compounded year is still
+// a whole number at either rate: 8000 times 1.157625 is 9261.
+
+const INVEST_RATES = { type: 'choice', values: [5, 10] };
+
+// Every distractor built from a principal and a rate is a fixed multiple of the
+// principal, so with two rates the key sits at the same rank in every draw —
+// the single-parameter trap again. A withdrawal gives each item a second
+// independently drawn amount, which is also how these accounts really behave.
+
+ar('8.12D', 'compound-balance-after-a-withdrawal', {
+  difficultyBand: 3, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'A $\\${{principal}}$ investment compounds yearly at {{r}}%. After two years $\\${{wd}}$ is taken out. What is it worth at the end of year three?',
+  generator: {
+    parameters: {
+      r: INVEST_RATES,
+      k: { type: 'int', min: 3, max: 6 },
+      wdT: { type: 'int', min: 10, max: 2400 },
+    },
+    derived: {
+      principal: 'k*8000',
+      y2: 'k*8000*(100+r)*(100+r)/10000',
+      wd: 'wdT*20',
+      base: 'k*8000*(100+r)*(100+r)/10000-wdT*20',
+      answer: 'base*(100+r)/100',
+      d_forgotFinalStep: 'y2*(100+r)/100',
+      d_partialTotal: 'base',
+      d_usedGivenValue: 'wd',
+    },
+    constraints: ['base>0', 'answer==round(answer)'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Two years of compounding reach {{y2}}, and the withdrawal leaves {{base}}.', 'Year three pays {{r}} percent of {{base}}, giving {{answer}}.'],
+  answerSummary: { headline: 'The last year pays interest on what is actually left.', text: 'It is worth $\\${{answer}}$.' },
+  hint: 'The withdrawal happens before the final year of interest.',
+  feedback: 'Interest in year three is worked out on the balance after the withdrawal.',
+});
+
+ar('8.12D', 'compound-against-a-simple-deposit', {
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'context',
+  prompt: 'Over three years at {{r}}%, how much more does $\\${{principal}}$ compounded yearly hold than $\\${{other}}$ at simple interest?',
+  generator: {
+    parameters: {
+      r: INVEST_RATES,
+      k: { type: 'int', min: 1, max: 6 },
+      otherT: { type: 'int', min: 5, max: 90 },
+    },
+    derived: {
+      principal: 'k*8000',
+      other: 'otherT*1000',
+      compoundTotal: 'k*8000*(100+r)*(100+r)*(100+r)/1000000',
+      simpleTotal: 'otherT*1000+otherT*1000*r/100*3',
+      answer: 'abs(k*8000*(100+r)*(100+r)*(100+r)/1000000-otherT*1000-otherT*1000*r/100*3)',
+      d_partialTotal: 'min(compoundTotal,simpleTotal)',
+      d_signError: 'compoundTotal+simpleTotal',
+      d_unitConversion: 'round(abs(k*8000*(100+r)*(100+r)*(100+r)/1000000-otherT*1000-otherT*1000*r/100*3)/10)',
+    },
+    constraints: ['compoundTotal!=simpleTotal'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_signError}}'), error: 'signError' },
+    { label: money('{{d_unitConversion}}'), error: 'unitConversion' },
+  ],
+  reasoning: ['Compounded, the first reaches {{compoundTotal}}.', 'At simple interest the second reaches {{simpleTotal}}.', 'The gap is {{answer}}.'],
+  answerSummary: { headline: 'A larger deposit at simple interest can still fall short of a smaller one compounded.', text: 'It holds $\\${{answer}}$ more.' },
+  hint: 'Work out both totals before comparing.',
+  feedback: 'Neither the deposit nor the method settles it on its own.',
+});
+
+ar('8.12D', 'yearly-balance-table', {
+  difficultyBand: 3, dok: 2, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'The balances below compound yearly at {{r}}%, with $\\${{wd}}$ taken out at the end of year two. What belongs in the year three row?',
+  stimulus: {
+    kind: 'table',
+    title: 'Balances',
+    table: { headers: ['year', 'balance'], rows: [['1', '{{y1}}'], ['2 (after withdrawal)', '{{base}}'], ['3', '?']] },
+  },
+  generator: {
+    parameters: {
+      r: INVEST_RATES,
+      k: { type: 'int', min: 3, max: 6 },
+      wdT: { type: 'int', min: 10, max: 2400 },
+    },
+    derived: {
+      y1: 'k*8000*(100+r)/100',
+      y2: 'k*8000*(100+r)*(100+r)/10000',
+      wd: 'wdT*20',
+      base: 'k*8000*(100+r)*(100+r)/10000-wdT*20',
+      answer: 'base*(100+r)/100',
+      d_forgotFinalStep: 'base',
+      d_partialTotal: 'y2*(100+r)/100',
+      d_usedGivenValue: 'wd',
+    },
+    constraints: ['base>0', 'answer==round(answer)'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Year three pays {{r}} percent of the {{base}} left after the withdrawal.', 'That gives {{answer}}.'],
+  answerSummary: { headline: 'Each row grows by a percent of the row above it.', text: 'The row holds $\\${{answer}}$.' },
+  hint: 'The rate applies to the balance shown for year two.',
+  feedback: 'Growing the pre-withdrawal balance ignores the money taken out.',
+});
+
+ar('8.12D', 'which-earns-more', {
+  difficultyBand: 3, dok: 3, taskType: 'conceptual', representation: 'verbal',
+  rankAnalysisNotApplicable: true,
+  prompt: 'Two accounts hold $\\${{principal}}$ at {{r}}% for three years, one simple and one compounded yearly. Which statement is closest to correct?',
+  generator: {
+    parameters: {
+      r: INVEST_RATES,
+      k: { type: 'int', min: 1, max: 6 },
+    },
+    derived: {
+      principal: 'k*8000',
+      simpleEarn: 'k*8000*r/100*3',
+      gap: 'k*8000*(100+r)*(100+r)*(100+r)/1000000-k*8000-k*8000*r/100*3',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The compounded account ends $\\${{gap}}$ ahead.', correct: true },
+    { label: 'The two end level, because the rate is the same.', error: 'forgotFinalStep' },
+    { label: 'The compounded account ends $\\${{simpleEarn}}$ ahead.', error: 'partialTotal' },
+    { label: 'The simple account ends ahead, because interest is paid sooner.', error: 'signError' },
+  ],
+  reasoning: ['Both start the same and pay the same rate.', 'Compounding also pays interest on interest, which is worth {{gap}} over three years.'],
+  answerSummary: { headline: 'The same rate compounded beats the same rate simple, by the interest on the interest.', text: 'It ends $\\${{gap}}$ ahead.' },
+  hint: 'Ask what compounding pays that simple interest does not.',
+  feedback: 'The same rate does not mean the same earnings.',
+});
+
+ar('8.12D', 'interest-in-the-final-year', {
+  difficultyBand: 2, dok: 3, taskType: 'errorAnalysis', representation: 'context',
+  prompt: 'An investment compounding at {{r}}% stands at $\\${{base}}$ after a withdrawal at the end of year two. How much interest does year three pay?',
+  generator: {
+    parameters: {
+      r: INVEST_RATES,
+      k: { type: 'int', min: 1, max: 6 },
+      wdT: { type: 'int', min: 10, max: 300 },
+    },
+    derived: {
+      principal: 'k*8000',
+      y2: 'k*8000*(100+r)*(100+r)/10000',
+      base: 'k*8000*(100+r)*(100+r)/10000-wdT*20',
+      answer: '(k*8000*(100+r)*(100+r)/10000-wdT*20)*r/100',
+      d_forgotFinalStep: 'y2*r/100',
+      d_usedGivenValue: 'k*8000*r/100',
+      d_unitConversion: '(k*8000*(100+r)*(100+r)/10000-wdT*20)*r/1000',
+    },
+    constraints: ['base>0', 'answer==round(answer)'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: money('{{d_unitConversion}}'), error: 'unitConversion' },
+  ],
+  reasoning: ['Year three pays {{r}} percent of {{base}}.', 'That is {{answer}}.'],
+  answerSummary: { headline: 'Each year’s interest is a percent of that year’s opening balance.', text: 'Year three pays $\\${{answer}}$.' },
+  hint: 'The balance the year starts from is the one shown.',
+  feedback: 'The opening deposit was smaller than the balance year three starts from.',
+});
+
+// ================================================================ 8.12G
+// The cost of college and a plan to meet it.
+
+ar('8.12G', 'four-year-cost', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'A college costs $\\${{perYear}}$ a year for tuition and $\\${{living}}$ a year to live on. What do four years cost?',
+  generator: {
+    parameters: {
+      perYear: { type: 'int', min: 4000, max: 30000, step: 500 },
+      living: { type: 'int', min: 3000, max: 30000, step: 500 },
+    },
+    derived: {
+      answer: 'perYear*4+living*4',
+      d_forgotFinalStep: 'perYear*4',
+      d_partialTotal: 'perYear*8',
+      d_offByOneStep: 'perYear*5+living*5',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['One year costs {{perYear}} plus {{living}}, or {{d_partialTotal}}.', 'Four years cost {{answer}}.'],
+  answerSummary: { headline: 'Both yearly costs run for all four years.', text: 'Four years cost $\\${{answer}}$.' },
+  hint: 'Total one year first.',
+  feedback: 'Living costs run every year too, not just tuition.',
+});
+
+ar('8.12G', 'gap-after-family-contribution', {
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'Four years of college cost $\\${{total}}$. A family can contribute $\\${{contribution}}$ and a grant covers $\\${{grant}}$. What is left to find?',
+  generator: {
+    parameters: {
+      total: { type: 'int', min: 50000, max: 190000, step: 1000 },
+      contribution: { type: 'int', min: 5000, max: 100000, step: 1000 },
+      grant: { type: 'int', min: 2000, max: 80000, step: 1000 },
+    },
+    derived: {
+      answer: 'total-contribution-grant',
+      d_forgotFinalStep: 'total-contribution',
+      d_offByOneStep: 'total-contribution*2-grant',
+      d_partialTotal: 'contribution+grant',
+    },
+    constraints: ['answer>0', 'd_offByOneStep>0'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The family and the grant together cover {{contribution}} plus {{grant}}.', '{{total}} minus that leaves {{answer}}.'],
+  answerSummary: { headline: 'Every source of money comes off the cost.', text: '$\\${{answer}}$ is left to find.' },
+  hint: 'Two sources reduce the bill, not one.',
+  feedback: 'The grant reduces what is owed; it does not add to it.',
+});
+
+ar('8.12G', 'shortfall-on-a-savings-plan', {
+  difficultyBand: 3, dok: 3, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'A family needs $\\${{gap}}$ in {{years}} years and can save $\\${{monthly}}$ a month. How much short will they be?',
+  generator: {
+    parameters: {
+      monthly: { type: 'int', min: 50, max: 900, step: 10 },
+      years: { type: 'int', min: 3, max: 15 },
+      shortT: { type: 'int', min: 1, max: 95 },
+    },
+    derived: {
+      saved: 'monthly*12*years',
+      gap: 'monthly*12*years+shortT*1000',
+      answer: 'shortT*1000',
+      d_partialTotal: 'monthly*12*years',
+      d_forgotFinalStep: 'gap',
+      d_unitConversion: 'monthly*years',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_unitConversion}}'), error: 'unitConversion' },
+  ],
+  reasoning: ['{{years}} years of saving {{monthly}} a month comes to {{saved}}.', '{{gap}} minus {{saved}} leaves {{answer}} short.'],
+  answerSummary: { headline: 'The shortfall is what the plan does not reach.', text: 'They will be $\\${{answer}}$ short.' },
+  hint: 'Work out what the plan actually saves before comparing it with the target.',
+  feedback: 'The question asks what is missing, not what is saved.',
+});
+
+ar('8.12G', 'two-year-versus-four-year', {
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'Two routes to a degree are costed below. How much does the cheaper route save?',
+  stimulus: {
+    kind: 'table',
+    title: 'Routes',
+    table: { headers: ['route', 'a year', 'years'], rows: [['community then transfer', '{{cheapYear}}', '{{cheapYears}}'], ['four-year college', '{{dearYear}}', '4']] },
+  },
+  generator: {
+    parameters: {
+      cheapYear: { type: 'int', min: 4000, max: 20000, step: 500 },
+      dearYear: { type: 'int', min: 8000, max: 40000, step: 500 },
+      cheapYears: { type: 'int', min: 2, max: 7 },
+    },
+    derived: {
+      cheapTotal: 'cheapYear*cheapYears',
+      dearTotal: 'dearYear*4',
+      answer: 'abs(cheapYear*cheapYears-dearYear*4)',
+      d_partialTotal: 'min(cheapTotal,dearTotal)',
+      d_forgotFinalStep: 'abs(cheapYear-dearYear)',
+      d_signError: 'cheapTotal+dearTotal',
+    },
+    constraints: ['cheapTotal!=dearTotal'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['The first route costs {{cheapTotal}} and the second {{dearTotal}}.', 'The gap is {{answer}}.'],
+  answerSummary: { headline: 'A cheaper year does not settle it when the routes run for different lengths.', text: 'The cheaper route saves $\\${{answer}}$.' },
+  hint: 'The routes take different numbers of years.',
+  feedback: 'Comparing the yearly costs alone ignores the length of each route.',
+});
+
+ar('8.12G', 'years-of-saving-already-done', {
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A family has saved $\\${{saved}}$ towards a $\\${{gap}}$ target and puts away $\\${{monthly}}$ a month. How many more months are needed?',
+  generator: {
+    parameters: {
+      monthly: { type: 'int', min: 50, max: 800, step: 10 },
+      months: { type: 'int', min: 6, max: 90, step: 6 },
+      saved: { type: 'int', min: 1000, max: 40000, step: 500 },
+    },
+    derived: {
+      gap: 'saved+monthly*months',
+      answer: 'months',
+      d_forgotFinalStep: 'round(gap/monthly)',
+      d_operationInverted: 'round(saved/monthly)',
+      d_offByOneStep: 'months-6',
+    },
+    constraints: ['months>6'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['{{gap}} minus the {{saved}} already put away leaves the amount still needed.', 'At {{monthly}} a month that takes {{answer}} months.'],
+  answerSummary: { headline: 'Savings already made count against the target.', text: 'It takes ${{answer}}$ more months.' },
+  hint: 'Part of the target is already met.',
+  feedback: 'Dividing the whole target by the monthly amount ignores what is saved.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
