@@ -19,6 +19,24 @@ const REQUIRED_DOMAINS = Object.freeze([
 
 export const DIGITAL_SAT_PRODUCTION_RELEASE = 'ccmr-fidelity-v2.1-authentic-language';
 
+// These routes are intentionally narrower than the SAT skills themselves. They
+// exist only where the authored TEKS -> SAT crosswalk has no route for an
+// official SAT skill at all. Each code names a real Texas content standard that
+// is a legitimate instructional foundation for that SAT skill. The compiled
+// copy records this provenance as a reviewed foundational mapping; source banks
+// remain assessment-native and Texas-key-free.
+export const DIGITAL_SAT_REVIEWED_FOUNDATIONAL_ROUTING = Object.freeze({
+  'sat-psd-percent': Object.freeze(['6.5B', '7.4D']),
+  'sat-psd-one-variable-data': Object.freeze(['6.12B', '6.12C', '6.13A', '7.12A', '8.11B']),
+  'sat-psd-probability': Object.freeze(['7.6A', '7.6D', '7.6E', '7.6I']),
+  'sat-psd-inference': Object.freeze(['7.6F', '7.12B', '7.12C', '8.11C']),
+  'sat-psd-claims': Object.freeze(['7.12B', '7.12C', '8.11C', 'A.4B']),
+  'sat-geo-area-volume': Object.freeze(['6.8B', '6.8C', '6.8D', '7.9A', '7.9C', '7.9D', '8.7A', '8.7B']),
+  'sat-geo-lines-angles-triangles': Object.freeze(['6.8A', '7.5A', '7.5C', '7.11C', '8.3A', '8.8D', '8.10A', '8.10B']),
+  'sat-geo-right-trig': Object.freeze(['8.4A', '8.6C', '8.7C', '8.7D']),
+  'sat-geo-circles': Object.freeze(['7.5B', '7.8C', '7.9B']),
+});
+
 const walk = (dir) => !fs.existsSync(dir)
   ? []
   : fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -128,6 +146,22 @@ const routeReferenceId = (referenceId) => sortedUnique(
     .map((standard) => standard.code),
 );
 
+const routeReviewedFoundation = (referenceId) => {
+  const requested = DIGITAL_SAT_REVIEWED_FOUNDATIONAL_ROUTING[referenceId] || [];
+  if (!requested.length) return [];
+
+  const standardsByCode = new Map(ALL_TEXAS_MATH_STANDARDS.map((standard) => [standard.code, standard]));
+  const missing = requested.filter((code) => !standardsByCode.has(code));
+  if (missing.length) {
+    throw new Error(`${referenceId}: reviewed foundational routing contains unknown Texas standards: ${missing.join(', ')}`);
+  }
+  const processCodes = requested.filter((code) => standardsByCode.get(code)?.classification === 'process');
+  if (processCodes.length) {
+    throw new Error(`${referenceId}: reviewed foundational routing cannot use process standards: ${processCodes.join(', ')}`);
+  }
+  return sortedUnique(requested);
+};
+
 const texasCodesFromKeys = (alignmentKeys) => sortedUnique(
   (Array.isArray(alignmentKeys) ? alignmentKeys : [])
     .filter((key) => /^texas:/i.test(String(key)))
@@ -173,7 +207,19 @@ const compileItem = ({ sourceItem, bank }) => {
   }
 
   const reference = referenceForNativeItem(sourceItem, bank);
-  const routingCodes = reference ? routeReferenceId(reference.id) : [];
+  const authoredCrosswalkCodes = reference ? routeReferenceId(reference.id) : [];
+  const reviewedFoundationCodes = reference && authoredCrosswalkCodes.length === 0
+    ? routeReviewedFoundation(reference.id)
+    : [];
+  const routingCodes = authoredCrosswalkCodes.length
+    ? authoredCrosswalkCodes
+    : reviewedFoundationCodes;
+  const derivation = authoredCrosswalkCodes.length
+    ? 'assessmentStandardReferences'
+    : reviewedFoundationCodes.length
+      ? 'reviewedFoundationalMapping'
+      : 'assessmentStandardReferences';
+
   const compiled = {
     ...structuredClone(sourceItem),
     alignmentKeys: routingCodes.map((code) => `texas:${code}`),
@@ -181,7 +227,7 @@ const compileItem = ({ sourceItem, bank }) => {
     ccmrContentRelease: DIGITAL_SAT_PRODUCTION_RELEASE,
     routingAlignmentProvenance: {
       framework: 'digitalSAT',
-      derivation: 'assessmentStandardReferences',
+      derivation,
       ...(reference ? { referenceId: reference.id } : {}),
     },
   };
