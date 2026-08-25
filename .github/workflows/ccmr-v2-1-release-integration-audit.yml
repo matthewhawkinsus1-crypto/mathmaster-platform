@@ -36,6 +36,7 @@ on:
       - 'tests/platform/ccmrSessionContentRelease.test.mjs'
       - 'tests/platform/ccmrSessionRuntimeWiring.test.mjs'
       - 'tests/platform/ccmrClientSessionRollover.test.mjs'
+      - 'tests/platform/ccmrClientRuntimeWiring.test.mjs'
       - '.github/workflows/ccmr-v2-1-release-integration-audit.yml'
   workflow_dispatch:
 
@@ -58,6 +59,8 @@ jobs:
         run: node --test tests/platform/ccmrSessionRuntimeWiring.test.mjs
       - name: Run CCMR client rollover contract
         run: node --test tests/platform/ccmrClientSessionRollover.test.mjs
+      - name: Run CCMR client runtime wiring contract
+        run: node --test tests/platform/ccmrClientRuntimeWiring.test.mjs
       - name: Run SAT ACT TSIA2 integration contract
         run: node --test tests/platform/ccmrV21ReleaseIntegrationContent.test.mjs
       - name: Run Digital SAT production compiler contract
