@@ -1,0 +1,1172 @@
+{
+ "documents": [
+  {
+   "id": "mm_asvab_6_2A_which_is_not_an_integer",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.2A:which-is-not-an-integer",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2A",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which of these is NOT an integer?",
+   "solutionReview": {
+    "headline": "A fraction is an integer only when it divides evenly.",
+    "reasoning": [
+     "$\\frac{{{prod}}}{{{d}}}$ divides evenly, so it is an integer.",
+     "$\\frac{{{num}}}{{{d}}}$ leaves a remainder, so it is not."
+    ],
+    "answerSummary": "$\\frac{{{num}}}{{{d}}}$ is not an integer."
+   },
+   "attemptFeedback": [
+    "A negative sign does not stop a value being an integer."
+   ],
+   "supportHints": [
+    "Check which fractions divide without a remainder."
+   ],
+   "generator": {
+    "parameters": {
+     "d": {
+      "type": "choice",
+      "values": [
+       3,
+       4,
+       6,
+       7,
+       8
+      ]
+     },
+     "n": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "w": {
+      "type": "int",
+      "min": 2,
+      "max": 60
+     },
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 60
+     }
+    },
+    "derived": {
+     "num": "n*d+1",
+     "prod": "k*d"
+    },
+    "constraints": [
+     "w!=m"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$-{{w}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{m}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\frac{{{prod}}}{{{d}}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\frac{{{num}}}{{{d}}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_2A_rational_that_is_not_an_integer",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.2A:rational-that-is-not-an-integer",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2A",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A rational number need not be an integer. Which value shows that?",
+   "solutionReview": {
+    "headline": "A rational number is a ratio; only some of them are integers.",
+    "reasoning": [
+     "Every integer is rational, so an integer cannot be the answer.",
+     "$\\frac{{{num}}}{{{d}}}$ does not divide evenly, so it is rational but not an integer."
+    ],
+    "answerSummary": "$\\frac{{{num}}}{{{d}}}$ is rational but not an integer."
+   },
+   "attemptFeedback": [
+    "A fraction that divides evenly is still an integer."
+   ],
+   "supportHints": [
+    "Check which fractions divide out to a whole result."
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "d": {
+      "type": "choice",
+      "values": [
+       3,
+       4,
+       6,
+       7,
+       8
+      ]
+     },
+     "k": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "k2": {
+      "type": "int",
+      "min": 10,
+      "max": 30
+     }
+    },
+    "derived": {
+     "num": "n*d+1",
+     "prod": "k2*d"
+    },
+    "constraints": [
+     "k!=k2",
+     "n!=k"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\frac{{{num}}}{{{d}}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\frac{{{prod}}}{{{d}}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "$-{{n}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{k}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_2A_which_sets_contain_a_value",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.2A:which-sets-contain-a-value",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2A",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The number $-{{n}}$ belongs to which of these?",
+   "solutionReview": {
+    "headline": "Each set contains the one before it, and the negatives stop at the whole numbers.",
+    "reasoning": [
+     "A negative number cannot be whole.",
+     "It is an integer, and every integer can be written as a ratio, so it is rational too."
+    ],
+    "answerSummary": "$-{{n}}$ is an integer and rational, but not whole."
+   },
+   "attemptFeedback": [
+    "Every integer is also rational."
+   ],
+   "supportHints": [
+    "Start by asking whether it can be a whole number."
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 2,
+      "max": 60
+     }
+    },
+    "derived": {},
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The integers and the rational numbers, but not the whole numbers."
+    },
+    {
+     "id": "choice-b",
+     "label": "The whole numbers and the integers, but not the rational numbers.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "The rational numbers only.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "All three sets.",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_2A_is_every_integer_rational",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.2A:is-every-integer-rational",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which statement is true?",
+   "solutionReview": {
+    "headline": "Every integer is rational; the reverse is not true.",
+    "reasoning": [
+     "An integer $n$ can be written as $\\frac{n}{1}$, which is a ratio.",
+     "But $\\frac{{{num}}}{{{d}}}$ is rational and is not an integer, so the reverse fails."
+    ],
+    "answerSummary": "Every integer is a rational number."
+   },
+   "attemptFeedback": [
+    "One example that fails is enough to rule a statement out."
+   ],
+   "supportHints": [
+    "Try to write an integer as a fraction."
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     },
+     "d": {
+      "type": "choice",
+      "values": [
+       3,
+       4,
+       6,
+       7
+      ]
+     }
+    },
+    "derived": {
+     "num": "n*d+1"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Every integer is a rational number."
+    },
+    {
+     "id": "choice-b",
+     "label": "Every rational number is an integer.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "Every integer is a whole number.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "No negative number is rational.",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_2A_integers_between_two_values",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.2A:integers-between-two-values",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2A",
+   "taskType": "procedural",
+   "representation": "numberLine",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "How many integers lie strictly between $-{{a}}$ and ${{b}}$?",
+   "solutionReview": {
+    "headline": "Counting between two values excludes the ends.",
+    "reasoning": [
+     "From $-{{a}}$ up to ${{b}}$ is a span of {{d_offByOneStep}} whole steps.",
+     "Leaving out both end values gives {{answer}}."
+    ],
+    "answerSummary": "There are {{answer}} integers between them."
+   },
+   "attemptFeedback": [
+    "The two given values are not themselves between the two given values."
+   ],
+   "supportHints": [
+    "Count the whole span first, then take off the two ends."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     }
+    },
+    "derived": {
+     "answer": "a+b-1",
+     "d_offByOneStep": "a+b",
+     "d_signError": "abs(b-a)",
+     "d_operationInverted": "a*2"
+    },
+    "constraints": [
+     "a!=b",
+     "d_signError>0",
+     "answer!=d_offByOneStep",
+     "answer!=d_signError",
+     "answer!=d_operationInverted",
+     "d_offByOneStep!=d_signError",
+     "d_offByOneStep!=d_operationInverted",
+     "d_signError!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_2B_difference_of_absolute_values",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.2B:difference-of-absolute-values",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is $\\left|-{{a}}\\right| - \\left|-{{b}}\\right|$?",
+   "solutionReview": {
+    "headline": "Absolute value is applied to each term before the subtraction.",
+    "reasoning": [
+     "Each pair of bars gives a distance from zero: {{a}} and {{b}}.",
+     "Subtracting gives {{answer}}."
+    ],
+    "answerSummary": "The value is {{answer}}."
+   },
+   "attemptFeedback": [
+    "Both values become positive before they are combined."
+   ],
+   "supportHints": [
+    "Work out each absolute value, then subtract."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 3,
+      "max": 80
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 80
+     }
+    },
+    "derived": {
+     "answer": "a-b",
+     "d_signError": "b-a",
+     "d_operationInverted": "a+b",
+     "d_arithmeticSlip": "0-a-b"
+    },
+    "constraints": [
+     "a!=b",
+     "answer!=d_signError",
+     "answer!=d_operationInverted",
+     "answer!=d_arithmeticSlip",
+     "d_signError!=d_operationInverted",
+     "d_signError!=d_arithmeticSlip",
+     "d_operationInverted!=d_arithmeticSlip"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_arithmeticSlip}}$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_2B_value_from_its_opposite",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.2B:value-from-its-opposite",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2B",
+   "taskType": "reverseReasoning",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The opposite of a number is ${{opp}}$. What is that number plus ${{b}}$?",
+   "solutionReview": {
+    "headline": "The opposite is given, so the number is its negative.",
+    "reasoning": [
+     "If the opposite is ${{opp}}$, the number itself is $-{{n}}$.",
+     "Adding ${{b}}$ gives {{answer}}."
+    ],
+    "answerSummary": "The result is {{answer}}."
+   },
+   "attemptFeedback": [
+    "The value given is the opposite, not the number."
+   ],
+   "supportHints": [
+    "Find the number before doing anything with it."
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 3,
+      "max": 80
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 80
+     }
+    },
+    "derived": {
+     "opp": "n",
+     "answer": "b-n",
+     "d_signError": "n+b",
+     "d_operationInverted": "n-b",
+     "d_arithmeticSlip": "0-n-b"
+    },
+    "constraints": [
+     "n!=b",
+     "answer!=d_signError",
+     "answer!=d_operationInverted",
+     "answer!=d_arithmeticSlip",
+     "d_signError!=d_operationInverted",
+     "d_signError!=d_arithmeticSlip",
+     "d_operationInverted!=d_arithmeticSlip"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_arithmeticSlip}}$",
+     "error": "arithmeticSlip"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_2B_which_is_greater",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.2B:which-is-greater",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2B",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Of the four values below, which has the greatest value?",
+   "solutionReview": {
+    "headline": "The bars turn a large negative into a large positive.",
+    "reasoning": [
+     "$\\left|-{{a}}\\right|$ is {{a}}, which is positive and larger than {{b}}.",
+     "Both negatives sit below zero."
+    ],
+    "answerSummary": "$\\left|-{{a}}\\right|$ is the greatest."
+   },
+   "attemptFeedback": [
+    "A larger digit does not mean a larger negative number."
+   ],
+   "supportHints": [
+    "Work out what each expression is actually worth."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 10,
+      "max": 90
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "negA": "0-a",
+     "negB": "0-b"
+    },
+    "constraints": [
+     "a>b",
+     "a!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\left|-{{a}}\\right|$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{b}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$-{{b}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "$-{{a}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_2B_absolute_value_of_a_difference",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.2B:absolute-value-of-a-difference",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Evaluate $\\left|{{a}} - {{b}}\\right|$.",
+   "solutionReview": {
+    "headline": "Take the difference first, then its distance from zero.",
+    "reasoning": [
+     "${{a}} - {{b}}$ is ${{d_signError}}$.",
+     "Its distance from zero is {{answer}}."
+    ],
+    "answerSummary": "The value is {{answer}}."
+   },
+   "attemptFeedback": [
+    "The bars apply to the whole difference, not to each number."
+   ],
+   "supportHints": [
+    "Work out what is inside the bars before applying them."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     },
+     "b": {
+      "type": "int",
+      "min": 20,
+      "max": 90
+     }
+    },
+    "derived": {
+     "answer": "abs(a-b)",
+     "d_signError": "a-b",
+     "d_operationInverted": "a+b",
+     "d_operationInverted2": "round((a+b)/2)"
+    },
+    "constraints": [
+     "a!=b",
+     "a<b",
+     "answer!=d_signError",
+     "answer!=d_operationInverted",
+     "answer!=d_operationInverted2",
+     "d_signError!=d_operationInverted",
+     "d_signError!=d_operationInverted2",
+     "d_operationInverted!=d_operationInverted2"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted2}}$",
+     "error": "arithmeticSlip"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_2B_sum_of_absolute_values",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.2B:sum-of-absolute-values",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2B",
+   "taskType": "representationTranslation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The table gives $a$ and $b$. Find $\\left|a\\right| + \\left|b\\right|$.",
+   "stimulus": {
+    "kind": "expressions",
+    "title": "Values",
+    "note": "$a = {{a}}$ and $b = {{b}}$"
+   },
+   "solutionReview": {
+    "headline": "Each absolute value is taken before the addition.",
+    "reasoning": [
+     "$\\left|{{a}}\\right|$ is {{p}} and $\\left|{{b}}\\right|$ is {{q}}.",
+     "Their sum is {{answer}}."
+    ],
+    "answerSummary": "The sum is {{answer}}."
+   },
+   "attemptFeedback": [
+    "Both values become positive before they are added."
+   ],
+   "supportHints": [
+    "Apply the bars to each value first."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 3,
+      "max": 60
+     },
+     "q": {
+      "type": "int",
+      "min": 3,
+      "max": 60
+     }
+    },
+    "derived": {
+     "a": "0-p",
+     "b": "q",
+     "answer": "p+q",
+     "d_signError": "q-p",
+     "d_operationInverted": "p*2",
+     "d_arithmeticSlip": "p+q+p"
+    },
+    "constraints": [
+     "p!=q",
+     "answer!=d_signError",
+     "answer!=d_operationInverted",
+     "answer!=d_arithmeticSlip",
+     "d_signError!=d_operationInverted",
+     "d_signError!=d_arithmeticSlip",
+     "d_operationInverted!=d_arithmeticSlip"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_arithmeticSlip}}$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  }
+ ]
+}

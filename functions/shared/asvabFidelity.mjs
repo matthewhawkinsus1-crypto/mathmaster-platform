@@ -451,6 +451,8 @@ export const analyzeDistractors = (question) => {
  * The five-family check. Two families clone each other when their relation
  * graphs match, and separately when their sentence frames match.
  */
+export const FRAME_CLONE_MIN_TOKENS = 5;
+
 export const analyzeFamilySet = (code, questions, { overlapLimit = 0.5 } = {}) => {
   const issues = [];
   const fingerprints = new Map();
@@ -467,7 +469,12 @@ export const analyzeFamilySet = (code, questions, { overlapLimit = 0.5 } = {}) =
     for (let j = i + 1; j < questions.length; j += 1) {
       const left = questions[i];
       const right = questions[j];
-      if (promptSkeleton(left.prompt) && promptSkeleton(left.prompt) === promptSkeleton(right.prompt)) {
+      // A skeleton has to be long enough to mean something. Mathematics
+      // Knowledge prompts are short and symbolic by design — "What is $x$?"
+      // reduces to the two words "what is", and calling every pair of those a
+      // shared frame would flag the subtest's authentic register as a defect.
+      const frame = promptSkeleton(left.prompt);
+      if (frame && frame.split(' ').length >= FRAME_CLONE_MIN_TOKENS && frame === promptSkeleton(right.prompt)) {
         issues.push({ code: 'frameClone', detail: `${left.id} + ${right.id} share one sentence frame`, ids: [left.id, right.id] });
       }
       const overlap = promptOverlap(left.prompt, right.prompt);
