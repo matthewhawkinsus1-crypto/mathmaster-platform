@@ -9,6 +9,12 @@ on:
       - 'scripts/build-tsia2-v2-1.mjs'
       - 'scripts/build-tsia2-production-seed.mjs'
       - 'scripts/lib/tsia2-production-seed.mjs'
+      - 'src/platform/assessment/examDomainRegistry.js'
+      - 'src/platform/assessment/teksExamCrosswalk.js'
+      - 'src/platform/ccmr/assessmentCrosswalk.js'
+      - 'src/platform/ccmr/assessmentStandardReferences.js'
+      - 'functions/shared/texasStandards.mjs'
+      - 'functions/shared/texasMiddleSchoolStandards.mjs'
       - 'tests/platform/tsia2*Content.test.mjs'
       - '.github/workflows/ccmr-v2-1-tsia2-content-audit.yml'
   workflow_dispatch:
