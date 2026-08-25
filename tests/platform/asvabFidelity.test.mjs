@@ -118,8 +118,8 @@ test('unit-marked choices still get their distinctness constraints', () => {
   // leaves a trailing percent sign; `${{a}}^\\circ$` leaves a degree marker.
   // Every time the anchored match failed, no constraint was emitted, and the
   // bank shipped duplicate choices: $8, $64, $8, $8 — then 20%, 160%, 20%, 80%
-  // — then a repeated angle. Any new unit markup belongs in UNIT_SUFFIXES and
-  // in this list.
+  // — then a repeated angle, then 8pi, 4pi, 16pi, 16pi. Any new unit markup
+  // belongs in UNIT_SUFFIXES and in this list.
   const build = (label) => asvabItem({
     code: '6.4E', slug: 'constraint-probe', domain: AR, courseId: 'grade6',
     prompt: 'What is the value?',
@@ -142,6 +142,7 @@ test('unit-marked choices still get their distinctness constraints', () => {
     ['money', (n) => `$\\$\{\{${n}\}\}$`],
     ['percent', (n) => `$\{\{${n}\}\}\\%$`],
     ['degrees', (n) => `$\{\{${n}\}\}^\\circ$`],
+    ['pi', (n) => `$\{\{${n}\}\}\\pi$`],
   ]) {
     const built = build(label);
     assert.equal(built.generator.constraints.length, 6, `${name} labels lost their pairwise distinctness constraints`);

@@ -45,6 +45,26 @@
 // because that was the only value the constraint rarely rejected. Prefer
 // parameter ranges where the constraint is satisfied by construction.
 //
+// A FIFTH RULE, and the one most easily got wrong: THE CROSSING DISTRACTOR MUST
+// BE INDEPENDENT OF THE KEY, not merely overlapping in range. A pyramid's base
+// area drawn 6..120 against a key of 3Bh running 36..5040 looks like an overlap
+// and is nothing of the kind — the key is built FROM the base area, so their
+// ratio never passes one and the key was the second largest of four in every
+// single draw. Anything that divides the key, or that the key is a fixed
+// multiple of, is disqualified however its range reads. What works is a second
+// quantity the situation genuinely contains and that is drawn separately: the
+// other pyramid's volume, the other machine's rate, the second row of the
+// table. Then the two are drawn apart and the crossing is real.
+//
+// A SIXTH RULE, about where the crossing threshold falls. When a distractor
+// beats the key exactly when some drawn value passes a fixed number — three
+// times the base beats the key when the height multiplier is under three — the
+// range has to be even about that number AFTER the automatic distinctness
+// constraints have taken their bites. Those constraints remove exactly the
+// values that make two choices equal, and those are usually the values sitting
+// on the threshold. One family drew a multiplier 1..6 around a threshold of 3
+// and had 1 and 3 both removed, leaving nothing below the line at all.
+
 // A FOURTH RULE, about drawn context words. Every `choice` parameter is drawn
 // INDEPENDENTLY, so two of them can never be relied on to agree. Naming a unit
 // in one parameter and its partner in another produced "how many ounces are in
@@ -131,6 +151,11 @@ const labelPlaceholders = (label) => {
 const UNIT_SUFFIXES = [
   ['percent', /\\?%$/],
   ['degrees', /\^\{?\\circ\}?$/],
+  // A circle answer is usually left as a multiple of pi, so `{{rsq}}\pi` and
+  // `{{fourR}}\pi` are two coefficients of the same unit and comparing them is
+  // exactly the right test. Without this a circumference family shipped
+  // 8pi, 4pi, 16pi, 16pi whenever the radius was drawn as four.
+  ['pi', /\\pi$/],
 ];
 
 const distinctChoiceConstraints = (choices, generator) => {

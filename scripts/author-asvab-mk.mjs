@@ -5059,6 +5059,715 @@ mk('7.8C', 'diameter-in-the-area-formula', {
   feedback: 'The error is squared, so it is worse than a factor of two.',
 });
 
+
+// ================================================================ 7.9A
+// Volumes of prisms and pyramids in use.
+
+mk('7.9A', 'volume-of-a-crate', {
+  courseId: 'grade7',
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'context',
+  prompt: 'A crate measures ${{l}}$ by ${{w}}$ by ${{h}}$ cm. What is its volume?',
+  generator: {
+    parameters: {
+      l: { type: 'int', min: 3, max: 11 },
+      w: { type: 'int', min: 3, max: 11 },
+      h: { type: 'int', min: 3, max: 11 },
+    },
+    derived: {
+      answer: 'l*w*h',
+      d_offByOneStep: 'l*w*h+l*w',
+      d_operationInverted: 'l+w+h',
+      d_areaPerimeterSwap: '2*(l*w+l*h+w*h)',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_areaPerimeterSwap}}'), error: 'areaPerimeterSwap' },
+  ],
+  reasoning: ['One layer covers ${{l}} \\times {{w}}$ square cm.', 'Stacked ${{h}}$ deep that fills ${{answer}}$ cubic cm.'],
+  answerSummary: { headline: 'Volume multiplies all three measurements.', text: 'It holds ${{answer}}$ cubic cm.' },
+  hint: 'What does one layer cover?',
+  feedback: 'Adding the three edges measures none of the box.',
+});
+
+mk('7.9A', 'length-of-a-triangular-prism', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A triangular prism holds ${{V}}$ cubic cm and its end face covers ${{B}}$ square cm. How long is it?',
+  generator: {
+    parameters: {
+      // B is a second measurement of the same prism, drawn separately, so it
+      // crosses the length rather than dividing it.
+      B: { type: 'int', min: 4, max: 24 },
+      e: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      L: '2*e',
+      V: 'B*2*e',
+      answer: 'L',
+      d_forgotFinalStep: 'V',
+      d_partialTotal: 'e',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{B}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Each centimetre of length adds another ${{B}}$ cubic cm.', '${{V}} \\div {{B}} = {{answer}}$ cm.'],
+  answerSummary: { headline: 'Volume divided by the end face gives the length.', text: 'It is ${{answer}}$ cm long.' },
+  hint: 'What does one centimetre of length contribute?',
+  feedback: 'The whole volume is not a length.',
+});
+
+mk('7.9A', 'two-containers-together', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 2, taskType: 'interpretation', representation: 'table',
+  prompt: 'The table lists two crates. How much do they hold together?',
+  stimulus: {
+    kind: 'table',
+    title: 'Crate sizes (cm)',
+    table: {
+      headers: ['crate', 'length', 'width', 'height'],
+      rows: [['first', '{{l1}}', '{{w1}}', '{{h1}}'], ['second', '{{l2}}', '{{w2}}', '{{h2}}']],
+    },
+  },
+  generator: {
+    parameters: {
+      l1: { type: 'int', min: 3, max: 10 }, w1: { type: 'int', min: 3, max: 10 }, h1: { type: 'int', min: 3, max: 10 },
+      l2: { type: 'int', min: 3, max: 10 }, w2: { type: 'int', min: 3, max: 10 }, h2: { type: 'int', min: 3, max: 10 },
+    },
+    derived: {
+      answer: 'l1*w1*h1+l2*w2*h2',
+      d_operationInverted: '(l1+l2)*(w1+w2)*(h1+h2)',
+      d_partialTotal: 'l1*w1*h1',
+      d_arithmeticSlip: 'l1*w1*h2+l2*w2*h1',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['The first crate holds ${{d_partialTotal}}$ cubic cm.', 'Adding the second brings the total to ${{answer}}$.'],
+  answerSummary: { headline: 'Work out each crate on its own, then add.', text: 'Together they hold ${{answer}}$ cubic cm.' },
+  hint: 'Each crate has its own three measurements.',
+  feedback: 'Each height belongs with its own crate.',
+});
+
+mk('7.9A', 'volume-of-a-rectangular-pyramid', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'A pyramid has a rectangular base ${{l}}$ by ${{w}}$ cm and a height of ${{h}}$ cm. What is its volume?',
+  generator: {
+    parameters: {
+      l: { type: 'int', min: 6, max: 30 },
+      w: { type: 'int', min: 6, max: 30 },
+      e: { type: 'int', min: 2, max: 18 },
+    },
+    derived: {
+      h: '3*e',
+      answer: 'l*w*e',
+      d_partialTotal: 'l*w*3*e',
+      d_operationInverted: 'l+w+e',
+      d_areaPerimeterSwap: '2*(l*w+l*3*e+w*3*e)',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_areaPerimeterSwap}}'), error: 'areaPerimeterSwap' },
+  ],
+  reasoning: ['The prism around it would hold ${{d_partialTotal}}$ cubic cm.', 'A pyramid holds a third of that: ${{answer}}$.'],
+  answerSummary: { headline: 'Base area times height, then a third.', text: 'It holds ${{answer}}$ cubic cm.' },
+  hint: 'What would the surrounding prism hold?',
+  feedback: 'That is the prism, not the pyramid.',
+});
+
+mk('7.9A', 'doubling-every-edge', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student doubles every edge of a crate and says the volume doubles. What is wrong?',
+  generator: {
+    parameters: {
+      l: { type: 'int', min: 3, max: 10 },
+      w: { type: 'int', min: 3, max: 10 },
+      h: { type: 'int', min: 3, max: 10 },
+    },
+    derived: {
+      vol: 'l*w*h',
+      doubled: '2*l*w*h',
+      real: '8*l*w*h',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'All three directions double, so the volume reaches ${{real}}$, not ${{doubled}}$.', correct: true },
+    { label: 'Nothing is wrong, because every edge was doubled.', error: 'operationInverted' },
+    { label: 'The volume quadruples to four times ${{vol}}$, one doubling for each face.', error: 'partialTotal' },
+    { label: 'The volume stays at ${{vol}}$, because the shape is unchanged.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['The crate holds ${{vol}}$ cubic cm to begin with.', 'Doubling all three edges multiplies the volume by $2 \\times 2 \\times 2$, giving ${{real}}$.'],
+  answerSummary: { headline: 'A length factor acts once in every direction.', text: 'The volume reaches ${{real}}$.' },
+  hint: 'How many directions does the doubling act in?',
+  feedback: 'A box has three directions, not two.',
+});
+
+// ================================================================ 7.9B
+// Circumference and area of circles.
+
+mk('7.9B', 'circumference-from-a-radius', {
+  courseId: 'grade7',
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'A circle has radius ${{r}}$ cm. What is its circumference?',
+  generator: {
+    parameters: { r: { type: 'int', min: 3, max: 20 } },
+    derived: { twoR: '2*r', rsq: 'r*r', fourR: '4*r' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{twoR}}\\pi'), correct: true },
+    { label: plain('{{r}}\\pi'), error: 'partialTotal' },
+    { label: plain('{{rsq}}\\pi'), error: 'areaPerimeterSwap' },
+    { label: plain('{{fourR}}\\pi'), error: 'operationInverted' },
+  ],
+  reasoning: ['The way round is $\\pi$ times the diameter, and the diameter is ${{twoR}}$ cm.', 'So the circumference is ${{twoR}}\\pi$ cm.'],
+  answerSummary: { headline: 'Circumference uses the diameter, so a radius must be doubled first.', text: 'It is ${{twoR}}\\pi$ cm.' },
+  hint: 'Which length does $\\pi$ multiply?',
+  feedback: 'Multiplying the radius once gives only half the way round.',
+});
+
+mk('7.9B', 'area-from-a-diameter', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A disc has diameter ${{d}}$ cm. What area does it cover?',
+  generator: {
+    parameters: { d: { type: 'int', min: 6, max: 40, step: 2 } },
+    derived: { r: 'd/2', rsq: 'd*d/4', dsq: 'd*d' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{rsq}}\\pi'), correct: true },
+    { label: plain('{{dsq}}\\pi'), error: 'diameterForRadius' },
+    { label: plain('{{d}}\\pi'), error: 'areaPerimeterSwap' },
+    { label: plain('{{r}}\\pi'), error: 'partialTotal' },
+  ],
+  reasoning: ['The radius is half the diameter: ${{r}}$ cm.', 'Area is $\\pi$ times the radius squared, or ${{rsq}}\\pi$ square cm.'],
+  answerSummary: { headline: 'Halve the diameter before squaring.', text: 'It covers ${{rsq}}\\pi$ square cm.' },
+  hint: 'Which length does the area formula square?',
+  feedback: 'Squaring the diameter gives four times too much.',
+});
+
+mk('7.9B', 'circumference-with-a-fraction-for-pi', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'Taking $\\pi$ as $\\frac{22}{7}$, two pipes have diameters ${{d}}$ and ${{d2}}$ cm. What is the first one round?',
+  generator: {
+    parameters: {
+      // The second pipe's circumference is the crossing distractor: a separate
+      // draw, not a multiple of the key.
+      k: { type: 'int', min: 1, max: 9 },
+      k2: { type: 'int', min: 1, max: 9 },
+    },
+    derived: {
+      d: '7*k', d2: '7*k2',
+      answer: '22*k',
+      d_operationInverted: '44*k',
+      d_partialTotal: '11*k',
+      d_usedGivenValue: '22*k2',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The way round is $\\frac{22}{7}$ times ${{d}}$.', '${{d}} \\div 7 = {{k}}$, and ${{k}} \\times 22 = {{answer}}$ cm.'],
+  answerSummary: { headline: 'Cancel the seven before multiplying by twenty-two.', text: 'It is ${{answer}}$ cm round.' },
+  hint: 'Does seven divide the diameter?',
+  feedback: 'That is the second pipe, not the first.',
+});
+
+mk('7.9B', 'what-doubling-the-radius-does', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'A circle of radius ${{r}}$ cm has its radius doubled. What happens to its area and its circumference?',
+  generator: {
+    parameters: { r: { type: 'int', min: 3, max: 20 } },
+    derived: { rsq: 'r*r', bigArea: '4*r*r', twoR: '2*r', bigC: '4*r' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The area quadruples and the circumference doubles.', correct: true },
+    { label: 'Both of them double.', error: 'partialTotal' },
+    { label: 'Both of them quadruple.', error: 'operationInverted' },
+    { label: 'The area doubles and the circumference quadruples.', error: 'ratioReversed' },
+  ],
+  reasoning: ['The area moves from ${{rsq}}\\pi$ to ${{bigArea}}\\pi$, because the radius is squared.', 'The circumference moves from ${{twoR}}\\pi$ to ${{bigC}}\\pi$, because the radius appears once.'],
+  answerSummary: { headline: 'A squared radius feels a doubling twice; a plain radius feels it once.', text: 'Area quadruples, circumference doubles.' },
+  hint: 'How many times does the radius appear in each formula?',
+  feedback: 'Only one of the two formulas squares the radius.',
+});
+
+mk('7.9B', 'circumference-formula-used-for-area', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student gives the area of a circle of radius ${{r}}$ cm as ${{twoR}}\\pi$. What is wrong?',
+  generator: {
+    parameters: { r: { type: 'int', min: 3, max: 20 } },
+    derived: { twoR: '2*r', rsq: 'r*r' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'That is the way round; the area is ${{rsq}}\\pi$ square cm.', correct: true },
+    { label: 'Nothing is wrong, because both formulas use $\\pi$ and the radius.', error: 'operationInverted' },
+    { label: 'The area is ${{twoR}}\\pi$ but the unit should be cubic cm.', error: 'usedGivenValue' },
+    { label: 'The radius should have been halved first, giving half of ${{twoR}}\\pi$.', error: 'diameterForRadius' },
+  ],
+  reasoning: ['$2\\pi r$ measures a distance round the edge, not a region.', 'Area squares the radius: ${{r}} \\times {{r}} = {{rsq}}$, so it is ${{rsq}}\\pi$ square cm.'],
+  answerSummary: { headline: 'One formula measures an edge, the other a region.', text: 'The area is ${{rsq}}\\pi$ square cm.' },
+  hint: 'Which of the two formulas squares the radius?',
+  feedback: 'Sharing the same letters does not make two formulas interchangeable.',
+});
+
+// ================================================================ 7.9C
+// Areas of composite figures.
+
+mk('7.9C', 'rectangle-with-a-triangle-on-top', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'A plate is a rectangle ${{a}}$ by ${{b}}$ cm with a triangle of base ${{a}}$ cm and height ${{t}}$ cm on top. What area does it cover?',
+  generator: {
+    parameters: {
+      // a and b share a range: the crossing distractor takes the triangle over
+      // the wrong base, which lands either side depending on which is larger.
+      a: { type: 'int', min: 3, max: 15 },
+      b: { type: 'int', min: 3, max: 15 },
+      half: { type: 'int', min: 2, max: 8 },
+    },
+    derived: {
+      t: '2*half',
+      answer: 'a*b+a*half',
+      d_partialTotal: 'a*b+a*t',
+      d_forgotFinalStep: 'a*b',
+      d_arithmeticSlip: 'a*b+b*half',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['The rectangle covers ${{d_forgotFinalStep}}$ square cm.', 'The triangle adds half of ${{a}} \\times {{t}}$, bringing the total to ${{answer}}$.'],
+  answerSummary: { headline: 'Split the shape, work out each part, then add.', text: 'It covers ${{answer}}$ square cm.' },
+  hint: 'Deal with the rectangle and the triangle separately.',
+  feedback: 'The triangle sits on the ${{a}} $ cm edge, not the other one.',
+});
+
+mk('7.9C', 'square-with-a-quarter-circle-removed', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A square of side ${{s}}$ cm has a quarter circle of radius ${{s}}$ cm cut from one corner. What is left?',
+  generator: {
+    parameters: { s: { type: 'int', min: 3, max: 20 } },
+    derived: { ssq: 's*s', half: 's*s/2' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{ssq}} - \\frac{{{ssq}}\\pi}{4}'), correct: true },
+    { label: plain('{{ssq}} - {{ssq}}\\pi'), error: 'operationInverted' },
+    { label: plain('{{ssq}} - \\frac{{{ssq}}\\pi}{2}'), error: 'partialTotal' },
+    { label: plain('\\frac{{{ssq}}\\pi}{4}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['A full circle of radius ${{s}}$ covers ${{ssq}}\\pi$, so a quarter of it covers $\\frac{{{ssq}}\\pi}{4}$.', 'Taking that from the square leaves ${{ssq}} - \\frac{{{ssq}}\\pi}{4}$ square cm.'],
+  answerSummary: { headline: 'Work out the piece removed, then subtract it.', text: 'It is ${{ssq}} - \\frac{{{ssq}}\\pi}{4}$ square cm.' },
+  hint: 'What fraction of a circle is being cut away?',
+  feedback: 'That is the piece removed, not what remains.',
+});
+
+mk('7.9C', 'rectangle-with-a-notch-cut-out', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'table',
+  prompt: 'The notch is cut out of the first sheet. What area is left on it?',
+  // The crossing distractor is the SECOND sheet, drawn independently. Every
+  // error built from the first sheet and its notch lands on a fixed side of
+  // the key: forgetting to subtract is always above, subtracting twice or
+  // shrinking both dimensions always below.
+  stimulus: {
+    kind: 'table',
+    title: 'Measurements (cm)',
+    table: {
+      headers: ['piece', 'length', 'width'],
+      rows: [['first sheet', '{{a}}', '{{b}}'], ['notch', '{{c}}', '{{d}}'], ['second sheet', '{{a2}}', '{{b2}}']],
+    },
+  },
+  generator: {
+    parameters: {
+      c: { type: 'int', min: 2, max: 9 },
+      d: { type: 'int', min: 2, max: 9 },
+      gapL: { type: 'int', min: 2, max: 12 },
+      gapW: { type: 'int', min: 2, max: 12 },
+      a2: { type: 'int', min: 4, max: 21 },
+      b2: { type: 'int', min: 4, max: 21 },
+    },
+    derived: {
+      a: 'c+gapL', b: 'd+gapW',
+      answer: 'a*b-c*d',
+      d_forgotFinalStep: 'a*b',
+      d_offByOneStep: 'a*b-2*c*d',
+      d_usedGivenValue: 'a2*b2',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The first sheet covers ${{d_forgotFinalStep}}$ square cm and the notch ${{c}} \\times {{d}}$.', 'Taking one from the other leaves ${{answer}}$.'],
+  answerSummary: { headline: 'Subtract the piece removed from the whole.', text: '${{answer}}$ square cm are left.' },
+  hint: 'Work out the first sheet before the notch.',
+  feedback: 'That is the second sheet, which has no notch cut from it.',
+});
+
+mk('7.9C', 'semicircle-on-a-rectangle', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'symbolic',
+  prompt: 'A window is a rectangle ${{a}}$ by ${{b}}$ cm topped by a semicircle of diameter ${{a}}$ cm. Which expression gives its area?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 4, max: 20, step: 2 },
+      b: { type: 'int', min: 3, max: 20 },
+    },
+    derived: { ab: 'a*b', asq: 'a*a' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{ab}} + \\frac{{{asq}}\\pi}{8}'), correct: true },
+    { label: plain('{{ab}} + \\frac{{{asq}}\\pi}{4}'), error: 'diameterForRadius' },
+    { label: plain('{{ab}} + \\frac{{{asq}}\\pi}{2}'), error: 'partialTotal' },
+    { label: plain('{{ab}} + {{asq}}\\pi'), error: 'operationInverted' },
+  ],
+  reasoning: ['The semicircle has radius $\\frac{{{a}}}{2}$, so a full circle would cover $\\frac{{{asq}}\\pi}{4}$.', 'Half of that is $\\frac{{{asq}}\\pi}{8}$, on top of the ${{ab}}$ the rectangle covers.'],
+  answerSummary: { headline: 'Halve the diameter for the radius, then halve the circle.', text: 'It is ${{ab}} + \\frac{{{asq}}\\pi}{8}$.' },
+  hint: 'Two halvings are owed, not one.',
+  feedback: 'Using the diameter as the radius makes the top four times too big.',
+});
+
+mk('7.9C', 'adding-perimeters-instead-of-areas', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'To find a composite area a student adds the perimeters of the two shapes. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 3, max: 15 },
+      b: { type: 'int', min: 3, max: 15 },
+    },
+    derived: { area: 'a*b', perim: '2*a+2*b' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'A perimeter is a distance, so adding two of them cannot give an area.', correct: true },
+    { label: 'Nothing is wrong, as long as the shared edge is counted once.', error: 'operationInverted' },
+    { label: 'The perimeters should be multiplied together instead of added.', error: 'areaPerimeterSwap' },
+    { label: 'The perimeters are right but should then be halved.', error: 'partialTotal' },
+  ],
+  reasoning: ['An ${{a}}$ by ${{b}}$ rectangle has a perimeter of ${{perim}}$ cm and an area of ${{area}}$ square cm.', 'The two measure different things, so no arrangement of perimeters produces an area.'],
+  answerSummary: { headline: 'Distance round and region covered are different measurements.', text: 'Areas must be added, not perimeters.' },
+  hint: 'What units does each measurement carry?',
+  feedback: 'Multiplying two distances gives an area, but not the right one.',
+});
+
+// ================================================================ 7.9D
+// Surface area from a net.
+
+mk('7.9D', 'total-surface-of-a-box', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'A box measures ${{l}}$ by ${{w}}$ by ${{h}}$ cm. What is its total surface area?',
+  generator: {
+    parameters: {
+      l: { type: 'int', min: 2, max: 13 },
+      w: { type: 'int', min: 2, max: 13 },
+      h: { type: 'int', min: 2, max: 13 },
+    },
+    derived: {
+      faces: 'l*w+l*h+w*h',
+      answer: '2*(l*w+l*h+w*h)',
+      d_partialTotal: 'l*w+l*h+w*h',
+      d_operationInverted: '4*(l*w+l*h+w*h)',
+      d_areaPerimeterSwap: 'l*w*h',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_areaPerimeterSwap}}'), error: 'areaPerimeterSwap' },
+  ],
+  reasoning: ['The net has three different rectangles, covering ${{faces}}$ square cm between them.', 'Each appears twice, so the surface is ${{answer}}$ square cm.'],
+  answerSummary: { headline: 'Three distinct faces, each of them twice over.', text: 'It is ${{answer}}$ square cm.' },
+  hint: 'How many faces does the net have, and how do they pair?',
+  feedback: 'Filling the box is a volume, not a surface.',
+});
+
+mk('7.9D', 'lateral-surface-of-a-box', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A box ${{l}}$ by ${{w}}$ cm at the base stands ${{h}}$ cm tall. What is its lateral surface area?',
+  generator: {
+    parameters: {
+      l: { type: 'int', min: 2, max: 7 },
+      w: { type: 'int', min: 2, max: 7 },
+      h: { type: 'int', min: 2, max: 7 },
+    },
+    derived: {
+      answer: '2*(l+w)*h',
+      d_partialTotal: '2*(l*w+l*h+w*h)',
+      d_forgotFinalStep: '(l+w)*h',
+      d_areaPerimeterSwap: 'l*w*h',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_areaPerimeterSwap}}'), error: 'areaPerimeterSwap' },
+  ],
+  reasoning: ['Lateral surface leaves out the top and the bottom.', 'The four walls wrap a distance of $2({{l}} + {{w}})$ round, ${{h}}$ cm high: ${{answer}}$ square cm.'],
+  answerSummary: { headline: 'Lateral surface is the way round the base times the height.', text: 'It is ${{answer}}$ square cm.' },
+  hint: 'Which faces does lateral surface leave out?',
+  feedback: 'That total includes the top and the bottom.',
+});
+
+mk('7.9D', 'what-the-net-of-a-box-holds', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'verbal',
+  prompt: 'A net of a rectangular prism is laid flat. What does it show?',
+  generator: {
+    parameters: {
+      l: { type: 'int', min: 2, max: 10 },
+      w: { type: 'int', min: 2, max: 10 },
+      h: { type: 'int', min: 2, max: 10 },
+    },
+    derived: { faces: 'l*w+l*h+w*h', total: '2*(l*w+l*h+w*h)' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Six rectangles in three matching pairs, covering ${{total}}$ square cm.', correct: true },
+    { label: 'Six rectangles all the same size, covering ${{total}}$ square cm.', error: 'partialTotal' },
+    { label: 'Three rectangles in all, covering ${{faces}}$ square cm.', error: 'forgotFinalStep' },
+    { label: 'Four rectangles and two squares, whatever the measurements.', error: 'operationInverted' },
+  ],
+  reasoning: ['Opposite faces of a box match, so the six rectangles form three pairs.', 'Between them they cover ${{total}}$ square cm.'],
+  answerSummary: { headline: 'A box net is three pairs of matching rectangles.', text: 'Six faces, three pairs, ${{total}}$ square cm.' },
+  hint: 'Which faces of a box are the same as each other?',
+  feedback: 'All six would only match on a cube.',
+});
+
+mk('7.9D', 'surface-of-a-square-pyramid', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 2, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'A square pyramid has base side $s$ and slant height $l$. Which expression gives its total surface area?',
+  generator: {
+    parameters: {
+      s: { type: 'int', min: 2, max: 12 },
+      l: { type: 'int', min: 3, max: 15 },
+    },
+    derived: { base: 's*s', sides: '2*s*l', total: 's*s+2*s*l' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('s^2 + 2sl'), correct: true },
+    { label: plain('s^2 + 4sl'), error: 'operationInverted' },
+    { label: plain('s^2 + \\frac{sl}{2}'), error: 'partialTotal' },
+    { label: plain('4sl'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['The base covers $s^2$, which is ${{base}}$ when $s = {{s}}$.', 'Each of the four triangles covers $\\frac{sl}{2}$, so together they cover $2sl$, or ${{sides}}$.'],
+  answerSummary: { headline: 'A square base and four triangles that pair into two rectangles.', text: 'It is $s^2 + 2sl$.' },
+  hint: 'How many triangles, and what does each cover?',
+  feedback: 'Four triangles come to $2sl$, because each is already halved.',
+});
+
+mk('7.9D', 'doubling-the-lateral-surface', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student finds the lateral surface of a box as the base perimeter times the height, then doubles it. What is wrong?',
+  generator: {
+    parameters: {
+      l: { type: 'int', min: 2, max: 10 },
+      w: { type: 'int', min: 2, max: 10 },
+      h: { type: 'int', min: 2, max: 10 },
+    },
+    derived: {
+      right: '2*(l+w)*h',
+      wrong: '4*(l+w)*h',
+      perim: '2*l+2*w',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The perimeter of ${{perim}}$ already goes right round, so the answer is ${{right}}$, not ${{wrong}}$.', correct: true },
+    { label: 'Nothing is wrong, because a box has two pairs of walls.', error: 'operationInverted' },
+    { label: 'The doubling is right but the top and bottom are still missing.', error: 'partialTotal' },
+    { label: 'The height should have been doubled instead of the product.', error: 'arithmeticSlip' },
+  ],
+  reasoning: ['Going once round the base already passes all four walls.', 'Doubling counts every wall twice: ${{wrong}}$ instead of ${{right}}$ square cm.'],
+  answerSummary: { headline: 'One trip round the base covers every wall exactly once.', text: 'It is ${{right}}$ square cm.' },
+  hint: 'How many walls does one lap of the base pass?',
+  feedback: 'The two pairs of walls are already inside the perimeter.',
+});
+
+// ================================================================ 7.10A
+// Writing the two-step equation or inequality a problem sets up.
+
+mk('7.10A', 'equation-for-a-fee-plus-a-rate', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'context',
+  prompt: 'A hire costs $\\${{b}}$ plus $\\${{m}}$ a day. Which equation gives the days $x$ for a total of $\\${{t}}$?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 10, max: 90, step: 5 },
+      m: { type: 'int', min: 5, max: 40, step: 5 },
+      x: { type: 'int', min: 2, max: 12 },
+    },
+    // The daily part is named in the explanation, and deriving it also keeps
+    // this family's relation graph distinct from the abstract phrase family,
+    // which otherwise builds its total exactly the same way.
+    derived: { t: 'm*x+b', daily: 'm*x' },
+    constraints: ['m!=b'],
+  },
+  choices: [
+    { label: plain('{{m}}x + {{b}} = {{t}}'), correct: true },
+    { label: plain('{{b}}x + {{m}} = {{t}}'), error: 'ratioReversed' },
+    { label: plain('{{m}}x = {{t}}'), error: 'partialTotal' },
+    { label: plain('{{m}} + {{b}} + x = {{t}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['Each day adds $\\${{m}}$, so ${{x}}$ days would add $\\${{daily}}$.', 'The fixed $\\${{b}}$ is paid once on top of whatever the days come to.'],
+  answerSummary: { headline: 'The rate multiplies the days; the fee is added once.', text: 'It is ${{m}}x + {{b}} = {{t}}$.' },
+  hint: 'Which of the two charges depends on the days?',
+  feedback: 'The fee does not grow with the number of days.',
+});
+
+mk('7.10A', 'inequality-for-a-budget', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'A budget of $\\${{t}}$ must cover a $\\${{b}}$ fee plus $\\${{m}}$ a day. Which inequality must the days $x$ satisfy?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 10, max: 90, step: 5 },
+      m: { type: 'int', min: 5, max: 40, step: 5 },
+      x: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { t: 'm*x+b', room: 'm*x' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{m}}x + {{b}} \\le {{t}}'), correct: true },
+    { label: plain('{{m}}x + {{b}} \\ge {{t}}'), error: 'ratioReversed' },
+    { label: plain('{{m}}x \\le {{t}}'), error: 'partialTotal' },
+    { label: plain('{{m}}x + {{b}} < {{t}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['The spend is ${{m}}x + {{b}}$, and it may reach the budget but not pass it.', 'Spending exactly $\\${{t}}$ is allowed, so the bar under the sign stays.'],
+  answerSummary: { headline: 'A budget is a ceiling the spend may touch.', text: 'It is ${{m}}x + {{b}} \\le {{t}}$.' },
+  hint: 'May the budget be spent exactly?',
+  feedback: 'A strict inequality would forbid spending the budget in full.',
+});
+
+mk('7.10A', 'equation-from-a-perimeter', {
+  courseId: 'grade7',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A rectangle has perimeter ${{P}}$ cm and width ${{w}}$ cm. Which equation gives its length $x$?',
+  generator: {
+    parameters: {
+      w: { type: 'int', min: 3, max: 20 },
+      x: { type: 'int', min: 3, max: 20 },
+    },
+    derived: { twoW: '2*w', P: '2*w+2*x' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('2x + {{twoW}} = {{P}}'), correct: true },
+    { label: plain('x + {{w}} = {{P}}'), error: 'partialTotal' },
+    { label: plain('2x + {{w}} = {{P}}'), error: 'arithmeticSlip' },
+    { label: plain('{{twoW}}x = {{P}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['A rectangle has two lengths and two widths.', 'Two widths come to ${{twoW}}$, so the two lengths must make up the rest of ${{P}}$.'],
+  answerSummary: { headline: 'Every side appears twice in a perimeter.', text: 'It is $2x + {{twoW}} = {{P}}$.' },
+  hint: 'How many of each side does the perimeter pass?',
+  feedback: 'One length and one width cover only half the way round.',
+});
+
+mk('7.10A', 'equation-for-a-two-step-phrase', {
+  courseId: 'grade7',
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'symbolic',
+  prompt: '${{c}}$ more than ${{m}}$ times a number is ${{t}}$. Which equation says that?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      c: { type: 'int', min: 2, max: 30 },
+      x: { type: 'int', min: 2, max: 20 },
+    },
+    derived: { t: 'm*x+c' },
+    constraints: ['m!=c'],
+  },
+  choices: [
+    { label: plain('{{m}}x + {{c}} = {{t}}'), correct: true },
+    { label: plain('{{m}}(x + {{c}}) = {{t}}'), error: 'orderOfOperations' },
+    { label: plain('{{m}}x - {{c}} = {{t}}'), error: 'signError' },
+    { label: plain('{{c}}x + {{m}} = {{t}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['The number is multiplied by ${{m}}$ first.', 'Then ${{c}}$ is added to that product, giving ${{t}}$.'],
+  answerSummary: { headline: 'Write the operations in the order the sentence applies them.', text: 'It is ${{m}}x + {{c}} = {{t}}$.' },
+  hint: 'Which happens first, the multiplying or the adding?',
+  feedback: 'A bracket would add before multiplying, which reverses the order.',
+});
+
+mk('7.10A', 'bracket-that-changes-the-order', {
+  courseId: 'grade7',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'For "${{m}}$ times a number, then add ${{c}}$" a student writes ${{m}}(x + {{c}})$. What is wrong?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      c: { type: 'int', min: 2, max: 30 },
+      v: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      right: 'm*v+c',
+      wrong: 'm*(v+c)',
+      mc: 'm*c',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The bracket adds first, so it should read ${{m}}x + {{c}}$.', correct: true },
+    { label: 'Nothing is wrong, because both multiply and both add.', error: 'operationInverted' },
+    { label: 'The bracket is right but ${{c}}$ should be outside it as well.', error: 'partialTotal' },
+    { label: 'The two are equal, since multiplying out gives ${{m}}x + {{c}}$.', error: 'orderOfOperations' },
+  ],
+  reasoning: ['At $x = {{v}}$ the sentence gives ${{right}}$ and the bracket gives ${{wrong}}$.', 'Multiplying out the bracket produces ${{m}}x + {{mc}}$, not ${{m}}x + {{c}}$.'],
+  answerSummary: { headline: 'A bracket performs the addition before the multiplication.', text: 'It should be ${{m}}x + {{c}}$.' },
+  hint: 'Try a value of $x$ in both.',
+  feedback: 'Multiplying out the bracket scales the constant too.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
