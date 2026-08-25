@@ -80,13 +80,36 @@ function deepMerge(base, patch) {
   return out;
 }
 
-function normalizeGrammar(text) {
-  return String(text || '')
+function normalizeMath(math) {
+  return String(math || '')
     .toLowerCase()
     .replace(/\{\{[^}]+\}\}/g, '<value>')
-    .replace(/\$[^$]+\$/g, '<math>')
+    .replace(/\\left|\\right/g, '')
+    .replace(/\\cdot|\\times/g, '*')
+    .replace(/\\div/g, '/')
+    .replace(/\\leq?/g, '<=')
+    .replace(/\\geq?/g, '>=')
+    .replace(/\\neq/g, '!=')
+    .replace(/\\sqrt\s*\{/g, 'sqrt{')
+    .replace(/\\frac\s*\{/g, 'frac{')
     .replace(/-?\d+(?:\.\d+)?/g, '<number>')
-    .replace(/[^a-z<>\s'-]/g, ' ')
+    .replace(/\b[a-z]\b/g, '<var>')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+function normalizeGrammar(text) {
+  const source = String(text || '').toLowerCase().replace(/\{\{[^}]+\}\}/g, '<value>');
+  let out = '';
+  let last = 0;
+  for (const match of source.matchAll(/\$([^$]+)\$/g)) {
+    out += source.slice(last, match.index);
+    out += ` <math:${normalizeMath(match[1])}> `;
+    last = match.index + match[0].length;
+  }
+  out += source.slice(last);
+  return out
+    .replace(/-?\d+(?:\.\d+)?/g, '<number>')
+    .replace(/[^a-z0-9<>!=+*/^{}:_\s'().,-]/g, ' ')
     .replace(/\b(a|an|the)\b/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -323,7 +346,7 @@ for (const doc of effectiveDocs) {
     if (prior) failures.push(`Exact task-grammar clone: ${doc.id} and ${prior.id}`);
     else promptGrammar.set(grammar, doc);
   }
-  const taskSignature = JSON.stringify([doc.taskType || '', doc.representation || '', formatOf(doc), generatorSignature(doc)]);
+  const taskSignature = JSON.stringify([doc.taskType || '', doc.representation || '', formatOf(doc), generatorSignature(doc), normalizeGrammar(promptOf(doc))]);
   const priorTask = taskSignatures.get(taskSignature);
   if (priorTask) failures.push(`Exact underlying-task clone: ${doc.id} and ${priorTask.id}`);
   else taskSignatures.set(taskSignature, doc);
