@@ -75,7 +75,16 @@ export const isDistractorErrorCode = (value) => ERROR_CODES.has(String(value || 
 
 const text = (value) => String(value ?? '');
 
-const numericLabel = (label) => {
+/**
+ * The value a choice label displays, or null when it is not a number.
+ *
+ * Exported because the diagnostic scripts need exactly this reading of a
+ * label, and every copy of it made so far has drifted: the rank probe once
+ * carried its own version that read `\frac{1}{5}` as fifteen and called
+ * families clean that the real gate rejected. One parser, one set of blind
+ * spots, fixed in one place.
+ */
+export const numericLabel = (label) => {
   const raw = text(label)
     // `\$` is an escaped dollar sign inside math mode — a money label reads
     // `$\$12$`. Strip the escape before the delimiters, or every money item
@@ -96,7 +105,14 @@ const numericLabel = (label) => {
   // `25\%` is a number too. Leaving the percent sign in place made every
   // percent-valued item non-numeric and therefore exempt from the bias check —
   // the same hole the escaped dollar sign opened.
-  const bare = raw.replace(/\\?%$/, '').replace(/,/g, '');
+  //
+  // So is `245\pi`. A circle or a cylinder answer is usually left as a
+  // multiple of pi, and four such choices are ordered entirely by their
+  // coefficients, because pi is a positive constant. Treating them as
+  // non-numeric exempted every one of those families from the answer-key bias
+  // check — and one of them offered the key as the second largest of four in
+  // every single draw.
+  const bare = raw.replace(/\\?%$/, '').replace(/\\pi$/, '').replace(/,/g, '');
   if (!/^-?\d+(?:\.\d+)?$/.test(bare)) return null;
   const value = Number(bare);
   return Number.isFinite(value) ? value : null;

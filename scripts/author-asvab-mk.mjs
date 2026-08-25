@@ -4289,22 +4289,28 @@ mk('7.5B', 'what-the-quotient-comes-to', {
 mk('7.5B', 'circumference-of-a-pipe', {
   courseId: 'grade7',
   difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
-  prompt: 'A pipe has diameter ${{d}}$ cm. What is the distance round it?',
+  prompt: 'Two pipes have diameters ${{d}}$ and ${{d2}}$ cm. What is the distance round the first?',
+  // The second pipe is drawn separately. Without it all four choices were
+  // fixed multiples of one diameter, so their order never changed and the key
+  // was the second smallest in every draw.
   generator: {
-    parameters: { d: { type: 'int', min: 4, max: 40, step: 2 } },
-    derived: { r: 'd/2', twoD: '2*d', dsq: 'd*d' },
+    parameters: {
+      d: { type: 'int', min: 4, max: 40, step: 2 },
+      d2: { type: 'int', min: 4, max: 40, step: 2 },
+    },
+    derived: { r: 'd/2', dsq: 'd*d' },
     constraints: [],
   },
   choices: [
     { label: plain('{{d}}\\pi'), correct: true },
     { label: plain('{{r}}\\pi'), error: 'partialTotal' },
-    { label: plain('{{twoD}}\\pi'), error: 'operationInverted' },
     { label: plain('{{dsq}}\\pi'), error: 'areaPerimeterSwap' },
+    { label: plain('{{d2}}\\pi'), error: 'usedGivenValue' },
   ],
-  reasoning: ['The way round is $\\pi$ times the diameter.', 'With a diameter of ${{d}}$ that is ${{d}}\\pi$ cm.'],
+  reasoning: ['The way round is $\\pi$ times the diameter.', 'For the first pipe that is ${{d}}\\pi$ cm.'],
   answerSummary: { headline: 'Circumference is pi times the diameter.', text: 'It is ${{d}}\\pi$ cm.' },
   hint: 'Which length does $\\pi$ multiply?',
-  feedback: 'Multiplying by the radius gives only half the way round.',
+  feedback: 'That belongs to the second pipe.',
 });
 
 mk('7.5B', 'diameter-from-the-circumference', {
@@ -5000,24 +5006,25 @@ mk('7.8C', 'area-from-the-near-rectangle', {
 mk('7.8C', 'area-of-a-disc', {
   courseId: 'grade7',
   difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
-  prompt: 'A disc has radius ${{r}}$ cm. What area does it cover?',
+  prompt: 'Two discs have radii ${{r}}$ and ${{r2}}$ cm. What area does the first cover?',
   generator: {
-    // From 3: at r = 2 the squared radius and the doubled radius are both 4,
-      // and the labels carry no automatic distinctness constraint.
-      parameters: { r: { type: 'int', min: 3, max: 20 } },
-    derived: { rsq: 'r*r', twoR: '2*r', dsq: '4*r*r' },
+    parameters: {
+      r: { type: 'int', min: 3, max: 20 },
+      r2: { type: 'int', min: 3, max: 20 },
+    },
+    derived: { rsq: 'r*r', twoR: '2*r', dsq: '4*r*r', r2sq: 'r2*r2' },
     constraints: [],
   },
   choices: [
     { label: plain('{{rsq}}\\pi'), correct: true },
     { label: plain('{{twoR}}\\pi'), error: 'areaPerimeterSwap' },
-    { label: plain('{{r}}\\pi'), error: 'partialTotal' },
     { label: plain('{{dsq}}\\pi'), error: 'diameterForRadius' },
+    { label: plain('{{r2sq}}\\pi'), error: 'usedGivenValue' },
   ],
-  reasoning: ['Area is $\\pi$ times the radius squared.', '${{r}} \\times {{r}} = {{rsq}}$, so the disc covers ${{rsq}}\\pi$ square cm.'],
+  reasoning: ['Area is $\\pi$ times the radius squared.', '${{r}} \\times {{r}} = {{rsq}}$, so the first disc covers ${{rsq}}\\pi$ square cm.'],
   answerSummary: { headline: 'Square the radius, then multiply by pi.', text: 'It covers ${{rsq}}\\pi$ square cm.' },
   hint: 'Which length gets squared?',
-  feedback: 'That expression is the way round, not the area.',
+  feedback: 'That is the second disc.',
 });
 
 mk('7.8C', 'what-the-string-supports', {
@@ -5231,43 +5238,49 @@ mk('7.9A', 'doubling-every-edge', {
 mk('7.9B', 'circumference-from-a-radius', {
   courseId: 'grade7',
   difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'symbolic',
-  prompt: 'A circle has radius ${{r}}$ cm. What is its circumference?',
+  prompt: 'Two circles have radii ${{r}}$ and ${{r2}}$ cm. What is the circumference of the first?',
   generator: {
-    parameters: { r: { type: 'int', min: 3, max: 20 } },
-    derived: { twoR: '2*r', rsq: 'r*r', fourR: '4*r' },
+    parameters: {
+      r: { type: 'int', min: 3, max: 20 },
+      r2: { type: 'int', min: 3, max: 20 },
+    },
+    derived: { twoR: '2*r', rsq: 'r*r', twoR2: '2*r2' },
     constraints: [],
   },
   choices: [
     { label: plain('{{twoR}}\\pi'), correct: true },
     { label: plain('{{r}}\\pi'), error: 'partialTotal' },
     { label: plain('{{rsq}}\\pi'), error: 'areaPerimeterSwap' },
-    { label: plain('{{fourR}}\\pi'), error: 'operationInverted' },
+    { label: plain('{{twoR2}}\\pi'), error: 'usedGivenValue' },
   ],
-  reasoning: ['The way round is $\\pi$ times the diameter, and the diameter is ${{twoR}}$ cm.', 'So the circumference is ${{twoR}}\\pi$ cm.'],
+  reasoning: ['The way round is $\\pi$ times the diameter, and the first diameter is ${{twoR}}$ cm.', 'So the circumference is ${{twoR}}\\pi$ cm.'],
   answerSummary: { headline: 'Circumference uses the diameter, so a radius must be doubled first.', text: 'It is ${{twoR}}\\pi$ cm.' },
   hint: 'Which length does $\\pi$ multiply?',
-  feedback: 'Multiplying the radius once gives only half the way round.',
+  feedback: 'That belongs to the second circle.',
 });
 
 mk('7.9B', 'area-from-a-diameter', {
   courseId: 'grade7',
   difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
-  prompt: 'A disc has diameter ${{d}}$ cm. What area does it cover?',
+  prompt: 'Two discs have diameters ${{d}}$ and ${{d2}}$ cm. What area does the first cover?',
   generator: {
-    parameters: { d: { type: 'int', min: 6, max: 40, step: 2 } },
-    derived: { r: 'd/2', rsq: 'd*d/4', dsq: 'd*d' },
+    parameters: {
+      d: { type: 'int', min: 6, max: 40, step: 2 },
+      d2: { type: 'int', min: 6, max: 40, step: 2 },
+    },
+    derived: { r: 'd/2', rsq: 'd*d/4', dsq: 'd*d', r2sq: 'd2*d2/4' },
     constraints: [],
   },
   choices: [
     { label: plain('{{rsq}}\\pi'), correct: true },
     { label: plain('{{dsq}}\\pi'), error: 'diameterForRadius' },
-    { label: plain('{{d}}\\pi'), error: 'areaPerimeterSwap' },
     { label: plain('{{r}}\\pi'), error: 'partialTotal' },
+    { label: plain('{{r2sq}}\\pi'), error: 'usedGivenValue' },
   ],
-  reasoning: ['The radius is half the diameter: ${{r}}$ cm.', 'Area is $\\pi$ times the radius squared, or ${{rsq}}\\pi$ square cm.'],
+  reasoning: ['The first radius is half of ${{d}}$, which is ${{r}}$ cm.', 'Area is $\\pi$ times the radius squared, or ${{rsq}}\\pi$ square cm.'],
   answerSummary: { headline: 'Halve the diameter before squaring.', text: 'It covers ${{rsq}}\\pi$ square cm.' },
   hint: 'Which length does the area formula square?',
-  feedback: 'Squaring the diameter gives four times too much.',
+  feedback: 'That is the second disc.',
 });
 
 mk('7.9B', 'circumference-with-a-fraction-for-pi', {
@@ -8667,6 +8680,757 @@ mk('8.5H', 'doubling-the-amount', {
   answerSummary: { headline: 'A fixed charge is paid once however long the job runs.', text: 'The bill does not double.' },
   hint: 'Work out the bill for twice as many hours.',
   feedback: 'The rate really is fixed; that alone does not make it proportional.',
+});
+
+
+// ================================================================ 8.5I
+// Writing y = mx + b from whichever representation is handed over.
+//
+// The standard names four starting points — verbal, numerical, tabular and
+// graphical — so the five families start from four different ones rather than
+// asking the same question about the same table five times.
+
+mk('8.5I', 'equation-from-a-description', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'verbal',
+  prompt: 'A crew is paid $\\${{b}}$ for turning up and $\\${{m}}$ an hour. Which equation models the pay $y$ for $x$ hours?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 20, max: 90, step: 5 },
+      m: { type: 'int', min: 5, max: 40, step: 5 },
+      x: { type: 'int', min: 2, max: 10 },
+    },
+    derived: { total: 'm*x+b', hourly: 'm*x' },
+    constraints: ['m!=b'],
+  },
+  choices: [
+    { label: plain('y = {{m}}x + {{b}}'), correct: true },
+    { label: plain('y = {{b}}x + {{m}}'), error: 'ratioReversed' },
+    { label: plain('y = ({{m}} + {{b}})x'), error: 'operationInverted' },
+    { label: plain('y = {{m}}x'), error: 'partialTotal' },
+  ],
+  reasoning: ['The hours earn $\\${{hourly}}$ after ${{x}}$ of them.', 'The turn-up payment arrives once, so it is added rather than multiplied.'],
+  answerSummary: { headline: 'What repeats is multiplied; what happens once is added.', text: 'It is $y = {{m}}x + {{b}}$.' },
+  hint: 'Which of the two payments depends on the hours?',
+  feedback: 'Swapping the two numbers pays by the hour for turning up.',
+});
+
+mk('8.5I', 'equation-from-two-readings', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'A linear rule gives $y = {{y1}}$ at $x = {{x1}}$ and $y = {{y2}}$ at $x = {{x2}}$. Which equation is it?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 3, max: 25 },
+      x1: { type: 'int', min: 1, max: 5 },
+      run: { type: 'int', min: 2, max: 5 },
+    },
+    derived: {
+      x2: 'x1+run',
+      y1: 'm*x1+b', y2: 'm*(x1+run)+b',
+      rise: 'm*run',
+      mPlus: 'm+1',
+    },
+    constraints: ['rise!=m', 'rise!=mPlus'],
+  },
+  choices: [
+    { label: plain('y = {{m}}x + {{b}}'), correct: true },
+    { label: plain('y = {{rise}}x + {{b}}'), error: 'partialTotal' },
+    { label: plain('y = {{m}}x + {{y1}}'), error: 'offByOneStep' },
+    { label: plain('y = {{mPlus}}x + {{b}}'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['From the first reading to the second, $y$ rises ${{rise}}$ over a run of ${{run}}$, so the rate is ${{m}}$.', 'At $x = {{x1}}$ the rate accounts for ${{m}} \\times {{x1}}$, leaving ${{b}}$.'],
+  answerSummary: { headline: 'Rise over run first, then work back to the constant.', text: 'It is $y = {{m}}x + {{b}}$.' },
+  hint: 'The rise is not the rate until it is shared by the run.',
+  feedback: 'The first $y$ is a value on the line, not the constant.',
+});
+
+mk('8.5I', 'equation-from-a-table-with-a-drop', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'table',
+  prompt: 'Which equation produces the table?',
+  stimulus: {
+    kind: 'table',
+    title: 'Recorded values',
+    table: { headers: ['x', 'y'], rows: [['{{x1}}', '{{y1}}'], ['{{x2}}', '{{y2}}'], ['{{x3}}', '{{y3}}']] },
+  },
+  generator: {
+    parameters: {
+      // A falling line, so the rate is negative and the constant is the largest
+      // value in sight — a shape the other table families do not use.
+      m: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 60, max: 140, step: 5 },
+      x1: { type: 'int', min: 1, max: 4 },
+      gap: { type: 'int', min: 2, max: 4 },
+    },
+    derived: {
+      x2: 'x1+gap', x3: 'x1+2*gap',
+      y1: 'b-m*x1', y2: 'b-m*(x1+gap)', y3: 'b-m*(x1+2*gap)',
+      negM: '0-m',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('y = {{negM}}x + {{b}}'), correct: true },
+    { label: plain('y = {{m}}x + {{b}}'), error: 'signError' },
+    { label: plain('y = {{negM}}x + {{y1}}'), error: 'offByOneStep' },
+    { label: plain('y = {{b}}x - {{m}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Each step of ${{gap}}$ in $x$ lowers $y$, so the rate is negative: ${{negM}}$.', 'Working back from $({{x1}}, {{y1}})$ to $x = 0$ adds ${{m}} \\times {{x1}}$, giving ${{b}}$.'],
+  answerSummary: { headline: 'A falling column means a negative rate.', text: 'It is $y = {{negM}}x + {{b}}$.' },
+  hint: 'Is $y$ rising or falling as $x$ grows?',
+  feedback: 'A positive rate would make the column climb.',
+});
+
+mk('8.5I', 'equation-from-a-graph-reading', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'verbal',
+  prompt: 'A line crosses the vertical axis at ${{b}}$ and rises ${{m}}$ for each step to the right. Which equation is it?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 3, max: 30 },
+    },
+    derived: { atOne: 'm+b', atTwo: '2*m+b' },
+    constraints: ['m!=b'],
+  },
+  choices: [
+    { label: plain('y = {{m}}x + {{b}}'), correct: true },
+    { label: plain('y = {{b}}x + {{m}}'), error: 'ratioReversed' },
+    { label: plain('y = {{m}}x + {{atOne}}'), error: 'offByOneStep' },
+    { label: plain('y = {{atOne}}x + {{b}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The crossing point is the value at $x = 0$, which is ${{b}}$.', 'One step right reaches ${{atOne}}$ and two reach ${{atTwo}}$, a climb of ${{m}}$ each time.'],
+  answerSummary: { headline: 'The crossing gives the constant; the climb gives the rate.', text: 'It is $y = {{m}}x + {{b}}$.' },
+  hint: 'Which reading belongs to $x = 0$?',
+  feedback: 'The value one step along is not the constant.',
+});
+
+mk('8.5I', 'rate-and-constant-swapped', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'From a line crossing at ${{b}}$ with slope ${{m}}$ a student writes $y = {{b}}x + {{m}}$. What is wrong?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 3, max: 30 },
+    },
+    derived: { atZeroRight: 'b', atZeroWrong: 'm' },
+    constraints: ['m!=b'],
+  },
+  choices: [
+    { label: 'That line crosses at ${{atZeroWrong}}$, not ${{atZeroRight}}$: the two numbers are the wrong way round.', correct: true },
+    { label: 'Nothing is wrong, because both numbers appear in the equation.', error: 'operationInverted' },
+    { label: 'The slope should be negative, because the line was read backwards.', error: 'signError' },
+    { label: 'The equation needs a third number for the crossing point.', error: 'partialTotal' },
+  ],
+  reasoning: ['Setting $x = 0$ in the written rule leaves ${{atZeroWrong}}$, which is the slope.', 'The number multiplying $x$ is the rate, and the number added is the crossing point.'],
+  answerSummary: { headline: 'Test an equation at x = 0 to see which number is which.', text: 'The two are swapped.' },
+  hint: 'Put $x = 0$ into what the student wrote.',
+  feedback: 'Using both numbers is not the same as using them in the right places.',
+});
+
+// ================================================================ 8.6A
+// V = Bh for a cylinder.
+
+mk('8.6A', 'what-b-stands-for', {
+  courseId: 'grade8',
+  difficultyBand: 1, dok: 1, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'In $V = Bh$ for a cylinder, what does $B$ stand for?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 12 },
+      h: { type: 'int', min: 3, max: 20 },
+    },
+    derived: { rsq: 'r*r', twoR: '2*r', vol: 'r*r*h' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The area of the circular base.', correct: true },
+    { label: 'The distance round the base.', error: 'areaPerimeterSwap' },
+    { label: 'The radius of the base.', error: 'partialTotal' },
+    { label: 'The area of the curved surface.', error: 'operationInverted' },
+  ],
+  reasoning: ['A cylinder is its base carried straight up through its height.', 'With radius ${{r}}$ the base covers ${{rsq}}\\pi$, so the volume is ${{vol}}\\pi$.'],
+  answerSummary: { headline: 'B is an area, which is why V = Bh gives a volume.', text: 'The area of the circular base.' },
+  hint: 'What must $B$ measure for $Bh$ to be a volume?',
+  feedback: 'A distance round is a length, and a length times a height is an area.',
+});
+
+mk('8.6A', 'volume-from-base-and-height', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'Two tanks have base areas ${{B}}$ and ${{B2}}$ square cm, and the first stands ${{h}}$ cm tall. What is its volume?',
+  generator: {
+    parameters: {
+      B: { type: 'int', min: 4, max: 30 },
+      h: { type: 'int', min: 3, max: 20 },
+      // The second tank's base is drawn separately, so it crosses the key.
+      B2: { type: 'int', min: 10, max: 400 },
+    },
+    derived: {
+      answer: 'B*h',
+      d_operationInverted: 'B+h',
+      d_offByOneStep: 'B*h+B',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{B2}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Each centimetre of height adds another ${{B}}$ cubic cm.', 'Over ${{h}}$ cm that gives ${{answer}}$.'],
+  answerSummary: { headline: 'Base area times height, with no other factor.', text: 'It holds ${{answer}}$ cubic cm.' },
+  hint: 'What does one centimetre of height contribute?',
+  feedback: 'That is the second tank, and a base area is not a volume.',
+});
+
+mk('8.6A', 'cylinder-volume-from-the-radius', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'Which expression gives the volume of a cylinder from its radius $r$ and height $h$?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 12 },
+      h: { type: 'int', min: 3, max: 20 },
+    },
+    derived: { rsq: 'r*r', vol: 'r*r*h' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('\\pi r^2 h'), correct: true },
+    { label: plain('2\\pi r h'), error: 'areaPerimeterSwap' },
+    { label: plain('\\pi r h'), error: 'partialTotal' },
+    { label: plain('\\frac{\\pi r^2 h}{3}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The base is a circle of area $\\pi r^2$, which is ${{rsq}}\\pi$ when $r = {{r}}$.', 'Carried through a height of ${{h}}$ that fills ${{vol}}\\pi$.'],
+  answerSummary: { headline: 'Put the circle formula into V = Bh.', text: 'It is $\\pi r^2 h$.' },
+  hint: 'What is the area of the base?',
+  feedback: 'The thirding belongs to a cone, not a cylinder.',
+});
+
+mk('8.6A', 'height-from-volume-and-base', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A tank of base area ${{B}}$ square cm holds ${{V}}$ cubic cm, and a second tank stands ${{h2}}$ cm tall. How tall is the first?',
+  generator: {
+    parameters: {
+      B: { type: 'int', min: 4, max: 30 },
+      e: { type: 'int', min: 1, max: 9 },
+      // The second tank's height is drawn separately, so it crosses the key.
+      h2: { type: 'int', min: 2, max: 18 },
+    },
+    derived: {
+      h: '2*e',
+      V: 'B*2*e',
+      answer: 'h',
+      d_forgotFinalStep: 'V',
+      d_partialTotal: 'e',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{h2}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Each centimetre of height holds ${{B}}$ cubic cm.', '${{V}} \\div {{B}} = {{answer}}$ cm.'],
+  answerSummary: { headline: 'Volume divided by base area gives the height.', text: 'It is ${{answer}}$ cm tall.' },
+  hint: 'How much does one centimetre of height hold?',
+  feedback: 'That is the second tank.',
+});
+
+mk('8.6A', 'circumference-used-as-the-base', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student puts the distance round the base in for $B$ in $V = Bh$. What is wrong?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 12 },
+      h: { type: 'int', min: 3, max: 20 },
+    },
+    derived: { rsq: 'r*r', twoR: '2*r', vol: 'r*r*h', wrong: '2*r*h' },
+    constraints: [],
+  },
+  choices: [
+    { label: '$B$ must be an area: ${{rsq}}\\pi$, not the ${{twoR}}\\pi$ round the outside.', correct: true },
+    { label: 'Nothing is wrong, because both describe the base.', error: 'operationInverted' },
+    { label: 'The distance round is right but should be halved first.', error: 'partialTotal' },
+    { label: 'The height should be squared instead, to make up the difference.', error: 'exponentError' },
+  ],
+  reasoning: ['A length times a height gives an area, not a volume: ${{wrong}}\\pi$ is the curved surface.', 'Using the base area ${{rsq}}\\pi$ gives the volume ${{vol}}\\pi$.'],
+  answerSummary: { headline: 'Check the units before checking the arithmetic.', text: '$B$ is the base area.' },
+  hint: 'What does a length times a height measure?',
+  feedback: 'Describing the same circle does not make two measurements interchangeable.',
+});
+
+// ================================================================ 8.6B
+// A cone against the cylinder that surrounds it.
+
+mk('8.6B', 'cone-formula-from-the-cylinder', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'A cylinder holds $\\pi r^2 h$. Which expression gives a cone of the same base and height?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 12 },
+      e: { type: 'int', min: 1, max: 6 },
+    },
+    derived: { h: '3*e', cyl: 'r*r*3*e', cone: 'r*r*e' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('\\frac{\\pi r^2 h}{3}'), correct: true },
+    { label: plain('\\frac{\\pi r^2 h}{2}'), error: 'operationInverted' },
+    { label: plain('3\\pi r^2 h'), error: 'ratioReversed' },
+    { label: plain('\\frac{\\pi r h}{3}'), error: 'partialTotal' },
+  ],
+  reasoning: ['With $r = {{r}}$ and $h = {{h}}$ the cylinder holds ${{cyl}}\\pi$.', 'Three cones fill it, so each holds ${{cone}}\\pi$.'],
+  answerSummary: { headline: 'The cone formula is the cylinder formula over three.', text: 'It is $\\frac{\\pi r^2 h}{3}$.' },
+  hint: 'How many cones fill the cylinder?',
+  feedback: 'Halving would be right for a triangle against a rectangle, not here.',
+});
+
+mk('8.6B', 'volume-of-a-cone', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'Two cones stand ${{h}}$ cm tall, with radii ${{r}}$ and ${{r2}}$ cm. What is the volume of the first?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 12 },
+      r2: { type: 'int', min: 2, max: 12 },
+      e: { type: 'int', min: 1, max: 6 },
+    },
+    derived: {
+      h: '3*e',
+      answer: 'r*r*e',
+      d_forgotFinalStep: 'r*r*3*e',
+      d_partialTotal: 'r*e',
+      d_usedGivenValue: 'r2*r2*e',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}\\pi'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}\\pi'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}\\pi'), error: 'partialTotal' },
+    { label: plain('{{d_usedGivenValue}}\\pi'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The first base covers ${{r}} \\times {{r}}$ times $\\pi$, and the cylinder around it holds ${{d_forgotFinalStep}}\\pi$.', 'A cone holds a third of that: ${{answer}}\\pi$ cubic cm.'],
+  answerSummary: { headline: 'Square the radius, multiply by the height, then take a third.', text: 'It holds ${{answer}}\\pi$ cubic cm.' },
+  hint: 'What would the surrounding cylinder hold?',
+  feedback: 'That is the cylinder, not the cone.',
+});
+
+mk('8.6B', 'cylinder-from-a-known-cone', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'Two cones hold ${{c}}$ and ${{c2}}$ cubic cm. What does a cylinder with the base and height of the first cone hold?',
+  generator: {
+    parameters: {
+      // The second cone is drawn separately, so its cylinder crosses the key.
+      c: { type: 'int', min: 4, max: 60 },
+      c2: { type: 'int', min: 6, max: 180 },
+    },
+    derived: {
+      answer: '3*c',
+      d_offByOneStep: '4*c',
+      d_partialTotal: 'c',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{c2}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Three cone-fulls fill the matching cylinder.', 'Three lots of ${{c}}$ is ${{answer}}$ cubic cm.'],
+  answerSummary: { headline: 'Going from cone to cylinder multiplies by three.', text: 'It holds ${{answer}}$ cubic cm.' },
+  hint: 'How many cone-fulls does the cylinder take?',
+  feedback: 'That is the second cone.',
+});
+
+mk('8.6B', 'what-three-pourings-establish', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'verbal',
+  prompt: 'Three cone-fulls of water exactly fill a cylinder of the same radius and height. What does that establish?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 12 },
+      e: { type: 'int', min: 2, max: 8 },
+    },
+    derived: { h: '3*e', cone: 'r*r*e', cyl: 'r*r*3*e', afterTwo: 'r*r*2*e' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'That a cone holds a third of the cylinder, so its volume is $\\frac{\\pi r^2 h}{3}$.', correct: true },
+    { label: 'That a cone holds three times the cylinder, so its volume is $3\\pi r^2 h$.', error: 'ratioReversed' },
+    { label: 'That the two hold the same, because their bases and heights match.', error: 'partialTotal' },
+    { label: 'That a cone holds a third of the base area rather than of the volume.', error: 'operationInverted' },
+  ],
+  reasoning: ['Each pouring adds ${{cone}}\\pi$, so after two the cylinder holds ${{afterTwo}}\\pi$ with one to go.', 'Three equal pourings filling ${{cyl}}\\pi$ means each is a third of it.'],
+  answerSummary: { headline: 'The pouring is the formula demonstrated.', text: 'A cone is a third: $\\frac{\\pi r^2 h}{3}$.' },
+  hint: 'What does it mean that exactly three fill it?',
+  feedback: 'The cylinder is the larger of the two.',
+});
+
+mk('8.6B', 'thirding-the-radius', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'For a cone a student divides the radius by three and then uses the cylinder formula. What is wrong?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 3, max: 12, step: 3 },
+      e: { type: 'int', min: 1, max: 6 },
+    },
+    derived: {
+      h: '3*e',
+      right: 'r*r*e',
+      wrong: 'r*r*e/3',
+      third: 'r/3',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The thirding applies to the volume, not the radius: that gives ${{wrong}}\\pi$ instead of ${{right}}\\pi$.', correct: true },
+    { label: 'Nothing is wrong, because dividing the radius divides the volume too.', error: 'operationInverted' },
+    { label: 'The height should be divided by three instead of the radius.', error: 'partialTotal' },
+    { label: 'The radius should be divided by nine, because it is squared.', error: 'exponentError' },
+  ],
+  reasoning: ['A radius of ${{r}}$ cut to ${{third}}$ is squared, so the base shrinks nine times over rather than three.', 'The third belongs at the end, to the finished volume.'],
+  answerSummary: { headline: 'Divide the volume by three, not one of the lengths.', text: 'The volume is ${{right}}\\pi$.' },
+  hint: 'What does squaring do to a thirded radius?',
+  feedback: 'Dividing the radius by three divides the base by nine.',
+});
+
+// ================================================================ 8.6C
+// The Pythagorean theorem as areas of squares on the sides.
+//
+// Every triangle here is generated from m and n as m^2 - n^2, 2mn, m^2 + n^2,
+// so the sides form a genuine Pythagorean triple for every draw and the right
+// angle is real rather than asserted.
+
+mk('8.6C', 'squares-on-the-three-sides', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'Squares are drawn on all three sides of a right triangle. What is true of their areas?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 1, max: 5 },
+      d: { type: 'int', min: 1, max: 4 },
+    },
+    derived: {
+      m: 'n+d',
+      a: '(n+d)*(n+d)-n*n',
+      b: '2*n*(n+d)',
+      c: '(n+d)*(n+d)+n*n',
+      asq: '((n+d)*(n+d)-n*n)*((n+d)*(n+d)-n*n)',
+      bsq: '4*n*n*(n+d)*(n+d)',
+      csq: '((n+d)*(n+d)+n*n)*((n+d)*(n+d)+n*n)',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The two smaller areas add up to the largest.', correct: true },
+    { label: 'The two smaller areas multiply to give the largest.', error: 'operationInverted' },
+    { label: 'All three areas are equal.', error: 'partialTotal' },
+    { label: 'The largest area is twice the smallest.', error: 'ratioReversed' },
+  ],
+  reasoning: ['With sides ${{a}}$, ${{b}}$ and ${{c}}$ the squares cover ${{asq}}$, ${{bsq}}$ and ${{csq}}$.', '${{asq}} + {{bsq}} = {{csq}}$, which is what the theorem says.'],
+  answerSummary: { headline: 'The theorem is a statement about areas, not lengths.', text: 'The two smaller areas total the largest.' },
+  hint: 'Work out the three areas and compare them.',
+  feedback: 'Multiplying the two smaller areas gives a far larger number.',
+});
+
+mk('8.6C', 'area-of-the-third-square', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'table',
+  prompt: 'The table gives the squares on the two shorter sides of a right triangle. What does the third square cover?',
+  stimulus: {
+    kind: 'table',
+    title: 'Squares on the sides',
+    table: { headers: ['side', 'square'], rows: [['shorter', '{{asq}}'], ['longer', '{{bsq}}'], ['third', '?']] },
+  },
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 1, max: 3 },
+      d: { type: 'int', min: 1, max: 3 },
+      // A separately drawn area, so it crosses the key.
+      other: { type: 'int', min: 20, max: 900 },
+    },
+    derived: {
+      a: '(n+d)*(n+d)-n*n',
+      b: '2*n*(n+d)',
+      asq: '((n+d)*(n+d)-n*n)*((n+d)*(n+d)-n*n)',
+      bsq: '4*n*n*(n+d)*(n+d)',
+      answer: '((n+d)*(n+d)+n*n)*((n+d)*(n+d)+n*n)',
+      d_signError: '4*n*n*(n+d)*(n+d)-((n+d)*(n+d)-n*n)*((n+d)*(n+d)-n*n)',
+      d_arithmeticSlip: '((n+d)*(n+d)-n*n+2*n*(n+d))*((n+d)*(n+d)-n*n+2*n*(n+d))',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+    { label: plain('{{other}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The squares on the two shorter sides cover ${{asq}}$ and ${{bsq}}$.', 'Their total, ${{answer}}$, is what the square on the longest side covers.'],
+  answerSummary: { headline: 'Add the two smaller squares to reach the largest.', text: 'It covers ${{answer}}$.' },
+  hint: 'The theorem adds; it does not subtract.',
+  feedback: 'Squaring the sum of the sides adds an extra rectangle twice over.',
+});
+
+mk('8.6C', 'length-of-the-longest-side', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A brace runs corner to corner across a right angle whose sides are ${{a}}$ and ${{b}}$ cm, beside a rod of ${{other}}$ cm. How long is the brace?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 1, max: 5 },
+      d: { type: 'int', min: 1, max: 4 },
+      // The rod is drawn separately, so its length crosses the key.
+      other: { type: 'int', min: 3, max: 70 },
+    },
+    derived: {
+      a: '(n+d)*(n+d)-n*n',
+      b: '2*n*(n+d)',
+      answer: '(n+d)*(n+d)+n*n',
+      d_operationInverted: '(n+d)*(n+d)-n*n+2*n*(n+d)',
+      d_signError: '2*n*(n+d)-((n+d)*(n+d)-n*n)',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{other}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The squares on ${{a}}$ and ${{b}}$ add to the square on the brace.', 'That total is ${{answer}}$ squared, so the brace is ${{answer}}$ cm.'],
+  answerSummary: { headline: 'Add the squares, then take the root.', text: 'The brace is ${{answer}}$ cm.' },
+  hint: 'Add the squares of the two sides first.',
+  feedback: 'Adding the sides themselves overshoots the diagonal.',
+});
+
+mk('8.6C', 'testing-for-a-right-angle', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'verbal',
+  prompt: 'A triangle has sides ${{a}}$, ${{b}}$ and ${{c}}$. Is its largest angle a right angle?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 1, max: 5 },
+      d: { type: 'int', min: 1, max: 4 },
+    },
+    derived: {
+      a: '(n+d)*(n+d)-n*n',
+      b: '2*n*(n+d)',
+      c: '(n+d)*(n+d)+n*n',
+      asq: '((n+d)*(n+d)-n*n)*((n+d)*(n+d)-n*n)',
+      bsq: '4*n*n*(n+d)*(n+d)',
+      csq: '((n+d)*(n+d)+n*n)*((n+d)*(n+d)+n*n)',
+      sum: '((n+d)*(n+d)-n*n)+2*n*(n+d)',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Yes: ${{asq}} + {{bsq}} = {{csq}}$, so the theorem holds in reverse.', correct: true },
+    { label: 'No: ${{a}} + {{b}} = {{sum}}$, which is not ${{c}}$.', error: 'operationInverted' },
+    { label: 'Yes, because ${{c}}$ is the largest of the three sides.', error: 'partialTotal' },
+    { label: 'It cannot be told without measuring the angle.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['The converse of the theorem says the angle is right exactly when the squares balance.', '${{asq}}$ and ${{bsq}}$ do total ${{csq}}$, so the angle is right.'],
+  answerSummary: { headline: 'The theorem runs both ways, and it is about squares.', text: 'Yes, the squares balance.' },
+  hint: 'Square all three sides and compare.',
+  feedback: 'Adding the sides themselves is not the test.',
+});
+
+mk('8.6C', 'adding-the-sides-instead', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student adds the two shorter sides to find the longest. What is wrong?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 1, max: 5 },
+      d: { type: 'int', min: 1, max: 4 },
+    },
+    derived: {
+      a: '(n+d)*(n+d)-n*n',
+      b: '2*n*(n+d)',
+      c: '(n+d)*(n+d)+n*n',
+      sum: '((n+d)*(n+d)-n*n)+2*n*(n+d)',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The squares add, not the sides: ${{a}}$ and ${{b}}$ give ${{c}}$, not ${{sum}}$.', correct: true },
+    { label: 'Nothing is wrong, because the longest side is the largest number.', error: 'partialTotal' },
+    { label: 'The sides should be subtracted rather than added.', error: 'signError' },
+    { label: 'The two shorter sides should be multiplied instead.', error: 'operationInverted' },
+  ],
+  reasoning: ['Going straight across is shorter than going along two sides.', 'The theorem balances areas, so the squares are what add: ${{c}}$ rather than ${{sum}}$.'],
+  answerSummary: { headline: 'The theorem adds areas, not lengths.', text: 'The longest side is ${{c}}$.' },
+  hint: 'Compare the diagonal of a rectangle with going round two sides.',
+  feedback: 'A diagonal is shorter than the two sides it replaces, not longer.',
+});
+
+// ================================================================ 8.7A
+// Volumes of cylinders, cones and spheres.
+
+mk('8.7A', 'volume-of-a-cylinder', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'A drum of radius ${{r}}$ cm sits beside one of radius ${{r2}}$ cm, both ${{h}}$ cm tall. What is the volume of the first drum?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 12 },
+      r2: { type: 'int', min: 2, max: 12 },
+      h: { type: 'int', min: 3, max: 20 },
+    },
+    derived: {
+      answer: 'r*r*h',
+      d_partialTotal: 'r*h',
+      d_exponentError: 'r*r*r*h',
+      d_usedGivenValue: 'r2*r2*h',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}\\pi'), correct: true },
+    { label: plain('{{d_partialTotal}}\\pi'), error: 'partialTotal' },
+    { label: plain('{{d_exponentError}}\\pi'), error: 'exponentError' },
+    { label: plain('{{d_usedGivenValue}}\\pi'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The first base covers ${{r}} \\times {{r}}$ times $\\pi$.', 'Carried up ${{h}}$ cm that fills ${{answer}}\\pi$ cubic cm.'],
+  answerSummary: { headline: 'Square the radius, then multiply by the height.', text: 'It holds ${{answer}}\\pi$ cubic cm.' },
+  hint: 'What area does the base cover?',
+  feedback: 'That is the second drum.',
+});
+
+mk('8.7A', 'volume-of-a-sphere', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 2, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'Two spheres have radii ${{r}}$ and ${{r2}}$ cm. What is the volume of the first?',
+  generator: {
+    parameters: {
+      // Multiples of three, so four thirds of the cube stays a whole number.
+      // t starts at 2: at t = 1 the cube and the square coincide and the
+      // automatic constraint throws the draw away, which skewed the second
+      // radius against a first that could never be smallest.
+      t: { type: 'int', min: 2, max: 5 },
+      t2: { type: 'int', min: 1, max: 6 },
+    },
+    derived: {
+      r: '3*t', r2: '3*t2',
+      answer: '36*t*t*t',
+      d_exponentError: '36*t*t',
+      d_operationInverted: '108*t*t*t',
+      d_usedGivenValue: '36*t2*t2*t2',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}\\pi'), correct: true },
+    { label: plain('{{d_exponentError}}\\pi'), error: 'exponentError' },
+    { label: plain('{{d_operationInverted}}\\pi'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}\\pi'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['A sphere holds $\\frac{4}{3}\\pi r^3$, and ${{r}}$ cubed is $27t^3$ with $t = {{t}}$.', 'Four thirds of that is ${{answer}}$, so the first sphere holds ${{answer}}\\pi$ cubic cm.'],
+  answerSummary: { headline: 'Cube the radius, then take four thirds.', text: 'It holds ${{answer}}\\pi$ cubic cm.' },
+  hint: 'The radius is cubed, not squared.',
+  feedback: 'That is the second sphere.',
+});
+
+mk('8.7A', 'which-of-the-two-holds-more', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'verbal',
+  prompt: 'A cylinder and a cone share a radius of ${{r}}$ cm and a height of ${{h}}$ cm. How much more does the cylinder hold?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 12 },
+      e: { type: 'int', min: 1, max: 6 },
+    },
+    derived: {
+      h: '3*e',
+      cyl: 'r*r*3*e',
+      cone: 'r*r*e',
+      gap: 'r*r*2*e',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Twice the cone: ${{gap}}\\pi$ more.', correct: true },
+    { label: 'Three times the cone: ${{cyl}}\\pi$ more.', error: 'partialTotal' },
+    { label: 'The same as the cone: ${{cone}}\\pi$ more.', error: 'operationInverted' },
+    { label: 'Nothing, because their bases and heights match.', error: 'ratioReversed' },
+  ],
+  reasoning: ['The cylinder holds ${{cyl}}\\pi$ and the cone ${{cone}}\\pi$.', 'The difference is ${{gap}}\\pi$, which is two cone-fulls, not three.'],
+  answerSummary: { headline: 'Three cones fill the cylinder, so two are spare.', text: '${{gap}}\\pi$ cubic cm more.' },
+  hint: 'The question asks for the gap, not the cylinder.',
+  feedback: 'Three cone-fulls is the whole cylinder, not the extra room.',
+});
+
+mk('8.7A', 'height-of-a-drum', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A drum of radius ${{r}}$ cm holds ${{V}}\\pi$ cubic cm, and a second drum stands ${{h2}}$ cm tall. How tall is the first?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 10 },
+      e: { type: 'int', min: 1, max: 9 },
+      // The second drum's height is drawn separately, so it crosses the key.
+      h2: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {
+      h: '2*e',
+      V: 'r*r*2*e',
+      answer: 'h',
+      d_forgotFinalStep: 'V',
+      d_partialTotal: 'e',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{h2}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The base covers ${{r}} \\times {{r}}$ times $\\pi$.', 'Dividing ${{V}}\\pi$ by that base leaves a height of ${{answer}}$ cm.'],
+  answerSummary: { headline: 'Volume divided by base area gives the height.', text: 'It is ${{answer}}$ cm tall.' },
+  hint: 'What does one centimetre of height hold?',
+  feedback: 'That is the second drum.',
+});
+
+mk('8.7A', 'diameter-used-as-the-radius', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'For a sphere of diameter ${{d}}$ cm a student puts ${{d}}$ in for the radius. What is wrong?',
+  generator: {
+    parameters: { t: { type: 'int', min: 1, max: 5 } },
+    derived: {
+      r: '3*t',
+      d: '6*t',
+      right: '4*27*t*t*t/3',
+      wrong: '4*216*t*t*t/3',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The radius is ${{r}}$, half of ${{d}}$, and cubing the error makes the answer eight times too large.', correct: true },
+    { label: 'Nothing is wrong, because both measure across the sphere.', error: 'operationInverted' },
+    { label: 'The answer comes out twice too large, because the diameter is doubled.', error: 'partialTotal' },
+    { label: 'The answer comes out four times too large, because the radius is squared.', error: 'exponentError' },
+  ],
+  reasoning: ['Using ${{r}}$ gives ${{right}}\\pi$; using ${{d}}$ gives ${{wrong}}\\pi$.', 'The radius is cubed, so doubling it multiplies the volume by eight.'],
+  answerSummary: { headline: 'A cubed term feels a doubling three times over.', text: 'The result is eight times too large.' },
+  hint: 'What does cubing do to a doubled length?',
+  feedback: 'Squaring would give four times; cubing gives eight.',
 });
 
 // ---------------------------------------------------------------- emit

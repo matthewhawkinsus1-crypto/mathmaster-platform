@@ -17592,17 +17592,17 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A pipe has diameter ${{d}}$ cm. What is the distance round it?",
+   "prompt": "Two pipes have diameters ${{d}}$ and ${{d2}}$ cm. What is the distance round the first?",
    "solutionReview": {
     "headline": "Circumference is pi times the diameter.",
     "reasoning": [
      "The way round is $\\pi$ times the diameter.",
-     "With a diameter of ${{d}}$ that is ${{d}}\\pi$ cm."
+     "For the first pipe that is ${{d}}\\pi$ cm."
     ],
     "answerSummary": "It is ${{d}}\\pi$ cm."
    },
    "attemptFeedback": [
-    "Multiplying by the radius gives only half the way round."
+    "That belongs to the second pipe."
    ],
    "supportHints": [
     "Which length does $\\pi$ multiply?"
@@ -17614,20 +17614,25 @@
       "min": 4,
       "max": 40,
       "step": 2
+     },
+     "d2": {
+      "type": "int",
+      "min": 4,
+      "max": 40,
+      "step": 2
      }
     },
     "derived": {
      "r": "d/2",
-     "twoD": "2*d",
      "dsq": "d*d"
     },
     "constraints": [
      "d!=r",
-     "d!=twoD",
      "d!=dsq",
-     "r!=twoD",
+     "d!=d2",
      "r!=dsq",
-     "twoD!=dsq"
+     "r!=d2",
+     "dsq!=d2"
     ]
    },
    "assessmentItemFormat": "multipleChoice",
@@ -17639,8 +17644,8 @@
     },
     {
      "id": "choice-b",
-     "label": "${{dsq}}\\pi$",
-     "error": "areaPerimeterSwap"
+     "label": "${{d2}}\\pi$",
+     "error": "usedGivenValue"
     },
     {
      "id": "choice-c",
@@ -17648,8 +17653,8 @@
     },
     {
      "id": "choice-d",
-     "label": "${{twoD}}\\pi$",
-     "error": "operationInverted"
+     "label": "${{dsq}}\\pi$",
+     "error": "areaPerimeterSwap"
     }
    ],
    "responseFields": [
@@ -20470,17 +20475,17 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A disc has radius ${{r}}$ cm. What area does it cover?",
+   "prompt": "Two discs have radii ${{r}}$ and ${{r2}}$ cm. What area does the first cover?",
    "solutionReview": {
     "headline": "Square the radius, then multiply by pi.",
     "reasoning": [
      "Area is $\\pi$ times the radius squared.",
-     "${{r}} \\times {{r}} = {{rsq}}$, so the disc covers ${{rsq}}\\pi$ square cm."
+     "${{r}} \\times {{r}} = {{rsq}}$, so the first disc covers ${{rsq}}\\pi$ square cm."
     ],
     "answerSummary": "It covers ${{rsq}}\\pi$ square cm."
    },
    "attemptFeedback": [
-    "That expression is the way round, not the area."
+    "That is the second disc."
    ],
    "supportHints": [
     "Which length gets squared?"
@@ -20491,33 +20496,39 @@
       "type": "int",
       "min": 3,
       "max": 20
+     },
+     "r2": {
+      "type": "int",
+      "min": 3,
+      "max": 20
      }
     },
     "derived": {
      "rsq": "r*r",
      "twoR": "2*r",
-     "dsq": "4*r*r"
+     "dsq": "4*r*r",
+     "r2sq": "r2*r2"
     },
     "constraints": [
      "rsq!=twoR",
-     "rsq!=r",
      "rsq!=dsq",
-     "twoR!=r",
+     "rsq!=r2sq",
      "twoR!=dsq",
-     "r!=dsq"
+     "twoR!=r2sq",
+     "dsq!=r2sq"
     ]
    },
    "assessmentItemFormat": "multipleChoice",
    "choices": [
     {
      "id": "choice-a",
-     "label": "${{r}}\\pi$",
-     "error": "partialTotal"
+     "label": "${{dsq}}\\pi$",
+     "error": "diameterForRadius"
     },
     {
      "id": "choice-b",
-     "label": "${{dsq}}\\pi$",
-     "error": "diameterForRadius"
+     "label": "${{r2sq}}\\pi$",
+     "error": "usedGivenValue"
     },
     {
      "id": "choice-c",
@@ -21421,17 +21432,17 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A circle has radius ${{r}}$ cm. What is its circumference?",
+   "prompt": "Two circles have radii ${{r}}$ and ${{r2}}$ cm. What is the circumference of the first?",
    "solutionReview": {
     "headline": "Circumference uses the diameter, so a radius must be doubled first.",
     "reasoning": [
-     "The way round is $\\pi$ times the diameter, and the diameter is ${{twoR}}$ cm.",
+     "The way round is $\\pi$ times the diameter, and the first diameter is ${{twoR}}$ cm.",
      "So the circumference is ${{twoR}}\\pi$ cm."
     ],
     "answerSummary": "It is ${{twoR}}\\pi$ cm."
    },
    "attemptFeedback": [
-    "Multiplying the radius once gives only half the way round."
+    "That belongs to the second circle."
    ],
    "supportHints": [
     "Which length does $\\pi$ multiply?"
@@ -21442,20 +21453,25 @@
       "type": "int",
       "min": 3,
       "max": 20
+     },
+     "r2": {
+      "type": "int",
+      "min": 3,
+      "max": 20
      }
     },
     "derived": {
      "twoR": "2*r",
      "rsq": "r*r",
-     "fourR": "4*r"
+     "twoR2": "2*r2"
     },
     "constraints": [
      "twoR!=r",
      "twoR!=rsq",
-     "twoR!=fourR",
+     "twoR!=twoR2",
      "r!=rsq",
-     "r!=fourR",
-     "rsq!=fourR"
+     "r!=twoR2",
+     "rsq!=twoR2"
     ]
    },
    "assessmentItemFormat": "multipleChoice",
@@ -21466,8 +21482,8 @@
     },
     {
      "id": "choice-b",
-     "label": "${{fourR}}\\pi$",
-     "error": "operationInverted"
+     "label": "${{twoR2}}\\pi$",
+     "error": "usedGivenValue"
     },
     {
      "id": "choice-c",
@@ -21531,17 +21547,17 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A disc has diameter ${{d}}$ cm. What area does it cover?",
+   "prompt": "Two discs have diameters ${{d}}$ and ${{d2}}$ cm. What area does the first cover?",
    "solutionReview": {
     "headline": "Halve the diameter before squaring.",
     "reasoning": [
-     "The radius is half the diameter: ${{r}}$ cm.",
+     "The first radius is half of ${{d}}$, which is ${{r}}$ cm.",
      "Area is $\\pi$ times the radius squared, or ${{rsq}}\\pi$ square cm."
     ],
     "answerSummary": "It covers ${{rsq}}\\pi$ square cm."
    },
    "attemptFeedback": [
-    "Squaring the diameter gives four times too much."
+    "That is the second disc."
    ],
    "supportHints": [
     "Which length does the area formula square?"
@@ -21553,20 +21569,27 @@
       "min": 6,
       "max": 40,
       "step": 2
+     },
+     "d2": {
+      "type": "int",
+      "min": 6,
+      "max": 40,
+      "step": 2
      }
     },
     "derived": {
      "r": "d/2",
      "rsq": "d*d/4",
-     "dsq": "d*d"
+     "dsq": "d*d",
+     "r2sq": "d2*d2/4"
     },
     "constraints": [
      "rsq!=dsq",
-     "rsq!=d",
      "rsq!=r",
-     "dsq!=d",
+     "rsq!=r2sq",
      "dsq!=r",
-     "d!=r"
+     "dsq!=r2sq",
+     "r!=r2sq"
     ]
    },
    "assessmentItemFormat": "multipleChoice",
@@ -21578,13 +21601,13 @@
     },
     {
      "id": "choice-b",
-     "label": "${{r}}\\pi$",
-     "error": "partialTotal"
+     "label": "${{r2sq}}\\pi$",
+     "error": "usedGivenValue"
     },
     {
      "id": "choice-c",
-     "label": "${{d}}\\pi$",
-     "error": "areaPerimeterSwap"
+     "label": "${{r}}\\pi$",
+     "error": "partialTotal"
     },
     {
      "id": "choice-d",
@@ -35558,6 +35581,2916 @@
      "label": "Choose the correct answer",
      "inputProfile": "choice",
      "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5I_equation_from_a_description",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5I"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5I",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5I:equation-from-a-description",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5I",
+   "taskType": "representationTranslation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A crew is paid $\\${{b}}$ for turning up and $\\${{m}}$ an hour. Which equation models the pay $y$ for $x$ hours?",
+   "solutionReview": {
+    "headline": "What repeats is multiplied; what happens once is added.",
+    "reasoning": [
+     "The hours earn $\\${{hourly}}$ after ${{x}}$ of them.",
+     "The turn-up payment arrives once, so it is added rather than multiplied."
+    ],
+    "answerSummary": "It is $y = {{m}}x + {{b}}$."
+   },
+   "attemptFeedback": [
+    "Swapping the two numbers pays by the hour for turning up."
+   ],
+   "supportHints": [
+    "Which of the two payments depends on the hours?"
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 20,
+      "max": 90,
+      "step": 5
+     },
+     "m": {
+      "type": "int",
+      "min": 5,
+      "max": 40,
+      "step": 5
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 10
+     }
+    },
+    "derived": {
+     "total": "m*x+b",
+     "hourly": "m*x"
+    },
+    "constraints": [
+     "m!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = {{b}}x + {{m}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = {{m}}x$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = {{m}}x + {{b}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = ({{m}} + {{b}})x$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5I_equation_from_two_readings",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5I"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5I",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5I:equation-from-two-readings",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5I",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A linear rule gives $y = {{y1}}$ at $x = {{x1}}$ and $y = {{y2}}$ at $x = {{x2}}$. Which equation is it?",
+   "solutionReview": {
+    "headline": "Rise over run first, then work back to the constant.",
+    "reasoning": [
+     "From the first reading to the second, $y$ rises ${{rise}}$ over a run of ${{run}}$, so the rate is ${{m}}$.",
+     "At $x = {{x1}}$ the rate accounts for ${{m}} \\times {{x1}}$, leaving ${{b}}$."
+    ],
+    "answerSummary": "It is $y = {{m}}x + {{b}}$."
+   },
+   "attemptFeedback": [
+    "The first $y$ is a value on the line, not the constant."
+   ],
+   "supportHints": [
+    "The rise is not the rate until it is shared by the run."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 25
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     },
+     "run": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     }
+    },
+    "derived": {
+     "x2": "x1+run",
+     "y1": "m*x1+b",
+     "y2": "m*(x1+run)+b",
+     "rise": "m*run",
+     "mPlus": "m+1"
+    },
+    "constraints": [
+     "rise!=m",
+     "rise!=mPlus"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = {{rise}}x + {{b}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = {{mPlus}}x + {{b}}$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = {{m}}x + {{y1}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = {{m}}x + {{b}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5I_equation_from_a_table_with_a_drop",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5I"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5I",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5I:equation-from-a-table-with-a-drop",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5I",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which equation produces the table?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Recorded values",
+    "table": {
+     "headers": [
+      "x",
+      "y"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "{{y1}}"
+      ],
+      [
+       "{{x2}}",
+       "{{y2}}"
+      ],
+      [
+       "{{x3}}",
+       "{{y3}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "A falling column means a negative rate.",
+    "reasoning": [
+     "Each step of ${{gap}}$ in $x$ lowers $y$, so the rate is negative: ${{negM}}$.",
+     "Working back from $({{x1}}, {{y1}})$ to $x = 0$ adds ${{m}} \\times {{x1}}$, giving ${{b}}$."
+    ],
+    "answerSummary": "It is $y = {{negM}}x + {{b}}$."
+   },
+   "attemptFeedback": [
+    "A positive rate would make the column climb."
+   ],
+   "supportHints": [
+    "Is $y$ rising or falling as $x$ grows?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 60,
+      "max": 140,
+      "step": 5
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     },
+     "gap": {
+      "type": "int",
+      "min": 2,
+      "max": 4
+     }
+    },
+    "derived": {
+     "x2": "x1+gap",
+     "x3": "x1+2*gap",
+     "y1": "b-m*x1",
+     "y2": "b-m*(x1+gap)",
+     "y3": "b-m*(x1+2*gap)",
+     "negM": "0-m"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = {{negM}}x + {{b}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = {{negM}}x + {{y1}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = {{m}}x + {{b}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = {{b}}x - {{m}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5I_equation_from_a_graph_reading",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5I"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5I",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5I:equation-from-a-graph-reading",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5I",
+   "taskType": "application",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A line crosses the vertical axis at ${{b}}$ and rises ${{m}}$ for each step to the right. Which equation is it?",
+   "solutionReview": {
+    "headline": "The crossing gives the constant; the climb gives the rate.",
+    "reasoning": [
+     "The crossing point is the value at $x = 0$, which is ${{b}}$.",
+     "One step right reaches ${{atOne}}$ and two reach ${{atTwo}}$, a climb of ${{m}}$ each time."
+    ],
+    "answerSummary": "It is $y = {{m}}x + {{b}}$."
+   },
+   "attemptFeedback": [
+    "The value one step along is not the constant."
+   ],
+   "supportHints": [
+    "Which reading belongs to $x = 0$?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     }
+    },
+    "derived": {
+     "atOne": "m+b",
+     "atTwo": "2*m+b"
+    },
+    "constraints": [
+     "m!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = {{m}}x + {{atOne}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = {{b}}x + {{m}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = {{m}}x + {{b}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = {{atOne}}x + {{b}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_5I_rate_and_constant_swapped",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5I"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5I",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.5I:rate-and-constant-swapped",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5I",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "From a line crossing at ${{b}}$ with slope ${{m}}$ a student writes $y = {{b}}x + {{m}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "Test an equation at x = 0 to see which number is which.",
+    "reasoning": [
+     "Setting $x = 0$ in the written rule leaves ${{atZeroWrong}}$, which is the slope.",
+     "The number multiplying $x$ is the rate, and the number added is the crossing point."
+    ],
+    "answerSummary": "The two are swapped."
+   },
+   "attemptFeedback": [
+    "Using both numbers is not the same as using them in the right places."
+   ],
+   "supportHints": [
+    "Put $x = 0$ into what the student wrote."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     }
+    },
+    "derived": {
+     "atZeroRight": "b",
+     "atZeroWrong": "m"
+    },
+    "constraints": [
+     "m!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The equation needs a third number for the crossing point.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "That line crosses at ${{atZeroWrong}}$, not ${{atZeroRight}}$: the two numbers are the wrong way round."
+    },
+    {
+     "id": "choice-c",
+     "label": "Nothing is wrong, because both numbers appear in the equation.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "The slope should be negative, because the line was read backwards.",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_6A_what_b_stands_for",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.6A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.6A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.6A:what-b-stands-for",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.6A",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "In $V = Bh$ for a cylinder, what does $B$ stand for?",
+   "solutionReview": {
+    "headline": "B is an area, which is why V = Bh gives a volume.",
+    "reasoning": [
+     "A cylinder is its base carried straight up through its height.",
+     "With radius ${{r}}$ the base covers ${{rsq}}\\pi$, so the volume is ${{vol}}\\pi$."
+    ],
+    "answerSummary": "The area of the circular base."
+   },
+   "attemptFeedback": [
+    "A distance round is a length, and a length times a height is an area."
+   ],
+   "supportHints": [
+    "What must $B$ measure for $Bh$ to be a volume?"
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "h": {
+      "type": "int",
+      "min": 3,
+      "max": 20
+     }
+    },
+    "derived": {
+     "rsq": "r*r",
+     "twoR": "2*r",
+     "vol": "r*r*h"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The distance round the base.",
+     "error": "areaPerimeterSwap"
+    },
+    {
+     "id": "choice-b",
+     "label": "The area of the curved surface.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "The area of the circular base."
+    },
+    {
+     "id": "choice-d",
+     "label": "The radius of the base.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_6A_volume_from_base_and_height",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.6A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.6A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.6A:volume-from-base-and-height",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.6A",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two tanks have base areas ${{B}}$ and ${{B2}}$ square cm, and the first stands ${{h}}$ cm tall. What is its volume?",
+   "solutionReview": {
+    "headline": "Base area times height, with no other factor.",
+    "reasoning": [
+     "Each centimetre of height adds another ${{B}}$ cubic cm.",
+     "Over ${{h}}$ cm that gives ${{answer}}$."
+    ],
+    "answerSummary": "It holds ${{answer}}$ cubic cm."
+   },
+   "attemptFeedback": [
+    "That is the second tank, and a base area is not a volume."
+   ],
+   "supportHints": [
+    "What does one centimetre of height contribute?"
+   ],
+   "generator": {
+    "parameters": {
+     "B": {
+      "type": "int",
+      "min": 4,
+      "max": 30
+     },
+     "h": {
+      "type": "int",
+      "min": 3,
+      "max": 20
+     },
+     "B2": {
+      "type": "int",
+      "min": 10,
+      "max": 400
+     }
+    },
+    "derived": {
+     "answer": "B*h",
+     "d_operationInverted": "B+h",
+     "d_offByOneStep": "B*h+B"
+    },
+    "constraints": [
+     "answer!=d_operationInverted",
+     "answer!=d_offByOneStep",
+     "answer!=B2",
+     "d_operationInverted!=d_offByOneStep",
+     "d_operationInverted!=B2",
+     "d_offByOneStep!=B2"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{B2}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_6A_cylinder_volume_from_the_radius",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.6A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.6A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.6A:cylinder-volume-from-the-radius",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.6A",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which expression gives the volume of a cylinder from its radius $r$ and height $h$?",
+   "solutionReview": {
+    "headline": "Put the circle formula into V = Bh.",
+    "reasoning": [
+     "The base is a circle of area $\\pi r^2$, which is ${{rsq}}\\pi$ when $r = {{r}}$.",
+     "Carried through a height of ${{h}}$ that fills ${{vol}}\\pi$."
+    ],
+    "answerSummary": "It is $\\pi r^2 h$."
+   },
+   "attemptFeedback": [
+    "The thirding belongs to a cone, not a cylinder."
+   ],
+   "supportHints": [
+    "What is the area of the base?"
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "h": {
+      "type": "int",
+      "min": 3,
+      "max": 20
+     }
+    },
+    "derived": {
+     "rsq": "r*r",
+     "vol": "r*r*h"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$2\\pi r h$",
+     "error": "areaPerimeterSwap"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\pi r h$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\frac{\\pi r^2 h}{3}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\pi r^2 h$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_6A_height_from_volume_and_base",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.6A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.6A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.6A:height-from-volume-and-base",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.6A",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A tank of base area ${{B}}$ square cm holds ${{V}}$ cubic cm, and a second tank stands ${{h2}}$ cm tall. How tall is the first?",
+   "solutionReview": {
+    "headline": "Volume divided by base area gives the height.",
+    "reasoning": [
+     "Each centimetre of height holds ${{B}}$ cubic cm.",
+     "${{V}} \\div {{B}} = {{answer}}$ cm."
+    ],
+    "answerSummary": "It is ${{answer}}$ cm tall."
+   },
+   "attemptFeedback": [
+    "That is the second tank."
+   ],
+   "supportHints": [
+    "How much does one centimetre of height hold?"
+   ],
+   "generator": {
+    "parameters": {
+     "B": {
+      "type": "int",
+      "min": 4,
+      "max": 30
+     },
+     "e": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     },
+     "h2": {
+      "type": "int",
+      "min": 2,
+      "max": 18
+     }
+    },
+    "derived": {
+     "h": "2*e",
+     "V": "B*2*e",
+     "answer": "h",
+     "d_forgotFinalStep": "V",
+     "d_partialTotal": "e"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "answer!=h2",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_forgotFinalStep!=h2",
+     "d_partialTotal!=h2"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{h2}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_6A_circumference_used_as_the_base",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.6A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.6A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.6A:circumference-used-as-the-base",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.6A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student puts the distance round the base in for $B$ in $V = Bh$. What is wrong?",
+   "solutionReview": {
+    "headline": "Check the units before checking the arithmetic.",
+    "reasoning": [
+     "A length times a height gives an area, not a volume: ${{wrong}}\\pi$ is the curved surface.",
+     "Using the base area ${{rsq}}\\pi$ gives the volume ${{vol}}\\pi$."
+    ],
+    "answerSummary": "$B$ is the base area."
+   },
+   "attemptFeedback": [
+    "Describing the same circle does not make two measurements interchangeable."
+   ],
+   "supportHints": [
+    "What does a length times a height measure?"
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "h": {
+      "type": "int",
+      "min": 3,
+      "max": 20
+     }
+    },
+    "derived": {
+     "rsq": "r*r",
+     "twoR": "2*r",
+     "vol": "r*r*h",
+     "wrong": "2*r*h"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The distance round is right but should be halved first.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "Nothing is wrong, because both describe the base.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "$B$ must be an area: ${{rsq}}\\pi$, not the ${{twoR}}\\pi$ round the outside."
+    },
+    {
+     "id": "choice-d",
+     "label": "The height should be squared instead, to make up the difference.",
+     "error": "exponentError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_6B_cone_formula_from_the_cylinder",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.6B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.6B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.6B:cone-formula-from-the-cylinder",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.6B",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A cylinder holds $\\pi r^2 h$. Which expression gives a cone of the same base and height?",
+   "solutionReview": {
+    "headline": "The cone formula is the cylinder formula over three.",
+    "reasoning": [
+     "With $r = {{r}}$ and $h = {{h}}$ the cylinder holds ${{cyl}}\\pi$.",
+     "Three cones fill it, so each holds ${{cone}}\\pi$."
+    ],
+    "answerSummary": "It is $\\frac{\\pi r^2 h}{3}$."
+   },
+   "attemptFeedback": [
+    "Halving would be right for a triangle against a rectangle, not here."
+   ],
+   "supportHints": [
+    "How many cones fill the cylinder?"
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "e": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     }
+    },
+    "derived": {
+     "h": "3*e",
+     "cyl": "r*r*3*e",
+     "cone": "r*r*e"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\frac{\\pi r^2 h}{2}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$3\\pi r^2 h$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\frac{\\pi r h}{3}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\frac{\\pi r^2 h}{3}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_6B_volume_of_a_cone",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.6B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.6B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.6B:volume-of-a-cone",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.6B",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two cones stand ${{h}}$ cm tall, with radii ${{r}}$ and ${{r2}}$ cm. What is the volume of the first?",
+   "solutionReview": {
+    "headline": "Square the radius, multiply by the height, then take a third.",
+    "reasoning": [
+     "The first base covers ${{r}} \\times {{r}}$ times $\\pi$, and the cylinder around it holds ${{d_forgotFinalStep}}\\pi$.",
+     "A cone holds a third of that: ${{answer}}\\pi$ cubic cm."
+    ],
+    "answerSummary": "It holds ${{answer}}\\pi$ cubic cm."
+   },
+   "attemptFeedback": [
+    "That is the cylinder, not the cone."
+   ],
+   "supportHints": [
+    "What would the surrounding cylinder hold?"
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "r2": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "e": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     }
+    },
+    "derived": {
+     "h": "3*e",
+     "answer": "r*r*e",
+     "d_forgotFinalStep": "r*r*3*e",
+     "d_partialTotal": "r*e",
+     "d_usedGivenValue": "r2*r2*e"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_partialTotal!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_partialTotal}}\\pi$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}\\pi$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}\\pi$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}\\pi$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_6B_cylinder_from_a_known_cone",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.6B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.6B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.6B:cylinder-from-a-known-cone",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.6B",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two cones hold ${{c}}$ and ${{c2}}$ cubic cm. What does a cylinder with the base and height of the first cone hold?",
+   "solutionReview": {
+    "headline": "Going from cone to cylinder multiplies by three.",
+    "reasoning": [
+     "Three cone-fulls fill the matching cylinder.",
+     "Three lots of ${{c}}$ is ${{answer}}$ cubic cm."
+    ],
+    "answerSummary": "It holds ${{answer}}$ cubic cm."
+   },
+   "attemptFeedback": [
+    "That is the second cone."
+   ],
+   "supportHints": [
+    "How many cone-fulls does the cylinder take?"
+   ],
+   "generator": {
+    "parameters": {
+     "c": {
+      "type": "int",
+      "min": 4,
+      "max": 60
+     },
+     "c2": {
+      "type": "int",
+      "min": 6,
+      "max": 180
+     }
+    },
+    "derived": {
+     "answer": "3*c",
+     "d_offByOneStep": "4*c",
+     "d_partialTotal": "c"
+    },
+    "constraints": [
+     "answer!=d_offByOneStep",
+     "answer!=d_partialTotal",
+     "answer!=c2",
+     "d_offByOneStep!=d_partialTotal",
+     "d_offByOneStep!=c2",
+     "d_partialTotal!=c2"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{c2}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_6B_what_three_pourings_establish",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.6B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.6B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.6B:what-three-pourings-establish",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.6B",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Three cone-fulls of water exactly fill a cylinder of the same radius and height. What does that establish?",
+   "solutionReview": {
+    "headline": "The pouring is the formula demonstrated.",
+    "reasoning": [
+     "Each pouring adds ${{cone}}\\pi$, so after two the cylinder holds ${{afterTwo}}\\pi$ with one to go.",
+     "Three equal pourings filling ${{cyl}}\\pi$ means each is a third of it."
+    ],
+    "answerSummary": "A cone is a third: $\\frac{\\pi r^2 h}{3}$."
+   },
+   "attemptFeedback": [
+    "The cylinder is the larger of the two."
+   ],
+   "supportHints": [
+    "What does it mean that exactly three fill it?"
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "e": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     }
+    },
+    "derived": {
+     "h": "3*e",
+     "cone": "r*r*e",
+     "cyl": "r*r*3*e",
+     "afterTwo": "r*r*2*e"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "That a cone holds a third of the cylinder, so its volume is $\\frac{\\pi r^2 h}{3}$."
+    },
+    {
+     "id": "choice-b",
+     "label": "That the two hold the same, because their bases and heights match.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "That a cone holds a third of the base area rather than of the volume.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "That a cone holds three times the cylinder, so its volume is $3\\pi r^2 h$.",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_6B_thirding_the_radius",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.6B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.6B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.6B:thirding-the-radius",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.6B",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For a cone a student divides the radius by three and then uses the cylinder formula. What is wrong?",
+   "solutionReview": {
+    "headline": "Divide the volume by three, not one of the lengths.",
+    "reasoning": [
+     "A radius of ${{r}}$ cut to ${{third}}$ is squared, so the base shrinks nine times over rather than three.",
+     "The third belongs at the end, to the finished volume."
+    ],
+    "answerSummary": "The volume is ${{right}}\\pi$."
+   },
+   "attemptFeedback": [
+    "Dividing the radius by three divides the base by nine."
+   ],
+   "supportHints": [
+    "What does squaring do to a thirded radius?"
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 3,
+      "max": 12,
+      "step": 3
+     },
+     "e": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     }
+    },
+    "derived": {
+     "h": "3*e",
+     "right": "r*r*e",
+     "wrong": "r*r*e/3",
+     "third": "r/3"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The radius should be divided by nine, because it is squared.",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-b",
+     "label": "The thirding applies to the volume, not the radius: that gives ${{wrong}}\\pi$ instead of ${{right}}\\pi$."
+    },
+    {
+     "id": "choice-c",
+     "label": "Nothing is wrong, because dividing the radius divides the volume too.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "The height should be divided by three instead of the radius.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_6C_squares_on_the_three_sides",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.6C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.6C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.6C:squares-on-the-three-sides",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.6C",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Squares are drawn on all three sides of a right triangle. What is true of their areas?",
+   "solutionReview": {
+    "headline": "The theorem is a statement about areas, not lengths.",
+    "reasoning": [
+     "With sides ${{a}}$, ${{b}}$ and ${{c}}$ the squares cover ${{asq}}$, ${{bsq}}$ and ${{csq}}$.",
+     "${{asq}} + {{bsq}} = {{csq}}$, which is what the theorem says."
+    ],
+    "answerSummary": "The two smaller areas total the largest."
+   },
+   "attemptFeedback": [
+    "Multiplying the two smaller areas gives a far larger number."
+   ],
+   "supportHints": [
+    "Work out the three areas and compare them."
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     },
+     "d": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     }
+    },
+    "derived": {
+     "m": "n+d",
+     "a": "(n+d)*(n+d)-n*n",
+     "b": "2*n*(n+d)",
+     "c": "(n+d)*(n+d)+n*n",
+     "asq": "((n+d)*(n+d)-n*n)*((n+d)*(n+d)-n*n)",
+     "bsq": "4*n*n*(n+d)*(n+d)",
+     "csq": "((n+d)*(n+d)+n*n)*((n+d)*(n+d)+n*n)"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The two smaller areas add up to the largest."
+    },
+    {
+     "id": "choice-b",
+     "label": "The largest area is twice the smallest.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "All three areas are equal.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "The two smaller areas multiply to give the largest.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_6C_area_of_the_third_square",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.6C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.6C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.6C:area-of-the-third-square",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.6C",
+   "taskType": "procedural",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The table gives the squares on the two shorter sides of a right triangle. What does the third square cover?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Squares on the sides",
+    "table": {
+     "headers": [
+      "side",
+      "square"
+     ],
+     "rows": [
+      [
+       "shorter",
+       "{{asq}}"
+      ],
+      [
+       "longer",
+       "{{bsq}}"
+      ],
+      [
+       "third",
+       "?"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Add the two smaller squares to reach the largest.",
+    "reasoning": [
+     "The squares on the two shorter sides cover ${{asq}}$ and ${{bsq}}$.",
+     "Their total, ${{answer}}$, is what the square on the longest side covers."
+    ],
+    "answerSummary": "It covers ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Squaring the sum of the sides adds an extra rectangle twice over."
+   ],
+   "supportHints": [
+    "The theorem adds; it does not subtract."
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     },
+     "d": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     },
+     "other": {
+      "type": "int",
+      "min": 20,
+      "max": 900
+     }
+    },
+    "derived": {
+     "a": "(n+d)*(n+d)-n*n",
+     "b": "2*n*(n+d)",
+     "asq": "((n+d)*(n+d)-n*n)*((n+d)*(n+d)-n*n)",
+     "bsq": "4*n*n*(n+d)*(n+d)",
+     "answer": "((n+d)*(n+d)+n*n)*((n+d)*(n+d)+n*n)",
+     "d_signError": "4*n*n*(n+d)*(n+d)-((n+d)*(n+d)-n*n)*((n+d)*(n+d)-n*n)",
+     "d_arithmeticSlip": "((n+d)*(n+d)-n*n+2*n*(n+d))*((n+d)*(n+d)-n*n+2*n*(n+d))"
+    },
+    "constraints": [
+     "answer!=d_signError",
+     "answer!=d_arithmeticSlip",
+     "answer!=other",
+     "d_signError!=d_arithmeticSlip",
+     "d_signError!=other",
+     "d_arithmeticSlip!=other"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{other}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_arithmeticSlip}}$",
+     "error": "arithmeticSlip"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_6C_length_of_the_longest_side",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.6C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.6C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.6C:length-of-the-longest-side",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.6C",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A brace runs corner to corner across a right angle whose sides are ${{a}}$ and ${{b}}$ cm, beside a rod of ${{other}}$ cm. How long is the brace?",
+   "solutionReview": {
+    "headline": "Add the squares, then take the root.",
+    "reasoning": [
+     "The squares on ${{a}}$ and ${{b}}$ add to the square on the brace.",
+     "That total is ${{answer}}$ squared, so the brace is ${{answer}}$ cm."
+    ],
+    "answerSummary": "The brace is ${{answer}}$ cm."
+   },
+   "attemptFeedback": [
+    "Adding the sides themselves overshoots the diagonal."
+   ],
+   "supportHints": [
+    "Add the squares of the two sides first."
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     },
+     "d": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     },
+     "other": {
+      "type": "int",
+      "min": 3,
+      "max": 70
+     }
+    },
+    "derived": {
+     "a": "(n+d)*(n+d)-n*n",
+     "b": "2*n*(n+d)",
+     "answer": "(n+d)*(n+d)+n*n",
+     "d_operationInverted": "(n+d)*(n+d)-n*n+2*n*(n+d)",
+     "d_signError": "2*n*(n+d)-((n+d)*(n+d)-n*n)"
+    },
+    "constraints": [
+     "answer!=d_operationInverted",
+     "answer!=d_signError",
+     "answer!=other",
+     "d_operationInverted!=d_signError",
+     "d_operationInverted!=other",
+     "d_signError!=other"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{other}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_6C_testing_for_a_right_angle",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.6C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.6C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.6C:testing-for-a-right-angle",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.6C",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A triangle has sides ${{a}}$, ${{b}}$ and ${{c}}$. Is its largest angle a right angle?",
+   "solutionReview": {
+    "headline": "The theorem runs both ways, and it is about squares.",
+    "reasoning": [
+     "The converse of the theorem says the angle is right exactly when the squares balance.",
+     "${{asq}}$ and ${{bsq}}$ do total ${{csq}}$, so the angle is right."
+    ],
+    "answerSummary": "Yes, the squares balance."
+   },
+   "attemptFeedback": [
+    "Adding the sides themselves is not the test."
+   ],
+   "supportHints": [
+    "Square all three sides and compare."
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     },
+     "d": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     }
+    },
+    "derived": {
+     "a": "(n+d)*(n+d)-n*n",
+     "b": "2*n*(n+d)",
+     "c": "(n+d)*(n+d)+n*n",
+     "asq": "((n+d)*(n+d)-n*n)*((n+d)*(n+d)-n*n)",
+     "bsq": "4*n*n*(n+d)*(n+d)",
+     "csq": "((n+d)*(n+d)+n*n)*((n+d)*(n+d)+n*n)",
+     "sum": "((n+d)*(n+d)-n*n)+2*n*(n+d)"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "No: ${{a}} + {{b}} = {{sum}}$, which is not ${{c}}$.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "Yes: ${{asq}} + {{bsq}} = {{csq}}$, so the theorem holds in reverse."
+    },
+    {
+     "id": "choice-c",
+     "label": "It cannot be told without measuring the angle.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "Yes, because ${{c}}$ is the largest of the three sides.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_6C_adding_the_sides_instead",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.6C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.6C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.6C:adding-the-sides-instead",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.6C",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student adds the two shorter sides to find the longest. What is wrong?",
+   "solutionReview": {
+    "headline": "The theorem adds areas, not lengths.",
+    "reasoning": [
+     "Going straight across is shorter than going along two sides.",
+     "The theorem balances areas, so the squares are what add: ${{c}}$ rather than ${{sum}}$."
+    ],
+    "answerSummary": "The longest side is ${{c}}$."
+   },
+   "attemptFeedback": [
+    "A diagonal is shorter than the two sides it replaces, not longer."
+   ],
+   "supportHints": [
+    "Compare the diagonal of a rectangle with going round two sides."
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     },
+     "d": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     }
+    },
+    "derived": {
+     "a": "(n+d)*(n+d)-n*n",
+     "b": "2*n*(n+d)",
+     "c": "(n+d)*(n+d)+n*n",
+     "sum": "((n+d)*(n+d)-n*n)+2*n*(n+d)"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Nothing is wrong, because the longest side is the largest number.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "The two shorter sides should be multiplied instead.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "The squares add, not the sides: ${{a}}$ and ${{b}}$ give ${{c}}$, not ${{sum}}$."
+    },
+    {
+     "id": "choice-d",
+     "label": "The sides should be subtracted rather than added.",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_7A_volume_of_a_cylinder",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.7A:volume-of-a-cylinder",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7A",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A drum of radius ${{r}}$ cm sits beside one of radius ${{r2}}$ cm, both ${{h}}$ cm tall. What is the volume of the first drum?",
+   "solutionReview": {
+    "headline": "Square the radius, then multiply by the height.",
+    "reasoning": [
+     "The first base covers ${{r}} \\times {{r}}$ times $\\pi$.",
+     "Carried up ${{h}}$ cm that fills ${{answer}}\\pi$ cubic cm."
+    ],
+    "answerSummary": "It holds ${{answer}}\\pi$ cubic cm."
+   },
+   "attemptFeedback": [
+    "That is the second drum."
+   ],
+   "supportHints": [
+    "What area does the base cover?"
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "r2": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "h": {
+      "type": "int",
+      "min": 3,
+      "max": 20
+     }
+    },
+    "derived": {
+     "answer": "r*r*h",
+     "d_partialTotal": "r*h",
+     "d_exponentError": "r*r*r*h",
+     "d_usedGivenValue": "r2*r2*h"
+    },
+    "constraints": [
+     "answer!=d_partialTotal",
+     "answer!=d_exponentError",
+     "answer!=d_usedGivenValue",
+     "d_partialTotal!=d_exponentError",
+     "d_partialTotal!=d_usedGivenValue",
+     "d_exponentError!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}\\pi$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_partialTotal}}\\pi$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_exponentError}}\\pi$",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}\\pi$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_7A_volume_of_a_sphere",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.7A:volume-of-a-sphere",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7A",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two spheres have radii ${{r}}$ and ${{r2}}$ cm. What is the volume of the first?",
+   "solutionReview": {
+    "headline": "Cube the radius, then take four thirds.",
+    "reasoning": [
+     "A sphere holds $\\frac{4}{3}\\pi r^3$, and ${{r}}$ cubed is $27t^3$ with $t = {{t}}$.",
+     "Four thirds of that is ${{answer}}$, so the first sphere holds ${{answer}}\\pi$ cubic cm."
+    ],
+    "answerSummary": "It holds ${{answer}}\\pi$ cubic cm."
+   },
+   "attemptFeedback": [
+    "That is the second sphere."
+   ],
+   "supportHints": [
+    "The radius is cubed, not squared."
+   ],
+   "generator": {
+    "parameters": {
+     "t": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     },
+     "t2": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     }
+    },
+    "derived": {
+     "r": "3*t",
+     "r2": "3*t2",
+     "answer": "36*t*t*t",
+     "d_exponentError": "36*t*t",
+     "d_operationInverted": "108*t*t*t",
+     "d_usedGivenValue": "36*t2*t2*t2"
+    },
+    "constraints": [
+     "answer!=d_exponentError",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "d_exponentError!=d_operationInverted",
+     "d_exponentError!=d_usedGivenValue",
+     "d_operationInverted!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_exponentError}}\\pi$",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}\\pi$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}\\pi$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}\\pi$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_7A_which_of_the_two_holds_more",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.7A:which-of-the-two-holds-more",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7A",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A cylinder and a cone share a radius of ${{r}}$ cm and a height of ${{h}}$ cm. How much more does the cylinder hold?",
+   "solutionReview": {
+    "headline": "Three cones fill the cylinder, so two are spare.",
+    "reasoning": [
+     "The cylinder holds ${{cyl}}\\pi$ and the cone ${{cone}}\\pi$.",
+     "The difference is ${{gap}}\\pi$, which is two cone-fulls, not three."
+    ],
+    "answerSummary": "${{gap}}\\pi$ cubic cm more."
+   },
+   "attemptFeedback": [
+    "Three cone-fulls is the whole cylinder, not the extra room."
+   ],
+   "supportHints": [
+    "The question asks for the gap, not the cylinder."
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "e": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     }
+    },
+    "derived": {
+     "h": "3*e",
+     "cyl": "r*r*3*e",
+     "cone": "r*r*e",
+     "gap": "r*r*2*e"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The same as the cone: ${{cone}}\\pi$ more.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "Nothing, because their bases and heights match.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "Twice the cone: ${{gap}}\\pi$ more."
+    },
+    {
+     "id": "choice-d",
+     "label": "Three times the cone: ${{cyl}}\\pi$ more.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_7A_height_of_a_drum",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.7A:height-of-a-drum",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7A",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A drum of radius ${{r}}$ cm holds ${{V}}\\pi$ cubic cm, and a second drum stands ${{h2}}$ cm tall. How tall is the first?",
+   "solutionReview": {
+    "headline": "Volume divided by base area gives the height.",
+    "reasoning": [
+     "The base covers ${{r}} \\times {{r}}$ times $\\pi$.",
+     "Dividing ${{V}}\\pi$ by that base leaves a height of ${{answer}}$ cm."
+    ],
+    "answerSummary": "It is ${{answer}}$ cm tall."
+   },
+   "attemptFeedback": [
+    "That is the second drum."
+   ],
+   "supportHints": [
+    "What does one centimetre of height hold?"
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 10
+     },
+     "e": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     },
+     "h2": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "h": "2*e",
+     "V": "r*r*2*e",
+     "answer": "h",
+     "d_forgotFinalStep": "V",
+     "d_partialTotal": "e"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "answer!=h2",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_forgotFinalStep!=h2",
+     "d_partialTotal!=h2"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{h2}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_7A_diameter_used_as_the_radius",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.7A:diameter-used-as-the-radius",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For a sphere of diameter ${{d}}$ cm a student puts ${{d}}$ in for the radius. What is wrong?",
+   "solutionReview": {
+    "headline": "A cubed term feels a doubling three times over.",
+    "reasoning": [
+     "Using ${{r}}$ gives ${{right}}\\pi$; using ${{d}}$ gives ${{wrong}}\\pi$.",
+     "The radius is cubed, so doubling it multiplies the volume by eight."
+    ],
+    "answerSummary": "The result is eight times too large."
+   },
+   "attemptFeedback": [
+    "Squaring would give four times; cubing gives eight."
+   ],
+   "supportHints": [
+    "What does cubing do to a doubled length?"
+   ],
+   "generator": {
+    "parameters": {
+     "t": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     }
+    },
+    "derived": {
+     "r": "3*t",
+     "d": "6*t",
+     "right": "4*27*t*t*t/3",
+     "wrong": "4*216*t*t*t/3"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The radius is ${{r}}$, half of ${{d}}$, and cubing the error makes the answer eight times too large."
+    },
+    {
+     "id": "choice-b",
+     "label": "Nothing is wrong, because both measure across the sphere.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "The answer comes out twice too large, because the diameter is doubled.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "The answer comes out four times too large, because the radius is squared.",
+     "error": "exponentError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
     }
    ]
   }
