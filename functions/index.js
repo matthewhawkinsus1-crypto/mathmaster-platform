@@ -44,6 +44,7 @@ const rigorPolicy = require("./lib/rigorPolicy");
 // engine in functions/shared/pathSessionRouting.mjs; this seam supplies the
 // server-side facts (mastery documents, coverage indexes) it reasons over.
 const pathRouting = require("./lib/pathRouting");
+const pathContentRelease = require("./lib/pathContentRelease");
 
 // HTTPS/callable transport must be reachable by the Firebase client SDK.
 // MathMaster authorization still happens INSIDE each callable through
@@ -5145,6 +5146,13 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
       }
     }
   }
+  let assessmentReleaseState = {
+    framework: assessmentFramework || null,
+    tracked: false,
+    release: null,
+    matchingFamilies: 0,
+  };
+
   // A CCMR launch is allowed to call itself SAT/ACT/TSIA2/ASVAB practice only
   // when that exact framework has a full secure session of directly-authored
   // exam-style families. The ordinary TEKS coverage index is intentionally not
@@ -5158,6 +5166,7 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
       .map((questionDoc) => ({ id: questionDoc.id, ...questionDoc.data() }))
       .filter((question) => question.active !== false)
       .filter((question) => pathQuestionMatchesFramework(question, assessmentFramework));
+    assessmentReleaseState = pathContentRelease.resolveAssessmentContentRelease(frameworkRecords, assessmentFramework);
     const frameworkPlans = await Promise.all(frameworkRecords.map(async (question) => ({
       question, plan: await safeBuildTemplateIssuePlan(question, { operation: "path-runtime-framework-check" }),
     })));
@@ -5179,6 +5188,7 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
   const proposedSessionRef = db.collection("pathSessions").doc();
 
   const session = await db.runTransaction(async (transaction) => {
+    const now = Date.now();
     const lock = await transaction.get(lockRef);
     if (lock.exists && lock.data()?.sessionId) {
       const existingRef = db.collection("pathSessions").doc(lock.data().sessionId);
@@ -5190,7 +5200,12 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
         if ((existing.data()?.assessmentFramework || null) !== assessmentFramework) {
           throw new HttpsError("failed-precondition", "Finish the active session before changing assessment format.");
         }
-        return existing.data();
+        const releaseAction = pathContentRelease.planSessionContentReleaseAction(existing.data(), assessmentReleaseState);
+        if (releaseAction.action !== "supersede") return existing.data();
+        transaction.set(
+          existingRef,
+          pathContentRelease.supersedeSessionForContentRelease(existing.data(), assessmentReleaseState.release, now),
+        );
       }
     }
 
@@ -5202,6 +5217,7 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
       status: "active",
       sessionKind,
       assessmentFramework,
+      assessmentContentRelease: assessmentReleaseState.tracked ? assessmentReleaseState.release : null,
       ccmrChallengeTier: assessmentFramework ? ccmrChallengeTier : null,
       ccmrProgressAtStart: assessmentFramework ? {
         directItemsAttempted: Number(ccmrProgress?.directItemsAttempted || 0),
@@ -5265,6 +5281,76 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
   if (session.status !== "active") throw new HttpsError("failed-precondition", "This My Math Path session is already complete.");
   if (session.currentQuestion) {
     return { questionInstance: mathPath.buildSanitizedQuestion(session.currentQuestion, { questionInstanceId: session.currentQuestion.questionInstanceId, attemptsAllowed: session.currentQuestion.attemptsAllowed, attemptsUsed: session.currentQuestion.attemptsUsed, toolPayload: mathPath.storedToolPayload(session.currentQuestion) }) };
+  }
+
+  if (session.assessmentFramework) {
+    // Release compatibility is resolved from the TARGET assessment families,
+    // not from a remediation excursion. A course bridge inside SAT/ACT/TSIA2
+    // must not make the session look untracked. Read a broad bounded slice so
+    // legacy and replacement families are both visible during a bank refresh.
+    const targetReleaseSnapshot = await db.collection("pathQuestionBank")
+      .where("alignmentKeys", "array-contains", session.target.alignmentKey)
+      .limit(200)
+      .get();
+    const targetFrameworkRecords = targetReleaseSnapshot.docs
+      .map((questionDoc) => ({ id: questionDoc.id, ...questionDoc.data() }))
+      .filter((question) => question.active !== false)
+      .filter((question) => pathQuestionMatchesFramework(question, session.assessmentFramework));
+    const issueReleaseState = pathContentRelease.resolveAssessmentContentRelease(targetFrameworkRecords, session.assessmentFramework);
+    const releaseAction = pathContentRelease.planSessionContentReleaseAction(session, issueReleaseState);
+
+    if (releaseAction.action === "supersede") {
+      const rollover = await db.runTransaction(async (transaction) => {
+        const fresh = await transaction.get(sessionRef);
+        if (!fresh.exists || fresh.data()?.studentId !== studentId) {
+          throw new HttpsError("not-found", "That My Math Path session is not available.");
+        }
+        const freshData = fresh.data();
+        if (freshData.currentQuestion) {
+          return {
+            questionInstance: mathPath.buildSanitizedQuestion(freshData.currentQuestion, {
+              questionInstanceId: freshData.currentQuestion.questionInstanceId,
+              attemptsAllowed: freshData.currentQuestion.attemptsAllowed,
+              attemptsUsed: freshData.currentQuestion.attemptsUsed,
+              toolPayload: mathPath.storedToolPayload(freshData.currentQuestion),
+            }),
+          };
+        }
+
+        const rolloverPayload = {
+          reason: pathContentRelease.RELEASE_CHANGE_REASON,
+          assessmentFramework: session.assessmentFramework,
+          targetAlignmentKey: session.target.alignmentKey,
+          currentRelease: issueReleaseState.release,
+        };
+        if (freshData.status === "superseded" && freshData.supersededReason === pathContentRelease.RELEASE_CHANGE_REASON) {
+          return { rollover: rolloverPayload };
+        }
+        if (freshData.status !== "active") {
+          throw new HttpsError("failed-precondition", "This My Math Path session is already complete.");
+        }
+
+        const freshAction = pathContentRelease.planSessionContentReleaseAction(freshData, issueReleaseState);
+        if (freshAction.action !== "supersede") {
+          // The only supported race from a stale/no-question state is another
+          // issuer creating the current question (handled above) or another
+          // issuer superseding it (handled above). Refuse any unexpected state
+          // instead of issuing across releases.
+          throw new HttpsError(
+            "aborted",
+            "This assessment session changed while its content release was being checked. Start it again to continue.",
+            { reason: pathContentRelease.RELEASE_CHANGE_REASON },
+          );
+        }
+        const now = Date.now();
+        transaction.set(
+          sessionRef,
+          pathContentRelease.supersedeSessionForContentRelease(freshData, issueReleaseState.release, now),
+        );
+        return { rollover: rolloverPayload };
+      });
+      return rollover;
+    }
   }
 
   const targetDisplayCode = mathPath.displayAlignmentKey(session.target.alignmentKey);
