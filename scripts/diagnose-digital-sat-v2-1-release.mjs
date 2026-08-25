@@ -16,22 +16,21 @@ const formatOf = (doc) => String(doc?.assessmentItemFormat || '').toLowerCase();
 const promptOf = (doc) => String(doc?.prompt || '').trim();
 const hasTemplate = (text) => /\{\{[^}]+\}\}/.test(String(text || ''));
 const generatorSignature = (doc) => doc?.generator && typeof doc.generator === 'object' ? JSON.stringify(doc.generator) : null;
-const staticNumericExpected = (doc) => {
-  const field = Array.isArray(doc?.responseFields) ? doc.responseFields[0] : null;
-  const value = field?.expected;
-  if (value == null || hasTemplate(value)) return false;
-  return /^-?(?:\d+(?:\.\d+)?|\d+\/\d+)$/.test(String(value).trim());
-};
 
-function oldGrammar(text) {
-  return String(text || '').toLowerCase()
-    .replace(/\{\{[^}]+\}\}/g, '<value>')
-    .replace(/\$[^$]+\$/g, '<math>')
-    .replace(/-?\d+(?:\.\d+)?/g, '<number>')
-    .replace(/[^a-z<>\s'-]/g, ' ')
-    .replace(/\b(a|an|the)\b/g, ' ')
-    .replace(/\s+/g, ' ').trim();
+function deepMerge(base, patch) {
+  if (Array.isArray(patch)) return patch.map((value) => structuredClone(value));
+  if (!patch || typeof patch !== 'object') return patch;
+  const out = base && typeof base === 'object' && !Array.isArray(base) ? structuredClone(base) : {};
+  for (const [key, value] of Object.entries(patch)) {
+    out[key] = value && typeof value === 'object' && !Array.isArray(value)
+      ? deepMerge(out[key], value)
+      : Array.isArray(value)
+        ? value.map((entry) => structuredClone(entry))
+        : value;
+  }
+  return out;
 }
+
 function normalizeMath(math) {
   return String(math || '').toLowerCase()
     .replace(/\{\{[^}]+\}\}/g, '<value>')
@@ -64,40 +63,111 @@ function structuralGrammar(text) {
     .replace(/\b(a|an|the)\b/g, ' ')
     .replace(/\s+/g, ' ').trim();
 }
+function tokenSet(text) {
+  return new Set(structuralGrammar(text).split(/\s+/).filter((token) => token.length > 2));
+}
+function jaccard(a, b) {
+  if (!a.size || !b.size) return 0;
+  let intersection = 0;
+  for (const token of a) if (b.has(token)) intersection += 1;
+  return intersection / (a.size + b.size - intersection);
+}
+function docSummary(doc) {
+  const field = Array.isArray(doc?.responseFields) ? doc.responseFields[0] : null;
+  return {
+    id: doc.id,
+    familyId: doc.familyId,
+    file: doc.__file,
+    scope: doc.__scope,
+    domain: doc?.assessmentContext?.domainId,
+    role: roleOf(doc),
+    taskType: doc.taskType,
+    representation: doc.representation,
+    format: formatOf(doc),
+    prompt: promptOf(doc),
+    expected: field?.expected ?? null,
+  };
+}
 
 const banks = [];
+const overrides = new Map();
 for (const file of walk(sourceRoot).filter((entry) => entry.endsWith('.v2.1.json')).sort()) {
   const parsed = readJson(file);
-  if (parsed?.framework === 'digitalSAT' && Array.isArray(parsed?.documents)) banks.push({ file, parsed });
+  if (parsed?.framework !== 'digitalSAT') continue;
+  if (parsed?.artifactType === 'antiCloneOverrides') {
+    for (const [familyId, patch] of Object.entries(parsed.patches || {})) overrides.set(familyId, patch);
+    continue;
+  }
+  if (Array.isArray(parsed?.documents)) banks.push({ file, parsed });
 }
 
-const docs = banks.flatMap(({ file, parsed }) => parsed.documents.map((doc) => ({ ...doc, __file: path.relative(root, file), __scope: parsed.standard || parsed.nativeSkillId || '' })));
-const missingGenerator = docs.filter((doc) => !generatorSignature(doc));
-const missingGeneratorTemplated = missingGenerator.filter((doc) => hasTemplate(promptOf(doc)) || hasTemplate(JSON.stringify(doc?.responseFields || [])) || hasTemplate(JSON.stringify(doc?.choices || [])));
-const missingGeneratorStatic = missingGenerator.filter((doc) => !missingGeneratorTemplated.includes(doc));
+const docs = banks.flatMap(({ file, parsed }) => parsed.documents.map((sourceDoc) => {
+  const patch = overrides.get(sourceDoc.familyId);
+  const doc = patch ? deepMerge(sourceDoc, patch) : structuredClone(sourceDoc);
+  return {
+    ...doc,
+    __file: path.relative(root, file),
+    __scope: parsed.standard || parsed.nativeSkillId || '',
+  };
+}));
 
-const generatorPairs = [];
-for (const bank of banks) {
-  const seen = new Map();
-  for (const doc of bank.parsed.documents) {
-    const sig = generatorSignature(doc);
-    if (!sig) continue;
-    const prior = seen.get(sig);
-    if (prior) generatorPairs.push({ scope: bank.parsed.standard || bank.parsed.nativeSkillId, left: prior.id, right: doc.id, sameOldGrammar: oldGrammar(prior.prompt) === oldGrammar(doc.prompt), sameStructuralGrammar: structuralGrammar(prior.prompt) === structuralGrammar(doc.prompt) });
-    else seen.set(sig, doc);
+const exactGrammarMap = new Map();
+for (const doc of docs) {
+  const grammar = structuralGrammar(promptOf(doc));
+  if (grammar.split(/\s+/).length < 5) continue;
+  if (!exactGrammarMap.has(grammar)) exactGrammarMap.set(grammar, []);
+  exactGrammarMap.get(grammar).push(doc);
+}
+const exactGrammarGroups = [...exactGrammarMap.entries()]
+  .filter(([, group]) => group.length > 1)
+  .map(([grammar, group]) => ({ grammar, documents: group.map(docSummary) }));
+
+const highSimilarityPairs = [];
+for (let i = 0; i < docs.length; i += 1) {
+  const a = docs[i];
+  const aTokens = tokenSet(promptOf(a));
+  if (aTokens.size < 6) continue;
+  for (let j = i + 1; j < docs.length; j += 1) {
+    const b = docs[j];
+    if (a.taskType !== b.taskType && a.representation !== b.representation) continue;
+    const score = jaccard(aTokens, tokenSet(promptOf(b)));
+    if (score >= 0.92) highSimilarityPairs.push({ score: Number(score.toFixed(3)), left: docSummary(a), right: docSummary(b) });
   }
 }
 
-function duplicateGroups(grammarFn) {
-  const map = new Map();
-  for (const doc of docs) {
-    const grammar = grammarFn(promptOf(doc));
-    if (grammar.split(/\s+/).length < 5) continue;
-    if (!map.has(grammar)) map.set(grammar, []);
-    map.get(grammar).push(doc.id);
-  }
-  return [...map.entries()].filter(([, ids]) => ids.length > 1).map(([grammar, ids]) => ({ grammar, ids }));
+const mcq = docs.filter((doc) => formatOf(doc) === 'multiplechoice');
+const spr = docs.filter((doc) => formatOf(doc) === 'studentproducedresponse');
+const simpleTemplateVar = /^\{\{([A-Za-z_][A-Za-z0-9_]*)\}\}$/;
+const sprCandidateDetails = spr.map((doc) => {
+  const field = Array.isArray(doc?.responseFields) ? doc.responseFields[0] : null;
+  const expected = String(field?.expected ?? '');
+  const match = expected.match(simpleTemplateVar);
+  const answerVar = match?.[1] || null;
+  const parameterDefinition = answerVar ? doc?.generator?.parameters?.[answerVar] ?? null : null;
+  const derivedDefinition = answerVar ? doc?.generator?.derived?.[answerVar] ?? null : null;
+  return {
+    ...docSummary(doc),
+    answerVar,
+    answerSource: parameterDefinition ? 'parameter' : derivedDefinition != null ? 'derived' : answerVar ? 'unresolved-template' : hasTemplate(expected) ? 'templated-expression' : 'static',
+    answerDefinition: parameterDefinition || derivedDefinition || null,
+    parameterKeys: Object.keys(doc?.generator?.parameters || {}),
+    derivedKeys: Object.keys(doc?.generator?.derived || {}),
+    constraintCount: Array.isArray(doc?.generator?.constraints) ? doc.generator.constraints.length : 0,
+    hasChoicesAlready: Array.isArray(doc?.choices) && doc.choices.length > 0,
+  };
+});
+
+const sprGroupMap = new Map();
+for (const candidate of sprCandidateDetails) {
+  const key = [candidate.domain, candidate.role, candidate.taskType || '', candidate.representation || '', candidate.answerSource].join('|');
+  if (!sprGroupMap.has(key)) sprGroupMap.set(key, { count: 0, samples: [] });
+  const group = sprGroupMap.get(key);
+  group.count += 1;
+  if (group.samples.length < 2) group.samples.push(candidate);
 }
+const sprGroups = [...sprGroupMap.entries()]
+  .map(([group, value]) => ({ group, ...value }))
+  .sort((a, b) => b.count - a.count || a.group.localeCompare(b.group));
 
 const byDomainRoleFormat = {};
 for (const doc of docs) {
@@ -105,10 +175,10 @@ for (const doc of docs) {
   const key = `${domain}|${roleOf(doc)}|${formatOf(doc)}`;
   byDomainRoleFormat[key] = (byDomainRoleFormat[key] || 0) + 1;
 }
-const spr = docs.filter((doc) => formatOf(doc) === 'studentproducedresponse');
-const sprStaticNumeric = spr.filter(staticNumericExpected);
-const sprStaticAny = spr.filter((doc) => !hasTemplate(JSON.stringify(doc?.responseFields || [])) && !hasTemplate(promptOf(doc)));
-const mcq = docs.filter((doc) => formatOf(doc) === 'multiplechoice');
+const byAnswerSource = sprCandidateDetails.reduce((acc, candidate) => {
+  acc[candidate.answerSource] = (acc[candidate.answerSource] || 0) + 1;
+  return acc;
+}, {});
 
 const report = {
   documents: docs.length,
@@ -117,24 +187,14 @@ const report = {
   mcqRate: Number((mcq.length / docs.length).toFixed(4)),
   target75McqNeeded: Math.max(0, Math.ceil(docs.length * 0.75) - mcq.length),
   min68McqNeeded: Math.max(0, Math.ceil(docs.length * 0.68) - mcq.length),
-  missingGenerator: {
-    total: missingGenerator.length,
-    templated: missingGeneratorTemplated.length,
-    static: missingGeneratorStatic.length,
-    templatedIds: missingGeneratorTemplated.map((doc) => doc.id),
-    staticIds: missingGeneratorStatic.map((doc) => doc.id),
-  },
-  duplicateGeneratorPairs: generatorPairs,
-  exactGrammarGroups: {
-    old: duplicateGroups(oldGrammar).length,
-    structural: duplicateGroups(structuralGrammar).length,
-    structuralExamples: duplicateGroups(structuralGrammar).slice(0, 25),
-  },
-  sprCandidates: {
-    staticNumeric: sprStaticNumeric.length,
-    staticAny: sprStaticAny.length,
-    staticNumericIds: sprStaticNumeric.map((doc) => doc.id),
-  },
   byDomainRoleFormat,
+  exactGrammarGroups,
+  highSimilarityPairs,
+  sprInventory: {
+    byAnswerSource,
+    withExistingChoices: sprCandidateDetails.filter((candidate) => candidate.hasChoicesAlready).length,
+    groups: sprGroups,
+    simpleTemplateCandidates: sprCandidateDetails.filter((candidate) => candidate.answerVar),
+  },
 };
 console.log(JSON.stringify(report, null, 2));
