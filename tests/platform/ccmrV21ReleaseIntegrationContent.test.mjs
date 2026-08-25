@@ -9,6 +9,7 @@ function doc({ id, framework, domainId, prompt, role = 'direct', alignmentKeys =
     familyId: `${id}-family`,
     alignmentKeys,
     prompt,
+    ccmrContentRelease: RELEASE_TARGET,
     ccmrFamilyRole: role,
     ccmrChallengeTier: role === 'challenge' ? 2 : 1,
     ccmrAuthenticLanguage: {
@@ -105,4 +106,28 @@ test('integration gate rejects exact and near-identical cross-framework task gra
   nearPackages.act.documents[0].prompt = 'A store marks a jacket down by 25 percent from its original price of 80 dollars. What is the sale price?';
   const near = auditCcmrV21ReleaseIntegration(nearPackages);
   assert.ok(near.failures.some((failure) => /cross-framework.*similar/i.test(failure)));
+});
+
+test('integration gate rejects duplicate family ids and wrong content release', async () => {
+  const { auditCcmrV21ReleaseIntegration } = await import('../../scripts/lib/ccmr-v2-1-release-integration.mjs');
+  const packages = validPackages();
+  packages.act.documents[0].familyId = packages.digitalSAT.documents[0].familyId;
+  packages.tsia2.documents[0].ccmrContentRelease = 'legacy';
+  const report = auditCcmrV21ReleaseIntegration(packages);
+  assert.ok(report.failures.some((value) => /duplicate.*family/i.test(value)));
+  assert.ok(report.failures.some((value) => /tsi-1.*content release/i.test(value)));
+});
+
+test('integration gate excludes ASVAB and avoids short-stem false positives', async () => {
+  const { auditCcmrV21ReleaseIntegration } = await import('../../scripts/lib/ccmr-v2-1-release-integration.mjs');
+  const packages = validPackages();
+  packages.asvab = { releaseTarget: RELEASE_TARGET, documents: [] };
+  let report = auditCcmrV21ReleaseIntegration(packages);
+  assert.ok(report.failures.some((value) => /asvab.*not.*coordinated/i.test(value)));
+
+  delete packages.asvab;
+  packages.digitalSAT.documents[0].prompt = 'What is the value of x?';
+  packages.act.documents[0].prompt = 'What is the value of x?';
+  report = auditCcmrV21ReleaseIntegration(packages);
+  assert.ok(!report.failures.some((value) => /cross-framework.*clone/i.test(value)));
 });
