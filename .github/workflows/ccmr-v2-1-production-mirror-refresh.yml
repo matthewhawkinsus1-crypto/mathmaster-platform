@@ -26,9 +26,6 @@ jobs:
         with:
           node-version: 20
 
-      - name: Run unified production release contract
-        run: node --test tests/platform/ccmrV21ProductionReleaseContent.test.mjs
-
       - name: Check Digital SAT V2.1 source release
         run: node scripts/build-digital-sat-v2-1.mjs --release --check
 
@@ -38,8 +35,13 @@ jobs:
       - name: Check TSIA2 V2.1 source release
         run: node scripts/build-tsia2-v2-1.mjs --release --check
 
+      # The writer compiles all three frameworks and runs the integrated release audit
+      # before the first filesystem mutation, so stale committed mirrors can be safely refreshed.
       - name: Regenerate coordinated production mirrors
         run: node scripts/build-ccmr-v2-1-production-release.mjs --write
+
+      - name: Run unified production release contract after regeneration
+        run: node --test tests/platform/ccmrV21ProductionReleaseContent.test.mjs
 
       - name: Verify regenerated mirrors exactly match source
         run: node scripts/build-ccmr-v2-1-production-release.mjs --check
