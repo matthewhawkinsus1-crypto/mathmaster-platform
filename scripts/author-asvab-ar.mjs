@@ -407,7 +407,7 @@ ar('6.4D', 'fuel-economy', {
 
 ar('6.4D', 'cost-per-unit-with-shipping', {
   difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
-  prompt: 'A case of {{count}} {{item}} costs $\\${{total}}$, and shipping adds $\\${{ship}}$. What does one {{item}} cost delivered?',
+  prompt: 'A case of {{count}} {{item}} costs $\\${{total}}$, and shipping adds $\\${{ship}}$. Delivered, what do they cost each?',
   generator: {
     parameters: {
       item: GOODS,
@@ -511,9 +511,10 @@ ar('6.4D', 'total-from-rate', {
 
 ar('6.4D', 'per-item-from-per-dozen', {
   difficultyBand: 3, dok: 2, taskType: 'representationTranslation', representation: 'verbal',
-  prompt: '{{item}} sell at $\\${{perDozen}}$ a dozen. At that rate, what do {{want}} {{item}} cost?',
+  prompt: 'A {{shop}} sells {{item}} at $\\${{perDozen}}$ a dozen. At that rate, what do {{want}} of them cost?',
   generator: {
     parameters: {
+      shop: SHOPS,
       item: GOODS,
       each: { type: 'int', min: 2, max: 15 },
       want: { type: 'int', min: 2, max: 24 },
@@ -793,7 +794,7 @@ ar('6.4E', 'fraction-to-percent', {
 
 ar('6.4E', 'percent-of-amount', {
   difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
-  prompt: '{{p}}% of a {{total}}-{{item}} order arrived early. How many arrived early?',
+  prompt: 'Of an order of {{total}} {{item}}, {{p}}% arrived early. How many arrived early?',
   generator: {
     parameters: {
       item: GOODS,
@@ -824,7 +825,7 @@ ar('6.4E', 'percent-of-amount', {
 ar('6.4E', 'largest-of-mixed-forms', {
   difficultyBand: 3, dok: 3, taskType: 'conceptual', representation: 'symbolic',
   rankAnalysisNotApplicable: true,
-  prompt: 'Four {{shop}} discounts are written in different forms. Which is the largest?',
+  prompt: 'Four discounts at a {{shop}} are written in different forms. Which is the largest?',
   generator: {
     parameters: {
       shop: SHOPS,
@@ -1061,7 +1062,7 @@ ar('6.4G', 'tip-as-fraction-of-bill', {
 
 ar('6.4G', 'decimal-price-to-total', {
   difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
-  prompt: 'A {{shop}} charges $\\${{cents}}$ cents for each {{item}}. What do {{count}} {{item}} cost in dollars?',
+  prompt: 'A {{shop}} charges {{cents}} cents for each of its {{item}}. What do {{count}} of them cost in dollars?',
   generator: {
     parameters: {
       shop: SHOPS, item: GOODS,
@@ -1218,10 +1219,10 @@ ar('6.4H', 'feet-to-inches', {
 
 ar('6.4H', 'ounces-to-pounds-remainder', {
   difficultyBand: 3, dok: 2, taskType: 'application', representation: 'verbal',
-  prompt: 'A crate holds {{ounces}} ounces of {{item}}. How many whole pounds is that?',
+  prompt: 'A crate holds {{ounces}} ounces of {{mat}}. How many whole pounds is that?',
   generator: {
     parameters: {
-      item: GOODS,
+      mat: contextParam(['resin', 'filler', 'binder', 'powder', 'sealant']),
       pounds: { type: 'int', min: 2, max: 16 },
       spare: { type: 'int', min: 1, max: 15 },
     },
@@ -1310,7 +1311,7 @@ ar('6.4H', 'yards-of-material', {
 
 ar('6.4H', 'hours-to-minutes-table', {
   difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'table',
-  prompt: 'A {{crew}} logs shifts in hours. Using the table, how many minutes are {{bigCount}} hours?',
+  prompt: 'A {{crew}} records its time in hours. Using the table, how many minutes are {{bigCount}} hours?',
   stimulus: {
     kind: 'table',
     title: 'Conversion',
@@ -1571,7 +1572,7 @@ ar('6.5C', 'equal-parts-of-one-load', {
 
 ar('6.5C', 'decimal-share-to-count', {
   difficultyBand: 2, dok: 1, taskType: 'procedural', representation: 'context',
-  prompt: 'A {{crew}} finished {{dec}} of a {{total}}-{{item}} job. How many {{item}} is that?',
+  prompt: 'A {{crew}} finished {{dec}} of a job covering {{total}} {{item}}. How many is that?',
   generator: {
     parameters: {
       crew: WORKERS, item: GOODS,
@@ -1699,7 +1700,7 @@ ar('7.4B', 'wage-per-hour', {
 
 ar('7.4B', 'best-unit-rate-of-three', {
   difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'table',
-  prompt: 'Three {{shop}} offers are listed. What is the lowest price per {{item}}?',
+  prompt: 'Three offers at a {{shop}} are listed. What is the lowest price each?',
   stimulus: {
     kind: 'table',
     title: 'Offers',
@@ -2696,7 +2697,7 @@ ar('7.13A', 'price-before-tax', {
 // for every rate drawn. Compound interest without a calculator only works if
 // the second year's figure is exact.
 
-const SAVINGS_RATES = { type: 'choice', values: [10, 20, 25, 50] };
+const SAVINGS_RATES = { type: 'choice', values: [5, 10, 20] };
 
 ar('7.13E', 'simple-interest-earned', {
   difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
@@ -2705,15 +2706,15 @@ ar('7.13E', 'simple-interest-earned', {
     parameters: {
       worker: contextParam(['mechanic', 'driver', 'loader', 'welder', 'technician']),
       r: SAVINGS_RATES,
-      k: { type: 'int', min: 1, max: 6 },
-      years: { type: 'int', min: 2, max: 9 },
+      k: { type: 'int', min: 5, max: 30 },
+      years: { type: 'int', min: 2, max: 20 },
     },
     derived: {
-      principal: 'k*1600',
-      perYear: 'k*1600*r/100',
-      answer: 'k*1600*r/100*years',
+      principal: 'k*400',
+      perYear: 'k*400*r/100',
+      answer: 'k*400*r/100*years',
       d_forgotFinalStep: 'perYear',
-      d_signError: 'principal+k*1600*r/100*years',
+      d_signError: 'principal+k*400*r/100*years',
       d_usedGivenValue: 'principal',
     },
     constraints: [],
@@ -2737,15 +2738,15 @@ ar('7.13E', 'simple-high-rate-versus-compound', {
     parameters: {
       rs: SAVINGS_RATES,
       rc: SAVINGS_RATES,
-      k: { type: 'int', min: 1, max: 6 },
+      k: { type: 'int', min: 5, max: 30 },
     },
     derived: {
-      principal: 'k*1600',
-      simpleEarn: 'k*1600*rs/100*2',
-      compoundEarn: 'k*1600*rc/100*2+k*1600*rc*rc/10000',
-      answer: 'abs(k*1600*rs/100*2-k*1600*rc/100*2-k*1600*rc*rc/10000)',
+      principal: 'k*400',
+      simpleEarn: 'k*400*rs/100*2',
+      compoundEarn: 'k*400*rc/100*2+k*400*rc*rc/10000',
+      answer: 'abs(k*400*rs/100*2-k*400*rc/100*2-k*400*rc*rc/10000)',
       d_partialTotal: 'min(simpleEarn,compoundEarn)',
-      d_unitConversion: 'abs(k*1600*rs/1000*2-k*1600*rc/1000*2-k*1600*rc*rc/100000)',
+      d_unitConversion: 'abs(k*400*rs/1000*2-k*400*rc/1000*2-k*400*rc*rc/100000)',
       d_signError: 'simpleEarn+compoundEarn',
     },
     constraints: ['simpleEarn!=compoundEarn'],
@@ -2773,14 +2774,14 @@ ar('7.13E', 'balance-after-withdrawal', {
   generator: {
     parameters: {
       r: SAVINGS_RATES,
-      k: { type: 'int', min: 2, max: 6 },
-      wdHundreds: { type: 'int', min: 1, max: 58 },
+      k: { type: 'int', min: 8, max: 30 },
+      wdHundreds: { type: 'int', min: 1, max: 30 },
     },
     derived: {
-      principal: 'k*1600',
-      year1: 'k*1600+k*1600*r/100',
+      principal: 'k*400',
+      year1: 'k*400+k*400*r/100',
       wd: 'wdHundreds*100',
-      base: 'k*1600+k*1600*r/100-wdHundreds*100',
+      base: 'k*400+k*400*r/100-wdHundreds*100',
       answer: 'base+base*r/100',
       d_forgotFinalStep: 'base',
       d_signError: 'year1+year1*r/100',
@@ -2808,13 +2809,13 @@ ar('7.13E', 'years-to-reach-target-simple', {
       // Simple interest only here, so the rate does not have to keep a squared
       // term whole; a lower range lets it cross the number of years.
       r: { type: 'choice', values: [2, 4, 5, 8, 10, 15] },
-      k: { type: 'int', min: 1, max: 6 },
+      k: { type: 'int', min: 5, max: 30 },
       years: { type: 'int', min: 2, max: 12 },
     },
     derived: {
-      principal: 'k*1600',
-      perYear: 'k*1600*r/100',
-      target: 'k*1600*r/100*years',
+      principal: 'k*400',
+      perYear: 'k*400*r/100',
+      target: 'k*400*r/100*years',
       answer: 'years',
       d_operationInverted: 'r',
       d_offByOneStep: 'years+1',
@@ -2844,20 +2845,20 @@ ar('7.13E', 'compare-two-accounts', {
   },
   generator: {
     parameters: {
-      rA: { type: 'choice', values: [8, 10, 12, 15, 20, 25] },
-      rB: { type: 'choice', values: [8, 10, 12, 15, 20, 25] },
-      kA: { type: 'int', min: 2, max: 6 },
-      kB: { type: 'int', min: 2, max: 6 },
+      rA: { type: 'choice', values: [4, 5, 6, 8, 10, 12] },
+      rB: { type: 'choice', values: [4, 5, 6, 8, 10, 12] },
+      kA: { type: 'int', min: 5, max: 30 },
+      kB: { type: 'int', min: 5, max: 30 },
     },
     derived: {
-      pA: 'kA*1600',
-      pB: 'kB*1600',
-      intA: 'kA*1600*rA/100',
-      intB: 'kB*1600*rB/100',
-      answer: 'abs(kA*1600*rA/100-kB*1600*rB/100)',
+      pA: 'kA*400',
+      pB: 'kB*400',
+      intA: 'kA*400*rA/100',
+      intB: 'kB*400*rB/100',
+      answer: 'abs(kA*400*rA/100-kB*400*rB/100)',
       d_partialTotal: 'min(intA,intB)',
       d_signError: 'intA+intB',
-      d_unitConversion: 'abs(kA*1600*rA/1000-kB*1600*rB/1000)',
+      d_unitConversion: 'abs(kA*400*rA/1000-kB*400*rB/1000)',
     },
     constraints: ['intA!=intB'],
   },
@@ -3423,12 +3424,12 @@ ar('7.4D', 'value-after-two-decreases', {
       k: { type: 'int', min: 2, max: 12 },
     },
     derived: {
-      value: 'k*1600',
-      afterOne: 'k*1600*(100-p)/100',
-      answer: 'k*1600*(100-p)/100*(100-q)/100',
-      d_wrongPercentBase: 'k*1600*(100-p-q)/100',
+      value: 'k*400',
+      afterOne: 'k*400*(100-p)/100',
+      answer: 'k*400*(100-p)/100*(100-q)/100',
+      d_wrongPercentBase: 'k*400*(100-p-q)/100',
       d_forgotFinalStep: 'afterOne',
-      d_signError: 'k*1600-k*1600*(100-p)/100*(100-q)/100',
+      d_signError: 'k*400-k*400*(100-p)/100*(100-q)/100',
     },
     constraints: ['d_wrongPercentBase>0'],
   },
@@ -3522,12 +3523,12 @@ ar('7.4D', 'markup-then-discount', {
       k: { type: 'int', min: 2, max: 12 },
     },
     derived: {
-      cost: 'k*1600',
-      marked: 'k*1600*(100+p)/100',
-      answer: 'k*1600*(100+p)/100*(100-q)/100',
-      d_wrongPercentBase: 'k*1600*(100-q)/100',
+      cost: 'k*400',
+      marked: 'k*400*(100+p)/100',
+      answer: 'k*400*(100+p)/100*(100-q)/100',
+      d_wrongPercentBase: 'k*400*(100-q)/100',
       d_forgotFinalStep: 'marked',
-      d_unitConversion: 'k*1600',
+      d_unitConversion: 'k*400',
     },
     constraints: [],
   },
