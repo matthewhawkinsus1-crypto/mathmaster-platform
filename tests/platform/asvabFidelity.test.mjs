@@ -2,13 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { samplePathInstances } from '../../functions/shared/pathQuestionGeneration.mjs';
+import { AR, asvabItem } from '../../scripts/lib/asvabAuthoring.mjs';
 import {
   ASVAB_DOMAIN_IDS, EXTREME_TOLERANCE, RANK_TOLERANCE,
   analyzeAnswerKeyBias, analyzeDistractors, analyzeFamilySet, analyzeRegister,
   isDistractorErrorCode, promptOverlap, promptSkeleton, taskFingerprint,
 } from '../../functions/shared/asvabFidelity.mjs';
 
-const draft = JSON.parse(readFileSync(new URL('../../drafts/asvab-ar.json', import.meta.url), 'utf8')).documents;
+// Both rebuilt subtests. The gates below are the production gates, so a family
+// is only finished once it passes them in whichever bank it lives in — running
+// them over Arithmetic Reasoning alone let a Mathematics Knowledge regression
+// through unnoticed.
+const load = (name) => JSON.parse(readFileSync(new URL(`../../drafts/asvab-${name}.json`, import.meta.url), 'utf8')).documents;
+const draft = [...load('ar'), ...load('mk')];
 
 // ---------------------------------------------------------------- analyzers
 
@@ -106,6 +112,67 @@ test('register rejects a prompt that hands over the procedure or borrows another
   assert.deepEqual(clean.issues, []);
 });
 
+test('money and percentage choices still get their distinctness constraints', () => {
+  // Both markups defeated the constraint parser once. `$\\${{a}}$` leaves a
+  // stray backslash when only the delimiters are stripped, and `${{a}}\\%$`
+  // leaves a trailing percent sign; either way the anchored match failed, no
+  // constraint was emitted, and the bank shipped draws reading $8, $64, $8, $8
+  // and 20%, 160%, 20%, 80%.
+  const build = (label) => asvabItem({
+    code: '6.4E', slug: 'constraint-probe', domain: AR, courseId: 'grade6',
+    prompt: 'What is the value?',
+    generator: {
+      parameters: { a: { type: 'int', min: 1, max: 9 }, b: { type: 'int', min: 1, max: 9 }, c: { type: 'int', min: 1, max: 9 }, d: { type: 'int', min: 1, max: 9 } },
+      derived: {}, constraints: [],
+    },
+    choices: [
+      { label: label('a'), correct: true },
+      { label: label('b'), error: 'signError' },
+      { label: label('c'), error: 'partialTotal' },
+      { label: label('d'), error: 'arithmeticSlip' },
+    ],
+    reasoning: ['one', 'two'],
+    answerSummary: { headline: 'headline', text: 'text' },
+    hint: 'hint', feedback: 'feedback',
+  });
+  for (const [name, label] of [
+    ['plain', (n) => `$\{\{${n}\}\}$`],
+    ['money', (n) => `$\\$\{\{${n}\}\}$`],
+    ['percent', (n) => `$\{\{${n}\}\}\\%$`],
+  ]) {
+    const built = build(label);
+    assert.equal(built.generator.constraints.length, 6, `${name} labels lost their pairwise distinctness constraints`);
+    for (const { question: instance } of samplePathInstances(built, 120)) {
+      const labels = instance.choices.map((choice) => String(choice.label));
+      assert.equal(new Set(labels).size, 4, `${name}: a draw produced duplicate choices — ${labels.join(', ')}`);
+    }
+  }
+});
+
+// A percentage is not the same displayed value as a bare number, so the two
+// must not be constrained against each other — that would reject draws for no
+// reason and skew the ones that survive.
+test('a percentage and a plain number are not forced apart', () => {
+  const built = asvabItem({
+    code: '6.4E', slug: 'mixed-unit-probe', domain: AR, courseId: 'grade6',
+    prompt: 'What is the value?',
+    generator: {
+      parameters: { a: { type: 'int', min: 1, max: 9 }, b: { type: 'int', min: 1, max: 9 } },
+      derived: {}, constraints: [],
+    },
+    choices: [
+      { label: '$\{\{a\}\}\\%$', correct: true },
+      { label: '$\{\{b\}\}\\%$', error: 'signError' },
+      { label: 'None of these', error: 'partialTotal' },
+      { label: 'Cannot be determined', error: 'arithmeticSlip' },
+    ],
+    reasoning: ['one', 'two'],
+    answerSummary: { headline: 'headline', text: 'text' },
+    hint: 'hint', feedback: 'feedback',
+  });
+  assert.deepEqual(built.generator.constraints, ['a!=b']);
+});
+
 test('a distractor that names no misconception, or repeats one, is rejected', () => {
   const item = (errors) => ({
     choices: [{ id: 'k', label: '$5$' }, ...errors.map((error, index) => ({ id: `d${index}`, label: `$${index + 6}$`, ...(error ? { error } : {}) }))],
@@ -119,7 +186,7 @@ test('a distractor that names no misconception, or repeats one, is rejected', ()
 
 // ---------------------------------------------------------------- the bank
 
-test('every rebuilt Arithmetic Reasoning family carries canonical ASVAB identifiers', () => {
+test('every rebuilt family carries canonical ASVAB identifiers', () => {
   assert.ok(draft.length > 0);
   for (const question of draft) {
     assert.equal(question.assessmentContext.framework, 'asvab', question.id);

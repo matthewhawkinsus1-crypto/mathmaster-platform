@@ -124,24 +124,52 @@ const distinctChoiceConstraints = (choices, generator) => {
   // `-{{p}}` and one of `{{r}}` are different names but the same number
   // whenever r = -p, and constraining the names let that through: a
   // closest-to-zero item shipped a draw reading 5, -2, -35, -35.
+  //
+  // The unit a label carries has to survive that reduction. `$\${{a}}$` is a
+  // money label and `${{a}}\%$` a percentage; stripping the markup down to the
+  // bare name defeats the anchored match below, and the choice silently loses
+  // its distinctness constraint. That is exactly how the Arithmetic Reasoning
+  // bank came to ship draws reading $8, $64, $8, $8 and 20%, 160%, 20%, 80%.
+  // Keeping the unit also stops a percentage being constrained against a plain
+  // number that happens to share a name, which would reject draws for no
+  // reason and skew the ones that survive.
   const valueOf = (label) => {
-    const bare = String(label).replace(/\$/g, '').replace(/\s+/g, '');
+    let bare = String(label).replace(/\s+/g, '').replace(/^\$/, '').replace(/\$$/, '');
+    let unit = '';
+    if (bare.startsWith('\\$')) {
+      unit = 'money';
+      bare = bare.slice(2);
+    }
+    const percent = /\\?%$/.exec(bare);
+    if (percent) {
+      unit = 'percent';
+      bare = bare.slice(0, bare.length - percent[0].length);
+    }
     const match = /^(-?)\{\{([A-Za-z_][A-Za-z0-9_]*)(?:\|[A-Za-z]+)?\}\}$/.exec(bare);
     if (!match || !known.has(match[2])) return null;
-    return match[1] === '-' ? `0-${match[2]}` : match[2];
+    return { unit, expression: match[1] === '-' ? `0-${match[2]}` : match[2] };
   };
 
   // Labels built from more than one placeholder (a mixed number, a fraction, a
   // whole sentence) cannot be reduced to a value expression, so they get no
   // automatic constraint and the author has to rule out the collision by hand.
-  const usable = [...new Set(choices.map((choice) => valueOf(choice.label)).filter(Boolean))];
+  const byUnit = new Map();
+  for (const choice of choices) {
+    const value = valueOf(choice.label);
+    if (!value) continue;
+    if (!byUnit.has(value.unit)) byUnit.set(value.unit, new Set());
+    byUnit.get(value.unit).add(value.expression);
+  }
   const existing = new Set((generator?.constraints || []).map((entry) => String(entry).replace(/\s+/g, '')));
   const added = [];
-  for (let i = 0; i < usable.length; i += 1) {
-    for (let j = i + 1; j < usable.length; j += 1) {
-      const forward = `${usable[i]}!=${usable[j]}`;
-      const backward = `${usable[j]}!=${usable[i]}`;
-      if (!existing.has(forward) && !existing.has(backward)) added.push(forward);
+  for (const group of byUnit.values()) {
+    const usable = [...group];
+    for (let i = 0; i < usable.length; i += 1) {
+      for (let j = i + 1; j < usable.length; j += 1) {
+        const forward = `${usable[i]}!=${usable[j]}`;
+        const backward = `${usable[j]}!=${usable[i]}`;
+        if (!existing.has(forward) && !existing.has(backward)) added.push(forward);
+      }
     }
   }
   return added;

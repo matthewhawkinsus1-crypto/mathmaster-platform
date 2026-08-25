@@ -863,6 +863,759 @@ mk('6.3A', 'multiply-by-a-reciprocal', {
   feedback: 'Multiplying by the divisor as given goes the wrong way.',
 });
 
+
+// ================================================================ 6.3C
+// Integer operations shown with concrete models, connected to the algorithm.
+//
+// The model IS the point of this standard, so four of the five families put a
+// pile of counters or a move along a number line in front of the student and
+// ask for the arithmetic it stands for. The pile is built as `n` negatives plus
+// `n + g` positives so the surviving value is `g`, positive by construction —
+// that lets one distractor sit reliably below the key without a constraint that
+// would skew the draws.
+
+mk('6.3C', 'counters-after-zero-pairs', {
+  difficultyBand: 1, dok: 2, taskType: 'representationTranslation', representation: 'verbal',
+  prompt: 'A pile holds ${{p}}$ positive counters and ${{n}}$ negative counters. What is the value of the pile?',
+  generator: {
+    parameters: {
+      // `n` and `g` share a range so the given count crosses the key
+      // from either side; a wider `g` made the key the larger of the two
+      // in 61% of draws.
+      n: { type: 'int', min: 2, max: 18 },
+      g: { type: 'int', min: 1, max: 20 },
+    },
+    derived: {
+      p: 'n+g',
+      answer: 'g',
+      d_operationInverted: 'p+n',
+      d_signError: 'n-p',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{n}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Each positive counter cancels one negative counter.', '${{n}}$ pairs cancel, and the ${{answer}}$ positives that are left give the value.'],
+  answerSummary: { headline: 'A positive and a negative counter cancel to nothing.', text: 'The pile is worth ${{answer}}$.' },
+  hint: 'Pair each negative counter with a positive one.',
+  feedback: 'Counting every counter ignores the cancelling.',
+});
+
+mk('6.3C', 'move-along-the-number-line', {
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'numberLine',
+  prompt: 'Start at ${{a}}$ on a number line and move ${{b}}$ units left. Where do you land?',
+  generator: {
+    parameters: {
+      // Equal ranges. With `b` drawn wider than `a` the move landed left of
+      // the start in 68% of draws, so the key sat below `b - a` that often.
+      a: { type: 'int', min: 2, max: 25 },
+      b: { type: 'int', min: 2, max: 25 },
+    },
+    derived: {
+      answer: 'a-b',
+      d_operationInverted: 'a+b',
+      d_usedGivenValue: '0-b',
+      d_signError: 'b-a',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['Moving left subtracts, so the landing point is ${{a}} - {{b}}$.', 'That is ${{answer}}$.'],
+  answerSummary: { headline: 'Left is subtraction, whichever side of zero you start on.', text: 'You land on ${{answer}}$.' },
+  hint: 'Which direction makes the value smaller?',
+  feedback: 'Moving left from a positive start can carry you past zero.',
+});
+
+mk('6.3C', 'removing-negative-counters', {
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'A pile worth ${{a}}$ has ${{n}}$ negative counters taken away. Which expression gives the new value?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 40 },
+      n: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {},
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{a}} + {{n}}'), correct: true },
+    { label: plain('{{a}} - {{n}}'), error: 'signError' },
+    { label: plain('-{{a}} + {{n}}'), error: 'operationInverted' },
+    { label: plain('-{{a}} - {{n}}'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['Taking away a negative counter leaves the pile worth more.', 'So the value becomes ${{a}} + {{n}}$.'],
+  answerSummary: { headline: 'Removing negatives raises the value.', text: 'The new value is ${{a}} + {{n}}$.' },
+  hint: 'Does the pile end up worth more or less?',
+  feedback: 'Subtracting the count treats the counters as positive.',
+});
+
+mk('6.3C', 'what-removal-really-does', {
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student takes ${{n}}$ negative counters out of a pile and says the total drops. What really happens?',
+  generator: {
+    parameters: { n: { type: 'int', min: 2, max: 20 } },
+    derived: { twice: '2*n' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The total rises by ${{n}}$.', correct: true },
+    { label: 'The total drops by ${{n}}$.', error: 'signError' },
+    { label: 'The total does not change.', error: 'operationInverted' },
+    { label: 'The total rises by ${{twice}}$.', error: 'arithmeticSlip' },
+  ],
+  reasoning: ['Each negative counter was holding the total down by one.', 'Removing ${{n}}$ of them lets the total rise by ${{n}}$.'],
+  answerSummary: { headline: 'Taking away a negative is the same as adding a positive.', text: 'The total rises by ${{n}}$.' },
+  hint: 'What were those counters doing to the total?',
+  feedback: 'Removing counters and adding counters are different moves.',
+});
+
+mk('6.3C', 'two-rounds-of-counters', {
+  difficultyBand: 3, dok: 2, taskType: 'application', representation: 'table',
+  prompt: 'The table records two rounds of counters. What is the value after both rounds?',
+  stimulus: {
+    kind: 'table',
+    title: 'Counter log',
+    table: {
+      headers: ['round', 'positive', 'negative'],
+      rows: [['first', '{{p1}}', '{{n1}}'], ['second', '{{p2}}', '{{n2}}']],
+    },
+  },
+  generator: {
+    parameters: {
+      p1: { type: 'int', min: 2, max: 24 },
+      n1: { type: 'int', min: 2, max: 24 },
+      p2: { type: 'int', min: 2, max: 24 },
+      n2: { type: 'int', min: 2, max: 24 },
+    },
+    derived: {
+      answer: 'p1-n1+p2-n2',
+      d_operationInverted: 'p1+n1+p2+n2',
+      d_signError: '0-p1-n1-p2-n2',
+      d_partialTotal: 'p1-n1',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The first round is worth ${{d_partialTotal}}$.', 'Adding the second round gives ${{answer}}$.'],
+  answerSummary: { headline: 'Each round contributes its own positive-minus-negative value.', text: 'The value after both rounds is ${{answer}}$.' },
+  hint: 'Work out each round on its own first.',
+  feedback: 'The second round still has negatives in it.',
+});
+
+// ================================================================ 6.3D
+// Adding, subtracting, multiplying and dividing integers fluently.
+
+mk('6.3D', 'sum-with-a-negative', {
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'What is $-{{a}} + {{b}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 40 },
+      b: { type: 'int', min: 2, max: 40 },
+    },
+    derived: {
+      answer: 'b-a',
+      d_signError: 'a+b',
+      d_arithmeticSlip: 'a-b',
+      d_operationInverted: '0-a-b',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The two numbers pull in opposite directions, so subtract.', '${{b}} - {{a}} = {{answer}}$.'],
+  answerSummary: { headline: 'Opposite signs subtract; the larger size decides the sign.', text: 'The sum is ${{answer}}$.' },
+  hint: 'Which of the two is further from zero?',
+  feedback: 'The minus sign belongs to the first number only.',
+});
+
+mk('6.3D', 'product-then-sum', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: '$(-{{a}}) \\times {{b}} + {{c}}$ has what value?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 5, max: 60 },
+    },
+    derived: {
+      answer: 'c-a*b',
+      d_signError: 'a*b+c',
+      d_forgotFinalStep: '0-a*b',
+      d_arithmeticSlip: 'a*b-c',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['A negative times a positive is negative, so the product is $-{{d_forgotFinalStep}}$ written as ${{d_forgotFinalStep}}$.', 'Adding ${{c}}$ gives ${{answer}}$.'],
+  answerSummary: { headline: 'Multiply before adding, and keep the sign with the product.', text: 'The value is ${{answer}}$.' },
+  hint: 'Settle the sign of the product first.',
+  feedback: 'The minus sign stays on the product, not on the number added to it.',
+});
+
+mk('6.3D', 'steady-rate-of-fall', {
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A temperature falls ${{prod}}$ degrees over ${{a}}$ hours at a steady rate. What is the change each hour?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      q: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      prod: 'a*q',
+      answer: '0-q',
+      d_signError: 'q',
+      d_forgotFinalStep: '0-prod',
+      d_usedGivenValue: '0-a',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['A fall of ${{prod}}$ degrees is a change of $-{{prod}}$.', 'Shared over ${{a}}$ hours that is ${{answer}}$ degrees an hour.'],
+  answerSummary: { headline: 'A steady fall shares out as a negative rate.', text: 'The change is ${{answer}}$ degrees an hour.' },
+  hint: 'A fall is a negative change.',
+  feedback: 'The whole fall is not the hourly change.',
+});
+
+mk('6.3D', 'which-integer-statement-is-wrong', {
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'Which of these is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { prod: 'a*b', sum: 'a+b' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('(-{{a}})(-{{b}}) = -{{prod}}'), correct: true },
+    { label: plain('(-{{a}})({{b}}) = -{{prod}}'), error: 'operationInverted' },
+    { label: plain('-{{a}} - {{b}} = -{{sum}}'), error: 'signError' },
+    { label: plain('-{{sum}} + {{b}} = -{{a}}'), error: 'arithmeticSlip' },
+  ],
+  reasoning: ['Two negative factors give a positive product.', 'So $(-{{a}})(-{{b}})$ is ${{prod}}$, not $-{{prod}}$.'],
+  answerSummary: { headline: 'A product of two negatives is positive.', text: '$(-{{a}})(-{{b}}) = -{{prod}}$ is the false one.' },
+  hint: 'Check the sign of each product first.',
+  feedback: 'One negative factor does give a negative product.',
+});
+
+mk('6.3D', 'running-total-of-changes', {
+  difficultyBand: 3, dok: 2, taskType: 'interpretation', representation: 'table',
+  prompt: 'A temperature starts at ${{s}}$ degrees and changes as the table shows. What is the final temperature?',
+  stimulus: {
+    kind: 'table',
+    title: 'Recorded changes',
+    table: {
+      headers: ['step', 'change'],
+      rows: [['1', '-{{c1}}'], ['2', '+{{c2}}'], ['3', '-{{c3}}']],
+    },
+  },
+  generator: {
+    parameters: {
+      s: { type: 'int', min: 10, max: 80 },
+      c1: { type: 'int', min: 2, max: 20 },
+      c2: { type: 'int', min: 2, max: 20 },
+      c3: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {
+      answer: 's-c1+c2-c3',
+      d_signError: 's+c1+c2+c3',
+      d_operationInverted: 's-c1-c2-c3',
+      d_partialTotal: 's-c1',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['After the first step the reading is ${{d_partialTotal}}$.', 'Adding ${{c2}}$ and then taking ${{c3}}$ leaves ${{answer}}$.'],
+  answerSummary: { headline: 'Signs in the table tell you which way each step moves.', text: 'The final temperature is ${{answer}}$ degrees.' },
+  hint: 'Apply the steps one at a time in order.',
+  feedback: 'The middle step is a rise, not a fall.',
+});
+
+// ================================================================ 6.3E
+// Multiplying and dividing positive rational numbers fluently.
+//
+// Decimal quantities are drawn as whole numbers of tenths and divided ONCE at
+// the end, so every displayed value is exact. Drawing `2.4` and `3.5` and
+// multiplying them in floating point gives 8.399999999999999, which would ship
+// as the label a student reads.
+
+mk('6.3E', 'fraction-times-a-whole', {
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Simplify $\\frac{{{a}}}{{{b}}} \\times {{c}}$.',
+  generator: {
+    parameters: {
+      // `a` and `b` share a range: the crossing distractor is the given
+      // {{c}}, which beats the key exactly when b > a.
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 9 },
+      k: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      c: 'b*k',
+      answer: 'a*k',
+      d_forgotFinalStep: 'a*c',
+      d_operationInverted: 'a+k',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{c}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['${{c}}$ divided by ${{b}}$ is ${{k}}$.', 'Then ${{a}} \\times {{k}} = {{answer}}$.'],
+  answerSummary: { headline: 'Cancel with the denominator before multiplying out.', text: 'It simplifies to ${{answer}}$.' },
+  hint: 'Does the denominator divide the whole number?',
+  feedback: 'The denominator still has to divide something.',
+});
+
+mk('6.3E', 'product-of-two-decimals', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'What is the product of ${{a}}$ and ${{b}}$?',
+  generator: {
+    parameters: {
+      // Tenths, both between 1.1 and 3.2. The crossing distractor adds the
+      // factors instead of multiplying them, and a sum beats a product only
+      // while both factors are small: drawn up to 9.9 the product won 94% of
+      // the time, which handed the key away.
+      p: { type: 'int', min: 11, max: 32 },
+      q: { type: 'int', min: 11, max: 32 },
+    },
+    derived: {
+      a: 'p/10',
+      b: 'q/10',
+      pq: 'p*q',
+      answer: 'p*q/100',
+      d_roundedWrong: 'p*q/10',
+      d_operationInverted: '(p+q)/10',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_roundedWrong}}'), error: 'roundedWrong' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{a}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['${{p}} \\times {{q}} = {{pq}}$ ignoring the points.', 'There are two decimal places between the two factors, so the product is ${{answer}}$.'],
+  answerSummary: { headline: 'The product carries as many decimal places as the two factors together.', text: 'The product is ${{answer}}$.' },
+  hint: 'Count the decimal places in both factors.',
+  feedback: 'One decimal place too few makes the answer ten times too big.',
+});
+
+mk('6.3E', 'cutting-a-decimal-length', {
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A board ${{a}}$ metres long is cut into ${{c}}$ equal pieces. How long is each piece?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 11, max: 99 },
+      // The count of pieces is the crossing distractor and has to straddle
+      // m/10, which runs 1.1 to 9.9.
+      c: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      a: 'm*c/10',
+      answer: 'm/10',
+      d_forgotFinalStep: 'a',
+      d_roundedWrong: 'm/100',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_roundedWrong}}'), error: 'roundedWrong' },
+    { label: plain('{{c}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['${{a}}$ shared between ${{c}}$ pieces is ${{a}} \\div {{c}}$.', 'That is ${{answer}}$ metres each.'],
+  answerSummary: { headline: 'Equal pieces means dividing the whole length by the count.', text: 'Each piece is ${{answer}}$ metres.' },
+  hint: 'The pieces are all the same length.',
+  feedback: 'The full board is not the length of one piece.',
+});
+
+mk('6.3E', 'batches-of-a-fractional-amount', {
+  difficultyBand: 3, dok: 2, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'How many cans does the whole run use?',
+  // Three inputs chained, deliberately: with only the per-batch amount and a
+  // batch count this family computed the same relation as
+  // `fraction-times-a-whole` and the two fingerprinted as one task.
+  stimulus: {
+    kind: 'table',
+    title: 'Mix record',
+    table: {
+      headers: ['cans per batch', 'batches per day', 'days'],
+      rows: [['\\frac{{{n}}}{{{d}}}', '{{k}}', '{{j}}']],
+    },
+  },
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 2, max: 9 },
+      d: { type: 'int', min: 2, max: 9 },
+      t: { type: 'int', min: 2, max: 9 },
+      j: { type: 'int', min: 2, max: 6 },
+    },
+    derived: {
+      k: 'd*t',
+      perDay: 'n*t',
+      answer: 'n*t*j',
+      d_forgotFinalStep: 'n*k*j',
+      d_usedGivenValue: 'k*j',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{perDay}}'), error: 'partialTotal' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['${{k}}$ batches at $\\frac{{{n}}}{{{d}}}$ of a can is ${{perDay}}$ cans a day.', 'Over ${{j}}$ days that is ${{answer}}$ cans.'],
+  answerSummary: { headline: 'Cancel the denominator against the batch count, then scale by the days.', text: 'The run uses ${{answer}}$ cans.' },
+  hint: 'Work out one day before working out the run.',
+  feedback: 'A single day is not the whole run.',
+});
+
+mk('6.3E', 'multiplying-by-a-fraction-below-one', {
+  difficultyBand: 1, dok: 2, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'A positive number is multiplied by $\\frac{{{n}}}{{{d}}}$. What happens to it?',
+  generator: {
+    parameters: {
+      n: { type: 'choice', values: [1, 2, 3, 4] },
+      d: { type: 'choice', values: [5, 7, 11, 13] },
+    },
+    derived: {},
+    constraints: [],
+  },
+  choices: [
+    { label: 'It gets smaller, because $\\frac{{{n}}}{{{d}}}$ is less than one.', correct: true },
+    { label: 'It gets larger, because multiplying always makes more.', error: 'operationInverted' },
+    { label: 'It stays the same, because the fraction is part of the number.', error: 'usedGivenValue' },
+    { label: 'It gets smaller only when the number is a whole number.', error: 'partialTotal' },
+  ],
+  reasoning: ['$\\frac{{{n}}}{{{d}}}$ is less than one because ${{n}}$ is less than ${{d}}$.', 'Taking a part of a positive number leaves less than you started with.'],
+  answerSummary: { headline: 'Multiplying by a factor below one shrinks a positive number.', text: 'The number gets smaller.' },
+  hint: 'Compare the top of the fraction with the bottom.',
+  feedback: 'Multiplying only makes more when the factor is above one.',
+});
+
+// ================================================================ 6.4A
+// Additive versus multiplicative rules: y = ax against y = x + a.
+
+mk('6.4A', 'which-rule-is-multiplicative', {
+  difficultyBand: 1, dok: 1, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Which rule shows a multiplicative relationship?',
+  generator: {
+    parameters: { a: { type: 'int', min: 2, max: 9 } },
+    derived: {},
+    constraints: [],
+  },
+  choices: [
+    { label: plain('y = {{a}}x'), correct: true },
+    { label: plain('y = x + {{a}}'), error: 'operationInverted' },
+    { label: plain('y = x - {{a}}'), error: 'signError' },
+    { label: plain('y = {{a}} - x'), error: 'ratioReversed' },
+  ],
+  reasoning: ['A multiplicative rule scales $x$ by a fixed factor.', 'Only $y = {{a}}x$ does that; the others shift $x$ instead.'],
+  answerSummary: { headline: 'Scaling is multiplicative; shifting is additive.', text: '$y = {{a}}x$ is the multiplicative rule.' },
+  hint: 'Which rule stretches $x$ rather than moving it?',
+  feedback: 'Adding a fixed amount is an additive rule.',
+});
+
+mk('6.4A', 'rule-that-fits-the-table', {
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'Which rule produces every pair in the table?',
+  stimulus: {
+    kind: 'table',
+    title: 'Rule output',
+    table: {
+      headers: ['x', 'y'],
+      rows: [['{{x1}}', '{{y1}}'], ['{{x2}}', '{{y2}}'], ['{{x3}}', '{{y3}}']],
+    },
+  },
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      x1: { type: 'int', min: 1, max: 4 },
+    },
+    derived: {
+      x2: 'x1+2', x3: 'x1+5',
+      y1: 'a*x1', y2: 'a*x2', y3: 'a*x3',
+      gap1: '(a-1)*x1',
+      aPlus: 'a+1',
+    },
+    constraints: ['gap1!=a'],
+  },
+  choices: [
+    { label: plain('y = {{a}}x'), correct: true },
+    { label: plain('y = x + {{gap1}}'), error: 'partialTotal' },
+    { label: plain('y = x + {{a}}'), error: 'operationInverted' },
+    { label: plain('y = {{aPlus}}x'), error: 'offByOneStep' },
+  ],
+  reasoning: ['Every $y$ is ${{a}}$ times its $x$.', 'A rule that adds a fixed amount fits at most one row.'],
+  answerSummary: { headline: 'Check a candidate rule against every row, not just the first.', text: 'The rule is $y = {{a}}x$.' },
+  hint: 'Test each rule on the last row too.',
+  feedback: 'Fitting the first row is not enough.',
+});
+
+mk('6.4A', 'how-far-apart-the-rules-are', {
+  difficultyBand: 3, dok: 2, taskType: 'application', representation: 'symbolic',
+  prompt: 'Rule A is $y = {{a}}x$ and Rule B is $y = x + {{a}}$. At $x = {{x}}$, how much larger is A than B?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 5 },
+      x: { type: 'int', min: 3, max: 8 },
+    },
+    derived: {
+      outA: 'a*x',
+      outB: 'x+a',
+      answer: 'a*x-x-a',
+      d_operationInverted: 'a*x+x+a',
+      d_signError: 'x+a-a*x',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{outB}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Rule A gives ${{outA}}$ and Rule B gives ${{outB}}$.', 'The gap is ${{outA}} - {{outB}} = {{answer}}$.'],
+  answerSummary: { headline: 'Evaluate both rules, then compare.', text: 'Rule A is ${{answer}}$ larger.' },
+  hint: 'Work out each rule at $x = {{x}}$ first.',
+  feedback: 'The question asks for the gap, not either output.',
+});
+
+mk('6.4A', 'rule-behind-two-pairs', {
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'orderedPairs',
+  prompt: 'The pairs $({{x1}}, {{y1}})$ and $({{x2}}, {{y2}})$ follow the same rule. Which rule is it?',
+  generator: {
+    parameters: {
+      x1: { type: 'int', min: 2, max: 9 },
+      m: { type: 'int', min: 1, max: 6 },
+      step: { type: 'int', min: 1, max: 8 },
+    },
+    derived: {
+      a: 'x1*m',
+      y1: 'x1+a',
+      x2: 'x1+step',
+      y2: 'x2+a',
+      q: 'm+1',
+    },
+    constraints: ['q!=a'],
+  },
+  choices: [
+    { label: plain('y = x + {{a}}'), correct: true },
+    { label: plain('y = {{q}}x'), error: 'partialTotal' },
+    { label: plain('y = x - {{a}}'), error: 'signError' },
+    { label: plain('y = {{a}}x'), error: 'operationInverted' },
+  ],
+  reasoning: ['Both pairs sit ${{a}}$ above their $x$.', '$y = {{q}}x$ matches the first pair only.'],
+  answerSummary: { headline: 'A rule has to fit both pairs, not one.', text: 'The rule is $y = x + {{a}}$.' },
+  hint: 'Compare each $y$ with its own $x$.',
+  feedback: 'One matching pair does not settle the rule.',
+});
+
+mk('6.4A', 'what-doubling-x-does', {
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'Which statement about $y = {{a}}x$ and $y = x + {{a}}$ is true?',
+  generator: {
+    parameters: { a: { type: 'int', min: 2, max: 9 } },
+    derived: {},
+    constraints: [],
+  },
+  choices: [
+    { label: 'Doubling $x$ doubles $y$ for $y = {{a}}x$ only.', correct: true },
+    { label: 'Doubling $x$ doubles $y$ for both rules.', error: 'operationInverted' },
+    { label: 'Doubling $x$ doubles $y$ for $y = x + {{a}}$ only.', error: 'ratioReversed' },
+    { label: 'Doubling $x$ doubles $y$ for neither rule.', error: 'signError' },
+  ],
+  reasoning: ['In $y = {{a}}x$ every output is ${{a}}$ times its input, so doubling the input doubles the output.', 'In $y = x + {{a}}$ the extra ${{a}}$ is not doubled, so the output does not double.'],
+  answerSummary: { headline: 'Only a multiplicative rule scales the output with the input.', text: 'It holds for $y = {{a}}x$ only.' },
+  hint: 'Try a value of $x$ and then twice that value.',
+  feedback: 'The constant term does not grow when $x$ does.',
+});
+
+// ================================================================ 6.7A
+// Equivalent numerical expressions: order of operations, whole-number
+// exponents and prime factorization.
+
+mk('6.7A', 'evaluate-with-a-square', {
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Find the value of ${{a}} + {{b}} \\times {{c}}^2$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 60 },
+      b: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 3, max: 7 },
+    },
+    derived: {
+      answer: 'a+b*c*c',
+      d_orderOfOperations: '(a+b)*c*c',
+      d_exponentError: 'a+2*b*c',
+      d_operationInverted: 'a*b+c*c',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_orderOfOperations}}'), error: 'orderOfOperations' },
+    { label: plain('{{d_exponentError}}'), error: 'exponentError' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The square comes first: ${{c}}^2$.', 'Multiply by ${{b}}$, then add ${{a}}$, giving ${{answer}}$.'],
+  answerSummary: { headline: 'Powers, then multiplication, then addition.', text: 'The value is ${{answer}}$.' },
+  hint: 'Which operation is settled first?',
+  feedback: 'Adding before multiplying changes the value.',
+});
+
+mk('6.7A', 'prime-factorization-of-a-number', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Which is the prime factorization of ${{n}}$?',
+  generator: {
+    parameters: {
+      e1: { type: 'int', min: 1, max: 4 },
+      e2: { type: 'int', min: 1, max: 2 },
+      p: { type: 'choice', values: [5, 7, 11] },
+    },
+    derived: {
+      n: 'pow(2,e1)*pow(3,e2)*p',
+      e1p: 'e1+1',
+    },
+    constraints: ['e1!=e2'],
+  },
+  choices: [
+    { label: plain('2^{{{e1}}} \\times 3^{{{e2}}} \\times {{p}}'), correct: true },
+    { label: plain('2^{{{e2}}} \\times 3^{{{e1}}} \\times {{p}}'), error: 'ratioReversed' },
+    { label: plain('2 \\times {{e1}} \\times 3 \\times {{e2}} \\times {{p}}'), error: 'exponentError' },
+    { label: plain('2^{{{e1p}}} \\times 3^{{{e2}}} \\times {{p}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['Divide ${{n}}$ by $2$ while it stays even: that happens ${{e1}}$ times.', 'What is left divides by $3$ ${{e2}}$ times, leaving the prime ${{p}}$.'],
+  answerSummary: { headline: 'Strip one prime at a time and count how often each divides.', text: '${{n}} = 2^{{{e1}}} \\times 3^{{{e2}}} \\times {{p}}$.' },
+  hint: 'Take out all the factors of two first.',
+  feedback: 'An exponent counts repeated factors; it is not a factor itself.',
+});
+
+mk('6.7A', 'expression-with-the-same-value', {
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'Which expression has the same value as the one shown?',
+  stimulus: {
+    kind: 'expressions',
+    title: 'Expression',
+    note: '${{a}} \\times ({{b}} + {{c}})$',
+  },
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 12 },
+      c: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {},
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{a}} \\times {{b}} + {{a}} \\times {{c}}'), correct: true },
+    { label: plain('{{a}} \\times {{b}} + {{c}}'), error: 'partialTotal' },
+    { label: plain('{{a}} + {{b}} \\times {{c}}'), error: 'orderOfOperations' },
+    { label: plain('({{a}} \\times {{b}}) \\times ({{a}} \\times {{c}})'), error: 'operationInverted' },
+  ],
+  reasoning: ['The bracket is multiplied by ${{a}}$, so both terms inside it are.', 'That gives ${{a}} \\times {{b}} + {{a}} \\times {{c}}$.'],
+  answerSummary: { headline: 'A factor outside a bracket reaches every term inside it.', text: 'It equals ${{a}} \\times {{b}} + {{a}} \\times {{c}}$.' },
+  hint: 'How many terms are inside the bracket?',
+  feedback: 'Only one term inside the bracket has been multiplied.',
+});
+
+mk('6.7A', 'left-to-right-with-a-subtraction', {
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student says ${{a}} - {{b}} + {{c}}$ equals ${{d_orderOfOperations}}$. What is the correct value?',
+  generator: {
+    parameters: {
+      // `a` is built as b + g so the correct value g + c is always positive.
+      // The crossing distractor b + c beats it exactly when b > g, and the
+      // two ranges are chosen to make that a coin flip.
+      b: { type: 'int', min: 5, max: 30 },
+      g: { type: 'int', min: 2, max: 34 },
+      c: { type: 'int', min: 2, max: 30 },
+    },
+    derived: {
+      a: 'b+g',
+      ab: 'g',
+      answer: 'a-b+c',
+      d_orderOfOperations: 'a-b-c',
+      d_signError: 'a+b+c',
+      d_usedGivenValue: 'b+c',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_orderOfOperations}}'), error: 'orderOfOperations' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Addition and subtraction are settled left to right, not addition first.', '${{a}} - {{b}} = {{ab}}$, and adding ${{c}}$ gives ${{answer}}$.'],
+  answerSummary: { headline: 'Addition and subtraction rank equally and run left to right.', text: 'The value is ${{answer}}$.' },
+  hint: 'Which operation comes first reading left to right?',
+  feedback: 'Grouping the last two terms subtracts them both.',
+});
+
+mk('6.7A', 'which-power-is-greatest', {
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'symbolic',
+  rankAnalysisNotApplicable: true,
+  prompt: 'Which expression has the greatest value?',
+  generator: {
+    parameters: { n: { type: 'int', min: 5, max: 10 } },
+    derived: {},
+    constraints: [],
+  },
+  choices: [
+    { label: plain('2^{{{n}}}'), correct: true },
+    { label: plain('{{n}}^2'), error: 'exponentError' },
+    { label: plain('2 \\times {{n}}'), error: 'arithmeticSlip' },
+    { label: plain('{{n}} + {{n}}^2'), error: 'orderOfOperations' },
+  ],
+  reasoning: ['Doubling ${{n}}$ times grows faster than squaring once when ${{n}}$ is at least five.', 'So $2^{{{n}}}$ is the largest of the four.'],
+  answerSummary: { headline: 'Repeated doubling outgrows squaring.', text: '$2^{{{n}}}$ is the greatest.' },
+  hint: 'Work out each one for the value of $n$ given.',
+  feedback: 'A base of two with a large exponent beats a square.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {

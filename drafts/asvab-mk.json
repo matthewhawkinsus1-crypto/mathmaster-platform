@@ -3547,6 +3547,2960 @@
      "expected": "choice-a"
     }
    ]
+  },
+  {
+   "id": "mm_asvab_6_3C_counters_after_zero_pairs",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.3C:counters-after-zero-pairs",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3C",
+   "taskType": "representationTranslation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A pile holds ${{p}}$ positive counters and ${{n}}$ negative counters. What is the value of the pile?",
+   "solutionReview": {
+    "headline": "A positive and a negative counter cancel to nothing.",
+    "reasoning": [
+     "Each positive counter cancels one negative counter.",
+     "${{n}}$ pairs cancel, and the ${{answer}}$ positives that are left give the value."
+    ],
+    "answerSummary": "The pile is worth ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Counting every counter ignores the cancelling."
+   ],
+   "supportHints": [
+    "Pair each negative counter with a positive one."
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 2,
+      "max": 18
+     },
+     "g": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     }
+    },
+    "derived": {
+     "p": "n+g",
+     "answer": "g",
+     "d_operationInverted": "p+n",
+     "d_signError": "n-p"
+    },
+    "constraints": [
+     "answer!=d_operationInverted",
+     "answer!=d_signError",
+     "answer!=n",
+     "d_operationInverted!=d_signError",
+     "d_operationInverted!=n",
+     "d_signError!=n"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{n}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_3C_move_along_the_number_line",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.3C:move-along-the-number-line",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3C",
+   "taskType": "procedural",
+   "representation": "numberLine",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Start at ${{a}}$ on a number line and move ${{b}}$ units left. Where do you land?",
+   "solutionReview": {
+    "headline": "Left is subtraction, whichever side of zero you start on.",
+    "reasoning": [
+     "Moving left subtracts, so the landing point is ${{a}} - {{b}}$.",
+     "That is ${{answer}}$."
+    ],
+    "answerSummary": "You land on ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Moving left from a positive start can carry you past zero."
+   ],
+   "supportHints": [
+    "Which direction makes the value smaller?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 25
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 25
+     }
+    },
+    "derived": {
+     "answer": "a-b",
+     "d_operationInverted": "a+b",
+     "d_usedGivenValue": "0-b",
+     "d_signError": "b-a"
+    },
+    "constraints": [
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "answer!=d_signError",
+     "d_operationInverted!=d_usedGivenValue",
+     "d_operationInverted!=d_signError",
+     "d_usedGivenValue!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_3C_removing_negative_counters",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.3C:removing-negative-counters",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3C",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A pile worth ${{a}}$ has ${{n}}$ negative counters taken away. Which expression gives the new value?",
+   "solutionReview": {
+    "headline": "Removing negatives raises the value.",
+    "reasoning": [
+     "Taking away a negative counter leaves the pile worth more.",
+     "So the value becomes ${{a}} + {{n}}$."
+    ],
+    "answerSummary": "The new value is ${{a}} + {{n}}$."
+   },
+   "attemptFeedback": [
+    "Subtracting the count treats the counters as positive."
+   ],
+   "supportHints": [
+    "Does the pile end up worth more or less?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     },
+     "n": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {},
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$-{{a}} + {{n}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$-{{a}} - {{n}}$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{a}} + {{n}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{a}} - {{n}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_3C_what_removal_really_does",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.3C:what-removal-really-does",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3C",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student takes ${{n}}$ negative counters out of a pile and says the total drops. What really happens?",
+   "solutionReview": {
+    "headline": "Taking away a negative is the same as adding a positive.",
+    "reasoning": [
+     "Each negative counter was holding the total down by one.",
+     "Removing ${{n}}$ of them lets the total rise by ${{n}}$."
+    ],
+    "answerSummary": "The total rises by ${{n}}$."
+   },
+   "attemptFeedback": [
+    "Removing counters and adding counters are different moves."
+   ],
+   "supportHints": [
+    "What were those counters doing to the total?"
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "twice": "2*n"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The total does not change.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "The total rises by ${{twice}}$.",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-c",
+     "label": "The total rises by ${{n}}$."
+    },
+    {
+     "id": "choice-d",
+     "label": "The total drops by ${{n}}$.",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_3C_two_rounds_of_counters",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.3C:two-rounds-of-counters",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3C",
+   "taskType": "application",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The table records two rounds of counters. What is the value after both rounds?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Counter log",
+    "table": {
+     "headers": [
+      "round",
+      "positive",
+      "negative"
+     ],
+     "rows": [
+      [
+       "first",
+       "{{p1}}",
+       "{{n1}}"
+      ],
+      [
+       "second",
+       "{{p2}}",
+       "{{n2}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Each round contributes its own positive-minus-negative value.",
+    "reasoning": [
+     "The first round is worth ${{d_partialTotal}}$.",
+     "Adding the second round gives ${{answer}}$."
+    ],
+    "answerSummary": "The value after both rounds is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The second round still has negatives in it."
+   ],
+   "supportHints": [
+    "Work out each round on its own first."
+   ],
+   "generator": {
+    "parameters": {
+     "p1": {
+      "type": "int",
+      "min": 2,
+      "max": 24
+     },
+     "n1": {
+      "type": "int",
+      "min": 2,
+      "max": 24
+     },
+     "p2": {
+      "type": "int",
+      "min": 2,
+      "max": 24
+     },
+     "n2": {
+      "type": "int",
+      "min": 2,
+      "max": 24
+     }
+    },
+    "derived": {
+     "answer": "p1-n1+p2-n2",
+     "d_operationInverted": "p1+n1+p2+n2",
+     "d_signError": "0-p1-n1-p2-n2",
+     "d_partialTotal": "p1-n1"
+    },
+    "constraints": [
+     "answer!=d_operationInverted",
+     "answer!=d_signError",
+     "answer!=d_partialTotal",
+     "d_operationInverted!=d_signError",
+     "d_operationInverted!=d_partialTotal",
+     "d_signError!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_3D_sum_with_a_negative",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.3D:sum-with-a-negative",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3D",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is $-{{a}} + {{b}}$?",
+   "solutionReview": {
+    "headline": "Opposite signs subtract; the larger size decides the sign.",
+    "reasoning": [
+     "The two numbers pull in opposite directions, so subtract.",
+     "${{b}} - {{a}} = {{answer}}$."
+    ],
+    "answerSummary": "The sum is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The minus sign belongs to the first number only."
+   ],
+   "supportHints": [
+    "Which of the two is further from zero?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     }
+    },
+    "derived": {
+     "answer": "b-a",
+     "d_signError": "a+b",
+     "d_arithmeticSlip": "a-b",
+     "d_operationInverted": "0-a-b"
+    },
+    "constraints": [
+     "answer!=d_signError",
+     "answer!=d_arithmeticSlip",
+     "answer!=d_operationInverted",
+     "d_signError!=d_arithmeticSlip",
+     "d_signError!=d_operationInverted",
+     "d_arithmeticSlip!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_arithmeticSlip}}$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_3D_product_then_sum",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.3D:product-then-sum",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3D",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "$(-{{a}}) \\times {{b}} + {{c}}$ has what value?",
+   "solutionReview": {
+    "headline": "Multiply before adding, and keep the sign with the product.",
+    "reasoning": [
+     "A negative times a positive is negative, so the product is $-{{d_forgotFinalStep}}$ written as ${{d_forgotFinalStep}}$.",
+     "Adding ${{c}}$ gives ${{answer}}$."
+    ],
+    "answerSummary": "The value is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The minus sign stays on the product, not on the number added to it."
+   ],
+   "supportHints": [
+    "Settle the sign of the product first."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 5,
+      "max": 60
+     }
+    },
+    "derived": {
+     "answer": "c-a*b",
+     "d_signError": "a*b+c",
+     "d_forgotFinalStep": "0-a*b",
+     "d_arithmeticSlip": "a*b-c"
+    },
+    "constraints": [
+     "answer!=d_signError",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_arithmeticSlip",
+     "d_signError!=d_forgotFinalStep",
+     "d_signError!=d_arithmeticSlip",
+     "d_forgotFinalStep!=d_arithmeticSlip"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_arithmeticSlip}}$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_3D_steady_rate_of_fall",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.3D:steady-rate-of-fall",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3D",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A temperature falls ${{prod}}$ degrees over ${{a}}$ hours at a steady rate. What is the change each hour?",
+   "solutionReview": {
+    "headline": "A steady fall shares out as a negative rate.",
+    "reasoning": [
+     "A fall of ${{prod}}$ degrees is a change of $-{{prod}}$.",
+     "Shared over ${{a}}$ hours that is ${{answer}}$ degrees an hour."
+    ],
+    "answerSummary": "The change is ${{answer}}$ degrees an hour."
+   },
+   "attemptFeedback": [
+    "The whole fall is not the hourly change."
+   ],
+   "supportHints": [
+    "A fall is a negative change."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "prod": "a*q",
+     "answer": "0-q",
+     "d_signError": "q",
+     "d_forgotFinalStep": "0-prod",
+     "d_usedGivenValue": "0-a"
+    },
+    "constraints": [
+     "answer!=d_signError",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_signError!=d_forgotFinalStep",
+     "d_signError!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_3D_which_integer_statement_is_wrong",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.3D:which-integer-statement-is-wrong",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3D",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which of these is wrong?",
+   "solutionReview": {
+    "headline": "A product of two negatives is positive.",
+    "reasoning": [
+     "Two negative factors give a positive product.",
+     "So $(-{{a}})(-{{b}})$ is ${{prod}}$, not $-{{prod}}$."
+    ],
+    "answerSummary": "$(-{{a}})(-{{b}}) = -{{prod}}$ is the false one."
+   },
+   "attemptFeedback": [
+    "One negative factor does give a negative product."
+   ],
+   "supportHints": [
+    "Check the sign of each product first."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "prod": "a*b",
+     "sum": "a+b"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$(-{{a}})({{b}}) = -{{prod}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$-{{sum}} + {{b}} = -{{a}}$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-c",
+     "label": "$-{{a}} - {{b}} = -{{sum}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "$(-{{a}})(-{{b}}) = -{{prod}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_3D_running_total_of_changes",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.3D:running-total-of-changes",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3D",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A temperature starts at ${{s}}$ degrees and changes as the table shows. What is the final temperature?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Recorded changes",
+    "table": {
+     "headers": [
+      "step",
+      "change"
+     ],
+     "rows": [
+      [
+       "1",
+       "-{{c1}}"
+      ],
+      [
+       "2",
+       "+{{c2}}"
+      ],
+      [
+       "3",
+       "-{{c3}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Signs in the table tell you which way each step moves.",
+    "reasoning": [
+     "After the first step the reading is ${{d_partialTotal}}$.",
+     "Adding ${{c2}}$ and then taking ${{c3}}$ leaves ${{answer}}$."
+    ],
+    "answerSummary": "The final temperature is ${{answer}}$ degrees."
+   },
+   "attemptFeedback": [
+    "The middle step is a rise, not a fall."
+   ],
+   "supportHints": [
+    "Apply the steps one at a time in order."
+   ],
+   "generator": {
+    "parameters": {
+     "s": {
+      "type": "int",
+      "min": 10,
+      "max": 80
+     },
+     "c1": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "c2": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "c3": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "answer": "s-c1+c2-c3",
+     "d_signError": "s+c1+c2+c3",
+     "d_operationInverted": "s-c1-c2-c3",
+     "d_partialTotal": "s-c1"
+    },
+    "constraints": [
+     "answer!=d_signError",
+     "answer!=d_operationInverted",
+     "answer!=d_partialTotal",
+     "d_signError!=d_operationInverted",
+     "d_signError!=d_partialTotal",
+     "d_operationInverted!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_3E_fraction_times_a_whole",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.3E:fraction-times-a-whole",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3E",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Simplify $\\frac{{{a}}}{{{b}}} \\times {{c}}$.",
+   "solutionReview": {
+    "headline": "Cancel with the denominator before multiplying out.",
+    "reasoning": [
+     "${{c}}$ divided by ${{b}}$ is ${{k}}$.",
+     "Then ${{a}} \\times {{k}} = {{answer}}$."
+    ],
+    "answerSummary": "It simplifies to ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The denominator still has to divide something."
+   ],
+   "supportHints": [
+    "Does the denominator divide the whole number?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "c": "b*k",
+     "answer": "a*k",
+     "d_forgotFinalStep": "a*c",
+     "d_operationInverted": "a+k"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=c",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=c",
+     "d_operationInverted!=c"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{c}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_3E_product_of_two_decimals",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.3E:product-of-two-decimals",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3E",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is the product of ${{a}}$ and ${{b}}$?",
+   "solutionReview": {
+    "headline": "The product carries as many decimal places as the two factors together.",
+    "reasoning": [
+     "${{p}} \\times {{q}} = {{pq}}$ ignoring the points.",
+     "There are two decimal places between the two factors, so the product is ${{answer}}$."
+    ],
+    "answerSummary": "The product is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "One decimal place too few makes the answer ten times too big."
+   ],
+   "supportHints": [
+    "Count the decimal places in both factors."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 11,
+      "max": 32
+     },
+     "q": {
+      "type": "int",
+      "min": 11,
+      "max": 32
+     }
+    },
+    "derived": {
+     "a": "p/10",
+     "b": "q/10",
+     "pq": "p*q",
+     "answer": "p*q/100",
+     "d_roundedWrong": "p*q/10",
+     "d_operationInverted": "(p+q)/10"
+    },
+    "constraints": [
+     "answer!=d_roundedWrong",
+     "answer!=d_operationInverted",
+     "answer!=a",
+     "d_roundedWrong!=d_operationInverted",
+     "d_roundedWrong!=a",
+     "d_operationInverted!=a"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_roundedWrong}}$",
+     "error": "roundedWrong"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{a}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_3E_cutting_a_decimal_length",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.3E:cutting-a-decimal-length",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3E",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A board ${{a}}$ metres long is cut into ${{c}}$ equal pieces. How long is each piece?",
+   "solutionReview": {
+    "headline": "Equal pieces means dividing the whole length by the count.",
+    "reasoning": [
+     "${{a}}$ shared between ${{c}}$ pieces is ${{a}} \\div {{c}}$.",
+     "That is ${{answer}}$ metres each."
+    ],
+    "answerSummary": "Each piece is ${{answer}}$ metres."
+   },
+   "attemptFeedback": [
+    "The full board is not the length of one piece."
+   ],
+   "supportHints": [
+    "The pieces are all the same length."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 11,
+      "max": 99
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "a": "m*c/10",
+     "answer": "m/10",
+     "d_forgotFinalStep": "a",
+     "d_roundedWrong": "m/100"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_roundedWrong",
+     "answer!=c",
+     "d_forgotFinalStep!=d_roundedWrong",
+     "d_forgotFinalStep!=c",
+     "d_roundedWrong!=c"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_roundedWrong}}$",
+     "error": "roundedWrong"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{c}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_3E_batches_of_a_fractional_amount",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.3E:batches-of-a-fractional-amount",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3E",
+   "taskType": "representationTranslation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "How many cans does the whole run use?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Mix record",
+    "table": {
+     "headers": [
+      "cans per batch",
+      "batches per day",
+      "days"
+     ],
+     "rows": [
+      [
+       "\\frac{{{n}}}{{{d}}}",
+       "{{k}}",
+       "{{j}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Cancel the denominator against the batch count, then scale by the days.",
+    "reasoning": [
+     "${{k}}$ batches at $\\frac{{{n}}}{{{d}}}$ of a can is ${{perDay}}$ cans a day.",
+     "Over ${{j}}$ days that is ${{answer}}$ cans."
+    ],
+    "answerSummary": "The run uses ${{answer}}$ cans."
+   },
+   "attemptFeedback": [
+    "A single day is not the whole run."
+   ],
+   "supportHints": [
+    "Work out one day before working out the run."
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "t": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "j": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     }
+    },
+    "derived": {
+     "k": "d*t",
+     "perDay": "n*t",
+     "answer": "n*t*j",
+     "d_forgotFinalStep": "n*k*j",
+     "d_usedGivenValue": "k*j"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=perDay",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=perDay",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "perDay!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{perDay}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_3E_multiplying_by_a_fraction_below_one",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.3E:multiplying-by-a-fraction-below-one",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3E",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A positive number is multiplied by $\\frac{{{n}}}{{{d}}}$. What happens to it?",
+   "solutionReview": {
+    "headline": "Multiplying by a factor below one shrinks a positive number.",
+    "reasoning": [
+     "$\\frac{{{n}}}{{{d}}}$ is less than one because ${{n}}$ is less than ${{d}}$.",
+     "Taking a part of a positive number leaves less than you started with."
+    ],
+    "answerSummary": "The number gets smaller."
+   },
+   "attemptFeedback": [
+    "Multiplying only makes more when the factor is above one."
+   ],
+   "supportHints": [
+    "Compare the top of the fraction with the bottom."
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "choice",
+      "values": [
+       1,
+       2,
+       3,
+       4
+      ]
+     },
+     "d": {
+      "type": "choice",
+      "values": [
+       5,
+       7,
+       11,
+       13
+      ]
+     }
+    },
+    "derived": {},
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "It gets smaller only when the number is a whole number.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "It gets smaller, because $\\frac{{{n}}}{{{d}}}$ is less than one."
+    },
+    {
+     "id": "choice-c",
+     "label": "It gets larger, because multiplying always makes more.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "It stays the same, because the fraction is part of the number.",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_4A_which_rule_is_multiplicative",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.4A:which-rule-is-multiplicative",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4A",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which rule shows a multiplicative relationship?",
+   "solutionReview": {
+    "headline": "Scaling is multiplicative; shifting is additive.",
+    "reasoning": [
+     "A multiplicative rule scales $x$ by a fixed factor.",
+     "Only $y = {{a}}x$ does that; the others shift $x$ instead."
+    ],
+    "answerSummary": "$y = {{a}}x$ is the multiplicative rule."
+   },
+   "attemptFeedback": [
+    "Adding a fixed amount is an additive rule."
+   ],
+   "supportHints": [
+    "Which rule stretches $x$ rather than moving it?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {},
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = {{a}}x$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = x - {{a}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = {{a}} - x$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = x + {{a}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_4A_rule_that_fits_the_table",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.4A:rule-that-fits-the-table",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4A",
+   "taskType": "representationTranslation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which rule produces every pair in the table?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Rule output",
+    "table": {
+     "headers": [
+      "x",
+      "y"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "{{y1}}"
+      ],
+      [
+       "{{x2}}",
+       "{{y2}}"
+      ],
+      [
+       "{{x3}}",
+       "{{y3}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Check a candidate rule against every row, not just the first.",
+    "reasoning": [
+     "Every $y$ is ${{a}}$ times its $x$.",
+     "A rule that adds a fixed amount fits at most one row."
+    ],
+    "answerSummary": "The rule is $y = {{a}}x$."
+   },
+   "attemptFeedback": [
+    "Fitting the first row is not enough."
+   ],
+   "supportHints": [
+    "Test each rule on the last row too."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     }
+    },
+    "derived": {
+     "x2": "x1+2",
+     "x3": "x1+5",
+     "y1": "a*x1",
+     "y2": "a*x2",
+     "y3": "a*x3",
+     "gap1": "(a-1)*x1",
+     "aPlus": "a+1"
+    },
+    "constraints": [
+     "gap1!=a"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = {{a}}x$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = x + {{a}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = x + {{gap1}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = {{aPlus}}x$",
+     "error": "offByOneStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_4A_how_far_apart_the_rules_are",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.4A:how-far-apart-the-rules-are",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4A",
+   "taskType": "application",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Rule A is $y = {{a}}x$ and Rule B is $y = x + {{a}}$. At $x = {{x}}$, how much larger is A than B?",
+   "solutionReview": {
+    "headline": "Evaluate both rules, then compare.",
+    "reasoning": [
+     "Rule A gives ${{outA}}$ and Rule B gives ${{outB}}$.",
+     "The gap is ${{outA}} - {{outB}} = {{answer}}$."
+    ],
+    "answerSummary": "Rule A is ${{answer}}$ larger."
+   },
+   "attemptFeedback": [
+    "The question asks for the gap, not either output."
+   ],
+   "supportHints": [
+    "Work out each rule at $x = {{x}}$ first."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     },
+     "x": {
+      "type": "int",
+      "min": 3,
+      "max": 8
+     }
+    },
+    "derived": {
+     "outA": "a*x",
+     "outB": "x+a",
+     "answer": "a*x-x-a",
+     "d_operationInverted": "a*x+x+a",
+     "d_signError": "x+a-a*x"
+    },
+    "constraints": [
+     "answer!=d_operationInverted",
+     "answer!=d_signError",
+     "answer!=outB",
+     "d_operationInverted!=d_signError",
+     "d_operationInverted!=outB",
+     "d_signError!=outB"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{outB}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_4A_rule_behind_two_pairs",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.4A:rule-behind-two-pairs",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4A",
+   "taskType": "interpretation",
+   "representation": "orderedPairs",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The pairs $({{x1}}, {{y1}})$ and $({{x2}}, {{y2}})$ follow the same rule. Which rule is it?",
+   "solutionReview": {
+    "headline": "A rule has to fit both pairs, not one.",
+    "reasoning": [
+     "Both pairs sit ${{a}}$ above their $x$.",
+     "$y = {{q}}x$ matches the first pair only."
+    ],
+    "answerSummary": "The rule is $y = x + {{a}}$."
+   },
+   "attemptFeedback": [
+    "One matching pair does not settle the rule."
+   ],
+   "supportHints": [
+    "Compare each $y$ with its own $x$."
+   ],
+   "generator": {
+    "parameters": {
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "m": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "step": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     }
+    },
+    "derived": {
+     "a": "x1*m",
+     "y1": "x1+a",
+     "x2": "x1+step",
+     "y2": "x2+a",
+     "q": "m+1"
+    },
+    "constraints": [
+     "q!=a"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = x + {{a}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = x - {{a}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = {{a}}x$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = {{q}}x$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_4A_what_doubling_x_does",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.4A:what-doubling-x-does",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which statement about $y = {{a}}x$ and $y = x + {{a}}$ is true?",
+   "solutionReview": {
+    "headline": "Only a multiplicative rule scales the output with the input.",
+    "reasoning": [
+     "In $y = {{a}}x$ every output is ${{a}}$ times its input, so doubling the input doubles the output.",
+     "In $y = x + {{a}}$ the extra ${{a}}$ is not doubled, so the output does not double."
+    ],
+    "answerSummary": "It holds for $y = {{a}}x$ only."
+   },
+   "attemptFeedback": [
+    "The constant term does not grow when $x$ does."
+   ],
+   "supportHints": [
+    "Try a value of $x$ and then twice that value."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {},
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Doubling $x$ doubles $y$ for $y = x + {{a}}$ only.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "Doubling $x$ doubles $y$ for both rules.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "Doubling $x$ doubles $y$ for $y = {{a}}x$ only."
+    },
+    {
+     "id": "choice-d",
+     "label": "Doubling $x$ doubles $y$ for neither rule.",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_7A_evaluate_with_a_square",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.7A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.7A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.7A:evaluate-with-a-square",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.7A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Find the value of ${{a}} + {{b}} \\times {{c}}^2$.",
+   "solutionReview": {
+    "headline": "Powers, then multiplication, then addition.",
+    "reasoning": [
+     "The square comes first: ${{c}}^2$.",
+     "Multiply by ${{b}}$, then add ${{a}}$, giving ${{answer}}$."
+    ],
+    "answerSummary": "The value is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Adding before multiplying changes the value."
+   ],
+   "supportHints": [
+    "Which operation is settled first?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 60
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 3,
+      "max": 7
+     }
+    },
+    "derived": {
+     "answer": "a+b*c*c",
+     "d_orderOfOperations": "(a+b)*c*c",
+     "d_exponentError": "a+2*b*c",
+     "d_operationInverted": "a*b+c*c"
+    },
+    "constraints": [
+     "answer!=d_orderOfOperations",
+     "answer!=d_exponentError",
+     "answer!=d_operationInverted",
+     "d_orderOfOperations!=d_exponentError",
+     "d_orderOfOperations!=d_operationInverted",
+     "d_exponentError!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_exponentError}}$",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_orderOfOperations}}$",
+     "error": "orderOfOperations"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_7A_prime_factorization_of_a_number",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.7A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.7A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.7A:prime-factorization-of-a-number",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.7A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which is the prime factorization of ${{n}}$?",
+   "solutionReview": {
+    "headline": "Strip one prime at a time and count how often each divides.",
+    "reasoning": [
+     "Divide ${{n}}$ by $2$ while it stays even: that happens ${{e1}}$ times.",
+     "What is left divides by $3$ ${{e2}}$ times, leaving the prime ${{p}}$."
+    ],
+    "answerSummary": "${{n}} = 2^{{{e1}}} \\times 3^{{{e2}}} \\times {{p}}$."
+   },
+   "attemptFeedback": [
+    "An exponent counts repeated factors; it is not a factor itself."
+   ],
+   "supportHints": [
+    "Take out all the factors of two first."
+   ],
+   "generator": {
+    "parameters": {
+     "e1": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     },
+     "e2": {
+      "type": "int",
+      "min": 1,
+      "max": 2
+     },
+     "p": {
+      "type": "choice",
+      "values": [
+       5,
+       7,
+       11
+      ]
+     }
+    },
+    "derived": {
+     "n": "pow(2,e1)*pow(3,e2)*p",
+     "e1p": "e1+1"
+    },
+    "constraints": [
+     "e1!=e2"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$2 \\times {{e1}} \\times 3 \\times {{e2}} \\times {{p}}$",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-b",
+     "label": "$2^{{{e1p}}} \\times 3^{{{e2}}} \\times {{p}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$2^{{{e1}}} \\times 3^{{{e2}}} \\times {{p}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$2^{{{e2}}} \\times 3^{{{e1}}} \\times {{p}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_7A_expression_with_the_same_value",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.7A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.7A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.7A:expression-with-the-same-value",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.7A",
+   "taskType": "representationTranslation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which expression has the same value as the one shown?",
+   "stimulus": {
+    "kind": "expressions",
+    "title": "Expression",
+    "note": "${{a}} \\times ({{b}} + {{c}})$"
+   },
+   "solutionReview": {
+    "headline": "A factor outside a bracket reaches every term inside it.",
+    "reasoning": [
+     "The bracket is multiplied by ${{a}}$, so both terms inside it are.",
+     "That gives ${{a}} \\times {{b}} + {{a}} \\times {{c}}$."
+    ],
+    "answerSummary": "It equals ${{a}} \\times {{b}} + {{a}} \\times {{c}}$."
+   },
+   "attemptFeedback": [
+    "Only one term inside the bracket has been multiplied."
+   ],
+   "supportHints": [
+    "How many terms are inside the bracket?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {},
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{a}} \\times {{b}} + {{c}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$({{a}} \\times {{b}}) \\times ({{a}} \\times {{c}})$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{a}} + {{b}} \\times {{c}}$",
+     "error": "orderOfOperations"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{a}} \\times {{b}} + {{a}} \\times {{c}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_7A_left_to_right_with_a_subtraction",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.7A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.7A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.7A:left-to-right-with-a-subtraction",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.7A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student says ${{a}} - {{b}} + {{c}}$ equals ${{d_orderOfOperations}}$. What is the correct value?",
+   "solutionReview": {
+    "headline": "Addition and subtraction rank equally and run left to right.",
+    "reasoning": [
+     "Addition and subtraction are settled left to right, not addition first.",
+     "${{a}} - {{b}} = {{ab}}$, and adding ${{c}}$ gives ${{answer}}$."
+    ],
+    "answerSummary": "The value is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Grouping the last two terms subtracts them both."
+   ],
+   "supportHints": [
+    "Which operation comes first reading left to right?"
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 5,
+      "max": 30
+     },
+     "g": {
+      "type": "int",
+      "min": 2,
+      "max": 34
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 30
+     }
+    },
+    "derived": {
+     "a": "b+g",
+     "ab": "g",
+     "answer": "a-b+c",
+     "d_orderOfOperations": "a-b-c",
+     "d_signError": "a+b+c",
+     "d_usedGivenValue": "b+c"
+    },
+    "constraints": [
+     "answer!=d_orderOfOperations",
+     "answer!=d_signError",
+     "answer!=d_usedGivenValue",
+     "d_orderOfOperations!=d_signError",
+     "d_orderOfOperations!=d_usedGivenValue",
+     "d_signError!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_orderOfOperations}}$",
+     "error": "orderOfOperations"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_7A_which_power_is_greatest",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.7A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.7A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.7A:which-power-is-greatest",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.7A",
+   "taskType": "interpretation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which expression has the greatest value?",
+   "rankAnalysisNotApplicable": true,
+   "solutionReview": {
+    "headline": "Repeated doubling outgrows squaring.",
+    "reasoning": [
+     "Doubling ${{n}}$ times grows faster than squaring once when ${{n}}$ is at least five.",
+     "So $2^{{{n}}}$ is the largest of the four."
+    ],
+    "answerSummary": "$2^{{{n}}}$ is the greatest."
+   },
+   "attemptFeedback": [
+    "A base of two with a large exponent beats a square."
+   ],
+   "supportHints": [
+    "Work out each one for the value of $n$ given."
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 5,
+      "max": 10
+     }
+    },
+    "derived": {},
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{n}} + {{n}}^2$",
+     "error": "orderOfOperations"
+    },
+    {
+     "id": "choice-b",
+     "label": "$2^{{{n}}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{n}}^2$",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-d",
+     "label": "$2 \\times {{n}}$",
+     "error": "arithmeticSlip"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
   }
  ]
 }

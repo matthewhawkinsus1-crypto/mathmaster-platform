@@ -3466,12 +3466,7 @@
     "constraints": [
      "big>mid+5",
      "mid>low+5",
-     "bigDec!=mid",
-     "bigDec!=low",
-     "bigDec!=tenth",
-     "mid!=low",
-     "mid!=tenth",
-     "low!=tenth"
+     "bigDec!=tenth"
     ]
    },
    "assessmentItemFormat": "multipleChoice",
@@ -6414,12 +6409,7 @@
     },
     "constraints": [
      "big>mid+10",
-     "big!=midDec",
-     "big!=low",
-     "big!=lowDec",
-     "midDec!=low",
-     "midDec!=lowDec",
-     "low!=lowDec"
+     "midDec!=lowDec"
     ]
    },
    "assessmentItemFormat": "multipleChoice",
@@ -6843,8 +6833,7 @@
      "d_hundredth": "p/1000"
     },
     "constraints": [
-     "p!=50",
-     "p!=dec"
+     "p!=50"
     ]
    },
    "assessmentItemFormat": "multipleChoice",
@@ -9327,9 +9316,7 @@
     "derived": {
      "topHeavy": "whole*den+1"
     },
-    "constraints": [
-     "den!=topHeavy"
-    ]
+    "constraints": []
    },
    "assessmentItemFormat": "multipleChoice",
    "choices": [
@@ -16798,9 +16785,7 @@
      "twice": "rate*2",
      "plusBase": "base+rate"
     },
-    "constraints": [
-     "twice!=rate"
-    ]
+    "constraints": []
    },
    "assessmentItemFormat": "multipleChoice",
    "choices": [
@@ -18146,13 +18131,7 @@
      "big": "total*coef"
     },
     "constraints": [
-     "coef!=root",
-     "root!=near",
-     "root!=sum",
-     "root!=big",
-     "near!=sum",
-     "near!=big",
-     "sum!=big"
+     "coef!=root"
     ]
    },
    "assessmentItemFormat": "multipleChoice",
@@ -20821,9 +20800,7 @@
      "simpleEarn": "k*8000*r/100*3",
      "gap": "k*8000*(100+r)*(100+r)*(100+r)/1000000-k*8000-k*8000*r/100*3"
     },
-    "constraints": [
-     "gap!=simpleEarn"
-    ]
+    "constraints": []
    },
    "assessmentItemFormat": "multipleChoice",
    "choices": [
