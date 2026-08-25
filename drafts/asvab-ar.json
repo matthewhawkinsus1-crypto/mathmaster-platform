@@ -17662,6 +17662,1991 @@
      "expected": "choice-c"
     }
    ]
+  },
+  {
+   "id": "mm_asvab_6_9C_situation_for_a_one_step_equation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.9C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.9C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.9C:situation-for-a-one-step-equation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.9C",
+   "taskType": "interpretation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which situation is described by $x + {{add}} = {{total}}$?",
+   "solutionReview": {
+    "headline": "The unknown in the equation is what the situation must be asking for.",
+    "reasoning": [
+     "In the equation an unknown amount plus {{add}} reaches {{total}}.",
+     "Only the first situation leaves the starting amount unknown."
+    ],
+    "answerSummary": "The first situation matches."
+   },
+   "attemptFeedback": [
+    "The equation adds to an unknown; it does not add to a known total."
+   ],
+   "supportHints": [
+    "Ask which quantity the equation leaves unknown."
+   ],
+   "generator": {
+    "parameters": {
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "add": {
+      "type": "int",
+      "min": 5,
+      "max": 60
+     },
+     "start": {
+      "type": "int",
+      "min": 10,
+      "max": 200,
+      "step": 5
+     }
+    },
+    "derived": {
+     "total": "start+add"
+    },
+    "constraints": [
+     "add!=start"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "A store had some {{item}}, received {{add}} more, and then had {{total}}. How many did it start with?"
+    },
+    {
+     "id": "choice-b",
+     "label": "A store had {{total}} {{item}} and received {{add}} more. How many now?",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "A store had {{add}} {{item}} in each of {{total}} boxes. How many altogether?",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "A store had {{total}} {{item}} and sold {{add}}. How many now?",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_9C_equation_for_equal_groups",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.9C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.9C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.9C:equation-for-equal-groups",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.9C",
+   "taskType": "representationTranslation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{crew}} packed {{total}} {{item}} into {{groups}} equal cases. Which equation gives the number in each case?",
+   "solutionReview": {
+    "headline": "Equal groups multiply the group size by the number of groups.",
+    "reasoning": [
+     "Each case holds the same unknown number.",
+     "{{groups}} cases of that number make {{total}}."
+    ],
+    "answerSummary": "${{groups}}x = {{total}}$ describes it."
+   },
+   "attemptFeedback": [
+    "Equal cases means multiplying, not adding."
+   ],
+   "supportHints": [
+    "What happens to the number in one case to give the total?"
+   ],
+   "generator": {
+    "parameters": {
+     "crew": {
+      "type": "choice",
+      "values": [
+       "crew",
+       "shift",
+       "team",
+       "work detail"
+      ]
+     },
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "groups": {
+      "type": "int",
+      "min": 3,
+      "max": 20
+     },
+     "per": {
+      "type": "int",
+      "min": 4,
+      "max": 40
+     }
+    },
+    "derived": {
+     "total": "groups*per"
+    },
+    "constraints": [
+     "groups!=per"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x + {{groups}} = {{total}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{groups}}x = {{total}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{total}}x = {{groups}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x - {{groups}} = {{total}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_9C_solve_a_one_step_situation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.9C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.9C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.9C:solve-a-one-step-situation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.9C",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "After {{add}} more {{item}} arrived, a {{shop}} held {{total}}. How many were there before?",
+   "solutionReview": {
+    "headline": "Undo the change that happened.",
+    "reasoning": [
+     "The delivery raised the count to {{total}}.",
+     "Taking {{add}} back off leaves {{answer}}."
+    ],
+    "answerSummary": "There were ${{answer}}$ before."
+   },
+   "attemptFeedback": [
+    "Adding the delivery again goes the wrong way."
+   ],
+   "supportHints": [
+    "The count grew, so the earlier figure was smaller."
+   ],
+   "generator": {
+    "parameters": {
+     "shop": {
+      "type": "choice",
+      "values": [
+       "hardware store",
+       "supply depot",
+       "warehouse outlet",
+       "parts counter"
+      ]
+     },
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "add": {
+      "type": "int",
+      "min": 5,
+      "max": 90
+     },
+     "start": {
+      "type": "int",
+      "min": 5,
+      "max": 90
+     }
+    },
+    "derived": {
+     "total": "start+add",
+     "answer": "start",
+     "d_signError": "total+add",
+     "d_usedGivenValue": "add",
+     "d_offByOneStep": "abs(start-add)"
+    },
+    "constraints": [
+     "add!=start",
+     "answer!=d_signError",
+     "answer!=d_usedGivenValue",
+     "answer!=d_offByOneStep",
+     "d_signError!=d_usedGivenValue",
+     "d_signError!=d_offByOneStep",
+     "d_usedGivenValue!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_9C_check_a_proposed_value",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.9C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.9C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.9C:check-a-proposed-value",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.9C",
+   "taskType": "errorAnalysis",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{shop}} stacks {{total}} {{item}} in {{coef}} equal rows, so ${{coef}}x = {{total}}$. Which value of $x$ is correct?",
+   "solutionReview": {
+    "headline": "A solution is the value that actually makes the equation true.",
+    "reasoning": [
+     "{{coef}} times {{root}} is {{total}}.",
+     "No other listed value multiplies to {{total}}."
+    ],
+    "answerSummary": "$x = {{root}}$ works."
+   },
+   "attemptFeedback": [
+    "Subtracting the coefficient does not undo multiplying by it."
+   ],
+   "supportHints": [
+    "Try each value in the equation."
+   ],
+   "generator": {
+    "parameters": {
+     "shop": {
+      "type": "choice",
+      "values": [
+       "hardware store",
+       "supply depot",
+       "warehouse outlet",
+       "parts counter"
+      ]
+     },
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "coef": {
+      "type": "int",
+      "min": 3,
+      "max": 15
+     },
+     "root": {
+      "type": "int",
+      "min": 3,
+      "max": 40
+     }
+    },
+    "derived": {
+     "total": "coef*root",
+     "near": "root+1",
+     "sum": "total-coef",
+     "big": "total*coef"
+    },
+    "constraints": [
+     "coef!=root",
+     "root!=near",
+     "root!=sum",
+     "root!=big",
+     "near!=sum",
+     "near!=big",
+     "sum!=big"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x = {{root}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x = {{big}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x = {{sum}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x = {{near}}$",
+     "error": "offByOneStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_9C_one_step_inequality_limit",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.9C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.9C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.9C:one-step-inequality-limit",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.9C",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A shelf holds at most {{limit}} {{item}} and already holds {{on}}. How many more fit?",
+   "solutionReview": {
+    "headline": "The space left is the limit less what is already there.",
+    "reasoning": [
+     "The shelf takes {{limit}} in all and holds {{on}}.",
+     "That leaves room for {{answer}}."
+    ],
+    "answerSummary": "${{answer}}$ more fit."
+   },
+   "attemptFeedback": [
+    "The limit counts everything, including what is already there."
+   ],
+   "supportHints": [
+    "Compare what fits in total with what is already on the shelf."
+   ],
+   "generator": {
+    "parameters": {
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "on": {
+      "type": "int",
+      "min": 5,
+      "max": 120,
+      "step": 5
+     },
+     "room": {
+      "type": "int",
+      "min": 5,
+      "max": 120,
+      "step": 5
+     }
+    },
+    "derived": {
+     "limit": "on+room",
+     "answer": "room",
+     "d_signError": "limit+on",
+     "d_usedGivenValue": "on",
+     "d_offByOneStep": "abs(room-on)"
+    },
+    "constraints": [
+     "on!=room",
+     "answer!=d_signError",
+     "answer!=d_usedGivenValue",
+     "answer!=d_offByOneStep",
+     "d_signError!=d_usedGivenValue",
+     "d_signError!=d_offByOneStep",
+     "d_usedGivenValue!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_10C_situation_for_a_two_step_equation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.10C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.10C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:7.10C:situation-for-a-two-step-equation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.10C",
+   "taskType": "interpretation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which situation is described by ${{rate}}x + {{fee}} = {{total}}$?",
+   "solutionReview": {
+    "headline": "The number that multiplies the unknown is the rate; the one added on is the fixed charge.",
+    "reasoning": [
+     "The {{fee}} is added once, so it is the call-out charge.",
+     "The {{rate}} multiplies the unknown, so it is the hourly rate."
+    ],
+    "answerSummary": "The first situation matches."
+   },
+   "attemptFeedback": [
+    "The number multiplying x cannot be a one-off charge."
+   ],
+   "supportHints": [
+    "Decide which number is charged once and which is charged repeatedly."
+   ],
+   "generator": {
+    "parameters": {
+     "rate": {
+      "type": "int",
+      "min": 5,
+      "max": 40,
+      "step": 5
+     },
+     "fee": {
+      "type": "int",
+      "min": 10,
+      "max": 90,
+      "step": 5
+     },
+     "hours": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "total": "rate*hours+fee"
+    },
+    "constraints": [
+     "rate!=fee"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "A repair costs $\\${{rate}}$ an hour for {{fee}} hours. What is the bill?",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "A repair bill of $\\${{total}}$ was cut by $\\${{fee}}$ and then split into $\\${{rate}}$ payments. How many payments?",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "A repair costs $\\${{rate}}$ to call out plus $\\${{fee}}$ an hour, and the bill came to $\\${{total}}$. How many hours were worked?",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "A repair costs $\\${{fee}}$ to call out plus $\\${{rate}}$ an hour, and the bill came to $\\${{total}}$. How many hours were worked?"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_10C_hours_from_a_bill",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.10C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.10C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:7.10C:hours-from-a-bill",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.10C",
+   "taskType": "reverseReasoning",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{worker}} charges $\\${{fee}}$ to call out plus $\\${{rate}}$ an hour. A bill came to $\\${{total}}$. How many hours were worked?",
+   "solutionReview": {
+    "headline": "The fixed charge comes off before the rate divides.",
+    "reasoning": [
+     "Taking off the {{fee}} call-out leaves {{rate}} times the hours.",
+     "Dividing by {{rate}} gives {{answer}} hours."
+    ],
+    "answerSummary": "${{answer}}$ hours were worked."
+   },
+   "attemptFeedback": [
+    "Dividing the whole bill by the hourly rate counts the call-out as time."
+   ],
+   "supportHints": [
+    "Part of the bill is not for time at all."
+   ],
+   "generator": {
+    "parameters": {
+     "worker": {
+      "type": "choice",
+      "values": [
+       "mechanic",
+       "electrician",
+       "plumber",
+       "technician"
+      ]
+     },
+     "rate": {
+      "type": "int",
+      "min": 10,
+      "max": 40,
+      "step": 5
+     },
+     "fee": {
+      "type": "int",
+      "min": 20,
+      "max": 300,
+      "step": 10
+     },
+     "hours": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     }
+    },
+    "derived": {
+     "total": "rate*hours+fee",
+     "answer": "hours",
+     "d_forgotFinalStep": "round(total/rate)",
+     "d_operationInverted": "round(fee/rate)",
+     "d_offByOneStep": "hours-1"
+    },
+    "constraints": [
+     "hours>2",
+     "d_operationInverted>0",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_offByOneStep",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_offByOneStep",
+     "d_operationInverted!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_10C_bill_from_hours",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.10C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.10C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:7.10C:bill-from-hours",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.10C",
+   "taskType": "procedural",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{worker}} charges $\\${{fee}}$ to call out plus $\\${{rate}}$ an hour. What is the bill for {{hours}} hours?",
+   "solutionReview": {
+    "headline": "The fixed charge is added once, whatever the hours.",
+    "reasoning": [
+     "{{hours}} hours at {{rate}} is {{d_forgotFinalStep}}.",
+     "The {{fee}} call-out brings it to {{answer}}."
+    ],
+    "answerSummary": "The bill is $\\${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The call-out is charged once, not per hour."
+   ],
+   "supportHints": [
+    "One charge depends on the hours and one does not."
+   ],
+   "generator": {
+    "parameters": {
+     "worker": {
+      "type": "choice",
+      "values": [
+       "mechanic",
+       "electrician",
+       "plumber",
+       "technician"
+      ]
+     },
+     "rate": {
+      "type": "int",
+      "min": 10,
+      "max": 60,
+      "step": 5
+     },
+     "fee": {
+      "type": "int",
+      "min": 10,
+      "max": 55,
+      "step": 5
+     },
+     "hours": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     }
+    },
+    "derived": {
+     "answer": "rate*hours+fee",
+     "d_forgotFinalStep": "rate*hours",
+     "d_operationInverted": "rate*hours*fee/rate",
+     "d_offByOneStep": "rate*(hours+1)+fee"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_offByOneStep",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_offByOneStep",
+     "d_operationInverted!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_10C_two_step_budget_limit",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.10C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.10C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:7.10C:two-step-budget-limit",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.10C",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A job has $\\${{budget}}$ available. After a $\\${{fee}}$ permit, labour costs $\\${{rate}}$ an hour. How many whole hours can be paid for?",
+   "solutionReview": {
+    "headline": "Fixed costs come out of the budget before the hourly rate does.",
+    "reasoning": [
+     "The permit leaves {{budget}} minus {{fee}} for labour.",
+     "At {{rate}} an hour that pays for {{answer}} hours."
+    ],
+    "answerSummary": "${{answer}}$ hours can be paid for."
+   },
+   "attemptFeedback": [
+    "The permit has to be paid whatever the hours."
+   ],
+   "supportHints": [
+    "Not all of the budget is available for labour."
+   ],
+   "generator": {
+    "parameters": {
+     "rate": {
+      "type": "int",
+      "min": 10,
+      "max": 40,
+      "step": 5
+     },
+     "fee": {
+      "type": "int",
+      "min": 20,
+      "max": 300,
+      "step": 10
+     },
+     "hours": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     }
+    },
+    "derived": {
+     "budget": "rate*hours+fee",
+     "answer": "hours",
+     "d_forgotFinalStep": "round(budget/rate)",
+     "d_operationInverted": "round(fee/rate)",
+     "d_offByOneStep": "hours-1"
+    },
+    "constraints": [
+     "hours>2",
+     "d_operationInverted>0",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_offByOneStep",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_offByOneStep",
+     "d_operationInverted!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_7_10C_rate_from_two_bills",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.10C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.10C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:7.10C:rate-from-two-bills",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.10C",
+   "taskType": "errorAnalysis",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The same call-out charge applies to both jobs below. What is the hourly rate?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Two bills",
+    "table": {
+     "headers": [
+      "hours",
+      "bill"
+     ],
+     "rows": [
+      [
+       "{{h1}}",
+       "{{b1}}"
+      ],
+      [
+       "{{h2}}",
+       "{{b2}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Comparing two bills removes the charge they share.",
+    "reasoning": [
+     "The bills differ by {{d_forgotFinalStep}} for {{gap}} more hours.",
+     "That is {{answer}} an hour, and the call-out cancels out."
+    ],
+    "answerSummary": "The rate is $\\${{answer}}$ an hour."
+   },
+   "attemptFeedback": [
+    "The difference is spread over the extra hours, not over all of them."
+   ],
+   "supportHints": [
+    "The call-out appears in both bills, so the difference is all labour."
+   ],
+   "generator": {
+    "parameters": {
+     "rate": {
+      "type": "int",
+      "min": 5,
+      "max": 30,
+      "step": 5
+     },
+     "fee": {
+      "type": "int",
+      "min": 10,
+      "max": 90,
+      "step": 5
+     },
+     "h1": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "gap": {
+      "type": "int",
+      "min": 2,
+      "max": 34
+     }
+    },
+    "derived": {
+     "h2": "h1+gap",
+     "b1": "rate*h1+fee",
+     "b2": "rate*h1+rate*gap+fee",
+     "answer": "rate",
+     "d_forgotFinalStep": "b2-b1",
+     "d_operationInverted": "round((b2-b1)/h2)",
+     "d_usedGivenValue": "gap"
+    },
+    "constraints": [
+     "rate!=gap",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_operationInverted!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_8B_when_two_plans_cost_the_same",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.8B:when-two-plans-cost-the-same",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8B",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Plan A costs $\\${{feeA}}$ plus $\\${{rateA}}$ a month; plan B costs $\\${{feeB}}$ plus $\\${{rateB}}$ a month. After how many months do they cost the same?",
+   "solutionReview": {
+    "headline": "The cheaper start is eaten up by the higher monthly rate.",
+    "reasoning": [
+     "Plan B starts cheaper but costs {{diffRate}} more each month.",
+     "After {{answer}} months the gap has closed."
+    ],
+    "answerSummary": "They match after ${{answer}}$ months."
+   },
+   "attemptFeedback": [
+    "One plan starts lower and rises faster; find where they meet."
+   ],
+   "supportHints": [
+    "Compare how the two plans differ at the start and how they differ each month."
+   ],
+   "generator": {
+    "parameters": {
+     "rateA": {
+      "type": "int",
+      "min": 5,
+      "max": 40,
+      "step": 5
+     },
+     "diffRate": {
+      "type": "int",
+      "min": 5,
+      "max": 30,
+      "step": 5
+     },
+     "months": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "feeA": {
+      "type": "int",
+      "min": 20,
+      "max": 400,
+      "step": 10
+     }
+    },
+    "derived": {
+     "rateB": "rateA+diffRate",
+     "feeB": "feeA-diffRate*months",
+     "answer": "months",
+     "d_offByOneStep": "months-1",
+     "d_operationInverted": "round(feeA/rateA)",
+     "d_usedGivenValue": "rateA"
+    },
+    "constraints": [
+     "feeB>0",
+     "months>2",
+     "answer!=d_offByOneStep",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "d_offByOneStep!=d_operationInverted",
+     "d_offByOneStep!=d_usedGivenValue",
+     "d_operationInverted!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_8B_which_equation_balances",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.8B:which-equation-balances",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8B",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Plan A costs $\\${{feeA}}$ plus $\\${{rateA}}$ a month and plan B costs $\\${{feeB}}$ plus $\\${{rateB}}$ a month. Which equation finds when they match?",
+   "solutionReview": {
+    "headline": "Matching costs means the two expressions are set equal.",
+    "reasoning": [
+     "Each plan costs its monthly rate times the months plus its fixed charge.",
+     "Setting the two totals equal gives the matching month."
+    ],
+    "answerSummary": "The first equation describes it."
+   },
+   "attemptFeedback": [
+    "The monthly rate multiplies the months; the fixed charge does not."
+   ],
+   "supportHints": [
+    "Write what each plan costs after x months, then set them equal."
+   ],
+   "generator": {
+    "parameters": {
+     "rateA": {
+      "type": "int",
+      "min": 5,
+      "max": 40,
+      "step": 5
+     },
+     "rateB": {
+      "type": "int",
+      "min": 5,
+      "max": 40,
+      "step": 5
+     },
+     "feeA": {
+      "type": "int",
+      "min": 20,
+      "max": 300,
+      "step": 10
+     },
+     "feeB": {
+      "type": "int",
+      "min": 20,
+      "max": 300,
+      "step": 10
+     }
+    },
+    "derived": {},
+    "constraints": [
+     "rateA!=rateB",
+     "feeA!=feeB"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{feeA}}x + {{rateA}} = {{feeB}}x + {{rateB}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{rateA}}x + {{feeA}} = {{rateB}}x + {{feeB}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{rateA}}x = {{rateB}}x$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{rateA}}x + {{feeA}} + {{rateB}}x + {{feeB}} = 0$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_8B_cheaper_plan_at_a_given_month",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.8B:cheaper-plan-at-a-given-month",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8B",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Using the plans shown, how much cheaper is the better one after {{months}} months?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Plans",
+    "table": {
+     "headers": [
+      "plan",
+      "joining",
+      "monthly"
+     ],
+     "rows": [
+      [
+       "A",
+       "{{feeA}}",
+       "{{rateA}}"
+      ],
+      [
+       "B",
+       "{{feeB}}",
+       "{{rateB}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "A lower joining fee does not settle which plan is cheaper.",
+    "reasoning": [
+     "After {{months}} months plan A costs {{costA}} and plan B costs {{costB}}.",
+     "The gap is {{answer}}."
+    ],
+    "answerSummary": "The better plan saves $\\${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Comparing only the joining fees ignores the months."
+   ],
+   "supportHints": [
+    "Work out what each plan costs by that month."
+   ],
+   "generator": {
+    "parameters": {
+     "rateA": {
+      "type": "int",
+      "min": 5,
+      "max": 40,
+      "step": 5
+     },
+     "rateB": {
+      "type": "int",
+      "min": 5,
+      "max": 40,
+      "step": 5
+     },
+     "feeA": {
+      "type": "int",
+      "min": 20,
+      "max": 300,
+      "step": 10
+     },
+     "feeB": {
+      "type": "int",
+      "min": 20,
+      "max": 300,
+      "step": 10
+     },
+     "months": {
+      "type": "int",
+      "min": 3,
+      "max": 24
+     }
+    },
+    "derived": {
+     "costA": "feeA+rateA*months",
+     "costB": "feeB+rateB*months",
+     "answer": "abs(feeA+rateA*months-feeB-rateB*months)",
+     "d_partialTotal": "min(costA,costB)",
+     "d_forgotFinalStep": "abs(feeA-feeB)",
+     "d_signError": "costA+costB"
+    },
+    "constraints": [
+     "costA!=costB",
+     "answer!=d_partialTotal",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_signError",
+     "d_partialTotal!=d_forgotFinalStep",
+     "d_partialTotal!=d_signError",
+     "d_forgotFinalStep!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_signError}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_8B_balance_both_sides_solve",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.8B:balance-both-sides-solve",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8B",
+   "taskType": "procedural",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two crews clear {{rateA}} and {{rateB}} {{item}} an hour, starting from backlogs of {{startA}} and {{startB}}. After how many hours are their backlogs equal?",
+   "solutionReview": {
+    "headline": "The faster crew closes the gap at the difference in the rates.",
+    "reasoning": [
+     "Crew B starts {{d_forgotFinalStep}} times {{hours}} further behind but clears {{diffRate}} more an hour.",
+     "The backlogs meet after {{answer}} hours."
+    ],
+    "answerSummary": "They are equal after ${{answer}}$ hours."
+   },
+   "attemptFeedback": [
+    "The gap closes at the difference between the rates, not at either rate."
+   ],
+   "supportHints": [
+    "How much of the gap closes in one hour?"
+   ],
+   "generator": {
+    "parameters": {
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "rateA": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "diffRate": {
+      "type": "int",
+      "min": 1,
+      "max": 12
+     },
+     "hours": {
+      "type": "int",
+      "min": 2,
+      "max": 18
+     },
+     "startA": {
+      "type": "int",
+      "min": 40,
+      "max": 400,
+      "step": 10
+     }
+    },
+    "derived": {
+     "rateB": "rateA+diffRate",
+     "startB": "startA+diffRate*hours",
+     "answer": "hours",
+     "d_forgotFinalStep": "diffRate",
+     "d_usedGivenValue": "rateA",
+     "d_operationInverted": "round(startA/rateA)"
+    },
+    "constraints": [
+     "hours!=diffRate",
+     "startA-rateA*hours>0",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_operationInverted",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_usedGivenValue!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_8B_which_plan_wins_long_run",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:8.8B:which-plan-wins-long-run",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8B",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Plan A costs $\\${{feeA}}$ to join then $\\${{rateA}}$ a month; plan B joins free but costs $\\${{rateB}}$ a month. Which statement is closest to correct?",
+   "solutionReview": {
+    "headline": "A joining fee is repaid by a lower monthly rate, eventually.",
+    "reasoning": [
+     "Plan A starts {{feeA}} behind but saves {{diffRate}} every month.",
+     "It takes {{months}} months to make that back, and after that plan A is ahead."
+    ],
+    "answerSummary": "Plan A wins after {{months}} months."
+   },
+   "attemptFeedback": [
+    "Free to join does not mean cheaper in the long run."
+   ],
+   "supportHints": [
+    "Work out how long the monthly saving takes to repay the joining fee."
+   ],
+   "generator": {
+    "parameters": {
+     "rateA": {
+      "type": "int",
+      "min": 5,
+      "max": 25,
+      "step": 5
+     },
+     "diffRate": {
+      "type": "int",
+      "min": 5,
+      "max": 20,
+      "step": 5
+     },
+     "months": {
+      "type": "int",
+      "min": 3,
+      "max": 24
+     }
+    },
+    "derived": {
+     "rateB": "rateA+diffRate",
+     "feeA": "diffRate*months"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The two never cost the same amount.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "Plan A is cheaper once more than {{months}} months have passed."
+    },
+    {
+     "id": "choice-c",
+     "label": "Plan A is cheaper from the very first month.",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "Plan B is always cheaper because it is free to join.",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
   }
  ]
 }

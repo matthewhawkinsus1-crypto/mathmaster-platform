@@ -4205,6 +4205,461 @@ ar('A2.6L', 'which-pairing-fits', {
   feedback: 'Check the product of each pairing against the first one.',
 });
 
+// ================================================================ 6.9C
+// One-step equations and the situations behind them.
+
+ar('6.9C', 'situation-for-a-one-step-equation', {
+  difficultyBand: 2, dok: 3, taskType: 'interpretation', representation: 'symbolic',
+  prompt: 'Which situation is described by $x + {{add}} = {{total}}$?',
+  generator: {
+    parameters: {
+      item: GOODS,
+      add: { type: 'int', min: 5, max: 60 },
+      start: { type: 'int', min: 10, max: 200, step: 5 },
+    },
+    derived: { total: 'start+add' },
+    constraints: ['add!=start'],
+  },
+  choices: [
+    { label: 'A store had some {{item}}, received {{add}} more, and then had {{total}}. How many did it start with?', correct: true },
+    { label: 'A store had {{total}} {{item}} and received {{add}} more. How many now?', error: 'signError' },
+    { label: 'A store had {{add}} {{item}} in each of {{total}} boxes. How many altogether?', error: 'operationInverted' },
+    { label: 'A store had {{total}} {{item}} and sold {{add}}. How many now?', error: 'usedGivenValue' },
+  ],
+  reasoning: ['In the equation an unknown amount plus {{add}} reaches {{total}}.', 'Only the first situation leaves the starting amount unknown.'],
+  answerSummary: { headline: 'The unknown in the equation is what the situation must be asking for.', text: 'The first situation matches.' },
+  hint: 'Ask which quantity the equation leaves unknown.',
+  feedback: 'The equation adds to an unknown; it does not add to a known total.',
+});
+
+ar('6.9C', 'equation-for-equal-groups', {
+  difficultyBand: 2, dok: 3, taskType: 'representationTranslation', representation: 'verbal',
+  prompt: 'A {{crew}} packed {{total}} {{item}} into {{groups}} equal cases. Which equation gives the number in each case?',
+  generator: {
+    parameters: {
+      crew: WORKERS, item: GOODS,
+      groups: { type: 'int', min: 3, max: 20 },
+      per: { type: 'int', min: 4, max: 40 },
+    },
+    derived: { total: 'groups*per' },
+    constraints: ['groups!=per'],
+  },
+  choices: [
+    { label: plain('{{groups}}x = {{total}}'), correct: true },
+    { label: plain('x + {{groups}} = {{total}}'), error: 'operationInverted' },
+    { label: plain('x - {{groups}} = {{total}}'), error: 'signError' },
+    { label: plain('{{total}}x = {{groups}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Each case holds the same unknown number.', '{{groups}} cases of that number make {{total}}.'],
+  answerSummary: { headline: 'Equal groups multiply the group size by the number of groups.', text: '${{groups}}x = {{total}}$ describes it.' },
+  hint: 'What happens to the number in one case to give the total?',
+  feedback: 'Equal cases means multiplying, not adding.',
+});
+
+ar('6.9C', 'solve-a-one-step-situation', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'After {{add}} more {{item}} arrived, a {{shop}} held {{total}}. How many were there before?',
+  generator: {
+    parameters: {
+      shop: SHOPS, item: GOODS,
+      add: { type: 'int', min: 5, max: 90 },
+      start: { type: 'int', min: 5, max: 90 },
+    },
+    derived: {
+      total: 'start+add',
+      answer: 'start',
+      d_signError: 'total+add',
+      d_usedGivenValue: 'add',
+      d_offByOneStep: 'abs(start-add)',
+    },
+    constraints: ['add!=start'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['The delivery raised the count to {{total}}.', 'Taking {{add}} back off leaves {{answer}}.'],
+  answerSummary: { headline: 'Undo the change that happened.', text: 'There were ${{answer}}$ before.' },
+  hint: 'The count grew, so the earlier figure was smaller.',
+  feedback: 'Adding the delivery again goes the wrong way.',
+});
+
+ar('6.9C', 'check-a-proposed-value', {
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'symbolic',
+  prompt: 'A {{shop}} stacks {{total}} {{item}} in {{coef}} equal rows, so ${{coef}}x = {{total}}$. Which value of $x$ is correct?',
+  generator: {
+    parameters: {
+      shop: SHOPS,
+      item: GOODS,
+      coef: { type: 'int', min: 3, max: 15 },
+      root: { type: 'int', min: 3, max: 40 },
+    },
+    derived: {
+      total: 'coef*root',
+      near: 'root+1',
+      sum: 'total-coef',
+      big: 'total*coef',
+    },
+    constraints: ['coef!=root'],
+  },
+  choices: [
+    { label: plain('x = {{root}}'), correct: true },
+    { label: plain('x = {{near}}'), error: 'offByOneStep' },
+    { label: plain('x = {{sum}}'), error: 'operationInverted' },
+    { label: plain('x = {{big}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['{{coef}} times {{root}} is {{total}}.', 'No other listed value multiplies to {{total}}.'],
+  answerSummary: { headline: 'A solution is the value that actually makes the equation true.', text: '$x = {{root}}$ works.' },
+  hint: 'Try each value in the equation.',
+  feedback: 'Subtracting the coefficient does not undo multiplying by it.',
+});
+
+ar('6.9C', 'one-step-inequality-limit', {
+  difficultyBand: 3, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A shelf holds at most {{limit}} {{item}} and already holds {{on}}. How many more fit?',
+  generator: {
+    parameters: {
+      item: GOODS,
+      on: { type: 'int', min: 5, max: 120, step: 5 },
+      room: { type: 'int', min: 5, max: 120, step: 5 },
+    },
+    derived: {
+      limit: 'on+room',
+      answer: 'room',
+      d_signError: 'limit+on',
+      d_usedGivenValue: 'on',
+      d_offByOneStep: 'abs(room-on)',
+    },
+    constraints: ['on!=room'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['The shelf takes {{limit}} in all and holds {{on}}.', 'That leaves room for {{answer}}.'],
+  answerSummary: { headline: 'The space left is the limit less what is already there.', text: '${{answer}}$ more fit.' },
+  hint: 'Compare what fits in total with what is already on the shelf.',
+  feedback: 'The limit counts everything, including what is already there.',
+});
+
+// ================================================================ 7.10C
+// Two-step situations: a fixed charge plus a rate.
+
+ar('7.10C', 'situation-for-a-two-step-equation', {
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'symbolic',
+  prompt: 'Which situation is described by ${{rate}}x + {{fee}} = {{total}}$?',
+  generator: {
+    parameters: {
+      rate: { type: 'int', min: 5, max: 40, step: 5 },
+      fee: { type: 'int', min: 10, max: 90, step: 5 },
+      hours: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { total: 'rate*hours+fee' },
+    constraints: ['rate!=fee'],
+  },
+  choices: [
+    { label: 'A repair costs $\\${{fee}}$ to call out plus $\\${{rate}}$ an hour, and the bill came to $\\${{total}}$. How many hours were worked?', correct: true },
+    { label: 'A repair costs $\\${{rate}}$ to call out plus $\\${{fee}}$ an hour, and the bill came to $\\${{total}}$. How many hours were worked?', error: 'ratioReversed' },
+    { label: 'A repair costs $\\${{rate}}$ an hour for {{fee}} hours. What is the bill?', error: 'operationInverted' },
+    { label: 'A repair bill of $\\${{total}}$ was cut by $\\${{fee}}$ and then split into $\\${{rate}}$ payments. How many payments?', error: 'signError' },
+  ],
+  reasoning: ['The {{fee}} is added once, so it is the call-out charge.', 'The {{rate}} multiplies the unknown, so it is the hourly rate.'],
+  answerSummary: { headline: 'The number that multiplies the unknown is the rate; the one added on is the fixed charge.', text: 'The first situation matches.' },
+  hint: 'Decide which number is charged once and which is charged repeatedly.',
+  feedback: 'The number multiplying x cannot be a one-off charge.',
+});
+
+ar('7.10C', 'hours-from-a-bill', {
+  difficultyBand: 3, dok: 2, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'A {{worker}} charges $\\${{fee}}$ to call out plus $\\${{rate}}$ an hour. A bill came to $\\${{total}}$. How many hours were worked?',
+  generator: {
+    parameters: {
+      worker: contextParam(['mechanic', 'electrician', 'plumber', 'technician']),
+      rate: { type: 'int', min: 10, max: 40, step: 5 },
+      fee: { type: 'int', min: 20, max: 300, step: 10 },
+      hours: { type: 'int', min: 3, max: 12 },
+    },
+    derived: {
+      total: 'rate*hours+fee',
+      answer: 'hours',
+      d_forgotFinalStep: 'round(total/rate)',
+      d_operationInverted: 'round(fee/rate)',
+      d_offByOneStep: 'hours-1',
+    },
+    constraints: ['hours>2', 'd_operationInverted>0'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['Taking off the {{fee}} call-out leaves {{rate}} times the hours.', 'Dividing by {{rate}} gives {{answer}} hours.'],
+  answerSummary: { headline: 'The fixed charge comes off before the rate divides.', text: '${{answer}}$ hours were worked.' },
+  hint: 'Part of the bill is not for time at all.',
+  feedback: 'Dividing the whole bill by the hourly rate counts the call-out as time.',
+});
+
+ar('7.10C', 'bill-from-hours', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'verbal',
+  prompt: 'A {{worker}} charges $\\${{fee}}$ to call out plus $\\${{rate}}$ an hour. What is the bill for {{hours}} hours?',
+  generator: {
+    parameters: {
+      worker: contextParam(['mechanic', 'electrician', 'plumber', 'technician']),
+      rate: { type: 'int', min: 10, max: 60, step: 5 },
+      fee: { type: 'int', min: 10, max: 55, step: 5 },
+      hours: { type: 'int', min: 2, max: 14 },
+    },
+    derived: {
+      answer: 'rate*hours+fee',
+      d_forgotFinalStep: 'rate*hours',
+      d_operationInverted: 'rate*hours*fee/rate',
+      d_offByOneStep: 'rate*(hours+1)+fee',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: money('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['{{hours}} hours at {{rate}} is {{d_forgotFinalStep}}.', 'The {{fee}} call-out brings it to {{answer}}.'],
+  answerSummary: { headline: 'The fixed charge is added once, whatever the hours.', text: 'The bill is $\\${{answer}}$.' },
+  hint: 'One charge depends on the hours and one does not.',
+  feedback: 'The call-out is charged once, not per hour.',
+});
+
+ar('7.10C', 'two-step-budget-limit', {
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A job has $\\${{budget}}$ available. After a $\\${{fee}}$ permit, labour costs $\\${{rate}}$ an hour. How many whole hours can be paid for?',
+  generator: {
+    parameters: {
+      rate: { type: 'int', min: 10, max: 40, step: 5 },
+      fee: { type: 'int', min: 20, max: 300, step: 10 },
+      hours: { type: 'int', min: 3, max: 12 },
+    },
+    derived: {
+      budget: 'rate*hours+fee',
+      answer: 'hours',
+      d_forgotFinalStep: 'round(budget/rate)',
+      d_operationInverted: 'round(fee/rate)',
+      d_offByOneStep: 'hours-1',
+    },
+    constraints: ['hours>2', 'd_operationInverted>0'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['The permit leaves {{budget}} minus {{fee}} for labour.', 'At {{rate}} an hour that pays for {{answer}} hours.'],
+  answerSummary: { headline: 'Fixed costs come out of the budget before the hourly rate does.', text: '${{answer}}$ hours can be paid for.' },
+  hint: 'Not all of the budget is available for labour.',
+  feedback: 'The permit has to be paid whatever the hours.',
+});
+
+ar('7.10C', 'rate-from-two-bills', {
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'table',
+  prompt: 'The same call-out charge applies to both jobs below. What is the hourly rate?',
+  stimulus: {
+    kind: 'table',
+    title: 'Two bills',
+    table: { headers: ['hours', 'bill'], rows: [['{{h1}}', '{{b1}}'], ['{{h2}}', '{{b2}}']] },
+  },
+  generator: {
+    parameters: {
+      rate: { type: 'int', min: 5, max: 30, step: 5 },
+      fee: { type: 'int', min: 10, max: 90, step: 5 },
+      h1: { type: 'int', min: 2, max: 8 },
+      gap: { type: 'int', min: 2, max: 34 },
+    },
+    derived: {
+      h2: 'h1+gap',
+      b1: 'rate*h1+fee',
+      b2: 'rate*h1+rate*gap+fee',
+      answer: 'rate',
+      d_forgotFinalStep: 'b2-b1',
+      d_operationInverted: 'round((b2-b1)/h2)',
+      d_usedGivenValue: 'gap',
+    },
+    constraints: ['rate!=gap'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The bills differ by {{d_forgotFinalStep}} for {{gap}} more hours.', 'That is {{answer}} an hour, and the call-out cancels out.'],
+  answerSummary: { headline: 'Comparing two bills removes the charge they share.', text: 'The rate is $\\${{answer}}$ an hour.' },
+  hint: 'The call-out appears in both bills, so the difference is all labour.',
+  feedback: 'The difference is spread over the extra hours, not over all of them.',
+});
+
+// ================================================================ 8.8B
+// Two plans that cost the same: variables on both sides.
+
+ar('8.8B', 'when-two-plans-cost-the-same', {
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'Plan A costs $\\${{feeA}}$ plus $\\${{rateA}}$ a month; plan B costs $\\${{feeB}}$ plus $\\${{rateB}}$ a month. After how many months do they cost the same?',
+  generator: {
+    parameters: {
+      rateA: { type: 'int', min: 5, max: 40, step: 5 },
+      diffRate: { type: 'int', min: 5, max: 30, step: 5 },
+      months: { type: 'int', min: 2, max: 20 },
+      feeA: { type: 'int', min: 20, max: 400, step: 10 },
+    },
+    derived: {
+      rateB: 'rateA+diffRate',
+      feeB: 'feeA-diffRate*months',
+      answer: 'months',
+      d_offByOneStep: 'months-1',
+      d_operationInverted: 'round(feeA/rateA)',
+      d_usedGivenValue: 'rateA',
+    },
+    constraints: ['feeB>0', 'months>2'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Plan B starts cheaper but costs {{diffRate}} more each month.', 'After {{answer}} months the gap has closed.'],
+  answerSummary: { headline: 'The cheaper start is eaten up by the higher monthly rate.', text: 'They match after ${{answer}}$ months.' },
+  hint: 'Compare how the two plans differ at the start and how they differ each month.',
+  feedback: 'One plan starts lower and rises faster; find where they meet.',
+});
+
+ar('8.8B', 'which-equation-balances', {
+  difficultyBand: 3, dok: 3, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'Plan A costs $\\${{feeA}}$ plus $\\${{rateA}}$ a month and plan B costs $\\${{feeB}}$ plus $\\${{rateB}}$ a month. Which equation finds when they match?',
+  generator: {
+    parameters: {
+      rateA: { type: 'int', min: 5, max: 40, step: 5 },
+      rateB: { type: 'int', min: 5, max: 40, step: 5 },
+      feeA: { type: 'int', min: 20, max: 300, step: 10 },
+      feeB: { type: 'int', min: 20, max: 300, step: 10 },
+    },
+    derived: {},
+    constraints: ['rateA!=rateB', 'feeA!=feeB'],
+  },
+  choices: [
+    { label: plain('{{rateA}}x + {{feeA}} = {{rateB}}x + {{feeB}}'), correct: true },
+    { label: plain('{{feeA}}x + {{rateA}} = {{feeB}}x + {{rateB}}'), error: 'ratioReversed' },
+    { label: plain('{{rateA}}x + {{feeA}} + {{rateB}}x + {{feeB}} = 0'), error: 'signError' },
+    { label: plain('{{rateA}}x = {{rateB}}x'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['Each plan costs its monthly rate times the months plus its fixed charge.', 'Setting the two totals equal gives the matching month.'],
+  answerSummary: { headline: 'Matching costs means the two expressions are set equal.', text: 'The first equation describes it.' },
+  hint: 'Write what each plan costs after x months, then set them equal.',
+  feedback: 'The monthly rate multiplies the months; the fixed charge does not.',
+});
+
+ar('8.8B', 'cheaper-plan-at-a-given-month', {
+  difficultyBand: 2, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'Using the plans shown, how much cheaper is the better one after {{months}} months?',
+  stimulus: {
+    kind: 'table',
+    title: 'Plans',
+    table: { headers: ['plan', 'joining', 'monthly'], rows: [['A', '{{feeA}}', '{{rateA}}'], ['B', '{{feeB}}', '{{rateB}}']] },
+  },
+  generator: {
+    parameters: {
+      rateA: { type: 'int', min: 5, max: 40, step: 5 },
+      rateB: { type: 'int', min: 5, max: 40, step: 5 },
+      feeA: { type: 'int', min: 20, max: 300, step: 10 },
+      feeB: { type: 'int', min: 20, max: 300, step: 10 },
+      months: { type: 'int', min: 3, max: 24 },
+    },
+    derived: {
+      costA: 'feeA+rateA*months',
+      costB: 'feeB+rateB*months',
+      answer: 'abs(feeA+rateA*months-feeB-rateB*months)',
+      d_partialTotal: 'min(costA,costB)',
+      d_forgotFinalStep: 'abs(feeA-feeB)',
+      d_signError: 'costA+costB',
+    },
+    constraints: ['costA!=costB'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['After {{months}} months plan A costs {{costA}} and plan B costs {{costB}}.', 'The gap is {{answer}}.'],
+  answerSummary: { headline: 'A lower joining fee does not settle which plan is cheaper.', text: 'The better plan saves $\\${{answer}}$.' },
+  hint: 'Work out what each plan costs by that month.',
+  feedback: 'Comparing only the joining fees ignores the months.',
+});
+
+ar('8.8B', 'balance-both-sides-solve', {
+  difficultyBand: 3, dok: 2, taskType: 'procedural', representation: 'verbal',
+  prompt: 'Two crews clear {{rateA}} and {{rateB}} {{item}} an hour, starting from backlogs of {{startA}} and {{startB}}. After how many hours are their backlogs equal?',
+  generator: {
+    parameters: {
+      item: GOODS,
+      rateA: { type: 'int', min: 2, max: 20 },
+      diffRate: { type: 'int', min: 1, max: 12 },
+      hours: { type: 'int', min: 2, max: 18 },
+      startA: { type: 'int', min: 40, max: 400, step: 10 },
+    },
+    derived: {
+      rateB: 'rateA+diffRate',
+      startB: 'startA+diffRate*hours',
+      answer: 'hours',
+      d_forgotFinalStep: 'diffRate',
+      d_usedGivenValue: 'rateA',
+      d_operationInverted: 'round(startA/rateA)',
+    },
+    constraints: ['hours!=diffRate', 'startA-rateA*hours>0'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['Crew B starts {{d_forgotFinalStep}} times {{hours}} further behind but clears {{diffRate}} more an hour.', 'The backlogs meet after {{answer}} hours.'],
+  answerSummary: { headline: 'The faster crew closes the gap at the difference in the rates.', text: 'They are equal after ${{answer}}$ hours.' },
+  hint: 'How much of the gap closes in one hour?',
+  feedback: 'The gap closes at the difference between the rates, not at either rate.',
+});
+
+ar('8.8B', 'which-plan-wins-long-run', {
+  difficultyBand: 3, dok: 3, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'Plan A costs $\\${{feeA}}$ to join then $\\${{rateA}}$ a month; plan B joins free but costs $\\${{rateB}}$ a month. Which statement is closest to correct?',
+  generator: {
+    parameters: {
+      rateA: { type: 'int', min: 5, max: 25, step: 5 },
+      diffRate: { type: 'int', min: 5, max: 20, step: 5 },
+      months: { type: 'int', min: 3, max: 24 },
+    },
+    derived: {
+      rateB: 'rateA+diffRate',
+      feeA: 'diffRate*months',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Plan A is cheaper once more than {{months}} months have passed.', correct: true },
+    { label: 'Plan A is cheaper from the very first month.', error: 'forgotFinalStep' },
+    { label: 'Plan B is always cheaper because it is free to join.', error: 'usedGivenValue' },
+    { label: 'The two never cost the same amount.', error: 'operationInverted' },
+  ],
+  reasoning: ['Plan A starts {{feeA}} behind but saves {{diffRate}} every month.', 'It takes {{months}} months to make that back, and after that plan A is ahead.'],
+  answerSummary: { headline: 'A joining fee is repaid by a lower monthly rate, eventually.', text: 'Plan A wins after {{months}} months.' },
+  hint: 'Work out how long the monthly saving takes to repay the joining fee.',
+  feedback: 'Free to join does not mean cheaper in the long run.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {

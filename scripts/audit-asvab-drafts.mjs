@@ -59,7 +59,11 @@ for (const q of documents) {
     // through a drawn parameter, so the template reads "how many {{small}} are
     // in {{bigCount}} {{big}}?" and looks contextless while every instance a
     // student sees names real units.
-    const rendered = instances[0]?.prompt || q.prompt;
+    // Look at the choices as well as the prompt. An item that asks which
+    // SITUATION a given equation describes carries its practical context in the
+    // options, and judging it on the prompt alone reads it as contextless.
+    const first = instances[0];
+    const rendered = [first?.prompt || q.prompt, ...(first?.choices || []).map((c) => c.label)].join(' ');
     const p = String(rendered || '').replace(/\s+/g, ' ').trim();
     if (!arContextSignals.test(p) || suspiciousStarts.test(p)) result.suspiciousArithmeticPrompts.push({ id: q.id, prompt: p });
   }
