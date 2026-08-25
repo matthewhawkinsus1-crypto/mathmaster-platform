@@ -1,0 +1,26 @@
+name: CCMR V2.1 Digital SAT Content Repair
+
+on:
+  push:
+    branches:
+      - ccmr-fidelity-v2-1-authentic-language
+    paths:
+      - 'scripts/patch-digital-sat-v2-1-content-repair.mjs'
+      - '.github/workflows/ccmr-v2-1-digital-sat-content-patch.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Syntax check repair script
+        run: node --check scripts/patch-digital-sat-v2-1-content-repair.mjs
+      - name: Verify guarded repair selection
+        run: node scripts/patch-digital-sat-v2-1-content-repair.mjs --check
