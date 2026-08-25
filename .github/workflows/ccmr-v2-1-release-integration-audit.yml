@@ -1,0 +1,59 @@
+name: CCMR V2.1 Release Integration Audit
+
+on:
+  push:
+    branches:
+      - ccmr-fidelity-v2-1-authentic-language
+    paths:
+      - 'seed/pathQuestionBank/digitalSAT_pathQuestionBank_seed.json'
+      - 'seed/pathQuestionBank/act_pathQuestionBank_seed.json'
+      - 'seed/pathQuestionBank/tsia2_pathQuestionBank_seed.json'
+      - 'drafts/ccmr-v2.1/digitalSAT/**'
+      - 'drafts/ccmr-v2.1/act/**'
+      - 'drafts/ccmr-v2.1/tsia2/**'
+      - 'scripts/build-digital-sat-v2-1.mjs'
+      - 'scripts/build-act-v2-1.mjs'
+      - 'scripts/build-tsia2-v2-1.mjs'
+      - 'scripts/build-tsia2-production-seed.mjs'
+      - 'scripts/lib/ccmr-v2-1-release-integration.mjs'
+      - 'scripts/audit-ccmr-v2-1-release-integration.mjs'
+      - 'tests/platform/ccmrV21ReleaseIntegrationContent.test.mjs'
+      - '.github/workflows/ccmr-v2-1-release-integration-audit.yml'
+  workflow_dispatch:
+
+jobs:
+  release-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run SAT ACT TSIA2 integration contract
+        run: node --test tests/platform/ccmrV21ReleaseIntegrationContent.test.mjs
+      - name: Inventory current production assessment seeds
+        if: always()
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const seeds = {
+            digitalSAT: 'digitalSAT_pathQuestionBank_seed.json',
+            act: 'act_pathQuestionBank_seed.json',
+            tsia2: 'tsia2_pathQuestionBank_seed.json',
+          };
+          const docsIn = (parsed) => Array.isArray(parsed) ? parsed : (parsed?.documents || parsed?.items || parsed?.questions || []);
+          for (const [framework, filename] of Object.entries(seeds)) {
+            const parsed = JSON.parse(fs.readFileSync(path.join('seed', 'pathQuestionBank', filename), 'utf8'));
+            const docs = docsIn(parsed);
+            const v21 = docs.filter((doc) => String(doc?.ccmrAuthenticLanguage?.version || '') === '2.1' && doc?.ccmrAuthenticLanguage?.authored === true).length;
+            const matchingFramework = docs.filter((doc) => doc?.assessmentContext?.framework === framework && doc?.assessmentContext?.examStyle === true).length;
+            const routeable = docs.filter((doc) => Array.isArray(doc?.alignmentKeys) && doc.alignmentKeys.length > 0).length;
+            const domains = [...new Set(docs.map((doc) => doc?.assessmentContext?.domainId).filter(Boolean))].sort();
+            console.log(JSON.stringify({ framework, topLevelReleaseTarget: parsed?.releaseTarget || null, documents: docs.length, v21, matchingFramework, routeable, domains }));
+          }
+          NODE
+      - name: Run integrated production release audit
+        run: node scripts/audit-ccmr-v2-1-release-integration.mjs
