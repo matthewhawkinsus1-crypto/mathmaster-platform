@@ -1,0 +1,50 @@
+name: Temporary TSIA2 release wiring
+
+on:
+  push:
+    branches:
+      - ccmr-fidelity-v2-1-authentic-language
+    paths:
+      - '.github/workflows/tmp-wire-tsia2-release.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  wire:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ccmr-fidelity-v2-1-authentic-language
+      - name: Wire retirement after successful coverage rebuild
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('functions/index.js')
+          source = path.read_text()
+          old = '''  const removedSuperseded = await removeSupersededBuiltInPathSeedRecords(db, taggedItems);
+          const coverage = await rebuildStoredPathCoverage(db);
+          return { ...seed, phase: "complete", removedSuperseded, coverage };
+          '''
+          new = '''  const removedSuperseded = await removeSupersededBuiltInPathSeedRecords(db, taggedItems);
+          const coverage = await rebuildStoredPathCoverage(db);
+          const { retireStaleTsia2PathStateForRelease } = await import("./shared/pathBankRelease.mjs");
+          const tsia2PathBankRelease = await retireStaleTsia2PathStateForRelease(db);
+          return { ...seed, phase: "complete", removedSuperseded, coverage, tsia2PathBankRelease };
+          '''
+          if source.count(old) != 1:
+              raise SystemExit(f'Expected exactly one seed-refresh boundary, found {source.count(old)}')
+          path.write_text(source.replace(old, new, 1))
+          PY
+      - name: Prove TSIA2 release tests after wiring
+        run: node --test tests/platform/tsia2PathBankReleaseContent.test.mjs
+      - name: Commit runtime wiring
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add functions/index.js
+          git diff --cached --check
+          git commit -m "Wire TSIA2 stale-session retirement after bank refresh"
+          git push origin HEAD:ccmr-fidelity-v2-1-authentic-language
