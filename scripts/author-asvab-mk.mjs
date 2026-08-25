@@ -12510,6 +12510,697 @@ mk('A.5B', 'direction-kept-after-a-negative-divide', {
   feedback: 'Same divisor on both sides is correct; the direction is what was missed.',
 });
 
+// ================================================================ A.5C
+// Solving a system of two linear equations. A.2I writes systems and 8.9 reads
+// a crossing off two graphed lines; this standard does the algebra, so every
+// family here either carries out an elimination or a substitution, or reasons
+// about the step that makes one possible.
+
+mk('A.5C', 'elimination-when-a-coefficient-matches', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Solve ${{a}}x + {{b}}y = {{c1}}$ and ${{a}}x - {{b}}y = {{c2}}$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 8 },
+      b: { type: 'int', min: 2, max: 8 },
+      x: { type: 'int', min: 2, max: 9 },
+      y: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { c1: 'a*x+b*y', c2: 'a*x-b*y', sum: 'x+y' },
+    constraints: ['x!=y', 'a!=b', 'sum!=x', 'sum!=y'],
+  },
+  choices: [
+    { label: plain('({{x}}, {{y}})'), correct: true },
+    { label: plain('({{y}}, {{x}})'), error: 'ratioReversed' },
+    { label: plain('({{x}}, {{sum}})'), error: 'partialTotal' },
+    { label: plain('({{sum}}, {{y}})'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['Adding the two equations cancels the $y$ terms and leaves $2 \\times {{a}}x = {{c1}} + {{c2}}$, so $x = {{x}}$.', 'Substituting back gives $y = {{y}}$.'],
+  answerSummary: { headline: 'Add the equations when one variable already carries opposite signs.', text: 'It is $({{x}}, {{y}})$.' },
+  hint: 'What happens to the $y$ terms if the two equations are added?',
+  feedback: 'Check which coordinate is $x$ and which is $y$ before choosing.',
+});
+
+mk('A.5C', 'what-to-multiply-to-eliminate', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'To eliminate $x$ from ${{a}}x + {{b}}y = {{c1}}$ and ${{a2}}x + {{d}}y = {{c2}}$, what should the first be multiplied by?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 6 },
+      k: { type: 'int', min: 2, max: 6 },
+      b: { type: 'int', min: 2, max: 9 },
+      d: { type: 'int', min: 2, max: 9 },
+      c1: { type: 'int', min: 10, max: 60 },
+      c2: { type: 'int', min: 10, max: 60 },
+    },
+    // Two of the three distractors are negative as well. When the key was the
+    // only negative choice it was the smallest of the four in every draw, and
+    // no scaling of the ranges could have changed that.
+    derived: { a2: 'a*k', negK: '0-k', negA: '0-a', negA2: '0-a*k' },
+    constraints: ['b!=d', 'k!=a', 'k!=b', 'k!=d'],
+  },
+  choices: [
+    { label: plain('-{{k}}'), correct: true },
+    { label: plain('{{k}}'), error: 'signError' },
+    { label: plain('{{negA}}'), error: 'usedGivenValue' },
+    { label: plain('{{negA2}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The second equation already holds ${{a2}}x$, which is ${{k}}$ times the ${{a}}x$ in the first equation.', 'Multiplying the first by $-{{k}}$ makes the two $x$ terms cancel when the equations are added.'],
+  answerSummary: { headline: 'Match the coefficient, then flip its sign so the terms cancel.', text: 'Multiply by $-{{k}}$.' },
+  hint: 'How many times does the first $x$ coefficient go into the second?',
+  feedback: 'That is a coefficient copied from the equations, not the factor between them.',
+});
+
+mk('A.5C', 'how-many-of-the-cheaper-ticket', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A group bought ${{n}}$ tickets for $\\${{t}}$ in all, at $\\${{a}}$ and $\\${{b}}$ each. How many of the $\\${{b}}$ tickets were bought?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 6, max: 15 },
+      gap: { type: 'int', min: 2, max: 6 },
+      x: { type: 'int', min: 2, max: 12 },
+      y: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      b: 'a-gap',
+      n: 'x+y',
+      t: 'a*x+(a-gap)*y',
+      other: 'x',
+      total: 'x+y',
+    },
+    constraints: ['b>=2', 'x!=y', 'y!=total', 'x!=total', 'y!=gap', 'x!=gap'],
+  },
+  choices: [
+    { label: plain('{{y}}'), correct: true },
+    { label: plain('{{other}}'), error: 'ratioReversed' },
+    { label: plain('{{total}}'), error: 'partialTotal' },
+    { label: plain('{{gap}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['If every ticket cost $\\${{a}}$ the total would be $\\${{a}} \\times {{n}}$, which overshoots the $\\${{t}}$ paid.', 'Each cheaper ticket saves $\\${{gap}}$, and the overshoot divides by ${{gap}}$ to give ${{y}}$ of them.'],
+  answerSummary: { headline: 'Price everything at one rate, then divide the overshoot by the difference.', text: 'There were ${{y}}$ of them.' },
+  hint: 'What would the whole group cost at the dearer price?',
+  feedback: 'That is how many of the other kind were bought.',
+});
+
+mk('A.5C', 'the-equation-substitution-leaves', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 2, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'Substituting $y = {{m}}x + {{p}}$ into ${{a}}x + {{b}}y = {{c}}$ leaves which equation in $x$ alone?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 9 },
+      m: { type: 'int', min: 2, max: 6 },
+      p: { type: 'int', min: 2, max: 12 },
+      c: { type: 'int', min: 20, max: 90 },
+    },
+    derived: { bm: 'b*m', bp: 'b*p', abm: 'a+b*m', noB: 'a+m' },
+    constraints: ['a!=b', 'abm!=noB'],
+  },
+  choices: [
+    { label: plain('{{abm}}x + {{bp}} = {{c}}'), correct: true },
+    { label: plain('{{noB}}x + {{p}} = {{c}}'), error: 'partialTotal' },
+    { label: plain('{{abm}}x + {{p}} = {{c}}'), error: 'forgotFinalStep' },
+    { label: plain('{{a}}x + {{bm}}x + {{bp}} = {{bp}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The ${{b}}y$ term becomes ${{b}}({{m}}x + {{p}}) = {{bm}}x + {{bp}}$.', 'Collecting the $x$ terms gives ${{abm}}x + {{bp}} = {{c}}$.'],
+  answerSummary: { headline: 'The coefficient outside multiplies both parts of what is substituted in.', text: 'It is ${{abm}}x + {{bp}} = {{c}}$.' },
+  hint: 'What does ${{b}}$ multiply once $y$ is replaced?',
+  feedback: 'The ${{p}}$ is inside the bracket too, so it is multiplied by ${{b}}$ as well.',
+});
+
+mk('A.5C', 'equations-added-without-matching-first', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'To eliminate $x$ from ${{a}}x + {{b}}y = {{c1}}$ and ${{a2}}x - {{d}}y = {{c2}}$, a student adds them as they stand. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 6 },
+      k: { type: 'int', min: 2, max: 5 },
+      b: { type: 'int', min: 2, max: 9 },
+      d: { type: 'int', min: 2, max: 9 },
+      c1: { type: 'int', min: 10, max: 60 },
+      c2: { type: 'int', min: 10, max: 60 },
+    },
+    derived: { a2: 'a*k', left: 'a+a*k' },
+    constraints: ['b!=d', 'k!=a'],
+  },
+  choices: [
+    { label: 'The $x$ coefficients are not opposite, so adding leaves ${{left}}x$ rather than nothing.', correct: true },
+    { label: 'Nothing is wrong, because adding two true equations gives a true equation.', error: 'usedGivenValue' },
+    { label: 'The equations should be subtracted, which would cancel the $y$ terms instead.', error: 'operationInverted' },
+    { label: 'The two constants ${{c1}}$ and ${{c2}}$ must match before anything can be added.', error: 'partialTotal' },
+  ],
+  reasoning: ['Elimination needs the two coefficients of the chosen variable to be opposites.', 'Here they are ${{a}}$ and ${{a2}}$, so one equation must be scaled first.'],
+  answerSummary: { headline: 'Coefficients have to be made opposite before the equations are added.', text: 'Adding as they stand leaves ${{left}}x$.' },
+  hint: 'What do the two $x$ terms come to when added?',
+  feedback: 'The result is still true; it just has not eliminated anything.',
+});
+
+// ================================================================ A.6A
+// Domain and range of a quadratic. The crosswalk allows only stating the
+// domain, and stating the range once a minimum or maximum is known; it
+// excludes inequality-notation emphasis and contextual reasonable-range
+// reasoning. Nothing here asks a student to choose between notations, and no
+// family asks what domain a situation would sensibly allow.
+
+mk('A.6A', 'domain-of-a-quadratic-rule', {
+  courseId: 'algebra1',
+  difficultyBand: 1, dok: 1, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'What is the domain of $f(x) = {{a}}x^2 + {{b}}x + {{c}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 12 },
+      c: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {},
+    constraints: ['a!=b', 'b!=c'],
+  },
+  choices: [
+    { label: 'Every real number, since any value of $x$ can be squared and combined.', correct: true },
+    { label: 'Only the numbers from ${{c}}$ upwards, where the rule starts.', error: 'usedGivenValue' },
+    { label: 'Only numbers that are not negative, because of the square.', error: 'signError' },
+    { label: 'Only whole numbers, since the coefficients are whole numbers.', error: 'partialTotal' },
+  ],
+  reasoning: ['Squaring, multiplying and adding can be carried out on any real number.', 'Nothing in the rule divides or takes a root, so nothing has to be ruled out.'],
+  answerSummary: { headline: 'A quadratic accepts every real input; only its outputs are limited.', text: 'The domain is every real number.' },
+  hint: 'Is there any value of $x$ this rule cannot be worked out for?',
+  feedback: 'Squaring a negative number is allowed, and it produces a positive result.',
+});
+
+mk('A.6A', 'range-above-a-known-minimum', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'A quadratic opens upwards and its least value is ${{k}}$. What is its range?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 30 },
+      other: { type: 'int', min: 2, max: 30 },
+    },
+    derived: { negK: '0-k' },
+    constraints: ['k!=other'],
+  },
+  choices: [
+    { label: 'Every number from ${{k}}$ upwards.', correct: true },
+    { label: 'Every number up to ${{k}}$.', error: 'operationInverted' },
+    { label: 'Every real number, as it is for the inputs.', error: 'ratioReversed' },
+    { label: 'Every number from ${{negK}}$ upwards.', error: 'signError' },
+  ],
+  reasoning: ['Opening upwards means the curve turns at its lowest point and rises on both sides.', 'It therefore reaches ${{k}}$ and everything above it, and nothing below.'],
+  answerSummary: { headline: 'An upward parabola starts at its minimum and climbs without limit.', text: 'Every number from ${{k}}$ upwards.' },
+  hint: 'Which way does the curve go on either side of its lowest point?',
+  feedback: 'That range belongs to a parabola opening downwards from a maximum.',
+});
+
+mk('A.6A', 'range-below-a-known-maximum', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'verbal',
+  // The maximum is named through the turning point rather than stated outright,
+  // so this is not the upward family with one word changed.
+  prompt: 'A downward parabola turns at $({{h}}, {{k}})$. What is its range?',
+  generator: {
+    parameters: {
+      h: { type: 'int', min: 2, max: 20 },
+      k: { type: 'int', min: 2, max: 30 },
+    },
+    derived: {},
+    constraints: ['h!=k'],
+  },
+  choices: [
+    { label: 'Every number up to ${{k}}$.', correct: true },
+    { label: 'Every number up to ${{h}}$.', error: 'ratioReversed' },
+    { label: 'Every number from ${{k}}$ upwards.', error: 'operationInverted' },
+    { label: 'Every number between ${{h}}$ and ${{k}}$.', error: 'partialTotal' },
+  ],
+  reasoning: ['The turning point of a downward parabola is its highest point, at height ${{k}}$.', 'The curve falls away on both sides, so it takes ${{k}}$ and everything below.'],
+  answerSummary: { headline: 'The second coordinate of the turning point is the limit on the outputs.', text: 'Every number up to ${{k}}$.' },
+  hint: 'Which coordinate of the turning point is an output of the function?',
+  feedback: 'The first coordinate is an input, so it limits nothing about the range.',
+});
+
+mk('A.6A', 'how-often-a-value-is-reached', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'table',
+  // Asking which value is never reached made the key the smallest of the four
+  // in every draw: for an upward parabola the unreachable values are exactly
+  // the small ones, so no choice of ranges could have fixed it. Counting how
+  // often a value is reached tests the same understanding of the range without
+  // encoding the answer in its size.
+  prompt: 'The table gives an upward parabola. How many times does it take the value ${{v}}$?',
+  stimulus: {
+    kind: 'table',
+    title: 'Recorded values',
+    table: { headers: ['x', 'y'], rows: [['{{x1}}', '{{y1}}'], ['{{x2}}', '{{y2}}'], ['{{h}}', '{{k}}'], ['{{x4}}', '{{y2}}'], ['{{x5}}', '{{y1}}']] },
+  },
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 1, max: 4 },
+      h: { type: 'int', min: 3, max: 12 },
+      k: { type: 'int', min: 10, max: 40 },
+      above: { type: 'int', min: 2, max: 30 },
+    },
+    derived: {
+      x1: 'h-2', x2: 'h-1', x4: 'h+1', x5: 'h+2',
+      y1: 'k+4*a', y2: 'k+a',
+      v: 'k+above',
+    },
+    constraints: ['x1>=1', 'v!=k', 'h!=k'],
+  },
+  choices: [
+    { label: 'Twice, once on each side of the turning point.', correct: true },
+    { label: 'Once, since a parabola reaches each of its values one time.', error: 'partialTotal' },
+    { label: 'Never, because the table does not list it.', error: 'usedGivenValue' },
+    { label: 'Once, at the turning point, where the curve is lowest.', error: 'operationInverted' },
+  ],
+  reasoning: ['The least value is ${{k}}$, and ${{v}}$ is above it, so the curve does reach it.', 'An upward parabola climbs on both sides of its turning point, so it passes ${{v}}$ twice.'],
+  answerSummary: { headline: 'Every value above the minimum is reached twice; the minimum itself, once.', text: 'Twice.' },
+  hint: 'How many times does the curve pass a height above its lowest point?',
+  feedback: 'A table shows a handful of points, not every value the curve takes.',
+});
+
+mk('A.6A', 'domain-given-in-place-of-the-range', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'For an upward parabola with least value ${{k}}$ a student gives the range as every real number. What is wrong?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 30 },
+      h: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {},
+    constraints: ['h!=k'],
+  },
+  choices: [
+    { label: 'That is the domain: the outputs stop at ${{k}}$ and go no lower.', correct: true },
+    { label: 'Nothing is wrong, because the curve carries on forever in both directions.', error: 'usedGivenValue' },
+    { label: 'The range is every real number, but only once the curve is shifted.', error: 'partialTotal' },
+    { label: 'The range should be every number up to ${{k}}$ instead.', error: 'operationInverted' },
+  ],
+  reasoning: ['Any $x$ may be put in, which is what makes the domain every real number.', 'The outputs are held above ${{k}}$ by the turning point, so the range is not.'],
+  answerSummary: { headline: 'A quadratic takes every input but not every output.', text: 'The range is every number from ${{k}}$ upwards.' },
+  hint: 'Which of the two, inputs or outputs, does the turning point limit?',
+  feedback: 'Carrying on forever sideways does not mean carrying on forever downwards.',
+});
+
+// ================================================================ A.7A
+// Key attributes of a quadratic. The crosswalk allows zeros, intercepts, the
+// vertex, the axis of symmetry and basic graph properties, and excludes
+// transformation analysis and parameter-effect comparison. No family here asks
+// what happens to the graph when a coefficient is changed. Zeros from factors
+// are left to A.7B, which is the standard about exactly that.
+
+mk('A.7A', 'axis-of-symmetry-from-standard-form', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'What is the axis of symmetry of $y = {{a}}x^2 + {{b}}x + {{c}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 6 },
+      h: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 2, max: 20 },
+    },
+    derived: { b: '0-2*a*h', absB: '2*a*h', negH: '0-h', twoA: '2*a' },
+    constraints: ['h!=c', 'h!=a', 'h!=absB', 'absB!=c'],
+  },
+  choices: [
+    { label: plain('x = {{h}}'), correct: true },
+    { label: plain('x = {{negH}}'), error: 'signError' },
+    { label: plain('x = {{absB}}'), error: 'forgotFinalStep' },
+    { label: plain('x = {{c}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The axis sits at $x = -b \\div 2a$, with $b = {{b}}$ and $a = {{a}}$.', 'That gives $x = {{absB}} \\div {{twoA}} = {{h}}$.'],
+  answerSummary: { headline: 'The axis is fixed by the first two coefficients, not the constant.', text: 'It is $x = {{h}}$.' },
+  hint: 'Which two coefficients decide where the curve turns?',
+  feedback: 'The $2a$ underneath still has to be divided out.',
+});
+
+mk('A.7A', 'where-a-parabola-meets-the-vertical-axis', {
+  courseId: 'algebra1',
+  difficultyBand: 1, dok: 1, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Where does $y = {{a}}x^2 + {{b}}x + {{c}}$ cross the vertical axis?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 14 },
+      c: { type: 'int', min: 2, max: 25 },
+    },
+    derived: { sum: 'a+b+c' },
+    constraints: ['a!=b', 'b!=c', 'a!=c', 'sum!=c'],
+  },
+  choices: [
+    { label: plain('(0, {{c}})'), correct: true },
+    { label: plain('({{c}}, 0)'), error: 'ratioReversed' },
+    { label: plain('(0, {{a}})'), error: 'usedGivenValue' },
+    { label: plain('(0, {{sum}})'), error: 'partialTotal' },
+  ],
+  reasoning: ['On the vertical axis $x = 0$, which removes both the $x^2$ and the $x$ term.', 'What is left is $y = {{c}}$.'],
+  answerSummary: { headline: 'Put zero in for $x$ and only the constant survives.', text: 'It crosses at $(0, {{c}})$.' },
+  hint: 'What is $x$ everywhere along the vertical axis?',
+  feedback: 'Adding the coefficients gives the value at $x = 1$, not at $x = 0$.',
+});
+
+mk('A.7A', 'vertex-from-the-axis-of-symmetry', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'symbolic',
+  prompt: 'What is the vertex of $y = {{a}}(x - {{h}})^2 + {{k}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 6 },
+      h: { type: 'int', min: 2, max: 12 },
+      k: { type: 'int', min: 2, max: 20 },
+    },
+    derived: { negH: '0-h', negK: '0-k' },
+    constraints: ['h!=k', 'a!=h', 'a!=k'],
+  },
+  choices: [
+    { label: plain('({{h}}, {{k}})'), correct: true },
+    { label: plain('({{negH}}, {{k}})'), error: 'signError' },
+    { label: plain('({{k}}, {{h}})'), error: 'ratioReversed' },
+    { label: plain('({{h}}, {{negK}})'), error: 'operationInverted' },
+  ],
+  reasoning: ['The bracket is zero when $x = {{h}}$, which is where the curve turns.', 'At that point the ${{a}}(x - {{h}})^2$ term contributes nothing and $y = {{k}}$.'],
+  answerSummary: { headline: 'The turning point is where the squared bracket collapses to zero.', text: 'It is $({{h}}, {{k}})$.' },
+  hint: 'What value of $x$ makes the bracket zero?',
+  feedback: 'A minus inside the bracket means the curve turns at a positive value of $x$.',
+});
+
+mk('A.7A', 'vertex-read-from-symmetric-values', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'table',
+  // The table is symmetric about the turning point, so the vertex is found by
+  // spotting the repeat rather than by substituting into a formula.
+  prompt: 'The table gives a quadratic. Where is its turning point?',
+  stimulus: {
+    kind: 'table',
+    title: 'Recorded values',
+    table: { headers: ['x', 'y'], rows: [['{{x1}}', '{{y1}}'], ['{{x2}}', '{{y2}}'], ['{{h}}', '{{k}}'], ['{{x4}}', '{{y2}}'], ['{{x5}}', '{{y1}}']] },
+  },
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 1, max: 4 },
+      h: { type: 'int', min: 3, max: 12 },
+      k: { type: 'int', min: 2, max: 15 },
+    },
+    derived: {
+      x1: 'h-2', x2: 'h-1', x4: 'h+1', x5: 'h+2',
+      y1: 'k+4*a', y2: 'k+a',
+    },
+    constraints: ['h!=k', 'x1>=1', 'h!=y1', 'h!=y2', 'k!=y2'],
+  },
+  choices: [
+    { label: plain('({{h}}, {{k}})'), correct: true },
+    { label: plain('({{k}}, {{h}})'), error: 'ratioReversed' },
+    { label: plain('({{x1}}, {{y1}})'), error: 'usedGivenValue' },
+    { label: plain('({{h}}, {{y2}})'), error: 'offByOneStep' },
+  ],
+  reasoning: ['The outputs repeat either side of $x = {{h}}$, so the curve is symmetric about it.', 'The turning point is the row at that centre, $({{h}}, {{k}})$.'],
+  answerSummary: { headline: 'Matching outputs either side of a row put the turning point on that row.', text: 'It is $({{h}}, {{k}})$.' },
+  hint: 'Which row has the same output on both sides of it?',
+  feedback: 'That row is one step from the centre, so it is not the turning point.',
+});
+
+mk('A.7A', 'axis-taken-without-dividing', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'For $y = {{a}}x^2 - {{absB}}x + {{c}}$ a student gives the axis of symmetry as $x = {{absB}}$. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 6 },
+      h: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 2, max: 20 },
+    },
+    derived: { absB: '2*a*h', twoA: '2*a' },
+    constraints: ['h!=c', 'h!=absB', 'h!=twoA'],
+  },
+  choices: [
+    { label: 'The $-b$ still has to be divided by $2a$, which is ${{twoA}}$, giving $x = {{h}}$.', correct: true },
+    { label: 'Nothing is wrong, since ${{absB}}$ is the number attached to $x$.', error: 'usedGivenValue' },
+    { label: 'The sign is the only mistake: it should be $x = -{{absB}}$.', error: 'signError' },
+    { label: 'The axis should be $x = {{c}}$, taken from the constant.', error: 'partialTotal' },
+  ],
+  reasoning: ['The axis is at $-b \\div 2a$, and only the first half of that has been done.', 'Dividing ${{absB}}$ by ${{twoA}}$ gives ${{h}}$.'],
+  answerSummary: { headline: 'Changing the sign of $b$ is half the formula; the division is the other half.', text: 'The axis is $x = {{h}}$.' },
+  hint: 'What is still sitting underneath $-b$?',
+  feedback: 'The sign was already handled correctly; the division was not.',
+});
+
+// ================================================================ A.7B
+// The link between the linear factors of a quadratic and its zeros. A.7A takes
+// the vertex, the axis and the intercepts; this standard is only about factors
+// and zeros, in both directions.
+
+mk('A.7B', 'zeros-from-factored-form', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'What are the zeros of $y = (x - {{r}})(x - {{s}})$?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 12 },
+      gap: { type: 'int', min: 1, max: 8 },
+    },
+    derived: { s: 'r+gap', negR: '0-r', negS: '0-s', sum: 'r+r+gap' },
+    constraints: ['sum!=r', 'sum!=s'],
+  },
+  choices: [
+    { label: plain('{{r}} \\text{ and } {{s}}'), correct: true },
+    { label: plain('{{negR}} \\text{ and } {{negS}}'), error: 'signError' },
+    { label: plain('{{r}} \\text{ and } {{negS}}'), error: 'partialTotal' },
+    { label: plain('{{sum}} \\text{ and } {{gap}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['A product is zero when one of its factors is zero.', 'That happens at $x = {{r}}$ and at $x = {{s}}$, the values that empty each bracket.'],
+  answerSummary: { headline: 'A zero is the value that empties a bracket, so the sign inside is reversed.', text: 'They are ${{r}}$ and ${{s}}$.' },
+  hint: 'What value of $x$ makes the first bracket zero?',
+  feedback: 'A minus inside the bracket gives a positive zero, not a negative one.',
+});
+
+mk('A.7B', 'factors-from-the-zeros', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'reverseReasoning', representation: 'symbolic',
+  prompt: 'A quadratic has zeros ${{r}}$ and $-{{s}}$. Which pair of factors does it have?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 12 },
+      s: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {},
+    constraints: ['r!=s'],
+  },
+  choices: [
+    { label: plain('(x - {{r}})(x + {{s}})'), correct: true },
+    { label: plain('(x + {{r}})(x - {{s}})'), error: 'signError' },
+    { label: plain('(x - {{r}})(x - {{s}})'), error: 'partialTotal' },
+    { label: plain('(x + {{r}})(x + {{s}})'), error: 'operationInverted' },
+  ],
+  reasoning: ['A zero at ${{r}}$ needs a bracket that empties there, which is $(x - {{r}})$.', 'A zero at $-{{s}}$ needs $(x + {{s}})$, since that empties when $x$ is $-{{s}}$.'],
+  answerSummary: { headline: 'Each bracket carries the opposite sign to the zero it produces.', text: 'It is $(x - {{r}})(x + {{s}})$.' },
+  hint: 'What must go in the bracket so that it is zero at $-{{s}}$?',
+  feedback: 'Both signs have been flipped, which moves both zeros to the other side of nothing.',
+});
+
+mk('A.7B', 'a-factor-that-appears-twice', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'How many different zeros does $y = (x - {{r}})^2$ have?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 14 },
+    },
+    derived: { negR: '0-r' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'One, at $x = {{r}}$, because both factors empty at the same value.', correct: true },
+    { label: 'Two, at $x = {{r}}$ and $x = {{negR}}$, one for each factor.', error: 'signError' },
+    { label: 'Two, both at $x = {{r}}$, since the bracket is written twice.', error: 'partialTotal' },
+    { label: 'None, because a squared bracket can never be zero.', error: 'operationInverted' },
+  ],
+  reasoning: ['The square is two copies of the same factor, and both empty at $x = {{r}}$.', 'The curve therefore touches the axis at one place instead of crossing it at two.'],
+  answerSummary: { headline: 'A repeated factor gives one zero, not two.', text: 'One, at $x = {{r}}$.' },
+  hint: 'What does the second copy of the bracket empty at?',
+  feedback: 'Counting the brackets is not the same as counting the different values they empty at.',
+});
+
+mk('A.7B', 'which-rule-has-these-zeros', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A projectile is at ground level after ${{r}}$ and ${{s}}$ seconds. Which rule gives its height?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 1, max: 5 },
+      gap: { type: 'int', min: 2, max: 8 },
+      a: { type: 'int', min: 2, max: 6 },
+    },
+    derived: { s: 'r+gap', negR: '0-r', negS: '0-s' },
+    constraints: ['a!=r', 'a!=s'],
+  },
+  choices: [
+    { label: plain('h = -{{a}}(t - {{r}})(t - {{s}})'), correct: true },
+    { label: plain('h = -{{a}}(t + {{r}})(t + {{s}})'), error: 'signError' },
+    { label: plain('h = -{{a}}(t - {{r}})(t + {{s}})'), error: 'partialTotal' },
+    { label: plain('h = -{{a}}t(t - {{gap}})'), error: 'operationInverted' },
+  ],
+  reasoning: ['Ground level means a height of zero, so ${{r}}$ and ${{s}}$ are the zeros of the rule.', 'Brackets that empty at those two times are $(t - {{r}})$ and $(t - {{s}})$.'],
+  answerSummary: { headline: 'Where a height is zero, the rule has a factor that empties.', text: 'It is $h = -{{a}}(t - {{r}})(t - {{s}})$.' },
+  hint: 'What is the height at each of the two named times?',
+  feedback: 'That rule is at ground level at $0$ and ${{gap}}$ seconds, not at the two times given.',
+});
+
+mk('A.7B', 'zeros-read-straight-out-of-the-brackets', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'For $y = (x - {{r}})(x + {{s}})$ a student gives the zeros as $-{{r}}$ and ${{s}}$. What is wrong?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 12 },
+      s: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { negS: '0-s' },
+    constraints: ['r!=s'],
+  },
+  choices: [
+    { label: 'Both signs are the wrong way round: the zeros are ${{r}}$ and ${{negS}}$.', correct: true },
+    { label: 'Nothing is wrong, since those are the numbers written in the brackets.', error: 'usedGivenValue' },
+    { label: 'Only the first is wrong; the second bracket does give a zero at ${{s}}$.', error: 'partialTotal' },
+    { label: 'The zeros should be ${{r}}$ and ${{s}}$, with no minus signs at all.', error: 'operationInverted' },
+  ],
+  reasoning: ['A bracket is zero at the value that cancels what is inside it, not at the number shown.', 'So $(x - {{r}})$ gives ${{r}}$ and $(x + {{s}})$ gives $-{{s}}$.'],
+  answerSummary: { headline: 'Each zero is the opposite of the number written in its bracket.', text: 'They are ${{r}}$ and ${{negS}}$.' },
+  hint: 'Put ${{r}}$ into the first bracket and see what it comes to.',
+  feedback: 'Copying the numbers out reverses both zeros, not just one.',
+});
+
+// ================================================================ A.8A
+// Solving a quadratic with real solutions. A.7B reads zeros off factors that
+// are already there; here the student produces the solutions, by four routes:
+// square roots, factoring, the formula, and completing the square.
+
+mk('A.8A', 'solve-by-taking-square-roots', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Solve $x^2 = {{sq}}$.',
+  generator: {
+    parameters: { m: { type: 'int', min: 3, max: 15 } },
+    derived: { sq: 'm*m', half: 'm*m/2', double: '2*m' },
+    constraints: ['m!=double'],
+  },
+  choices: [
+    { label: plain('\\pm {{m}}'), correct: true },
+    { label: plain('{{m}}'), error: 'partialTotal' },
+    { label: plain('\\pm {{sq}}'), error: 'forgotFinalStep' },
+    { label: plain('\\pm {{double}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['Both ${{m}}$ and $-{{m}}$ square to ${{sq}}$.', 'A squared unknown therefore has two solutions, not one.'],
+  answerSummary: { headline: 'Taking a square root of both sides admits a negative solution as well.', text: 'It is $\\pm {{m}}$.' },
+  hint: 'Is there a negative number that also squares to ${{sq}}$?',
+  feedback: 'That is one of the two solutions, but not both of them.',
+});
+
+mk('A.8A', 'solve-by-factoring', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Solve $x^2 - {{sum}}x + {{product}} = 0$.',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 9 },
+      gap: { type: 'int', min: 1, max: 7 },
+    },
+    derived: {
+      s: 'r+gap',
+      sum: 'r+r+gap',
+      product: 'r*(r+gap)',
+      negR: '0-r', negS: '0-(r+gap)',
+    },
+    constraints: ['sum!=product'],
+  },
+  choices: [
+    { label: plain('{{r}} \\text{ and } {{s}}'), correct: true },
+    { label: plain('{{negR}} \\text{ and } {{negS}}'), error: 'signError' },
+    { label: plain('{{sum}} \\text{ and } {{product}}'), error: 'usedGivenValue' },
+    { label: plain('{{r}} \\text{ and } {{negS}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Two numbers multiplying to ${{product}}$ and adding to ${{sum}}$ are ${{r}}$ and ${{s}}$.', 'The equation factors as $(x - {{r}})(x - {{s}}) = 0$.'],
+  answerSummary: { headline: 'Find the pair that multiplies to the constant and adds to the middle coefficient.', text: 'They are ${{r}}$ and ${{s}}$.' },
+  hint: 'Which two numbers multiply to ${{product}}$?',
+  feedback: 'Both signs are negative there, which would make the middle term positive.',
+});
+
+mk('A.8A', 'when-a-projectile-lands', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A stone thrown from ground level has height $h = {{v}}t - {{a}}t^2$ metres. After how many seconds does it land?',
+  generator: {
+    parameters: {
+      // a shares t's range so it falls on either side of the key evenly, and
+      // the flight time is drawn even so the highest point lands on a whole
+      // second. That time is a real and tempting wrong answer, and it is
+      // always below the key, which keeps the key off the bottom.
+      a: { type: 'int', min: 2, max: 10 },
+      u: { type: 'int', min: 1, max: 5 },
+    },
+    derived: { t: '2*u', v: 'a*2*u', highest: 'u' },
+    constraints: ['t!=a', 't!=v', 'highest!=a'],
+  },
+  choices: [
+    { label: plain('{{t}}'), correct: true },
+    { label: plain('{{v}}'), error: 'usedGivenValue' },
+    { label: plain('{{highest}}'), error: 'partialTotal' },
+    { label: plain('{{a}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['Landing means $h = 0$, so $t({{v}} - {{a}}t) = 0$.', 'The stone is at ground level at $t = 0$ and again at $t = {{v}} \\div {{a}} = {{t}}$.'],
+  answerSummary: { headline: 'Factor out the common $t$; the second bracket gives the landing time.', text: 'After ${{t}}$ seconds.' },
+  hint: 'What is common to both terms of the height rule?',
+  feedback: 'That is when the stone is highest, which is halfway through the flight.',
+});
+
+mk('A.8A', 'completing-the-square', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'Which is $x^2 + {{b}}x + {{c}}$ written as a completed square?',
+  generator: {
+    parameters: {
+      h: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 2, max: 25 },
+    },
+    derived: { b: '2*h', hsq: 'h*h', k: 'c-h*h', wrongK: 'c-2*h' },
+    constraints: ['c!=hsq', 'k!=wrongK', 'h!=c'],
+  },
+  choices: [
+    { label: plain('(x + {{h}})^2 + {{k}}'), correct: true },
+    { label: plain('(x + {{b}})^2 + {{k}}'), error: 'forgotFinalStep' },
+    { label: plain('(x + {{h}})^2 + {{c}}'), error: 'partialTotal' },
+    { label: plain('(x + {{h}})^2 + {{wrongK}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['Half of ${{b}}$ is ${{h}}$, and $(x + {{h}})^2$ expands to $x^2 + {{b}}x + {{hsq}}$.', 'That is ${{hsq}}$ too much, so ${{c}} - {{hsq}} = {{k}}$ is left over.'],
+  answerSummary: { headline: 'Halve the middle coefficient, then take back the square of what you halved.', text: 'It is $(x + {{h}})^2 + {{k}}$.' },
+  hint: 'What does $(x + {{h}})^2$ come to when it is expanded?',
+  feedback: 'The constant cannot be carried across unchanged; the square has added ${{hsq}}$ of its own.',
+});
+
+mk('A.8A', 'only-the-positive-root-given', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'Solving $x^2 = {{sq}}$ a student answers ${{m}}$ only. What is wrong?',
+  generator: {
+    parameters: { m: { type: 'int', min: 3, max: 15 } },
+    derived: { sq: 'm*m', negM: '0-m' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Squaring $-{{m}}$ also gives ${{sq}}$, so ${{negM}}$ is a solution too.', correct: true },
+    { label: 'Nothing is wrong, because a square root is never negative.', error: 'usedGivenValue' },
+    { label: 'The answer should be ${{negM}}$ instead, since squaring reverses the sign.', error: 'signError' },
+    { label: 'The equation has no solution, because ${{sq}}$ is not itself a square.', error: 'operationInverted' },
+  ],
+  reasoning: ['The square of a negative number is positive, so two values square to ${{sq}}$.', 'An equation with $x^2$ in it therefore usually has two solutions.'],
+  answerSummary: { headline: 'The square root symbol is never negative, but a squared unknown has two solutions.', text: 'The solutions are ${{m}}$ and ${{negM}}$.' },
+  hint: 'What does $-{{m}}$ come to when it is squared?',
+  feedback: 'That is true of the root symbol, but not of an equation with $x^2$ in it.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
