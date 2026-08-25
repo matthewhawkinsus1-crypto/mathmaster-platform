@@ -11010,6 +11010,719 @@ mk('A.2C', 'coefficients-attached-to-the-wrong-variable', {
   feedback: 'Appearing in the equation is not enough; each must be in the right place.',
 });
 
+// ================================================================ A.2D
+// Writing and solving direct-variation equations. Grade 8 (8.5A, 8.5E, 8.5F)
+// already substitutes into a variation that has been handed to the student;
+// the Algebra I verb is to WRITE the equation and rearrange it, so these five
+// build it, solve it for either letter, and read it out of a ratio form.
+
+mk('A.2D', 'variation-equation-from-a-point', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: '$y$ varies directly with $x$, and $y = {{y1}}$ when $x = {{x1}}$. Which equation is the variation?',
+  generator: {
+    parameters: {
+      x1: { type: 'int', min: 2, max: 9 },
+      k: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { y1: 'k*x1', diff: 'k*x1-x1' },
+    constraints: ['x1!=k'],
+  },
+  choices: [
+    { label: plain('y = {{k}}x'), correct: true },
+    { label: plain('y = {{x1}}x'), error: 'usedGivenValue' },
+    { label: plain('y = {{y1}}x'), error: 'partialTotal' },
+    { label: plain('y = x + {{diff}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['A direct variation is $y = kx$, so $k = {{y1}} \\div {{x1}} = {{k}}$.', 'Adding a fixed amount would fit this one point but no other.'],
+  answerSummary: { headline: 'The constant is the quotient of the two given values, not either one of them.', text: 'It is $y = {{k}}x$.' },
+  hint: 'What must $x$ be multiplied by to reach $y$?',
+  feedback: 'That rule happens to fit the given point, but it is not a direct variation.',
+});
+
+mk('A.2D', 'solve-a-variation-for-x', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'If $y = {{k}}x$, which expression gives $x$?',
+  generator: {
+    parameters: { k: { type: 'int', min: 2, max: 12 } },
+    derived: {},
+    constraints: [],
+  },
+  choices: [
+    { label: plain('\\frac{y}{{{k}}}'), correct: true },
+    { label: plain('{{k}}y'), error: 'operationInverted' },
+    { label: plain('\\frac{{{k}}}{y}'), error: 'ratioReversed' },
+    { label: plain('y - {{k}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Both sides are divided by ${{k}}$, the number multiplying $x$.', 'Dividing undoes multiplication; subtracting does not.'],
+  answerSummary: { headline: 'Undo a multiplication by dividing, on both sides.', text: 'It is $\\frac{y}{{{k}}}$.' },
+  hint: 'What is being done to $x$, and what undoes it?',
+  feedback: 'Subtracting would undo an addition, but ${{k}}$ is multiplying $x$.',
+});
+
+mk('A.2D', 'equation-from-a-variation-table', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'table',
+  prompt: 'Which equation fits every row?',
+  stimulus: {
+    kind: 'table',
+    title: 'Recorded values',
+    table: { headers: ['x', 'y'], rows: [['{{x1}}', '{{y1}}'], ['{{x2}}', '{{y2}}'], ['{{x3}}', '{{y3}}']] },
+  },
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      x1: { type: 'int', min: 1, max: 5 },
+      step: { type: 'int', min: 1, max: 4 },
+    },
+    derived: {
+      x2: 'x1+step', x3: 'x1+2*step',
+      y1: 'k*x1', y2: 'k*(x1+step)', y3: 'k*(x1+2*step)',
+      shift: 'k*x1-x1',
+    },
+    constraints: ['k!=x1', 'shift!=k'],
+  },
+  choices: [
+    { label: plain('y = {{k}}x'), correct: true },
+    { label: plain('y = x + {{shift}}'), error: 'operationInverted' },
+    { label: plain('y = {{k}}x + {{k}}'), error: 'partialTotal' },
+    { label: plain('x = {{k}}y'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Every row divides to the same quotient: ${{y1}} \\div {{x1}} = {{k}}$.', 'A rule that adds a fixed amount matches the first row only.'],
+  answerSummary: { headline: 'A direct variation holds one quotient across every row.', text: 'It is $y = {{k}}x$.' },
+  hint: 'Divide $y$ by $x$ in each row and compare.',
+  feedback: 'Check your rule against the second and third rows, not just the first.',
+});
+
+mk('A.2D', 'value-after-an-increase', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'The load on a belt varies directly with time, and reaches ${{y1}}$ kg in ${{x1}}$ minutes. How much is on it after ${{d}}$ more minutes?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      x1: { type: 'int', min: 2, max: 9 },
+      d: { type: 'int', min: 2, max: 6 },
+    },
+    derived: {
+      y1: 'k*x1',
+      total: 'k*(x1+d)',
+      onlyExtra: 'k*d',
+      slopeShifted: '(k+d)*x1',
+      multiplied: 'k*x1*d',
+    },
+    constraints: ['x1!=k'],
+  },
+  choices: [
+    { label: plain('{{total}}'), correct: true },
+    { label: plain('{{onlyExtra}}'), error: 'forgotFinalStep' },
+    { label: plain('{{slopeShifted}}'), error: 'usedGivenValue' },
+    { label: plain('{{multiplied}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The belt carries ${{y1}} \\div {{x1}} = {{k}}$ kg a minute.', 'Over ${{x1}} + {{d}}$ minutes that is ${{total}}$ kg.'],
+  answerSummary: { headline: 'Find the rate, then apply it to the whole new time.', text: 'It carries ${{total}}$ kg.' },
+  hint: 'How much does one minute carry?',
+  feedback: 'That is the load added by the extra minutes alone.',
+});
+
+mk('A.2D', 'constant-taken-upside-down', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'For a variation through $({{x1}}, {{y1}})$ a student writes $y = \\frac{{{x1}}}{{{y1}}}x$. What is wrong?',
+  generator: {
+    parameters: {
+      x1: { type: 'int', min: 2, max: 9 },
+      k: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { y1: 'k*x1' },
+    constraints: ['x1!=k'],
+  },
+  choices: [
+    { label: 'The constant is $y$ divided by $x$, which is ${{k}}$, so the rule is $y = {{k}}x$.', correct: true },
+    { label: 'Nothing is wrong, since both given numbers appear in the rule.', error: 'usedGivenValue' },
+    { label: 'The rule needs a constant added on the end as well.', error: 'partialTotal' },
+    { label: 'The constant is right, but the two letters should be swapped.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Substituting $x = {{x1}}$ into the student rule gives ${{x1}}$ back, not ${{y1}}$.', 'The constant must be ${{y1}} \\div {{x1}} = {{k}}$.'],
+  answerSummary: { headline: 'The constant of variation is $y \\div x$, in that order.', text: 'The rule should be $y = {{k}}x$.' },
+  hint: 'Put the given $x$ into the student rule and see what comes out.',
+  feedback: 'Using both numbers is not enough; they have to be the right way round.',
+});
+
+// ================================================================ A.2E
+// A line through a given point, parallel to a given line. The whole standard
+// turns on one idea — the slope is copied, the intercept is not — so the five
+// attack it from construction, recognition, a context value, a statement about
+// the result, and the parallel/perpendicular confusion.
+
+mk('A.2E', 'parallel-through-a-point', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Which line passes through $({{x1}}, {{y1}})$ and is parallel to $y = {{m}}x + {{c}}$?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 2, max: 20 },
+      x1: { type: 'int', min: 1, max: 9 },
+      y1: { type: 'int', min: 1, max: 20 },
+    },
+    derived: { b: 'y1-m*x1', wrongB: 'y1+m*x1' },
+    constraints: ['b!=c', 'c!=m', 'wrongB!=c'],
+  },
+  choices: [
+    { label: plain('y = {{m}}x + {{b}}'), correct: true },
+    { label: plain('y = {{m}}x + {{c}}'), error: 'usedGivenValue' },
+    { label: plain('y = {{m}}x + {{wrongB}}'), error: 'signError' },
+    { label: plain('y = {{c}}x + {{b}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Parallel lines share the slope, so the new line is $y = {{m}}x + b$.', 'Substituting $({{x1}}, {{y1}})$ gives $b = {{y1}} - {{m}} \\times {{x1}} = {{b}}$.'],
+  answerSummary: { headline: 'Copy the slope, then find the constant from the point.', text: 'It is $y = {{m}}x + {{b}}$.' },
+  hint: 'Which part of the given equation carries over, and which does not?',
+  feedback: 'Keeping the original constant would give back the original line.',
+});
+
+mk('A.2E', 'which-line-is-parallel', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Which line is parallel to ${{a}}x + {{b}}y = {{c}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 10, max: 60 },
+      gap: { type: 'int', min: 3, max: 20 },
+    },
+    derived: { c2: 'c+gap' },
+    constraints: ['a!=b', 'gcd(a,b)==1'],
+  },
+  choices: [
+    { label: plain('{{a}}x + {{b}}y = {{c2}}'), correct: true },
+    { label: plain('{{a}}x + {{b}}y = {{c}}'), error: 'usedGivenValue' },
+    { label: plain('{{b}}x + {{a}}y = {{c2}}'), error: 'ratioReversed' },
+    { label: plain('{{a}}x - {{b}}y = {{c2}}'), error: 'signError' },
+  ],
+  reasoning: ['Two lines in this form are parallel when the $x$ and $y$ coefficients keep the same ratio.', 'Only the constant may change, and it must change or the line is the same one.'],
+  answerSummary: { headline: 'Same coefficients, different constant.', text: 'It is ${{a}}x + {{b}}y = {{c2}}$.' },
+  hint: 'What has to stay the same, and what has to differ?',
+  feedback: 'That is the given line itself, not a line parallel to it.',
+});
+
+mk('A.2E', 'parallel-path-in-context', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A path parallel to $y = {{m}}x + {{c}}$ runs through $({{x1}}, {{y1}})$. What is its $y$ at $x = {{x2}}$?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      // Drawn over the same range as y1 so the distractor that swaps one for
+      // the other lands above the key about half the time. A wider range put it
+      // above in 95% of draws and pinned the key to one rank.
+      c: { type: 'int', min: 2, max: 20 },
+      x1: { type: 'int', min: 1, max: 6 },
+      y1: { type: 'int', min: 2, max: 20 },
+      run: { type: 'int', min: 2, max: 7 },
+    },
+    derived: {
+      x2: 'x1+run',
+      answer: 'y1+m*run',
+      withGivenConstant: 'm*run+c',
+      fromOrigin: 'm*(x1+run)+y1',
+    },
+    constraints: ['c!=y1'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{y1}}'), error: 'partialTotal' },
+    { label: plain('{{withGivenConstant}}'), error: 'usedGivenValue' },
+    { label: plain('{{fromOrigin}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['The parallel path also rises ${{m}}$ for every $1$ across.', 'From $x = {{x1}}$ to $x = {{x2}}$ is ${{run}}$ across, so $y$ climbs to ${{y1}} + {{m}} \\times {{run}} = {{answer}}$.'],
+  answerSummary: { headline: 'Travel from the known point at the shared slope.', text: 'It is ${{answer}}$.' },
+  hint: 'How far across is it from the point you were given?',
+  feedback: 'The constant belongs to the given path, not to this one.',
+});
+
+mk('A.2E', 'what-the-parallel-line-keeps', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'verbal',
+  prompt: 'A line parallel to $y = {{m}}x + {{c}}$ passes through $({{x1}}, {{y1}})$. Which statement is true?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 2, max: 20 },
+      x1: { type: 'int', min: 1, max: 9 },
+      y1: { type: 'int', min: 1, max: 20 },
+    },
+    derived: { b: 'y1-m*x1', negM: '0-m' },
+    // Two choices read the same pair of numbers in opposite roles, so the two
+    // numbers must differ or those choices coincide.
+    constraints: ['b!=c', 'c!=m', 'b!=m'],
+  },
+  choices: [
+    { label: 'Its slope is ${{m}}$ and it crosses the $y$-axis at ${{b}}$.', correct: true },
+    { label: 'Its slope and its $y$-intercept both match the given line.', error: 'usedGivenValue' },
+    { label: 'Its slope is ${{negM}}$, since a parallel line runs the other way.', error: 'signError' },
+    { label: 'Its slope is ${{b}}$ and it crosses the $y$-axis at ${{m}}$.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Parallel fixes the slope at ${{m}}$ and says nothing about the intercept.', 'The point then fixes the intercept at ${{y1}} - {{m}} \\times {{x1}} = {{b}}$.'],
+  answerSummary: { headline: 'Parallel decides the slope; the point decides the intercept.', text: 'Slope ${{m}}$, crossing at ${{b}}$.' },
+  hint: 'Which of the two numbers does the word parallel settle?',
+  feedback: 'Matching both numbers would make it the same line, not a parallel one.',
+});
+
+mk('A.2E', 'parallel-given-a-flipped-slope', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'For a line parallel to $y = {{m}}x + {{c}}$ a student uses slope $-\\frac{1}{{{m}}}$. What is wrong?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {},
+    constraints: ['c!=m'],
+  },
+  choices: [
+    { label: 'That slope is for a perpendicular line; a parallel one keeps slope ${{m}}$.', correct: true },
+    { label: 'The slope is right, but the sign in front of it should be positive.', error: 'signError' },
+    { label: 'Nothing is wrong, as long as the line goes through the given point.', error: 'usedGivenValue' },
+    { label: 'The slope should be ${{c}}$, taken from the end of the equation.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Turning a slope upside down and changing its sign produces a right angle, not a parallel.', 'Parallel lines have equal slopes, so this one keeps ${{m}}$.'],
+  answerSummary: { headline: 'Flipping and negating a slope makes a perpendicular, not a parallel.', text: 'The slope stays ${{m}}$.' },
+  hint: 'What does flipping a slope upside down and negating it actually produce?',
+  feedback: 'Passing through the point is not enough; the slope has to match too.',
+});
+
+// ================================================================ A.2F
+// A line through a given point, perpendicular to a given line. The given line
+// is written with a unit-fraction slope wherever the answer needs a slope, so
+// the perpendicular slope comes out whole and the item tests the right angle
+// rather than fraction arithmetic already covered in Grade 6.
+
+mk('A.2F', 'perpendicular-through-a-point', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Which line passes through $({{x1}}, {{y1}})$ and is perpendicular to $y = \\frac{1}{{{m}}}x + {{c}}$?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 2, max: 20 },
+      x1: { type: 'int', min: 1, max: 9 },
+      y1: { type: 'int', min: 1, max: 20 },
+    },
+    derived: { b: 'y1+m*x1', negM: '0-m' },
+    constraints: ['b!=c', 'c!=m'],
+  },
+  choices: [
+    { label: plain('y = {{negM}}x + {{b}}'), correct: true },
+    { label: plain('y = {{m}}x + {{b}}'), error: 'signError' },
+    { label: plain('y = \\frac{1}{{{m}}}x + {{b}}'), error: 'usedGivenValue' },
+    { label: plain('y = -\\frac{1}{{{m}}}x + {{b}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['A perpendicular slope is the given slope turned over and negated: $-{{m}}$.', 'Substituting $({{x1}}, {{y1}})$ gives $b = {{y1}} + {{m}} \\times {{x1}} = {{b}}$.'],
+  answerSummary: { headline: 'Turn the slope over and change its sign; both steps, not one.', text: 'It is $y = -{{m}}x + {{b}}$.' },
+  hint: 'What must the two slopes multiply to?',
+  feedback: 'Negating alone leaves the line at the wrong angle; it must be inverted too.',
+});
+
+mk('A.2F', 'perpendicular-slope-from-standard-form', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 2, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'What is the slope of a line perpendicular to ${{a}}x + {{b}}y = {{c}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 9 },
+      over: { type: 'int', min: 2, max: 30 },
+    },
+    // The constant is drawn above b so the distractor built from it always sits
+    // above the key, giving the key something on each side of it.
+    derived: { c: 'b+over' },
+    // The constant shares no factor with a either, so the distractor built from
+    // it renders as a reduced fraction like the other three rather than
+    // standing out as the one unreduced option.
+    constraints: ['a!=b', 'gcd(a,b)==1', 'gcd(c,a)==1'],
+  },
+  choices: [
+    { label: plain('\\frac{{{b}}}{{{a}}}'), correct: true },
+    { label: plain('-\\frac{{{a}}}{{{b}}}'), error: 'usedGivenValue' },
+    { label: plain('\\frac{{{a}}}{{{b}}}'), error: 'ratioReversed' },
+    { label: plain('\\frac{{{c}}}{{{a}}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Solving for $y$ gives a slope of $-\\frac{{{a}}}{{{b}}}$.', 'The perpendicular slope turns that over and negates it, leaving $\\frac{{{b}}}{{{a}}}$.'],
+  answerSummary: { headline: 'Read the slope out of standard form first, then invert and negate it.', text: 'It is $\\frac{{{b}}}{{{a}}}$.' },
+  hint: 'What is the slope of the given line itself?',
+  feedback: 'That is the slope of the given line itself, not the perpendicular one.',
+});
+
+mk('A.2F', 'is-this-pair-perpendicular', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Are $y = \\frac{1}{{{m}}}x + {{c}}$ and $y = -{{m}}x + {{d}}$ perpendicular?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 2, max: 20 },
+      d: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {},
+    constraints: ['c!=d', 'c!=m', 'd!=m'],
+  },
+  choices: [
+    { label: 'Yes: the slopes $\\frac{1}{{{m}}}$ and $-{{m}}$ multiply to $-1$.', correct: true },
+    { label: 'No, because their constants ${{c}}$ and ${{d}}$ are different.', error: 'usedGivenValue' },
+    { label: 'Yes, because one slope is positive and the other is negative.', error: 'partialTotal' },
+    { label: 'No: perpendicular lines must have equal slopes.', error: 'operationInverted' },
+  ],
+  reasoning: ['Two lines meet at a right angle exactly when their slopes multiply to $-1$.', 'Here $\\frac{1}{{{m}}} \\times -{{m}} = -1$, so they do.'],
+  answerSummary: { headline: 'Multiply the slopes; a right angle gives $-1$.', text: 'Yes, they are perpendicular.' },
+  hint: 'Multiply the two slopes together.',
+  feedback: 'Opposite signs alone are not enough; the sizes must be reciprocal too.',
+});
+
+mk('A.2F', 'perpendicular-to-a-line-through-two-points', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'orderedPairs',
+  prompt: 'A line passes through both points shown. What is the slope of a line perpendicular to it?',
+  stimulus: {
+    kind: 'orderedPairs',
+    title: 'Two points on the line',
+    orderedPairs: [{ x: '{{x1}}', y: '{{y1}}' }, { x: '{{x2}}', y: '{{y2}}' }],
+  },
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      run: { type: 'int', min: 1, max: 5 },
+      x1: { type: 'int', min: 1, max: 8 },
+      y1: { type: 'int', min: 1, max: 15 },
+    },
+    derived: { x2: 'x1+run', y2: 'y1+m*run', negM: '0-m' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('-\\frac{1}{{{m}}}'), correct: true },
+    { label: plain('{{negM}}'), error: 'operationInverted' },
+    { label: plain('\\frac{1}{{{m}}}'), error: 'signError' },
+    { label: plain('{{m}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Between the two points $y$ climbs ${{m}}$ for every $1$ across, so the slope is ${{m}}$.', 'A perpendicular slope is that turned over and negated: $-\\frac{1}{{{m}}}$.'],
+  answerSummary: { headline: 'Get the slope from the points first, then invert and negate it.', text: 'It is $-\\frac{1}{{{m}}}$.' },
+  hint: 'What is the slope of the line through the two points?',
+  feedback: 'Negating without turning the fraction over leaves the wrong angle.',
+});
+
+mk('A.2F', 'perpendicular-given-the-same-slope', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'For a line perpendicular to $y = {{m}}x + {{c}}$ a student keeps slope ${{m}}$. What is wrong?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 2, max: 20 },
+    },
+    derived: { negM: '0-m' },
+    constraints: ['c!=m'],
+  },
+  choices: [
+    { label: 'An equal slope gives a parallel line; a perpendicular one needs $-\\frac{1}{{{m}}}$.', correct: true },
+    { label: 'The slope should be ${{negM}}$, the same size with the sign changed.', error: 'operationInverted' },
+    { label: 'Nothing is wrong, provided the constant is changed as well.', error: 'usedGivenValue' },
+    { label: 'The slope should be $\\frac{1}{{{m}}}$, turned over but left positive.', error: 'signError' },
+  ],
+  reasoning: ['Equal slopes never meet, so they cannot meet at a right angle.', 'The two slopes must multiply to $-1$, which needs $-\\frac{1}{{{m}}}$.'],
+  answerSummary: { headline: 'Equal slopes describe parallel lines, not perpendicular ones.', text: 'The slope should be $-\\frac{1}{{{m}}}$.' },
+  hint: 'What do two lines with the same slope do?',
+  feedback: 'Changing the constant only shifts the line; it does not turn it.',
+});
+
+// ================================================================ A.2G
+// Lines parallel or perpendicular to an axis, and whether their slope is zero
+// or undefined. The slope question is asked with four full sentences rather
+// than three numbers and the word "undefined", which would mark the key out by
+// its shape alone.
+
+mk('A.2G', 'equation-of-a-horizontal-line', {
+  courseId: 'algebra1',
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Which equation describes the horizontal line through $({{x1}}, {{y1}})$?',
+  generator: {
+    parameters: {
+      x1: { type: 'int', min: 1, max: 15 },
+      y1: { type: 'int', min: 1, max: 15 },
+    },
+    derived: {},
+    constraints: ['x1!=y1'],
+  },
+  choices: [
+    { label: plain('y = {{y1}}'), correct: true },
+    { label: plain('x = {{x1}}'), error: 'ratioReversed' },
+    { label: plain('y = {{x1}}'), error: 'usedGivenValue' },
+    { label: plain('x = {{y1}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['A horizontal line holds $y$ fixed while $x$ takes any value.', 'The point sits at height ${{y1}}$, so that is the value $y$ holds.'],
+  answerSummary: { headline: 'A horizontal line fixes $y$; a vertical line fixes $x$.', text: 'It is $y = {{y1}}$.' },
+  hint: 'Which coordinate stays the same all along a horizontal line?',
+  feedback: 'That equation fixes $x$, which draws a vertical line.',
+});
+
+mk('A.2G', 'slope-between-two-points-that-share-an-x', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  // The student computes a rise and a run here rather than recalling a fact
+  // about a named line: without that the item collapses onto the same relation
+  // graph as the error-analysis family lower down.
+  prompt: 'What is the slope of the line through $({{a}}, {{y1}})$ and $({{a}}, {{y2}})$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 15 },
+      y1: { type: 'int', min: 1, max: 9 },
+      climb: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { y2: 'y1+climb', rise: 'climb' },
+    constraints: ['a!=y1', 'a!=y2', 'a!=climb'],
+  },
+  choices: [
+    { label: 'It is undefined: the rise is ${{rise}}$ but the run is zero.', correct: true },
+    { label: 'It is zero, because the two points sit at the same $x$.', error: 'ratioReversed' },
+    { label: 'It is ${{rise}}$, the change from one point to the other.', error: 'partialTotal' },
+    { label: 'It is ${{a}}$, the value both points share.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['The two points differ by ${{climb}}$ in $y$ and by nothing in $x$.', 'Slope divides rise by run, and a run of zero leaves the quotient undefined.'],
+  answerSummary: { headline: 'A run of zero makes the quotient undefined, however large the rise.', text: 'The slope is undefined.' },
+  hint: 'Work out the run between the two points.',
+  feedback: 'A slope of zero needs a rise of zero, and this rise is not zero.',
+});
+
+mk('A.2G', 'line-through-points-that-share-an-x', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'orderedPairs',
+  prompt: 'All three points shown lie on one line. What is its equation?',
+  stimulus: {
+    kind: 'orderedPairs',
+    title: 'Points on the line',
+    orderedPairs: [{ x: '{{a}}', y: '{{y1}}' }, { x: '{{a}}', y: '{{y2}}' }, { x: '{{a}}', y: '{{y3}}' }],
+  },
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 14 },
+      y1: { type: 'int', min: 1, max: 8 },
+      gap: { type: 'int', min: 2, max: 5 },
+    },
+    derived: { y2: 'y1+gap', y3: 'y1+2*gap' },
+    constraints: ['a!=y1', 'a!=y2', 'a!=y3'],
+  },
+  choices: [
+    { label: plain('x = {{a}}'), correct: true },
+    { label: plain('y = {{a}}'), error: 'ratioReversed' },
+    { label: plain('y = {{y1}}'), error: 'partialTotal' },
+    { label: plain('y = {{gap}}x'), error: 'operationInverted' },
+  ],
+  reasoning: ['Every point has $x = {{a}}$ while $y$ keeps changing.', 'A line holding one $x$ value is vertical, written $x = {{a}}$.'],
+  answerSummary: { headline: 'When one coordinate never changes, that coordinate names the line.', text: 'It is $x = {{a}}$.' },
+  hint: 'Which coordinate is the same in all three points?',
+  feedback: 'That equation would fix $y$, but $y$ is the coordinate that changes here.',
+});
+
+mk('A.2G', 'line-midway-between-two-verticals', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'Two vertical rails stand at $x = {{p}}$ and $x = {{q}}$. Which equation describes the rail placed midway between them?',
+  generator: {
+    parameters: {
+      u: { type: 'int', min: 1, max: 9 },
+      spread: { type: 'int', min: 1, max: 8 },
+    },
+    derived: {
+      v: 'u+spread',
+      p: '2*u', q: '2*(u+spread)',
+      mid: 'u+(u+spread)',
+      diff: '2*spread',
+      sum: '2*(u+(u+spread))',
+    },
+    constraints: ['mid!=diff', 'mid!=sum'],
+  },
+  choices: [
+    { label: plain('x = {{mid}}'), correct: true },
+    { label: plain('x = {{diff}}'), error: 'operationInverted' },
+    { label: plain('y = {{mid}}'), error: 'ratioReversed' },
+    { label: plain('x = {{sum}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Halfway between ${{p}}$ and ${{q}}$ is $({{p}} + {{q}}) \\div 2 = {{mid}}$.', 'The new rail is vertical too, so its equation fixes $x$.'],
+  answerSummary: { headline: 'Average the two positions, and keep the vertical form.', text: 'It is $x = {{mid}}$.' },
+  hint: 'What is the average of the two positions?',
+  feedback: 'That is the gap between the rails, not the position of the middle one.',
+});
+
+mk('A.2G', 'horizontal-line-called-undefined', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student says the line $y = {{a}}$ has undefined slope. What is wrong?',
+  generator: {
+    parameters: { a: { type: 'int', min: 2, max: 15 } },
+    derived: {},
+    constraints: [],
+  },
+  choices: [
+    { label: 'That line is horizontal, so it has plenty of run and no rise: its slope is zero.', correct: true },
+    { label: 'Nothing is wrong, since the equation names only one of the two letters.', error: 'usedGivenValue' },
+    { label: 'The slope is ${{a}}$, the number the equation gives.', error: 'partialTotal' },
+    { label: 'The slope is undefined, but only where the line meets the $y$-axis.', error: 'operationInverted' },
+  ],
+  reasoning: ['An undefined slope needs a run of zero, which only a vertical line has.', 'Here $y$ never changes while $x$ does, so rise divided by run is zero.'],
+  answerSummary: { headline: 'Undefined belongs to vertical lines; horizontal lines have slope zero.', text: 'The slope is zero.' },
+  hint: 'Which letter is held fixed by this equation?',
+  feedback: 'Naming one letter is what both kinds of line do; which one is fixed decides the slope.',
+});
+
+// ================================================================ A.2I
+// Writing a system of two linear equations from a description, a table or a
+// pair of stated rules. 8.9 already SOLVES a system that has been handed over;
+// the verb here is to write one, so no family in this standard is asked for the
+// solution point.
+
+mk('A.2I', 'system-from-a-count-and-a-total', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'verbal',
+  prompt: 'A canteen sold ${{n}}$ items in all, sandwiches at $\\${{a}}$ and soups at $\\${{b}}$, taking $\\${{t}}$. Which system says so?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 3, max: 12 },
+      b: { type: 'int', min: 2, max: 11 },
+      x: { type: 'int', min: 3, max: 15 },
+      y: { type: 'int', min: 3, max: 15 },
+    },
+    derived: { n: 'x+y', t: 'a*x+b*y', both: 'a+b' },
+    constraints: ['a!=b', 'n!=t'],
+  },
+  choices: [
+    { label: plain('x + y = {{n}} \\text{ and } {{a}}x + {{b}}y = {{t}}'), correct: true },
+    { label: plain('x + y = {{n}} \\text{ and } {{b}}x + {{a}}y = {{t}}'), error: 'ratioReversed' },
+    { label: plain('{{a}}x + {{b}}y = {{n}} \\text{ and } x + y = {{t}}'), error: 'operationInverted' },
+    { label: plain('x + y = {{n}} \\text{ and } {{both}}(x + y) = {{t}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Counting the items ignores their prices, giving $x + y = {{n}}$.', 'The money adds $\\${{a}}$ for each sandwich and $\\${{b}}$ for each soup, giving ${{a}}x + {{b}}y = {{t}}$.'],
+  answerSummary: { headline: 'One equation counts the items, the other counts the money.', text: 'It is $x + y = {{n}}$ with ${{a}}x + {{b}}y = {{t}}$.' },
+  hint: 'Which of the two totals has nothing to do with price?',
+  feedback: 'The two prices differ, so they cannot be pulled out of one bracket.',
+});
+
+mk('A.2I', 'system-from-a-two-column-table', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 2, taskType: 'interpretation', representation: 'table',
+  prompt: 'Which system describes the two columns?',
+  stimulus: {
+    kind: 'table',
+    title: 'Recorded values',
+    table: {
+      headers: ['x', 'Line 1', 'Line 2'],
+      rows: [['{{x1}}', '{{p1}}', '{{q1}}'], ['{{x2}}', '{{p2}}', '{{q2}}'], ['{{x3}}', '{{p3}}', '{{q3}}']],
+    },
+  },
+  generator: {
+    parameters: {
+      m1: { type: 'int', min: 2, max: 9 },
+      m2: { type: 'int', min: 2, max: 9 },
+      b1: { type: 'int', min: 1, max: 14 },
+      b2: { type: 'int', min: 1, max: 14 },
+      x1: { type: 'int', min: 1, max: 4 },
+    },
+    derived: {
+      x2: 'x1+1', x3: 'x1+2',
+      p1: 'm1*x1+b1', p2: 'm1*(x1+1)+b1', p3: 'm1*(x1+2)+b1',
+      q1: 'm2*x1+b2', q2: 'm2*(x1+1)+b2', q3: 'm2*(x1+2)+b2',
+    },
+    constraints: ['m1!=m2', 'b1!=b2', 'm1!=b1', 'm2!=b2'],
+  },
+  choices: [
+    { label: plain('y = {{m1}}x + {{b1}} \\text{ and } y = {{m2}}x + {{b2}}'), correct: true },
+    { label: plain('y = {{m1}}x + {{b2}} \\text{ and } y = {{m2}}x + {{b1}}'), error: 'ratioReversed' },
+    { label: plain('y = {{m2}}x + {{b1}} \\text{ and } y = {{m1}}x + {{b2}}'), error: 'operationInverted' },
+    { label: plain('y = {{m1}}x - {{b1}} \\text{ and } y = {{m2}}x - {{b2}}'), error: 'signError' },
+  ],
+  reasoning: ['Column one climbs ${{m1}}$ each step and reads ${{b1}}$ back at $x = 0$.', 'Column two climbs ${{m2}}$ each step and reads ${{b2}}$ back at $x = 0$.'],
+  answerSummary: { headline: 'Each column gives one equation: its step is the slope, its start the constant.', text: 'It is $y = {{m1}}x + {{b1}}$ with $y = {{m2}}x + {{b2}}$.' },
+  hint: 'How much does each column change for one step in $x$?',
+  feedback: 'Check which constant belongs to which column by testing the first row.',
+});
+
+mk('A.2I', 'system-for-a-sum-and-a-gap', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'A larger number $x$ and a smaller number $y$ add to ${{s}}$, and $x$ exceeds $y$ by ${{d}}$. Which system says so?',
+  generator: {
+    parameters: {
+      y: { type: 'int', min: 2, max: 20 },
+      d: { type: 'int', min: 2, max: 18 },
+    },
+    derived: { s: '2*y+d' },
+    constraints: ['s!=d'],
+  },
+  choices: [
+    { label: plain('x + y = {{s}} \\text{ and } x - y = {{d}}'), correct: true },
+    { label: plain('x + y = {{s}} \\text{ and } y - x = {{d}}'), error: 'signError' },
+    { label: plain('x - y = {{s}} \\text{ and } x + y = {{d}}'), error: 'ratioReversed' },
+    { label: plain('x + y = {{s}} \\text{ and } x = {{d}}y'), error: 'operationInverted' },
+  ],
+  reasoning: ['Adding the two numbers gives $x + y = {{s}}$.', 'Exceeding by ${{d}}$ is a subtraction, and $x$ is the larger, so $x - y = {{d}}$.'],
+  answerSummary: { headline: 'Exceeds by means subtract, in the order the sentence names.', text: 'It is $x + y = {{s}}$ with $x - y = {{d}}$.' },
+  hint: 'Which number is taken away from which?',
+  feedback: 'Exceeding by an amount is a difference, not a multiple.',
+});
+
+mk('A.2I', 'system-for-two-charging-plans', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'Plan A charges $\\${{f1}}$ to join and $\\${{m1}}$ a month; Plan B charges $\\${{f2}}$ and $\\${{m2}}$ a month. Which system gives each cost $y$ after $x$ months?',
+  generator: {
+    parameters: {
+      f1: { type: 'int', min: 10, max: 60 },
+      f2: { type: 'int', min: 10, max: 60 },
+      m1: { type: 'int', min: 2, max: 15 },
+      m2: { type: 'int', min: 2, max: 15 },
+    },
+    derived: {},
+    constraints: ['f1!=f2', 'm1!=m2', 'f1!=m1', 'f2!=m2', 'f1!=m2', 'f2!=m1'],
+  },
+  choices: [
+    { label: plain('y = {{m1}}x + {{f1}} \\text{ and } y = {{m2}}x + {{f2}}'), correct: true },
+    { label: plain('y = {{f1}}x + {{m1}} \\text{ and } y = {{f2}}x + {{m2}}'), error: 'ratioReversed' },
+    { label: plain('y = {{m1}}x + {{f2}} \\text{ and } y = {{m2}}x + {{f1}}'), error: 'usedGivenValue' },
+    { label: plain('y = ({{m1}} + {{f1}})x \\text{ and } y = ({{m2}} + {{f2}})x'), error: 'partialTotal' },
+  ],
+  reasoning: ['The joining fee is paid once, so it is the constant, not a rate.', 'The monthly charge is what multiplies the number of months.'],
+  answerSummary: { headline: 'A one-off charge is the constant; a repeating charge is the slope.', text: 'It is $y = {{m1}}x + {{f1}}$ with $y = {{m2}}x + {{f2}}$.' },
+  hint: 'Which charge is paid again every month?',
+  feedback: 'Folding the joining fee into the monthly rate charges it every month.',
+});
+
+mk('A.2I', 'prices-put-in-the-counting-equation', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'For ${{n}}$ tickets costing $\\${{t}}$ in all, at $\\${{a}}$ and $\\${{b}}$ each, a student writes ${{a}}x + {{b}}y = {{n}}$ for the count. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 4, max: 15 },
+      b: { type: 'int', min: 2, max: 13 },
+      x: { type: 'int', min: 3, max: 15 },
+      y: { type: 'int', min: 3, max: 15 },
+    },
+    derived: { n: 'x+y', t: 'a*x+b*y' },
+    constraints: ['a!=b', 'n!=t'],
+  },
+  choices: [
+    { label: 'Counting tickets ignores their prices: the count equation is $x + y = {{n}}$.', correct: true },
+    { label: 'Nothing is wrong, because both prices are used somewhere in the system.', error: 'usedGivenValue' },
+    { label: 'The two prices are attached to the wrong items and should be swapped.', error: 'ratioReversed' },
+    { label: 'The equation is right, but it should be set equal to $\\${{t}}$ instead.', error: 'partialTotal' },
+  ],
+  reasoning: ['A count of tickets is a number of tickets, so each ticket contributes exactly $1$.', 'The prices belong in the money equation, ${{a}}x + {{b}}y = {{t}}$.'],
+  answerSummary: { headline: 'The counting equation has no prices in it at all.', text: 'It should be $x + y = {{n}}$.' },
+  hint: 'What does each single ticket add to the count?',
+  feedback: 'That equation is the money equation, not the count.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {

@@ -44547,6 +44547,2977 @@
      "expected": "choice-d"
     }
    ]
+  },
+  {
+   "id": "mm_asvab_A_2D_variation_equation_from_a_point",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2D:variation-equation-from-a-point",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2D",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "$y$ varies directly with $x$, and $y = {{y1}}$ when $x = {{x1}}$. Which equation is the variation?",
+   "solutionReview": {
+    "headline": "The constant is the quotient of the two given values, not either one of them.",
+    "reasoning": [
+     "A direct variation is $y = kx$, so $k = {{y1}} \\div {{x1}} = {{k}}$.",
+     "Adding a fixed amount would fit this one point but no other."
+    ],
+    "answerSummary": "It is $y = {{k}}x$."
+   },
+   "attemptFeedback": [
+    "That rule happens to fit the given point, but it is not a direct variation."
+   ],
+   "supportHints": [
+    "What must $x$ be multiplied by to reach $y$?"
+   ],
+   "generator": {
+    "parameters": {
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "y1": "k*x1",
+     "diff": "k*x1-x1"
+    },
+    "constraints": [
+     "x1!=k"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = {{k}}x$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = {{y1}}x$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = x + {{diff}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = {{x1}}x$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2D_solve_a_variation_for_x",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2D:solve-a-variation-for-x",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2D",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "If $y = {{k}}x$, which expression gives $x$?",
+   "solutionReview": {
+    "headline": "Undo a multiplication by dividing, on both sides.",
+    "reasoning": [
+     "Both sides are divided by ${{k}}$, the number multiplying $x$.",
+     "Dividing undoes multiplication; subtracting does not."
+    ],
+    "answerSummary": "It is $\\frac{y}{{{k}}}$."
+   },
+   "attemptFeedback": [
+    "Subtracting would undo an addition, but ${{k}}$ is multiplying $x$."
+   ],
+   "supportHints": [
+    "What is being done to $x$, and what undoes it?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {},
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\frac{{{k}}}{y}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{k}}y$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\frac{y}{{{k}}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y - {{k}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2D_equation_from_a_variation_table",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2D:equation-from-a-variation-table",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2D",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which equation fits every row?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Recorded values",
+    "table": {
+     "headers": [
+      "x",
+      "y"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "{{y1}}"
+      ],
+      [
+       "{{x2}}",
+       "{{y2}}"
+      ],
+      [
+       "{{x3}}",
+       "{{y3}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "A direct variation holds one quotient across every row.",
+    "reasoning": [
+     "Every row divides to the same quotient: ${{y1}} \\div {{x1}} = {{k}}$.",
+     "A rule that adds a fixed amount matches the first row only."
+    ],
+    "answerSummary": "It is $y = {{k}}x$."
+   },
+   "attemptFeedback": [
+    "Check your rule against the second and third rows, not just the first."
+   ],
+   "supportHints": [
+    "Divide $y$ by $x$ in each row and compare."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     },
+     "step": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     }
+    },
+    "derived": {
+     "x2": "x1+step",
+     "x3": "x1+2*step",
+     "y1": "k*x1",
+     "y2": "k*(x1+step)",
+     "y3": "k*(x1+2*step)",
+     "shift": "k*x1-x1"
+    },
+    "constraints": [
+     "k!=x1",
+     "shift!=k"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = {{k}}x$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = {{k}}x + {{k}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = x + {{shift}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x = {{k}}y$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2D_value_after_an_increase",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2D:value-after-an-increase",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2D",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The load on a belt varies directly with time, and reaches ${{y1}}$ kg in ${{x1}}$ minutes. How much is on it after ${{d}}$ more minutes?",
+   "solutionReview": {
+    "headline": "Find the rate, then apply it to the whole new time.",
+    "reasoning": [
+     "The belt carries ${{y1}} \\div {{x1}} = {{k}}$ kg a minute.",
+     "Over ${{x1}} + {{d}}$ minutes that is ${{total}}$ kg."
+    ],
+    "answerSummary": "It carries ${{total}}$ kg."
+   },
+   "attemptFeedback": [
+    "That is the load added by the extra minutes alone."
+   ],
+   "supportHints": [
+    "How much does one minute carry?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     }
+    },
+    "derived": {
+     "y1": "k*x1",
+     "total": "k*(x1+d)",
+     "onlyExtra": "k*d",
+     "slopeShifted": "(k+d)*x1",
+     "multiplied": "k*x1*d"
+    },
+    "constraints": [
+     "x1!=k",
+     "total!=onlyExtra",
+     "total!=slopeShifted",
+     "total!=multiplied",
+     "onlyExtra!=slopeShifted",
+     "onlyExtra!=multiplied",
+     "slopeShifted!=multiplied"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{multiplied}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{total}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{onlyExtra}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{slopeShifted}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2D_constant_taken_upside_down",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2D:constant-taken-upside-down",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2D",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For a variation through $({{x1}}, {{y1}})$ a student writes $y = \\frac{{{x1}}}{{{y1}}}x$. What is wrong?",
+   "solutionReview": {
+    "headline": "The constant of variation is $y \\div x$, in that order.",
+    "reasoning": [
+     "Substituting $x = {{x1}}$ into the student rule gives ${{x1}}$ back, not ${{y1}}$.",
+     "The constant must be ${{y1}} \\div {{x1}} = {{k}}$."
+    ],
+    "answerSummary": "The rule should be $y = {{k}}x$."
+   },
+   "attemptFeedback": [
+    "Using both numbers is not enough; they have to be the right way round."
+   ],
+   "supportHints": [
+    "Put the given $x$ into the student rule and see what comes out."
+   ],
+   "generator": {
+    "parameters": {
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "y1": "k*x1"
+    },
+    "constraints": [
+     "x1!=k"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The rule needs a constant added on the end as well.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "Nothing is wrong, since both given numbers appear in the rule.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "The constant is $y$ divided by $x$, which is ${{k}}$, so the rule is $y = {{k}}x$."
+    },
+    {
+     "id": "choice-d",
+     "label": "The constant is right, but the two letters should be swapped.",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2E_parallel_through_a_point",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2E:parallel-through-a-point",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2E",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which line passes through $({{x1}}, {{y1}})$ and is parallel to $y = {{m}}x + {{c}}$?",
+   "solutionReview": {
+    "headline": "Copy the slope, then find the constant from the point.",
+    "reasoning": [
+     "Parallel lines share the slope, so the new line is $y = {{m}}x + b$.",
+     "Substituting $({{x1}}, {{y1}})$ gives $b = {{y1}} - {{m}} \\times {{x1}} = {{b}}$."
+    ],
+    "answerSummary": "It is $y = {{m}}x + {{b}}$."
+   },
+   "attemptFeedback": [
+    "Keeping the original constant would give back the original line."
+   ],
+   "supportHints": [
+    "Which part of the given equation carries over, and which does not?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     },
+     "y1": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     }
+    },
+    "derived": {
+     "b": "y1-m*x1",
+     "wrongB": "y1+m*x1"
+    },
+    "constraints": [
+     "b!=c",
+     "c!=m",
+     "wrongB!=c"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = {{m}}x + {{c}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = {{m}}x + {{wrongB}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = {{c}}x + {{b}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = {{m}}x + {{b}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2E_which_line_is_parallel",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2E:which-line-is-parallel",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2E",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which line is parallel to ${{a}}x + {{b}}y = {{c}}$?",
+   "solutionReview": {
+    "headline": "Same coefficients, different constant.",
+    "reasoning": [
+     "Two lines in this form are parallel when the $x$ and $y$ coefficients keep the same ratio.",
+     "Only the constant may change, and it must change or the line is the same one."
+    ],
+    "answerSummary": "It is ${{a}}x + {{b}}y = {{c2}}$."
+   },
+   "attemptFeedback": [
+    "That is the given line itself, not a line parallel to it."
+   ],
+   "supportHints": [
+    "What has to stay the same, and what has to differ?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 10,
+      "max": 60
+     },
+     "gap": {
+      "type": "int",
+      "min": 3,
+      "max": 20
+     }
+    },
+    "derived": {
+     "c2": "c+gap"
+    },
+    "constraints": [
+     "a!=b",
+     "gcd(a,b)==1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{a}}x + {{b}}y = {{c2}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{b}}x + {{a}}y = {{c2}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{a}}x + {{b}}y = {{c}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{a}}x - {{b}}y = {{c2}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2E_parallel_path_in_context",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2E:parallel-path-in-context",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2E",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A path parallel to $y = {{m}}x + {{c}}$ runs through $({{x1}}, {{y1}})$. What is its $y$ at $x = {{x2}}$?",
+   "solutionReview": {
+    "headline": "Travel from the known point at the shared slope.",
+    "reasoning": [
+     "The parallel path also rises ${{m}}$ for every $1$ across.",
+     "From $x = {{x1}}$ to $x = {{x2}}$ is ${{run}}$ across, so $y$ climbs to ${{y1}} + {{m}} \\times {{run}} = {{answer}}$."
+    ],
+    "answerSummary": "It is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The constant belongs to the given path, not to this one."
+   ],
+   "supportHints": [
+    "How far across is it from the point you were given?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "y1": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "run": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     }
+    },
+    "derived": {
+     "x2": "x1+run",
+     "answer": "y1+m*run",
+     "withGivenConstant": "m*run+c",
+     "fromOrigin": "m*(x1+run)+y1"
+    },
+    "constraints": [
+     "c!=y1",
+     "answer!=y1",
+     "answer!=withGivenConstant",
+     "answer!=fromOrigin",
+     "y1!=withGivenConstant",
+     "y1!=fromOrigin",
+     "withGivenConstant!=fromOrigin"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{withGivenConstant}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{fromOrigin}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{y1}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2E_what_the_parallel_line_keeps",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2E:what-the-parallel-line-keeps",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2E",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A line parallel to $y = {{m}}x + {{c}}$ passes through $({{x1}}, {{y1}})$. Which statement is true?",
+   "solutionReview": {
+    "headline": "Parallel decides the slope; the point decides the intercept.",
+    "reasoning": [
+     "Parallel fixes the slope at ${{m}}$ and says nothing about the intercept.",
+     "The point then fixes the intercept at ${{y1}} - {{m}} \\times {{x1}} = {{b}}$."
+    ],
+    "answerSummary": "Slope ${{m}}$, crossing at ${{b}}$."
+   },
+   "attemptFeedback": [
+    "Matching both numbers would make it the same line, not a parallel one."
+   ],
+   "supportHints": [
+    "Which of the two numbers does the word parallel settle?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     },
+     "y1": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     }
+    },
+    "derived": {
+     "b": "y1-m*x1",
+     "negM": "0-m"
+    },
+    "constraints": [
+     "b!=c",
+     "c!=m",
+     "b!=m"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Its slope is ${{negM}}$, since a parallel line runs the other way.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "Its slope is ${{b}}$ and it crosses the $y$-axis at ${{m}}$.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "Its slope and its $y$-intercept both match the given line.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "Its slope is ${{m}}$ and it crosses the $y$-axis at ${{b}}$."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2E_parallel_given_a_flipped_slope",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2E:parallel-given-a-flipped-slope",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2E",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For a line parallel to $y = {{m}}x + {{c}}$ a student uses slope $-\\frac{1}{{{m}}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "Flipping and negating a slope makes a perpendicular, not a parallel.",
+    "reasoning": [
+     "Turning a slope upside down and changing its sign produces a right angle, not a parallel.",
+     "Parallel lines have equal slopes, so this one keeps ${{m}}$."
+    ],
+    "answerSummary": "The slope stays ${{m}}$."
+   },
+   "attemptFeedback": [
+    "Passing through the point is not enough; the slope has to match too."
+   ],
+   "supportHints": [
+    "What does flipping a slope upside down and negating it actually produce?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {},
+    "constraints": [
+     "c!=m"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The slope is right, but the sign in front of it should be positive.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "Nothing is wrong, as long as the line goes through the given point.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "The slope should be ${{c}}$, taken from the end of the equation.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "That slope is for a perpendicular line; a parallel one keeps slope ${{m}}$."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2F_perpendicular_through_a_point",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2F:perpendicular-through-a-point",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2F",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which line passes through $({{x1}}, {{y1}})$ and is perpendicular to $y = \\frac{1}{{{m}}}x + {{c}}$?",
+   "solutionReview": {
+    "headline": "Turn the slope over and change its sign; both steps, not one.",
+    "reasoning": [
+     "A perpendicular slope is the given slope turned over and negated: $-{{m}}$.",
+     "Substituting $({{x1}}, {{y1}})$ gives $b = {{y1}} + {{m}} \\times {{x1}} = {{b}}$."
+    ],
+    "answerSummary": "It is $y = -{{m}}x + {{b}}$."
+   },
+   "attemptFeedback": [
+    "Negating alone leaves the line at the wrong angle; it must be inverted too."
+   ],
+   "supportHints": [
+    "What must the two slopes multiply to?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     },
+     "y1": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     }
+    },
+    "derived": {
+     "b": "y1+m*x1",
+     "negM": "0-m"
+    },
+    "constraints": [
+     "b!=c",
+     "c!=m"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = {{m}}x + {{b}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = -\\frac{1}{{{m}}}x + {{b}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = \\frac{1}{{{m}}}x + {{b}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = {{negM}}x + {{b}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2F_perpendicular_slope_from_standard_form",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2F:perpendicular-slope-from-standard-form",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2F",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is the slope of a line perpendicular to ${{a}}x + {{b}}y = {{c}}$?",
+   "solutionReview": {
+    "headline": "Read the slope out of standard form first, then invert and negate it.",
+    "reasoning": [
+     "Solving for $y$ gives a slope of $-\\frac{{{a}}}{{{b}}}$.",
+     "The perpendicular slope turns that over and negates it, leaving $\\frac{{{b}}}{{{a}}}$."
+    ],
+    "answerSummary": "It is $\\frac{{{b}}}{{{a}}}$."
+   },
+   "attemptFeedback": [
+    "That is the slope of the given line itself, not the perpendicular one."
+   ],
+   "supportHints": [
+    "What is the slope of the given line itself?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "over": {
+      "type": "int",
+      "min": 2,
+      "max": 30
+     }
+    },
+    "derived": {
+     "c": "b+over"
+    },
+    "constraints": [
+     "a!=b",
+     "gcd(a,b)==1",
+     "gcd(c,a)==1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\frac{{{b}}}{{{a}}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\frac{{{c}}}{{{a}}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\frac{{{a}}}{{{b}}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "$-\\frac{{{a}}}{{{b}}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2F_is_this_pair_perpendicular",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2F:is-this-pair-perpendicular",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2F",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Are $y = \\frac{1}{{{m}}}x + {{c}}$ and $y = -{{m}}x + {{d}}$ perpendicular?",
+   "solutionReview": {
+    "headline": "Multiply the slopes; a right angle gives $-1$.",
+    "reasoning": [
+     "Two lines meet at a right angle exactly when their slopes multiply to $-1$.",
+     "Here $\\frac{1}{{{m}}} \\times -{{m}} = -1$, so they do."
+    ],
+    "answerSummary": "Yes, they are perpendicular."
+   },
+   "attemptFeedback": [
+    "Opposite signs alone are not enough; the sizes must be reciprocal too."
+   ],
+   "supportHints": [
+    "Multiply the two slopes together."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {},
+    "constraints": [
+     "c!=d",
+     "c!=m",
+     "d!=m"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "No, because their constants ${{c}}$ and ${{d}}$ are different.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "Yes: the slopes $\\frac{1}{{{m}}}$ and $-{{m}}$ multiply to $-1$."
+    },
+    {
+     "id": "choice-c",
+     "label": "No: perpendicular lines must have equal slopes.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "Yes, because one slope is positive and the other is negative.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2F_perpendicular_to_a_line_through_two_points",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2F:perpendicular-to-a-line-through-two-points",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2F",
+   "taskType": "application",
+   "representation": "orderedPairs",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A line passes through both points shown. What is the slope of a line perpendicular to it?",
+   "stimulus": {
+    "kind": "orderedPairs",
+    "title": "Two points on the line",
+    "orderedPairs": [
+     {
+      "x": "{{x1}}",
+      "y": "{{y1}}"
+     },
+     {
+      "x": "{{x2}}",
+      "y": "{{y2}}"
+     }
+    ]
+   },
+   "solutionReview": {
+    "headline": "Get the slope from the points first, then invert and negate it.",
+    "reasoning": [
+     "Between the two points $y$ climbs ${{m}}$ for every $1$ across, so the slope is ${{m}}$.",
+     "A perpendicular slope is that turned over and negated: $-\\frac{1}{{{m}}}$."
+    ],
+    "answerSummary": "It is $-\\frac{1}{{{m}}}$."
+   },
+   "attemptFeedback": [
+    "Negating without turning the fraction over leaves the wrong angle."
+   ],
+   "supportHints": [
+    "What is the slope of the line through the two points?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "run": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     },
+     "y1": {
+      "type": "int",
+      "min": 1,
+      "max": 15
+     }
+    },
+    "derived": {
+     "x2": "x1+run",
+     "y2": "y1+m*run",
+     "negM": "0-m"
+    },
+    "constraints": [
+     "negM!=m"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\frac{1}{{{m}}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{m}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$-\\frac{1}{{{m}}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{negM}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2F_perpendicular_given_the_same_slope",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2F:perpendicular-given-the-same-slope",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2F",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For a line perpendicular to $y = {{m}}x + {{c}}$ a student keeps slope ${{m}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "Equal slopes describe parallel lines, not perpendicular ones.",
+    "reasoning": [
+     "Equal slopes never meet, so they cannot meet at a right angle.",
+     "The two slopes must multiply to $-1$, which needs $-\\frac{1}{{{m}}}$."
+    ],
+    "answerSummary": "The slope should be $-\\frac{1}{{{m}}}$."
+   },
+   "attemptFeedback": [
+    "Changing the constant only shifts the line; it does not turn it."
+   ],
+   "supportHints": [
+    "What do two lines with the same slope do?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "negM": "0-m"
+    },
+    "constraints": [
+     "c!=m"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The slope should be ${{negM}}$, the same size with the sign changed.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "The slope should be $\\frac{1}{{{m}}}$, turned over but left positive.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "Nothing is wrong, provided the constant is changed as well.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "An equal slope gives a parallel line; a perpendicular one needs $-\\frac{1}{{{m}}}$."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2G_equation_of_a_horizontal_line",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2G:equation-of-a-horizontal-line",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2G",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which equation describes the horizontal line through $({{x1}}, {{y1}})$?",
+   "solutionReview": {
+    "headline": "A horizontal line fixes $y$; a vertical line fixes $x$.",
+    "reasoning": [
+     "A horizontal line holds $y$ fixed while $x$ takes any value.",
+     "The point sits at height ${{y1}}$, so that is the value $y$ holds."
+    ],
+    "answerSummary": "It is $y = {{y1}}$."
+   },
+   "attemptFeedback": [
+    "That equation fixes $x$, which draws a vertical line."
+   ],
+   "supportHints": [
+    "Which coordinate stays the same all along a horizontal line?"
+   ],
+   "generator": {
+    "parameters": {
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 15
+     },
+     "y1": {
+      "type": "int",
+      "min": 1,
+      "max": 15
+     }
+    },
+    "derived": {},
+    "constraints": [
+     "x1!=y1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x = {{x1}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x = {{y1}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = {{x1}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = {{y1}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2G_slope_between_two_points_that_share_an_x",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2G:slope-between-two-points-that-share-an-x",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2G",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is the slope of the line through $({{a}}, {{y1}})$ and $({{a}}, {{y2}})$?",
+   "solutionReview": {
+    "headline": "A run of zero makes the quotient undefined, however large the rise.",
+    "reasoning": [
+     "The two points differ by ${{climb}}$ in $y$ and by nothing in $x$.",
+     "Slope divides rise by run, and a run of zero leaves the quotient undefined."
+    ],
+    "answerSummary": "The slope is undefined."
+   },
+   "attemptFeedback": [
+    "A slope of zero needs a rise of zero, and this rise is not zero."
+   ],
+   "supportHints": [
+    "Work out the run between the two points."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     },
+     "y1": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     },
+     "climb": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "y2": "y1+climb",
+     "rise": "climb"
+    },
+    "constraints": [
+     "a!=y1",
+     "a!=y2",
+     "a!=climb"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "It is ${{a}}$, the value both points share.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "It is undefined: the rise is ${{rise}}$ but the run is zero."
+    },
+    {
+     "id": "choice-c",
+     "label": "It is zero, because the two points sit at the same $x$.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "It is ${{rise}}$, the change from one point to the other.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2G_line_through_points_that_share_an_x",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2G:line-through-points-that-share-an-x",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2G",
+   "taskType": "interpretation",
+   "representation": "orderedPairs",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "All three points shown lie on one line. What is its equation?",
+   "stimulus": {
+    "kind": "orderedPairs",
+    "title": "Points on the line",
+    "orderedPairs": [
+     {
+      "x": "{{a}}",
+      "y": "{{y1}}"
+     },
+     {
+      "x": "{{a}}",
+      "y": "{{y2}}"
+     },
+     {
+      "x": "{{a}}",
+      "y": "{{y3}}"
+     }
+    ]
+   },
+   "solutionReview": {
+    "headline": "When one coordinate never changes, that coordinate names the line.",
+    "reasoning": [
+     "Every point has $x = {{a}}$ while $y$ keeps changing.",
+     "A line holding one $x$ value is vertical, written $x = {{a}}$."
+    ],
+    "answerSummary": "It is $x = {{a}}$."
+   },
+   "attemptFeedback": [
+    "That equation would fix $y$, but $y$ is the coordinate that changes here."
+   ],
+   "supportHints": [
+    "Which coordinate is the same in all three points?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "y1": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     },
+     "gap": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     }
+    },
+    "derived": {
+     "y2": "y1+gap",
+     "y3": "y1+2*gap"
+    },
+    "constraints": [
+     "a!=y1",
+     "a!=y2",
+     "a!=y3"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = {{y1}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = {{a}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x = {{a}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = {{gap}}x$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2G_line_midway_between_two_verticals",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2G:line-midway-between-two-verticals",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2G",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two vertical rails stand at $x = {{p}}$ and $x = {{q}}$. Which equation describes the rail placed midway between them?",
+   "solutionReview": {
+    "headline": "Average the two positions, and keep the vertical form.",
+    "reasoning": [
+     "Halfway between ${{p}}$ and ${{q}}$ is $({{p}} + {{q}}) \\div 2 = {{mid}}$.",
+     "The new rail is vertical too, so its equation fixes $x$."
+    ],
+    "answerSummary": "It is $x = {{mid}}$."
+   },
+   "attemptFeedback": [
+    "That is the gap between the rails, not the position of the middle one."
+   ],
+   "supportHints": [
+    "What is the average of the two positions?"
+   ],
+   "generator": {
+    "parameters": {
+     "u": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     },
+     "spread": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     }
+    },
+    "derived": {
+     "v": "u+spread",
+     "p": "2*u",
+     "q": "2*(u+spread)",
+     "mid": "u+(u+spread)",
+     "diff": "2*spread",
+     "sum": "2*(u+(u+spread))"
+    },
+    "constraints": [
+     "mid!=diff",
+     "mid!=sum"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x = {{diff}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x = {{sum}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x = {{mid}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = {{mid}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2G_horizontal_line_called_undefined",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2G:horizontal-line-called-undefined",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2G",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student says the line $y = {{a}}$ has undefined slope. What is wrong?",
+   "solutionReview": {
+    "headline": "Undefined belongs to vertical lines; horizontal lines have slope zero.",
+    "reasoning": [
+     "An undefined slope needs a run of zero, which only a vertical line has.",
+     "Here $y$ never changes while $x$ does, so rise divided by run is zero."
+    ],
+    "answerSummary": "The slope is zero."
+   },
+   "attemptFeedback": [
+    "Naming one letter is what both kinds of line do; which one is fixed decides the slope."
+   ],
+   "supportHints": [
+    "Which letter is held fixed by this equation?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     }
+    },
+    "derived": {},
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Nothing is wrong, since the equation names only one of the two letters.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "The slope is undefined, but only where the line meets the $y$-axis.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "The slope is ${{a}}$, the number the equation gives.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "That line is horizontal, so it has plenty of run and no rise: its slope is zero."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2I_system_from_a_count_and_a_total",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2I"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2I",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2I:system-from-a-count-and-a-total",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2I",
+   "taskType": "representationTranslation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A canteen sold ${{n}}$ items in all, sandwiches at $\\${{a}}$ and soups at $\\${{b}}$, taking $\\${{t}}$. Which system says so?",
+   "solutionReview": {
+    "headline": "One equation counts the items, the other counts the money.",
+    "reasoning": [
+     "Counting the items ignores their prices, giving $x + y = {{n}}$.",
+     "The money adds $\\${{a}}$ for each sandwich and $\\${{b}}$ for each soup, giving ${{a}}x + {{b}}y = {{t}}$."
+    ],
+    "answerSummary": "It is $x + y = {{n}}$ with ${{a}}x + {{b}}y = {{t}}$."
+   },
+   "attemptFeedback": [
+    "The two prices differ, so they cannot be pulled out of one bracket."
+   ],
+   "supportHints": [
+    "Which of the two totals has nothing to do with price?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 11
+     },
+     "x": {
+      "type": "int",
+      "min": 3,
+      "max": 15
+     },
+     "y": {
+      "type": "int",
+      "min": 3,
+      "max": 15
+     }
+    },
+    "derived": {
+     "n": "x+y",
+     "t": "a*x+b*y",
+     "both": "a+b"
+    },
+    "constraints": [
+     "a!=b",
+     "n!=t"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{a}}x + {{b}}y = {{n}} \\text{ and } x + y = {{t}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x + y = {{n}} \\text{ and } {{b}}x + {{a}}y = {{t}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x + y = {{n}} \\text{ and } {{a}}x + {{b}}y = {{t}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x + y = {{n}} \\text{ and } {{both}}(x + y) = {{t}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2I_system_from_a_two_column_table",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2I"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2I",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2I:system-from-a-two-column-table",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2I",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which system describes the two columns?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Recorded values",
+    "table": {
+     "headers": [
+      "x",
+      "Line 1",
+      "Line 2"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "{{p1}}",
+       "{{q1}}"
+      ],
+      [
+       "{{x2}}",
+       "{{p2}}",
+       "{{q2}}"
+      ],
+      [
+       "{{x3}}",
+       "{{p3}}",
+       "{{q3}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Each column gives one equation: its step is the slope, its start the constant.",
+    "reasoning": [
+     "Column one climbs ${{m1}}$ each step and reads ${{b1}}$ back at $x = 0$.",
+     "Column two climbs ${{m2}}$ each step and reads ${{b2}}$ back at $x = 0$."
+    ],
+    "answerSummary": "It is $y = {{m1}}x + {{b1}}$ with $y = {{m2}}x + {{b2}}$."
+   },
+   "attemptFeedback": [
+    "Check which constant belongs to which column by testing the first row."
+   ],
+   "supportHints": [
+    "How much does each column change for one step in $x$?"
+   ],
+   "generator": {
+    "parameters": {
+     "m1": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "m2": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b1": {
+      "type": "int",
+      "min": 1,
+      "max": 14
+     },
+     "b2": {
+      "type": "int",
+      "min": 1,
+      "max": 14
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     }
+    },
+    "derived": {
+     "x2": "x1+1",
+     "x3": "x1+2",
+     "p1": "m1*x1+b1",
+     "p2": "m1*(x1+1)+b1",
+     "p3": "m1*(x1+2)+b1",
+     "q1": "m2*x1+b2",
+     "q2": "m2*(x1+1)+b2",
+     "q3": "m2*(x1+2)+b2"
+    },
+    "constraints": [
+     "m1!=m2",
+     "b1!=b2",
+     "m1!=b1",
+     "m2!=b2"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = {{m1}}x + {{b1}} \\text{ and } y = {{m2}}x + {{b2}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = {{m2}}x + {{b1}} \\text{ and } y = {{m1}}x + {{b2}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = {{m1}}x + {{b2}} \\text{ and } y = {{m2}}x + {{b1}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = {{m1}}x - {{b1}} \\text{ and } y = {{m2}}x - {{b2}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2I_system_for_a_sum_and_a_gap",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2I"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2I",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2I:system-for-a-sum-and-a-gap",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2I",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A larger number $x$ and a smaller number $y$ add to ${{s}}$, and $x$ exceeds $y$ by ${{d}}$. Which system says so?",
+   "solutionReview": {
+    "headline": "Exceeds by means subtract, in the order the sentence names.",
+    "reasoning": [
+     "Adding the two numbers gives $x + y = {{s}}$.",
+     "Exceeding by ${{d}}$ is a subtraction, and $x$ is the larger, so $x - y = {{d}}$."
+    ],
+    "answerSummary": "It is $x + y = {{s}}$ with $x - y = {{d}}$."
+   },
+   "attemptFeedback": [
+    "Exceeding by an amount is a difference, not a multiple."
+   ],
+   "supportHints": [
+    "Which number is taken away from which?"
+   ],
+   "generator": {
+    "parameters": {
+     "y": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 18
+     }
+    },
+    "derived": {
+     "s": "2*y+d"
+    },
+    "constraints": [
+     "s!=d"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x + y = {{s}} \\text{ and } y - x = {{d}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x + y = {{s}} \\text{ and } x - y = {{d}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x + y = {{s}} \\text{ and } x = {{d}}y$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x - y = {{s}} \\text{ and } x + y = {{d}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2I_system_for_two_charging_plans",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2I"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2I",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2I:system-for-two-charging-plans",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2I",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Plan A charges $\\${{f1}}$ to join and $\\${{m1}}$ a month; Plan B charges $\\${{f2}}$ and $\\${{m2}}$ a month. Which system gives each cost $y$ after $x$ months?",
+   "solutionReview": {
+    "headline": "A one-off charge is the constant; a repeating charge is the slope.",
+    "reasoning": [
+     "The joining fee is paid once, so it is the constant, not a rate.",
+     "The monthly charge is what multiplies the number of months."
+    ],
+    "answerSummary": "It is $y = {{m1}}x + {{f1}}$ with $y = {{m2}}x + {{f2}}$."
+   },
+   "attemptFeedback": [
+    "Folding the joining fee into the monthly rate charges it every month."
+   ],
+   "supportHints": [
+    "Which charge is paid again every month?"
+   ],
+   "generator": {
+    "parameters": {
+     "f1": {
+      "type": "int",
+      "min": 10,
+      "max": 60
+     },
+     "f2": {
+      "type": "int",
+      "min": 10,
+      "max": 60
+     },
+     "m1": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     },
+     "m2": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     }
+    },
+    "derived": {},
+    "constraints": [
+     "f1!=f2",
+     "m1!=m2",
+     "f1!=m1",
+     "f2!=m2",
+     "f1!=m2",
+     "f2!=m1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = {{m1}}x + {{f1}} \\text{ and } y = {{m2}}x + {{f2}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = {{f1}}x + {{m1}} \\text{ and } y = {{f2}}x + {{m2}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = {{m1}}x + {{f2}} \\text{ and } y = {{m2}}x + {{f1}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = ({{m1}} + {{f1}})x \\text{ and } y = ({{m2}} + {{f2}})x$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2I_prices_put_in_the_counting_equation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2I"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2I",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2I:prices-put-in-the-counting-equation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2I",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For ${{n}}$ tickets costing $\\${{t}}$ in all, at $\\${{a}}$ and $\\${{b}}$ each, a student writes ${{a}}x + {{b}}y = {{n}}$ for the count. What is wrong?",
+   "solutionReview": {
+    "headline": "The counting equation has no prices in it at all.",
+    "reasoning": [
+     "A count of tickets is a number of tickets, so each ticket contributes exactly $1$.",
+     "The prices belong in the money equation, ${{a}}x + {{b}}y = {{t}}$."
+    ],
+    "answerSummary": "It should be $x + y = {{n}}$."
+   },
+   "attemptFeedback": [
+    "That equation is the money equation, not the count."
+   ],
+   "supportHints": [
+    "What does each single ticket add to the count?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 4,
+      "max": 15
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 13
+     },
+     "x": {
+      "type": "int",
+      "min": 3,
+      "max": 15
+     },
+     "y": {
+      "type": "int",
+      "min": 3,
+      "max": 15
+     }
+    },
+    "derived": {
+     "n": "x+y",
+     "t": "a*x+b*y"
+    },
+    "constraints": [
+     "a!=b",
+     "n!=t"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Counting tickets ignores their prices: the count equation is $x + y = {{n}}$."
+    },
+    {
+     "id": "choice-b",
+     "label": "The two prices are attached to the wrong items and should be swapped.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "The equation is right, but it should be set equal to $\\${{t}}$ instead.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "Nothing is wrong, because both prices are used somewhere in the system.",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
   }
  ]
 }
