@@ -271,6 +271,55 @@ test('the five families of a rebuilt standard are five different tasks', () => {
   }
 });
 
+// A "lies between" item is only correct when the key really does lie between
+// the two bounds the prompt names, and nothing else in this file can tell.
+// Every automated gate passed a family whose key was the midpoint a + 1/2 while
+// the upper bound was a square root that fell short of it in two draws out of
+// three: distinct choices, clean ranks, purposeful distractors, and a key that
+// was simply wrong. This evaluates both bounds and the key from the generated
+// text and checks the ordering directly.
+const numericValue = (text) => {
+  const bare = String(text).replace(/\$/g, '').replace(/\s+/g, '');
+  const root = /^\\sqrt\{(\d+)\}$/.exec(bare);
+  if (root) return Math.sqrt(Number(root[1]));
+  const fraction = /^(-?)\\d?frac\{(-?\d+)\}\{(-?\d+)\}$/.exec(bare);
+  if (fraction) {
+    const value = Number(fraction[2]) / Number(fraction[3]);
+    return fraction[1] === '-' ? -value : value;
+  }
+  if (/^-?\d+(?:\.\d+)?$/.test(bare)) return Number(bare);
+  return null;
+};
+
+test('a "lies between" item has its key strictly between the two bounds it names', () => {
+  const between = draft.filter((question) => /\blies between\b/i.test(String(question.prompt)));
+  assert.ok(between.length >= 3, 'expected the between-style families to be found');
+  for (const question of between) {
+    for (const { question: instance } of samplePathInstances(question, 200)) {
+      const bounds = [...String(instance.prompt).matchAll(/\$([^$]+)\$/g)]
+        .map((match) => numericValue(`$${match[1]}$`))
+        .filter((value) => value !== null);
+      assert.equal(bounds.length, 2, `${question.id}: expected two readable bounds in "${instance.prompt}"`);
+      const [lowRaw, highRaw] = bounds;
+      const low = Math.min(lowRaw, highRaw);
+      const high = Math.max(lowRaw, highRaw);
+      const keyChoice = instance.choices.find((choice) => choice.id === instance.responseFields[0].expected);
+      const key = numericValue(keyChoice.label);
+      assert.notEqual(key, null, `${question.id}: could not read the key "${keyChoice.label}"`);
+      assert.ok(key > low && key < high,
+        `${question.id}: key ${key} is not strictly between ${low} and ${high} — "${instance.prompt}"`);
+      // And no distractor may accidentally also satisfy the prompt.
+      for (const choice of instance.choices) {
+        if (choice.id === keyChoice.id) continue;
+        const value = numericValue(choice.label);
+        if (value === null) continue;
+        assert.ok(!(value > low && value < high),
+          `${question.id}: the distractor "${choice.label}" also lies between ${low} and ${high}`);
+      }
+    }
+  }
+});
+
 test('generated answers are re-derived independently and match the key', () => {
   // Re-computing the mathematics here rather than trusting the generator is the
   // point: a generator that agrees with itself proves nothing.

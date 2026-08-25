@@ -507,14 +507,17 @@ mk('6.2D', 'fraction-between-two-fractions', {
     parameters: {
       small: { type: 'int', min: 2, max: 6 },
       gap: { type: 'int', min: 4, max: 20 },
-      far: { type: 'int', min: 2, max: 40 },
+      pull: { type: 'choice', values: [1, 2] },
+      spread: { type: 'int', min: 1, max: 10 },
+      side: { type: 'choice', values: [0, 1] },
     },
     derived: {
       big: 'small+gap',
+      far: 'side*(2*(small+gap)+spread)+(1-side)*(2*small-pull)',
       mid: 'small+round(gap/2)',
       answer: '1',
     },
-    constraints: ['mid!=small', 'mid!=big', 'far!=mid'],
+    constraints: ['mid!=small', 'mid!=big', 'far!=mid', '2*mid!=far'],
   },
   choices: [
     { label: plain('\\frac{1}{{{mid}}}'), correct: true },
@@ -6463,6 +6466,745 @@ mk('8.2A', 'every-real-is-rational', {
   answerSummary: { headline: 'The irrationals are the real numbers the rationals miss.', text: '$\\sqrt{{{n}}}$ is the counter-example.' },
   hint: 'Find one real number that is not a ratio.',
   feedback: 'A root that does come out exactly does not test the claim.',
+});
+
+
+// ================================================================ 8.2B
+// Placing an irrational number between rationals.
+//
+// Every root here is drawn as a perfect square plus an offset that keeps it
+// strictly between two consecutive whole numbers, so the answer is correct by
+// construction and no draw can produce a root that lands on a whole number.
+
+mk('8.2B', 'between-which-whole-numbers', {
+  courseId: 'grade8',
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'numberLine',
+  prompt: 'Between which two whole numbers does $\\sqrt{{{n}}}$ lie?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 3, max: 14 },
+      off: { type: 'int', min: 1, max: 6 },
+    },
+    derived: {
+      n: 'a*a+off',
+      next: 'a+1',
+      prev: 'a-1',
+      nextNext: 'a+2',
+      halved: 'round(a*a/2)',
+      halvedNext: 'round(a*a/2)+1',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: '${{a}}$ and ${{next}}$', correct: true },
+    { label: '${{prev}}$ and ${{a}}$', error: 'offByOneStep' },
+    { label: '${{next}}$ and ${{nextNext}}$', error: 'arithmeticSlip' },
+    { label: '${{halved}}$ and ${{halvedNext}}$', error: 'operationInverted' },
+  ],
+  reasoning: ['${{a}} \\times {{a}} = {{n}}$ minus ${{off}}$, so ${{a}}$ squared is just below ${{n}}$.', '${{next}}$ squared is above ${{n}}$, so the root sits between them.'],
+  answerSummary: { headline: 'Find the perfect squares that bracket the number.', text: 'It lies between ${{a}}$ and ${{next}}$.' },
+  hint: 'Which whole numbers square to just below and just above ${{n}}$?',
+  feedback: 'Halving a number is not the same as taking its root.',
+});
+
+mk('8.2B', 'best-estimate-of-a-root', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'symbolic',
+  prompt: 'Which is the best estimate of $\\sqrt{{{n}}}$, and why?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 4, max: 14 },
+      // Strictly below a, so the root always rounds down to a.
+      off: { type: 'int', min: 1, max: 3 },
+    },
+    derived: {
+      n: 'a*a+off',
+      asq: 'a*a',
+      next: 'a+1',
+      nextSq: 'a*a+2*a+1',
+      halved: 'round(a*a/2)',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'About ${{a}}$, because ${{a}}^2 = {{asq}}$ is just below ${{n}}$.', correct: true },
+    { label: 'About ${{next}}$, because ${{next}}^2 = {{nextSq}}$ is the nearer square.', error: 'offByOneStep' },
+    { label: 'Exactly ${{a}}$, because roots of whole numbers are whole.', error: 'partialTotal' },
+    { label: 'About ${{halved}}$, because that is half of ${{asq}}$.', error: 'operationInverted' },
+  ],
+  reasoning: ['${{n}}$ sits only ${{off}}$ above ${{asq}}$ but well below ${{nextSq}}$.', 'So the root is a little over ${{a}}$, and ${{a}}$ is the closest whole number.'],
+  answerSummary: { headline: 'Compare the number with the squares either side of it.', text: 'A little over ${{a}}$.' },
+  hint: 'Which perfect square is ${{n}}$ nearer to?',
+  feedback: '${{n}}$ is not a perfect square, so its root is not whole.',
+});
+
+mk('8.2B', 'what-is-true-of-pi', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'Which statement about $\\pi$ is true?',
+  generator: {
+    parameters: { d: { type: 'int', min: 4, max: 40, step: 2 } },
+    derived: { c: 'round(314*d/100)', r: 'd/2' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'It lies between $3$ and $4$ and cannot be written as a fraction.', correct: true },
+    { label: '$\\frac{22}{7}$ is exactly equal to it.', error: 'partialTotal' },
+    { label: 'It is exactly $3.14$.', error: 'roundedWrong' },
+    { label: 'It is greater than $4$, because circles curve.', error: 'operationInverted' },
+  ],
+  reasoning: ['A circle of diameter ${{d}}$ measures about ${{c}}$ round, and ${{c}} \\div {{d}}$ is a little over $3$.', 'No fraction gives the value exactly, however many digits are used.'],
+  answerSummary: { headline: 'Pi is a little over three and never terminates.', text: 'Between three and four, and not a fraction.' },
+  hint: 'What does the way round divided by the diameter come to?',
+  feedback: 'A fraction or a two-place decimal is an approximation, not the value.',
+});
+
+mk('8.2B', 'root-against-a-half-way-mark', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'numberLine',
+  prompt: 'On a number line, where does $\\sqrt{{{n}}}$ sit compared with ${{a}}$ and ${{next}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 4, max: 14 },
+      // Below a, so the root lands in the lower half of the gap every time.
+      off: { type: 'int', min: 1, max: 3 },
+    },
+    derived: { n: 'a*a+off', next: 'a+1', asq: 'a*a', nextSq: 'a*a+2*a+1' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Just above ${{a}}$, nearer to ${{a}}$ than to ${{next}}$.', correct: true },
+    { label: 'Just below ${{next}}$, nearer to ${{next}}$ than to ${{a}}$.', error: 'ratioReversed' },
+    { label: 'Exactly halfway between ${{a}}$ and ${{next}}$.', error: 'partialTotal' },
+    { label: 'Below ${{a}}$, because ${{n}}$ is not a perfect square.', error: 'operationInverted' },
+  ],
+  reasoning: ['${{n}}$ is only ${{off}}$ above ${{asq}}$, while ${{nextSq}}$ is much further above ${{n}}$.', 'So the root sits close to ${{a}}$ rather than in the middle of the gap.'],
+  answerSummary: { headline: 'How far past the lower square you are decides where in the gap you land.', text: 'Just above ${{a}}$.' },
+  hint: 'How far is ${{n}}$ from each of the two squares?',
+  feedback: 'The root of a number above ${{asq}}$ cannot be below ${{a}}$.',
+});
+
+mk('8.2B', 'halving-instead-of-rooting', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student says $\\sqrt{{{n}}}$ is about ${{halved}}$, because that is half of ${{n}}$. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 5, max: 14 },
+      off: { type: 'int', min: 1, max: 6 },
+    },
+    derived: {
+      n: 'a*a+off',
+      halved: 'round((a*a+off)/2)',
+      asq: 'a*a',
+      next: 'a+1',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'A root asks what squares to ${{n}}$, and ${{a}}^2 = {{asq}}$, so it is about ${{a}}$.', correct: true },
+    { label: 'Nothing is wrong, because halving and rooting both make a number smaller.', error: 'operationInverted' },
+    { label: 'The half is right but should be rounded up to ${{next}}$.', error: 'roundedWrong' },
+    { label: 'A root of a number that is not a perfect square cannot be estimated.', error: 'partialTotal' },
+  ],
+  reasoning: ['Halving ${{n}}$ answers a different question entirely.', 'The root is the number that multiplies by itself to give ${{n}}$, which is close to ${{a}}$.'],
+  answerSummary: { headline: 'A root undoes squaring, not doubling.', text: 'It is about ${{a}}$.' },
+  hint: 'What operation does a square root undo?',
+  feedback: 'Both do make the number smaller, which is why the mistake is easy to make.',
+});
+
+// ================================================================ 8.2C
+// Scientific notation and standard decimal notation.
+
+mk('8.2C', 'write-in-scientific-notation', {
+  courseId: 'grade8',
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Which is ${{value}}$ written in scientific notation?',
+  generator: {
+    parameters: {
+      d1: { type: 'int', min: 1, max: 9 },
+      d2: { type: 'int', min: 1, max: 9 },
+      e: { type: 'int', min: 3, max: 7 },
+    },
+    derived: {
+      value: '(10*d1+d2)*pow(10,e-1)',
+      mant: '10*d1+d2',
+      eMinus: 'e-1',
+      eNeg: '0-e',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{d1}}.{{d2}} \\times 10^{{{e}}}'), correct: true },
+    { label: plain('{{mant}} \\times 10^{{{e}}}'), error: 'partialTotal' },
+    { label: plain('{{d1}}.{{d2}} \\times 10^{{{eMinus}}}'), error: 'offByOneStep' },
+    { label: plain('{{d1}}.{{d2}} \\times 10^{{{eNeg}}}'), error: 'signError' },
+  ],
+  reasoning: ['The first factor has to sit between $1$ and $10$, so it is ${{d1}}.{{d2}}$.', 'Moving the point back to where it started takes ${{e}}$ places.'],
+  answerSummary: { headline: 'One digit before the point, and the exponent counts the places.', text: 'It is ${{d1}}.{{d2}} \\times 10^{{{e}}}$.' },
+  hint: 'Where does the point have to sit?',
+  feedback: 'A first factor of ${{mant}}$ is not below ten.',
+});
+
+mk('8.2C', 'back-to-a-plain-number', {
+  courseId: 'grade8',
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'context',
+  prompt: 'Two readings are ${{d1}}.{{d2}} \\times 10^{{{e}}}$ and ${{f1}}.{{f2}} \\times 10^{{{e}}}$. What is the first as a plain number?',
+  generator: {
+    parameters: {
+      // The second reading is drawn separately, so its value crosses the key.
+      d1: { type: 'int', min: 1, max: 9 },
+      d2: { type: 'int', min: 1, max: 9 },
+      f1: { type: 'int', min: 1, max: 9 },
+      f2: { type: 'int', min: 1, max: 9 },
+      e: { type: 'int', min: 3, max: 6 },
+    },
+    derived: {
+      answer: '(10*d1+d2)*pow(10,e-1)',
+      d_offByOneStep: '(10*d1+d2)*pow(10,e)',
+      d_partialTotal: '(10*d1+d2)*pow(10,e-2)',
+      d_usedGivenValue: '(10*f1+f2)*pow(10,e-1)',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The exponent ${{e}}$ moves the point ${{e}}$ places to the right.', 'That turns ${{d1}}.{{d2}}$ into ${{answer}}$.'],
+  answerSummary: { headline: 'The exponent counts the places the point travels.', text: 'It is ${{answer}}$.' },
+  hint: 'How many places does the point move, and which way?',
+  feedback: 'That is the second reading, not the first.',
+});
+
+mk('8.2C', 'which-of-two-is-larger', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'symbolic',
+  prompt: 'Which is larger, ${{a1}}.{{a2}} \\times 10^{{{e1}}}$ or ${{b1}}.{{b2}} \\times 10^{{{e2}}}$?',
+  generator: {
+    parameters: {
+      // The first has the larger exponent and the SMALLER first factor, so a
+      // student comparing first factors alone lands on the wrong one.
+      a1: { type: 'int', min: 1, max: 4 },
+      a2: { type: 'int', min: 1, max: 9 },
+      b1: { type: 'int', min: 5, max: 9 },
+      b2: { type: 'int', min: 1, max: 9 },
+      e2: { type: 'int', min: 2, max: 6 },
+      gap: { type: 'int', min: 1, max: 3 },
+    },
+    derived: { e1: 'e2+gap' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The first, because its exponent is larger.', correct: true },
+    { label: 'The second, because its first factor is larger.', error: 'ratioReversed' },
+    { label: 'They are equal, because both are written the same way.', error: 'operationInverted' },
+    { label: 'It cannot be decided without writing both out in full.', error: 'partialTotal' },
+  ],
+  reasoning: ['The exponent settles the size first: $10^{{{e1}}}$ beats $10^{{{e2}}}$ by ${{gap}}$ powers of ten.', 'A first factor can only range from $1$ to just under $10$, which cannot make up a whole power of ten.'],
+  answerSummary: { headline: 'Compare the exponents first; the first factors only break ties.', text: 'The first is larger.' },
+  hint: 'How much can the first factor ever be worth?',
+  feedback: 'A larger first factor cannot outweigh a larger exponent.',
+});
+
+mk('8.2C', 'why-the-first-factor-is-bounded', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'Why must the first factor in scientific notation be at least $1$ and below $10$?',
+  generator: {
+    parameters: {
+      d1: { type: 'int', min: 1, max: 9 },
+      d2: { type: 'int', min: 1, max: 9 },
+      e: { type: 'int', min: 3, max: 7 },
+    },
+    derived: { mant: '10*d1+d2', eMinus: 'e-1', value: '(10*d1+d2)*pow(10,e-1)' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'So each number has only one way of being written.', correct: true },
+    { label: 'So the exponent is always positive.', error: 'signError' },
+    { label: 'Because a factor of ${{mant}}$ cannot be multiplied by a power of ten.', error: 'operationInverted' },
+    { label: 'Because numbers below $1$ have no scientific notation.', error: 'partialTotal' },
+  ],
+  reasoning: ['${{value}}$ could be written as ${{d1}}.{{d2}} \\times 10^{{{e}}}$ or as ${{mant}} \\times 10^{{{eMinus}}}$, and both are correct arithmetic.', 'Fixing the first factor between $1$ and $10$ leaves exactly one of them standing.'],
+  answerSummary: { headline: 'The bound makes the notation unique, not merely tidy.', text: 'So each number has one form.' },
+  hint: 'How many ways could the same number otherwise be written?',
+  feedback: 'Negative exponents are perfectly allowed.',
+});
+
+mk('8.2C', 'first-factor-left-too-large', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student writes ${{value}}$ as ${{mant}} \\times 10^{{{eMinus}}}$. What is wrong?',
+  generator: {
+    parameters: {
+      d1: { type: 'int', min: 1, max: 9 },
+      d2: { type: 'int', min: 1, max: 9 },
+      e: { type: 'int', min: 3, max: 7 },
+    },
+    derived: {
+      value: '(10*d1+d2)*pow(10,e-1)',
+      mant: '10*d1+d2',
+      eMinus: 'e-1',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The arithmetic is right but the first factor must be below $10$: ${{d1}}.{{d2}} \\times 10^{{{e}}}$.', correct: true },
+    { label: 'The arithmetic is wrong, because ${{mant}} \\times 10^{{{eMinus}}}$ is not ${{value}}$.', error: 'operationInverted' },
+    { label: 'The exponent should have gone down again, to ${{e}}$ minus two.', error: 'offByOneStep' },
+    { label: 'Nothing is wrong, because any first factor is allowed.', error: 'partialTotal' },
+  ],
+  reasoning: ['${{mant}} \\times 10^{{{eMinus}}}$ does come to ${{value}}$, so nothing has been miscalculated.', 'Scientific notation additionally requires one digit before the point, which moves the exponent to ${{e}}$.'],
+  answerSummary: { headline: 'Correct arithmetic is not yet correct notation.', text: 'It should read ${{d1}}.{{d2}} \\times 10^{{{e}}}$.' },
+  hint: 'Is the value wrong, or only the form?',
+  feedback: 'The value is right; only the way it is written breaks the rule.',
+});
+
+// ================================================================ 8.2D
+// Ordering real numbers, rational and irrational together.
+
+mk('8.2D', 'ordering-with-a-root', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Which ordering runs from least to greatest?',
+  generator: {
+    parameters: {
+      // The root sits strictly between a and a+1, and the two rationals are
+      // placed either side of it, so one ordering is right by construction.
+      a: { type: 'int', min: 3, max: 12 },
+      off: { type: 'int', min: 1, max: 4 },
+    },
+    derived: {
+      n: 'a*a+off',
+      low: 'a-1',
+      high: 'a+2',
+      next: 'a+1',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{low}}, \\sqrt{{{n}}}, {{high}}'), correct: true },
+    { label: plain('\\sqrt{{{n}}}, {{low}}, {{high}}'), error: 'operationInverted' },
+    { label: plain('{{high}}, \\sqrt{{{n}}}, {{low}}'), error: 'ratioReversed' },
+    { label: plain('{{low}}, {{high}}, \\sqrt{{{n}}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['$\\sqrt{{{n}}}$ lies between ${{a}}$ and ${{next}}$.', 'That puts it above ${{low}}$ and below ${{high}}$.'],
+  answerSummary: { headline: 'Locate the root between whole numbers before ordering.', text: 'It is ${{low}}, \\sqrt{{{n}}}, {{high}}$.' },
+  hint: 'Which whole numbers does the root sit between?',
+  feedback: 'A root of a number above ${{a}}$ squared is not the smallest here.',
+});
+
+mk('8.2D', 'greatest-of-a-mixed-set', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'symbolic',
+  rankAnalysisNotApplicable: true,
+  prompt: 'Which of these has the greatest value?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 4, max: 12 },
+      off: { type: 'int', min: 1, max: 4 },
+      d: { type: 'choice', values: [3, 4, 5, 8] },
+    },
+    derived: {
+      n: 'a*a+off',
+      big: 'a+3',
+      num: 'a*d-1',
+      low: 'a-2',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{big}}'), correct: true },
+    { label: plain('\\sqrt{{{n}}}'), error: 'operationInverted' },
+    { label: plain('\\frac{{{num}}}{{{d}}}'), error: 'partialTotal' },
+    { label: plain('{{low}}'), error: 'signError' },
+  ],
+  reasoning: ['$\\sqrt{{{n}}}$ is a little over ${{a}}$, and $\\frac{{{num}}}{{{d}}}$ is a little under ${{a}}$.', '${{big}}$ is three above ${{a}}$, so it beats both.'],
+  answerSummary: { headline: 'Put every value near a whole number before comparing.', text: '${{big}}$ is the greatest.' },
+  hint: 'Estimate each value to the nearest whole number.',
+  feedback: 'A square root sign does not make a value large.',
+});
+
+mk('8.2D', 'value-between-a-whole-and-a-root', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'numberLine',
+  prompt: 'Which value lies between ${{a}}$ and $\\sqrt{{{n}}}$?',
+  generator: {
+    parameters: {
+      // The root sits between a and a+1 with the offset above a, so the root
+      // is past the halfway mark and a + 1/2 lands strictly between the two.
+      a: { type: 'int', min: 4, max: 12 },
+      extra: { type: 'int', min: 1, max: 3 },
+      c: { type: 'int', min: 4, max: 12 },
+    },
+    derived: {
+      off: 'a+extra',
+      n: 'a*a+a+extra',
+      otherNum: '2*c+1',
+      halfNum: '2*a+1',
+      next: 'a+1',
+      low: 'a-1',
+    },
+    constraints: ['c!=a'],
+  },
+  choices: [
+    { label: plain('\\frac{{{halfNum}}}{2}'), correct: true },
+    { label: plain('{{low}}'), error: 'signError' },
+    { label: plain('{{next}}'), error: 'offByOneStep' },
+    { label: plain('\\frac{{{otherNum}}}{2}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['${{n}}$ is ${{off}}$ above ${{a}}$ squared, and ${{off}}$ is more than ${{a}}$, so $\\sqrt{{{n}}}$ is past halfway to ${{next}}$.', '$\\frac{{{halfNum}}}{2}$ is exactly halfway, so it sits between ${{a}}$ and the root.'],
+  answerSummary: { headline: 'A root past the halfway mark leaves room for the midpoint below it.', text: 'It is $\\frac{{{halfNum}}}{2}$.' },
+  hint: 'How far past ${{a}}$ does the root reach?',
+  feedback: '$\\frac{{{otherNum}}}{2}$ sits outside the gap entirely.',
+});
+
+mk('8.2D', 'root-against-a-fraction', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'How does $\\sqrt{{{n}}}$ compare with $\\frac{{{num}}}{{{d}}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 4, max: 12 },
+      off: { type: 'int', min: 1, max: 4 },
+      d: { type: 'choice', values: [3, 4, 5, 8] },
+    },
+    derived: {
+      n: 'a*a+off',
+      num: 'a*d-1',
+      next: 'a+1',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The root is larger, because it is above ${{a}}$ and the fraction is below it.', correct: true },
+    { label: 'The fraction is larger, because a fraction can be written exactly.', error: 'ratioReversed' },
+    { label: 'They are equal, because both are close to ${{a}}$.', error: 'partialTotal' },
+    { label: 'It cannot be decided, because one is irrational.', error: 'operationInverted' },
+  ],
+  reasoning: ['$\\sqrt{{{n}}}$ lies between ${{a}}$ and ${{next}}$, so it is above ${{a}}$.', '$\\frac{{{num}}}{{{d}}}$ is one ${{d}}$th short of ${{a}}$, so it is below ${{a}}$.'],
+  answerSummary: { headline: 'Compare each value with a whole number they straddle.', text: 'The root is larger.' },
+  hint: 'Which side of ${{a}}$ does each value fall on?',
+  feedback: 'Being irrational does not stop a value being compared.',
+});
+
+mk('8.2D', 'ordering-negatives-backwards', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student puts $-{{a}}$ before $-{{b}}$ because ${{a}}$ is less than ${{b}}$. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 20 },
+      gap: { type: 'int', min: 1, max: 20 },
+    },
+    derived: { b: 'a+gap', negA: '0-a', negB: '0-a-gap' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Negating reverses the order, so $-{{b}}$ comes first.', correct: true },
+    { label: 'Nothing is wrong, because the order of the sizes is kept.', error: 'operationInverted' },
+    { label: 'The two are equal once the signs are dropped.', error: 'partialTotal' },
+    { label: 'Negative numbers cannot be put in order at all.', error: 'signError' },
+  ],
+  reasoning: ['${{a}}$ is less than ${{b}}$, so ${{a}}$ is closer to zero.', 'Closer to zero on the negative side means larger, so ${{negB}}$ comes before ${{negA}}$.'],
+  answerSummary: { headline: 'Further from zero is smaller once you are below it.', text: '$-{{b}}$ comes first.' },
+  hint: 'Which of the two lies further left?',
+  feedback: 'The sizes keep their order; the values do not.',
+});
+
+// ================================================================ 8.3A
+// Corresponding sides of similar shapes, and dilation.
+
+mk('8.3A', 'scale-factor-of-a-dilation', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'orderedPairs',
+  prompt: 'A dilation centred at the origin sends $({{x}}, {{y}})$ to $({{kx}}, {{ky}})$. What is the scale factor?',
+  generator: {
+    parameters: {
+      // x and k share a range, so the original coordinate crosses the factor.
+      x: { type: 'int', min: 2, max: 12 },
+      y: { type: 'int', min: 2, max: 12 },
+      k: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      kx: 'k*x', ky: 'k*y',
+      answer: 'k',
+      d_partialTotal: 'x*(k-1)',
+      d_arithmeticSlip: 'k-x',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+    { label: plain('{{x}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['${{kx}} \\div {{x}} = {{answer}}$, and ${{ky}} \\div {{y}} = {{answer}}$ as well.', 'A dilation multiplies both coordinates by the same factor.'],
+  answerSummary: { headline: 'A scale factor is a ratio, not a difference.', text: 'The factor is ${{answer}}$.' },
+  hint: 'Divide an image coordinate by the one it came from.',
+  feedback: 'How much the coordinate grew by is not how many times it grew.',
+});
+
+mk('8.3A', 'perimeters-of-similar-shapes', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Two similar shapes have sides in the ratio ${{a}} : {{b}}$. Their perimeters are in what ratio?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { asq: 'a*a', bsq: 'b*b', aPlus: 'a+1', bPlus: 'b+1' },
+    constraints: ['a!=b'],
+  },
+  choices: [
+    { label: plain('{{a}} : {{b}}'), correct: true },
+    { label: plain('{{b}} : {{a}}'), error: 'ratioReversed' },
+    { label: plain('{{asq}} : {{bsq}}'), error: 'exponentError' },
+    { label: plain('{{aPlus}} : {{bPlus}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['A perimeter adds up sides, and every side is scaled by the same factor.', 'Adding scaled sides scales the total by that factor too, so the ratio is unchanged.'],
+  answerSummary: { headline: 'Perimeter scales exactly as the sides do.', text: 'It is ${{a}} : {{b}}$.' },
+  hint: 'What does a perimeter add up?',
+  feedback: 'Squaring the ratio describes areas, not perimeters.',
+});
+
+mk('8.3A', 'areas-of-similar-shapes', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A rectangle ${{a}}$ by ${{b}}$ cm is dilated by a factor of ${{k}}$, and a second measures ${{a2}}$ by ${{b2}}$ cm. What area does the image of the first cover?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 9 },
+      k: { type: 'int', min: 2, max: 5 },
+      // The second rectangle is drawn separately, so its area crosses the key.
+      a2: { type: 'int', min: 4, max: 36 },
+      b2: { type: 'int', min: 4, max: 36 },
+    },
+    derived: {
+      area: 'a*b',
+      answer: 'a*b*k*k',
+      d_exponentError: 'a*b*k*k*k',
+      d_partialTotal: 'a*b*k',
+      d_usedGivenValue: 'a2*b2',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_exponentError}}'), error: 'exponentError' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The rectangle covers ${{area}}$ square cm to begin with.', 'Both directions stretch by ${{k}}$, so the image covers ${{k}} \\times {{k}}$ times as much: ${{answer}}$.'],
+  answerSummary: { headline: 'Area scales by the square of the length factor.', text: 'The image covers ${{answer}}$ square cm.' },
+  hint: 'How many directions does the stretch act in?',
+  feedback: 'That is the second rectangle, which was not dilated.',
+});
+
+mk('8.3A', 'image-of-a-second-point', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'orderedPairs',
+  prompt: 'A dilation about the origin sends $({{x1}}, {{y1}})$ to $({{kx1}}, {{ky1}})$. Where does $({{x2}}, {{y2}})$ go?',
+  generator: {
+    parameters: {
+      x1: { type: 'int', min: 2, max: 9 },
+      y1: { type: 'int', min: 2, max: 9 },
+      x2: { type: 'int', min: 2, max: 9 },
+      y2: { type: 'int', min: 2, max: 9 },
+      k: { type: 'int', min: 2, max: 6 },
+    },
+    derived: {
+      kx1: 'k*x1', ky1: 'k*y1',
+      kx2: 'k*x2', ky2: 'k*y2',
+      addX: 'x2+k*x1-x1', addY: 'y2+k*y1-y1',
+      swapX: 'k*y2', swapY: 'k*x2',
+    },
+    constraints: ['x2!=y2', 'x2!=x1', 'y2!=y1', '(addX!=swapX)||(addY!=swapY)'],
+  },
+  choices: [
+    { label: plain('({{kx2}}, {{ky2}})'), correct: true },
+    { label: plain('({{addX}}, {{addY}})'), error: 'operationInverted' },
+    { label: plain('({{swapX}}, {{swapY}})'), error: 'ratioReversed' },
+    { label: plain('({{x2}}, {{y2}})'), error: 'partialTotal' },
+  ],
+  reasoning: ['${{kx1}} \\div {{x1}} = {{k}}$, so the factor is ${{k}}$.', 'Both coordinates of the second point are multiplied by ${{k}}$.'],
+  answerSummary: { headline: 'One factor applies to every point and both coordinates.', text: 'It goes to $({{kx2}}, {{ky2}})$.' },
+  hint: 'Work out the factor from the pair you were given.',
+  feedback: 'Adding the growth of the first point only works if the points match.',
+});
+
+mk('8.3A', 'does-a-dilation-change-angles', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student says a dilation changes the angles as well as the sides. What is wrong?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 8 },
+      ang: { type: 'int', min: 20, max: 120 },
+    },
+    derived: { kAng: 'k*ang', third: '180-ang' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'A dilation keeps every angle, so an angle of ${{ang}}^\\circ$ stays ${{ang}}^\\circ$.', correct: true },
+    { label: 'Nothing is wrong: the angle becomes ${{kAng}}^\\circ$.', error: 'operationInverted' },
+    { label: 'The angles do change, but only in a reduction, not an enlargement.', error: 'partialTotal' },
+    { label: 'The angles change to ${{third}}^\\circ$, because the shape leans.', error: 'signError' },
+  ],
+  reasoning: ['A dilated shape is similar to the original, and similarity fixes the angles exactly.', 'Scaling an angle would bend the sides, and $ {{k}} \\times {{ang}} = {{kAng}}$ can even pass $180^\\circ$.'],
+  answerSummary: { headline: 'A dilation scales lengths and leaves angles alone.', text: 'The angle stays ${{ang}}^\\circ$.' },
+  hint: 'What makes two shapes similar rather than congruent?',
+  feedback: 'Enlarging and reducing treat the angles the same way.',
+});
+
+// ================================================================ 8.3B
+// A shape and its dilation, side by side.
+
+mk('8.3B', 'what-a-dilation-leaves-alone', {
+  courseId: 'grade8',
+  difficultyBand: 1, dok: 1, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'A shape is dilated about the origin by a factor of ${{k}}$. What is unchanged?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 8 },
+      side: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { kSide: 'k*side', area: 'side*side', kArea: 'k*k*side*side' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The angle measures.', correct: true },
+    { label: 'The side lengths.', error: 'operationInverted' },
+    { label: 'The area.', error: 'areaPerimeterSwap' },
+    { label: 'The distance of each vertex from the origin.', error: 'partialTotal' },
+  ],
+  reasoning: ['A side of ${{side}}$ becomes ${{kSide}}$ and an area of ${{area}}$ becomes ${{kArea}}$.', 'The angles are the one thing a dilation carries over untouched.'],
+  answerSummary: { headline: 'A dilation changes size, not shape.', text: 'The angles.' },
+  hint: 'What tells you two shapes are the same shape?',
+  feedback: 'Every distance from the centre is multiplied by the factor.',
+});
+
+mk('8.3B', 'perimeter-after-a-dilation', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'Two panels have perimeters ${{p}}$ and ${{p2}}$ cm, and the first is dilated by a factor of ${{k}}$. What is its new perimeter?',
+  generator: {
+    parameters: {
+      // The second panel's perimeter is drawn separately, so it crosses the key.
+      p: { type: 'int', min: 6, max: 40 },
+      p2: { type: 'int', min: 12, max: 200 },
+      k: { type: 'int', min: 2, max: 8 },
+    },
+    derived: {
+      answer: 'k*p',
+      d_offByOneStep: 'k*p+p',
+      d_operationInverted: 'k+p',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{p2}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Every side is multiplied by ${{k}}$, so the total round is too.', '${{k}} \\times {{p}} = {{answer}}$ cm.'],
+  answerSummary: { headline: 'Perimeter scales by the factor itself.', text: 'It becomes ${{answer}}$ cm.' },
+  hint: 'What happens to each side?',
+  feedback: 'That is the second panel, which was not dilated.',
+});
+
+mk('8.3B', 'area-after-a-dilation', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'Two panels cover ${{A}}$ and ${{A2}}$ square cm, and the first is dilated by a factor of ${{k}}$. What area does it cover then?',
+  generator: {
+    parameters: {
+      // Drawn separately so it crosses the key rather than dividing it.
+      A: { type: 'int', min: 4, max: 40 },
+      A2: { type: 'int', min: 20, max: 600 },
+      k: { type: 'int', min: 2, max: 6 },
+    },
+    derived: {
+      answer: 'A*k*k',
+      d_exponentError: 'A*k*k*k',
+      d_partialTotal: 'A*k',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_exponentError}}'), error: 'exponentError' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{A2}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Both directions stretch by ${{k}}$, so the area grows by ${{k}} \\times {{k}}$.', '${{A}} \\times {{k}}^2 = {{answer}}$ square cm.'],
+  answerSummary: { headline: 'Area scales by the square of the factor.', text: 'It covers ${{answer}}$ square cm.' },
+  hint: 'How many directions does the stretch act in?',
+  feedback: 'Scaling once describes a length, not an area.',
+});
+
+mk('8.3B', 'image-under-a-reduction', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'orderedPairs',
+  prompt: 'A dilation of factor $\\frac{1}{{{k}}}$ about the origin sends $({{kx}}, {{ky}})$ where?',
+  generator: {
+    parameters: {
+      x: { type: 'int', min: 2, max: 12 },
+      y: { type: 'int', min: 2, max: 12 },
+      k: { type: 'int', min: 2, max: 6 },
+    },
+    derived: {
+      kx: 'k*x', ky: 'k*y',
+      bigX: 'k*k*x', bigY: 'k*k*y',
+      subX: 'k*x-k', subY: 'k*y-k',
+    },
+    constraints: ['x!=y'],
+  },
+  choices: [
+    { label: plain('({{x}}, {{y}})'), correct: true },
+    { label: plain('({{bigX}}, {{bigY}})'), error: 'operationInverted' },
+    { label: plain('({{subX}}, {{subY}})'), error: 'arithmeticSlip' },
+    { label: plain('({{ky}}, {{kx}})'), error: 'ratioReversed' },
+  ],
+  reasoning: ['A factor below one shrinks the shape towards the origin.', 'Dividing both coordinates by ${{k}}$ gives $({{x}}, {{y}})$.'],
+  answerSummary: { headline: 'A fractional factor divides both coordinates.', text: 'It goes to $({{x}}, {{y}})$.' },
+  hint: 'Does a factor below one grow the shape or shrink it?',
+  feedback: 'Multiplying by ${{k}}$ would enlarge it instead.',
+});
+
+mk('8.3B', 'every-point-moves-the-same-distance', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student says a dilation about the origin moves every point the same distance. What is wrong?',
+  generator: {
+    parameters: {
+      near: { type: 'int', min: 2, max: 6 },
+      far: { type: 'int', min: 10, max: 30 },
+      k: { type: 'int', min: 2, max: 6 },
+    },
+    derived: {
+      nearMove: 'near*k-near',
+      farMove: 'far*k-far',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'A point at ${{near}}$ moves ${{nearMove}}$, while one at ${{far}}$ moves ${{farMove}}$.', correct: true },
+    { label: 'Nothing is wrong, because every point is multiplied by ${{k}}$.', error: 'operationInverted' },
+    { label: 'Every point does move equally, but only away from the origin.', error: 'partialTotal' },
+    { label: 'Points move equally only when the factor is a whole number.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['A dilation multiplies each distance from the centre, so a larger distance gains more.', 'Multiplying by ${{k}}$ is not the same as adding a fixed amount.'],
+  answerSummary: { headline: 'A dilation scales distances; a translation adds to them.', text: 'Far points move further.' },
+  hint: 'Compare a point near the origin with one far from it.',
+  feedback: 'The same multiplier does not mean the same movement.',
 });
 
 // ---------------------------------------------------------------- emit
