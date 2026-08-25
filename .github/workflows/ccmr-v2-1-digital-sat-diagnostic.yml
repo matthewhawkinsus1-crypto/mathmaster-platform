@@ -5,6 +5,7 @@ on:
     branches:
       - ccmr-fidelity-v2-1-authentic-language
     paths:
+      - 'drafts/ccmr-v2.1/digitalSAT/**'
       - 'scripts/diagnose-digital-sat-v2-1-release.mjs'
       - 'scripts/diagnose-digital-sat-v2-1-compact.mjs'
       - '.github/workflows/ccmr-v2-1-digital-sat-diagnostic.yml'
