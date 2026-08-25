@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: '20'
 
-      # Keep structure-aware audit semantics covered before compiling or releasing authored content.
+      # Keep structure-aware anti-clone semantics and the 75% response ecology covered before release.
       - name: Syntax-check V2.1 publisher
         run: node --check scripts/build-digital-sat-v2-1.mjs
 
