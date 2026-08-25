@@ -6,6 +6,9 @@
     {
       "source": "functions",
       "codebase": "default",
+      "predeploy": [
+        "node scripts/build-tsia2-production-seed.mjs --write"
+      ],
       "ignore": [
         "node_modules",
         ".git",
