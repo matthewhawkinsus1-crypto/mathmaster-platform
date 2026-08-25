@@ -33,6 +33,9 @@ on:
       - '.github/workflows/ccmr-v2-1-release-integration-audit.yml'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   release-integration:
     runs-on: ubuntu-latest
@@ -43,6 +46,19 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Apply guarded ACT source repair
+        if: github.event_name == 'push' && github.event.head_commit.message == 'Run CCMR V2.1 source repair'
+        run: |
+          node scripts/ccmr-v2-1-task6-source-repair.mjs
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add drafts/ccmr-v2.1/act/essentialSkills/ACT_NATIVE_pythagoreanTheorem.v2.1.json
+          if git diff --cached --quiet; then
+            echo "Source repair produced no change; refusing to continue."
+            exit 1
+          fi
+          git commit -m "Differentiate ACT Pythagorean task grammar"
+          git push origin HEAD:ccmr-fidelity-v2-1-authentic-language
       - name: Run SAT ACT TSIA2 integration contract
         run: node --test tests/platform/ccmrV21ReleaseIntegrationContent.test.mjs
       - name: Run Digital SAT production compiler contract
