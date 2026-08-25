@@ -6501,6 +6501,2828 @@
      "expected": "choice-b"
     }
    ]
+  },
+  {
+   "id": "mm_asvab_6_6A_dependent_in_a_pay_table",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.6A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.6A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.6A:dependent-in-a-pay-table",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.6A",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The table pairs hours worked with pay earned. Which quantity depends on the other?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Payroll",
+    "table": {
+     "headers": [
+      "hours",
+      "pay"
+     ],
+     "rows": [
+      [
+       "{{h1}}",
+       "\\${{p1}}"
+      ],
+      [
+       "{{h2}}",
+       "\\${{p2}}"
+      ],
+      [
+       "{{h3}}",
+       "\\${{p3}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "The quantity you choose is independent; the one that follows is dependent.",
+    "reasoning": [
+     "Choosing the hours settles the pay: every extra hour adds $\\${{r}}$.",
+     "Nothing about the pay decides how long the shift is."
+    ],
+    "answerSummary": "The pay depends on the hours."
+   },
+   "attemptFeedback": [
+    "Only one of the two is settled by the other."
+   ],
+   "supportHints": [
+    "Which one can you decide first?"
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 9,
+      "max": 25
+     },
+     "h1": {
+      "type": "int",
+      "min": 2,
+      "max": 4
+     }
+    },
+    "derived": {
+     "h2": "h1+3",
+     "h3": "h1+6",
+     "p1": "r*h1",
+     "p2": "r*h2",
+     "p3": "r*h3"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The hours worked depend on the pay.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "Each quantity depends on the other equally.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "The pay depends on the hours worked."
+    },
+    {
+     "id": "choice-d",
+     "label": "Neither quantity depends on the other.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_6A_independent_letter_in_a_rule",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.6A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.6A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.6A:independent-letter-in-a-rule",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.6A",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A cost $c$ follows $c = {{r}}n$ for $n$ parts. Which letter stands for the independent quantity?",
+   "solutionReview": {
+    "headline": "The letter you substitute into is the independent one.",
+    "reasoning": [
+     "The number of parts is chosen, and the cost follows from it.",
+     "Two parts cost $\\${{twice}}$ because $n$ was set to two, not the other way round."
+    ],
+    "answerSummary": "$n$ is independent."
+   },
+   "attemptFeedback": [
+    "A fixed rate is not a quantity that varies."
+   ],
+   "supportHints": [
+    "Which letter do you put a value into?"
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     }
+    },
+    "derived": {
+     "twice": "2*r"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{r}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "$c$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "$n$"
+    },
+    {
+     "id": "choice-d",
+     "label": "Both $n$ and $c$.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_6A_dependent_from_a_description",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.6A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.6A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.6A:dependent-from-a-description",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.6A",
+   "taskType": "representationTranslation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A tank loses ${{r}}$ litres each minute. Which statement is correct?",
+   "solutionReview": {
+    "headline": "Time runs on its own; what it causes depends on it.",
+    "reasoning": [
+     "Wait ${{m}}$ minutes and ${{lost}}$ litres have gone.",
+     "The time passing is what drives the loss, so the litres are the dependent quantity."
+    ],
+    "answerSummary": "The litres lost depend on the minutes."
+   },
+   "attemptFeedback": [
+    "A steady rate stays the same as time passes."
+   ],
+   "supportHints": [
+    "Which quantity would you measure first?"
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     },
+     "m": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     }
+    },
+    "derived": {
+     "lost": "r*m"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The minutes elapsed depend on the litres lost.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "Neither quantity depends on the other.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "The rate of ${{r}}$ litres a minute depends on the time.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "The litres lost depend on the minutes elapsed."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_6A_ordered_pair_order",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.6A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.6A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.6A:ordered-pair-order",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.6A",
+   "taskType": "application",
+   "representation": "orderedPairs",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A crew earns $\\${{r}}$ an hour. Which ordered pair records a shift of ${{h}}$ hours?",
+   "solutionReview": {
+    "headline": "An ordered pair lists the independent quantity first.",
+    "reasoning": [
+     "The independent quantity is written first, so the hours lead.",
+     "${{h}}$ hours at $\\${{r}}$ an hour is $\\${{pay}}$."
+    ],
+    "answerSummary": "It is $({{h}}, {{pay}})$."
+   },
+   "attemptFeedback": [
+    "The hourly rate is not the shift total."
+   ],
+   "supportHints": [
+    "Which quantity goes in the first position?"
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 9,
+      "max": 25
+     },
+     "h": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "pay": "r*h",
+     "slip": "r*h+r"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$({{pay}}, {{h}})$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "$({{h}}, {{pay}})$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$({{h}}, {{slip}})$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "$({{h}}, {{r}})$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_6A_reversed_dependence",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.6A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.6A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.6A:reversed-dependence",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.6A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student says the hours worked depend on the pay earned. What is wrong with that?",
+   "solutionReview": {
+    "headline": "Dependence has a direction, and it is not a matter of choice.",
+    "reasoning": [
+     "Working ${{h}}$ hours produces $\\${{pay}}$; deciding to earn $\\${{pay}}$ does not produce the hours.",
+     "The direction of the relationship runs one way only."
+    ],
+    "answerSummary": "The pay is the dependent quantity."
+   },
+   "attemptFeedback": [
+    "Being measurable does not make a quantity independent."
+   ],
+   "supportHints": [
+    "Which one causes the other?"
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 9,
+      "max": 25
+     },
+     "h": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "pay": "r*h"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Both quantities are independent, because both can be measured.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "Pay cannot depend on anything, because it is fixed at $\\${{r}}$.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "The hours are chosen and the pay follows, so the pay is the dependent quantity."
+    },
+    {
+     "id": "choice-d",
+     "label": "Nothing is wrong, because either quantity may be called dependent.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_6B_equation_for_a_scaling_table",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.6B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.6B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.6B:equation-for-a-scaling-table",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.6B",
+   "taskType": "representationTranslation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which equation matches every row of the table?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Recorded values",
+    "table": {
+     "headers": [
+      "x",
+      "y"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "{{y1}}"
+      ],
+      [
+       "{{x2}}",
+       "{{y2}}"
+      ],
+      [
+       "{{x3}}",
+       "{{y3}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Test a candidate on every row before choosing it.",
+    "reasoning": [
+     "Every $y$ is ${{k}}$ times its own $x$.",
+     "A rule that adds a fixed amount fits the first row only."
+    ],
+    "answerSummary": "The equation is $y = {{k}}x$."
+   },
+   "attemptFeedback": [
+    "One row agreeing is not enough."
+   ],
+   "supportHints": [
+    "Divide each $y$ by its $x$."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     },
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     }
+    },
+    "derived": {
+     "x2": "x1+2",
+     "x3": "x1+4",
+     "y1": "k*x1",
+     "y2": "k*x2",
+     "y3": "k*x3",
+     "gap": "(k-1)*x1",
+     "kPlus": "k+1"
+    },
+    "constraints": [
+     "gap!=k"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = {{k}}x$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = {{kPlus}}x$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = x + {{k}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = x + {{gap}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_6B_equation_for_a_shifting_table",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.6B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.6B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.6B:equation-for-a-shifting-table",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.6B",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which equation fits the table?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Recorded values",
+    "table": {
+     "headers": [
+      "x",
+      "y"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "{{y1}}"
+      ],
+      [
+       "{{x2}}",
+       "{{y2}}"
+      ],
+      [
+       "{{x3}}",
+       "{{y3}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "A constant gap means addition, not scaling.",
+    "reasoning": [
+     "Every $y$ sits ${{b}}$ above its own $x$.",
+     "The gap stays the same as $x$ grows, so nothing is being multiplied."
+    ],
+    "answerSummary": "The equation is $y = x + {{b}}$."
+   },
+   "attemptFeedback": [
+    "A multiplying rule would open the gap as $x$ grows."
+   ],
+   "supportHints": [
+    "Subtract each $x$ from its $y$."
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 4,
+      "max": 30
+     },
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     }
+    },
+    "derived": {
+     "x2": "x1+3",
+     "x3": "x1+7",
+     "y1": "x1+b",
+     "y2": "x2+b",
+     "y3": "x3+b",
+     "ratio": "round((x1+b)/x1)",
+     "bPlus": "b+1"
+    },
+    "constraints": [
+     "ratio!=b",
+     "ratio!=bPlus"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = {{ratio}}x$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = x + {{bPlus}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = x + {{b}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = x - {{b}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_6B_missing_value_from_pairs",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.6B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.6B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.6B:missing-value-from-pairs",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.6B",
+   "taskType": "application",
+   "representation": "orderedPairs",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The pairs $({{x1}}, {{y1}})$, $({{x2}}, {{y2}})$ and $({{x3}}, {{y3}})$ obey one rule. What is $y$ when $x = {{xq}}$?",
+   "solutionReview": {
+    "headline": "Find the rule from the pairs, then use it.",
+    "reasoning": [
+     "Each $y$ is ${{k}}$ times its $x$, so the rule is $y = {{k}}x$.",
+     "At $x = {{xq}}$ that gives ${{answer}}$."
+    ],
+    "answerSummary": "$y = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "A value already listed is not the one being asked for."
+   ],
+   "supportHints": [
+    "What does each pair have in common?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     },
+     "x1": {
+      "type": "int",
+      "min": 3,
+      "max": 5
+     },
+     "delta": {
+      "type": "choice",
+      "values": [
+       -5,
+       -3,
+       3,
+       5
+      ]
+     }
+    },
+    "derived": {
+     "x2": "x1+2",
+     "x3": "x1+4",
+     "xq": "x1+4+delta",
+     "y1": "k*x1",
+     "y2": "k*x2",
+     "y3": "k*x3",
+     "answer": "k*xq",
+     "d_offByOneStep": "k*xq+k",
+     "d_operationInverted": "k+xq"
+    },
+    "constraints": [
+     "answer!=d_offByOneStep",
+     "answer!=d_operationInverted",
+     "answer!=y3",
+     "d_offByOneStep!=d_operationInverted",
+     "d_offByOneStep!=y3",
+     "d_operationInverted!=y3"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{y3}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_6B_equation_in_two_letters",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.6B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.6B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.6B:equation-in-two-letters",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.6B",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "In a table, every cost $c$ is ${{k}}$ times its count $n$. Which equation says that?",
+   "solutionReview": {
+    "headline": "The dependent quantity stands alone on one side.",
+    "reasoning": [
+     "\"${{k}}$ times its count\" scales $n$, so $n$ is multiplied.",
+     "The cost is what comes out, so $c$ stands alone."
+    ],
+    "answerSummary": "It is $c = {{k}}n$."
+   },
+   "attemptFeedback": [
+    "Swapping the letters describes the opposite relationship."
+   ],
+   "supportHints": [
+    "Which quantity is being multiplied?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {},
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$c = n + {{k}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$c = \\frac{n}{{{k}}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "$c = {{k}}n$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$n = {{k}}c$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_6B_row_that_breaks_the_rule",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.6B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.6B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.6B:row-that-breaks-the-rule",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.6B",
+   "taskType": "errorAnalysis",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Three rows obey $y = {{k}}x$ and one does not. Which row is wrong?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Recorded values",
+    "table": {
+     "headers": [
+      "x",
+      "y"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "{{y1}}"
+      ],
+      [
+       "{{x2}}",
+       "{{y2}}"
+      ],
+      [
+       "{{x3}}",
+       "{{bad}}"
+      ],
+      [
+       "{{x4}}",
+       "{{y4}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Check each row against the rule, not against its neighbour.",
+    "reasoning": [
+     "${{k}} \\times {{x3}}$ is not ${{bad}}$.",
+     "Every other row divides out to ${{k}}$ exactly."
+    ],
+    "answerSummary": "The row $({{x3}}, {{bad}})$ breaks it."
+   },
+   "attemptFeedback": [
+    "That row does divide out to ${{k}}$."
+   ],
+   "supportHints": [
+    "Divide each $y$ by its $x$ and watch for the odd one."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     },
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     }
+    },
+    "derived": {
+     "x2": "x1+2",
+     "x3": "x1+4",
+     "x4": "x1+6",
+     "y1": "k*x1",
+     "y2": "k*x2",
+     "y4": "k*x4",
+     "bad": "k*x3+k-1"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$({{x1}}, {{y1}})$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$({{x4}}, {{y4}})$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$({{x2}}, {{y2}})$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$({{x3}}, {{bad}})$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_6C_equation_for_a_situation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.6C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.6C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.6C:equation-for-a-situation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.6C",
+   "taskType": "representationTranslation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A flat fee of $\\${{b}}$ is added to every order. Which equation gives the total $y$ on an order of $x$ dollars?",
+   "solutionReview": {
+    "headline": "A flat fee adds; a rate multiplies.",
+    "reasoning": [
+     "An order of $\\${{order}}$ comes to $\\${{total}}$, because the fee is added once.",
+     "A fixed amount added is written $+ {{b}}$, not $\\times {{b}}$."
+    ],
+    "answerSummary": "The equation is $y = x + {{b}}$."
+   },
+   "attemptFeedback": [
+    "Multiplying would make the fee larger on larger orders."
+   ],
+   "supportHints": [
+    "Does the fee grow with the order?"
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 40
+     },
+     "order": {
+      "type": "int",
+      "min": 10,
+      "max": 120,
+      "step": 5
+     }
+    },
+    "derived": {
+     "total": "order+b"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = {{b}}x$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = x + {{b}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = \\frac{x}{{{b}}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = x - {{b}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_6C_pairs_that_fit_the_equation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.6C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.6C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.6C:pairs-that-fit-the-equation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.6C",
+   "taskType": "interpretation",
+   "representation": "orderedPairs",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which pair of records could have come from $y = {{k}}x$?",
+   "solutionReview": {
+    "headline": "A rule has to hold for every record it claims to cover.",
+    "reasoning": [
+     "Both records have to satisfy the equation, not just the first.",
+     "${{k}} \\times {{x1}} = {{y1}}$ and ${{k}} \\times {{x2}} = {{y2}}$."
+    ],
+    "answerSummary": "The pair $({{x1}}, {{y1}})$ and $({{x2}}, {{y2}})$ fits."
+   },
+   "attemptFeedback": [
+    "Adding ${{k}}$ is not the same as multiplying by it."
+   ],
+   "supportHints": [
+    "Check the second record as carefully as the first."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     },
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     }
+    },
+    "derived": {
+     "x2": "x1+3",
+     "y1": "k*x1",
+     "y2": "k*x2",
+     "a1": "x1+k",
+     "a2": "x2+k",
+     "off": "k*x2+k"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$({{x1}}, {{y1}}) \\text{ and } ({{x2}}, {{y2}})$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$({{y1}}, {{x1}}) \\text{ and } ({{y2}}, {{x2}})$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "$({{x1}}, {{y1}}) \\text{ and } ({{x2}}, {{off}})$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "$({{x1}}, {{a1}}) \\text{ and } ({{x2}}, {{a2}})$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_6C_situation_for_an_equation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.6C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.6C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.6C:situation-for-an-equation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.6C",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which situation is described by $y = {{k}}x$?",
+   "solutionReview": {
+    "headline": "A multiplying rule means each unit contributes the same amount.",
+    "reasoning": [
+     "$y = {{k}}x$ scales with $x$, so ${{n}}$ crates weigh ${{mass}}$ kilograms.",
+     "Twice as many crates weigh ${{doubled}}$, which is twice as much."
+    ],
+    "answerSummary": "It is ${{k}}$ kilograms per crate."
+   },
+   "attemptFeedback": [
+    "Dividing a fixed load is the opposite relationship."
+   ],
+   "supportHints": [
+    "What happens to $y$ when $x$ doubles?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 3,
+      "max": 25
+     },
+     "n": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     }
+    },
+    "derived": {
+     "mass": "k*n",
+     "doubled": "2*k*n"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "A crate weighs ${{k}}$ kilograms more than a box; $y$ is the crate mass.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "A crate holds ${{k}}$ kilograms at most; $y$ is what fits.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "Each crate weighs ${{k}}$ kilograms; $y$ is the mass of $x$ crates."
+    },
+    {
+     "id": "choice-d",
+     "label": "A load of ${{k}}$ kilograms is split into $x$ equal crates.",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_6C_value_from_a_start_and_a_rate",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.6C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.6C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.6C:value-from-a-start-and-a-rate",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.6C",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A tank already holds ${{b}}$ litres and a pump adds ${{k}}$ litres a minute. How much is in it after ${{m}}$ minutes?",
+   "solutionReview": {
+    "headline": "The starting amount is added once, not multiplied.",
+    "reasoning": [
+     "${{m}}$ minutes add ${{k}} \\times {{m}}$ litres.",
+     "On top of the ${{b}}$ already there that is ${{answer}}$."
+    ],
+    "answerSummary": "The tank holds ${{answer}}$ litres."
+   },
+   "attemptFeedback": [
+    "The starting amount was already there before the clock started."
+   ],
+   "supportHints": [
+    "Only the inflow depends on the time."
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 10,
+      "max": 50
+     },
+     "k": {
+      "type": "int",
+      "min": 5,
+      "max": 40
+     },
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "answer": "b+k*m",
+     "d_orderOfOperations": "(b+k)*m",
+     "d_operationInverted": "b+k+m",
+     "d_usedGivenValue": "b*m"
+    },
+    "constraints": [
+     "answer!=d_orderOfOperations",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "d_orderOfOperations!=d_operationInverted",
+     "d_orderOfOperations!=d_usedGivenValue",
+     "d_operationInverted!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_orderOfOperations}}$",
+     "error": "orderOfOperations"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_6C_times_against_more_than",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.6C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.6C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.6C:times-against-more-than",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.6C",
+   "taskType": "errorAnalysis",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student writes $y = {{k}} + x$ for \"$y$ is ${{k}}$ times $x$\". What should it be?",
+   "solutionReview": {
+    "headline": "Times multiplies; more than adds.",
+    "reasoning": [
+     "At $x = {{v}}$, ${{k}}$ times $x$ is ${{scaled}}$, while what the student wrote gives ${{shifted}}$.",
+     "\"More than\" would have been the addition; \"times\" is not."
+    ],
+    "answerSummary": "It should be $y = {{k}}x$."
+   },
+   "attemptFeedback": [
+    "Repeated multiplication is not what \"times\" asks for here."
+   ],
+   "supportHints": [
+    "What does the word \"times\" do to $x$?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 3,
+      "max": 20
+     },
+     "v": {
+      "type": "int",
+      "min": 4,
+      "max": 30
+     }
+    },
+    "derived": {
+     "scaled": "k*v",
+     "shifted": "k+v"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = {{k}} - x$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = x^{{{k}}}$",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = {{k}}x$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = \\frac{x}{{{k}}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_9A_inequality_for_a_ceiling",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.9A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.9A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.9A:inequality-for-a-ceiling",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.9A",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A shelf holds at most ${{c}}$ kilograms. Which inequality does an allowed mass $x$ satisfy?",
+   "solutionReview": {
+    "headline": "At most means less than or equal to.",
+    "reasoning": [
+     "\"At most\" allows ${{c}}$ itself, so the line under the sign stays.",
+     "${{heavier}}$ kilograms is over the limit, so the mass cannot exceed ${{c}}$."
+    ],
+    "answerSummary": "It is $x \\le {{c}}$."
+   },
+   "attemptFeedback": [
+    "A strict inequality would rule out ${{c}}$ itself."
+   ],
+   "supportHints": [
+    "Is a mass of exactly ${{c}}$ allowed?"
+   ],
+   "generator": {
+    "parameters": {
+     "c": {
+      "type": "int",
+      "min": 15,
+      "max": 200,
+      "step": 5
+     },
+     "over": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     }
+    },
+    "derived": {
+     "heavier": "c+over"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x < {{c}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x = {{c}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x \\le {{c}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x \\ge {{c}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_9A_equation_for_an_increase",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.9A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.9A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.9A:equation-for-an-increase",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.9A",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A number increased by ${{a}}$ gives ${{t}}$. Which equation says that?",
+   "solutionReview": {
+    "headline": "Write the operation the sentence performs, in the order it performs it.",
+    "reasoning": [
+     "\"Increased by ${{a}}$\" adds ${{a}}$ to the unknown.",
+     "The result of that addition is ${{t}}$."
+    ],
+    "answerSummary": "It is $x + {{a}} = {{t}}$."
+   },
+   "attemptFeedback": [
+    "The total belongs on its own side."
+   ],
+   "supportHints": [
+    "What is done to the number first?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 3,
+      "max": 40
+     },
+     "x": {
+      "type": "int",
+      "min": 4,
+      "max": 60
+     }
+    },
+    "derived": {
+     "t": "a+x"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x + {{a}} = {{t}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{a}}x = {{t}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x - {{a}} = {{t}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x + {{t}} = {{a}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_9A_equation_for_equal_shares",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.9A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.9A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.9A:equation-for-equal-shares",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.9A",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Each crate weighs ${{w}}$ kilograms and the load weighs ${{t}}$ kilograms. Which equation gives the crate count $x$?",
+   "solutionReview": {
+    "headline": "Equal shares multiply the share by the count.",
+    "reasoning": [
+     "Each crate contributes ${{w}}$ kilograms, so $x$ crates contribute ${{w}}x$.",
+     "That has to come to the load of ${{t}}$."
+    ],
+    "answerSummary": "The equation is ${{w}}x = {{t}}$."
+   },
+   "attemptFeedback": [
+    "The load is not being cut into ${{w}}$ pieces."
+   ],
+   "supportHints": [
+    "What does one crate contribute?"
+   ],
+   "generator": {
+    "parameters": {
+     "w": {
+      "type": "int",
+      "min": 3,
+      "max": 25
+     },
+     "n": {
+      "type": "int",
+      "min": 4,
+      "max": 30
+     }
+    },
+    "derived": {
+     "t": "w*n"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x + {{w}} = {{t}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{t}}x = {{w}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\frac{x}{{{w}}} = {{t}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{w}}x = {{t}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_9A_wrong_operation_for_a_sentence",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.9A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.9A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.9A:wrong-operation-for-a-sentence",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.9A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For \"a number increased by ${{a}}$ is ${{t}}$\" a student writes $x - {{a}} = {{t}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "Write what the sentence does; solve it afterwards.",
+    "reasoning": [
+     "The equation has to record what happened, not how it will be undone.",
+     "Undoing comes later, when the equation is solved."
+    ],
+    "answerSummary": "It should be $x + {{a}} = {{t}}$."
+   },
+   "attemptFeedback": [
+    "Undoing the operation belongs to solving, not to writing."
+   ],
+   "supportHints": [
+    "Does the sentence describe an increase or a decrease?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 3,
+      "max": 40
+     },
+     "x": {
+      "type": "int",
+      "min": 4,
+      "max": 60
+     }
+    },
+    "derived": {
+     "t": "a+x",
+     "wrong": "a+t"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Increasing adds, so it should read $x + {{a}} = {{t}}$."
+    },
+    {
+     "id": "choice-b",
+     "label": "The total is wrong and should be ${{wrong}}$.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "The two sides should be swapped, giving ${{t}} = {{a}} - x$.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "Nothing is wrong, because subtraction undoes addition.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_9A_phrase_for_an_inequality",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.9A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.9A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.9A:phrase-for-an-inequality",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.9A",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which phrase matches $x \\ge {{c}}$?",
+   "solutionReview": {
+    "headline": "At least keeps the boundary; more than drops it.",
+    "reasoning": [
+     "The bar under the sign lets $x$ equal ${{c}}$, while ${{under}}$ is too small.",
+     "\"At least\" is the phrase that allows the boundary."
+    ],
+    "answerSummary": "It reads \"at least ${{c}}$\"."
+   },
+   "attemptFeedback": [
+    "\"More than\" would exclude ${{c}}$."
+   ],
+   "supportHints": [
+    "Is ${{c}}$ itself included?"
+   ],
+   "generator": {
+    "parameters": {
+     "c": {
+      "type": "int",
+      "min": 5,
+      "max": 90
+     },
+     "gap": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     }
+    },
+    "derived": {
+     "under": "c-gap"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "At most ${{c}}$.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "More than ${{c}}$.",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "At least ${{c}}$."
+    },
+    {
+     "id": "choice-d",
+     "label": "Fewer than ${{c}}$.",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_9B_graph_of_an_equation_solution",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.9B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.9B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.9B:graph-of-an-equation-solution",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.9B",
+   "taskType": "representationTranslation",
+   "representation": "numberLine",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The solution of $x + {{a}} = {{t}}$ is drawn on a number line. Which description fits?",
+   "solutionReview": {
+    "headline": "An equation marks a point; an inequality shades a stretch.",
+    "reasoning": [
+     "Only ${{s}}$ satisfies the equation, because ${{s}} + {{a}} = {{t}}$.",
+     "An equation has one solution here, so nothing beyond that point belongs."
+    ],
+    "answerSummary": "One closed dot at ${{s}}$."
+   },
+   "attemptFeedback": [
+    "An arrow would claim every value past the dot."
+   ],
+   "supportHints": [
+    "How many values make the equation true?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     },
+     "s": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     }
+    },
+    "derived": {
+     "t": "a+s",
+     "sum": "a+t"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "A closed dot at ${{s}}$ with an arrow to the right.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "One closed dot at ${{sum}}$, with nothing shaded.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "An open dot at ${{s}}$, with nothing shaded.",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "One closed dot at ${{s}}$, with nothing shaded."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_9B_open_or_closed_endpoint",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.9B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.9B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.9B:open-or-closed-endpoint",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.9B",
+   "taskType": "conceptual",
+   "representation": "numberLine",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "How is $x > {{c}}$ drawn at ${{c}}$?",
+   "solutionReview": {
+    "headline": "A hollow endpoint means the boundary is excluded.",
+    "reasoning": [
+     "${{c}}$ itself does not satisfy $x > {{c}}$, so the endpoint is hollow.",
+     "${{inside}}$ does satisfy it, and it lies to the right, so the arrow runs that way."
+    ],
+    "answerSummary": "An open dot with the arrow to the right."
+   },
+   "attemptFeedback": [
+    "A filled dot would include a value that fails the inequality."
+   ],
+   "supportHints": [
+    "Is ${{c}}$ itself a solution?"
+   ],
+   "generator": {
+    "parameters": {
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 60
+     },
+     "step": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     }
+    },
+    "derived": {
+     "inside": "c+step"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "A closed dot, with the arrow to the right.",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "An open dot, with the arrow to the left.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "A closed dot, with the arrow to the left.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "An open dot, with the arrow to the right."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_9B_value_the_dot_lands_on",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.9B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.9B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.9B:value-the-dot-lands-on",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.9B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solving ${{k}}x = {{p}}$ puts a single dot on the line. At what value?",
+   "solutionReview": {
+    "headline": "Undo the multiplication to find the one value that works.",
+    "reasoning": [
+     "${{p}}$ shared into ${{k}}$ equal parts is ${{answer}}$.",
+     "So the dot sits at ${{answer}}$."
+    ],
+    "answerSummary": "The dot is at ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The total is not the value of $x$."
+   ],
+   "supportHints": [
+    "What undoes multiplying by ${{k}}$?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "p": "k*q",
+     "answer": "q",
+     "d_forgotFinalStep": "p",
+     "d_operationInverted": "q-k"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=k",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=k",
+     "d_operationInverted!=k"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{k}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_9B_which_values_are_shaded",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.9B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.9B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.9B:which-values-are-shaded",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.9B",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which values are shaded for $x \\le {{c}}$?",
+   "solutionReview": {
+    "headline": "The sign gives the direction; the bar gives the endpoint.",
+    "reasoning": [
+     "The bar under the sign admits ${{c}}$ itself.",
+     "${{sample}}$ and ${{doubleDrop}}$ satisfy it too, so the shading runs left without stopping."
+    ],
+    "answerSummary": "${{c}}$ and everything below it."
+   },
+   "attemptFeedback": [
+    "A single value would answer an equation, not an inequality."
+   ],
+   "supportHints": [
+    "Try a value well below ${{c}}$."
+   ],
+   "generator": {
+    "parameters": {
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 60
+     },
+     "drop": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "sample": "c-drop",
+     "doubleDrop": "c-2*drop"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Every value ${{c}}$ and above.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "Every value ${{c}}$ and below."
+    },
+    {
+     "id": "choice-c",
+     "label": "Only ${{c}}$.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "Every value below ${{c}}$, but not ${{c}}$ itself.",
+     "error": "offByOneStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_6_9B_endpoint_drawn_wrongly",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.9B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.9B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:6.9B:endpoint-drawn-wrongly",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.9B",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student graphs $x < {{c}}$ with a closed dot at ${{c}}$ and an arrow left. What is wrong?",
+   "solutionReview": {
+    "headline": "A strict inequality excludes its own boundary.",
+    "reasoning": [
+     "A filled dot claims ${{c}}$ is a solution, and ${{c}} < {{c}}$ is false.",
+     "The direction is right; only the endpoint is drawn wrongly."
+    ],
+    "answerSummary": "The dot should be open."
+   },
+   "attemptFeedback": [
+    "There is no largest value below ${{c}}$ to mark."
+   ],
+   "supportHints": [
+    "Test ${{c}}$ in the inequality."
+   ],
+   "generator": {
+    "parameters": {
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 60
+     }
+    },
+    "derived": {
+     "below": "c-1"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The arrow should run right, because $<$ points that way.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "The dot belongs at ${{below}}$, the largest value that works.",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "The dot should be open, because ${{c}}$ does not satisfy the inequality."
+    },
+    {
+     "id": "choice-d",
+     "label": "Nothing is wrong, because the dot marks where the shading starts.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
   }
  ]
 }

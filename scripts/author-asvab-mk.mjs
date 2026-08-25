@@ -1616,6 +1616,667 @@ mk('6.7A', 'which-power-is-greatest', {
   feedback: 'A base of two with a large exponent beats a square.',
 });
 
+
+// ================================================================ 6.6A
+// Telling the independent quantity from the dependent one.
+//
+// The mathematics here is thin on purpose — the standard is about reading a
+// relationship, not computing one — so the five families are kept apart by the
+// FORM the relationship arrives in: a table, a rule in letters, a sentence, an
+// ordered pair, and a claim to be corrected. Each still derives real values, so
+// no two share a relation graph.
+//
+// The quantity pair is fixed inside each family. Two `choice` parameters are
+// drawn independently and can never be relied on to agree, and a mismatched
+// pair here would read as "the litres depend on the kilograms".
+
+mk('6.6A', 'dependent-in-a-pay-table', {
+  difficultyBand: 1, dok: 2, taskType: 'interpretation', representation: 'table',
+  prompt: 'The table pairs hours worked with pay earned. Which quantity depends on the other?',
+  stimulus: {
+    kind: 'table',
+    title: 'Payroll',
+    table: {
+      headers: ['hours', 'pay'],
+      rows: [['{{h1}}', '\\${{p1}}'], ['{{h2}}', '\\${{p2}}'], ['{{h3}}', '\\${{p3}}']],
+    },
+  },
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 9, max: 25 },
+      h1: { type: 'int', min: 2, max: 4 },
+    },
+    derived: {
+      h2: 'h1+3', h3: 'h1+6',
+      p1: 'r*h1', p2: 'r*h2', p3: 'r*h3',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The pay depends on the hours worked.', correct: true },
+    { label: 'The hours worked depend on the pay.', error: 'ratioReversed' },
+    { label: 'Neither quantity depends on the other.', error: 'operationInverted' },
+    { label: 'Each quantity depends on the other equally.', error: 'partialTotal' },
+  ],
+  reasoning: ['Choosing the hours settles the pay: every extra hour adds $\\${{r}}$.', 'Nothing about the pay decides how long the shift is.'],
+  answerSummary: { headline: 'The quantity you choose is independent; the one that follows is dependent.', text: 'The pay depends on the hours.' },
+  hint: 'Which one can you decide first?',
+  feedback: 'Only one of the two is settled by the other.',
+});
+
+mk('6.6A', 'independent-letter-in-a-rule', {
+  difficultyBand: 1, dok: 1, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'A cost $c$ follows $c = {{r}}n$ for $n$ parts. Which letter stands for the independent quantity?',
+  generator: {
+    parameters: { r: { type: 'int', min: 3, max: 30 } },
+    derived: { twice: '2*r' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('n'), correct: true },
+    { label: plain('c'), error: 'ratioReversed' },
+    { label: plain('{{r}}'), error: 'usedGivenValue' },
+    { label: 'Both $n$ and $c$.', error: 'partialTotal' },
+  ],
+  reasoning: ['The number of parts is chosen, and the cost follows from it.', 'Two parts cost $\\${{twice}}$ because $n$ was set to two, not the other way round.'],
+  answerSummary: { headline: 'The letter you substitute into is the independent one.', text: '$n$ is independent.' },
+  hint: 'Which letter do you put a value into?',
+  feedback: 'A fixed rate is not a quantity that varies.',
+});
+
+mk('6.6A', 'dependent-from-a-description', {
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'verbal',
+  prompt: 'A tank loses ${{r}}$ litres each minute. Which statement is correct?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 15 },
+      m: { type: 'int', min: 3, max: 12 },
+    },
+    derived: { lost: 'r*m' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The litres lost depend on the minutes elapsed.', correct: true },
+    { label: 'The minutes elapsed depend on the litres lost.', error: 'ratioReversed' },
+    { label: 'Neither quantity depends on the other.', error: 'operationInverted' },
+    { label: 'The rate of ${{r}}$ litres a minute depends on the time.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['Wait ${{m}}$ minutes and ${{lost}}$ litres have gone.', 'The time passing is what drives the loss, so the litres are the dependent quantity.'],
+  answerSummary: { headline: 'Time runs on its own; what it causes depends on it.', text: 'The litres lost depend on the minutes.' },
+  hint: 'Which quantity would you measure first?',
+  feedback: 'A steady rate stays the same as time passes.',
+});
+
+mk('6.6A', 'ordered-pair-order', {
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'orderedPairs',
+  prompt: 'A crew earns $\\${{r}}$ an hour. Which ordered pair records a shift of ${{h}}$ hours?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 9, max: 25 },
+      h: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      pay: 'r*h',
+      slip: 'r*h+r',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('({{h}}, {{pay}})'), correct: true },
+    { label: plain('({{pay}}, {{h}})'), error: 'ratioReversed' },
+    { label: plain('({{h}}, {{r}})'), error: 'usedGivenValue' },
+    { label: plain('({{h}}, {{slip}})'), error: 'offByOneStep' },
+  ],
+  reasoning: ['The independent quantity is written first, so the hours lead.', '${{h}}$ hours at $\\${{r}}$ an hour is $\\${{pay}}$.'],
+  answerSummary: { headline: 'An ordered pair lists the independent quantity first.', text: 'It is $({{h}}, {{pay}})$.' },
+  hint: 'Which quantity goes in the first position?',
+  feedback: 'The hourly rate is not the shift total.',
+});
+
+mk('6.6A', 'reversed-dependence', {
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student says the hours worked depend on the pay earned. What is wrong with that?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 9, max: 25 },
+      h: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { pay: 'r*h' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The hours are chosen and the pay follows, so the pay is the dependent quantity.', correct: true },
+    { label: 'Nothing is wrong, because either quantity may be called dependent.', error: 'operationInverted' },
+    { label: 'Both quantities are independent, because both can be measured.', error: 'partialTotal' },
+    { label: 'Pay cannot depend on anything, because it is fixed at $\\${{r}}$.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['Working ${{h}}$ hours produces $\\${{pay}}$; deciding to earn $\\${{pay}}$ does not produce the hours.', 'The direction of the relationship runs one way only.'],
+  answerSummary: { headline: 'Dependence has a direction, and it is not a matter of choice.', text: 'The pay is the dependent quantity.' },
+  hint: 'Which one causes the other?',
+  feedback: 'Being measurable does not make a quantity independent.',
+});
+
+// ================================================================ 6.6B
+// Writing the equation a table describes.
+
+mk('6.6B', 'equation-for-a-scaling-table', {
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'Which equation matches every row of the table?',
+  stimulus: {
+    kind: 'table',
+    title: 'Recorded values',
+    table: { headers: ['x', 'y'], rows: [['{{x1}}', '{{y1}}'], ['{{x2}}', '{{y2}}'], ['{{x3}}', '{{y3}}']] },
+  },
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 3, max: 12 },
+      x1: { type: 'int', min: 2, max: 5 },
+    },
+    derived: {
+      x2: 'x1+2', x3: 'x1+4',
+      y1: 'k*x1', y2: 'k*x2', y3: 'k*x3',
+      gap: '(k-1)*x1',
+      kPlus: 'k+1',
+    },
+    constraints: ['gap!=k'],
+  },
+  choices: [
+    { label: plain('y = {{k}}x'), correct: true },
+    { label: plain('y = x + {{gap}}'), error: 'partialTotal' },
+    { label: plain('y = x + {{k}}'), error: 'operationInverted' },
+    { label: plain('y = {{kPlus}}x'), error: 'offByOneStep' },
+  ],
+  reasoning: ['Every $y$ is ${{k}}$ times its own $x$.', 'A rule that adds a fixed amount fits the first row only.'],
+  answerSummary: { headline: 'Test a candidate on every row before choosing it.', text: 'The equation is $y = {{k}}x$.' },
+  hint: 'Divide each $y$ by its $x$.',
+  feedback: 'One row agreeing is not enough.',
+});
+
+mk('6.6B', 'equation-for-a-shifting-table', {
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'table',
+  prompt: 'Which equation fits the table?',
+  stimulus: {
+    kind: 'table',
+    title: 'Recorded values',
+    table: { headers: ['x', 'y'], rows: [['{{x1}}', '{{y1}}'], ['{{x2}}', '{{y2}}'], ['{{x3}}', '{{y3}}']] },
+  },
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 4, max: 30 },
+      x1: { type: 'int', min: 2, max: 6 },
+    },
+    derived: {
+      x2: 'x1+3', x3: 'x1+7',
+      y1: 'x1+b', y2: 'x2+b', y3: 'x3+b',
+      ratio: 'round((x1+b)/x1)',
+      bPlus: 'b+1',
+    },
+    constraints: ['ratio!=b', 'ratio!=bPlus'],
+  },
+  choices: [
+    { label: plain('y = x + {{b}}'), correct: true },
+    { label: plain('y = {{ratio}}x'), error: 'partialTotal' },
+    { label: plain('y = x - {{b}}'), error: 'signError' },
+    { label: plain('y = x + {{bPlus}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['Every $y$ sits ${{b}}$ above its own $x$.', 'The gap stays the same as $x$ grows, so nothing is being multiplied.'],
+  answerSummary: { headline: 'A constant gap means addition, not scaling.', text: 'The equation is $y = x + {{b}}$.' },
+  hint: 'Subtract each $x$ from its $y$.',
+  feedback: 'A multiplying rule would open the gap as $x$ grows.',
+});
+
+mk('6.6B', 'missing-value-from-pairs', {
+  difficultyBand: 3, dok: 2, taskType: 'application', representation: 'orderedPairs',
+  prompt: 'The pairs $({{x1}}, {{y1}})$, $({{x2}}, {{y2}})$ and $({{x3}}, {{y3}})$ obey one rule. What is $y$ when $x = {{xq}}$?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 3, max: 12 },
+      // From 3, so the smallest queried x is 2 — at x = 1 the rule returns k
+      // itself and the item stops asking anything.
+      x1: { type: 'int', min: 3, max: 5 },
+      delta: { type: 'choice', values: [-5, -3, 3, 5] },
+    },
+    derived: {
+      x2: 'x1+2', x3: 'x1+4',
+      xq: 'x1+4+delta',
+      y1: 'k*x1', y2: 'k*x2', y3: 'k*x3',
+      answer: 'k*xq',
+      d_offByOneStep: 'k*xq+k',
+      d_operationInverted: 'k+xq',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{y3}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Each $y$ is ${{k}}$ times its $x$, so the rule is $y = {{k}}x$.', 'At $x = {{xq}}$ that gives ${{answer}}$.'],
+  answerSummary: { headline: 'Find the rule from the pairs, then use it.', text: '$y = {{answer}}$.' },
+  hint: 'What does each pair have in common?',
+  feedback: 'A value already listed is not the one being asked for.',
+});
+
+mk('6.6B', 'equation-in-two-letters', {
+  difficultyBand: 1, dok: 1, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'In a table, every cost $c$ is ${{k}}$ times its count $n$. Which equation says that?',
+  generator: {
+    parameters: { k: { type: 'int', min: 2, max: 20 } },
+    derived: {},
+    constraints: [],
+  },
+  choices: [
+    { label: plain('c = {{k}}n'), correct: true },
+    { label: plain('n = {{k}}c'), error: 'ratioReversed' },
+    { label: plain('c = n + {{k}}'), error: 'operationInverted' },
+    { label: plain('c = \\frac{n}{{{k}}}'), error: 'signError' },
+  ],
+  reasoning: ['"${{k}}$ times its count" scales $n$, so $n$ is multiplied.', 'The cost is what comes out, so $c$ stands alone.'],
+  answerSummary: { headline: 'The dependent quantity stands alone on one side.', text: 'It is $c = {{k}}n$.' },
+  hint: 'Which quantity is being multiplied?',
+  feedback: 'Swapping the letters describes the opposite relationship.',
+});
+
+mk('6.6B', 'row-that-breaks-the-rule', {
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'table',
+  prompt: 'Three rows obey $y = {{k}}x$ and one does not. Which row is wrong?',
+  stimulus: {
+    kind: 'table',
+    title: 'Recorded values',
+    table: { headers: ['x', 'y'], rows: [['{{x1}}', '{{y1}}'], ['{{x2}}', '{{y2}}'], ['{{x3}}', '{{bad}}'], ['{{x4}}', '{{y4}}']] },
+  },
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 3, max: 12 },
+      x1: { type: 'int', min: 2, max: 5 },
+    },
+    derived: {
+      x2: 'x1+2', x3: 'x1+4', x4: 'x1+6',
+      y1: 'k*x1', y2: 'k*x2', y4: 'k*x4',
+      bad: 'k*x3+k-1',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('({{x3}}, {{bad}})'), correct: true },
+    { label: plain('({{x1}}, {{y1}})'), error: 'partialTotal' },
+    { label: plain('({{x2}}, {{y2}})'), error: 'operationInverted' },
+    { label: plain('({{x4}}, {{y4}})'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['${{k}} \\times {{x3}}$ is not ${{bad}}$.', 'Every other row divides out to ${{k}}$ exactly.'],
+  answerSummary: { headline: 'Check each row against the rule, not against its neighbour.', text: 'The row $({{x3}}, {{bad}})$ breaks it.' },
+  hint: 'Divide each $y$ by its $x$ and watch for the odd one.',
+  feedback: 'That row does divide out to ${{k}}$.',
+});
+
+// ================================================================ 6.6C
+// One situation shown as words, a table, ordered pairs and an equation.
+
+mk('6.6C', 'equation-for-a-situation', {
+  difficultyBand: 1, dok: 2, taskType: 'representationTranslation', representation: 'verbal',
+  prompt: 'A flat fee of $\\${{b}}$ is added to every order. Which equation gives the total $y$ on an order of $x$ dollars?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 3, max: 40 },
+      order: { type: 'int', min: 10, max: 120, step: 5 },
+    },
+    derived: { total: 'order+b' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('y = x + {{b}}'), correct: true },
+    { label: plain('y = {{b}}x'), error: 'operationInverted' },
+    { label: plain('y = x - {{b}}'), error: 'signError' },
+    { label: plain('y = \\frac{x}{{{b}}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['An order of $\\${{order}}$ comes to $\\${{total}}$, because the fee is added once.', 'A fixed amount added is written $+ {{b}}$, not $\\times {{b}}$.'],
+  answerSummary: { headline: 'A flat fee adds; a rate multiplies.', text: 'The equation is $y = x + {{b}}$.' },
+  hint: 'Does the fee grow with the order?',
+  feedback: 'Multiplying would make the fee larger on larger orders.',
+});
+
+mk('6.6C', 'pairs-that-fit-the-equation', {
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'orderedPairs',
+  prompt: 'Which pair of records could have come from $y = {{k}}x$?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 3, max: 12 },
+      x1: { type: 'int', min: 2, max: 5 },
+    },
+    derived: {
+      x2: 'x1+3',
+      y1: 'k*x1', y2: 'k*x2',
+      a1: 'x1+k', a2: 'x2+k',
+      off: 'k*x2+k',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('({{x1}}, {{y1}}) \\text{ and } ({{x2}}, {{y2}})'), correct: true },
+    { label: plain('({{x1}}, {{a1}}) \\text{ and } ({{x2}}, {{a2}})'), error: 'operationInverted' },
+    { label: plain('({{y1}}, {{x1}}) \\text{ and } ({{y2}}, {{x2}})'), error: 'ratioReversed' },
+    { label: plain('({{x1}}, {{y1}}) \\text{ and } ({{x2}}, {{off}})'), error: 'offByOneStep' },
+  ],
+  reasoning: ['Both records have to satisfy the equation, not just the first.', '${{k}} \\times {{x1}} = {{y1}}$ and ${{k}} \\times {{x2}} = {{y2}}$.'],
+  answerSummary: { headline: 'A rule has to hold for every record it claims to cover.', text: 'The pair $({{x1}}, {{y1}})$ and $({{x2}}, {{y2}})$ fits.' },
+  hint: 'Check the second record as carefully as the first.',
+  feedback: 'Adding ${{k}}$ is not the same as multiplying by it.',
+});
+
+mk('6.6C', 'situation-for-an-equation', {
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'Which situation is described by $y = {{k}}x$?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 3, max: 25 },
+      n: { type: 'int', min: 3, max: 12 },
+    },
+    derived: { mass: 'k*n', doubled: '2*k*n' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Each crate weighs ${{k}}$ kilograms; $y$ is the mass of $x$ crates.', correct: true },
+    { label: 'A crate weighs ${{k}}$ kilograms more than a box; $y$ is the crate mass.', error: 'operationInverted' },
+    { label: 'A load of ${{k}}$ kilograms is split into $x$ equal crates.', error: 'ratioReversed' },
+    { label: 'A crate holds ${{k}}$ kilograms at most; $y$ is what fits.', error: 'partialTotal' },
+  ],
+  reasoning: ['$y = {{k}}x$ scales with $x$, so ${{n}}$ crates weigh ${{mass}}$ kilograms.', 'Twice as many crates weigh ${{doubled}}$, which is twice as much.'],
+  answerSummary: { headline: 'A multiplying rule means each unit contributes the same amount.', text: 'It is ${{k}}$ kilograms per crate.' },
+  hint: 'What happens to $y$ when $x$ doubles?',
+  feedback: 'Dividing a fixed load is the opposite relationship.',
+});
+
+mk('6.6C', 'value-from-a-start-and-a-rate', {
+  difficultyBand: 3, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A tank already holds ${{b}}$ litres and a pump adds ${{k}}$ litres a minute. How much is in it after ${{m}}$ minutes?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 10, max: 50 },
+      k: { type: 'int', min: 5, max: 40 },
+      m: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      answer: 'b+k*m',
+      d_orderOfOperations: '(b+k)*m',
+      d_operationInverted: 'b+k+m',
+      d_usedGivenValue: 'b*m',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_orderOfOperations}}'), error: 'orderOfOperations' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['${{m}}$ minutes add ${{k}} \\times {{m}}$ litres.', 'On top of the ${{b}}$ already there that is ${{answer}}$.'],
+  answerSummary: { headline: 'The starting amount is added once, not multiplied.', text: 'The tank holds ${{answer}}$ litres.' },
+  hint: 'Only the inflow depends on the time.',
+  feedback: 'The starting amount was already there before the clock started.',
+});
+
+mk('6.6C', 'times-against-more-than', {
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'symbolic',
+  prompt: 'A student writes $y = {{k}} + x$ for "$y$ is ${{k}}$ times $x$". What should it be?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 3, max: 20 },
+      v: { type: 'int', min: 4, max: 30 },
+    },
+    derived: { scaled: 'k*v', shifted: 'k+v' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('y = {{k}}x'), correct: true },
+    { label: plain('y = \\frac{x}{{{k}}}'), error: 'ratioReversed' },
+    { label: plain('y = {{k}} - x'), error: 'signError' },
+    { label: plain('y = x^{{{k}}}'), error: 'exponentError' },
+  ],
+  reasoning: ['At $x = {{v}}$, ${{k}}$ times $x$ is ${{scaled}}$, while what the student wrote gives ${{shifted}}$.', '"More than" would have been the addition; "times" is not.'],
+  answerSummary: { headline: 'Times multiplies; more than adds.', text: 'It should be $y = {{k}}x$.' },
+  hint: 'What does the word "times" do to $x$?',
+  feedback: 'Repeated multiplication is not what "times" asks for here.',
+});
+
+// ================================================================ 6.9A
+// Writing a one-step equation or inequality for a stated condition.
+
+mk('6.9A', 'inequality-for-a-ceiling', {
+  difficultyBand: 1, dok: 1, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'A shelf holds at most ${{c}}$ kilograms. Which inequality does an allowed mass $x$ satisfy?',
+  generator: {
+    parameters: {
+      c: { type: 'int', min: 15, max: 200, step: 5 },
+      over: { type: 'int', min: 1, max: 20 },
+    },
+    derived: { heavier: 'c+over' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('x \\le {{c}}'), correct: true },
+    { label: plain('x \\ge {{c}}'), error: 'ratioReversed' },
+    { label: plain('x < {{c}}'), error: 'offByOneStep' },
+    { label: plain('x = {{c}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['"At most" allows ${{c}}$ itself, so the line under the sign stays.', '${{heavier}}$ kilograms is over the limit, so the mass cannot exceed ${{c}}$.'],
+  answerSummary: { headline: 'At most means less than or equal to.', text: 'It is $x \\le {{c}}$.' },
+  hint: 'Is a mass of exactly ${{c}}$ allowed?',
+  feedback: 'A strict inequality would rule out ${{c}}$ itself.',
+});
+
+mk('6.9A', 'equation-for-an-increase', {
+  difficultyBand: 1, dok: 1, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'A number increased by ${{a}}$ gives ${{t}}$. Which equation says that?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 3, max: 40 },
+      x: { type: 'int', min: 4, max: 60 },
+    },
+    derived: { t: 'a+x' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('x + {{a}} = {{t}}'), correct: true },
+    { label: plain('x - {{a}} = {{t}}'), error: 'signError' },
+    { label: plain('{{a}}x = {{t}}'), error: 'operationInverted' },
+    { label: plain('x + {{t}} = {{a}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['"Increased by ${{a}}$" adds ${{a}}$ to the unknown.', 'The result of that addition is ${{t}}$.'],
+  answerSummary: { headline: 'Write the operation the sentence performs, in the order it performs it.', text: 'It is $x + {{a}} = {{t}}$.' },
+  hint: 'What is done to the number first?',
+  feedback: 'The total belongs on its own side.',
+});
+
+mk('6.9A', 'equation-for-equal-shares', {
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'Each crate weighs ${{w}}$ kilograms and the load weighs ${{t}}$ kilograms. Which equation gives the crate count $x$?',
+  generator: {
+    parameters: {
+      w: { type: 'int', min: 3, max: 25 },
+      n: { type: 'int', min: 4, max: 30 },
+    },
+    derived: { t: 'w*n' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{w}}x = {{t}}'), correct: true },
+    { label: plain('x + {{w}} = {{t}}'), error: 'operationInverted' },
+    { label: plain('\\frac{x}{{{w}}} = {{t}}'), error: 'ratioReversed' },
+    { label: plain('{{t}}x = {{w}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Each crate contributes ${{w}}$ kilograms, so $x$ crates contribute ${{w}}x$.', 'That has to come to the load of ${{t}}$.'],
+  answerSummary: { headline: 'Equal shares multiply the share by the count.', text: 'The equation is ${{w}}x = {{t}}$.' },
+  hint: 'What does one crate contribute?',
+  feedback: 'The load is not being cut into ${{w}}$ pieces.',
+});
+
+mk('6.9A', 'wrong-operation-for-a-sentence', {
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'For "a number increased by ${{a}}$ is ${{t}}$" a student writes $x - {{a}} = {{t}}$. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 3, max: 40 },
+      x: { type: 'int', min: 4, max: 60 },
+    },
+    derived: { t: 'a+x', wrong: 'a+t' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Increasing adds, so it should read $x + {{a}} = {{t}}$.', correct: true },
+    { label: 'Nothing is wrong, because subtraction undoes addition.', error: 'operationInverted' },
+    { label: 'The two sides should be swapped, giving ${{t}} = {{a}} - x$.', error: 'ratioReversed' },
+    { label: 'The total is wrong and should be ${{wrong}}$.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['The equation has to record what happened, not how it will be undone.', 'Undoing comes later, when the equation is solved.'],
+  answerSummary: { headline: 'Write what the sentence does; solve it afterwards.', text: 'It should be $x + {{a}} = {{t}}$.' },
+  hint: 'Does the sentence describe an increase or a decrease?',
+  feedback: 'Undoing the operation belongs to solving, not to writing.',
+});
+
+mk('6.9A', 'phrase-for-an-inequality', {
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'verbal',
+  prompt: 'Which phrase matches $x \\ge {{c}}$?',
+  generator: {
+    parameters: {
+      c: { type: 'int', min: 5, max: 90 },
+      gap: { type: 'int', min: 1, max: 4 },
+    },
+    derived: { under: 'c-gap' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'At least ${{c}}$.', correct: true },
+    { label: 'More than ${{c}}$.', error: 'offByOneStep' },
+    { label: 'At most ${{c}}$.', error: 'ratioReversed' },
+    { label: 'Fewer than ${{c}}$.', error: 'signError' },
+  ],
+  reasoning: ['The bar under the sign lets $x$ equal ${{c}}$, while ${{under}}$ is too small.', '"At least" is the phrase that allows the boundary.'],
+  answerSummary: { headline: 'At least keeps the boundary; more than drops it.', text: 'It reads "at least ${{c}}$".' },
+  hint: 'Is ${{c}}$ itself included?',
+  feedback: '"More than" would exclude ${{c}}$.',
+});
+
+// ================================================================ 6.9B
+// Showing the solution of a one-step equation or inequality on a number line.
+
+mk('6.9B', 'graph-of-an-equation-solution', {
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'numberLine',
+  prompt: 'The solution of $x + {{a}} = {{t}}$ is drawn on a number line. Which description fits?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 3, max: 30 },
+      s: { type: 'int', min: 2, max: 40 },
+    },
+    derived: { t: 'a+s', sum: 'a+t' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'One closed dot at ${{s}}$, with nothing shaded.', correct: true },
+    { label: 'A closed dot at ${{s}}$ with an arrow to the right.', error: 'operationInverted' },
+    { label: 'One closed dot at ${{sum}}$, with nothing shaded.', error: 'signError' },
+    { label: 'An open dot at ${{s}}$, with nothing shaded.', error: 'offByOneStep' },
+  ],
+  reasoning: ['Only ${{s}}$ satisfies the equation, because ${{s}} + {{a}} = {{t}}$.', 'An equation has one solution here, so nothing beyond that point belongs.'],
+  answerSummary: { headline: 'An equation marks a point; an inequality shades a stretch.', text: 'One closed dot at ${{s}}$.' },
+  hint: 'How many values make the equation true?',
+  feedback: 'An arrow would claim every value past the dot.',
+});
+
+mk('6.9B', 'open-or-closed-endpoint', {
+  difficultyBand: 1, dok: 1, taskType: 'conceptual', representation: 'numberLine',
+  prompt: 'How is $x > {{c}}$ drawn at ${{c}}$?',
+  generator: {
+    parameters: {
+      c: { type: 'int', min: 2, max: 60 },
+      step: { type: 'int', min: 1, max: 9 },
+    },
+    derived: { inside: 'c+step' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'An open dot, with the arrow to the right.', correct: true },
+    { label: 'A closed dot, with the arrow to the right.', error: 'offByOneStep' },
+    { label: 'An open dot, with the arrow to the left.', error: 'ratioReversed' },
+    { label: 'A closed dot, with the arrow to the left.', error: 'signError' },
+  ],
+  reasoning: ['${{c}}$ itself does not satisfy $x > {{c}}$, so the endpoint is hollow.', '${{inside}}$ does satisfy it, and it lies to the right, so the arrow runs that way.'],
+  answerSummary: { headline: 'A hollow endpoint means the boundary is excluded.', text: 'An open dot with the arrow to the right.' },
+  hint: 'Is ${{c}}$ itself a solution?',
+  feedback: 'A filled dot would include a value that fails the inequality.',
+});
+
+mk('6.9B', 'value-the-dot-lands-on', {
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Solving ${{k}}x = {{p}}$ puts a single dot on the line. At what value?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 12 },
+      q: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      p: 'k*q',
+      answer: 'q',
+      d_forgotFinalStep: 'p',
+      d_operationInverted: 'q-k',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{k}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['${{p}}$ shared into ${{k}}$ equal parts is ${{answer}}$.', 'So the dot sits at ${{answer}}$.'],
+  answerSummary: { headline: 'Undo the multiplication to find the one value that works.', text: 'The dot is at ${{answer}}$.' },
+  hint: 'What undoes multiplying by ${{k}}$?',
+  feedback: 'The total is not the value of $x$.',
+});
+
+mk('6.9B', 'which-values-are-shaded', {
+  difficultyBand: 1, dok: 2, taskType: 'interpretation', representation: 'verbal',
+  prompt: 'Which values are shaded for $x \\le {{c}}$?',
+  generator: {
+    parameters: {
+      c: { type: 'int', min: 2, max: 60 },
+      drop: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { sample: 'c-drop', doubleDrop: 'c-2*drop' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Every value ${{c}}$ and below.', correct: true },
+    { label: 'Every value ${{c}}$ and above.', error: 'ratioReversed' },
+    { label: 'Every value below ${{c}}$, but not ${{c}}$ itself.', error: 'offByOneStep' },
+    { label: 'Only ${{c}}$.', error: 'partialTotal' },
+  ],
+  reasoning: ['The bar under the sign admits ${{c}}$ itself.', '${{sample}}$ and ${{doubleDrop}}$ satisfy it too, so the shading runs left without stopping.'],
+  answerSummary: { headline: 'The sign gives the direction; the bar gives the endpoint.', text: '${{c}}$ and everything below it.' },
+  hint: 'Try a value well below ${{c}}$.',
+  feedback: 'A single value would answer an equation, not an inequality.',
+});
+
+mk('6.9B', 'endpoint-drawn-wrongly', {
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student graphs $x < {{c}}$ with a closed dot at ${{c}}$ and an arrow left. What is wrong?',
+  generator: {
+    parameters: { c: { type: 'int', min: 2, max: 60 } },
+    derived: { below: 'c-1' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The dot should be open, because ${{c}}$ does not satisfy the inequality.', correct: true },
+    { label: 'The arrow should run right, because $<$ points that way.', error: 'ratioReversed' },
+    { label: 'Nothing is wrong, because the dot marks where the shading starts.', error: 'operationInverted' },
+    { label: 'The dot belongs at ${{below}}$, the largest value that works.', error: 'offByOneStep' },
+  ],
+  reasoning: ['A filled dot claims ${{c}}$ is a solution, and ${{c}} < {{c}}$ is false.', 'The direction is right; only the endpoint is drawn wrongly.'],
+  answerSummary: { headline: 'A strict inequality excludes its own boundary.', text: 'The dot should be open.' },
+  hint: 'Test ${{c}}$ in the inequality.',
+  feedback: 'There is no largest value below ${{c}}$ to mark.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
