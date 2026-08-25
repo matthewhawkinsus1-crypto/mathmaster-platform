@@ -14,26 +14,63 @@ test('Path runtime imports the CCMR content release guard', () => {
   assert.match(source, /const\s+pathContentRelease\s*=\s*require\(["']\.\/lib\/pathContentRelease["']\)/);
 });
 
-test('session start resolves the target framework release and stamps new sessions', () => {
-  indexOfOrFail('pathContentRelease.resolveAssessmentContentRelease(frameworkRecords, assessmentFramework)', 'startMyMathPathSession must resolve the current release from target-framework families');
+test('Path runtime reads the atomic assessment release manifest', () => {
+  indexOfOrFail('const CONTENT_RELEASE_MANIFEST_COLLECTION = "pathContentReleases"', 'runtime must name the server-owned release-manifest collection');
+  indexOfOrFail('const CONTENT_RELEASE_MANIFEST_DOC = "current"', 'runtime must use one atomic current-release document');
+  indexOfOrFail('resolveAssessmentContentReleaseAuthority(records, framework, manifest)', 'runtime release helper must prefer manifest authority over a bounded bank slice');
+  indexOfOrFail('db.collection(CONTENT_RELEASE_MANIFEST_COLLECTION).doc(CONTENT_RELEASE_MANIFEST_DOC).get()', 'runtime must read the current manifest from Firestore');
+});
+
+test('session start uses manifest authority, stamps new sessions, and holds creation during an update', () => {
+  indexOfOrFail('loadAssessmentContentReleaseState(db, assessmentFramework, frameworkRecords)', 'startMyMathPathSession must resolve the framework through manifest authority');
   indexOfOrFail('assessmentContentRelease: assessmentReleaseState.tracked ? assessmentReleaseState.release : null', 'new assessment sessions must persist the server-owned content release marker');
-  indexOfOrFail('pathContentRelease.planSessionContentReleaseAction(existing.data(), assessmentReleaseState)', 'active-lock reuse must check whether the existing session is stale');
+  indexOfOrFail('pathContentRelease.planSessionContentReleaseAction(existing.data(), assessmentReleaseState)', 'active-lock reuse must check whether the existing session is stale or held');
+  indexOfOrFail('releaseAction.action === "hold-release-update"', 'session start must refuse to create/resume an empty assessment session while release files are changing');
   indexOfOrFail('pathContentRelease.supersedeSessionForContentRelease(existing.data(), assessmentReleaseState.release, now)', 'stale reusable sessions must be superseded rather than resumed');
 });
 
-test('question issue preserves an already-open stale question before checking release', () => {
+test('question issue preserves an already-open stale question before checking manifest release', () => {
   const issueStart = indexOfOrFail('exports.issueNextQuestion = onCall');
   const openQuestionReturn = source.indexOf('if (session.currentQuestion) {', issueStart);
-  const releaseCheck = source.indexOf('pathContentRelease.resolveAssessmentContentRelease(targetFrameworkRecords, session.assessmentFramework)', issueStart);
+  const releaseCheck = source.indexOf('loadAssessmentContentReleaseState(db, session.assessmentFramework, targetFrameworkRecords)', issueStart);
   assert.notEqual(openQuestionReturn, -1, 'issueNextQuestion must preserve its existing open-question return');
-  assert.notEqual(releaseCheck, -1, 'issueNextQuestion must resolve the current release before issuing a new question');
-  assert.ok(openQuestionReturn < releaseCheck, 'an already-issued question must be returned before any stale-session rollover check');
+  assert.notEqual(releaseCheck, -1, 'issueNextQuestion must resolve manifest authority before issuing a new question');
+  assert.ok(openQuestionReturn < releaseCheck, 'an already-issued question must be returned before any release-update or rollover check');
 });
 
-test('question issue supersedes stale empty sessions and returns a domain rollover payload', () => {
-  indexOfOrFail('pathContentRelease.planSessionContentReleaseAction(session, issueReleaseState)', 'issueNextQuestion must evaluate the session against the current target-framework release');
+test('question issue holds empty sessions during update and supersedes stale sessions after activation', () => {
+  indexOfOrFail('pathContentRelease.planSessionContentReleaseAction(session, issueReleaseState)', 'issueNextQuestion must evaluate the session against current manifest authority');
+  indexOfOrFail('releaseAction.action === "hold-release-update"', 'issueNextQuestion must not issue from a partially refreshed bank');
   indexOfOrFail('pathContentRelease.supersedeSessionForContentRelease(freshData, issueReleaseState.release, now)', 'issueNextQuestion must transactionally supersede a stale session with no open question');
   indexOfOrFail('reason: pathContentRelease.RELEASE_CHANGE_REASON', 'rollover payload must expose the stable release-change reason');
   indexOfOrFail('assessmentFramework: session.assessmentFramework', 'rollover payload must preserve assessment framework for restart');
   indexOfOrFail('targetAlignmentKey: session.target.alignmentKey', 'rollover payload must preserve the original target for restart');
+});
+
+test('assessment candidate selection cannot cross the session content release', () => {
+  indexOfOrFail('pathQuestionMatchesSessionContentRelease(question, session)', 'assessment candidates need an explicit session-release filter');
+  const buildPlans = indexOfOrFail('const buildFrameworkPlans = async (framework)');
+  const releaseFilter = source.indexOf('.filter((question) => pathQuestionMatchesSessionContentRelease(question, session))', buildPlans);
+  assert.notEqual(releaseFilter, -1, 'candidate plans must filter to the content release stamped on the session');
+});
+
+test('coordinated assessment refresh is SAT ACT TSIA2 only and switches the manifest around writes', () => {
+  indexOfOrFail('const COORDINATED_CCMR_RELEASE_SEED_FILES = Object.freeze([', 'runtime must define a narrow coordinated assessment package');
+  indexOfOrFail('"digitalSAT_pathQuestionBank_seed.json"');
+  indexOfOrFail('"act_pathQuestionBank_seed.json"');
+  indexOfOrFail('"tsia2_pathQuestionBank_seed.json"');
+  const coordinatedStart = indexOfOrFail('const COORDINATED_CCMR_RELEASE_SEED_FILES = Object.freeze([');
+  const coordinatedEnd = source.indexOf(']);', coordinatedStart);
+  assert.ok(coordinatedEnd > coordinatedStart, 'coordinated seed list must be bounded');
+  const coordinatedList = source.slice(coordinatedStart, coordinatedEnd);
+  assert.doesNotMatch(coordinatedList, /asvab/i, 'ASVAB must not be part of this coordinated release refresh');
+
+  const refreshStart = indexOfOrFail('exports.refreshReleasedCcmrPathBanks = onCall');
+  const validation = source.indexOf('dryRun: true', refreshStart);
+  const updating = source.indexOf('beginAssessmentContentReleaseUpdate', refreshStart);
+  const write = source.indexOf('dryRun: false', refreshStart);
+  const activate = source.indexOf('completeAssessmentContentReleaseUpdate', refreshStart);
+  assert.ok(validation > refreshStart && validation < updating, 'full package validation must happen before the manifest enters updating state');
+  assert.ok(updating < write, 'manifest must become unavailable before the first bank write');
+  assert.ok(write < activate, 'manifest cannot activate the new release until writes finish');
 });
