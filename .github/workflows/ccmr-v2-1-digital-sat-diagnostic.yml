@@ -43,8 +43,9 @@ jobs:
         run: |
           mkdir -p tmp/digital-sat-diagnostics
           node scripts/diagnose-digital-sat-v2-1-compact.mjs --spr-summary > tmp/digital-sat-diagnostics/spr-summary.json
+          node scripts/diagnose-digital-sat-v2-1-compact.mjs --derived-candidates > tmp/digital-sat-diagnostics/derived-candidates.json
       - name: Upload response-format report
         uses: actions/upload-artifact@v4
         with:
           name: digital-sat-response-diagnostic
-          path: tmp/digital-sat-diagnostics/spr-summary.json
+          path: tmp/digital-sat-diagnostics/*.json
