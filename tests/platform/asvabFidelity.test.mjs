@@ -340,3 +340,69 @@ test('generated answers are re-derived independently and match the key', () => {
     assert.equal(Number(String(key.label).replace(/\$/g, '')), expected);
   }
 });
+
+/**
+ * A linear equation label, read back as `ax + by = c`.
+ *
+ * Handles both forms the bank writes, and the ` -5` spacing that collapseSigns
+ * produces from `+ {{b}}` when the constant is negative.
+ */
+const linearEquation = (label) => {
+  const raw = String(label).replace(/\$/g, '').replace(/\s+/g, '');
+  const coefficient = (digits) => (digits === '' ? 1 : digits === '-' ? -1 : Number(digits));
+  const slopeIntercept = /^y=(-?\d*)x([+-]\d+)?$/.exec(raw);
+  if (slopeIntercept) {
+    return { a: -coefficient(slopeIntercept[1]), b: 1, c: slopeIntercept[2] ? Number(slopeIntercept[2]) : 0 };
+  }
+  const standard = /^(-?\d*)x([+-]\d*)y=(-?\d+)$/.exec(raw);
+  if (standard) {
+    const sign = standard[2][0] === '-' ? -1 : 1;
+    const magnitude = standard[2].slice(1);
+    return { a: coefficient(standard[1]), b: sign * (magnitude === '' ? 1 : Number(magnitude)), c: Number(standard[3]) };
+  }
+  return null;
+};
+
+/** The (x, y) pairs an instance actually puts in front of the student. */
+const shownPoints = (instance) => {
+  const stimulus = instance.stimulus;
+  if (!stimulus) return [];
+  if (stimulus.orderedPairs?.length) {
+    return stimulus.orderedPairs.map((pair) => ({ x: Number(pair.x), y: Number(pair.y) }));
+  }
+  const headers = (stimulus.table?.headers || []).map((h) => String(h).replace(/\$/g, '').trim());
+  if (headers.length !== 2 || headers[0] !== 'x' || headers[1] !== 'y') return [];
+  return (stimulus.table.rows || []).map((row) => {
+    const cells = Array.isArray(row) ? row : row.cells;
+    return { x: Number(cells[0]), y: Number(cells[1]) };
+  });
+};
+
+test('an item that shows points and offers a linear equation has a key those points satisfy', () => {
+  // The generator agreeing with itself proves nothing: this reads the numbers
+  // the student is shown and substitutes them into the equation the item calls
+  // correct. An item whose key misses its own data is unanswerable, and no
+  // count-based or bias-based check can see it.
+  let checked = 0;
+  for (const question of draft) {
+    for (const { question: instance } of samplePathInstances(question, 60)) {
+      const points = shownPoints(instance).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+      if (points.length < 2) continue;
+      const keyChoice = instance.choices?.find((choice) => choice.id === instance.responseFields[0].expected);
+      const key = keyChoice && linearEquation(keyChoice.label);
+      if (!key) continue;
+      const satisfies = (line) => points.every((p) => line.a * p.x + line.b * p.y === line.c);
+      assert.ok(satisfies(key),
+        `${question.id}: the key "${keyChoice.label}" does not pass through every point shown ${JSON.stringify(points)}`);
+      for (const choice of instance.choices) {
+        if (choice.id === keyChoice.id) continue;
+        const line = linearEquation(choice.label);
+        if (!line) continue;
+        assert.ok(!satisfies(line),
+          `${question.id}: the distractor "${choice.label}" also passes through every point shown ${JSON.stringify(points)}`);
+      }
+      checked += 1;
+    }
+  }
+  assert.ok(checked > 0, 'no item pairs shown points with a linear-equation key — the check is not reaching anything');
+});

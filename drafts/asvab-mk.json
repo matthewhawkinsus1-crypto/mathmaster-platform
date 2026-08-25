@@ -41540,6 +41540,3013 @@
      "expected": "choice-a"
     }
    ]
+  },
+  {
+   "id": "mm_asvab_8_8D_exterior_angle_of_a_triangle",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.8D:exterior-angle-of-a-triangle",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8D",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two interior angles of a triangle are ${{a}}^\\circ$ and ${{b}}^\\circ$. What is the exterior angle at the third vertex?",
+   "solutionReview": {
+    "headline": "An exterior angle equals the two interior angles it is not beside.",
+    "reasoning": [
+     "The third interior angle is $180 - {{a}} - {{b}} = {{third}}$.",
+     "The exterior angle beside it makes a straight line, so it is $180 - {{third}} = {{answer}}$, the other two added."
+    ],
+    "answerSummary": "It is ${{answer}}^\\circ$."
+   },
+   "attemptFeedback": [
+    "That is the interior angle at that vertex, not the exterior one."
+   ],
+   "supportHints": [
+    "Work out the third interior angle first."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 15,
+      "max": 75
+     },
+     "b": {
+      "type": "int",
+      "min": 15,
+      "max": 75
+     }
+    },
+    "derived": {
+     "answer": "a+b",
+     "third": "180-a-b",
+     "d_arithmeticSlip": "360-a-b",
+     "d_signError": "b-a"
+    },
+    "constraints": [
+     "answer!=d_arithmeticSlip",
+     "answer!=d_signError",
+     "answer!=third",
+     "d_arithmeticSlip!=d_signError",
+     "d_arithmeticSlip!=third",
+     "d_signError!=third"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}^\\circ$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_signError}}^\\circ$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_arithmeticSlip}}^\\circ$",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{third}}^\\circ$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_8D_angles_on_a_transversal",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.8D:angles-on-a-transversal",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8D",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Parallel lines are cut by a transversal and one angle measures ${{a}}^\\circ$. Which statement is true?",
+   "solutionReview": {
+    "headline": "Corresponding angles match; co-interior angles make a straight line.",
+    "reasoning": [
+     "Sliding along the transversal carries an angle onto its corresponding partner unchanged.",
+     "A co-interior angle sits beside that partner on a straight line, so it makes up ${{supp}}$."
+    ],
+    "answerSummary": "${{a}}^\\circ$ and ${{supp}}^\\circ$."
+   },
+   "attemptFeedback": [
+    "The eight angles come in two sizes, not one."
+   ],
+   "supportHints": [
+    "Which pairs are equal and which pairs add to a straight line?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 25,
+      "max": 155
+     }
+    },
+    "derived": {
+     "supp": "180-a",
+     "twice": "2*a"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Every angle formed is ${{a}}^\\circ$, because the lines are parallel.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "Each corresponding angle is ${{twice}}^\\circ$, twice the one given.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "Each corresponding angle is ${{supp}}^\\circ$, and each co-interior angle is ${{a}}^\\circ$.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "Each corresponding angle is also ${{a}}^\\circ$, and each co-interior angle is ${{supp}}^\\circ$."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_8D_why_the_angles_total_180",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.8D:why-the-angles-total-180",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8D",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A line is drawn through one vertex of a triangle parallel to the opposite side. What does that show?",
+   "solutionReview": {
+    "headline": "The parallel line gathers all three angles onto one straight line.",
+    "reasoning": [
+     "The two base angles reappear at the vertex as alternate angles, ${{a}}$ and ${{b}}$.",
+     "With the vertex angle between them they fill a straight line: ${{pair}} + {{third}} = 180$."
+    ],
+    "answerSummary": "They total $180^\\circ$."
+   },
+   "attemptFeedback": [
+    "A straight line is half a full turn."
+   ],
+   "supportHints": [
+    "Which angles reappear at the vertex, and why?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 20,
+      "max": 70
+     },
+     "b": {
+      "type": "int",
+      "min": 20,
+      "max": 70
+     }
+    },
+    "derived": {
+     "third": "180-a-b",
+     "pair": "a+b"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The triangle is similar to itself, so its angles are fixed.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "The two base angles are equal, so the third is ${{third}}^\\circ$.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "The angles total $360^\\circ$, because a full turn is made.",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-d",
+     "label": "The three angles lie along a straight line, so they total $180^\\circ$."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_8D_two_matching_angles",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.8D:two-matching-angles",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8D",
+   "taskType": "application",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "One triangle has angles ${{a}}^\\circ$ and ${{b}}^\\circ$; another has ${{a}}^\\circ$ and ${{c}}^\\circ$. What follows?",
+   "solutionReview": {
+    "headline": "Two matching angles force the third, which is why two are enough.",
+    "reasoning": [
+     "The first triangle has a third angle of $180 - {{a}} - {{b}} = {{c}}$.",
+     "The second therefore has ${{a}}$, ${{c}}$ and ${{b}}$ as well, so all three angles agree."
+    ],
+    "answerSummary": "They are similar."
+   },
+   "attemptFeedback": [
+    "Equal angles fix the shape but not the size."
+   ],
+   "supportHints": [
+    "What is each triangle third angle?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 20,
+      "max": 70
+     },
+     "b": {
+      "type": "int",
+      "min": 20,
+      "max": 70
+     }
+    },
+    "derived": {
+     "c": "180-a-b",
+     "pair": "a+b"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "They are similar: the third angles match at ${{c}}^\\circ$ and ${{b}}^\\circ$."
+    },
+    {
+     "id": "choice-b",
+     "label": "They are congruent, because two angles agree.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "Nothing follows without knowing a side length.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "They are similar only if ${{b}}$ and ${{c}}$ are equal.",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_8D_corresponding_called_supplementary",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.8D:corresponding-called-supplementary",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8D",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student says corresponding angles on a transversal add to $180^\\circ$. What is wrong?",
+   "solutionReview": {
+    "headline": "Equal and supplementary are different relationships.",
+    "reasoning": [
+     "Corresponding angles sit in matching positions and are equal.",
+     "The pairs that add to $180^\\circ$ are the co-interior ones, ${{a}}$ with ${{supp}}$."
+    ],
+    "answerSummary": "Corresponding angles are equal."
+   },
+   "attemptFeedback": [
+    "Only some of the pairs are supplementary."
+   ],
+   "supportHints": [
+    "Which pair sits on a straight line together?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 25,
+      "max": 155
+     }
+    },
+    "derived": {
+     "supp": "180-a",
+     "twiceA": "2*a"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "They add to $360^\\circ$, because there are two lines.",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-b",
+     "label": "They are equal only when the transversal is perpendicular.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "Corresponding angles are equal: two of ${{a}}^\\circ$ total ${{twiceA}}^\\circ$, not $180^\\circ$."
+    },
+    {
+     "id": "choice-d",
+     "label": "Nothing is wrong, because all angle pairs on a transversal are supplementary.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_9_what_the_crossing_point_means",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.9"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.9",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.9:what-the-crossing-point-means",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.9",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two lines are graphed and cross once. What does the crossing point give?",
+   "solutionReview": {
+    "headline": "A crossing point belongs to both lines, so it solves both equations.",
+    "reasoning": [
+     "A point on a line satisfies that line equation, so a point on both satisfies both.",
+     "Here that point is $({{v}}, {{y}})$, which works in each equation separately."
+    ],
+    "answerSummary": "The pair satisfying both."
+   },
+   "attemptFeedback": [
+    "Each line meets the vertical axis at its own place."
+   ],
+   "supportHints": [
+    "What is true of every point on a graphed line?"
+   ],
+   "generator": {
+    "parameters": {
+     "m1": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "rise": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "v": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     },
+     "b1": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     }
+    },
+    "derived": {
+     "m2": "m1+rise",
+     "b2": "b1-rise*v",
+     "y": "m1*v+b1"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The average of the two lines at that value of $x$.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "The one pair of values satisfying both equations at once."
+    },
+    {
+     "id": "choice-c",
+     "label": "The values satisfying the first equation only.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "The point where both lines cross the vertical axis.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_9_verify_a_candidate_point",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.9"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.9",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.9:verify-a-candidate-point",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.9",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Does $({{v}}, {{y}})$ satisfy both $y = {{m1}}x + {{b1}}$ and $y = {{m2}}x + {{b2}}$?",
+   "solutionReview": {
+    "headline": "A shared solution has to work in both equations, tested separately.",
+    "reasoning": [
+     "The first gives ${{m1}} \\times {{v}} + {{b1}} = {{y}}$.",
+     "The second gives ${{m2}} \\times {{v}} + {{b2}}$, which comes to ${{y}}$ as well."
+    ],
+    "answerSummary": "Yes, both give ${{y}}$."
+   },
+   "attemptFeedback": [
+    "Both need testing, and here both agree."
+   ],
+   "supportHints": [
+    "Put the pair into each equation in turn."
+   ],
+   "generator": {
+    "parameters": {
+     "m1": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "rise": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "v": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     },
+     "b1": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     }
+    },
+    "derived": {
+     "m2": "m1+rise",
+     "b2": "b1-rise*v",
+     "y": "m1*v+b1",
+     "firstOnly": "m1*v+b1",
+     "secondAtV": "m1*v+rise*v+b1-rise*v"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Yes: both equations give ${{y}}$ at $x = {{v}}$."
+    },
+    {
+     "id": "choice-b",
+     "label": "Neither: ${{y}}$ is too large for both lines.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "Only the first: the second gives something else at $x = {{v}}$.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "It cannot be checked without graphing the two lines.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_9_where_the_two_lines_meet",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.9"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.9",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.9:where-the-two-lines-meet",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.9",
+   "taskType": "application",
+   "representation": "orderedPairs",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Where do $y = {{m1}}x + {{b1}}$ and $y = {{m2}}x + {{b2}}$ cross?",
+   "solutionReview": {
+    "headline": "Solve for x first, then substitute to get y.",
+    "reasoning": [
+     "Setting the two right sides equal gives $x = {{v}}$.",
+     "Putting ${{v}}$ back into either equation gives $y = {{y}}$."
+    ],
+    "answerSummary": "They cross at $({{v}}, {{y}})$."
+   },
+   "attemptFeedback": [
+    "That is where the first line meets the vertical axis."
+   ],
+   "supportHints": [
+    "When are the two right sides equal?"
+   ],
+   "generator": {
+    "parameters": {
+     "m1": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "rise": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "v": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     },
+     "b1": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     }
+    },
+    "derived": {
+     "m2": "m1+rise",
+     "b2": "b1-rise*v",
+     "y": "m1*v+b1",
+     "swappedY": "m1*v+b1+rise",
+     "atZero": "b1"
+    },
+    "constraints": [
+     "v!=y"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$({{v}}, {{y}})$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$({{y}}, {{v}})$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "$({{v}}, {{swappedY}})$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "$(0, {{atZero}})$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_9_lines_that_never_meet",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.9"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.9",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.9:lines-that-never-meet",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.9",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The table lists both lines at three values of $x$. How many pairs satisfy both?",
+   "stimulus": {
+    "kind": "table",
+    "table": {
+     "headers": [
+      "x",
+      "first line",
+      "second line"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "{{p1}}",
+       "{{q1}}"
+      ],
+      [
+       "{{x2}}",
+       "{{p2}}",
+       "{{q2}}"
+      ],
+      [
+       "{{x3}}",
+       "{{p3}}",
+       "{{q3}}"
+      ]
+     ]
+    },
+    "title": "Values on each line"
+   },
+   "solutionReview": {
+    "headline": "Equal slopes with different intercepts never meet.",
+    "reasoning": [
+     "Each row shows the second line exactly ${{drop}}$ above the first.",
+     "Equal steps keep that gap forever, so the lines are parallel and never cross."
+    ],
+    "answerSummary": "No pair satisfies both."
+   },
+   "attemptFeedback": [
+    "The gap is the same in every row, so it never closes."
+   ],
+   "supportHints": [
+    "What happens to the gap between the columns?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b1": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "drop": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     }
+    },
+    "derived": {
+     "b2": "b1+drop",
+     "x2": "x1+2",
+     "x3": "x1+4",
+     "p1": "m*x1+b1",
+     "p2": "m*(x1+2)+b1",
+     "p3": "m*(x1+4)+b1",
+     "q1": "m*x1+b1+drop",
+     "q2": "m*(x1+2)+b1+drop",
+     "q3": "m*(x1+4)+b1+drop"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Three, one for each row of the table.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "One, at the $x$ where the gap is smallest.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "None: the two stay ${{drop}}$ apart at every $x$."
+    },
+    {
+     "id": "choice-d",
+     "label": "Every pair, because both lines are straight.",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_9_checked_in_one_equation_only",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.9"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.9",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.9:checked-in-one-equation-only",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.9",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student checks a candidate point in the first equation only and calls it the solution. What is wrong?",
+   "solutionReview": {
+    "headline": "One equation cannot single out a point on its own line.",
+    "reasoning": [
+     "One equation is satisfied by every point along its own line, which is infinitely many.",
+     "Only the crossing point satisfies both, so both have to be tested."
+    ],
+    "answerSummary": "Both equations must be checked."
+   },
+   "attemptFeedback": [
+    "Checking the other one alone has exactly the same weakness."
+   ],
+   "supportHints": [
+    "How many points satisfy the first equation alone?"
+   ],
+   "generator": {
+    "parameters": {
+     "m1": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "rise": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "v": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     },
+     "b1": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     },
+     "off": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     }
+    },
+    "derived": {
+     "m2": "m1+rise",
+     "b2": "b1-rise*v",
+     "other": "v+off",
+     "firstAtOther": "m1*v+m1*off+b1",
+     "secondAtOther": "m1*v+m1*off+rise*off+b1"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Every point on the first line passes that test: at $x = {{other}}$ the lines give ${{firstAtOther}}$ and ${{secondAtOther}}$."
+    },
+    {
+     "id": "choice-b",
+     "label": "Nothing is wrong, because the two equations describe the same line.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "The second equation only matters when the lines are parallel.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "The point should be checked in the second equation instead.",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2A_domain_of_a_linear_rule",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2A:domain-of-a-linear-rule",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2A",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is the domain of $f(x) = {{m}}x + {{b}}$?",
+   "solutionReview": {
+    "headline": "A linear rule accepts every real input.",
+    "reasoning": [
+     "Multiplying by ${{m}}$ and adding ${{b}}$ works on any number at all.",
+     "Nothing is divided by and no root is taken, so no input has to be barred."
+    ],
+    "answerSummary": "All real numbers."
+   },
+   "attemptFeedback": [
+    "The value at $x = 0$ is an output, not a barred input."
+   ],
+   "supportHints": [
+    "Is there any input the rule cannot handle?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 30
+     }
+    },
+    "derived": {
+     "atZero": "b",
+     "atOne": "m+b"
+    },
+    "constraints": [
+     "m!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "All real numbers."
+    },
+    {
+     "id": "choice-b",
+     "label": "All whole numbers.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "All numbers greater than or equal to ${{atZero}}$.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "All real numbers except ${{atZero}}$.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2A_range_over_a_closed_domain",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2A:range-over-a-closed-domain",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For $f(x) = {{m}}x + {{b}}$ with ${{lo}} \\le x \\le {{hi}}$, what is the range?",
+   "solutionReview": {
+    "headline": "A rising line maps the ends of the domain to the ends of the range.",
+    "reasoning": [
+     "The rule climbs steadily, so the smallest input gives the smallest output.",
+     "$f({{lo}}) = {{flo}}$ and $f({{hi}}) = {{fhi}}$, and every value between is reached."
+    ],
+    "answerSummary": "From ${{flo}}$ to ${{fhi}}$."
+   },
+   "attemptFeedback": [
+    "The constant has to be added as well as the multiplying done."
+   ],
+   "supportHints": [
+    "What does the rule give at each end of the domain?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "lo": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "span": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     }
+    },
+    "derived": {
+     "hi": "lo+span",
+     "flo": "m*lo+b",
+     "fhi": "m*(lo+span)+b",
+     "swapLo": "m*lo",
+     "swapHi": "m*(lo+span)"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{lo}} \\le y \\le {{hi}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{fhi}} \\le y \\le {{flo}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{swapLo}} \\le y \\le {{swapHi}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{flo}} \\le y \\le {{fhi}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2A_value_inside_the_range",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2A:value-inside-the-range",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2A",
+   "taskType": "application",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For $f(x) = {{m}}x + {{b}}$ with ${{lo}} \\le x \\le {{hi}}$, which value is in the range?",
+   "solutionReview": {
+    "headline": "A value is in the range when some allowed input produces it.",
+    "reasoning": [
+     "The range runs from $f({{lo}}) = {{flo}}$ up to $f({{hi}}) = {{fhi}}$.",
+     "${{answer}}$ is $f({{lo}} + {{inside}})$, which lies inside that stretch; the others fall outside it."
+    ],
+    "answerSummary": "${{answer}}$ is reached."
+   },
+   "attemptFeedback": [
+    "That value lies outside the stretch the rule can reach."
+   ],
+   "supportHints": [
+    "Work out the two ends of the range first."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "lo": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "span": {
+      "type": "int",
+      "min": 3,
+      "max": 8
+     },
+     "inside": {
+      "type": "int",
+      "min": 1,
+      "max": 2
+     },
+     "out": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "side": {
+      "type": "choice",
+      "values": [
+       0,
+       1
+      ]
+     }
+    },
+    "derived": {
+     "hi": "lo+span",
+     "flo": "m*lo+b",
+     "fhi": "m*(lo+span)+b",
+     "answer": "m*(lo+inside)+b",
+     "d_signError": "m*lo+b-out",
+     "d_operationInverted": "m*(lo+span)+b+out",
+     "d_usedGivenValue": "side*(m*(lo+span)+b+out+out)+(1-side)*(m*lo+b-out-out)"
+    },
+    "constraints": [
+     "answer!=d_signError",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "d_signError!=d_operationInverted",
+     "d_signError!=d_usedGivenValue",
+     "d_operationInverted!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2A_range_read_from_two_endpoints",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2A:range-read-from-two-endpoints",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2A",
+   "taskType": "interpretation",
+   "representation": "orderedPairs",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A linear function passes through $({{lo}}, {{flo}})$ and $({{hi}}, {{fhi}})$ and is defined only between them. What is its range?",
+   "solutionReview": {
+    "headline": "The range is the stretch of outputs, endpoints included.",
+    "reasoning": [
+     "The two points give the ends of the stretch the outputs cover.",
+     "The line is unbroken between them, so every value from ${{flo}}$ to ${{fhi}}$ is taken."
+    ],
+    "answerSummary": "From ${{flo}}$ to ${{fhi}}$."
+   },
+   "attemptFeedback": [
+    "Only the two ends would be reached if the line had gaps."
+   ],
+   "supportHints": [
+    "Which coordinate of each point is an output?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "lo": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "span": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     }
+    },
+    "derived": {
+     "hi": "lo+span",
+     "flo": "m*lo+b",
+     "fhi": "m*(lo+span)+b",
+     "gap": "m*span"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{flo}} \\le y \\le {{fhi}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = {{flo}} \\text{ or } y = {{fhi}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$0 \\le y \\le {{gap}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{lo}} \\le y \\le {{hi}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2A_range_called_positive_only",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2A:range-called-positive-only",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student says the range of $f(x) = {{m}}x + {{b}}$ is the positive numbers. What is wrong?",
+   "solutionReview": {
+    "headline": "An unrestricted line reaches every output, high and low.",
+    "reasoning": [
+     "Every real number is an allowed input, including negative ones.",
+     "Far enough left the outputs go below zero: $f(-{{k}}) = {{negOutput}}$."
+    ],
+    "answerSummary": "The range is all real numbers."
+   },
+   "attemptFeedback": [
+    "Positive coefficients do not stop the outputs falling."
+   ],
+   "supportHints": [
+    "Try an input well to the left of zero."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 30
+     },
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "negInput": "0-k",
+     "negOutput": "b-m*k",
+     "atZero": "b"
+    },
+    "constraints": [
+     "negOutput<0"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Nothing is wrong, because ${{m}}$ and ${{b}}$ are both positive.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "The range is only the numbers above ${{atZero}}$.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "Negative inputs reach negative outputs: $f(-{{k}}) = {{negOutput}}$."
+    },
+    {
+     "id": "choice-d",
+     "label": "The range is the positive numbers and zero, because $f(0) = {{atZero}}$.",
+     "error": "offByOneStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2B_point_slope_form",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2B:point-slope-form",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2B",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A line of slope ${{m}}$ passes through $({{x1}}, {{y1}})$. Which is its point-slope form?",
+   "solutionReview": {
+    "headline": "Subtract each coordinate from its own letter.",
+    "reasoning": [
+     "Point-slope form subtracts the point coordinates from the matching letters.",
+     "The slope multiplies the bracket holding $x$."
+    ],
+    "answerSummary": "It is $y - {{y1}} = {{m}}(x - {{x1}})$."
+   },
+   "attemptFeedback": [
+    "Adding the coordinates would describe the point reflected through the origin."
+   ],
+   "supportHints": [
+    "Which coordinate belongs with $x$?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 12
+     },
+     "y1": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     }
+    },
+    "derived": {
+     "b": "y1-m*x1"
+    },
+    "constraints": [
+     "x1!=y1",
+     "x1!=m"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y + {{y1}} = {{m}}(x + {{x1}})$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y - {{x1}} = {{m}}(x - {{y1}})$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y - {{y1}} = {{x1}}(x - {{m}})$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y - {{y1}} = {{m}}(x - {{x1}})$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2B_slope_intercept_from_a_point",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2B:slope-intercept-from-a-point",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A line of slope ${{m}}$ passes through $({{x1}}, {{y1}})$. What is its slope-intercept form?",
+   "solutionReview": {
+    "headline": "Substitute the point to find the constant.",
+    "reasoning": [
+     "Substituting the point into $y = {{m}}x + b$ gives ${{y1}} = {{m}} \\times {{x1}} + b$.",
+     "So $b = {{y1}} - {{m}} \\times {{x1}} = {{b}}$."
+    ],
+    "answerSummary": "It is $y = {{m}}x + {{b}}$."
+   },
+   "attemptFeedback": [
+    "The point value of $y$ is the constant only when $x$ is zero."
+   ],
+   "supportHints": [
+    "What must $b$ be for the point to lie on the line?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 12
+     },
+     "y1": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     }
+    },
+    "derived": {
+     "b": "y1-m*x1",
+     "wrongB": "y1+m*x1",
+     "swapped": "x1-m*y1"
+    },
+    "constraints": [
+     "b!=y1",
+     "b!=swapped",
+     "swapped!=y1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = {{m}}x + {{b}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = {{m}}x + {{swapped}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = {{m}}x + {{wrongB}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = {{m}}x + {{y1}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2B_line_through_two_points",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2B:line-through-two-points",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2B",
+   "taskType": "application",
+   "representation": "orderedPairs",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which line passes through $({{x1}}, {{y1}})$ and $({{x2}}, {{y2}})$?",
+   "solutionReview": {
+    "headline": "Slope first, then the constant from either point.",
+    "reasoning": [
+     "From the first point to the second, $y$ rises ${{rise}}$ over a run of ${{run}}$, so the slope is ${{m}}$.",
+     "Substituting the first point gives $b = {{b}}$."
+    ],
+    "answerSummary": "It is $y = {{m}}x + {{b}}$."
+   },
+   "attemptFeedback": [
+    "The rise alone has not been divided by the run."
+   ],
+   "supportHints": [
+    "The rise is not the slope until it is shared by the run."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "run": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     },
+     "y1": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     }
+    },
+    "derived": {
+     "x2": "x1+run",
+     "y2": "y1+m*run",
+     "b": "y1-m*x1",
+     "rise": "m*run",
+     "wrongB": "y1+m*x1"
+    },
+    "constraints": [
+     "rise!=m",
+     "b!=wrongB",
+     "run!=m"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = {{rise}}x + {{b}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = {{m}}x + {{b}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = {{run}}x + {{b}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = {{m}}x + {{wrongB}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2B_same_line_in_another_form",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2B:same-line-in-another-form",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2B",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which equation describes the same line as $y - {{y1}} = {{m}}(x - {{x1}})$?",
+   "solutionReview": {
+    "headline": "The two forms differ only in how the constant is packaged.",
+    "reasoning": [
+     "Multiplying out the bracket gives $y - {{y1}} = {{m}}x - {{noExpand}}$.",
+     "Adding ${{y1}}$ to both sides leaves $y = {{m}}x + {{b}}$."
+    ],
+    "answerSummary": "It is $y = {{m}}x + {{b}}$."
+   },
+   "attemptFeedback": [
+    "The ${{y1}}$ still has to be added to both sides."
+   ],
+   "supportHints": [
+    "Multiply out the bracket, then move the constant across."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 12
+     },
+     "y1": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     }
+    },
+    "derived": {
+     "b": "y1-m*x1",
+     "wrongB": "y1+m*x1",
+     "noExpand": "m*x1"
+    },
+    "constraints": [
+     "b!=wrongB",
+     "b!=noExpand"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = {{m}}x + {{b}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = {{m}}x + {{wrongB}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = {{m}}x - {{noExpand}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = {{m}}x + {{y1}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2B_signs_in_point_slope",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2B:signs-in-point-slope",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2B",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For the point $({{x1}}, {{y1}})$ a student writes $y + {{y1}} = {{m}}(x + {{x1}})$. What is wrong?",
+   "solutionReview": {
+    "headline": "The minus signs in the form are what carry the point.",
+    "reasoning": [
+     "Point-slope form reads $y - y_1 = m(x - x_1)$, with each coordinate subtracted.",
+     "Writing plus signs puts $-{{x1}}$ and $-{{y1}}$ in place of the point given."
+    ],
+    "answerSummary": "It should subtract both coordinates."
+   },
+   "attemptFeedback": [
+    "Expanding keeps the error rather than cancelling it."
+   ],
+   "supportHints": [
+    "Substitute the point and see whether both sides come to zero."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 12
+     },
+     "y1": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     }
+    },
+    "derived": {
+     "negX": "0-x1",
+     "negY": "0-y1",
+     "b": "y1-m*x1"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Nothing is wrong, because the signs cancel when the bracket is expanded.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "Those signs describe the point $(-{{x1}}, -{{y1}})$; the form subtracts the coordinates."
+    },
+    {
+     "id": "choice-c",
+     "label": "Only the $x$ coordinate is subtracted; the $y$ one is added.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "The slope should be negative to match the added signs.",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2C_standard_form_from_a_description",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2C:standard-form-from-a-description",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2C",
+   "taskType": "representationTranslation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Tickets cost $\\${{a}}$ and programmes $\\${{b}}$, and a group spends $\\${{c}}$ altogether. Which equation says so?",
+   "solutionReview": {
+    "headline": "Standard form puts both variable terms on one side and the total on the other.",
+    "reasoning": [
+     "Each ticket adds $\\${{a}}$ and each programme $\\${{b}}$.",
+     "The two contributions together come to the $\\${{c}}$ spent."
+    ],
+    "answerSummary": "It is ${{a}}x + {{b}}y = {{c}}$."
+   },
+   "attemptFeedback": [
+    "The two prices are different, so they cannot share one bracket."
+   ],
+   "supportHints": [
+    "What does each ticket contribute, and what does each programme?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 4,
+      "max": 25
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "y": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "c": "a*x+b*y",
+     "sum": "a+b"
+    },
+    "constraints": [
+     "a!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{b}}x + {{a}}y = {{c}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{sum}}(x + y) = {{c}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{a}}x + {{b}}y + {{c}} = 0$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{a}}x + {{b}}y = {{c}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2C_standard_form_from_intercepts",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2C:standard-form-from-intercepts",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2C",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A line crosses the horizontal axis at ${{xInt}}$ and the vertical axis at ${{yInt}}$. Which equation in standard form fits?",
+   "solutionReview": {
+    "headline": "Test a standard-form candidate by setting each variable to zero in turn.",
+    "reasoning": [
+     "At $y = 0$ the equation gives ${{a}}x = {{c}}$, so $x = {{xInt}}$.",
+     "At $x = 0$ it gives ${{b}}y = {{c}}$, so $y = {{yInt}}$, matching both crossings."
+    ],
+    "answerSummary": "It is ${{a}}x + {{b}}y = {{c}}$."
+   },
+   "attemptFeedback": [
+    "Swapping the coefficients swaps the two crossings."
+   ],
+   "supportHints": [
+    "Put $y = 0$ into each candidate and see where it crosses."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "c": "a*b*k",
+     "xInt": "b*k",
+     "yInt": "a*k",
+     "swapped": "a*b"
+    },
+    "constraints": [
+     "a!=b",
+     "gcd(a,b)==1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{a}}x + {{b}}y = {{c}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{b}}x + {{a}}y = {{c}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{a}}x + {{b}}y = {{swapped}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{a}}x - {{b}}y = {{c}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2C_standard_form_from_a_table",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2C:standard-form-from-a-table",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2C",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which equation in standard form produces every row?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Recorded values",
+    "table": {
+     "headers": [
+      "x",
+      "y"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "{{y1}}"
+      ],
+      [
+       "{{x2}}",
+       "{{y2}}"
+      ],
+      [
+       "{{x3}}",
+       "{{y3}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "In standard form the two terms trade off to a constant total.",
+    "reasoning": [
+     "Each step of ${{step}}$ in $x$ lowers $y$ by ${{a}}$ times that, so ${{a}}x + y$ stays fixed.",
+     "At the first row that total is ${{a}} \\times {{x1}} + {{y1}} = {{c}}$."
+    ],
+    "answerSummary": "It is ${{a}}x + y = {{c}}$."
+   },
+   "attemptFeedback": [
+    "Subtracting would make the total change from row to row."
+   ],
+   "supportHints": [
+    "Work out ${{a}}x + y$ for each row."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "y1": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "step": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     }
+    },
+    "derived": {
+     "b": "1",
+     "x1": "k",
+     "x2": "k+step",
+     "x3": "k+2*step",
+     "c": "a*k+y1",
+     "y2": "a*k+y1-a*(k+step)",
+     "y3": "a*k+y1-a*(k+2*step)",
+     "aPlus": "a+1"
+    },
+    "constraints": [
+     "y2>0",
+     "y3>0"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x + {{a}}y = {{c}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{a}}x + y = {{c}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{a}}x - y = {{c}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{aPlus}}x + y = {{c}}$",
+     "error": "offByOneStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2C_standard_form_from_two_plotted_points",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2C:standard-form-from-two-plotted-points",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2C",
+   "taskType": "representationTranslation",
+   "representation": "orderedPairs",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which equation in standard form passes through both points?",
+   "stimulus": {
+    "kind": "orderedPairs",
+    "title": "Two points on the line",
+    "orderedPairs": [
+     {
+      "x": "{{x1}}",
+      "y": "{{y1}}"
+     },
+     {
+      "x": "{{x2}}",
+      "y": "{{y2}}"
+     }
+    ]
+   },
+   "solutionReview": {
+    "headline": "Two points pin down both coefficients and the constant.",
+    "reasoning": [
+     "Between the two points the line runs ${{b}}$ across and drops ${{a}}$, so ${{a}}x + {{b}}y$ never changes.",
+     "At the first point that fixed total is ${{a}} \\times {{x1}} + {{b}} \\times {{y1}} = {{c}}$."
+    ],
+    "answerSummary": "It is ${{a}}x + {{b}}y = {{c}}$."
+   },
+   "attemptFeedback": [
+    "Check your equation against both points, not just one."
+   ],
+   "supportHints": [
+    "How far across, and how far down, from one point to the other?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     },
+     "rise": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     }
+    },
+    "derived": {
+     "y1": "a+rise",
+     "c": "a*x1+b*(a+rise)",
+     "x2": "x1+b",
+     "y2": "rise",
+     "mixed": "a*x1+b*(a+rise)+a*b"
+    },
+    "constraints": [
+     "a!=b",
+     "gcd(a,b)==1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{a}}x + {{b}}y = {{c}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{a}}x - {{b}}y = {{c}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{a}}x + {{b}}y = {{mixed}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{b}}x + {{a}}y = {{c}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_2C_coefficients_attached_to_the_wrong_variable",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.2C:coefficients-attached-to-the-wrong-variable",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2C",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For chairs at ${{a}}$ minutes and tables at ${{b}}$ minutes a student writes ${{b}}x + {{a}}y = {{c}}$, with $x$ the chairs. What is wrong?",
+   "solutionReview": {
+    "headline": "A coefficient belongs to the variable it measures.",
+    "reasoning": [
+     "A coefficient says how long one of that item takes, so it belongs with that item count.",
+     "Swapping them charges table times to chairs and the other way round."
+    ],
+    "answerSummary": "It should be ${{a}}x + {{b}}y = {{c}}$."
+   },
+   "attemptFeedback": [
+    "Appearing in the equation is not enough; each must be in the right place."
+   ],
+   "supportHints": [
+    "Work out the total time both ways for a small batch."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 4,
+      "max": 25
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "y": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "c": "a*x+b*y",
+     "wrongTotal": "b*x+a*y"
+    },
+    "constraints": [
+     "a!=b",
+     "c!=wrongTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Nothing is wrong, because both times appear in the equation.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "The times are right but the total should be on the left.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "The equation needs a third term for the total time.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "Each time must sit with its own item: at ${{x}}$ chairs and ${{y}}$ tables that gives ${{c}}$ minutes, not ${{wrongTotal}}$."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
   }
  ]
 }

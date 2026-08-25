@@ -10228,6 +10228,788 @@ mk('8.8C', 'cancelling-unequal-terms', {
   feedback: 'Sharing a letter does not make two terms equal.',
 });
 
+
+// ================================================================ 8.8D
+// Informal arguments about angles: the angle sum, the exterior angle, parallel
+// lines cut by a transversal, and the angle-angle criterion.
+
+mk('8.8D', 'exterior-angle-of-a-triangle', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'Two interior angles of a triangle are ${{a}}^\\circ$ and ${{b}}^\\circ$. What is the exterior angle at the third vertex?',
+  generator: {
+    parameters: {
+      // The two angles are capped so their total straddles 90 degrees, which
+      // is where the remaining interior angle crosses the exterior one.
+      a: { type: 'int', min: 15, max: 75 },
+      b: { type: 'int', min: 15, max: 75 },
+    },
+    derived: {
+      answer: 'a+b',
+      third: '180-a-b',
+      d_arithmeticSlip: '360-a-b',
+      d_signError: 'b-a',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}^\\circ'), correct: true },
+    { label: plain('{{d_arithmeticSlip}}^\\circ'), error: 'arithmeticSlip' },
+    { label: plain('{{d_signError}}^\\circ'), error: 'signError' },
+    { label: plain('{{third}}^\\circ'), error: 'partialTotal' },
+  ],
+  reasoning: ['The third interior angle is $180 - {{a}} - {{b}} = {{third}}$.', 'The exterior angle beside it makes a straight line, so it is $180 - {{third}} = {{answer}}$, the other two added.'],
+  answerSummary: { headline: 'An exterior angle equals the two interior angles it is not beside.', text: 'It is ${{answer}}^\\circ$.' },
+  hint: 'Work out the third interior angle first.',
+  feedback: 'That is the interior angle at that vertex, not the exterior one.',
+});
+
+mk('8.8D', 'angles-on-a-transversal', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'Parallel lines are cut by a transversal and one angle measures ${{a}}^\\circ$. Which statement is true?',
+  generator: {
+    parameters: { a: { type: 'int', min: 25, max: 155 } },
+    derived: { supp: '180-a', twice: '2*a' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Each corresponding angle is also ${{a}}^\\circ$, and each co-interior angle is ${{supp}}^\\circ$.', correct: true },
+    { label: 'Each corresponding angle is ${{supp}}^\\circ$, and each co-interior angle is ${{a}}^\\circ$.', error: 'ratioReversed' },
+    { label: 'Every angle formed is ${{a}}^\\circ$, because the lines are parallel.', error: 'partialTotal' },
+    { label: 'Each corresponding angle is ${{twice}}^\\circ$, twice the one given.', error: 'operationInverted' },
+  ],
+  reasoning: ['Sliding along the transversal carries an angle onto its corresponding partner unchanged.', 'A co-interior angle sits beside that partner on a straight line, so it makes up ${{supp}}$.'],
+  answerSummary: { headline: 'Corresponding angles match; co-interior angles make a straight line.', text: '${{a}}^\\circ$ and ${{supp}}^\\circ$.' },
+  hint: 'Which pairs are equal and which pairs add to a straight line?',
+  feedback: 'The eight angles come in two sizes, not one.',
+});
+
+mk('8.8D', 'why-the-angles-total-180', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'verbal',
+  prompt: 'A line is drawn through one vertex of a triangle parallel to the opposite side. What does that show?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 20, max: 70 },
+      b: { type: 'int', min: 20, max: 70 },
+    },
+    derived: { third: '180-a-b', pair: 'a+b' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The three angles lie along a straight line, so they total $180^\\circ$.', correct: true },
+    { label: 'The triangle is similar to itself, so its angles are fixed.', error: 'operationInverted' },
+    { label: 'The two base angles are equal, so the third is ${{third}}^\\circ$.', error: 'partialTotal' },
+    { label: 'The angles total $360^\\circ$, because a full turn is made.', error: 'arithmeticSlip' },
+  ],
+  reasoning: ['The two base angles reappear at the vertex as alternate angles, ${{a}}$ and ${{b}}$.', 'With the vertex angle between them they fill a straight line: ${{pair}} + {{third}} = 180$.'],
+  answerSummary: { headline: 'The parallel line gathers all three angles onto one straight line.', text: 'They total $180^\\circ$.' },
+  hint: 'Which angles reappear at the vertex, and why?',
+  feedback: 'A straight line is half a full turn.',
+});
+
+mk('8.8D', 'two-matching-angles', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'symbolic',
+  prompt: 'One triangle has angles ${{a}}^\\circ$ and ${{b}}^\\circ$; another has ${{a}}^\\circ$ and ${{c}}^\\circ$. What follows?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 20, max: 70 },
+      b: { type: 'int', min: 20, max: 70 },
+    },
+    derived: { c: '180-a-b', pair: 'a+b' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'They are similar: the third angles match at ${{c}}^\\circ$ and ${{b}}^\\circ$.', correct: true },
+    { label: 'They are congruent, because two angles agree.', error: 'operationInverted' },
+    { label: 'Nothing follows without knowing a side length.', error: 'partialTotal' },
+    { label: 'They are similar only if ${{b}}$ and ${{c}}$ are equal.', error: 'ratioReversed' },
+  ],
+  reasoning: ['The first triangle has a third angle of $180 - {{a}} - {{b}} = {{c}}$.', 'The second therefore has ${{a}}$, ${{c}}$ and ${{b}}$ as well, so all three angles agree.'],
+  answerSummary: { headline: 'Two matching angles force the third, which is why two are enough.', text: 'They are similar.' },
+  hint: 'What is each triangle third angle?',
+  feedback: 'Equal angles fix the shape but not the size.',
+});
+
+mk('8.8D', 'corresponding-called-supplementary', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student says corresponding angles on a transversal add to $180^\\circ$. What is wrong?',
+  generator: {
+    parameters: { a: { type: 'int', min: 25, max: 155 } },
+    derived: { supp: '180-a', twiceA: '2*a' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Corresponding angles are equal: two of ${{a}}^\\circ$ total ${{twiceA}}^\\circ$, not $180^\\circ$.', correct: true },
+    { label: 'Nothing is wrong, because all angle pairs on a transversal are supplementary.', error: 'operationInverted' },
+    { label: 'They add to $360^\\circ$, because there are two lines.', error: 'arithmeticSlip' },
+    { label: 'They are equal only when the transversal is perpendicular.', error: 'partialTotal' },
+  ],
+  reasoning: ['Corresponding angles sit in matching positions and are equal.', 'The pairs that add to $180^\\circ$ are the co-interior ones, ${{a}}$ with ${{supp}}$.'],
+  answerSummary: { headline: 'Equal and supplementary are different relationships.', text: 'Corresponding angles are equal.' },
+  hint: 'Which pair sits on a straight line together?',
+  feedback: 'Only some of the pairs are supplementary.',
+});
+
+// ================================================================ 8.9
+// Where two graphed lines meet.
+
+mk('8.9', 'what-the-crossing-point-means', {
+  courseId: 'grade8',
+  difficultyBand: 1, dok: 1, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'Two lines are graphed and cross once. What does the crossing point give?',
+  generator: {
+    parameters: {
+      m1: { type: 'int', min: 2, max: 9 },
+      rise: { type: 'int', min: 2, max: 9 },
+      v: { type: 'int', min: 1, max: 8 },
+      b1: { type: 'int', min: 1, max: 20 },
+    },
+    derived: {
+      m2: 'm1+rise',
+      b2: 'b1-rise*v',
+      y: 'm1*v+b1',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The one pair of values satisfying both equations at once.', correct: true },
+    { label: 'The values satisfying the first equation only.', error: 'partialTotal' },
+    { label: 'The point where both lines cross the vertical axis.', error: 'operationInverted' },
+    { label: 'The average of the two lines at that value of $x$.', error: 'ratioReversed' },
+  ],
+  reasoning: ['A point on a line satisfies that line equation, so a point on both satisfies both.', 'Here that point is $({{v}}, {{y}})$, which works in each equation separately.'],
+  answerSummary: { headline: 'A crossing point belongs to both lines, so it solves both equations.', text: 'The pair satisfying both.' },
+  hint: 'What is true of every point on a graphed line?',
+  feedback: 'Each line meets the vertical axis at its own place.',
+});
+
+mk('8.9', 'verify-a-candidate-point', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Does $({{v}}, {{y}})$ satisfy both $y = {{m1}}x + {{b1}}$ and $y = {{m2}}x + {{b2}}$?',
+  generator: {
+    parameters: {
+      m1: { type: 'int', min: 2, max: 9 },
+      rise: { type: 'int', min: 2, max: 9 },
+      v: { type: 'int', min: 1, max: 8 },
+      b1: { type: 'int', min: 1, max: 20 },
+    },
+    derived: {
+      m2: 'm1+rise',
+      b2: 'b1-rise*v',
+      y: 'm1*v+b1',
+      firstOnly: 'm1*v+b1',
+      secondAtV: 'm1*v+rise*v+b1-rise*v',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Yes: both equations give ${{y}}$ at $x = {{v}}$.', correct: true },
+    { label: 'Only the first: the second gives something else at $x = {{v}}$.', error: 'partialTotal' },
+    { label: 'Neither: ${{y}}$ is too large for both lines.', error: 'signError' },
+    { label: 'It cannot be checked without graphing the two lines.', error: 'operationInverted' },
+  ],
+  reasoning: ['The first gives ${{m1}} \\times {{v}} + {{b1}} = {{y}}$.', 'The second gives ${{m2}} \\times {{v}} + {{b2}}$, which comes to ${{y}}$ as well.'],
+  answerSummary: { headline: 'A shared solution has to work in both equations, tested separately.', text: 'Yes, both give ${{y}}$.' },
+  hint: 'Put the pair into each equation in turn.',
+  feedback: 'Both need testing, and here both agree.',
+});
+
+mk('8.9', 'where-the-two-lines-meet', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 2, taskType: 'application', representation: 'orderedPairs',
+  prompt: 'Where do $y = {{m1}}x + {{b1}}$ and $y = {{m2}}x + {{b2}}$ cross?',
+  generator: {
+    parameters: {
+      m1: { type: 'int', min: 2, max: 9 },
+      rise: { type: 'int', min: 2, max: 9 },
+      v: { type: 'int', min: 1, max: 8 },
+      b1: { type: 'int', min: 1, max: 20 },
+    },
+    derived: {
+      m2: 'm1+rise',
+      b2: 'b1-rise*v',
+      y: 'm1*v+b1',
+      swappedY: 'm1*v+b1+rise',
+      atZero: 'b1',
+    },
+    constraints: ['v!=y'],
+  },
+  choices: [
+    { label: plain('({{v}}, {{y}})'), correct: true },
+    { label: plain('({{y}}, {{v}})'), error: 'ratioReversed' },
+    { label: plain('({{v}}, {{swappedY}})'), error: 'offByOneStep' },
+    { label: plain('(0, {{atZero}})'), error: 'partialTotal' },
+  ],
+  reasoning: ['Setting the two right sides equal gives $x = {{v}}$.', 'Putting ${{v}}$ back into either equation gives $y = {{y}}$.'],
+  answerSummary: { headline: 'Solve for x first, then substitute to get y.', text: 'They cross at $({{v}}, {{y}})$.' },
+  hint: 'When are the two right sides equal?',
+  feedback: 'That is where the first line meets the vertical axis.',
+});
+
+mk('8.9', 'lines-that-never-meet', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'table',
+  prompt: 'The table lists both lines at three values of $x$. How many pairs satisfy both?',
+  stimulus: {
+    kind: 'table',
+    table: {
+      headers: ['x', 'first line', 'second line'],
+      rows: [['{{x1}}', '{{p1}}', '{{q1}}'], ['{{x2}}', '{{p2}}', '{{q2}}'], ['{{x3}}', '{{p3}}', '{{q3}}']],
+    },
+    title: 'Values on each line',
+  },
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      b1: { type: 'int', min: 2, max: 20 },
+      drop: { type: 'int', min: 2, max: 15 },
+      x1: { type: 'int', min: 1, max: 4 },
+    },
+    derived: {
+      b2: 'b1+drop',
+      x2: 'x1+2', x3: 'x1+4',
+      p1: 'm*x1+b1', p2: 'm*(x1+2)+b1', p3: 'm*(x1+4)+b1',
+      q1: 'm*x1+b1+drop', q2: 'm*(x1+2)+b1+drop', q3: 'm*(x1+4)+b1+drop',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'None: the two stay ${{drop}}$ apart at every $x$.', correct: true },
+    { label: 'One, at the $x$ where the gap is smallest.', error: 'partialTotal' },
+    { label: 'Three, one for each row of the table.', error: 'operationInverted' },
+    { label: 'Every pair, because both lines are straight.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Each row shows the second line exactly ${{drop}}$ above the first.', 'Equal steps keep that gap forever, so the lines are parallel and never cross.'],
+  answerSummary: { headline: 'Equal slopes with different intercepts never meet.', text: 'No pair satisfies both.' },
+  hint: 'What happens to the gap between the columns?',
+  feedback: 'The gap is the same in every row, so it never closes.',
+});
+
+mk('8.9', 'checked-in-one-equation-only', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student checks a candidate point in the first equation only and calls it the solution. What is wrong?',
+  generator: {
+    parameters: {
+      m1: { type: 'int', min: 2, max: 9 },
+      rise: { type: 'int', min: 2, max: 9 },
+      v: { type: 'int', min: 1, max: 8 },
+      b1: { type: 'int', min: 1, max: 20 },
+      off: { type: 'int', min: 1, max: 6 },
+    },
+    derived: {
+      m2: 'm1+rise',
+      b2: 'b1-rise*v',
+      other: 'v+off',
+      firstAtOther: 'm1*v+m1*off+b1',
+      secondAtOther: 'm1*v+m1*off+rise*off+b1',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Every point on the first line passes that test: at $x = {{other}}$ the lines give ${{firstAtOther}}$ and ${{secondAtOther}}$.', correct: true },
+    { label: 'Nothing is wrong, because the two equations describe the same line.', error: 'operationInverted' },
+    { label: 'The second equation only matters when the lines are parallel.', error: 'partialTotal' },
+    { label: 'The point should be checked in the second equation instead.', error: 'ratioReversed' },
+  ],
+  reasoning: ['One equation is satisfied by every point along its own line, which is infinitely many.', 'Only the crossing point satisfies both, so both have to be tested.'],
+  answerSummary: { headline: 'One equation cannot single out a point on its own line.', text: 'Both equations must be checked.' },
+  hint: 'How many points satisfy the first equation alone?',
+  feedback: 'Checking the other one alone has exactly the same weakness.',
+});
+
+// ================================================================ A.2A
+// Domain and range of a linear function.
+//
+// The ASVAB crosswalk allows only stating the domain or range and reading the
+// values a linear function can take. Reasonable-domain reasoning in context
+// and discrete-versus-continuous classification are excluded, so nothing here
+// asks about either.
+
+mk('A.2A', 'domain-of-a-linear-rule', {
+  courseId: 'algebra1',
+  difficultyBand: 1, dok: 1, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'What is the domain of $f(x) = {{m}}x + {{b}}$?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 2, max: 30 },
+    },
+    derived: { atZero: 'b', atOne: 'm+b' },
+    constraints: ['m!=b'],
+  },
+  choices: [
+    { label: 'All real numbers.', correct: true },
+    { label: 'All real numbers except ${{atZero}}$.', error: 'operationInverted' },
+    { label: 'All numbers greater than or equal to ${{atZero}}$.', error: 'partialTotal' },
+    { label: 'All whole numbers.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Multiplying by ${{m}}$ and adding ${{b}}$ works on any number at all.', 'Nothing is divided by and no root is taken, so no input has to be barred.'],
+  answerSummary: { headline: 'A linear rule accepts every real input.', text: 'All real numbers.' },
+  hint: 'Is there any input the rule cannot handle?',
+  feedback: 'The value at $x = 0$ is an output, not a barred input.',
+});
+
+mk('A.2A', 'range-over-a-closed-domain', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'For $f(x) = {{m}}x + {{b}}$ with ${{lo}} \\le x \\le {{hi}}$, what is the range?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 20 },
+      lo: { type: 'int', min: 1, max: 6 },
+      span: { type: 'int', min: 2, max: 8 },
+    },
+    derived: {
+      hi: 'lo+span',
+      flo: 'm*lo+b',
+      fhi: 'm*(lo+span)+b',
+      swapLo: 'm*lo',
+      swapHi: 'm*(lo+span)',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{flo}} \\le y \\le {{fhi}}'), correct: true },
+    { label: plain('{{lo}} \\le y \\le {{hi}}'), error: 'ratioReversed' },
+    { label: plain('{{swapLo}} \\le y \\le {{swapHi}}'), error: 'partialTotal' },
+    { label: plain('{{fhi}} \\le y \\le {{flo}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The rule climbs steadily, so the smallest input gives the smallest output.', '$f({{lo}}) = {{flo}}$ and $f({{hi}}) = {{fhi}}$, and every value between is reached.'],
+  answerSummary: { headline: 'A rising line maps the ends of the domain to the ends of the range.', text: 'From ${{flo}}$ to ${{fhi}}$.' },
+  hint: 'What does the rule give at each end of the domain?',
+  feedback: 'The constant has to be added as well as the multiplying done.',
+});
+
+mk('A.2A', 'value-inside-the-range', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'symbolic',
+  prompt: 'For $f(x) = {{m}}x + {{b}}$ with ${{lo}} \\le x \\le {{hi}}$, which value is in the range?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 20 },
+      lo: { type: 'int', min: 1, max: 6 },
+      span: { type: 'int', min: 3, max: 8 },
+      inside: { type: 'int', min: 1, max: 2 },
+      out: { type: 'int', min: 2, max: 12 },
+      // Outside on one side or the other, so this choice crosses the key.
+      side: { type: 'choice', values: [0, 1] },
+    },
+    derived: {
+      hi: 'lo+span',
+      flo: 'm*lo+b',
+      fhi: 'm*(lo+span)+b',
+      answer: 'm*(lo+inside)+b',
+      d_signError: 'm*lo+b-out',
+      d_operationInverted: 'm*(lo+span)+b+out',
+      d_usedGivenValue: 'side*(m*(lo+span)+b+out+out)+(1-side)*(m*lo+b-out-out)',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The range runs from $f({{lo}}) = {{flo}}$ up to $f({{hi}}) = {{fhi}}$.', '${{answer}}$ is $f({{lo}} + {{inside}})$, which lies inside that stretch; the others fall outside it.'],
+  answerSummary: { headline: 'A value is in the range when some allowed input produces it.', text: '${{answer}}$ is reached.' },
+  hint: 'Work out the two ends of the range first.',
+  feedback: 'That value lies outside the stretch the rule can reach.',
+});
+
+mk('A.2A', 'range-read-from-two-endpoints', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'orderedPairs',
+  prompt: 'A linear function passes through $({{lo}}, {{flo}})$ and $({{hi}}, {{fhi}})$ and is defined only between them. What is its range?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 20 },
+      lo: { type: 'int', min: 1, max: 6 },
+      span: { type: 'int', min: 2, max: 8 },
+    },
+    derived: {
+      hi: 'lo+span',
+      flo: 'm*lo+b',
+      fhi: 'm*(lo+span)+b',
+      gap: 'm*span',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{flo}} \\le y \\le {{fhi}}'), correct: true },
+    { label: plain('{{lo}} \\le y \\le {{hi}}'), error: 'ratioReversed' },
+    { label: plain('y = {{flo}} \\text{ or } y = {{fhi}}'), error: 'partialTotal' },
+    { label: plain('0 \\le y \\le {{gap}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The two points give the ends of the stretch the outputs cover.', 'The line is unbroken between them, so every value from ${{flo}}$ to ${{fhi}}$ is taken.'],
+  answerSummary: { headline: 'The range is the stretch of outputs, endpoints included.', text: 'From ${{flo}}$ to ${{fhi}}$.' },
+  hint: 'Which coordinate of each point is an output?',
+  feedback: 'Only the two ends would be reached if the line had gaps.',
+});
+
+mk('A.2A', 'range-called-positive-only', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student says the range of $f(x) = {{m}}x + {{b}}$ is the positive numbers. What is wrong?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 2, max: 30 },
+      k: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      negInput: '0-k',
+      negOutput: 'b-m*k',
+      atZero: 'b',
+    },
+    constraints: ['negOutput<0'],
+  },
+  choices: [
+    { label: 'Negative inputs reach negative outputs: $f(-{{k}}) = {{negOutput}}$.', correct: true },
+    { label: 'Nothing is wrong, because ${{m}}$ and ${{b}}$ are both positive.', error: 'partialTotal' },
+    { label: 'The range is the positive numbers and zero, because $f(0) = {{atZero}}$.', error: 'offByOneStep' },
+    { label: 'The range is only the numbers above ${{atZero}}$.', error: 'operationInverted' },
+  ],
+  reasoning: ['Every real number is an allowed input, including negative ones.', 'Far enough left the outputs go below zero: $f(-{{k}}) = {{negOutput}}$.'],
+  answerSummary: { headline: 'An unrestricted line reaches every output, high and low.', text: 'The range is all real numbers.' },
+  hint: 'Try an input well to the left of zero.',
+  feedback: 'Positive coefficients do not stop the outputs falling.',
+});
+
+// ================================================================ A.2B
+// Writing a line from a point and a slope, or from two points, in more than
+// one form.
+
+mk('A.2B', 'point-slope-form', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'A line of slope ${{m}}$ passes through $({{x1}}, {{y1}})$. Which is its point-slope form?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      x1: { type: 'int', min: 1, max: 12 },
+      y1: { type: 'int', min: 1, max: 20 },
+    },
+    derived: { b: 'y1-m*x1' },
+    // One distractor puts x1 where the slope belongs, so the two must differ or
+    // it reproduces the key exactly.
+    constraints: ['x1!=y1', 'x1!=m'],
+  },
+  choices: [
+    { label: plain('y - {{y1}} = {{m}}(x - {{x1}})'), correct: true },
+    { label: plain('y + {{y1}} = {{m}}(x + {{x1}})'), error: 'signError' },
+    { label: plain('y - {{x1}} = {{m}}(x - {{y1}})'), error: 'ratioReversed' },
+    { label: plain('y - {{y1}} = {{x1}}(x - {{m}})'), error: 'operationInverted' },
+  ],
+  reasoning: ['Point-slope form subtracts the point coordinates from the matching letters.', 'The slope multiplies the bracket holding $x$.'],
+  answerSummary: { headline: 'Subtract each coordinate from its own letter.', text: 'It is $y - {{y1}} = {{m}}(x - {{x1}})$.' },
+  hint: 'Which coordinate belongs with $x$?',
+  feedback: 'Adding the coordinates would describe the point reflected through the origin.',
+});
+
+mk('A.2B', 'slope-intercept-from-a-point', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'A line of slope ${{m}}$ passes through $({{x1}}, {{y1}})$. What is its slope-intercept form?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      x1: { type: 'int', min: 1, max: 12 },
+      y1: { type: 'int', min: 1, max: 20 },
+    },
+    derived: {
+      b: 'y1-m*x1',
+      wrongB: 'y1+m*x1',
+      swapped: 'x1-m*y1',
+    },
+    // Three distractors are all constants sitting after the same slope term, so
+    // each pair has to be kept apart by hand.
+    constraints: ['b!=y1', 'b!=swapped', 'swapped!=y1'],
+  },
+  choices: [
+    { label: plain('y = {{m}}x + {{b}}'), correct: true },
+    { label: plain('y = {{m}}x + {{y1}}'), error: 'partialTotal' },
+    { label: plain('y = {{m}}x + {{wrongB}}'), error: 'signError' },
+    { label: plain('y = {{m}}x + {{swapped}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Substituting the point into $y = {{m}}x + b$ gives ${{y1}} = {{m}} \\times {{x1}} + b$.', 'So $b = {{y1}} - {{m}} \\times {{x1}} = {{b}}$.'],
+  answerSummary: { headline: 'Substitute the point to find the constant.', text: 'It is $y = {{m}}x + {{b}}$.' },
+  hint: 'What must $b$ be for the point to lie on the line?',
+  feedback: 'The point value of $y$ is the constant only when $x$ is zero.',
+});
+
+mk('A.2B', 'line-through-two-points', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'orderedPairs',
+  prompt: 'Which line passes through $({{x1}}, {{y1}})$ and $({{x2}}, {{y2}})$?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      run: { type: 'int', min: 1, max: 6 },
+      x1: { type: 'int', min: 1, max: 8 },
+      y1: { type: 'int', min: 1, max: 20 },
+    },
+    derived: {
+      x2: 'x1+run',
+      y2: 'y1+m*run',
+      b: 'y1-m*x1',
+      rise: 'm*run',
+      wrongB: 'y1+m*x1',
+    },
+    // run also stands in as a slope in one distractor, so it must differ from
+    // the real slope as well as from the rise.
+    constraints: ['rise!=m', 'b!=wrongB', 'run!=m'],
+  },
+  choices: [
+    { label: plain('y = {{m}}x + {{b}}'), correct: true },
+    { label: plain('y = {{rise}}x + {{b}}'), error: 'partialTotal' },
+    { label: plain('y = {{m}}x + {{wrongB}}'), error: 'signError' },
+    { label: plain('y = {{run}}x + {{b}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['From the first point to the second, $y$ rises ${{rise}}$ over a run of ${{run}}$, so the slope is ${{m}}$.', 'Substituting the first point gives $b = {{b}}$.'],
+  answerSummary: { headline: 'Slope first, then the constant from either point.', text: 'It is $y = {{m}}x + {{b}}$.' },
+  hint: 'The rise is not the slope until it is shared by the run.',
+  feedback: 'The rise alone has not been divided by the run.',
+});
+
+mk('A.2B', 'same-line-in-another-form', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Which equation describes the same line as $y - {{y1}} = {{m}}(x - {{x1}})$?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      x1: { type: 'int', min: 1, max: 12 },
+      y1: { type: 'int', min: 1, max: 20 },
+    },
+    derived: {
+      b: 'y1-m*x1',
+      wrongB: 'y1+m*x1',
+      noExpand: 'm*x1',
+    },
+    constraints: ['b!=wrongB', 'b!=noExpand'],
+  },
+  choices: [
+    { label: plain('y = {{m}}x + {{b}}'), correct: true },
+    { label: plain('y = {{m}}x + {{wrongB}}'), error: 'signError' },
+    { label: plain('y = {{m}}x - {{noExpand}}'), error: 'partialTotal' },
+    { label: plain('y = {{m}}x + {{y1}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['Multiplying out the bracket gives $y - {{y1}} = {{m}}x - {{noExpand}}$.', 'Adding ${{y1}}$ to both sides leaves $y = {{m}}x + {{b}}$.'],
+  answerSummary: { headline: 'The two forms differ only in how the constant is packaged.', text: 'It is $y = {{m}}x + {{b}}$.' },
+  hint: 'Multiply out the bracket, then move the constant across.',
+  feedback: 'The ${{y1}}$ still has to be added to both sides.',
+});
+
+mk('A.2B', 'signs-in-point-slope', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'For the point $({{x1}}, {{y1}})$ a student writes $y + {{y1}} = {{m}}(x + {{x1}})$. What is wrong?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      x1: { type: 'int', min: 1, max: 12 },
+      y1: { type: 'int', min: 1, max: 20 },
+    },
+    derived: {
+      negX: '0-x1',
+      negY: '0-y1',
+      b: 'y1-m*x1',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Those signs describe the point $(-{{x1}}, -{{y1}})$; the form subtracts the coordinates.', correct: true },
+    { label: 'Nothing is wrong, because the signs cancel when the bracket is expanded.', error: 'operationInverted' },
+    { label: 'The slope should be negative to match the added signs.', error: 'signError' },
+    { label: 'Only the $x$ coordinate is subtracted; the $y$ one is added.', error: 'partialTotal' },
+  ],
+  reasoning: ['Point-slope form reads $y - y_1 = m(x - x_1)$, with each coordinate subtracted.', 'Writing plus signs puts $-{{x1}}$ and $-{{y1}}$ in place of the point given.'],
+  answerSummary: { headline: 'The minus signs in the form are what carry the point.', text: 'It should subtract both coordinates.' },
+  hint: 'Substitute the point and see whether both sides come to zero.',
+  feedback: 'Expanding keeps the error rather than cancelling it.',
+});
+
+// ================================================================ A.2C
+// Writing a line from a table, a graph or a description, in standard form.
+
+mk('A.2C', 'standard-form-from-a-description', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'verbal',
+  prompt: 'Tickets cost $\\${{a}}$ and programmes $\\${{b}}$, and a group spends $\\${{c}}$ altogether. Which equation says so?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 4, max: 25 },
+      b: { type: 'int', min: 2, max: 20 },
+      x: { type: 'int', min: 2, max: 12 },
+      y: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { c: 'a*x+b*y', sum: 'a+b' },
+    constraints: ['a!=b'],
+  },
+  choices: [
+    { label: plain('{{a}}x + {{b}}y = {{c}}'), correct: true },
+    { label: plain('{{b}}x + {{a}}y = {{c}}'), error: 'ratioReversed' },
+    { label: plain('{{sum}}(x + y) = {{c}}'), error: 'operationInverted' },
+    { label: plain('{{a}}x + {{b}}y + {{c}} = 0'), error: 'signError' },
+  ],
+  reasoning: ['Each ticket adds $\\${{a}}$ and each programme $\\${{b}}$.', 'The two contributions together come to the $\\${{c}}$ spent.'],
+  answerSummary: { headline: 'Standard form puts both variable terms on one side and the total on the other.', text: 'It is ${{a}}x + {{b}}y = {{c}}$.' },
+  hint: 'What does each ticket contribute, and what does each programme?',
+  feedback: 'The two prices are different, so they cannot share one bracket.',
+});
+
+mk('A.2C', 'standard-form-from-intercepts', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A line crosses the horizontal axis at ${{xInt}}$ and the vertical axis at ${{yInt}}$. Which equation in standard form fits?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 2, max: 12 },
+      k: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      c: 'a*b*k',
+      xInt: 'b*k',
+      yInt: 'a*k',
+      swapped: 'a*b',
+    },
+    // Standard form wants coefficients with no common factor: without this a
+    // student who correctly reduces $4x + 8y = 48$ to $x + 2y = 12$ finds no
+    // matching choice.
+    constraints: ['a!=b', 'gcd(a,b)==1'],
+  },
+  choices: [
+    { label: plain('{{a}}x + {{b}}y = {{c}}'), correct: true },
+    { label: plain('{{b}}x + {{a}}y = {{c}}'), error: 'ratioReversed' },
+    { label: plain('{{a}}x + {{b}}y = {{swapped}}'), error: 'partialTotal' },
+    { label: plain('{{a}}x - {{b}}y = {{c}}'), error: 'signError' },
+  ],
+  reasoning: ['At $y = 0$ the equation gives ${{a}}x = {{c}}$, so $x = {{xInt}}$.', 'At $x = 0$ it gives ${{b}}y = {{c}}$, so $y = {{yInt}}$, matching both crossings.'],
+  answerSummary: { headline: 'Test a standard-form candidate by setting each variable to zero in turn.', text: 'It is ${{a}}x + {{b}}y = {{c}}$.' },
+  hint: 'Put $y = 0$ into each candidate and see where it crosses.',
+  feedback: 'Swapping the coefficients swaps the two crossings.',
+});
+
+mk('A.2C', 'standard-form-from-a-table', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 2, taskType: 'interpretation', representation: 'table',
+  prompt: 'Which equation in standard form produces every row?',
+  stimulus: {
+    kind: 'table',
+    title: 'Recorded values',
+    table: { headers: ['x', 'y'], rows: [['{{x1}}', '{{y1}}'], ['{{x2}}', '{{y2}}'], ['{{x3}}', '{{y3}}']] },
+  },
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      k: { type: 'int', min: 2, max: 8 },
+      y1: { type: 'int', min: 2, max: 12 },
+      step: { type: 'int', min: 1, max: 3 },
+    },
+    derived: {
+      b: '1',
+      x1: 'k', x2: 'k+step', x3: 'k+2*step',
+      c: 'a*k+y1',
+      y2: 'a*k+y1-a*(k+step)',
+      y3: 'a*k+y1-a*(k+2*step)',
+      aPlus: 'a+1',
+    },
+    constraints: ['y2>0', 'y3>0'],
+  },
+  choices: [
+    { label: plain('{{a}}x + y = {{c}}'), correct: true },
+    { label: plain('{{a}}x - y = {{c}}'), error: 'signError' },
+    { label: plain('{{aPlus}}x + y = {{c}}'), error: 'offByOneStep' },
+    { label: plain('x + {{a}}y = {{c}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Each step of ${{step}}$ in $x$ lowers $y$ by ${{a}}$ times that, so ${{a}}x + y$ stays fixed.', 'At the first row that total is ${{a}} \\times {{x1}} + {{y1}} = {{c}}$.'],
+  answerSummary: { headline: 'In standard form the two terms trade off to a constant total.', text: 'It is ${{a}}x + y = {{c}}$.' },
+  hint: 'Work out ${{a}}x + y$ for each row.',
+  feedback: 'Subtracting would make the total change from row to row.',
+});
+
+mk('A.2C', 'standard-form-from-two-plotted-points', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'orderedPairs',
+  prompt: 'Which equation in standard form passes through both points?',
+  // The two points are shown rather than named in the sentence: nothing in the
+  // platform plots a line, so a prompt must not tell a student to read one off
+  // a graph that will never appear.
+  stimulus: {
+    kind: 'orderedPairs',
+    title: 'Two points on the line',
+    orderedPairs: [{ x: '{{x1}}', y: '{{y1}}' }, { x: '{{x2}}', y: '{{y2}}' }],
+  },
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 9 },
+      x1: { type: 'int', min: 1, max: 9 },
+      rise: { type: 'int', min: 1, max: 8 },
+    },
+    derived: {
+      y1: 'a+rise',
+      c: 'a*x1+b*(a+rise)',
+      x2: 'x1+b',
+      y2: 'rise',
+      mixed: 'a*x1+b*(a+rise)+a*b',
+    },
+    // Standard form wants coefficients with no common factor: without this a
+    // student who correctly reduces $4x + 8y = 48$ to $x + 2y = 12$ finds no
+    // matching choice.
+    constraints: ['a!=b', 'gcd(a,b)==1'],
+  },
+  choices: [
+    { label: plain('{{a}}x + {{b}}y = {{c}}'), correct: true },
+    { label: plain('{{b}}x + {{a}}y = {{c}}'), error: 'ratioReversed' },
+    { label: plain('{{a}}x - {{b}}y = {{c}}'), error: 'signError' },
+    { label: plain('{{a}}x + {{b}}y = {{mixed}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Between the two points the line runs ${{b}}$ across and drops ${{a}}$, so ${{a}}x + {{b}}y$ never changes.', 'At the first point that fixed total is ${{a}} \\times {{x1}} + {{b}} \\times {{y1}} = {{c}}$.'],
+  answerSummary: { headline: 'Two points pin down both coefficients and the constant.', text: 'It is ${{a}}x + {{b}}y = {{c}}$.' },
+  hint: 'How far across, and how far down, from one point to the other?',
+  feedback: 'Check your equation against both points, not just one.',
+});
+mk('A.2C', 'coefficients-attached-to-the-wrong-variable', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'For chairs at ${{a}}$ minutes and tables at ${{b}}$ minutes a student writes ${{b}}x + {{a}}y = {{c}}$, with $x$ the chairs. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 4, max: 25 },
+      b: { type: 'int', min: 2, max: 20 },
+      x: { type: 'int', min: 2, max: 12 },
+      y: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      c: 'a*x+b*y',
+      wrongTotal: 'b*x+a*y',
+    },
+    constraints: ['a!=b', 'c!=wrongTotal'],
+  },
+  choices: [
+    { label: 'Each time must sit with its own item: at ${{x}}$ chairs and ${{y}}$ tables that gives ${{c}}$ minutes, not ${{wrongTotal}}$.', correct: true },
+    { label: 'Nothing is wrong, because both times appear in the equation.', error: 'operationInverted' },
+    { label: 'The times are right but the total should be on the left.', error: 'signError' },
+    { label: 'The equation needs a third term for the total time.', error: 'partialTotal' },
+  ],
+  reasoning: ['A coefficient says how long one of that item takes, so it belongs with that item count.', 'Swapping them charges table times to chairs and the other way round.'],
+  answerSummary: { headline: 'A coefficient belongs to the variable it measures.', text: 'It should be ${{a}}x + {{b}}y = {{c}}$.' },
+  hint: 'Work out the total time both ways for a small batch.',
+  feedback: 'Appearing in the equation is not enough; each must be in the right place.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
