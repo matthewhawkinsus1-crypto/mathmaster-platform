@@ -96,10 +96,18 @@ export const numericLabel = (label) => {
   // A fraction is a number and belongs in the bias analysis. Stripping the
   // markup instead would read `\frac{1}{5}` as the integer 15, which is worse
   // than skipping it: the analysis would run on invented values.
-  const fraction = /^\\d?frac\s*\{\s*(-?\d+)\s*\}\s*\{\s*(-?\d+)\s*\}$/.exec(raw);
+  //
+  // The leading minus is part of the pattern, not something to strip
+  // afterwards: `-\frac{1}{7}` is how a negative slope is written, and
+  // requiring the string to begin with `\frac` made every such choice
+  // unreadable. A family offering negative fractions then dropped out of the
+  // bias check altogether rather than failing it.
+  const fraction = /^(-?)\\d?frac\s*\{\s*(-?\d+)\s*\}\s*\{\s*(-?\d+)\s*\}$/.exec(raw);
   if (fraction) {
-    const denominator = Number(fraction[2]);
-    return denominator === 0 ? null : Number(fraction[1]) / denominator;
+    const denominator = Number(fraction[3]);
+    if (denominator === 0) return null;
+    const value = Number(fraction[2]) / denominator;
+    return fraction[1] === '-' ? -value : value;
   }
 
   // `25\%` is a number too. Leaving the percent sign in place made every

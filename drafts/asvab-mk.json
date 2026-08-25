@@ -46137,10 +46137,10 @@
    "solutionReview": {
     "headline": "Get the slope from the points first, then invert and negate it.",
     "reasoning": [
-     "Between the two points $y$ climbs ${{m}}$ for every $1$ across, so the slope is ${{m}}$.",
-     "A perpendicular slope is that turned over and negated: $-\\frac{1}{{{m}}}$."
+     "Between the two points $y$ climbs ${{p}}$ over a run of ${{q}}$, so the slope is $\\frac{{{p}}}{{{q}}}$.",
+     "Turning that over and negating it gives $-\\frac{{{q}}}{{{p}}}$."
     ],
-    "answerSummary": "It is $-\\frac{1}{{{m}}}$."
+    "answerSummary": "It is $-\\frac{{{q}}}{{{p}}}$."
    },
    "attemptFeedback": [
     "Negating without turning the fraction over leaves the wrong angle."
@@ -46150,15 +46150,15 @@
    ],
    "generator": {
     "parameters": {
-     "m": {
+     "p": {
       "type": "int",
       "min": 2,
       "max": 9
      },
-     "run": {
+     "q": {
       "type": "int",
-      "min": 1,
-      "max": 5
+      "min": 2,
+      "max": 9
      },
      "x1": {
       "type": "int",
@@ -46172,33 +46172,34 @@
      }
     },
     "derived": {
-     "x2": "x1+run",
-     "y2": "y1+m*run",
-     "negM": "0-m"
+     "x2": "x1+q",
+     "y2": "y1+p"
     },
     "constraints": [
-     "negM!=m"
+     "p!=q",
+     "gcd(p,q)==1",
+     "q*q>p"
     ]
    },
    "assessmentItemFormat": "multipleChoice",
    "choices": [
     {
      "id": "choice-a",
-     "label": "$\\frac{1}{{{m}}}$",
+     "label": "$\\frac{{{q}}}{{{p}}}$",
      "error": "signError"
     },
     {
      "id": "choice-b",
-     "label": "${{m}}$",
-     "error": "usedGivenValue"
+     "label": "$-{{q}}$",
+     "error": "forgotFinalStep"
     },
     {
      "id": "choice-c",
-     "label": "$-\\frac{1}{{{m}}}$"
+     "label": "$-\\frac{{{q}}}{{{p}}}$"
     },
     {
      "id": "choice-d",
-     "label": "${{negM}}$",
+     "label": "$-\\frac{{{p}}}{{{q}}}$",
      "error": "operationInverted"
     }
    ],
@@ -47507,6 +47508,3053 @@
     {
      "id": "choice-d",
      "label": "Nothing is wrong, because both prices are used somewhere in the system.",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_3A_slope_from_standard_form",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.3A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.3A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.3A:slope-from-standard-form",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.3A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is the slope of ${{a}}x + {{b}}y = {{c}}$?",
+   "solutionReview": {
+    "headline": "Standard form hides the slope until the equation is solved for $y$.",
+    "reasoning": [
+     "Solving for $y$ gives ${{b}}y = -{{a}}x + {{c}}$.",
+     "Dividing by ${{b}}$ leaves a slope of $-\\frac{{{a}}}{{{b}}}$."
+    ],
+    "answerSummary": "It is $-\\frac{{{a}}}{{{b}}}$."
+   },
+   "attemptFeedback": [
+    "Moving the $x$ term across changes its sign."
+   ],
+   "supportHints": [
+    "What happens when you make $y$ the subject?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "over": {
+      "type": "int",
+      "min": 2,
+      "max": 30
+     }
+    },
+    "derived": {
+     "c": "a+over"
+    },
+    "constraints": [
+     "a!=b",
+     "gcd(a,b)==1",
+     "gcd(c,b)==1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\frac{{{a}}}{{{b}}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "$-\\frac{{{b}}}{{{a}}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "$-\\frac{{{c}}}{{{b}}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "$-\\frac{{{a}}}{{{b}}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_3A_hourly_rate_from_point_slope_form",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.3A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.3A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.3A:hourly-rate-from-point-slope-form",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.3A",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A repair bill follows $y - {{y1}} = {{m}}(x - {{x1}})$, where $x$ is hours. What is the hourly rate?",
+   "solutionReview": {
+    "headline": "The multiplier outside the bracket is the rate.",
+    "reasoning": [
+     "In point-slope form the number multiplying the bracket is the slope.",
+     "A slope of ${{m}}$ means the bill climbs $\\${{m}}$ for each extra hour."
+    ],
+    "answerSummary": "It is ${{m}}$ an hour."
+   },
+   "attemptFeedback": [
+    "That is one recorded bill, not the rate at which it grows."
+   ],
+   "supportHints": [
+    "Which number is multiplying the bracket that holds $x$?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     },
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     },
+     "y1": {
+      "type": "int",
+      "min": 20,
+      "max": 90
+     }
+    },
+    "derived": {
+     "negM": "0-m"
+    },
+    "constraints": [
+     "m!=x1",
+     "m!=y1",
+     "x1!=y1",
+     "m!=negM",
+     "y1!=negM",
+     "x1!=negM"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{x1}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{negM}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{y1}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{m}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_3A_slope_when_solved_for_x",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.3A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.3A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.3A:slope-when-solved-for-x",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.3A",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is the slope of the line $x = {{a}}y + {{b}}$?",
+   "solutionReview": {
+    "headline": "An equation solved for $x$ gives the reciprocal of the slope, not the slope.",
+    "reasoning": [
+     "Making $y$ the subject gives $y = \\frac{x - {{b}}}{{{a}}}$.",
+     "The number multiplying $x$ is then $\\frac{1}{{{a}}}$."
+    ],
+    "answerSummary": "It is $\\frac{1}{{{a}}}$."
+   },
+   "attemptFeedback": [
+    "That is how much $x$ changes per unit of $y$, which is the other way round."
+   ],
+   "supportHints": [
+    "Rearrange until $y$ stands alone."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 60
+     }
+    },
+    "derived": {},
+    "constraints": [
+     "a!=b",
+     "a*a!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$-\\frac{1}{{{a}}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\frac{{{a}}}{{{b}}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\frac{1}{{{a}}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\frac{{{b}}}{{{a}}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_3A_which_line_falls_fastest",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.3A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.3A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.3A:which-line-falls-fastest",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.3A",
+   "taskType": "interpretation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "On which line does $y$ fall fastest as $x$ increases?",
+   "solutionReview": {
+    "headline": "Compare the ratio of the coefficients, not either one alone.",
+    "reasoning": [
+     "Each line falls at $\\frac{a}{b}$ for its own pair of coefficients.",
+     "The largest $x$ coefficient over the smallest $y$ coefficient gives the fastest fall, $\\frac{{{a}}}{{{b}}}$."
+    ],
+    "answerSummary": "It is ${{a}}x + {{b}}y = {{c}}$."
+   },
+   "attemptFeedback": [
+    "A larger $y$ coefficient spreads the same drop over more $y$, making the fall slower."
+   ],
+   "supportHints": [
+    "Work out how far $y$ drops for one step in $x$ on each line."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 5,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     },
+     "c": {
+      "type": "int",
+      "min": 12,
+      "max": 60
+     },
+     "down": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     },
+     "up": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     }
+    },
+    "derived": {
+     "a2": "a-down",
+     "b2": "b+up"
+    },
+    "constraints": [
+     "a2>=2"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{a2}}x + {{b}}y = {{c}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{a2}}x + {{b2}}y = {{c}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{a}}x + {{b}}y = {{c}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{a}}x + {{b2}}y = {{c}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_3A_coefficient_read_as_the_slope",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.3A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.3A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.3A:coefficient-read-as-the-slope",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.3A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student reads the slope of ${{a}}x + {{b}}y = {{c}}$ as ${{a}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "Read a slope only from an equation solved for $y$.",
+    "reasoning": [
+     "A slope can only be read straight off an equation that has $y$ by itself.",
+     "Here $y$ still carries a coefficient of ${{b}}$, which has to be divided out."
+    ],
+    "answerSummary": "The slope is $-\\frac{{{a}}}{{{b}}}$."
+   },
+   "attemptFeedback": [
+    "Fixing the sign alone still leaves the ${{b}}$ undivided."
+   ],
+   "supportHints": [
+    "What still has to happen to the ${{b}}y$ term?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 12,
+      "max": 60
+     }
+    },
+    "derived": {},
+    "constraints": [
+     "a!=b",
+     "gcd(a,b)==1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The slope should be ${{c}}$, the number standing alone.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "The equation is not solved for $y$ yet: the slope is $-\\frac{{{a}}}{{{b}}}$."
+    },
+    {
+     "id": "choice-c",
+     "label": "The size is right, but the sign should be negative, giving $-{{a}}$.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "Nothing is wrong, because ${{a}}$ is the number attached to $x$.",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_3C_where_a_line_crosses_the_horizontal_axis",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.3C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.3C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.3C:where-a-line-crosses-the-horizontal-axis",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.3C",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Where does ${{a}}x + {{b}}y = {{c}}$ cross the horizontal axis?",
+   "solutionReview": {
+    "headline": "Set the other variable to zero and solve.",
+    "reasoning": [
+     "On the horizontal axis $y = 0$, so the equation becomes ${{a}}x = {{c}}$.",
+     "That gives $x = {{xInt}}$, and the crossing is $({{xInt}}, 0)$."
+    ],
+    "answerSummary": "It crosses at $({{xInt}}, 0)$."
+   },
+   "attemptFeedback": [
+    "Dividing by the wrong coefficient gives the crossing on the other axis."
+   ],
+   "supportHints": [
+    "What is $y$ everywhere along the horizontal axis?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     }
+    },
+    "derived": {
+     "c": "a*b*k",
+     "xInt": "b*k",
+     "yInt": "a*k"
+    },
+    "constraints": [
+     "a!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$({{yInt}}, 0)$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "$(0, {{xInt}})$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "$({{xInt}}, 0)$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$({{c}}, 0)$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_3C_zero_of_a_linear_function",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.3C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.3C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.3C:zero-of-a-linear-function",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.3C",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is the zero of $f(x) = {{m}}x - {{p}}$?",
+   "solutionReview": {
+    "headline": "A zero of a function is where its value, not its input, is nothing.",
+    "reasoning": [
+     "A zero is the input that makes the output nothing, so ${{m}}x - {{p}} = 0$.",
+     "That gives ${{m}}x = {{p}}$, so $x = {{z}}$."
+    ],
+    "answerSummary": "It is ${{z}}$."
+   },
+   "attemptFeedback": [
+    "That is the constant in the rule, not the input that cancels it."
+   ],
+   "supportHints": [
+    "What must $f(x)$ equal at a zero?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "z": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "p": "m*z",
+     "negZ": "0-z"
+    },
+    "constraints": [
+     "m!=z",
+     "z!=negZ",
+     "z!=p",
+     "negZ!=p",
+     "negZ!=m",
+     "p!=m"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{negZ}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{m}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{p}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{z}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_3C_reading_the_vertical_crossing_off_a_table",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.3C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.3C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.3C:reading-the-vertical-crossing-off-a-table",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.3C",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Where does this line cross the vertical axis?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Recorded values",
+    "table": {
+     "headers": [
+      "x",
+      "y"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "{{y1}}"
+      ],
+      [
+       "{{x2}}",
+       "{{y2}}"
+      ],
+      [
+       "{{x3}}",
+       "{{y3}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Work back to $x = 0$ at the rate the line itself sets.",
+    "reasoning": [
+     "Each step of ${{step}}$ in $x$ raises $y$ by ${{m}}$ times that, so the slope is ${{m}}$.",
+     "Walking back from $({{x1}}, {{y1}})$ to $x = 0$ leaves $y = {{b}}$."
+    ],
+    "answerSummary": "It crosses at $(0, {{b}})$."
+   },
+   "attemptFeedback": [
+    "The first row is not the crossing unless its $x$ is already zero."
+   ],
+   "supportHints": [
+    "How much does $y$ change for one step in $x$?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "step": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     }
+    },
+    "derived": {
+     "x2": "x1+step",
+     "x3": "x1+2*step",
+     "y1": "m*x1+b",
+     "y2": "m*(x1+step)+b",
+     "y3": "m*(x1+2*step)+b"
+    },
+    "constraints": [
+     "b!=y1",
+     "b!=m",
+     "b!=x1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$(0, {{y1}})$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "$(0, {{b}})$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$(0, {{m}})$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$({{b}}, 0)$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_3C_what_the_horizontal_crossing_stands_for",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.3C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.3C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.3C:what-the-horizontal-crossing-stands-for",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.3C",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A tank holds $y = {{b}} - {{m}}x$ litres after $x$ minutes. What does the crossing on the horizontal axis stand for?",
+   "solutionReview": {
+    "headline": "A crossing on the horizontal axis is where the quantity runs out.",
+    "reasoning": [
+     "The horizontal axis is where $y$, the litres held, is zero.",
+     "Setting ${{b}} - {{m}}x = 0$ gives $x = {{t}}$ minutes."
+    ],
+    "answerSummary": "The tank is empty at ${{t}}$ minutes."
+   },
+   "attemptFeedback": [
+    "The starting amount is the crossing on the other axis."
+   ],
+   "supportHints": [
+    "What is $y$ at that crossing, and what does $y$ measure here?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "t": {
+      "type": "int",
+      "min": 4,
+      "max": 15
+     }
+    },
+    "derived": {
+     "b": "m*t"
+    },
+    "constraints": [
+     "m!=t"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The tank is empty after ${{t}}$ minutes."
+    },
+    {
+     "id": "choice-b",
+     "label": "The tank holds ${{b}}$ litres at the start.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "The tank loses ${{m}}$ litres every minute.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "The tank is empty after ${{b}}$ minutes.",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_3C_intercepts_swapped_over",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.3C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.3C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.3C:intercepts-swapped-over",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.3C",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For ${{a}}x + {{b}}y = {{c}}$ a student gives the horizontal crossing as $({{yInt}}, 0)$. What is wrong?",
+   "solutionReview": {
+    "headline": "Whichever variable is set to zero, divide by the coefficient of the other.",
+    "reasoning": [
+     "On the horizontal axis $y$ is zero, which removes the ${{b}}y$ term entirely.",
+     "What is left is ${{a}}x = {{c}}$, giving $x = {{xInt}}$."
+    ],
+    "answerSummary": "The crossing is $({{xInt}}, 0)$."
+   },
+   "attemptFeedback": [
+    "That value is where the line crosses the other axis."
+   ],
+   "supportHints": [
+    "Which term disappears when $y = 0$?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     }
+    },
+    "derived": {
+     "c": "a*b*k",
+     "xInt": "b*k",
+     "yInt": "a*k"
+    },
+    "constraints": [
+     "a!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Nothing is wrong, since ${{yInt}}$ does come from the equation.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "The number is right but the pair should be written $(0, {{yInt}})$.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "The crossing should be $({{c}}, 0)$, using the constant unchanged.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "Setting $y = 0$ divides by ${{a}}$, not ${{b}}$, so the crossing is $({{xInt}}, 0)$."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_3F_the_same_line_written_twice",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.3F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.3F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.3F:the-same-line-written-twice",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.3F",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "How many pairs satisfy both ${{a}}x + {{b}}y = {{c}}$ and ${{a2}}x + {{b2}}y = {{c2}}$?",
+   "solutionReview": {
+    "headline": "A system whose equations are multiples of each other draws a single line.",
+    "reasoning": [
+     "Multiplying every term of the first equation by ${{k}}$ gives the second exactly.",
+     "Two names for one line share every point on it."
+    ],
+    "answerSummary": "Infinitely many pairs satisfy both."
+   },
+   "attemptFeedback": [
+    "Looking different is not the same as being different."
+   ],
+   "supportHints": [
+    "What happens if you multiply the first equation through by ${{k}}$?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 4
+     },
+     "base": {
+      "type": "int",
+      "min": 3,
+      "max": 15
+     }
+    },
+    "derived": {
+     "c": "a*base",
+     "a2": "a*k",
+     "b2": "b*k",
+     "c2": "a*base*k"
+    },
+    "constraints": [
+     "a!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Exactly ${{k}}$, one for each time the first equation was multiplied.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "Infinitely many: the second equation is the first multiplied by ${{k}}$, so the two graphs are one line."
+    },
+    {
+     "id": "choice-c",
+     "label": "Exactly one, because the two equations are written differently.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "None, because no pair can satisfy two different equations at once.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_3F_between_which_rows_the_lines_cross",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.3F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.3F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.3F:between-which-rows-the-lines-cross",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.3F",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Between which two values of $x$ do the two lines cross?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Recorded values",
+    "table": {
+     "headers": [
+      "x",
+      "Line 1",
+      "Line 2"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "{{p1}}",
+       "{{q1}}"
+      ],
+      [
+       "{{x2}}",
+       "{{p2}}",
+       "{{q2}}"
+      ],
+      [
+       "{{x3}}",
+       "{{p3}}",
+       "{{q3}}"
+      ],
+      [
+       "{{x4}}",
+       "{{p4}}",
+       "{{q4}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "A crossing sits between the last row where one leads and the first where the other does.",
+    "reasoning": [
+     "Line 2 is still below line 1 at $x = {{x2}}$ and above it at $x = {{x3}}$.",
+     "The two must therefore have crossed somewhere in between."
+    ],
+    "answerSummary": "Between ${{x2}}$ and ${{x3}}$."
+   },
+   "attemptFeedback": [
+    "Check which column is larger in each row before choosing."
+   ],
+   "supportHints": [
+    "Where does the column that was behind become the column in front?"
+   ],
+   "generator": {
+    "parameters": {
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     },
+     "lead": {
+      "type": "int",
+      "min": 4,
+      "max": 9
+     },
+     "gain": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "slow": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     }
+    },
+    "derived": {
+     "x2": "x1+1",
+     "x3": "x1+2",
+     "x4": "x1+3",
+     "p1": "20+lead",
+     "p2": "20+lead+slow",
+     "p3": "20+lead+2*slow",
+     "p4": "20+lead+3*slow",
+     "q1": "20",
+     "q2": "20+slow+gain",
+     "q3": "20+2*(slow+gain)",
+     "q4": "20+3*(slow+gain)"
+    },
+    "constraints": [
+     "gain<lead",
+     "2*gain>lead"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{x2}} \\text{ and } {{x3}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{x3}} \\text{ and } {{x4}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{x1}} \\text{ and } {{x2}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{x1}} \\text{ and } {{x4}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_3F_lines_that_meet_on_the_vertical_axis",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.3F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.3F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.3F:lines-that-meet-on-the-vertical-axis",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.3F",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Where do $y = {{m1}}x + {{c}}$ and $y = {{m2}}x + {{c}}$ cross?",
+   "solutionReview": {
+    "headline": "Two lines sharing a constant already meet on the vertical axis.",
+    "reasoning": [
+     "Setting the two right-hand sides equal gives ${{m1}}x = {{m2}}x$, so $x = 0$.",
+     "At $x = 0$ both lines give $y = {{c}}$."
+    ],
+    "answerSummary": "They cross at $(0, {{c}})$."
+   },
+   "attemptFeedback": [
+    "Check which coordinate is zero at a crossing on the vertical axis."
+   ],
+   "supportHints": [
+    "What do the two equations have in common?"
+   ],
+   "generator": {
+    "parameters": {
+     "m1": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "m2": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 3,
+      "max": 25
+     }
+    },
+    "derived": {
+     "sum": "m1+m2"
+    },
+    "constraints": [
+     "m1!=m2",
+     "c!=m1",
+     "c!=m2",
+     "c!=sum"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$({{c}}, {{c}})$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "$(0, {{sum}})$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$({{c}}, 0)$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "$(0, {{c}})$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_3F_about_when_two_plans_cost_the_same",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.3F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.3F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.3F:about-when-two-plans-cost-the-same",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.3F",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Plan A costs $\\${{f1}}$ plus $\\${{m1}}$ a month and Plan B $\\${{f2}}$ plus $\\${{m2}}$. After about how many months do they match?",
+   "solutionReview": {
+    "headline": "Divide the head start by the monthly gain, then round to the nearest month.",
+    "reasoning": [
+     "Plan A starts $\\${{headStart}}$ ahead, and Plan B gains $\\${{gain}}$ a month on it.",
+     "That gap closes a little after ${{whole}}$ months, so ${{whole}}$ is the nearest whole month."
+    ],
+    "answerSummary": "After about ${{whole}}$ months."
+   },
+   "attemptFeedback": [
+    "That is the monthly difference, not the number of months it takes."
+   ],
+   "supportHints": [
+    "How much does the gap between the two plans shrink each month?"
+   ],
+   "generator": {
+    "parameters": {
+     "m1": {
+      "type": "int",
+      "min": 3,
+      "max": 9
+     },
+     "gain": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "whole": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "f2": {
+      "type": "int",
+      "min": 10,
+      "max": 40
+     }
+    },
+    "derived": {
+     "m2": "m1+gain",
+     "f1": "f2+gain*whole+1",
+     "headStart": "gain*whole+1",
+     "double": "2*whole",
+     "wrongDivisor": "round((gain*whole+1)/(m1+gain))"
+    },
+    "constraints": [
+     "wrongDivisor>=1",
+     "wrongDivisor!=gain",
+     "gain!=whole",
+     "double!=whole",
+     "f1!=f2",
+     "whole!=wrongDivisor",
+     "wrongDivisor!=double",
+     "double!=gain"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{whole}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{double}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{wrongDivisor}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{gain}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_3F_parallel_lines_said_to_meet_later",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.3F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.3F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.3F:parallel-lines-said-to-meet-later",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.3F",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Graphing $y = {{m}}x + {{c1}}$ and $y = {{m}}x + {{c2}}$, a student says they meet further right. What is wrong?",
+   "solutionReview": {
+    "headline": "Same slope and different constants means no crossing anywhere.",
+    "reasoning": [
+     "Setting the two right-hand sides equal removes the ${{m}}x$ terms and leaves ${{c1}} = {{c2}}$, which is false.",
+     "A system with no solution graphs as two lines that stay apart forever."
+    ],
+    "answerSummary": "The lines never meet."
+   },
+   "attemptFeedback": [
+    "Extending the axes further does not bring parallel lines together."
+   ],
+   "supportHints": [
+    "What happens to the $x$ terms when you set the two sides equal?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c1": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     },
+     "gap": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     }
+    },
+    "derived": {
+     "c2": "c1+gap"
+    },
+    "constraints": [
+     "c1!=m",
+     "gap!=m"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "They meet, but to the left rather than to the right.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "Nothing is wrong: any two straight lines meet somewhere.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "They meet where $x = {{gap}}$, once the constants have been subtracted.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "Equal slopes keep the lines a fixed ${{gap}}$ apart, so they never meet at all."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_5A_equation_with_a_fractional_coefficient",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.5A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.5A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.5A:equation-with-a-fractional-coefficient",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.5A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solve $\\frac{x}{{{d}}} + {{p}} = {{q}}$.",
+   "solutionReview": {
+    "headline": "Undo the addition first, then the division.",
+    "reasoning": [
+     "Taking ${{p}}$ from both sides leaves $\\frac{x}{{{d}}} = {{rise}}$.",
+     "Multiplying by ${{d}}$ then gives $x = {{x}}$."
+    ],
+    "answerSummary": "It is ${{x}}$."
+   },
+   "attemptFeedback": [
+    "The division by ${{d}}$ still has to be undone."
+   ],
+   "supportHints": [
+    "What is $\\frac{x}{{{d}}}$ worth once ${{p}}$ has been taken off?"
+   ],
+   "generator": {
+    "parameters": {
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     },
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 30
+     },
+     "rise": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "q": "p+rise",
+     "x": "d*rise",
+     "noDivide": "rise",
+     "dividedFirst": "rise+p",
+     "multipliedBoth": "d*(p+rise)"
+    },
+    "constraints": [
+     "x!=noDivide",
+     "x!=dividedFirst",
+     "x!=multipliedBoth",
+     "noDivide!=dividedFirst",
+     "noDivide!=multipliedBoth",
+     "dividedFirst!=multipliedBoth"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{noDivide}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{x}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{multipliedBoth}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{dividedFirst}}$",
+     "error": "orderOfOperations"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_5A_equation_with_the_whole_side_over_a_denominator",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.5A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.5A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.5A:equation-with-the-whole-side-over-a-denominator",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.5A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What value of $x$ satisfies $\\frac{x + {{p}}}{{{d}}} = {{q}}$?",
+   "solutionReview": {
+    "headline": "Clear the denominator from the whole side first, then undo the addition.",
+    "reasoning": [
+     "Multiplying both sides by ${{d}}$ gives $x + {{p}} = {{d}} \\times {{q}}$.",
+     "Taking ${{p}}$ off both sides leaves $x = {{x}}$."
+    ],
+    "answerSummary": "It is ${{x}}$."
+   },
+   "attemptFeedback": [
+    "The ${{p}}$ is inside the fraction, so it is only removed after multiplying."
+   ],
+   "supportHints": [
+    "What is $x + {{p}}$ worth once the denominator is cleared?"
+   ],
+   "generator": {
+    "parameters": {
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "q": {
+      "type": "int",
+      "min": 3,
+      "max": 15
+     }
+    },
+    "derived": {
+     "x": "d*q-p",
+     "noSubtract": "d*q",
+     "noMultiply": "q-p",
+     "wrongMultiplier": "p*q"
+    },
+    "constraints": [
+     "p!=d",
+     "x>=1",
+     "x!=noSubtract",
+     "x!=noMultiply",
+     "x!=wrongMultiplier",
+     "noSubtract!=noMultiply",
+     "noSubtract!=wrongMultiplier",
+     "noMultiply!=wrongMultiplier"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{noSubtract}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{wrongMultiplier}}$",
+     "error": "orderOfOperations"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{noMultiply}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{x}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_5A_where_an_expression_reaches_a_target",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.5A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.5A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.5A:where-an-expression-reaches-a-target",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.5A",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The table gives ${{a}}x + {{b}}$. At which $x$ does it reach ${{target}}$?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Values of the expression",
+    "table": {
+     "headers": [
+      "x",
+      "Value"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "{{v1}}"
+      ],
+      [
+       "{{x2}}",
+       "{{v2}}"
+      ],
+      [
+       "{{x3}}",
+       "{{v3}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Take off the constant first, then divide by what multiplies $x$.",
+    "reasoning": [
+     "Reaching ${{target}}$ means ${{a}}x + {{b}} = {{target}}$, so ${{a}}x = {{noSubtract}}$.",
+     "Dividing by ${{a}}$ gives $x = {{s}}$, past the last row shown."
+    ],
+    "answerSummary": "It is $x = {{s}}$."
+   },
+   "attemptFeedback": [
+    "The ${{b}}$ is added once, not once per $x$, so it cannot join the rate."
+   ],
+   "supportHints": [
+    "What is ${{a}}x$ worth when the expression reaches ${{target}}$?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 25
+     },
+     "s": {
+      "type": "int",
+      "min": 4,
+      "max": 17
+     },
+     "x1": {
+      "type": "int",
+      "min": 3,
+      "max": 15
+     },
+     "step": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     }
+    },
+    "derived": {
+     "x2": "x1+step",
+     "x3": "x1+2*step",
+     "v1": "a*x1+b",
+     "v2": "a*(x1+step)+b",
+     "v3": "a*(x1+2*step)+b",
+     "target": "a*s+b",
+     "noSubtract": "a*s",
+     "constantInRate": "floor((a*s+b)/(a+b))"
+    },
+    "constraints": [
+     "s!=x1",
+     "s!=x2",
+     "s!=x3",
+     "s!=noSubtract",
+     "s!=constantInRate",
+     "x1!=noSubtract",
+     "x1!=constantInRate",
+     "noSubtract!=constantInRate"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{noSubtract}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{constantInRate}}$",
+     "error": "orderOfOperations"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{s}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{x1}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_5A_constant_that_produces_a_given_solution",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.5A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.5A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.5A:constant-that-produces-a-given-solution",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.5A",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For which $c$ does ${{a}}x + c = {{b}}x + {{q}}$ have the solution $x = {{s}}$?",
+   "solutionReview": {
+    "headline": "Substitute the solution and the unknown constant is the only thing left.",
+    "reasoning": [
+     "Putting $x = {{s}}$ in gives ${{a}} \\times {{s}} + c = {{b}} \\times {{s}} + {{q}}$.",
+     "The two $x$ terms differ by ${{drop}} \\times {{s}}$, so $c = {{q}} - {{drop}} \\times {{s}} = {{c}}$."
+    ],
+    "answerSummary": "It is ${{c}}$."
+   },
+   "attemptFeedback": [
+    "The gap between the $x$ terms depends on ${{s}}$, not on the coefficients alone."
+   ],
+   "supportHints": [
+    "What do both sides come to at $x = {{s}}$?"
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 10
+     },
+     "drop": {
+      "type": "int",
+      "min": 2,
+      "max": 10
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "s": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "a": "b+drop",
+     "c": "q-drop*s",
+     "signFlipped": "q+drop*s",
+     "usedB": "q-b*s",
+     "usedA": "q-a*s"
+    },
+    "constraints": [
+     "b!=drop",
+     "c!=usedB",
+     "c!=usedA",
+     "usedB!=usedA",
+     "c!=signFlipped",
+     "signFlipped!=usedB",
+     "signFlipped!=usedA"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{usedB}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{signFlipped}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{c}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{usedA}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_5A_bracket_multiplied_into_one_term_only",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.5A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.5A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.5A:bracket-multiplied-into-one-term-only",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.5A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solving ${{a}}(x + {{p}}) = {{r}}$ a student writes ${{a}}x + {{p}} = {{r}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "Distributing means multiplying every term in the bracket.",
+    "reasoning": [
+     "A number outside a bracket multiplies every term inside it.",
+     "Here that makes the second term ${{a}} \\times {{p}} = {{ap}}$, not ${{p}}$."
+    ],
+    "answerSummary": "It should be ${{a}}x + {{ap}} = {{r}}$."
+   },
+   "attemptFeedback": [
+    "Only the first term was multiplied; the second was copied across unchanged."
+   ],
+   "supportHints": [
+    "How many terms are inside the bracket?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     }
+    },
+    "derived": {
+     "r": "a*(x+p)",
+     "ap": "a*p"
+    },
+    "constraints": [
+     "a!=p"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The ${{a}}$ multiplies everything in the bracket, so it should be ${{a}}x + {{ap}} = {{r}}$."
+    },
+    {
+     "id": "choice-b",
+     "label": "The ${{p}}$ should have been left inside a bracket of its own.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "The ${{a}}$ should multiply the ${{p}}$ only, not the $x$.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "Nothing is wrong, because the bracket has been removed correctly.",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_5B_solve_a_two_step_inequality",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.5B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.5B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.5B:solve-a-two-step-inequality",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.5B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solve ${{a}}x + {{p}} \\le {{q}}$.",
+   "solutionReview": {
+    "headline": "Dividing by a positive number leaves the direction alone.",
+    "reasoning": [
+     "Taking ${{p}}$ from both sides gives ${{a}}x \\le {{noDivide}}$.",
+     "Dividing by ${{a}}$, which is positive, keeps the direction: $x \\le {{s}}$."
+    ],
+    "answerSummary": "It is $x \\le {{s}}$."
+   },
+   "attemptFeedback": [
+    "The ${{a}}$ still has to be divided out."
+   ],
+   "supportHints": [
+    "What is ${{a}}x$ worth once ${{p}}$ has been taken off?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "s": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "q": "a*s+p",
+     "noDivide": "a*s",
+     "wrongOrder": "a*s+p"
+    },
+    "constraints": [
+     "s!=noDivide"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x \\le {{s}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x \\le {{noDivide}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x \\le {{wrongOrder}}$",
+     "error": "orderOfOperations"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x \\ge {{s}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_5B_dividing_an_inequality_by_a_negative",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.5B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.5B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.5B:dividing-an-inequality-by-a-negative",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.5B",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solve $-{{a}}x > {{q}}$.",
+   "solutionReview": {
+    "headline": "Dividing by a negative turns the inequality around.",
+    "reasoning": [
+     "Dividing both sides by $-{{a}}$ gives $x$ against ${{q}} \\div -{{a}} = {{s}}$.",
+     "Dividing by a negative reverses the direction, so the $>$ becomes $<$."
+    ],
+    "answerSummary": "It is $x < {{s}}$."
+   },
+   "attemptFeedback": [
+    "Keeping the direction would let values that fail the original through."
+   ],
+   "supportHints": [
+    "What does dividing by a negative number do to the direction?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "s": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "q": "0-a*s",
+     "negS": "0-s",
+     "absQ": "a*s"
+    },
+    "constraints": [
+     "s!=absQ",
+     "a!=s"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x < {{absQ}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x < {{s}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x > {{s}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x < {{negS}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_5B_least_whole_number_that_works",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.5B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.5B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.5B:least-whole-number-that-works",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.5B",
+   "taskType": "application",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is the least whole number $x$ with ${{a}}x + {{p}} > {{q}}$?",
+   "solutionReview": {
+    "headline": "A strict inequality excludes its own boundary.",
+    "reasoning": [
+     "The inequality rearranges to $x > {{s}}$, and ${{s}}$ itself is not allowed.",
+     "The least whole number strictly above ${{s}}$ is ${{answer}}$."
+    ],
+    "answerSummary": "It is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "At that value the two sides are equal, which a $>$ does not allow."
+   ],
+   "supportHints": [
+    "Does $x = {{s}}$ itself satisfy a strict inequality?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "p": {
+      "type": "int",
+      "min": 3,
+      "max": 13
+     },
+     "s": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "q": "a*s+p",
+     "answer": "s+1",
+     "noDivide": "a*s"
+    },
+    "constraints": [
+     "answer!=noDivide",
+     "p!=answer",
+     "p!=s",
+     "p!=noDivide",
+     "s!=noDivide",
+     "answer!=s"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{p}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{s}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{noDivide}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_5B_how_many_days_a_budget_covers",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.5B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.5B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.5B:how-many-days-a-budget-covers",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.5B",
+   "taskType": "interpretation",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A budget of $\\${{q}}$ must cover a $\\${{p}}$ fee plus $\\${{a}}$ a day. At most how many whole days can be booked?",
+   "solutionReview": {
+    "headline": "Take the fixed charge off first, then see how many days the rest buys.",
+    "reasoning": [
+     "After the $\\${{p}}$ fee, $\\${{q}} - \\${{p}}$ is left for the daily charge.",
+     "That covers ${{s}}$ whole days at $\\${{a}}$ each, with a little to spare."
+    ],
+    "answerSummary": "It is ${{s}}$ days."
+   },
+   "attemptFeedback": [
+    "The whole budget cannot go on daily charges while a fee is still owed."
+   ],
+   "supportHints": [
+    "How much is left once the fee is paid?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 3,
+      "max": 14
+     },
+     "p": {
+      "type": "int",
+      "min": 10,
+      "max": 40
+     },
+     "s": {
+      "type": "int",
+      "min": 3,
+      "max": 14
+     },
+     "spare": {
+      "type": "int",
+      "min": 1,
+      "max": 2
+     }
+    },
+    "derived": {
+     "q": "a*s+p+spare",
+     "ignoredFee": "floor((a*s+p+spare)/a)",
+     "feeAsDaily": "floor((a*s+p+spare)/(a+p))"
+    },
+    "constraints": [
+     "feeAsDaily>=1",
+     "s!=ignoredFee",
+     "s!=a",
+     "s!=feeAsDaily",
+     "ignoredFee!=feeAsDaily",
+     "ignoredFee!=a",
+     "feeAsDaily!=a"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{s}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{a}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{feeAsDaily}}$",
+     "error": "orderOfOperations"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{ignoredFee}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_5B_direction_kept_after_a_negative_divide",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.5B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.5B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.5B:direction-kept-after-a-negative-divide",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.5B",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "From $-{{a}}x < {{q}}$ a student writes $x < {{negS}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "Dividing both sides by the same number is not enough when that number is negative.",
+    "reasoning": [
+     "Dividing both sides by a negative number swaps which side is larger.",
+     "The value $-{{s}}$ is right, but the direction must turn with it."
+    ],
+    "answerSummary": "It should be $x > {{negS}}$."
+   },
+   "attemptFeedback": [
+    "Same divisor on both sides is correct; the direction is what was missed."
+   ],
+   "supportHints": [
+    "Test a value that the student answer allows in the original inequality."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "s": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "q": "a*s",
+     "negS": "0-s"
+    },
+    "constraints": [
+     "a!=s"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Dividing by $-{{a}}$ reverses the direction, so it should be $x > {{negS}}$."
+    },
+    {
+     "id": "choice-b",
+     "label": "The direction is right but the value should be ${{s}}$, without the minus.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "The whole inequality should become $x > {{q}}$, leaving the ${{a}}$ alone.",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "Nothing is wrong, since both sides were divided by the same number.",
      "error": "usedGivenValue"
     }
    ],

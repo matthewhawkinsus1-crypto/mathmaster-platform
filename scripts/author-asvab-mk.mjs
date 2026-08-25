@@ -11385,6 +11385,11 @@ mk('A.2F', 'is-this-pair-perpendicular', {
 mk('A.2F', 'perpendicular-to-a-line-through-two-points', {
   courseId: 'algebra1',
   difficultyBand: 3, dok: 3, taskType: 'application', representation: 'orderedPairs',
+  // The two points give a slope of p/q rather than a whole number on purpose.
+  // With a whole-number slope the only four sensible answers are m, -m, 1/m and
+  // -1/m, whose order never changes, so the key sat at one rank in every draw.
+  // A fractional slope lets the negated-but-not-inverted choice fall on either
+  // side of the key.
   prompt: 'A line passes through both points shown. What is the slope of a line perpendicular to it?',
   stimulus: {
     kind: 'orderedPairs',
@@ -11393,22 +11398,24 @@ mk('A.2F', 'perpendicular-to-a-line-through-two-points', {
   },
   generator: {
     parameters: {
-      m: { type: 'int', min: 2, max: 9 },
-      run: { type: 'int', min: 1, max: 5 },
+      p: { type: 'int', min: 2, max: 9 },
+      q: { type: 'int', min: 2, max: 9 },
       x1: { type: 'int', min: 1, max: 8 },
       y1: { type: 'int', min: 1, max: 15 },
     },
-    derived: { x2: 'x1+run', y2: 'y1+m*run', negM: '0-m' },
-    constraints: [],
+    derived: { x2: 'x1+q', y2: 'y1+p' },
+    // gcd keeps the slope in lowest terms; q*q>p keeps the undivided run below
+    // the key rather than letting it drift above.
+    constraints: ['p!=q', 'gcd(p,q)==1', 'q*q>p'],
   },
   choices: [
-    { label: plain('-\\frac{1}{{{m}}}'), correct: true },
-    { label: plain('{{negM}}'), error: 'operationInverted' },
-    { label: plain('\\frac{1}{{{m}}}'), error: 'signError' },
-    { label: plain('{{m}}'), error: 'usedGivenValue' },
+    { label: plain('-\\frac{{{q}}}{{{p}}}'), correct: true },
+    { label: plain('-\\frac{{{p}}}{{{q}}}'), error: 'operationInverted' },
+    { label: plain('\\frac{{{q}}}{{{p}}}'), error: 'signError' },
+    { label: plain('-{{q}}'), error: 'forgotFinalStep' },
   ],
-  reasoning: ['Between the two points $y$ climbs ${{m}}$ for every $1$ across, so the slope is ${{m}}$.', 'A perpendicular slope is that turned over and negated: $-\\frac{1}{{{m}}}$.'],
-  answerSummary: { headline: 'Get the slope from the points first, then invert and negate it.', text: 'It is $-\\frac{1}{{{m}}}$.' },
+  reasoning: ['Between the two points $y$ climbs ${{p}}$ over a run of ${{q}}$, so the slope is $\\frac{{{p}}}{{{q}}}$.', 'Turning that over and negating it gives $-\\frac{{{q}}}{{{p}}}$.'],
+  answerSummary: { headline: 'Get the slope from the points first, then invert and negate it.', text: 'It is $-\\frac{{{q}}}{{{p}}}$.' },
   hint: 'What is the slope of the line through the two points?',
   feedback: 'Negating without turning the fraction over leaves the wrong angle.',
 });
@@ -11721,6 +11728,786 @@ mk('A.2I', 'prices-put-in-the-counting-equation', {
   answerSummary: { headline: 'The counting equation has no prices in it at all.', text: 'It should be $x + y = {{n}}$.' },
   hint: 'What does each single ticket add to the count?',
   feedback: 'That equation is the money equation, not the count.',
+});
+
+// ================================================================ A.3A
+// Slope from an equation. 7.7 already reads the slope out of y = mx + b and
+// 8.4A gets it from a table or a pair of points, so every family here works
+// from a form that neither of those touches: standard form, point-slope form,
+// and an equation solved for x instead of y.
+
+mk('A.3A', 'slope-from-standard-form', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'What is the slope of ${{a}}x + {{b}}y = {{c}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 9 },
+      over: { type: 'int', min: 2, max: 30 },
+    },
+    // The constant sits above a so the choice built from it is always steeper
+    // than the key, leaving the key with one option on each side.
+    derived: { c: 'a+over' },
+    constraints: ['a!=b', 'gcd(a,b)==1', 'gcd(c,b)==1'],
+  },
+  choices: [
+    { label: plain('-\\frac{{{a}}}{{{b}}}'), correct: true },
+    { label: plain('\\frac{{{a}}}{{{b}}}'), error: 'signError' },
+    { label: plain('-\\frac{{{b}}}{{{a}}}'), error: 'ratioReversed' },
+    { label: plain('-\\frac{{{c}}}{{{b}}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Solving for $y$ gives ${{b}}y = -{{a}}x + {{c}}$.', 'Dividing by ${{b}}$ leaves a slope of $-\\frac{{{a}}}{{{b}}}$.'],
+  answerSummary: { headline: 'Standard form hides the slope until the equation is solved for $y$.', text: 'It is $-\\frac{{{a}}}{{{b}}}$.' },
+  hint: 'What happens when you make $y$ the subject?',
+  feedback: 'Moving the $x$ term across changes its sign.',
+});
+
+mk('A.3A', 'hourly-rate-from-point-slope-form', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A repair bill follows $y - {{y1}} = {{m}}(x - {{x1}})$, where $x$ is hours. What is the hourly rate?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 15 },
+      // Drawn over the same range as m: this is the one choice that can land on
+      // either side of the key, and it only does so evenly if the two ranges
+      // match.
+      x1: { type: 'int', min: 2, max: 15 },
+      y1: { type: 'int', min: 20, max: 90 },
+    },
+    derived: { negM: '0-m' },
+    constraints: ['m!=x1', 'm!=y1', 'x1!=y1'],
+  },
+  choices: [
+    { label: plain('{{m}}'), correct: true },
+    { label: plain('{{y1}}'), error: 'usedGivenValue' },
+    { label: plain('{{x1}}'), error: 'partialTotal' },
+    { label: plain('{{negM}}'), error: 'signError' },
+  ],
+  reasoning: ['In point-slope form the number multiplying the bracket is the slope.', 'A slope of ${{m}}$ means the bill climbs $\\${{m}}$ for each extra hour.'],
+  answerSummary: { headline: 'The multiplier outside the bracket is the rate.', text: 'It is ${{m}}$ an hour.' },
+  hint: 'Which number is multiplying the bracket that holds $x$?',
+  feedback: 'That is one recorded bill, not the rate at which it grows.',
+});
+
+mk('A.3A', 'slope-when-solved-for-x', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'What is the slope of the line $x = {{a}}y + {{b}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      // b decides where a/b falls against the key of 1/a — it crosses when a*a
+      // passes b. A narrow range for b put it above the key in four draws out
+      // of five; this one splits it about evenly.
+      b: { type: 'int', min: 2, max: 60 },
+    },
+    derived: {},
+    constraints: ['a!=b', 'a*a!=b'],
+  },
+  choices: [
+    { label: plain('\\frac{1}{{{a}}}'), correct: true },
+    { label: plain('-\\frac{1}{{{a}}}'), error: 'signError' },
+    { label: plain('\\frac{{{b}}}{{{a}}}'), error: 'usedGivenValue' },
+    { label: plain('\\frac{{{a}}}{{{b}}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Making $y$ the subject gives $y = \\frac{x - {{b}}}{{{a}}}$.', 'The number multiplying $x$ is then $\\frac{1}{{{a}}}$.'],
+  answerSummary: { headline: 'An equation solved for $x$ gives the reciprocal of the slope, not the slope.', text: 'It is $\\frac{1}{{{a}}}$.' },
+  hint: 'Rearrange until $y$ stands alone.',
+  feedback: 'That is how much $x$ changes per unit of $y$, which is the other way round.',
+});
+
+mk('A.3A', 'which-line-falls-fastest', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'symbolic',
+  // "Steepest" is ambiguous once every slope is negative, so the prompt asks
+  // which one falls fastest, which has a single defensible reading.
+  prompt: 'On which line does $y$ fall fastest as $x$ increases?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 5, max: 12 },
+      b: { type: 'int', min: 2, max: 5 },
+      c: { type: 'int', min: 12, max: 60 },
+      down: { type: 'int', min: 1, max: 3 },
+      up: { type: 'int', min: 1, max: 4 },
+    },
+    derived: { a2: 'a-down', b2: 'b+up' },
+    constraints: ['a2>=2'],
+  },
+  choices: [
+    { label: plain('{{a}}x + {{b}}y = {{c}}'), correct: true },
+    { label: plain('{{a}}x + {{b2}}y = {{c}}'), error: 'ratioReversed' },
+    { label: plain('{{a2}}x + {{b}}y = {{c}}'), error: 'partialTotal' },
+    { label: plain('{{a2}}x + {{b2}}y = {{c}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Each line falls at $\\frac{a}{b}$ for its own pair of coefficients.', 'The largest $x$ coefficient over the smallest $y$ coefficient gives the fastest fall, $\\frac{{{a}}}{{{b}}}$.'],
+  answerSummary: { headline: 'Compare the ratio of the coefficients, not either one alone.', text: 'It is ${{a}}x + {{b}}y = {{c}}$.' },
+  hint: 'Work out how far $y$ drops for one step in $x$ on each line.',
+  feedback: 'A larger $y$ coefficient spreads the same drop over more $y$, making the fall slower.',
+});
+
+mk('A.3A', 'coefficient-read-as-the-slope', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student reads the slope of ${{a}}x + {{b}}y = {{c}}$ as ${{a}}$. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 12, max: 60 },
+    },
+    derived: {},
+    constraints: ['a!=b', 'gcd(a,b)==1'],
+  },
+  choices: [
+    { label: 'The equation is not solved for $y$ yet: the slope is $-\\frac{{{a}}}{{{b}}}$.', correct: true },
+    { label: 'The size is right, but the sign should be negative, giving $-{{a}}$.', error: 'signError' },
+    { label: 'Nothing is wrong, because ${{a}}$ is the number attached to $x$.', error: 'usedGivenValue' },
+    { label: 'The slope should be ${{c}}$, the number standing alone.', error: 'partialTotal' },
+  ],
+  reasoning: ['A slope can only be read straight off an equation that has $y$ by itself.', 'Here $y$ still carries a coefficient of ${{b}}$, which has to be divided out.'],
+  answerSummary: { headline: 'Read a slope only from an equation solved for $y$.', text: 'The slope is $-\\frac{{{a}}}{{{b}}}$.' },
+  hint: 'What still has to happen to the ${{b}}y$ term?',
+  feedback: 'Fixing the sign alone still leaves the ${{b}}$ undivided.',
+});
+
+// ================================================================ A.3C
+// Key features of a linear function: intercepts, zeros and what they mean.
+// 8.5I writes the equation; nothing below this asks where a line crosses an
+// axis or what the crossing stands for.
+
+mk('A.3C', 'where-a-line-crosses-the-horizontal-axis', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Where does ${{a}}x + {{b}}y = {{c}}$ cross the horizontal axis?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 9 },
+      k: { type: 'int', min: 2, max: 8 },
+    },
+    derived: { c: 'a*b*k', xInt: 'b*k', yInt: 'a*k' },
+    constraints: ['a!=b'],
+  },
+  choices: [
+    { label: plain('({{xInt}}, 0)'), correct: true },
+    { label: plain('(0, {{xInt}})'), error: 'ratioReversed' },
+    { label: plain('({{yInt}}, 0)'), error: 'usedGivenValue' },
+    { label: plain('({{c}}, 0)'), error: 'partialTotal' },
+  ],
+  reasoning: ['On the horizontal axis $y = 0$, so the equation becomes ${{a}}x = {{c}}$.', 'That gives $x = {{xInt}}$, and the crossing is $({{xInt}}, 0)$.'],
+  answerSummary: { headline: 'Set the other variable to zero and solve.', text: 'It crosses at $({{xInt}}, 0)$.' },
+  hint: 'What is $y$ everywhere along the horizontal axis?',
+  feedback: 'Dividing by the wrong coefficient gives the crossing on the other axis.',
+});
+
+mk('A.3C', 'zero-of-a-linear-function', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'What is the zero of $f(x) = {{m}}x - {{p}}$?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      z: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { p: 'm*z', negZ: '0-z' },
+    constraints: ['m!=z'],
+  },
+  choices: [
+    { label: plain('{{z}}'), correct: true },
+    { label: plain('{{negZ}}'), error: 'signError' },
+    { label: plain('{{p}}'), error: 'usedGivenValue' },
+    { label: plain('{{m}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['A zero is the input that makes the output nothing, so ${{m}}x - {{p}} = 0$.', 'That gives ${{m}}x = {{p}}$, so $x = {{z}}$.'],
+  answerSummary: { headline: 'A zero of a function is where its value, not its input, is nothing.', text: 'It is ${{z}}$.' },
+  hint: 'What must $f(x)$ equal at a zero?',
+  feedback: 'That is the constant in the rule, not the input that cancels it.',
+});
+
+mk('A.3C', 'reading-the-vertical-crossing-off-a-table', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 2, taskType: 'interpretation', representation: 'table',
+  // No row sits at x = 0, so the crossing has to be worked back to rather than
+  // read off, which is the feature the standard names.
+  prompt: 'Where does this line cross the vertical axis?',
+  stimulus: {
+    kind: 'table',
+    title: 'Recorded values',
+    table: { headers: ['x', 'y'], rows: [['{{x1}}', '{{y1}}'], ['{{x2}}', '{{y2}}'], ['{{x3}}', '{{y3}}']] },
+  },
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 20 },
+      x1: { type: 'int', min: 2, max: 6 },
+      step: { type: 'int', min: 1, max: 3 },
+    },
+    derived: {
+      x2: 'x1+step', x3: 'x1+2*step',
+      y1: 'm*x1+b', y2: 'm*(x1+step)+b', y3: 'm*(x1+2*step)+b',
+    },
+    constraints: ['b!=y1', 'b!=m', 'b!=x1'],
+  },
+  choices: [
+    { label: plain('(0, {{b}})'), correct: true },
+    { label: plain('(0, {{y1}})'), error: 'usedGivenValue' },
+    { label: plain('({{b}}, 0)'), error: 'ratioReversed' },
+    { label: plain('(0, {{m}})'), error: 'partialTotal' },
+  ],
+  reasoning: ['Each step of ${{step}}$ in $x$ raises $y$ by ${{m}}$ times that, so the slope is ${{m}}$.', 'Walking back from $({{x1}}, {{y1}})$ to $x = 0$ leaves $y = {{b}}$.'],
+  answerSummary: { headline: 'Work back to $x = 0$ at the rate the line itself sets.', text: 'It crosses at $(0, {{b}})$.' },
+  hint: 'How much does $y$ change for one step in $x$?',
+  feedback: 'The first row is not the crossing unless its $x$ is already zero.',
+});
+
+mk('A.3C', 'what-the-horizontal-crossing-stands-for', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A tank holds $y = {{b}} - {{m}}x$ litres after $x$ minutes. What does the crossing on the horizontal axis stand for?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      t: { type: 'int', min: 4, max: 15 },
+    },
+    derived: { b: 'm*t' },
+    constraints: ['m!=t'],
+  },
+  choices: [
+    { label: 'The tank is empty after ${{t}}$ minutes.', correct: true },
+    { label: 'The tank holds ${{b}}$ litres at the start.', error: 'ratioReversed' },
+    { label: 'The tank loses ${{m}}$ litres every minute.', error: 'partialTotal' },
+    { label: 'The tank is empty after ${{b}}$ minutes.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['The horizontal axis is where $y$, the litres held, is zero.', 'Setting ${{b}} - {{m}}x = 0$ gives $x = {{t}}$ minutes.'],
+  answerSummary: { headline: 'A crossing on the horizontal axis is where the quantity runs out.', text: 'The tank is empty at ${{t}}$ minutes.' },
+  hint: 'What is $y$ at that crossing, and what does $y$ measure here?',
+  feedback: 'The starting amount is the crossing on the other axis.',
+});
+
+mk('A.3C', 'intercepts-swapped-over', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'For ${{a}}x + {{b}}y = {{c}}$ a student gives the horizontal crossing as $({{yInt}}, 0)$. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 9 },
+      k: { type: 'int', min: 2, max: 8 },
+    },
+    derived: { c: 'a*b*k', xInt: 'b*k', yInt: 'a*k' },
+    constraints: ['a!=b'],
+  },
+  choices: [
+    { label: 'Setting $y = 0$ divides by ${{a}}$, not ${{b}}$, so the crossing is $({{xInt}}, 0)$.', correct: true },
+    { label: 'Nothing is wrong, since ${{yInt}}$ does come from the equation.', error: 'usedGivenValue' },
+    { label: 'The number is right but the pair should be written $(0, {{yInt}})$.', error: 'ratioReversed' },
+    { label: 'The crossing should be $({{c}}, 0)$, using the constant unchanged.', error: 'partialTotal' },
+  ],
+  reasoning: ['On the horizontal axis $y$ is zero, which removes the ${{b}}y$ term entirely.', 'What is left is ${{a}}x = {{c}}$, giving $x = {{xInt}}$.'],
+  answerSummary: { headline: 'Whichever variable is set to zero, divide by the coefficient of the other.', text: 'The crossing is $({{xInt}}, 0)$.' },
+  hint: 'Which term disappears when $y = 0$?',
+  feedback: 'That value is where the line crosses the other axis.',
+});
+
+// ================================================================ A.3F
+// What graphing a system shows. 8.9 already finds the crossing of two lines
+// that meet at a whole-numbered point, so these five take the cases that
+// graphing is actually used for: a system with no single answer, a crossing
+// that falls between whole numbers, and a crossing that lands on an axis.
+
+mk('A.3F', 'the-same-line-written-twice', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'How many pairs satisfy both ${{a}}x + {{b}}y = {{c}}$ and ${{a2}}x + {{b2}}y = {{c2}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 7 },
+      b: { type: 'int', min: 2, max: 7 },
+      k: { type: 'int', min: 2, max: 4 },
+      base: { type: 'int', min: 3, max: 15 },
+    },
+    derived: { c: 'a*base', a2: 'a*k', b2: 'b*k', c2: 'a*base*k' },
+    constraints: ['a!=b'],
+  },
+  choices: [
+    { label: 'Infinitely many: the second equation is the first multiplied by ${{k}}$, so the two graphs are one line.', correct: true },
+    { label: 'Exactly one, because the two equations are written differently.', error: 'usedGivenValue' },
+    { label: 'None, because no pair can satisfy two different equations at once.', error: 'operationInverted' },
+    { label: 'Exactly ${{k}}$, one for each time the first equation was multiplied.', error: 'partialTotal' },
+  ],
+  reasoning: ['Multiplying every term of the first equation by ${{k}}$ gives the second exactly.', 'Two names for one line share every point on it.'],
+  answerSummary: { headline: 'A system whose equations are multiples of each other draws a single line.', text: 'Infinitely many pairs satisfy both.' },
+  hint: 'What happens if you multiply the first equation through by ${{k}}$?',
+  feedback: 'Looking different is not the same as being different.',
+});
+
+mk('A.3F', 'between-which-rows-the-lines-cross', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'table',
+  // The crossing deliberately falls between two tabulated values of x: reading
+  // it off exactly is impossible, which is what estimating from a graph means.
+  prompt: 'Between which two values of $x$ do the two lines cross?',
+  stimulus: {
+    kind: 'table',
+    title: 'Recorded values',
+    table: {
+      headers: ['x', 'Line 1', 'Line 2'],
+      rows: [['{{x1}}', '{{p1}}', '{{q1}}'], ['{{x2}}', '{{p2}}', '{{q2}}'], ['{{x3}}', '{{p3}}', '{{q3}}'], ['{{x4}}', '{{p4}}', '{{q4}}']],
+    },
+  },
+  generator: {
+    parameters: {
+      x1: { type: 'int', min: 1, max: 5 },
+      lead: { type: 'int', min: 4, max: 9 },
+      gain: { type: 'int', min: 2, max: 8 },
+      slow: { type: 'int', min: 1, max: 3 },
+    },
+    derived: {
+      x2: 'x1+1', x3: 'x1+2', x4: 'x1+3',
+      // Line 1 starts ahead by `lead` and gains `slow` a step; line 2 gains
+      // `slow + gain`, so it overtakes somewhere strictly inside the table.
+      p1: '20+lead', p2: '20+lead+slow', p3: '20+lead+2*slow', p4: '20+lead+3*slow',
+      q1: '20', q2: '20+slow+gain', q3: '20+2*(slow+gain)', q4: '20+3*(slow+gain)',
+    },
+    // The overtake must happen strictly between the second and third rows, so
+    // line 2 is still behind at row 2 and already ahead at row 3.
+    constraints: ['gain<lead', '2*gain>lead'],
+  },
+  choices: [
+    { label: plain('{{x2}} \\text{ and } {{x3}}'), correct: true },
+    { label: plain('{{x1}} \\text{ and } {{x2}}'), error: 'offByOneStep' },
+    { label: plain('{{x3}} \\text{ and } {{x4}}'), error: 'forgotFinalStep' },
+    { label: plain('{{x1}} \\text{ and } {{x4}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Line 2 is still below line 1 at $x = {{x2}}$ and above it at $x = {{x3}}$.', 'The two must therefore have crossed somewhere in between.'],
+  answerSummary: { headline: 'A crossing sits between the last row where one leads and the first where the other does.', text: 'Between ${{x2}}$ and ${{x3}}$.' },
+  hint: 'Where does the column that was behind become the column in front?',
+  feedback: 'Check which column is larger in each row before choosing.',
+});
+
+mk('A.3F', 'lines-that-meet-on-the-vertical-axis', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Where do $y = {{m1}}x + {{c}}$ and $y = {{m2}}x + {{c}}$ cross?',
+  generator: {
+    parameters: {
+      m1: { type: 'int', min: 2, max: 9 },
+      m2: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 3, max: 25 },
+    },
+    derived: { sum: 'm1+m2' },
+    constraints: ['m1!=m2', 'c!=m1', 'c!=m2', 'c!=sum'],
+  },
+  choices: [
+    { label: plain('(0, {{c}})'), correct: true },
+    { label: plain('({{c}}, 0)'), error: 'ratioReversed' },
+    { label: plain('({{c}}, {{c}})'), error: 'usedGivenValue' },
+    { label: plain('(0, {{sum}})'), error: 'partialTotal' },
+  ],
+  reasoning: ['Setting the two right-hand sides equal gives ${{m1}}x = {{m2}}x$, so $x = 0$.', 'At $x = 0$ both lines give $y = {{c}}$.'],
+  answerSummary: { headline: 'Two lines sharing a constant already meet on the vertical axis.', text: 'They cross at $(0, {{c}})$.' },
+  hint: 'What do the two equations have in common?',
+  feedback: 'Check which coordinate is zero at a crossing on the vertical axis.',
+});
+
+mk('A.3F', 'about-when-two-plans-cost-the-same', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'Plan A costs $\\${{f1}}$ plus $\\${{m1}}$ a month and Plan B $\\${{f2}}$ plus $\\${{m2}}$. After about how many months do they match?',
+  generator: {
+    parameters: {
+      m1: { type: 'int', min: 3, max: 9 },
+      // gain doubles as the crossing choice, so it shares the range of whole.
+      gain: { type: 'int', min: 2, max: 9 },
+      whole: { type: 'int', min: 2, max: 9 },
+      f2: { type: 'int', min: 10, max: 40 },
+    },
+    // The crossing is put a little past a whole month, so the honest answer is
+    // an estimate rather than a value read straight off.
+    derived: {
+      m2: 'm1+gain',
+      f1: 'f2+gain*whole+1',
+      headStart: 'gain*whole+1',
+      double: '2*whole',
+      // Dividing the head start by Plan B's whole monthly charge instead of by
+      // the amount it gains each month. Always short of the answer, and a far
+      // more likely slip than a value two months off it.
+      wrongDivisor: 'round((gain*whole+1)/(m1+gain))',
+    },
+    constraints: ['wrongDivisor>=1', 'wrongDivisor!=gain', 'gain!=whole', 'double!=whole', 'f1!=f2'],
+  },
+  choices: [
+    { label: plain('{{whole}}'), correct: true },
+    { label: plain('{{wrongDivisor}}'), error: 'usedGivenValue' },
+    { label: plain('{{double}}'), error: 'operationInverted' },
+    { label: plain('{{gain}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Plan A starts $\\${{headStart}}$ ahead, and Plan B gains $\\${{gain}}$ a month on it.', 'That gap closes a little after ${{whole}}$ months, so ${{whole}}$ is the nearest whole month.'],
+  answerSummary: { headline: 'Divide the head start by the monthly gain, then round to the nearest month.', text: 'After about ${{whole}}$ months.' },
+  hint: 'How much does the gap between the two plans shrink each month?',
+  feedback: 'That is the monthly difference, not the number of months it takes.',
+});
+
+mk('A.3F', 'parallel-lines-said-to-meet-later', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'Graphing $y = {{m}}x + {{c1}}$ and $y = {{m}}x + {{c2}}$, a student says they meet further right. What is wrong?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      c1: { type: 'int', min: 2, max: 15 },
+      gap: { type: 'int', min: 2, max: 15 },
+    },
+    derived: { c2: 'c1+gap' },
+    constraints: ['c1!=m', 'gap!=m'],
+  },
+  choices: [
+    { label: 'Equal slopes keep the lines a fixed ${{gap}}$ apart, so they never meet at all.', correct: true },
+    { label: 'They meet, but to the left rather than to the right.', error: 'signError' },
+    { label: 'Nothing is wrong: any two straight lines meet somewhere.', error: 'operationInverted' },
+    { label: 'They meet where $x = {{gap}}$, once the constants have been subtracted.', error: 'partialTotal' },
+  ],
+  reasoning: ['Setting the two right-hand sides equal removes the ${{m}}x$ terms and leaves ${{c1}} = {{c2}}$, which is false.', 'A system with no solution graphs as two lines that stay apart forever.'],
+  answerSummary: { headline: 'Same slope and different constants means no crossing anywhere.', text: 'The lines never meet.' },
+  hint: 'What happens to the $x$ terms when you set the two sides equal?',
+  feedback: 'Extending the axes further does not bring parallel lines together.',
+});
+
+// ================================================================ A.5A
+// Solving a linear equation in one variable. 8.8C already handles whole-number
+// coefficients on both sides, so this standard takes the parts it does not:
+// a fractional coefficient, a bracket to distribute, and working backwards to
+// a constant that produces a stated solution.
+
+mk('A.5A', 'equation-with-a-fractional-coefficient', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Solve $\\frac{x}{{{d}}} + {{p}} = {{q}}$.',
+  generator: {
+    parameters: {
+      d: { type: 'int', min: 2, max: 5 },
+      // dividedFirst is rise + p against a key of d * rise, so it crosses when
+      // p passes (d - 1) * rise. These three ranges are chosen to make that
+      // happen about half the time rather than almost never.
+      p: { type: 'int', min: 2, max: 30 },
+      rise: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      q: 'p+rise',
+      x: 'd*rise',
+      noDivide: 'rise',
+      dividedFirst: 'rise+p',
+      multipliedBoth: 'd*(p+rise)',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{x}}'), correct: true },
+    { label: plain('{{noDivide}}'), error: 'forgotFinalStep' },
+    { label: plain('{{dividedFirst}}'), error: 'orderOfOperations' },
+    { label: plain('{{multipliedBoth}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Taking ${{p}}$ from both sides leaves $\\frac{x}{{{d}}} = {{rise}}$.', 'Multiplying by ${{d}}$ then gives $x = {{x}}$.'],
+  answerSummary: { headline: 'Undo the addition first, then the division.', text: 'It is ${{x}}$.' },
+  hint: 'What is $\\frac{x}{{{d}}}$ worth once ${{p}}$ has been taken off?',
+  feedback: 'The division by ${{d}}$ still has to be undone.',
+});
+
+mk('A.5A', 'equation-with-the-whole-side-over-a-denominator', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  // The companion family divides the variable and then adds; this one adds
+  // first and divides the whole lot, so the two undo their steps in opposite
+  // orders rather than being the same exercise twice.
+  prompt: 'What value of $x$ satisfies $\\frac{x + {{p}}}{{{d}}} = {{q}}$?',
+  generator: {
+    parameters: {
+      d: { type: 'int', min: 2, max: 9 },
+      // wrongMultiplier is p * q against a key near d * q, so p shares d's
+      // range and lands on either side of the key about equally often.
+      p: { type: 'int', min: 2, max: 9 },
+      q: { type: 'int', min: 3, max: 15 },
+    },
+    derived: {
+      x: 'd*q-p',
+      noSubtract: 'd*q',
+      noMultiply: 'q-p',
+      wrongMultiplier: 'p*q',
+    },
+    constraints: ['p!=d', 'x>=1'],
+  },
+  choices: [
+    { label: plain('{{x}}'), correct: true },
+    { label: plain('{{noSubtract}}'), error: 'forgotFinalStep' },
+    { label: plain('{{noMultiply}}'), error: 'partialTotal' },
+    { label: plain('{{wrongMultiplier}}'), error: 'orderOfOperations' },
+  ],
+  reasoning: ['Multiplying both sides by ${{d}}$ gives $x + {{p}} = {{d}} \\times {{q}}$.', 'Taking ${{p}}$ off both sides leaves $x = {{x}}$.'],
+  answerSummary: { headline: 'Clear the denominator from the whole side first, then undo the addition.', text: 'It is ${{x}}$.' },
+  hint: 'What is $x + {{p}}$ worth once the denominator is cleared?',
+  feedback: 'The ${{p}}$ is inside the fraction, so it is only removed after multiplying.',
+});
+
+mk('A.5A', 'where-an-expression-reaches-a-target', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 2, taskType: 'interpretation', representation: 'table',
+  // An earlier version tabulated two expressions and asked which row they
+  // agreed on. The answer was then always the third of four ascending values,
+  // so the key sat at one rank in every draw and no range could shift it. Here
+  // the target lies outside the table, so the answer is a value the student
+  // works out rather than one of the rows on show.
+  prompt: 'The table gives ${{a}}x + {{b}}$. At which $x$ does it reach ${{target}}$?',
+  stimulus: {
+    kind: 'table',
+    title: 'Values of the expression',
+    table: {
+      headers: ['x', 'Value'],
+      rows: [['{{x1}}', '{{v1}}'], ['{{x2}}', '{{v2}}'], ['{{x3}}', '{{v3}}']],
+    },
+  },
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 25 },
+      // Excluding s from the three tabulated rows removes three values that
+      // all sit at or above x1, which quietly biases s downward. The range
+      // is lifted to compensate, so x1 lands above the key about half the
+      // time instead of in five draws out of eight.
+      s: { type: 'int', min: 4, max: 17 },
+      x1: { type: 'int', min: 3, max: 15 },
+      step: { type: 'int', min: 1, max: 3 },
+    },
+    derived: {
+      x2: 'x1+step', x3: 'x1+2*step',
+      v1: 'a*x1+b', v2: 'a*(x1+step)+b', v3: 'a*(x1+2*step)+b',
+      target: 'a*s+b',
+      noSubtract: 'a*s',
+      constantInRate: 'floor((a*s+b)/(a+b))',
+    },
+    // The target must not be one of the rows, or it could be read off instead
+    // of worked out. x1 doubles as the choice that lands on either side of the
+    // key, so it shares the range of s.
+    constraints: ['s!=x1', 's!=x2', 's!=x3', 's!=noSubtract', 's!=constantInRate'],
+  },
+  choices: [
+    { label: plain('{{s}}'), correct: true },
+    { label: plain('{{x1}}'), error: 'usedGivenValue' },
+    { label: plain('{{noSubtract}}'), error: 'forgotFinalStep' },
+    { label: plain('{{constantInRate}}'), error: 'orderOfOperations' },
+  ],
+  reasoning: ['Reaching ${{target}}$ means ${{a}}x + {{b}} = {{target}}$, so ${{a}}x = {{noSubtract}}$.', 'Dividing by ${{a}}$ gives $x = {{s}}$, past the last row shown.'],
+  answerSummary: { headline: 'Take off the constant first, then divide by what multiplies $x$.', text: 'It is $x = {{s}}$.' },
+  hint: 'What is ${{a}}x$ worth when the expression reaches ${{target}}$?',
+  feedback: 'The ${{b}}$ is added once, not once per $x$, so it cannot join the rate.',
+});
+
+mk('A.5A', 'constant-that-produces-a-given-solution', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic',
+  prompt: 'For which $c$ does ${{a}}x + c = {{b}}x + {{q}}$ have the solution $x = {{s}}$?',
+  generator: {
+    parameters: {
+      // b and drop are drawn independently and a is built from them, rather
+      // than drawing a and subtracting. Deriving b from a made b larger than
+      // drop in three draws out of four, which pinned the key's rank.
+      b: { type: 'int', min: 2, max: 10 },
+      drop: { type: 'int', min: 2, max: 10 },
+      q: { type: 'int', min: 2, max: 20 },
+      s: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      a: 'b+drop',
+      c: 'q-drop*s',
+      signFlipped: 'q+drop*s',
+      // Using the other coefficient. b is above drop about half the time, so
+      // this is the choice that lands on either side of the key; q - drop was
+      // above it in every single draw.
+      usedB: 'q-b*s',
+      usedA: 'q-a*s',
+    },
+    constraints: ['b!=drop', 'c!=usedB', 'c!=usedA', 'usedB!=usedA'],
+  },
+  choices: [
+    { label: plain('{{c}}'), correct: true },
+    { label: plain('{{signFlipped}}'), error: 'signError' },
+    { label: plain('{{usedB}}'), error: 'ratioReversed' },
+    { label: plain('{{usedA}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Putting $x = {{s}}$ in gives ${{a}} \\times {{s}} + c = {{b}} \\times {{s}} + {{q}}$.', 'The two $x$ terms differ by ${{drop}} \\times {{s}}$, so $c = {{q}} - {{drop}} \\times {{s}} = {{c}}$.'],
+  answerSummary: { headline: 'Substitute the solution and the unknown constant is the only thing left.', text: 'It is ${{c}}$.' },
+  hint: 'What do both sides come to at $x = {{s}}$?',
+  feedback: 'The gap between the $x$ terms depends on ${{s}}$, not on the coefficients alone.',
+});
+
+mk('A.5A', 'bracket-multiplied-into-one-term-only', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'Solving ${{a}}(x + {{p}}) = {{r}}$ a student writes ${{a}}x + {{p}} = {{r}}$. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      p: { type: 'int', min: 2, max: 12 },
+      x: { type: 'int', min: 2, max: 15 },
+    },
+    derived: { r: 'a*(x+p)', ap: 'a*p' },
+    constraints: ['a!=p'],
+  },
+  choices: [
+    { label: 'The ${{a}}$ multiplies everything in the bracket, so it should be ${{a}}x + {{ap}} = {{r}}$.', correct: true },
+    { label: 'Nothing is wrong, because the bracket has been removed correctly.', error: 'usedGivenValue' },
+    { label: 'The ${{p}}$ should have been left inside a bracket of its own.', error: 'partialTotal' },
+    { label: 'The ${{a}}$ should multiply the ${{p}}$ only, not the $x$.', error: 'ratioReversed' },
+  ],
+  reasoning: ['A number outside a bracket multiplies every term inside it.', 'Here that makes the second term ${{a}} \\times {{p}} = {{ap}}$, not ${{p}}$.'],
+  answerSummary: { headline: 'Distributing means multiplying every term in the bracket.', text: 'It should be ${{a}}x + {{ap}} = {{r}}$.' },
+  hint: 'How many terms are inside the bracket?',
+  feedback: 'Only the first term was multiplied; the second was copied across unchanged.',
+});
+
+// ================================================================ A.5B
+// Solving a linear inequality in one variable. Grades 6 to 8 (6.9A, 6.10A,
+// 7.10A, 8.8A) only ever WRITE an inequality from a situation; none of them
+// solves one, so the reversal on dividing by a negative appears here for the
+// first time and two of the five families turn on it.
+
+mk('A.5B', 'solve-a-two-step-inequality', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Solve ${{a}}x + {{p}} \\le {{q}}$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      p: { type: 'int', min: 2, max: 20 },
+      s: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { q: 'a*s+p', noDivide: 'a*s', wrongOrder: 'a*s+p' },
+    constraints: ['s!=noDivide'],
+  },
+  choices: [
+    { label: plain('x \\le {{s}}'), correct: true },
+    { label: plain('x \\ge {{s}}'), error: 'signError' },
+    { label: plain('x \\le {{noDivide}}'), error: 'forgotFinalStep' },
+    { label: plain('x \\le {{wrongOrder}}'), error: 'orderOfOperations' },
+  ],
+  reasoning: ['Taking ${{p}}$ from both sides gives ${{a}}x \\le {{noDivide}}$.', 'Dividing by ${{a}}$, which is positive, keeps the direction: $x \\le {{s}}$.'],
+  answerSummary: { headline: 'Dividing by a positive number leaves the direction alone.', text: 'It is $x \\le {{s}}$.' },
+  hint: 'What is ${{a}}x$ worth once ${{p}}$ has been taken off?',
+  feedback: 'The ${{a}}$ still has to be divided out.',
+});
+
+mk('A.5B', 'dividing-an-inequality-by-a-negative', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Solve $-{{a}}x > {{q}}$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      s: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { q: '0-a*s', negS: '0-s', absQ: 'a*s' },
+    constraints: ['s!=absQ', 'a!=s'],
+  },
+  choices: [
+    { label: plain('x < {{s}}'), correct: true },
+    { label: plain('x > {{s}}'), error: 'signError' },
+    { label: plain('x < {{negS}}'), error: 'operationInverted' },
+    { label: plain('x < {{absQ}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['Dividing both sides by $-{{a}}$ gives $x$ against ${{q}} \\div -{{a}} = {{s}}$.', 'Dividing by a negative reverses the direction, so the $>$ becomes $<$.'],
+  answerSummary: { headline: 'Dividing by a negative turns the inequality around.', text: 'It is $x < {{s}}$.' },
+  hint: 'What does dividing by a negative number do to the direction?',
+  feedback: 'Keeping the direction would let values that fail the original through.',
+});
+
+mk('A.5B', 'least-whole-number-that-works', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'symbolic',
+  prompt: 'What is the least whole number $x$ with ${{a}}x + {{p}} > {{q}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      // p doubles as the crossing choice, so its range matches the answer's.
+      p: { type: 'int', min: 3, max: 13 },
+      s: { type: 'int', min: 2, max: 12 },
+    },
+    // The boundary lands exactly on s, so strict inequality makes s + 1 the
+    // least whole number that works and s itself the tempting near miss.
+    derived: { q: 'a*s+p', answer: 's+1', noDivide: 'a*s' },
+    // p stands in for the answer often enough to sit on either side of it;
+    // a*s + p was above the key in every draw, which pinned the key's rank.
+    constraints: ['answer!=noDivide', 'p!=answer', 'p!=s', 'p!=noDivide', 's!=noDivide'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{s}}'), error: 'offByOneStep' },
+    { label: plain('{{noDivide}}'), error: 'forgotFinalStep' },
+    { label: plain('{{p}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The inequality rearranges to $x > {{s}}$, and ${{s}}$ itself is not allowed.', 'The least whole number strictly above ${{s}}$ is ${{answer}}$.'],
+  answerSummary: { headline: 'A strict inequality excludes its own boundary.', text: 'It is ${{answer}}$.' },
+  hint: 'Does $x = {{s}}$ itself satisfy a strict inequality?',
+  feedback: 'At that value the two sides are equal, which a $>$ does not allow.',
+});
+
+mk('A.5B', 'how-many-days-a-budget-covers', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'context',
+  prompt: 'A budget of $\\${{q}}$ must cover a $\\${{p}}$ fee plus $\\${{a}}$ a day. At most how many whole days can be booked?',
+  generator: {
+    parameters: {
+      // a doubles as the crossing choice, so it shares the range of s.
+      a: { type: 'int', min: 3, max: 14 },
+      p: { type: 'int', min: 10, max: 40 },
+      s: { type: 'int', min: 3, max: 14 },
+      spare: { type: 'int', min: 1, max: 2 },
+    },
+    // A little money is left over, so the answer is a whole number of days
+    // rather than an exact division that hides the rounding.
+    derived: {
+      q: 'a*s+p+spare',
+      // Ignoring the fee buys too many days; charging the fee every day buys
+      // too few. One sits above the answer and one below it.
+      ignoredFee: 'floor((a*s+p+spare)/a)',
+      feeAsDaily: 'floor((a*s+p+spare)/(a+p))',
+    },
+    constraints: ['feeAsDaily>=1', 's!=ignoredFee', 's!=a'],
+  },
+  choices: [
+    { label: plain('{{s}}'), correct: true },
+    { label: plain('{{ignoredFee}}'), error: 'partialTotal' },
+    { label: plain('{{feeAsDaily}}'), error: 'orderOfOperations' },
+    { label: plain('{{a}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['After the $\\${{p}}$ fee, $\\${{q}} - \\${{p}}$ is left for the daily charge.', 'That covers ${{s}}$ whole days at $\\${{a}}$ each, with a little to spare.'],
+  answerSummary: { headline: 'Take the fixed charge off first, then see how many days the rest buys.', text: 'It is ${{s}}$ days.' },
+  hint: 'How much is left once the fee is paid?',
+  feedback: 'The whole budget cannot go on daily charges while a fee is still owed.',
+});
+
+mk('A.5B', 'direction-kept-after-a-negative-divide', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'From $-{{a}}x < {{q}}$ a student writes $x < {{negS}}$. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      s: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { q: 'a*s', negS: '0-s' },
+    constraints: ['a!=s'],
+  },
+  choices: [
+    { label: 'Dividing by $-{{a}}$ reverses the direction, so it should be $x > {{negS}}$.', correct: true },
+    { label: 'Nothing is wrong, since both sides were divided by the same number.', error: 'usedGivenValue' },
+    { label: 'The direction is right but the value should be ${{s}}$, without the minus.', error: 'signError' },
+    { label: 'The whole inequality should become $x > {{q}}$, leaving the ${{a}}$ alone.', error: 'forgotFinalStep' },
+  ],
+  reasoning: ['Dividing both sides by a negative number swaps which side is larger.', 'The value $-{{s}}$ is right, but the direction must turn with it.'],
+  answerSummary: { headline: 'Dividing both sides by the same number is not enough when that number is negative.', text: 'It should be $x > {{negS}}$.' },
+  hint: 'Test a value that the student answer allows in the original inequality.',
+  feedback: 'Same divisor on both sides is correct; the direction is what was missed.',
 });
 
 // ---------------------------------------------------------------- emit

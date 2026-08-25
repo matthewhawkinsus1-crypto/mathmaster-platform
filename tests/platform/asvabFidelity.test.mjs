@@ -6,7 +6,7 @@ import { AR, asvabItem } from '../../scripts/lib/asvabAuthoring.mjs';
 import {
   ASVAB_DOMAIN_IDS, EXTREME_TOLERANCE, RANK_TOLERANCE,
   analyzeAnswerKeyBias, analyzeDistractors, analyzeFamilySet, analyzeRegister,
-  isDistractorErrorCode, promptOverlap, promptSkeleton, taskFingerprint,
+  isDistractorErrorCode, numericLabel, promptOverlap, promptSkeleton, taskFingerprint,
 } from '../../functions/shared/asvabFidelity.mjs';
 
 // Both rebuilt subtests. The gates below are the production gates, so a family
@@ -405,4 +405,26 @@ test('an item that shows points and offers a linear equation has a key those poi
     }
   }
   assert.ok(checked > 0, 'no item pairs shown points with a linear-equation key — the check is not reaching anything');
+});
+
+test('a negative fraction is read as a number, so a slope item cannot skip the bias check', () => {
+  // A leading minus once made the whole label unreadable, and an unreadable
+  // choice list is exempt from the magnitude check rather than failing it. Two
+  // families offering negative slopes were sitting at a single rank in every
+  // draw, invisible, until the parser learned to read them.
+  assert.equal(numericLabel('$-\\frac{1}{7}$'), -1 / 7);
+  assert.equal(numericLabel('$\\frac{1}{7}$'), 1 / 7);
+  assert.equal(numericLabel('$-\\frac{3}{4}$'), -0.75);
+  assert.equal(numericLabel('$\\frac{-3}{4}$'), -0.75);
+  assert.equal(numericLabel('$-\\frac{5}{0}$'), null);
+  assert.equal(numericLabel('$-12$'), -12);
+
+  // And the check it feeds must actually reject a key pinned below every
+  // negative-fraction distractor.
+  const biased = Array.from({ length: 40 }, (_, index) => choiceItem(
+    [`$-\\frac{${index + 9}}{2}$`, `$-\\frac{1}{${index + 2}}$`, `$\\frac{1}{${index + 2}}$`, `$${index + 3}$`],
+    0,
+  ));
+  assert.ok(analyzeAnswerKeyBias(biased).issues.length > 0,
+    'a key that is the smallest of four negative-leaning choices must be flagged');
 });
