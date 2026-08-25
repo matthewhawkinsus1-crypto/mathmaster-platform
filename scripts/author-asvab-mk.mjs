@@ -5799,7 +5799,7 @@ mk('7.10B', 'graph-of-a-two-step-solution', {
       v: { type: 'int', min: 2, max: 20 },
     },
     derived: { t: 'm*v+b', stripped: 'm*v', shifted: 'v+b' },
-    constraints: [],
+    constraints: ['stripped!=shifted', 'stripped!=v', 'shifted!=v'],
   },
   choices: [
     { label: 'One closed dot at ${{v}}$, with nothing shaded.', correct: true },
@@ -9431,6 +9431,801 @@ mk('8.7A', 'diameter-used-as-the-radius', {
   answerSummary: { headline: 'A cubed term feels a doubling three times over.', text: 'The result is eight times too large.' },
   hint: 'What does cubing do to a doubled length?',
   feedback: 'Squaring would give four times; cubing gives eight.',
+});
+
+
+// ================================================================ 8.7B
+// Lateral and total surface area, cylinders included.
+//
+// 7.9D already covers boxes and their nets, so these lean on the cylinder: the
+// curved surface unrolls into a rectangle whose width is the circumference,
+// which is the connection the standard asks for.
+
+mk('8.7B', 'curved-surface-unrolled', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'The curved surface of a cylinder is unrolled flat. What shape results, and what are its sides?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 3, max: 12 },
+      h: { type: 'int', min: 3, max: 20 },
+    },
+    derived: { twoR: '2*r', rsq: 'r*r', lateral: '2*r*h' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'A rectangle, ${{twoR}}\\pi$ round by ${{h}}$ tall.', correct: true },
+    { label: 'A rectangle, ${{r}}\\pi$ round by ${{h}}$ tall.', error: 'partialTotal' },
+    { label: 'A circle of radius ${{r}}$, repeated twice.', error: 'areaPerimeterSwap' },
+    { label: 'A rectangle, ${{rsq}}\\pi$ round by ${{h}}$ tall.', error: 'exponentError' },
+  ],
+  reasoning: ['Cutting the tube straight down and flattening it leaves a rectangle.', 'Its width is the way round the base, ${{twoR}}\\pi$, and its height is the ${{h}}$ of the cylinder.'],
+  answerSummary: { headline: 'The curved surface is a rectangle as wide as the base is round.', text: '${{twoR}}\\pi$ by ${{h}}$.' },
+  hint: 'What distance does one trip round the base cover?',
+  feedback: 'The circles are the two ends, not the curved part.',
+});
+
+mk('8.7B', 'lateral-surface-of-a-cylinder', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'Two tins stand ${{h}}$ cm tall, with radii ${{r}}$ and ${{r2}}$ cm. What is the label area round the first?',
+  generator: {
+    parameters: {
+      // The second tin is drawn separately, so its label crosses the key.
+      r: { type: 'int', min: 2, max: 12 },
+      r2: { type: 'int', min: 2, max: 12 },
+      h: { type: 'int', min: 3, max: 20 },
+    },
+    derived: {
+      answer: '2*r*h',
+      d_partialTotal: 'r*h',
+      d_areaPerimeterSwap: '2*r*h+2*r*r',
+      d_usedGivenValue: '2*r2*h',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}\\pi'), correct: true },
+    { label: plain('{{d_partialTotal}}\\pi'), error: 'partialTotal' },
+    { label: plain('{{d_areaPerimeterSwap}}\\pi'), error: 'areaPerimeterSwap' },
+    { label: plain('{{d_usedGivenValue}}\\pi'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The label is a rectangle ${{answer}}\\pi$ wide when unrolled... more precisely $2\\pi r$ round by ${{h}}$ tall.', 'That comes to ${{answer}}\\pi$ square cm, with no ends included.'],
+  answerSummary: { headline: 'Lateral surface is the way round times the height.', text: 'It is ${{answer}}\\pi$ square cm.' },
+  hint: 'A label wraps the side but not the lid.',
+  feedback: 'Adding the two ends gives the total surface, not the label.',
+});
+
+mk('8.7B', 'total-surface-of-a-cylinder', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 2, taskType: 'application', representation: 'symbolic',
+  prompt: 'Which expression gives the total surface area of a cylinder of radius $r$ and height $h$?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 12 },
+      h: { type: 'int', min: 3, max: 20 },
+    },
+    derived: { lateral: '2*r*h', ends: '2*r*r', total: '2*r*h+2*r*r' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('2\\pi r h + 2\\pi r^2'), correct: true },
+    { label: plain('2\\pi r h'), error: 'partialTotal' },
+    { label: plain('2\\pi r h + \\pi r^2'), error: 'offByOneStep' },
+    { label: plain('\\pi r^2 h'), error: 'areaPerimeterSwap' },
+  ],
+  reasoning: ['The curved part covers $2\\pi r h$, which is ${{lateral}}\\pi$ when $r = {{r}}$ and $h = {{h}}$.', 'Two circular ends add $2\\pi r^2$, or ${{ends}}\\pi$ more, for ${{total}}\\pi$ altogether.'],
+  answerSummary: { headline: 'Curved surface plus two ends.', text: 'It is $2\\pi r h + 2\\pi r^2$.' },
+  hint: 'How many flat faces does a cylinder have?',
+  feedback: 'One end leaves the tin open at the top.',
+});
+
+mk('8.7B', 'lateral-surface-of-a-triangular-prism', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'context',
+  prompt: 'Two prisms share a triangular end of sides ${{a}}$, ${{b}}$ and ${{c}}$ cm, and run ${{L}}$ and ${{L2}}$ cm long. What is the lateral surface of the first?',
+  generator: {
+    parameters: {
+      // The three side lengths are drawn so the triangle can actually close.
+      a: { type: 'int', min: 5, max: 15 },
+      b: { type: 'int', min: 5, max: 15 },
+      gap: { type: 'int', min: 1, max: 4 },
+      L: { type: 'int', min: 3, max: 20 },
+      L2: { type: 'int', min: 3, max: 20 },
+    },
+    derived: {
+      c: 'a+b-gap',
+      perim: 'a+b+a+b-gap',
+      answer: '(a+b+a+b-gap)*L',
+      d_partialTotal: '(a+b)*L',
+      d_arithmeticSlip: '2*(a+b+a+b-gap)*L',
+      d_usedGivenValue: '(a+b+a+b-gap)*L2',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_arithmeticSlip}}'), error: 'arithmeticSlip' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The three rectangles round the sides have widths ${{a}}$, ${{b}}$ and ${{c}}$, totalling ${{perim}}$.', 'Each is ${{L}}$ cm long, so together they cover ${{answer}}$ square cm.'],
+  answerSummary: { headline: 'Lateral surface is the perimeter of the end times the length.', text: 'It is ${{answer}}$ square cm.' },
+  hint: 'How many rectangles wrap a triangular prism?',
+  feedback: 'That is the second prism, which is a different length.',
+});
+
+mk('8.7B', 'ends-left-out-of-the-total', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student gives the total surface of a tin as $2\\pi r h$. What is wrong?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 12 },
+      h: { type: 'int', min: 3, max: 20 },
+    },
+    derived: { lateral: '2*r*h', ends: '2*r*r', total: '2*r*h+2*r*r' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'That is the curved part only: the two ends add ${{ends}}\\pi$ more, for ${{total}}\\pi$.', correct: true },
+    { label: 'Nothing is wrong, because a cylinder has no flat faces.', error: 'operationInverted' },
+    { label: 'One end should be added, giving ${{lateral}}\\pi$ plus half of ${{ends}}\\pi$.', error: 'offByOneStep' },
+    { label: 'The expression measures a volume rather than a surface.', error: 'areaPerimeterSwap' },
+  ],
+  reasoning: ['$2\\pi r h$ is the label round the side, which is the lateral surface.', 'A closed tin also has a base and a lid, each covering $\\pi r^2$.'],
+  answerSummary: { headline: 'Lateral leaves the ends out; total puts them back.', text: 'The total is ${{total}}\\pi$ square cm.' },
+  hint: 'What does a tin have besides its side?',
+  feedback: 'A cylinder has two flat circular faces.',
+});
+
+// ================================================================ 8.7C
+// Using the theorem, and its converse, on real problems.
+
+mk('8.7C', 'ladder-against-a-wall', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A ${{c}}$ m ladder stands ${{a}}$ m out from a wall, beside a ${{other}}$ m pole. How high up the wall does it reach?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 1, max: 4 },
+      d: { type: 'int', min: 1, max: 3 },
+      // The pole is drawn separately, so its height crosses the key.
+      other: { type: 'int', min: 3, max: 45 },
+    },
+    derived: {
+      a: '(n+d)*(n+d)-n*n',
+      answer: '2*n*(n+d)',
+      c: '(n+d)*(n+d)+n*n',
+      d_operationInverted: '(n+d)*(n+d)+n*n-((n+d)*(n+d)-n*n)',
+      d_partialTotal: '(n+d)*(n+d)+n*n+((n+d)*(n+d)-n*n)',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{other}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The ladder is the longest side, so its square equals the other two squares added.', 'Taking the ${{a}}$ square from the ${{c}}$ square leaves the square on ${{answer}}$.'],
+  answerSummary: { headline: 'To find a shorter side, subtract the squares rather than adding them.', text: 'It reaches ${{answer}}$ m.' },
+  hint: 'Which of the three lengths is the longest?',
+  feedback: 'Subtracting the lengths themselves is not the theorem.',
+});
+
+mk('8.7C', 'diagonal-of-a-rectangle', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'context',
+  prompt: 'A gate is ${{a}}$ cm by ${{b}}$ cm, and a brace of ${{other}}$ cm is to hand. How long is the gate diagonal?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 1, max: 4 },
+      d: { type: 'int', min: 1, max: 3 },
+      other: { type: 'int', min: 3, max: 60 },
+    },
+    derived: {
+      a: '(n+d)*(n+d)-n*n',
+      b: '2*n*(n+d)',
+      answer: '(n+d)*(n+d)+n*n',
+      d_operationInverted: '(n+d)*(n+d)-n*n+2*n*(n+d)',
+      d_signError: '2*n*(n+d)-((n+d)*(n+d)-n*n)',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{other}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The diagonal closes a right angle whose sides are ${{a}}$ and ${{b}}$.', 'Adding the squares and taking the root gives ${{answer}}$ cm.'],
+  answerSummary: { headline: 'A diagonal is the longest side of the triangle it makes.', text: 'It is ${{answer}}$ cm.' },
+  hint: 'The two sides of the gate meet at a right angle.',
+  feedback: 'Going along both sides is longer than cutting across.',
+});
+
+mk('8.7C', 'does-the-converse-hold', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'verbal',
+  prompt: 'A frame has sides ${{a}}$, ${{b}}$ and ${{c}}$ cm. Is its corner square?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 1, max: 4 },
+      d: { type: 'int', min: 1, max: 3 },
+      off: { type: 'int', min: 1, max: 4 },
+    },
+    derived: {
+      a: '(n+d)*(n+d)-n*n',
+      b: '2*n*(n+d)',
+      c: '(n+d)*(n+d)+n*n+off',
+      asq: '((n+d)*(n+d)-n*n)*((n+d)*(n+d)-n*n)',
+      bsq: '4*n*n*(n+d)*(n+d)',
+      csq: '((n+d)*(n+d)+n*n+off)*((n+d)*(n+d)+n*n+off)',
+      right: '(n+d)*(n+d)+n*n',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'No: ${{asq}}$ and ${{bsq}}$ total less than ${{csq}}$, so the corner is open.', correct: true },
+    { label: 'Yes: the three sides differ, which is what a right angle needs.', error: 'partialTotal' },
+    { label: 'No: the sides ${{a}}$ and ${{b}}$ do not add to ${{c}}$.', error: 'operationInverted' },
+    { label: 'Yes: a longest side of ${{c}}$ always closes a right angle.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['The converse asks whether the two smaller squares total the largest.', 'Here they fall short — a longest side of ${{right}}$ would have made the corner square — so the angle is wider than a right angle.'],
+  answerSummary: { headline: 'The converse is a test on the squares, and it can fail.', text: 'No, the corner is open.' },
+  hint: 'Square all three and compare.',
+  feedback: 'Adding the sides themselves is not the test.',
+});
+
+mk('8.7C', 'which-triple-is-right-angled', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Which three lengths make a right-angled triangle?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 1, max: 4 },
+      d: { type: 'int', min: 1, max: 3 },
+      off: { type: 'int', min: 1, max: 3 },
+    },
+    derived: {
+      a: '(n+d)*(n+d)-n*n',
+      b: '2*n*(n+d)',
+      c: '(n+d)*(n+d)+n*n',
+      cBig: '(n+d)*(n+d)+n*n+off',
+      cSmall: '(n+d)*(n+d)+n*n-off',
+      sum: '(n+d)*(n+d)-n*n+2*n*(n+d)',
+    },
+    constraints: ['cBig!=sum', 'cSmall!=sum'],
+  },
+  choices: [
+    { label: plain('{{a}}, {{b}}, {{c}}'), correct: true },
+    { label: plain('{{a}}, {{b}}, {{cBig}}'), error: 'offByOneStep' },
+    { label: plain('{{a}}, {{b}}, {{cSmall}}'), error: 'signError' },
+    { label: plain('{{a}}, {{b}}, {{sum}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The squares on ${{a}}$ and ${{b}}$ total exactly the square on ${{c}}$.', 'Any other longest side leaves the two sides of the test unequal.'],
+  answerSummary: { headline: 'Only one longest side makes the squares balance.', text: 'It is ${{a}}, {{b}}, {{c}}$.' },
+  hint: 'Square each candidate longest side and compare.',
+  feedback: 'A longest side equal to the other two added would lie flat.',
+});
+
+mk('8.7C', 'subtracting-when-adding-was-needed', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'To find the longest side from ${{a}}$ and ${{b}}$ a student subtracts the squares. What is wrong?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 1, max: 4 },
+      d: { type: 'int', min: 1, max: 3 },
+    },
+    derived: {
+      a: '(n+d)*(n+d)-n*n',
+      b: '2*n*(n+d)',
+      c: '(n+d)*(n+d)+n*n',
+      asq: '((n+d)*(n+d)-n*n)*((n+d)*(n+d)-n*n)',
+      bsq: '4*n*n*(n+d)*(n+d)',
+      diff: '4*n*n*(n+d)*(n+d)-((n+d)*(n+d)-n*n)*((n+d)*(n+d)-n*n)',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Subtracting finds a shorter side; the longest needs ${{asq}} + {{bsq}}$, giving ${{c}}$.', correct: true },
+    { label: 'Nothing is wrong, because either operation reaches the third side.', error: 'operationInverted' },
+    { label: 'The subtraction is right but the answer ${{diff}}$ should not be rooted.', error: 'partialTotal' },
+    { label: 'The squares should be multiplied rather than added.', error: 'arithmeticSlip' },
+  ],
+  reasoning: ['Subtracting is what finds a leg when the longest side is already known.', 'With two legs in hand the squares add, and the root of that total is ${{c}}$.'],
+  answerSummary: { headline: 'Add to reach the longest side; subtract to come back from it.', text: 'The longest side is ${{c}}$.' },
+  hint: 'Which side is the one being looked for?',
+  feedback: 'The two operations answer opposite questions.',
+});
+
+// ================================================================ 8.7D
+// Distance between two points on the coordinate plane.
+
+mk('8.7D', 'distance-between-two-points', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'orderedPairs',
+  prompt: 'A route runs from $({{x1}}, {{y1}})$ to $({{x2}}, {{y2}})$ and on to $({{x3}}, {{y3}})$. How long is the first leg?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 1, max: 4 },
+      d: { type: 'int', min: 1, max: 3 },
+      n2: { type: 'int', min: 1, max: 4 },
+      d2: { type: 'int', min: 1, max: 3 },
+      x1: { type: 'int', min: 1, max: 8 },
+      y1: { type: 'int', min: 1, max: 8 },
+    },
+    derived: {
+      run: '(n+d)*(n+d)-n*n',
+      rise: '2*n*(n+d)',
+      x2: 'x1+(n+d)*(n+d)-n*n',
+      y2: 'y1+2*n*(n+d)',
+      x3: 'x1+(n+d)*(n+d)-n*n+(n2+d2)*(n2+d2)-n2*n2',
+      y3: 'y1+2*n*(n+d)+2*n2*(n2+d2)',
+      answer: '(n+d)*(n+d)+n*n',
+      d_operationInverted: '(n+d)*(n+d)-n*n+2*n*(n+d)',
+      d_partialTotal: '2*n*(n+d)',
+      d_usedGivenValue: '(n2+d2)*(n2+d2)+n2*n2',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Along the first leg $x$ moves ${{run}}$ and $y$ moves ${{rise}}$.', 'Those are the legs of a right angle, so the leg itself measures ${{answer}}$.'],
+  answerSummary: { headline: 'The two coordinate changes are the legs; the distance is the longest side.', text: 'The first leg is ${{answer}}$ long.' },
+  hint: 'How far does each coordinate move on the first leg?',
+  feedback: 'That is the second leg of the route.',
+});
+
+mk('8.7D', 'why-the-theorem-applies', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'Why does the Pythagorean theorem give the distance between two points?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 1, max: 4 },
+      d: { type: 'int', min: 1, max: 3 },
+    },
+    derived: {
+      run: '(n+d)*(n+d)-n*n',
+      rise: '2*n*(n+d)',
+      dist: '(n+d)*(n+d)+n*n',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The horizontal and vertical moves meet at a right angle.', correct: true },
+    { label: 'The two points always lie on a straight line through the origin.', error: 'operationInverted' },
+    { label: 'The theorem works for any triangle, not only right ones.', error: 'partialTotal' },
+    { label: 'The axes are equally scaled, which is all the theorem needs.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['Going ${{run}}$ across and then ${{rise}}$ up traces two sides of a right angle.', 'The straight line between the points closes it, so its length is ${{dist}}$.'],
+  answerSummary: { headline: 'The axes are perpendicular, which is what builds the right angle.', text: 'The two moves meet at a right angle.' },
+  hint: 'What angle do the axes make with each other?',
+  feedback: 'The theorem needs a right angle and fails without one.',
+});
+
+mk('8.7D', 'distance-across-the-origin', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 2, taskType: 'application', representation: 'symbolic',
+  prompt: 'Which expression gives the distance between $(-{{x1}}, -{{y1}})$ and $({{x2}}, {{y2}})$?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 1, max: 4 },
+      d: { type: 'int', min: 1, max: 3 },
+      split: { type: 'int', min: 1, max: 3 },
+    },
+    derived: {
+      run: '(n+d)*(n+d)-n*n',
+      rise: '2*n*(n+d)',
+      x1: 'split',
+      y1: 'split',
+      x2: '(n+d)*(n+d)-n*n-split',
+      y2: '2*n*(n+d)-split',
+      dist: '(n+d)*(n+d)+n*n',
+    },
+    constraints: ['x2>0', 'y2>0'],
+  },
+  choices: [
+    { label: plain('\\sqrt{({{x2}} + {{x1}})^2 + ({{y2}} + {{y1}})^2}'), correct: true },
+    { label: plain('\\sqrt{({{x2}} - {{x1}})^2 + ({{y2}} - {{y1}})^2}'), error: 'signError' },
+    { label: plain('({{x2}} + {{x1}}) + ({{y2}} + {{y1}})'), error: 'operationInverted' },
+    { label: plain('\\sqrt{{{x2}}^2 + {{y2}}^2}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Going from $-{{x1}}$ to ${{x2}}$ covers ${{x1}} + {{x2}} = {{run}}$, because the move crosses zero.', 'The same holds vertically, and those two legs give a distance of ${{dist}}$.'],
+  answerSummary: { headline: 'Crossing zero adds the two distances rather than subtracting them.', text: 'The moves are ${{run}}$ and ${{rise}}$.' },
+  hint: 'How far is it from $-{{x1}}$ to ${{x2}}$?',
+  feedback: 'Subtracting treats both points as being on the same side of zero.',
+});
+
+mk('8.7D', 'points-on-one-horizontal-line', {
+  courseId: 'grade8',
+  // With no vertical move this reduces to a distance along a line, which is
+  // what the student is really reading.
+  difficultyBand: 1, dok: 1, taskType: 'interpretation', representation: 'numberLine',
+  prompt: 'What is the distance between $({{x1}}, {{c}})$ and $({{x2}}, {{c}})$?',
+  generator: {
+    parameters: {
+      // The shared height is a red herring drawn over the same span as the gap.
+      x1: { type: 'int', min: 1, max: 12 },
+      gap: { type: 'int', min: 2, max: 20 },
+      c: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {
+      x2: 'x1+gap',
+      answer: 'gap',
+      d_operationInverted: 'x1+x1+gap',
+      d_partialTotal: 'x1',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{c}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Both points sit at the same height, so the vertical move is zero.', 'Only the horizontal move counts: ${{x2}} - {{x1}} = {{answer}}$.'],
+  answerSummary: { headline: 'With no vertical move the theorem reduces to a subtraction.', text: 'They are ${{answer}}$ apart.' },
+  hint: 'How far does the second coordinate move?',
+  feedback: 'The shared height is not a distance between the points.',
+});
+
+mk('8.7D', 'adding-the-two-moves', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student finds the distance by adding the horizontal and vertical moves. What is wrong?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 1, max: 4 },
+      d: { type: 'int', min: 1, max: 3 },
+    },
+    derived: {
+      run: '(n+d)*(n+d)-n*n',
+      rise: '2*n*(n+d)',
+      sum: '(n+d)*(n+d)-n*n+2*n*(n+d)',
+      dist: '(n+d)*(n+d)+n*n',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'That measures going round the corner: ${{sum}}$ rather than the ${{dist}}$ straight across.', correct: true },
+    { label: 'Nothing is wrong, because both moves are covered either way.', error: 'operationInverted' },
+    { label: 'The moves should be subtracted, giving the difference of ${{run}}$ and ${{rise}}$.', error: 'signError' },
+    { label: 'The moves should be multiplied, because area is involved.', error: 'areaPerimeterSwap' },
+  ],
+  reasoning: ['Walking ${{run}}$ across and then ${{rise}}$ up covers ${{sum}}$ in total.', 'The straight line cuts the corner, and the theorem gives it as ${{dist}}$.'],
+  answerSummary: { headline: 'The straight line is shorter than the two sides it replaces.', text: 'The distance is ${{dist}}$.' },
+  hint: 'Compare walking two sides of a rectangle with cutting across it.',
+  feedback: 'Both moves are covered, but not by the shortest route.',
+});
+
+// ================================================================ 8.8A
+// Writing an equation with the unknown on both sides.
+
+mk('8.8A', 'equation-for-two-plans-meeting', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'context',
+  prompt: 'Plan A costs $\\${{b1}}$ plus $\\${{m1}}$ a month and Plan B $\\${{b2}}$ plus $\\${{m2}}$ a month. Which equation finds when they match?',
+  generator: {
+    parameters: {
+      m2: { type: 'int', min: 2, max: 14 },
+      rise: { type: 'int', min: 2, max: 10 },
+      b1: { type: 'int', min: 10, max: 80, step: 5 },
+      drop: { type: 'int', min: 5, max: 40, step: 5 },
+    },
+    derived: {
+      m1: 'm2+rise',
+      b2: 'b1+drop',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{m1}}x + {{b1}} = {{m2}}x + {{b2}}'), correct: true },
+    { label: plain('{{m1}}x + {{b1}} + {{m2}}x + {{b2}} = 0'), error: 'operationInverted' },
+    { label: plain('{{b1}}x + {{m1}} = {{b2}}x + {{m2}}'), error: 'ratioReversed' },
+    { label: plain('{{m1}}x = {{m2}}x'), error: 'partialTotal' },
+  ],
+  reasoning: ['Each plan has its own monthly charge and its own fixed fee.', 'They match when the two totals are equal, which is what setting the sides equal says.'],
+  answerSummary: { headline: 'Matching costs means the two expressions are set equal.', text: 'It is ${{m1}}x + {{b1}} = {{m2}}x + {{b2}}$.' },
+  hint: 'What has to be true when the two costs are the same?',
+  feedback: 'Dropping the fees compares only the monthly parts.',
+});
+
+mk('8.8A', 'situation-behind-an-equation', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'symbolic',
+  prompt: 'Which situation does ${{p}}x + {{a}} = {{q}}x + {{b}}$ describe?',
+  generator: {
+    parameters: {
+      q: { type: 'int', min: 2, max: 9 },
+      more: { type: 'int', min: 1, max: 6 },
+      a: { type: 'int', min: 3, max: 40 },
+      extra: { type: 'int', min: 2, max: 30 },
+    },
+    derived: {
+      p: 'q+more',
+      b: 'a+extra',
+      leftAtTwo: '2*(q+more)+a',
+      rightAtTwo: '2*q+a+extra',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Two ropes of ${{a}}$ and ${{b}}$ m, plus ${{p}}$ and ${{q}}$ equal pieces, come to the same length.', correct: true },
+    { label: 'Two ropes of ${{p}}$ and ${{q}}$ m, plus ${{a}}$ and ${{b}}$ equal pieces, come to the same length.', error: 'ratioReversed' },
+    { label: 'A rope of ${{a}}$ m is cut into ${{p}}$ pieces and another of ${{b}}$ m into ${{q}}$.', error: 'operationInverted' },
+    { label: 'The pieces on the left total ${{a}}$ m and those on the right total ${{b}}$ m.', error: 'partialTotal' },
+  ],
+  reasoning: ['The number multiplying $x$ counts the pieces of unknown length; the number added is a fixed length.', 'With two pieces each the sides come to ${{leftAtTwo}}$ and ${{rightAtTwo}}$, which agree only at the right $x$.'],
+  answerSummary: { headline: 'Read the coefficient as a count and the constant as a fixed amount.', text: 'Fixed lengths of ${{a}}$ and ${{b}}$ with ${{p}}$ and ${{q}}$ pieces.' },
+  hint: 'Which number counts things, and which is a length on its own?',
+  feedback: 'The coefficients count pieces; they are not lengths themselves.',
+});
+
+mk('8.8A', 'inequality-with-both-sides', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Plan A costs $\\${{m1}}$ a month plus $\\${{b1}}$; Plan B costs $\\${{m2}}$ a month plus $\\${{b2}}$. Which inequality says A is cheaper?',
+  generator: {
+    parameters: {
+      m2: { type: 'int', min: 2, max: 14 },
+      rise: { type: 'int', min: 2, max: 10 },
+      b1: { type: 'int', min: 10, max: 80, step: 5 },
+      drop: { type: 'int', min: 5, max: 40, step: 5 },
+    },
+    derived: { m1: 'm2+rise', b2: 'b1+drop', atOneA: 'm2+rise+b1', atOneB: 'm2+b1+drop' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{m1}}x + {{b1}} < {{m2}}x + {{b2}}'), correct: true },
+    { label: plain('{{m1}}x + {{b1}} > {{m2}}x + {{b2}}'), error: 'ratioReversed' },
+    { label: plain('{{m1}}x + {{b1}} \\le {{m2}}x + {{b2}}'), error: 'offByOneStep' },
+    { label: plain('{{m1}}x < {{m2}}x'), error: 'partialTotal' },
+  ],
+  reasoning: ['After one month A has cost $\\${{atOneA}}$ and B $\\${{atOneB}}$, so which is cheaper depends on how long the plan runs.', 'Cheaper means strictly less, and both totals carry a monthly charge and a fee.'],
+  answerSummary: { headline: 'Cheaper is a strict inequality between the two full costs.', text: 'It is ${{m1}}x + {{b1}} < {{m2}}x + {{b2}}$.' },
+  hint: 'Does cheaper allow the two to be equal?',
+  feedback: 'Allowing equality would let the two cost the same.',
+});
+
+mk('8.8A', 'inequality-from-a-balance', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 2, taskType: 'application', representation: 'table',
+  prompt: 'The left pan tips down. Which inequality says so?',
+  stimulus: {
+    kind: 'table',
+    title: 'What each pan holds',
+    table: {
+      headers: ['pan', 'boxes', 'loose kg'],
+      rows: [['left', '{{p}}', '{{a}}'], ['right', '{{q}}', '{{b}}']],
+    },
+  },
+  generator: {
+    parameters: {
+      q: { type: 'int', min: 2, max: 9 },
+      more: { type: 'int', min: 2, max: 9 },
+      a: { type: 'int', min: 2, max: 30 },
+      v: { type: 'int', min: 2, max: 12 },
+      slack: { type: 'int', min: 1, max: 20 },
+    },
+    derived: {
+      p: 'q+more',
+      b: 'a+more*v-slack',
+      leftTotal: '(q+more)*v+a',
+      rightTotal: 'q*v+a+more*v-slack',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{p}}x + {{a}} > {{q}}x + {{b}}'), correct: true },
+    { label: plain('{{p}}x + {{a}} < {{q}}x + {{b}}'), error: 'ratioReversed' },
+    { label: plain('{{p}}x + {{a}} = {{q}}x + {{b}}'), error: 'partialTotal' },
+    { label: plain('{{p}} + {{a}}x > {{q}} + {{b}}x'), error: 'operationInverted' },
+  ],
+  reasoning: ['Tipping down means the left pan is the heavier of the two.', 'At a box mass of ${{v}}$ kg the pans hold ${{leftTotal}}$ and ${{rightTotal}}$ kg, and the left is indeed heavier.'],
+  answerSummary: { headline: 'A pan that tips down is strictly heavier.', text: 'It is ${{p}}x + {{a}} > {{q}}x + {{b}}$.' },
+  hint: 'Which pan is carrying more?',
+  feedback: 'An equals sign would describe a balance, not a tip.',
+});
+
+mk('8.8A', 'unknown-collected-too-early', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'For two plans a student writes ${{m1}}x = {{m2}}x$ and drops the fees. What is wrong?',
+  generator: {
+    parameters: {
+      m2: { type: 'int', min: 2, max: 14 },
+      rise: { type: 'int', min: 2, max: 10 },
+      b1: { type: 'int', min: 10, max: 80, step: 5 },
+      drop: { type: 'int', min: 5, max: 40, step: 5 },
+    },
+    derived: { m1: 'm2+rise', b2: 'b1+drop' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The fees are part of each cost: it should read ${{m1}}x + {{b1}} = {{m2}}x + {{b2}}$.', correct: true },
+    { label: 'Nothing is wrong, because the fees are the same on both sides.', error: 'partialTotal' },
+    { label: 'The fees belong on the same side, added together.', error: 'operationInverted' },
+    { label: 'The equation is right but has no solution.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['The fees differ, $\\${{b1}}$ against $\\${{b2}}$, so they cannot cancel.', 'Each side has to state that plan cost in full before the two are set equal.'],
+  answerSummary: { headline: 'Only equal terms cancel, and these are not equal.', text: 'It should be ${{m1}}x + {{b1}} = {{m2}}x + {{b2}}$.' },
+  hint: 'Are the two fees the same amount?',
+  feedback: 'Terms cancel across an equals sign only when they match.',
+});
+
+// ================================================================ 8.8C
+// Solving when the unknown appears on both sides.
+
+mk('8.8C', 'solve-with-x-on-both-sides', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Solve ${{m1}}x + {{b1}} = {{m2}}x + {{b2}}$.',
+  generator: {
+    parameters: {
+      // The coefficient gap and the answer share a range, so the gap crosses.
+      m2: { type: 'int', min: 2, max: 12 },
+      rise: { type: 'int', min: 2, max: 12 },
+      v: { type: 'int', min: 2, max: 12 },
+      b1: { type: 'int', min: 3, max: 40 },
+    },
+    derived: {
+      m1: 'm2+rise',
+      b2: 'b1+rise*v',
+      answer: 'v',
+      d_forgotFinalStep: 'rise*v',
+      d_operationInverted: 'v-rise',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{rise}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Taking ${{m2}}x$ from both sides leaves ${{rise}}x + {{b1}} = {{b2}}$.', 'Then ${{b2}} - {{b1}} = {{d_forgotFinalStep}}$, and dividing by ${{rise}}$ gives ${{answer}}$.'],
+  answerSummary: { headline: 'Gather the unknown on one side first.', text: '$x = {{answer}}$.' },
+  hint: 'What happens if you take the smaller $x$ term off both sides?',
+  feedback: 'The division has not been done yet.',
+});
+
+mk('8.8C', 'cost-where-two-plans-meet', {
+  courseId: 'grade8',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'Plan A is $\\${{b1}}$ plus $\\${{m1}}$ a month, Plan B $\\${{b2}}$ plus $\\${{m2}}$, and Plan C a flat $\\${{flat}}$. What do A and B cost where they match?',
+  generator: {
+    parameters: {
+      m2: { type: 'int', min: 2, max: 12 },
+      rise: { type: 'int', min: 2, max: 12 },
+      v: { type: 'int', min: 2, max: 12 },
+      b1: { type: 'int', min: 5, max: 40, step: 5 },
+      flat: { type: 'int', min: 10, max: 200, step: 5 },
+    },
+    derived: {
+      m1: 'm2+rise',
+      b2: 'b1+rise*v',
+      answer: '(m2+rise)*v+b1',
+      d_partialTotal: 'v',
+      d_offByOneStep: '(m2+rise)*v+b1+m2+rise',
+      d_usedGivenValue: 'flat',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Plan A gains $\\${{rise}}$ a month, so it closes the fee gap after ${{v}}$ months.', 'At that point Plan A has cost $\\${{m1}} \\times {{v}} + \\${{b1}} = \\${{answer}}$.'],
+  answerSummary: { headline: 'Find when they meet, then work out what that costs.', text: 'They both cost $\\${{answer}}$.' },
+  hint: 'Find the month first, then the money.',
+  feedback: 'That is Plan C, which never enters the comparison.',
+});
+
+mk('8.8C', 'no-solution-or-every-value', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'How many values of $x$ satisfy ${{m}}x + {{b1}} = {{m}}x + {{b2}}$?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      b1: { type: 'int', min: 3, max: 40 },
+      drop: { type: 'int', min: 2, max: 20 },
+    },
+    derived: { b2: 'b1+drop', diff: 'drop' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'None, because the sides differ by ${{diff}}$ whatever $x$ is.', correct: true },
+    { label: 'Exactly one, found by dividing ${{diff}}$ by ${{m}}$.', error: 'operationInverted' },
+    { label: 'Every value, because both sides have the same $x$ term.', error: 'partialTotal' },
+    { label: 'Exactly one, at $x = {{diff}}$.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['Taking ${{m}}x$ from both sides leaves ${{b1}} = {{b2}}$, which is false.', 'No value of $x$ can mend a gap the unknown never touches.'],
+  answerSummary: { headline: 'When the unknown cancels, the constants decide everything.', text: 'No value works.' },
+  hint: 'What is left after the $x$ terms cancel?',
+  feedback: 'Matching $x$ terms is not enough if the constants disagree.',
+});
+
+mk('8.8C', 'total-mass-on-a-pan', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 2, taskType: 'representationTranslation', representation: 'table',
+  prompt: 'The two pans balance, and a third holds ${{spare}}$ kg. What does the left pan hold altogether?',
+  stimulus: {
+    kind: 'table',
+    title: 'What each pan holds',
+    table: {
+      headers: ['pan', 'boxes', 'loose kg'],
+      rows: [['left', '{{p}}', '{{a}}'], ['right', '{{q}}', '{{b}}']],
+    },
+  },
+  generator: {
+    parameters: {
+      q: { type: 'int', min: 2, max: 9 },
+      more: { type: 'int', min: 2, max: 12 },
+      a: { type: 'int', min: 2, max: 30 },
+      v: { type: 'int', min: 2, max: 12 },
+      spare: { type: 'int', min: 5, max: 200, step: 5 },
+    },
+    derived: {
+      p: 'q+more',
+      b: 'a+more*v',
+      answer: '(q+more)*v+a',
+      d_partialTotal: 'v',
+      d_offByOneStep: '(q+more)*v+a+more*v',
+      d_usedGivenValue: 'spare',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Taking ${{q}}$ boxes off each pan leaves ${{more}}$ boxes against ${{more}} \\times {{v}}$ loose kilograms, so a box weighs ${{v}}$ kg.', 'The left pan then holds ${{p}} \\times {{v}} + {{a}} = {{answer}}$ kg.'],
+  answerSummary: { headline: 'Solve for one box, then total the pan.', text: 'The left pan holds ${{answer}}$ kg.' },
+  hint: 'Find one box first, then add everything on the left.',
+  feedback: 'That is what one box weighs, not the whole pan.',
+});
+
+mk('8.8C', 'cancelling-unequal-terms', {
+  courseId: 'grade8',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'Solving ${{m1}}x + {{b1}} = {{m2}}x + {{b2}}$ a student cancels the two $x$ terms outright. What is wrong?',
+  generator: {
+    parameters: {
+      m2: { type: 'int', min: 2, max: 12 },
+      rise: { type: 'int', min: 2, max: 12 },
+      v: { type: 'int', min: 2, max: 12 },
+      b1: { type: 'int', min: 3, max: 40 },
+    },
+    derived: {
+      m1: 'm2+rise',
+      b2: 'b1+rise*v',
+      gap: 'rise*v',
+    },
+    constraints: [],
+  },
+  choices: [
+    { label: 'They are unequal: taking ${{m2}}x$ off both sides leaves ${{rise}}x$, not nothing.', correct: true },
+    { label: 'Nothing is wrong, because both sides contain an $x$ term.', error: 'partialTotal' },
+    { label: 'The $x$ terms should be added instead, giving a larger coefficient.', error: 'operationInverted' },
+    { label: 'The constants should have been cancelled first.', error: 'orderOfOperations' },
+  ],
+  reasoning: ['Only equal quantities cancel, and ${{m1}}x$ is larger than ${{m2}}x$.', 'Removing the smaller from both sides leaves ${{rise}}x$ facing a gap of ${{gap}}$.'],
+  answerSummary: { headline: 'Subtract the smaller term from both sides; do not delete both.', text: '${{rise}}x$ is left over.' },
+  hint: 'Are the two coefficients the same?',
+  feedback: 'Sharing a letter does not make two terms equal.',
 });
 
 // ---------------------------------------------------------------- emit

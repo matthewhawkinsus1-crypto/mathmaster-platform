@@ -23771,7 +23771,11 @@
      "stripped": "m*v",
      "shifted": "v+b"
     },
-    "constraints": []
+    "constraints": [
+     "stripped!=shifted",
+     "stripped!=v",
+     "shifted!=v"
+    ]
    },
    "assessmentItemFormat": "multipleChoice",
    "choices": [
@@ -38483,6 +38487,3049 @@
      "id": "choice-d",
      "label": "The answer comes out four times too large, because the radius is squared.",
      "error": "exponentError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_7B_curved_surface_unrolled",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.7B:curved-surface-unrolled",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7B",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The curved surface of a cylinder is unrolled flat. What shape results, and what are its sides?",
+   "solutionReview": {
+    "headline": "The curved surface is a rectangle as wide as the base is round.",
+    "reasoning": [
+     "Cutting the tube straight down and flattening it leaves a rectangle.",
+     "Its width is the way round the base, ${{twoR}}\\pi$, and its height is the ${{h}}$ of the cylinder."
+    ],
+    "answerSummary": "${{twoR}}\\pi$ by ${{h}}$."
+   },
+   "attemptFeedback": [
+    "The circles are the two ends, not the curved part."
+   ],
+   "supportHints": [
+    "What distance does one trip round the base cover?"
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     },
+     "h": {
+      "type": "int",
+      "min": 3,
+      "max": 20
+     }
+    },
+    "derived": {
+     "twoR": "2*r",
+     "rsq": "r*r",
+     "lateral": "2*r*h"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "A rectangle, ${{r}}\\pi$ round by ${{h}}$ tall.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "A rectangle, ${{twoR}}\\pi$ round by ${{h}}$ tall."
+    },
+    {
+     "id": "choice-c",
+     "label": "A rectangle, ${{rsq}}\\pi$ round by ${{h}}$ tall.",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-d",
+     "label": "A circle of radius ${{r}}$, repeated twice.",
+     "error": "areaPerimeterSwap"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_7B_lateral_surface_of_a_cylinder",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.7B:lateral-surface-of-a-cylinder",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7B",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two tins stand ${{h}}$ cm tall, with radii ${{r}}$ and ${{r2}}$ cm. What is the label area round the first?",
+   "solutionReview": {
+    "headline": "Lateral surface is the way round times the height.",
+    "reasoning": [
+     "The label is a rectangle ${{answer}}\\pi$ wide when unrolled... more precisely $2\\pi r$ round by ${{h}}$ tall.",
+     "That comes to ${{answer}}\\pi$ square cm, with no ends included."
+    ],
+    "answerSummary": "It is ${{answer}}\\pi$ square cm."
+   },
+   "attemptFeedback": [
+    "Adding the two ends gives the total surface, not the label."
+   ],
+   "supportHints": [
+    "A label wraps the side but not the lid."
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "r2": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "h": {
+      "type": "int",
+      "min": 3,
+      "max": 20
+     }
+    },
+    "derived": {
+     "answer": "2*r*h",
+     "d_partialTotal": "r*h",
+     "d_areaPerimeterSwap": "2*r*h+2*r*r",
+     "d_usedGivenValue": "2*r2*h"
+    },
+    "constraints": [
+     "answer!=d_partialTotal",
+     "answer!=d_areaPerimeterSwap",
+     "answer!=d_usedGivenValue",
+     "d_partialTotal!=d_areaPerimeterSwap",
+     "d_partialTotal!=d_usedGivenValue",
+     "d_areaPerimeterSwap!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}\\pi$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_areaPerimeterSwap}}\\pi$",
+     "error": "areaPerimeterSwap"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_partialTotal}}\\pi$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}\\pi$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_7B_total_surface_of_a_cylinder",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.7B:total-surface-of-a-cylinder",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7B",
+   "taskType": "application",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which expression gives the total surface area of a cylinder of radius $r$ and height $h$?",
+   "solutionReview": {
+    "headline": "Curved surface plus two ends.",
+    "reasoning": [
+     "The curved part covers $2\\pi r h$, which is ${{lateral}}\\pi$ when $r = {{r}}$ and $h = {{h}}$.",
+     "Two circular ends add $2\\pi r^2$, or ${{ends}}\\pi$ more, for ${{total}}\\pi$ altogether."
+    ],
+    "answerSummary": "It is $2\\pi r h + 2\\pi r^2$."
+   },
+   "attemptFeedback": [
+    "One end leaves the tin open at the top."
+   ],
+   "supportHints": [
+    "How many flat faces does a cylinder have?"
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "h": {
+      "type": "int",
+      "min": 3,
+      "max": 20
+     }
+    },
+    "derived": {
+     "lateral": "2*r*h",
+     "ends": "2*r*r",
+     "total": "2*r*h+2*r*r"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$2\\pi r h + \\pi r^2$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\pi r^2 h$",
+     "error": "areaPerimeterSwap"
+    },
+    {
+     "id": "choice-c",
+     "label": "$2\\pi r h$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$2\\pi r h + 2\\pi r^2$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_7B_lateral_surface_of_a_triangular_prism",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.7B:lateral-surface-of-a-triangular-prism",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7B",
+   "taskType": "representationTranslation",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two prisms share a triangular end of sides ${{a}}$, ${{b}}$ and ${{c}}$ cm, and run ${{L}}$ and ${{L2}}$ cm long. What is the lateral surface of the first?",
+   "solutionReview": {
+    "headline": "Lateral surface is the perimeter of the end times the length.",
+    "reasoning": [
+     "The three rectangles round the sides have widths ${{a}}$, ${{b}}$ and ${{c}}$, totalling ${{perim}}$.",
+     "Each is ${{L}}$ cm long, so together they cover ${{answer}}$ square cm."
+    ],
+    "answerSummary": "It is ${{answer}}$ square cm."
+   },
+   "attemptFeedback": [
+    "That is the second prism, which is a different length."
+   ],
+   "supportHints": [
+    "How many rectangles wrap a triangular prism?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 5,
+      "max": 15
+     },
+     "b": {
+      "type": "int",
+      "min": 5,
+      "max": 15
+     },
+     "gap": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     },
+     "L": {
+      "type": "int",
+      "min": 3,
+      "max": 20
+     },
+     "L2": {
+      "type": "int",
+      "min": 3,
+      "max": 20
+     }
+    },
+    "derived": {
+     "c": "a+b-gap",
+     "perim": "a+b+a+b-gap",
+     "answer": "(a+b+a+b-gap)*L",
+     "d_partialTotal": "(a+b)*L",
+     "d_arithmeticSlip": "2*(a+b+a+b-gap)*L",
+     "d_usedGivenValue": "(a+b+a+b-gap)*L2"
+    },
+    "constraints": [
+     "answer!=d_partialTotal",
+     "answer!=d_arithmeticSlip",
+     "answer!=d_usedGivenValue",
+     "d_partialTotal!=d_arithmeticSlip",
+     "d_partialTotal!=d_usedGivenValue",
+     "d_arithmeticSlip!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_arithmeticSlip}}$",
+     "error": "arithmeticSlip"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_7B_ends_left_out_of_the_total",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.7B:ends-left-out-of-the-total",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7B",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student gives the total surface of a tin as $2\\pi r h$. What is wrong?",
+   "solutionReview": {
+    "headline": "Lateral leaves the ends out; total puts them back.",
+    "reasoning": [
+     "$2\\pi r h$ is the label round the side, which is the lateral surface.",
+     "A closed tin also has a base and a lid, each covering $\\pi r^2$."
+    ],
+    "answerSummary": "The total is ${{total}}\\pi$ square cm."
+   },
+   "attemptFeedback": [
+    "A cylinder has two flat circular faces."
+   ],
+   "supportHints": [
+    "What does a tin have besides its side?"
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "h": {
+      "type": "int",
+      "min": 3,
+      "max": 20
+     }
+    },
+    "derived": {
+     "lateral": "2*r*h",
+     "ends": "2*r*r",
+     "total": "2*r*h+2*r*r"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "One end should be added, giving ${{lateral}}\\pi$ plus half of ${{ends}}\\pi$.",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "Nothing is wrong, because a cylinder has no flat faces.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "That is the curved part only: the two ends add ${{ends}}\\pi$ more, for ${{total}}\\pi$."
+    },
+    {
+     "id": "choice-d",
+     "label": "The expression measures a volume rather than a surface.",
+     "error": "areaPerimeterSwap"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_7C_ladder_against_a_wall",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.7C:ladder-against-a-wall",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7C",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A ${{c}}$ m ladder stands ${{a}}$ m out from a wall, beside a ${{other}}$ m pole. How high up the wall does it reach?",
+   "solutionReview": {
+    "headline": "To find a shorter side, subtract the squares rather than adding them.",
+    "reasoning": [
+     "The ladder is the longest side, so its square equals the other two squares added.",
+     "Taking the ${{a}}$ square from the ${{c}}$ square leaves the square on ${{answer}}$."
+    ],
+    "answerSummary": "It reaches ${{answer}}$ m."
+   },
+   "attemptFeedback": [
+    "Subtracting the lengths themselves is not the theorem."
+   ],
+   "supportHints": [
+    "Which of the three lengths is the longest?"
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     },
+     "d": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     },
+     "other": {
+      "type": "int",
+      "min": 3,
+      "max": 45
+     }
+    },
+    "derived": {
+     "a": "(n+d)*(n+d)-n*n",
+     "answer": "2*n*(n+d)",
+     "c": "(n+d)*(n+d)+n*n",
+     "d_operationInverted": "(n+d)*(n+d)+n*n-((n+d)*(n+d)-n*n)",
+     "d_partialTotal": "(n+d)*(n+d)+n*n+((n+d)*(n+d)-n*n)"
+    },
+    "constraints": [
+     "answer!=d_operationInverted",
+     "answer!=d_partialTotal",
+     "answer!=other",
+     "d_operationInverted!=d_partialTotal",
+     "d_operationInverted!=other",
+     "d_partialTotal!=other"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{other}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_7C_diagonal_of_a_rectangle",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.7C:diagonal-of-a-rectangle",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7C",
+   "taskType": "procedural",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A gate is ${{a}}$ cm by ${{b}}$ cm, and a brace of ${{other}}$ cm is to hand. How long is the gate diagonal?",
+   "solutionReview": {
+    "headline": "A diagonal is the longest side of the triangle it makes.",
+    "reasoning": [
+     "The diagonal closes a right angle whose sides are ${{a}}$ and ${{b}}$.",
+     "Adding the squares and taking the root gives ${{answer}}$ cm."
+    ],
+    "answerSummary": "It is ${{answer}}$ cm."
+   },
+   "attemptFeedback": [
+    "Going along both sides is longer than cutting across."
+   ],
+   "supportHints": [
+    "The two sides of the gate meet at a right angle."
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     },
+     "d": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     },
+     "other": {
+      "type": "int",
+      "min": 3,
+      "max": 60
+     }
+    },
+    "derived": {
+     "a": "(n+d)*(n+d)-n*n",
+     "b": "2*n*(n+d)",
+     "answer": "(n+d)*(n+d)+n*n",
+     "d_operationInverted": "(n+d)*(n+d)-n*n+2*n*(n+d)",
+     "d_signError": "2*n*(n+d)-((n+d)*(n+d)-n*n)"
+    },
+    "constraints": [
+     "answer!=d_operationInverted",
+     "answer!=d_signError",
+     "answer!=other",
+     "d_operationInverted!=d_signError",
+     "d_operationInverted!=other",
+     "d_signError!=other"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{other}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_7C_does_the_converse_hold",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.7C:does-the-converse-hold",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7C",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A frame has sides ${{a}}$, ${{b}}$ and ${{c}}$ cm. Is its corner square?",
+   "solutionReview": {
+    "headline": "The converse is a test on the squares, and it can fail.",
+    "reasoning": [
+     "The converse asks whether the two smaller squares total the largest.",
+     "Here they fall short — a longest side of ${{right}}$ would have made the corner square — so the angle is wider than a right angle."
+    ],
+    "answerSummary": "No, the corner is open."
+   },
+   "attemptFeedback": [
+    "Adding the sides themselves is not the test."
+   ],
+   "supportHints": [
+    "Square all three and compare."
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     },
+     "d": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     },
+     "off": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     }
+    },
+    "derived": {
+     "a": "(n+d)*(n+d)-n*n",
+     "b": "2*n*(n+d)",
+     "c": "(n+d)*(n+d)+n*n+off",
+     "asq": "((n+d)*(n+d)-n*n)*((n+d)*(n+d)-n*n)",
+     "bsq": "4*n*n*(n+d)*(n+d)",
+     "csq": "((n+d)*(n+d)+n*n+off)*((n+d)*(n+d)+n*n+off)",
+     "right": "(n+d)*(n+d)+n*n"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "No: ${{asq}}$ and ${{bsq}}$ total less than ${{csq}}$, so the corner is open."
+    },
+    {
+     "id": "choice-b",
+     "label": "Yes: a longest side of ${{c}}$ always closes a right angle.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "No: the sides ${{a}}$ and ${{b}}$ do not add to ${{c}}$.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "Yes: the three sides differ, which is what a right angle needs.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_7C_which_triple_is_right_angled",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.7C:which-triple-is-right-angled",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7C",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which three lengths make a right-angled triangle?",
+   "solutionReview": {
+    "headline": "Only one longest side makes the squares balance.",
+    "reasoning": [
+     "The squares on ${{a}}$ and ${{b}}$ total exactly the square on ${{c}}$.",
+     "Any other longest side leaves the two sides of the test unequal."
+    ],
+    "answerSummary": "It is ${{a}}, {{b}}, {{c}}$."
+   },
+   "attemptFeedback": [
+    "A longest side equal to the other two added would lie flat."
+   ],
+   "supportHints": [
+    "Square each candidate longest side and compare."
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     },
+     "d": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     },
+     "off": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     }
+    },
+    "derived": {
+     "a": "(n+d)*(n+d)-n*n",
+     "b": "2*n*(n+d)",
+     "c": "(n+d)*(n+d)+n*n",
+     "cBig": "(n+d)*(n+d)+n*n+off",
+     "cSmall": "(n+d)*(n+d)+n*n-off",
+     "sum": "(n+d)*(n+d)-n*n+2*n*(n+d)"
+    },
+    "constraints": [
+     "cBig!=sum",
+     "cSmall!=sum"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{a}}, {{b}}, {{sum}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{a}}, {{b}}, {{c}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{a}}, {{b}}, {{cBig}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{a}}, {{b}}, {{cSmall}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_7C_subtracting_when_adding_was_needed",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.7C:subtracting-when-adding-was-needed",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7C",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "To find the longest side from ${{a}}$ and ${{b}}$ a student subtracts the squares. What is wrong?",
+   "solutionReview": {
+    "headline": "Add to reach the longest side; subtract to come back from it.",
+    "reasoning": [
+     "Subtracting is what finds a leg when the longest side is already known.",
+     "With two legs in hand the squares add, and the root of that total is ${{c}}$."
+    ],
+    "answerSummary": "The longest side is ${{c}}$."
+   },
+   "attemptFeedback": [
+    "The two operations answer opposite questions."
+   ],
+   "supportHints": [
+    "Which side is the one being looked for?"
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     },
+     "d": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     }
+    },
+    "derived": {
+     "a": "(n+d)*(n+d)-n*n",
+     "b": "2*n*(n+d)",
+     "c": "(n+d)*(n+d)+n*n",
+     "asq": "((n+d)*(n+d)-n*n)*((n+d)*(n+d)-n*n)",
+     "bsq": "4*n*n*(n+d)*(n+d)",
+     "diff": "4*n*n*(n+d)*(n+d)-((n+d)*(n+d)-n*n)*((n+d)*(n+d)-n*n)"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The subtraction is right but the answer ${{diff}}$ should not be rooted.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "The squares should be multiplied rather than added.",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-c",
+     "label": "Subtracting finds a shorter side; the longest needs ${{asq}} + {{bsq}}$, giving ${{c}}$."
+    },
+    {
+     "id": "choice-d",
+     "label": "Nothing is wrong, because either operation reaches the third side.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_7D_distance_between_two_points",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.7D:distance-between-two-points",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7D",
+   "taskType": "procedural",
+   "representation": "orderedPairs",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A route runs from $({{x1}}, {{y1}})$ to $({{x2}}, {{y2}})$ and on to $({{x3}}, {{y3}})$. How long is the first leg?",
+   "solutionReview": {
+    "headline": "The two coordinate changes are the legs; the distance is the longest side.",
+    "reasoning": [
+     "Along the first leg $x$ moves ${{run}}$ and $y$ moves ${{rise}}$.",
+     "Those are the legs of a right angle, so the leg itself measures ${{answer}}$."
+    ],
+    "answerSummary": "The first leg is ${{answer}}$ long."
+   },
+   "attemptFeedback": [
+    "That is the second leg of the route."
+   ],
+   "supportHints": [
+    "How far does each coordinate move on the first leg?"
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     },
+     "d": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     },
+     "n2": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     },
+     "d2": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     },
+     "y1": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     }
+    },
+    "derived": {
+     "run": "(n+d)*(n+d)-n*n",
+     "rise": "2*n*(n+d)",
+     "x2": "x1+(n+d)*(n+d)-n*n",
+     "y2": "y1+2*n*(n+d)",
+     "x3": "x1+(n+d)*(n+d)-n*n+(n2+d2)*(n2+d2)-n2*n2",
+     "y3": "y1+2*n*(n+d)+2*n2*(n2+d2)",
+     "answer": "(n+d)*(n+d)+n*n",
+     "d_operationInverted": "(n+d)*(n+d)-n*n+2*n*(n+d)",
+     "d_partialTotal": "2*n*(n+d)",
+     "d_usedGivenValue": "(n2+d2)*(n2+d2)+n2*n2"
+    },
+    "constraints": [
+     "answer!=d_operationInverted",
+     "answer!=d_partialTotal",
+     "answer!=d_usedGivenValue",
+     "d_operationInverted!=d_partialTotal",
+     "d_operationInverted!=d_usedGivenValue",
+     "d_partialTotal!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_7D_why_the_theorem_applies",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.7D:why-the-theorem-applies",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7D",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Why does the Pythagorean theorem give the distance between two points?",
+   "solutionReview": {
+    "headline": "The axes are perpendicular, which is what builds the right angle.",
+    "reasoning": [
+     "Going ${{run}}$ across and then ${{rise}}$ up traces two sides of a right angle.",
+     "The straight line between the points closes it, so its length is ${{dist}}$."
+    ],
+    "answerSummary": "The two moves meet at a right angle."
+   },
+   "attemptFeedback": [
+    "The theorem needs a right angle and fails without one."
+   ],
+   "supportHints": [
+    "What angle do the axes make with each other?"
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     },
+     "d": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     }
+    },
+    "derived": {
+     "run": "(n+d)*(n+d)-n*n",
+     "rise": "2*n*(n+d)",
+     "dist": "(n+d)*(n+d)+n*n"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The horizontal and vertical moves meet at a right angle."
+    },
+    {
+     "id": "choice-b",
+     "label": "The axes are equally scaled, which is all the theorem needs.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "The theorem works for any triangle, not only right ones.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "The two points always lie on a straight line through the origin.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_7D_distance_across_the_origin",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.7D:distance-across-the-origin",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7D",
+   "taskType": "application",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which expression gives the distance between $(-{{x1}}, -{{y1}})$ and $({{x2}}, {{y2}})$?",
+   "solutionReview": {
+    "headline": "Crossing zero adds the two distances rather than subtracting them.",
+    "reasoning": [
+     "Going from $-{{x1}}$ to ${{x2}}$ covers ${{x1}} + {{x2}} = {{run}}$, because the move crosses zero.",
+     "The same holds vertically, and those two legs give a distance of ${{dist}}$."
+    ],
+    "answerSummary": "The moves are ${{run}}$ and ${{rise}}$."
+   },
+   "attemptFeedback": [
+    "Subtracting treats both points as being on the same side of zero."
+   ],
+   "supportHints": [
+    "How far is it from $-{{x1}}$ to ${{x2}}$?"
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     },
+     "d": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     },
+     "split": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     }
+    },
+    "derived": {
+     "run": "(n+d)*(n+d)-n*n",
+     "rise": "2*n*(n+d)",
+     "x1": "split",
+     "y1": "split",
+     "x2": "(n+d)*(n+d)-n*n-split",
+     "y2": "2*n*(n+d)-split",
+     "dist": "(n+d)*(n+d)+n*n"
+    },
+    "constraints": [
+     "x2>0",
+     "y2>0"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$({{x2}} + {{x1}}) + ({{y2}} + {{y1}})$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\sqrt{({{x2}} - {{x1}})^2 + ({{y2}} - {{y1}})^2}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\sqrt{({{x2}} + {{x1}})^2 + ({{y2}} + {{y1}})^2}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\sqrt{{{x2}}^2 + {{y2}}^2}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_7D_points_on_one_horizontal_line",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.7D:points-on-one-horizontal-line",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7D",
+   "taskType": "interpretation",
+   "representation": "numberLine",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is the distance between $({{x1}}, {{c}})$ and $({{x2}}, {{c}})$?",
+   "solutionReview": {
+    "headline": "With no vertical move the theorem reduces to a subtraction.",
+    "reasoning": [
+     "Both points sit at the same height, so the vertical move is zero.",
+     "Only the horizontal move counts: ${{x2}} - {{x1}} = {{answer}}$."
+    ],
+    "answerSummary": "They are ${{answer}}$ apart."
+   },
+   "attemptFeedback": [
+    "The shared height is not a distance between the points."
+   ],
+   "supportHints": [
+    "How far does the second coordinate move?"
+   ],
+   "generator": {
+    "parameters": {
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 12
+     },
+     "gap": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "x2": "x1+gap",
+     "answer": "gap",
+     "d_operationInverted": "x1+x1+gap",
+     "d_partialTotal": "x1"
+    },
+    "constraints": [
+     "answer!=d_operationInverted",
+     "answer!=d_partialTotal",
+     "answer!=c",
+     "d_operationInverted!=d_partialTotal",
+     "d_operationInverted!=c",
+     "d_partialTotal!=c"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{c}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_7D_adding_the_two_moves",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.7D:adding-the-two-moves",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7D",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student finds the distance by adding the horizontal and vertical moves. What is wrong?",
+   "solutionReview": {
+    "headline": "The straight line is shorter than the two sides it replaces.",
+    "reasoning": [
+     "Walking ${{run}}$ across and then ${{rise}}$ up covers ${{sum}}$ in total.",
+     "The straight line cuts the corner, and the theorem gives it as ${{dist}}$."
+    ],
+    "answerSummary": "The distance is ${{dist}}$."
+   },
+   "attemptFeedback": [
+    "Both moves are covered, but not by the shortest route."
+   ],
+   "supportHints": [
+    "Compare walking two sides of a rectangle with cutting across it."
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     },
+     "d": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     }
+    },
+    "derived": {
+     "run": "(n+d)*(n+d)-n*n",
+     "rise": "2*n*(n+d)",
+     "sum": "(n+d)*(n+d)-n*n+2*n*(n+d)",
+     "dist": "(n+d)*(n+d)+n*n"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The moves should be subtracted, giving the difference of ${{run}}$ and ${{rise}}$.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "The moves should be multiplied, because area is involved.",
+     "error": "areaPerimeterSwap"
+    },
+    {
+     "id": "choice-c",
+     "label": "Nothing is wrong, because both moves are covered either way.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "That measures going round the corner: ${{sum}}$ rather than the ${{dist}}$ straight across."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_8A_equation_for_two_plans_meeting",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.8A:equation-for-two-plans-meeting",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8A",
+   "taskType": "representationTranslation",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Plan A costs $\\${{b1}}$ plus $\\${{m1}}$ a month and Plan B $\\${{b2}}$ plus $\\${{m2}}$ a month. Which equation finds when they match?",
+   "solutionReview": {
+    "headline": "Matching costs means the two expressions are set equal.",
+    "reasoning": [
+     "Each plan has its own monthly charge and its own fixed fee.",
+     "They match when the two totals are equal, which is what setting the sides equal says."
+    ],
+    "answerSummary": "It is ${{m1}}x + {{b1}} = {{m2}}x + {{b2}}$."
+   },
+   "attemptFeedback": [
+    "Dropping the fees compares only the monthly parts."
+   ],
+   "supportHints": [
+    "What has to be true when the two costs are the same?"
+   ],
+   "generator": {
+    "parameters": {
+     "m2": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "rise": {
+      "type": "int",
+      "min": 2,
+      "max": 10
+     },
+     "b1": {
+      "type": "int",
+      "min": 10,
+      "max": 80,
+      "step": 5
+     },
+     "drop": {
+      "type": "int",
+      "min": 5,
+      "max": 40,
+      "step": 5
+     }
+    },
+    "derived": {
+     "m1": "m2+rise",
+     "b2": "b1+drop"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{m1}}x + {{b1}} = {{m2}}x + {{b2}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{b1}}x + {{m1}} = {{b2}}x + {{m2}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{m1}}x + {{b1}} + {{m2}}x + {{b2}} = 0$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{m1}}x = {{m2}}x$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_8A_situation_behind_an_equation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.8A:situation-behind-an-equation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8A",
+   "taskType": "interpretation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which situation does ${{p}}x + {{a}} = {{q}}x + {{b}}$ describe?",
+   "solutionReview": {
+    "headline": "Read the coefficient as a count and the constant as a fixed amount.",
+    "reasoning": [
+     "The number multiplying $x$ counts the pieces of unknown length; the number added is a fixed length.",
+     "With two pieces each the sides come to ${{leftAtTwo}}$ and ${{rightAtTwo}}$, which agree only at the right $x$."
+    ],
+    "answerSummary": "Fixed lengths of ${{a}}$ and ${{b}}$ with ${{p}}$ and ${{q}}$ pieces."
+   },
+   "attemptFeedback": [
+    "The coefficients count pieces; they are not lengths themselves."
+   ],
+   "supportHints": [
+    "Which number counts things, and which is a length on its own?"
+   ],
+   "generator": {
+    "parameters": {
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "more": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "a": {
+      "type": "int",
+      "min": 3,
+      "max": 40
+     },
+     "extra": {
+      "type": "int",
+      "min": 2,
+      "max": 30
+     }
+    },
+    "derived": {
+     "p": "q+more",
+     "b": "a+extra",
+     "leftAtTwo": "2*(q+more)+a",
+     "rightAtTwo": "2*q+a+extra"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Two ropes of ${{a}}$ and ${{b}}$ m, plus ${{p}}$ and ${{q}}$ equal pieces, come to the same length."
+    },
+    {
+     "id": "choice-b",
+     "label": "Two ropes of ${{p}}$ and ${{q}}$ m, plus ${{a}}$ and ${{b}}$ equal pieces, come to the same length.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "A rope of ${{a}}$ m is cut into ${{p}}$ pieces and another of ${{b}}$ m into ${{q}}$.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "The pieces on the left total ${{a}}$ m and those on the right total ${{b}}$ m.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_8A_inequality_with_both_sides",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.8A:inequality-with-both-sides",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8A",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Plan A costs $\\${{m1}}$ a month plus $\\${{b1}}$; Plan B costs $\\${{m2}}$ a month plus $\\${{b2}}$. Which inequality says A is cheaper?",
+   "solutionReview": {
+    "headline": "Cheaper is a strict inequality between the two full costs.",
+    "reasoning": [
+     "After one month A has cost $\\${{atOneA}}$ and B $\\${{atOneB}}$, so which is cheaper depends on how long the plan runs.",
+     "Cheaper means strictly less, and both totals carry a monthly charge and a fee."
+    ],
+    "answerSummary": "It is ${{m1}}x + {{b1}} < {{m2}}x + {{b2}}$."
+   },
+   "attemptFeedback": [
+    "Allowing equality would let the two cost the same."
+   ],
+   "supportHints": [
+    "Does cheaper allow the two to be equal?"
+   ],
+   "generator": {
+    "parameters": {
+     "m2": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "rise": {
+      "type": "int",
+      "min": 2,
+      "max": 10
+     },
+     "b1": {
+      "type": "int",
+      "min": 10,
+      "max": 80,
+      "step": 5
+     },
+     "drop": {
+      "type": "int",
+      "min": 5,
+      "max": 40,
+      "step": 5
+     }
+    },
+    "derived": {
+     "m1": "m2+rise",
+     "b2": "b1+drop",
+     "atOneA": "m2+rise+b1",
+     "atOneB": "m2+b1+drop"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{m1}}x + {{b1}} \\le {{m2}}x + {{b2}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{m1}}x < {{m2}}x$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{m1}}x + {{b1}} > {{m2}}x + {{b2}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{m1}}x + {{b1}} < {{m2}}x + {{b2}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_8A_inequality_from_a_balance",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.8A:inequality-from-a-balance",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8A",
+   "taskType": "application",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The left pan tips down. Which inequality says so?",
+   "stimulus": {
+    "kind": "table",
+    "title": "What each pan holds",
+    "table": {
+     "headers": [
+      "pan",
+      "boxes",
+      "loose kg"
+     ],
+     "rows": [
+      [
+       "left",
+       "{{p}}",
+       "{{a}}"
+      ],
+      [
+       "right",
+       "{{q}}",
+       "{{b}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "A pan that tips down is strictly heavier.",
+    "reasoning": [
+     "Tipping down means the left pan is the heavier of the two.",
+     "At a box mass of ${{v}}$ kg the pans hold ${{leftTotal}}$ and ${{rightTotal}}$ kg, and the left is indeed heavier."
+    ],
+    "answerSummary": "It is ${{p}}x + {{a}} > {{q}}x + {{b}}$."
+   },
+   "attemptFeedback": [
+    "An equals sign would describe a balance, not a tip."
+   ],
+   "supportHints": [
+    "Which pan is carrying more?"
+   ],
+   "generator": {
+    "parameters": {
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "more": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 30
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "slack": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     }
+    },
+    "derived": {
+     "p": "q+more",
+     "b": "a+more*v-slack",
+     "leftTotal": "(q+more)*v+a",
+     "rightTotal": "q*v+a+more*v-slack"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{p}}x + {{a}} < {{q}}x + {{b}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{p}} + {{a}}x > {{q}} + {{b}}x$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{p}}x + {{a}} > {{q}}x + {{b}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{p}}x + {{a}} = {{q}}x + {{b}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_8A_unknown_collected_too_early",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.8A:unknown-collected-too-early",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For two plans a student writes ${{m1}}x = {{m2}}x$ and drops the fees. What is wrong?",
+   "solutionReview": {
+    "headline": "Only equal terms cancel, and these are not equal.",
+    "reasoning": [
+     "The fees differ, $\\${{b1}}$ against $\\${{b2}}$, so they cannot cancel.",
+     "Each side has to state that plan cost in full before the two are set equal."
+    ],
+    "answerSummary": "It should be ${{m1}}x + {{b1}} = {{m2}}x + {{b2}}$."
+   },
+   "attemptFeedback": [
+    "Terms cancel across an equals sign only when they match."
+   ],
+   "supportHints": [
+    "Are the two fees the same amount?"
+   ],
+   "generator": {
+    "parameters": {
+     "m2": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "rise": {
+      "type": "int",
+      "min": 2,
+      "max": 10
+     },
+     "b1": {
+      "type": "int",
+      "min": 10,
+      "max": 80,
+      "step": 5
+     },
+     "drop": {
+      "type": "int",
+      "min": 5,
+      "max": 40,
+      "step": 5
+     }
+    },
+    "derived": {
+     "m1": "m2+rise",
+     "b2": "b1+drop"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Nothing is wrong, because the fees are the same on both sides.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "The equation is right but has no solution.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "The fees are part of each cost: it should read ${{m1}}x + {{b1}} = {{m2}}x + {{b2}}$."
+    },
+    {
+     "id": "choice-d",
+     "label": "The fees belong on the same side, added together.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_8C_solve_with_x_on_both_sides",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.8C:solve-with-x-on-both-sides",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8C",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solve ${{m1}}x + {{b1}} = {{m2}}x + {{b2}}$.",
+   "solutionReview": {
+    "headline": "Gather the unknown on one side first.",
+    "reasoning": [
+     "Taking ${{m2}}x$ from both sides leaves ${{rise}}x + {{b1}} = {{b2}}$.",
+     "Then ${{b2}} - {{b1}} = {{d_forgotFinalStep}}$, and dividing by ${{rise}}$ gives ${{answer}}$."
+    ],
+    "answerSummary": "$x = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "The division has not been done yet."
+   ],
+   "supportHints": [
+    "What happens if you take the smaller $x$ term off both sides?"
+   ],
+   "generator": {
+    "parameters": {
+     "m2": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "rise": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b1": {
+      "type": "int",
+      "min": 3,
+      "max": 40
+     }
+    },
+    "derived": {
+     "m1": "m2+rise",
+     "b2": "b1+rise*v",
+     "answer": "v",
+     "d_forgotFinalStep": "rise*v",
+     "d_operationInverted": "v-rise"
+    },
+    "constraints": [
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=rise",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=rise",
+     "d_operationInverted!=rise"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{rise}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_8C_cost_where_two_plans_meet",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.8C:cost-where-two-plans-meet",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8C",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Plan A is $\\${{b1}}$ plus $\\${{m1}}$ a month, Plan B $\\${{b2}}$ plus $\\${{m2}}$, and Plan C a flat $\\${{flat}}$. What do A and B cost where they match?",
+   "solutionReview": {
+    "headline": "Find when they meet, then work out what that costs.",
+    "reasoning": [
+     "Plan A gains $\\${{rise}}$ a month, so it closes the fee gap after ${{v}}$ months.",
+     "At that point Plan A has cost $\\${{m1}} \\times {{v}} + \\${{b1}} = \\${{answer}}$."
+    ],
+    "answerSummary": "They both cost $\\${{answer}}$."
+   },
+   "attemptFeedback": [
+    "That is Plan C, which never enters the comparison."
+   ],
+   "supportHints": [
+    "Find the month first, then the money."
+   ],
+   "generator": {
+    "parameters": {
+     "m2": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "rise": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b1": {
+      "type": "int",
+      "min": 5,
+      "max": 40,
+      "step": 5
+     },
+     "flat": {
+      "type": "int",
+      "min": 10,
+      "max": 200,
+      "step": 5
+     }
+    },
+    "derived": {
+     "m1": "m2+rise",
+     "b2": "b1+rise*v",
+     "answer": "(m2+rise)*v+b1",
+     "d_partialTotal": "v",
+     "d_offByOneStep": "(m2+rise)*v+b1+m2+rise",
+     "d_usedGivenValue": "flat"
+    },
+    "constraints": [
+     "answer!=d_partialTotal",
+     "answer!=d_offByOneStep",
+     "answer!=d_usedGivenValue",
+     "d_partialTotal!=d_offByOneStep",
+     "d_partialTotal!=d_usedGivenValue",
+     "d_offByOneStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_8C_no_solution_or_every_value",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.8C:no-solution-or-every-value",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8C",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "How many values of $x$ satisfy ${{m}}x + {{b1}} = {{m}}x + {{b2}}$?",
+   "solutionReview": {
+    "headline": "When the unknown cancels, the constants decide everything.",
+    "reasoning": [
+     "Taking ${{m}}x$ from both sides leaves ${{b1}} = {{b2}}$, which is false.",
+     "No value of $x$ can mend a gap the unknown never touches."
+    ],
+    "answerSummary": "No value works."
+   },
+   "attemptFeedback": [
+    "Matching $x$ terms is not enough if the constants disagree."
+   ],
+   "supportHints": [
+    "What is left after the $x$ terms cancel?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b1": {
+      "type": "int",
+      "min": 3,
+      "max": 40
+     },
+     "drop": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "b2": "b1+drop",
+     "diff": "drop"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Exactly one, found by dividing ${{diff}}$ by ${{m}}$.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "None, because the sides differ by ${{diff}}$ whatever $x$ is."
+    },
+    {
+     "id": "choice-c",
+     "label": "Exactly one, at $x = {{diff}}$.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "Every value, because both sides have the same $x$ term.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_8C_total_mass_on_a_pan",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.8C:total-mass-on-a-pan",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8C",
+   "taskType": "representationTranslation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The two pans balance, and a third holds ${{spare}}$ kg. What does the left pan hold altogether?",
+   "stimulus": {
+    "kind": "table",
+    "title": "What each pan holds",
+    "table": {
+     "headers": [
+      "pan",
+      "boxes",
+      "loose kg"
+     ],
+     "rows": [
+      [
+       "left",
+       "{{p}}",
+       "{{a}}"
+      ],
+      [
+       "right",
+       "{{q}}",
+       "{{b}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Solve for one box, then total the pan.",
+    "reasoning": [
+     "Taking ${{q}}$ boxes off each pan leaves ${{more}}$ boxes against ${{more}} \\times {{v}}$ loose kilograms, so a box weighs ${{v}}$ kg.",
+     "The left pan then holds ${{p}} \\times {{v}} + {{a}} = {{answer}}$ kg."
+    ],
+    "answerSummary": "The left pan holds ${{answer}}$ kg."
+   },
+   "attemptFeedback": [
+    "That is what one box weighs, not the whole pan."
+   ],
+   "supportHints": [
+    "Find one box first, then add everything on the left."
+   ],
+   "generator": {
+    "parameters": {
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "more": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 30
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "spare": {
+      "type": "int",
+      "min": 5,
+      "max": 200,
+      "step": 5
+     }
+    },
+    "derived": {
+     "p": "q+more",
+     "b": "a+more*v",
+     "answer": "(q+more)*v+a",
+     "d_partialTotal": "v",
+     "d_offByOneStep": "(q+more)*v+a+more*v",
+     "d_usedGivenValue": "spare"
+    },
+    "constraints": [
+     "answer!=d_partialTotal",
+     "answer!=d_offByOneStep",
+     "answer!=d_usedGivenValue",
+     "d_partialTotal!=d_offByOneStep",
+     "d_partialTotal!=d_usedGivenValue",
+     "d_offByOneStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_8_8C_cancelling_unequal_terms",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:8.8C:cancelling-unequal-terms",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8C",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solving ${{m1}}x + {{b1}} = {{m2}}x + {{b2}}$ a student cancels the two $x$ terms outright. What is wrong?",
+   "solutionReview": {
+    "headline": "Subtract the smaller term from both sides; do not delete both.",
+    "reasoning": [
+     "Only equal quantities cancel, and ${{m1}}x$ is larger than ${{m2}}x$.",
+     "Removing the smaller from both sides leaves ${{rise}}x$ facing a gap of ${{gap}}$."
+    ],
+    "answerSummary": "${{rise}}x$ is left over."
+   },
+   "attemptFeedback": [
+    "Sharing a letter does not make two terms equal."
+   ],
+   "supportHints": [
+    "Are the two coefficients the same?"
+   ],
+   "generator": {
+    "parameters": {
+     "m2": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "rise": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b1": {
+      "type": "int",
+      "min": 3,
+      "max": 40
+     }
+    },
+    "derived": {
+     "m1": "m2+rise",
+     "b2": "b1+rise*v",
+     "gap": "rise*v"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "They are unequal: taking ${{m2}}x$ off both sides leaves ${{rise}}x$, not nothing."
+    },
+    {
+     "id": "choice-b",
+     "label": "The $x$ terms should be added instead, giving a larger coefficient.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "Nothing is wrong, because both sides contain an $x$ term.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "The constants should have been cancelled first.",
+     "error": "orderOfOperations"
     }
    ],
    "responseFields": [
