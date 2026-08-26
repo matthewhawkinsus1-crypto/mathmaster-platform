@@ -1429,6 +1429,7 @@ const COORDINATED_CCMR_RELEASE_SEED_FILES = Object.freeze([
   "act_pathQuestionBank_seed.json",
   "tsia2_pathQuestionBank_seed.json",
 ]);
+const COORDINATED_CCMR_RELEASE_FRAMEWORKS = Object.freeze(["act", "digitalSAT", "tsia2"]);
 
 async function loadAssessmentContentReleaseState(db, framework, records = []) {
   const manifestSnapshot = await db.collection(CONTENT_RELEASE_MANIFEST_COLLECTION).doc(CONTENT_RELEASE_MANIFEST_DOC).get();
@@ -1724,6 +1725,22 @@ exports.seedPathQuestionBank = onCall(async (request) => {
   const items = Array.isArray(request.data?.items) ? request.data.items : [];
   if (!items.length) throw new HttpsError("invalid-argument", "Supply the seed items to import.");
   if (items.length > 600) throw new HttpsError("invalid-argument", "Import at most 600 items per call.");
+
+  // Dry-run stays available for package authoring, but released SAT/ACT/TSIA2
+  // content may only be written by the atomic coordinated refresh. Allowing a
+  // generic write here could change the bank without moving the release
+  // manifest and would make active sessions observe an impossible mixed state.
+  if (!dryRun) {
+    const attemptedProtectedFrameworks = [...new Set(items
+      .map((item) => String(item?.assessmentContext?.framework || "").trim())
+      .filter((framework) => COORDINATED_CCMR_RELEASE_FRAMEWORKS.includes(framework)))].sort();
+    if (attemptedProtectedFrameworks.length) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Release-managed assessment content (" + attemptedProtectedFrameworks.join(", ") + ") cannot be written by the generic Path seed importer. Use refreshReleasedCcmrPathBanks for the atomic SAT/ACT/TSIA2 release refresh.",
+      );
+    }
+  }
   return processPathSeedImport({ db, actor, items, dryRun });
 });
 
@@ -1948,7 +1965,7 @@ exports.initializeStarterPathQuestionBank = onCall({ timeoutSeconds: 540, memory
     return { ...validation, phase: "validation" };
   }
   const discoveredReleases = pathContentRelease.collectAssessmentContentReleases(taggedItems);
-  const expectedFrameworks = ["act", "digitalSAT", "tsia2"];
+  const expectedFrameworks = [...COORDINATED_CCMR_RELEASE_FRAMEWORKS].sort();
   const pendingReleases = Object.fromEntries(expectedFrameworks
     .map((framework) => [framework, discoveredReleases[framework]])
     .filter(([, release]) => Boolean(release)));
@@ -2021,7 +2038,7 @@ exports.refreshReleasedCcmrPathBanks = onCall({ timeoutSeconds: 540, memory: "1G
     builtInPathSeedRelease: PATH_RUNTIME_RELEASE,
   }));
   const pendingReleases = pathContentRelease.collectAssessmentContentReleases(taggedItems);
-  const expectedFrameworks = ["act", "digitalSAT", "tsia2"];
+  const expectedFrameworks = [...COORDINATED_CCMR_RELEASE_FRAMEWORKS].sort();
   const actualFrameworks = Object.keys(pendingReleases).sort();
   if (JSON.stringify(actualFrameworks) !== JSON.stringify(expectedFrameworks)) {
     throw new HttpsError(
