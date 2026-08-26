@@ -30,6 +30,7 @@ on:
       - 'scripts/lib/tsia2-production-seed.mjs'
       - 'scripts/lib/ccmr-v2-1-release-integration.mjs'
       - 'scripts/lib/ccmr-v2-1-production-release.mjs'
+      - 'tests/platform/digitalSatV21AuthoringGate.test.mjs'
       - 'tests/platform/digitalSatProductionSeedContent.test.mjs'
       - 'tests/platform/actProductionSeedContent.test.mjs'
       - 'tests/platform/tsia2ProductionSeedContent.test.mjs'
@@ -40,6 +41,7 @@ on:
       - 'tests/platform/ccmrSessionRuntimeWiring.test.mjs'
       - 'tests/platform/ccmrClientSessionRollover.test.mjs'
       - 'tests/platform/ccmrClientRuntimeWiring.test.mjs'
+      - 'docs/ccmr-v2-1-release-runbook.md'
       - 'firebase.json'
       - '.github/workflows/ccmr-v2-1-release-integration-audit.yml'
   workflow_dispatch:
@@ -69,6 +71,8 @@ jobs:
         run: node --test tests/platform/ccmrClientRuntimeWiring.test.mjs
       - name: Run SAT ACT TSIA2 integration contract
         run: node --test tests/platform/ccmrV21ReleaseIntegrationContent.test.mjs
+      - name: Run Digital SAT authoring-audit regression contract
+        run: node --test tests/platform/digitalSatV21AuthoringGate.test.mjs
       - name: Run Digital SAT production compiler contract
         run: node --test tests/platform/digitalSatProductionSeedContent.test.mjs
       - name: Run ACT production compiler contract
