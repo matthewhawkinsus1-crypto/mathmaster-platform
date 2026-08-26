@@ -2057,12 +2057,38 @@ exports.refreshReleasedCcmrPathBanks = onCall({ timeoutSeconds: 540, memory: "1G
   const manifestRef = db.collection(CONTENT_RELEASE_MANIFEST_COLLECTION).doc(CONTENT_RELEASE_MANIFEST_DOC);
   const manifestSnapshot = await manifestRef.get();
   const currentManifest = manifestSnapshot.exists ? manifestSnapshot.data() : {};
+  const retryingCoordinatedRefresh = currentManifest?.status === "updating"
+    && currentManifest?.updateOperation === "coordinated-refresh";
+  if (currentManifest?.status === "updating" && !retryingCoordinatedRefresh) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Another assessment-bank update is already in progress. Finish or recover that operation before starting the coordinated CCMR refresh.",
+    );
+  }
+
+  const normalizeReleaseEntries = (value) => Object.entries(value || {})
+    .map(([framework, release]) => [String(framework).trim(), String(release || "").trim()])
+    .filter(([framework, release]) => framework && release)
+    .sort(([left], [right]) => left.localeCompare(right));
+  const samePendingRelease = JSON.stringify(normalizeReleaseEntries(currentManifest?.pendingReleases))
+    === JSON.stringify(normalizeReleaseEntries(pendingReleases));
+  if (retryingCoordinatedRefresh && !samePendingRelease) {
+    throw new HttpsError(
+      "failed-precondition",
+      "The held CCMR refresh targets a different pending content release. Redeploy the matching release package or recover the held update before retrying.",
+    );
+  }
+
   const updatingManifest = pathContentRelease.beginAssessmentContentReleaseUpdate(
     currentManifest,
     pendingReleases,
     Date.now(),
   );
-  await manifestRef.set({ ...updatingManifest, updatedBy: actor.uid });
+  await manifestRef.set({
+    ...updatingManifest,
+    updateOperation: "coordinated-refresh",
+    updatedBy: actor.uid,
+  });
 
   // A second validation inside processPathSeedImport protects the write itself.
   // If anything fails from this point onward, the manifest intentionally stays
@@ -2089,7 +2115,11 @@ exports.refreshReleasedCcmrPathBanks = onCall({ timeoutSeconds: 540, memory: "1G
     activatedReleases,
     Date.now(),
   );
-  await manifestRef.set({ ...activeManifest, updatedBy: actor.uid });
+  await manifestRef.set({
+    ...activeManifest,
+    updateOperation: "coordinated-refresh",
+    updatedBy: actor.uid,
+  });
   await writeAdminAudit(db, actor, "ccmr_path_banks_refreshed", CONTENT_RELEASE_MANIFEST_COLLECTION, {
     frameworks: expectedFrameworks,
     releases: pendingReleases,
