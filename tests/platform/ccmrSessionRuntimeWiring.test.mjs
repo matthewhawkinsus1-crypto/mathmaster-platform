@@ -68,6 +68,22 @@ test('manual custom seed writes cannot bypass the coordinated assessment release
   assert.ok(guard >= 0 && write >= 0 && guard < write, 'release-managed framework guard must run before the generic importer can write');
 });
 
+test('single-question withdrawal cannot mutate a release-managed assessment bank', () => {
+  const withdrawStart = indexOfOrFail('exports.withdrawQuestionFromPathBank = onCall');
+  const withdrawEnd = source.indexOf('Recompute the coverage index from the secure Path bank.', withdrawStart);
+  assert.ok(withdrawEnd > withdrawStart, 'withdrawal callable must end before coverage rebuild documentation');
+  const block = source.slice(withdrawStart, withdrawEnd);
+
+  assert.match(block, /\.doc\(bankId\)\.get\(\)/, 'withdrawal must load the existing bank record before mutating it');
+  assert.match(block, /COORDINATED_CCMR_RELEASE_FRAMEWORKS\.includes/, 'withdrawal must recognize release-managed assessment frameworks');
+  assert.match(block, /refreshReleasedCcmrPathBanks/, 'protected withdrawal must direct admins to the coordinated release path');
+  const read = block.indexOf('.doc(bankId).get()');
+  const guard = block.indexOf('COORDINATED_CCMR_RELEASE_FRAMEWORKS.includes');
+  const mutation = block.indexOf('active: false');
+  assert.ok(read >= 0 && guard >= 0 && mutation >= 0, 'withdrawal must contain read, protected-framework guard, and deactivation mutation');
+  assert.ok(read < guard && guard < mutation, 'released assessment guard must run after reading the record and before deactivation');
+});
+
 test('starter initializer is fresh-install only and protects tracked assessment writes with the release manifest', () => {
   const initializerStart = indexOfOrFail('exports.initializeStarterPathQuestionBank = onCall');
   const initializerEnd = source.indexOf('Root-admin coordinated assessment-bank refresh.', initializerStart);
