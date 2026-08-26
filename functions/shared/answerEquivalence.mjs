@@ -6,7 +6,14 @@
 // same student response should receive the same verdict everywhere MathMaster
 // grades it.
 
-import { expandLatexShorthand, sameLinearEquation } from './algebraicForm.mjs';
+import {
+  expandLatexShorthand,
+  parsePolynomial,
+  polynomialDegree,
+  sameLinearEquation,
+  samePolynomial,
+  splitEquationSides,
+} from './algebraicForm.mjs';
 import { stackDivisions } from './stackDivisions.mjs';
 
 const UNICODE_MINUS = /[−–—]/g;
@@ -140,6 +147,47 @@ const sameAtomicValue = (left, right, tolerance = 1e-6) => (
   sameNumber(left, right, tolerance) || sameText(left, right)
 );
 
+
+/**
+ * Compare an inverse-function equation without treating f^{-1}(x) as a
+ * polynomial variable.
+ *
+ * The generic linear-equation fallback intentionally cannot parse function
+ * notation on the left side. That meant a student could write the exact visible
+ * inverse equation and still be marked wrong merely because MathLive serialized
+ * the right side as a stacked fraction and the bank key used a slash.
+ *
+ * We keep the requested FORM strict:
+ *   - both equations must put the same inverse-function name on the left;
+ *   - only the right-hand linear polynomial is compared algebraically;
+ *   - degree > 1 is refused, just like sameLinearEquation.
+ */
+const inverseFunctionHead = (value) => {
+  const normalized = normalizeStructuralMathLive(value)
+    .replace(/\s+/g, '')
+    .replace(/⁻¹/g, '^-1')
+    .replace(/\^\{\s*-1\s*\}/g, '^-1')
+    .toLowerCase();
+  const match = /^([a-z])\^-1\(([a-z])\)$/.exec(normalized);
+  return match ? `${match[1]}^-1(${match[2]})` : null;
+};
+
+export const sameInverseFunctionEquation = (left, right, tolerance = 1e-6) => {
+  const a = splitEquationSides(left);
+  const b = splitEquationSides(right);
+  if (!a || !b) return false;
+
+  const leftHead = inverseFunctionHead(a.left);
+  const rightHead = inverseFunctionHead(b.left);
+  if (!leftHead || !rightHead || leftHead !== rightHead) return false;
+
+  const one = parsePolynomial(a.right);
+  const two = parsePolynomial(b.right);
+  if (!one || !two) return false;
+  if (polynomialDegree(one) > 1 || polynomialDegree(two) > 1) return false;
+  return samePolynomial(one, two, tolerance);
+};
+
 const dedupeEquivalent = (values, tolerance) => {
   const unique = [];
   values.forEach((value) => {
@@ -178,6 +226,7 @@ export const sameValue = (left, right, tolerance = 1e-6) => {
     return leftSet !== null && rightSet !== null && sameFiniteSetNotation(left, right, tolerance);
   }
   if (sameAtomicValue(left, right, tolerance)) return true;
+  if (sameInverseFunctionEquation(left, right, tolerance)) return true;
   // LAST RESORT, and only for equations. Text equality already handled every
   // spelling the author thought to list; this catches the ones they did not —
   // an unreduced slope, a decimal for a fraction, a `\frac` from the keypad.

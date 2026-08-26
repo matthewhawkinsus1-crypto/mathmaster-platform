@@ -37,12 +37,12 @@ test('both canonical and generic Path questions expose the same continuation act
   assert.match(source, /gradingClosesQuestion\(lastGradingResult\)/);
 });
 
-test('page-level horizontal movement is clipped while MathInput remains bounded', () => {
+test('page-level horizontal movement is blocked while MathInput remains bounded', () => {
   const css = readFileSync('src/index.css', 'utf8');
   const input = readFileSync('src/MathInput.jsx', 'utf8');
   assert.match(css, /html \{[\s\S]*overflow-x: clip/);
   assert.match(css, /body \{[\s\S]*overflow-x: clip/);
   assert.match(css, /#root \{[\s\S]*overflow-x: clip/);
   assert.match(input, /event\.key === ' ' \|\| event\.code === 'Space'/);
-  assert.match(input, /overflowX: 'clip'/);
+  assert.match(input, /overflowX: '(?:clip|hidden)'/);
 });

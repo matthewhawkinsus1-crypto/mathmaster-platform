@@ -349,38 +349,56 @@ export const PathSessionPlayer = ({
     if (typeof window === 'undefined' || typeof document === 'undefined') return undefined;
     let frame = 0;
 
+    let trailingTimer = 0;
+
     const restoreHorizontalOrigin = () => {
       frame = 0;
-      const documentLeft = Math.max(
-        Math.abs(Number(window.scrollX || window.pageXOffset || 0)),
-        Math.abs(Number(document.documentElement?.scrollLeft || 0)),
-        Math.abs(Number(document.body?.scrollLeft || 0)),
-      );
-      if (documentLeft < 1) return;
       const top = Number(window.scrollY || window.pageYOffset || 0);
-      window.scrollTo(0, top);
+
+      // Reset the page AND any horizontally-scrollable ancestor Chromium chose
+      // while trying to reveal the MathLive caret.
+      let node = workspaceRef.current;
+      while (node) {
+        if (Number(node.scrollLeft || 0) !== 0) node.scrollLeft = 0;
+        node = node.parentElement;
+      }
+
+      if (Number(window.scrollX || window.pageXOffset || 0) !== 0) window.scrollTo(0, top);
       if (document.documentElement) document.documentElement.scrollLeft = 0;
       if (document.body) document.body.scrollLeft = 0;
     };
 
     const scheduleRestore = () => {
       if (frame) window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(restoreHorizontalOrigin);
+      if (trailingTimer) window.clearTimeout(trailingTimer);
+
+      // MathLive and Chromium can schedule their own reveal AFTER the keydown
+      // handler. Reset once on the next paint and once after that work settles.
+      frame = window.requestAnimationFrame(() => {
+        restoreHorizontalOrigin();
+        window.requestAnimationFrame(restoreHorizontalOrigin);
+      });
+      trailingTimer = window.setTimeout(restoreHorizontalOrigin, 40);
     };
 
     const root = workspaceRef.current;
     root?.addEventListener('focusin', scheduleRestore, true);
     root?.addEventListener('keydown', scheduleRestore, true);
     root?.addEventListener('input', scheduleRestore, true);
+    document.addEventListener('scroll', scheduleRestore, true);
     window.addEventListener('scroll', scheduleRestore, { passive: true });
+    window.visualViewport?.addEventListener?.('scroll', scheduleRestore, { passive: true });
     scheduleRestore();
 
     return () => {
       if (frame) window.cancelAnimationFrame(frame);
+      if (trailingTimer) window.clearTimeout(trailingTimer);
       root?.removeEventListener('focusin', scheduleRestore, true);
       root?.removeEventListener('keydown', scheduleRestore, true);
       root?.removeEventListener('input', scheduleRestore, true);
+      document.removeEventListener('scroll', scheduleRestore, true);
       window.removeEventListener('scroll', scheduleRestore);
+      window.visualViewport?.removeEventListener?.('scroll', scheduleRestore);
     };
   }, [instanceId]);
 

@@ -62,6 +62,14 @@ const FUNCTION_KEYS = [
   { label: 'g(x)', command: 'g(x)', ariaLabel: 'Insert g of x' },
 ];
 
+const EQUATION_ENTRY_KEYS = [
+  { label: 'x', command: 'x', ariaLabel: 'Insert x' },
+  { label: 'y', command: 'y', ariaLabel: 'Insert y' },
+  { label: 'f(x)', command: 'f(x)', ariaLabel: 'Insert f of x' },
+  { label: 'f⁻¹(x)', command: 'f^{-1}(x)', ariaLabel: 'Insert inverse function f inverse of x' },
+  { label: '=', command: '=', ariaLabel: 'Insert equals sign' },
+];
+
 
 // Literal-equation operations need arbitrary symbolic factors on touch devices.
 // The generic basic keypad intentionally has no alphabet, so a student trying
@@ -144,7 +152,7 @@ const getToolKeys = (profile, { isMobile = false, contextSymbols = [] } = {}) =>
   if (profile === 'function') return withExit([...FUNCTION_KEYS, ...BASIC_KEYS]);
   if (profile === 'algebra-operation') return withExit(isMobile ? algebraOperationKeysForContext(contextSymbols) : [...ALGEBRA_OPERATION_KEYS, ...BASIC_KEYS]);
   if (profile === 'basic+set') return withExit([...BASIC_KEYS, ...SET_KEYS, ...INEQUALITY_KEYS]);
-  if (profile === 'equation') return withExit([...BASIC_KEYS, { label: '=', command: '=', ariaLabel: 'Insert equals sign' }]);
+  if (profile === 'equation') return withExit([...EQUATION_ENTRY_KEYS, ...BASIC_KEYS]);
   if (profile === 'expression') return withExit(BASIC_KEYS);
   return withExit(BASIC_KEYS);
 };
@@ -349,7 +357,7 @@ export default function MathInput({
         maxWidth: '100%',
         minWidth: 0,
         margin: '0 auto',
-        overflowX: 'clip',
+        overflowX: 'hidden',
         contain: 'inline-size',
       }}
     >
@@ -384,6 +392,7 @@ export default function MathInput({
             width: '100%',
             maxWidth: '100%',
             minWidth: 0,
+            boxSizing: 'border-box',
             gridTemplateColumns: `repeat(${Math.min(4, requiredTools.length)}, minmax(0, 1fr))`,
             gap: '8px',
             marginTop: '10px',
@@ -404,6 +413,8 @@ export default function MathInput({
               onClick={() => insert(tool.command, tool.action)}
               style={{
                 minHeight: '48px',
+                minWidth: 0,
+                maxWidth: '100%',
                 border: '2px solid #8ab4f8',
                 borderRadius: '8px',
                 background: '#fff',
@@ -452,7 +463,8 @@ export default function MathInput({
             width: '100%',
             maxWidth: '100%',
             minWidth: 0,
-            gridTemplateColumns: 'repeat(auto-fit, minmax(min(54px, 100%), 1fr))',
+            boxSizing: 'border-box',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(48px, 1fr))',
             gap: '8px',
             marginTop: '10px',
             padding: '10px',
@@ -472,6 +484,9 @@ export default function MathInput({
               className={tool.action === 'deleteBackward' ? 'mathmaster-fixed-backspace' : undefined}
               style={{
                 minHeight: '44px',
+                minWidth: 0,
+                maxWidth: '100%',
+                overflow: 'hidden',
                 border: '1px solid #b8c8df',
                 borderRadius: '7px',
                 background: '#fff',
