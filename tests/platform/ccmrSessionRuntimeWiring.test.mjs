@@ -62,13 +62,17 @@ test('starter initializer is fresh-install only and protects tracked assessment 
 
   assert.match(block, /collection\(["']pathQuestionBank["']\)\.limit\(1\)\.get\(\)/, 'starter initializer must verify the live bank is empty before writing');
   assert.match(block, /fresh-install-only|fresh install only/i, 'starter initializer must clearly reject use as a live-bank refresh');
+  assert.match(block, /existingManifest\?\.status === "updating"[\s\S]*existingManifest\?\.updateOperation === "starter-initialization"/, 'a non-empty-bank retry must be restricted to this initializer\'s own failed update');
 
+  const validation = block.indexOf('processPathSeedImport({ db, actor, items: taggedItems, dryRun: true })');
   const hold = block.indexOf('beginAssessmentContentReleaseUpdate');
   const write = block.indexOf('processPathSeedImport({ db, actor, items: taggedItems, dryRun: false })');
   const activate = block.indexOf('completeAssessmentContentReleaseUpdate');
+  assert.ok(validation >= 0, 'starter initializer must validate the complete package before holding issuance');
   assert.ok(hold >= 0, 'starter initializer must put tracked assessment releases into updating state before seeding');
   assert.ok(write >= 0, 'starter initializer must still use the production seed importer');
   assert.ok(activate >= 0, 'starter initializer must atomically activate tracked assessment releases after seeding');
+  assert.ok(validation < hold, 'starter initializer must not close assessment issuance for a package that fails read-only validation');
   assert.ok(hold < write, 'starter initializer must close tracked assessment issuance before its first bank write');
   assert.ok(write < activate, 'starter initializer cannot activate tracked assessment releases until the seed write finishes');
 });
