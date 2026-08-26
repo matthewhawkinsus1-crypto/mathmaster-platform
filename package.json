@@ -14,7 +14,8 @@
     "test:authoring-v5": "node --test tests/platform/authoringIntentV5.test.mjs tests/platform/authoringIntentV5Destinations.test.mjs tests/platform/authoringIntentV5CompositionRegression.test.mjs tests/platform/authoringCompiler.test.mjs tests/platform/semanticValidation.test.mjs tests/platform/questionWorkflow.test.mjs tests/platform/workflowGrading.test.mjs tests/platform/graphSpecUtils.test.mjs",
     "validate:authoring-v5": "node scripts/validate-authoring-v5.mjs",
     "validate:assignments": "node scripts/validate-assignments.mjs",
-    "test:live-challenge": "node --test tests/platform/liveChallenge.test.mjs"
+    "test:live-challenge": "node --test tests/platform/liveChallenge.test.mjs",
+    "build:firebase": "node scripts/build-firebase-hosting.mjs"
   },
   "dependencies": {
     "firebase": "^12.17.1",
