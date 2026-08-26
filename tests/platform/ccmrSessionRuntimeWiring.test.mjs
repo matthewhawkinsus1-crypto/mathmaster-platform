@@ -75,6 +75,7 @@ test('single-question withdrawal cannot mutate a release-managed assessment bank
   const block = source.slice(withdrawStart, withdrawEnd);
 
   assert.match(block, /\.doc\(bankId\)\.get\(\)/, 'withdrawal must load the existing bank record before mutating it');
+  assert.match(block, /"not-found"/, 'withdrawal must not create an inactive tombstone for a nonexistent bank ID');
   assert.match(block, /COORDINATED_CCMR_RELEASE_FRAMEWORKS\.includes/, 'withdrawal must recognize release-managed assessment frameworks');
   assert.match(block, /refreshReleasedCcmrPathBanks/, 'protected withdrawal must direct admins to the coordinated release path');
   const read = block.indexOf('.doc(bankId).get()');
