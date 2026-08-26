@@ -2143,6 +2143,19 @@ exports.withdrawQuestionFromPathBank = onCall(async (request) => {
   const db = getFirestore();
   const bankId = String(request.data?.bankId || "").trim();
   if (!bankId) throw new HttpsError("invalid-argument", "bankId is required.");
+
+  const existingQuestion = await db.collection("pathQuestionBank").doc(bankId).get();
+  if (!existingQuestion.exists) {
+    throw new HttpsError("not-found", "The Path-bank question no longer exists.");
+  }
+  const framework = String(existingQuestion.data()?.assessmentContext?.framework || "").trim();
+  if (COORDINATED_CCMR_RELEASE_FRAMEWORKS.includes(framework)) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Released SAT, ACT, and TSIA2 questions cannot be withdrawn one at a time. Use refreshReleasedCcmrPathBanks so the complete audited release and manifest change together.",
+    );
+  }
+
   // Deactivated rather than deleted: an evidence event already recorded against
   // it should still be able to name the question a student answered.
   await db.collection("pathQuestionBank").doc(bankId).set({ active: false, withdrawnAt: Date.now() }, { merge: true });
