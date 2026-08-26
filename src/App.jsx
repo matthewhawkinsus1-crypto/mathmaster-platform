@@ -28,6 +28,7 @@ import {
 import ClassroomManagerV2 from './ClassroomManagerV2';
 import AssignmentQuestionEditor from './AssignmentQuestionEditor';
 import QuestionEngine from './QuestionEngine';
+import { generateQuestion } from './problemGenerator';
 import {
   emptyQuestionRecord,
   getQuestionCardState,
@@ -112,6 +113,7 @@ import {
 import LessonPreflightModal from './components/teacher/LessonPreflightModal';
 import { normalizeLessonBundle } from './platform/schemas/BundleDefinition';
 import { normalizeLabDefinition } from './platform/labs/labDefinitionSchema.js';
+import { normalizeContextualQuestion } from './platform/context/wordProblemLayer';
 import { buildAttemptEvidenceEvent } from './platform/history/evidenceEvent.js';
 import { writeImmutableEvidenceEvent } from './platform/history/evidencePersistence.js';
 import MyMathPathApp from './components/student/MyMathPathApp.jsx';
@@ -154,6 +156,8 @@ import {
   blobToBase64,
   generateLessonNotesPdfBlob,
 } from './platform/resources/lessonNotesPdf.js';
+import { buildAssignmentWorksheetModel } from './platform/resources/assignmentWorksheetPdfModel.js';
+import { downloadAssignmentWorksheetPdf } from './platform/resources/assignmentWorksheetPdf.js';
 import {
   classroomPostingMode,
   mappedCourseIdsForAssignment,
@@ -1683,6 +1687,95 @@ function App() {
       });
     } catch (error) {
       console.error(error);
+    }
+  };
+
+  const exportAssignmentWorksheetPdf = async (assignmentId) => {
+    const assignmentData = assignments.find((assignment) => assignment.id === assignmentId);
+    if (user?.role !== 'student' || !assignmentData?.questions?.length) return;
+    if (!assignmentIsForStudent(assignmentData, { classId: user.classId || null, classPeriod: user.classPeriod })) {
+      toastWarning('PDF not available', 'This assignment is not assigned to your class.');
+      return;
+    }
+
+    const now = Date.now();
+    const lifecycle = getAssignmentLifecycle(assignmentData, now);
+    const access = prerequisiteAccess({ assignment: assignmentData, classworkGradesByAssignment, nowValue: now });
+    const assignmentLocked = (lifecycle.isScheduled && access.reason !== 'prerequisiteMet') || !access.open;
+    if (assignmentLocked) {
+      toastInfo('PDF not available yet', 'The printable worksheet unlocks with the assignment.');
+      return;
+    }
+
+    const classId = user.classId || null;
+    const classPeriod = user.classPeriod;
+    const dolState = getDOLState({ assignment: assignmentData, schedule: classSchedule, classId, classPeriod, nowValue: now });
+    const warmupState = getWarmupState({ assignment: assignmentData, schedule: classSchedule, classId, classPeriod, nowValue: now });
+    const warmupCanBeViewed = ['active', 'closed', 'ended'].includes(warmupState.status);
+    const honors = String(user?.profile?.courseLevel || '').toLowerCase() === 'honors';
+    const printableEntries = [];
+
+    for (const index of getIncludedQuestionIndices(assignmentData)) {
+      const question = assignmentData.questions?.[index];
+      if (!question || !questionIsIncluded(question)) continue;
+      const sectionRole = resolveQuestionActivityRole({ question, assignment: assignmentData });
+      const timedDol = sectionRole === 'dol'
+        && dolState.enabled
+        && (dolState.questionIndices || [dolState.questionIndex]).includes(index);
+      let available = true;
+      if (!lifecycle.isPracticeOnly) {
+        if (sectionRole === 'warmup' && warmupState.enabled && !warmupCanBeViewed) available = false;
+        if (timedDol && !lifecycle.isClosed && !['active', 'ended'].includes(dolState.status)) available = false;
+        const manualState = getSectionAccessState({ assignment: assignmentData, activityRole: sectionRole, classId, classPeriod, nowValue: now });
+        if (manualState.enabled && !manualState.isOpen) available = false;
+      }
+      if (!available) continue;
+
+      const sectionVariantMode = getSectionVariantMode(assignmentData, sectionRole);
+      const generationStudentKey = sectionVariantMode === 'shared'
+        ? `shared-version:${assignmentData.id}:${sectionRole}`
+        : user.id || 'anonymous';
+      const record = normalizeQuestionRecord(tracker?.[assignmentData.id]?.[index]);
+      const runtimeActivityRole = lifecycle.isPracticeOnly ? 'practice' : sectionRole;
+      const adaptation = resolveDeliveredQuestionMetadata({
+        question,
+        learningProfile: studentLearningProfile,
+        activityRole: runtimeActivityRole,
+        variationMode: sectionVariantMode,
+        honors,
+      });
+      const generationKey = `${assignmentData.id}|${generationStudentKey}|${index}|variant:${record.variantIndex}`;
+      const resolvedQuestion = normalizeContextualQuestion(generateQuestion(
+        question,
+        generationKey,
+        adaptiveStudentProfile || user?.profile,
+        adaptation,
+      ));
+      printableEntries.push({
+        sourceIndex: index,
+        available: true,
+        sectionRole,
+        sectionLabel: activityTitleForRole(sectionRole),
+        question: resolvedQuestion,
+      });
+    }
+
+    const model = buildAssignmentWorksheetModel({
+      assignment: assignmentData,
+      student: { displayName: user.displayName || user.id, classPeriod: user.classPeriod },
+      entries: printableEntries,
+    });
+    if (!model.sections.some((section) => section.questions.length)) {
+      toastInfo('Nothing to export yet', 'No currently unlocked questions are available for the printable worksheet.');
+      return;
+    }
+
+    try {
+      const result = await downloadAssignmentWorksheetPdf({ model });
+      toastSuccess('PDF ready', `${result.pageCount} printable page${result.pageCount === 1 ? '' : 's'} exported. Locked sections and answer data were not included.`);
+    } catch (error) {
+      console.error('Could not export assignment PDF:', error);
+      toastError('Could not export PDF', error?.message || 'MathMaster could not build the printable assignment.');
     }
   };
 
@@ -5541,6 +5634,7 @@ function App() {
         student={{ id: user.id, displayName: user.displayName, classPeriod: user.classPeriod, inclusionStatus: user.profile?.inclusionStatus }}
         supportPresentation={supportPresentation}
         onStartAssignment={startAssignment}
+        onExportAssignmentPdf={exportAssignmentWorksheetPdf}
         onOpenMathPath={() => setStudentDashboardMode('mathPath')}
         onOpenSecureExams={() => setStudentDashboardMode('secureExams')}
         // The one thing this student should do next, decided by the model

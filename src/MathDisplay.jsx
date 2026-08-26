@@ -1,5 +1,6 @@
 import 'mathlive';
 import { stackDivisions } from '../functions/shared/stackDivisions.mjs';
+import { resolveMathDisplayFormat } from './mathDisplayFormat.js';
 
 const stripMathDelimiters = (value) => {
   const text = String(value ?? '').trim();
@@ -18,20 +19,6 @@ const stripMathDelimiters = (value) => {
   }
 
   return text;
-};
-
-const detectMathFormat = (value, requestedFormat) => {
-  if (requestedFormat === 'latex' || requestedFormat === 'ascii-math') {
-    return requestedFormat;
-  }
-
-  const text = String(value ?? '');
-  const looksLikeLatex =
-    /\\(?:frac|sqrt|log|ln|sin|cos|tan|left|right|cdot|times|pi|theta|alpha|beta|begin|overline|underline)\b/.test(text) ||
-    /\\[()[\]]/.test(text) ||
-    /\^\{|_\{/.test(text);
-
-  return looksLikeLatex ? 'latex' : 'ascii-math';
 };
 
 /**
@@ -56,11 +43,15 @@ export default function MathDisplay({
   // division with a letter in it, so `x/2` was always a side slash. `\frac`
   // stacks in both modes, so writing it out settles the question before format
   // detection runs. Anything ambiguous is left exactly as authored — see
-  // ./stackDivisions.js.
+  // ../functions/shared/stackDivisions.mjs.
   const cleanValue = stackDivisions(stripMathDelimiters(value));
   if (!cleanValue) return null;
 
-  const resolvedFormat = detectMathFormat(cleanValue, format);
+  // Important: stackDivisions may have introduced a LaTeX \frac into a value
+  // that the caller originally classified as ASCIIMath. Re-resolve the format
+  // from the rewritten value so MathLive typesets the fraction instead of
+  // displaying \frac / \left / \right as visible command text.
+  const resolvedFormat = resolveMathDisplayFormat(cleanValue, format);
   const Element = inline ? 'math-span' : 'math-div';
 
   return (

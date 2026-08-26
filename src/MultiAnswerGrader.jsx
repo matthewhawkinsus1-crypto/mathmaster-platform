@@ -3,7 +3,7 @@ import MathInput from './MathInput';
 import MathDisplay from './MathDisplay';
 import QuestionPrompt from './QuestionPrompt';
 import QuestionVisual from './QuestionVisual';
-import { looksLikeFiniteSetNotation, matchesAnyAnswer } from './answerUtils';
+import { looksLikeFiniteSetNotation, matchesFieldAnswer } from './answerUtils';
 import { resolveLabelFormat } from './labelFormat';
 import useUndoHistory from './useUndoHistory';
 
@@ -89,7 +89,10 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
       id: field.id,
       label: field.label || field.id,
       isComplete: response.trim() !== '',
-      isCorrect: response.trim() !== '' && matchesAnyAnswer(response, field.acceptedAnswers || [field.answer]),
+      // Expression equivalence is deliberately opt-in at the field level.
+      // That fixes MathLive serialization differences without making
+      // form-sensitive tasks (factoring, vertex form, etc.) overly permissive.
+      isCorrect: response.trim() !== '' && matchesFieldAnswer(response, field),
       response,
     };
   });

@@ -1,57 +1,141 @@
 // Splitting prose into "words" and "mathematics", in one place.
 //
-// MathText and QuestionPrompt each carried their own copy of this regex, and
-// each copy read `$…$` as "a dollar, then anything that is not a dollar, then a
-// dollar". That is wrong for the one case a mathematics platform is guaranteed
-// to meet: money.
+// Single-dollar math delimiters are ambiguous in a school math product because
+// ordinary currency also begins with `$`. A regex that simply grabs the next
+// dollar sign can turn this perfectly normal sentence into one enormous math
+// span:
 //
-//   "Three withdrawals of $\$18.25$ total $3 \times 18.25 = \$54.75$."
+//   Hector earns $1500 each pay period ... after a $100 retirement deduction.
 //
-// `\$` is the LaTeX escape for a literal dollar sign, and it is what the bank
-// uses in every currency problem — 103 seed strings and counting. The old
-// pattern stopped at the escaped dollar, so every delimiter after it was off by
-// one: the mathematics landed in the prose segments and the student was shown
-// `3 \times 18.25 = \` on screen.
-//
-// So the scanner has to know about escapes. `(?:\\.|[^\\$\n])` consumes an
-// escaped character as a unit before it will consider a closing delimiter,
-// which is the whole fix.
-//
-// A LONE dollar sign is still prose. "Plan A total ($)" has no partner, does
-// not match, and renders as the currency symbol it is — a pair is required, and
-// that is deliberate: guessing would turn "$12 and $15" into mathematics.
+// The scanner below keeps legacy $...$ math support, but refuses to treat a
+// currency amount followed by prose as the opening of a math span. Explicit
+// display delimiters ($$...$$, \(...\), \[...\]) remain unambiguous.
 
-/** One inline or display math span, as a capturing group so `split` keeps it. */
+/** Legacy source retained for callers that import it directly. */
 export const MATH_SEGMENT_SOURCE = [
-  '\\$\\$[\\s\\S]+?\\$\\$', // $$ … $$
-  '\\\\\\[[\\s\\S]+?\\\\\\]', // \[ … \]
-  '\\\\\\([\\s\\S]+?\\\\\\)', // \( … \)
-  '\\$(?:\\\\.|[^\\\\$\\n])+?\\$', // $ … $, escape-aware
+  '\\$\\$[\\s\\S]+?\\$\\$',
+  '\\\\\\[[\\s\\S]+?\\\\\\]',
+  '\\\\\\([\\s\\S]+?\\\\\\)',
+  '\\$(?:\\\\.|[^\\\\$\\n])+?\\$',
 ].join('|');
 
-/** A fresh regex every call: a shared /g regex carries `lastIndex` between callers. */
+/** Legacy regex factory retained for compatibility. New splitting uses the scanner below. */
 export const mathSegmentPattern = () => new RegExp(`(${MATH_SEGMENT_SOURCE})`, 'g');
 
-/** Whether a segment produced by `splitMathSegments` is mathematics. */
-export const isMathSegment = (segment) => mathSegmentPattern().test(String(segment ?? ''));
+const isEscapedAt = (text, index) => {
+  let slashes = 0;
+  for (let cursor = index - 1; cursor >= 0 && text[cursor] === '\\'; cursor -= 1) slashes += 1;
+  return slashes % 2 === 1;
+};
 
-/** Prose and mathematics, in order, with empties dropped. */
-export const splitMathSegments = (text) => String(text ?? '')
-  .split(mathSegmentPattern())
-  .filter(Boolean);
+const findNextUnescaped = (text, token, fromIndex) => {
+  for (let index = fromIndex; index <= text.length - token.length; index += 1) {
+    if (text.startsWith(token, index) && !isEscapedAt(text, index)) return index;
+  }
+  return -1;
+};
+
+const currencyPrefixLength = (text, dollarIndex) => {
+  const tail = text.slice(dollarIndex);
+  const match = /^\$(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?/.exec(tail);
+  if (!match) return 0;
+  const next = tail[match[0].length] || '';
+  // "$3x" is algebra, not a currency token. A currency number ends before
+  // whitespace, punctuation, an operator, or the end of the string.
+  if (next && /[A-Za-z0-9_]/.test(next)) return 0;
+  return match[0].length;
+};
+
+const isCurrencyProseOpening = (text, start, end) => {
+  const prefixLength = currencyPrefixLength(text, start);
+  if (!prefixLength) return false;
+  const body = text.slice(start + 1, end);
+  const afterAmount = body.slice(prefixLength - 1);
+  // "$3 + 2$" remains valid legacy inline math because there are no prose
+  // words after the numeric prefix. "$15 per month. Solve $..." is currency.
+  return /[A-Za-z]{2,}/.test(afterAmount);
+};
+
+const findSingleDollarEnd = (text, start) => {
+  for (let index = start + 1; index < text.length; index += 1) {
+    if (text[index] !== '$' || isEscapedAt(text, index)) continue;
+    if (text[index - 1] === '$' || text[index + 1] === '$') continue;
+    return index;
+  }
+  return -1;
+};
+
+const pushSegment = (segments, value) => {
+  if (!value) return;
+  const previous = segments[segments.length - 1];
+  if (previous && !isMathSegment(previous) && !isMathSegment(value)) {
+    segments[segments.length - 1] = `${previous}${value}`;
+  } else {
+    segments.push(value);
+  }
+};
+
+/** Whether one already-split segment is mathematics. */
+export const isMathSegment = (segment) => {
+  const text = String(segment ?? '');
+  if (!text) return false;
+  if (text.startsWith('$$') && text.endsWith('$$') && text.length > 4) return true;
+  if (text.startsWith('\\[') && text.endsWith('\\]') && text.length > 4) return true;
+  if (text.startsWith('\\(') && text.endsWith('\\)') && text.length > 4) return true;
+  if (text.startsWith('$') && text.endsWith('$') && !text.startsWith('$$') && text.length > 2) {
+    return !isCurrencyProseOpening(text, 0, text.length - 1);
+  }
+  return false;
+};
+
+/** Prose and mathematics, in order, with ordinary currency left in prose. */
+export const splitMathSegments = (value) => {
+  const text = String(value ?? '');
+  const segments = [];
+  let proseStart = 0;
+  let index = 0;
+
+  while (index < text.length) {
+    let token = null;
+    let end = -1;
+
+    if (!isEscapedAt(text, index) && text.startsWith('$$', index)) {
+      token = '$$';
+      end = findNextUnescaped(text, '$$', index + 2);
+      if (end >= 0) end += 2;
+    } else if (!isEscapedAt(text, index) && text.startsWith('\\[', index)) {
+      token = '\\[';
+      end = findNextUnescaped(text, '\\]', index + 2);
+      if (end >= 0) end += 2;
+    } else if (!isEscapedAt(text, index) && text.startsWith('\\(', index)) {
+      token = '\\(';
+      end = findNextUnescaped(text, '\\)', index + 2);
+      if (end >= 0) end += 2;
+    } else if (text[index] === '$' && !isEscapedAt(text, index) && text[index - 1] !== '$' && text[index + 1] !== '$') {
+      const close = findSingleDollarEnd(text, index);
+      if (close >= 0 && !isCurrencyProseOpening(text, index, close)) {
+        token = '$';
+        end = close + 1;
+      }
+    }
+
+    if (!token || end < 0) {
+      index += 1;
+      continue;
+    }
+
+    pushSegment(segments, text.slice(proseStart, index));
+    pushSegment(segments, text.slice(index, end));
+    proseStart = end;
+    index = end;
+  }
+
+  pushSegment(segments, text.slice(proseStart));
+  return segments.filter(Boolean);
+};
 
 /**
- * Authored text as plain characters, for the places that cannot typeset.
- *
- * An SVG `<text>` node holds characters, not markup, so the label drawn beside
- * a plotted point cannot use MathText — and drawing "Plot the point where
- * $x = 0$" on the coordinate plane is exactly the bug this round of work is
- * about, just somewhere a DOM-based fix cannot reach. The same is true of an
- * `aria-label`: a screen reader should hear "x equals 0", not "dollar x".
- *
- * So the mathematics is unwrapped and spelled out with the characters a person
- * reads: ≤ rather than \le, ² rather than ^2, a/b rather than \frac{a}{b}.
- * Lossy by design — this is a caption, not a formula.
+ * Authored text as plain characters, for places that cannot typeset.
  */
 export const toPlainMath = (value) => splitMathSegments(value)
   .map((segment) => (isMathSegment(segment) ? unwrapMathSegment(segment).value : segment))
@@ -75,11 +159,7 @@ export const toPlainMath = (value) => splitMathSegments(value)
   .replace(/\s+/g, ' ')
   .trim();
 
-/**
- * The mathematics inside a delimited segment, and how to set it.
- *
- * Display for `$$…$$` and `\[…\]`; inline for `\(…\)` and `$…$`.
- */
+/** The mathematics inside a delimited segment, and how to set it. */
 export const unwrapMathSegment = (segment) => {
   const text = String(segment ?? '');
   if (text.startsWith('$$')) return { value: text.slice(2, -2), inline: false };
