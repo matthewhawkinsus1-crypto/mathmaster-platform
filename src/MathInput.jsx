@@ -293,7 +293,7 @@ export default function MathInput({
   // every MathInput autofocus on mount: only an explicit increment focuses it.
   useEffect(() => {
     if (!focusSignal || !mfRef.current) return undefined;
-    const frame = window.requestAnimationFrame(() => mfRef.current?.focus?.());
+    const frame = window.requestAnimationFrame(() => mfRef.current?.focus?.({ preventScroll: true }));
     return () => window.cancelAnimationFrame(frame);
   }, [focusSignal]);
 
@@ -305,7 +305,7 @@ export default function MathInput({
   const undo = useCallback(() => {
     const mathField = mfRef.current;
     if (!mathField) return;
-    mathField.focus();
+    mathField.focus({ preventScroll: true });
     mathField.executeCommand?.('undo');
     onChangeRef.current(mathField.value);
   }, []);
@@ -322,7 +322,7 @@ export default function MathInput({
   const insert = useCallback((command, action = null) => {
     const mathField = mfRef.current;
     if (!mathField) return;
-    mathField.focus();
+    mathField.focus({ preventScroll: true });
     if (action) {
       mathField.executeCommand?.(action);
       onChangeRef.current(mathField.value);
@@ -350,6 +350,7 @@ export default function MathInput({
         minWidth: 0,
         margin: '0 auto',
         overflowX: 'clip',
+        contain: 'inline-size',
       }}
     >
       <math-field

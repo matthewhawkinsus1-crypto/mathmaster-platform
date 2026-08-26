@@ -41,7 +41,15 @@ import { gradingClosesQuestion, latestAttemptCount } from '../../platform/path/p
 //
 // The distinction is the payload's, not a setting.
 
-const WRAPPER = { maxWidth: 880, margin: '0 auto', padding: '14px 14px 44px' };
+const WRAPPER = {
+  width: '100%',
+  maxWidth: 880,
+  minWidth: 0,
+  margin: '0 auto',
+  padding: '14px 14px 44px',
+  boxSizing: 'border-box',
+  overflowX: 'clip',
+};
 
 // A tool needs the room. 880px is right for a prompt and an answer box, but a
 // coordinate plane shares that width with a panel of point tasks, and the plane
@@ -278,6 +286,7 @@ export const PathSessionPlayer = ({
   // server intersects both with the authorized set before believing them.
   const [supportDelivery, setSupportDelivery] = useState({ presented: [], used: [] });
   const feedbackRef = useRef(null);
+  const workspaceRef = useRef(null);
 
   const instanceId = questionInstance?.questionInstanceId || '';
   const activityRole = questionInstance?.activityRole || 'practice';
@@ -330,6 +339,51 @@ export const PathSessionPlayer = ({
     [supportDelivery.presented],
   );
 
+  // Path pages must never pan sideways. MathLive, native numeric fields and
+  // SVG keyboard interaction can all ask Chromium to reveal a focused caret.
+  // When browser zoom/device scaling makes a wide tool barely exceed the visual
+  // viewport, Chromium may satisfy that request by changing document scrollX.
+  // Preserve vertical scrolling, but force the document's horizontal origin
+  // back to zero for the entire Path question.
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return undefined;
+    let frame = 0;
+
+    const restoreHorizontalOrigin = () => {
+      frame = 0;
+      const documentLeft = Math.max(
+        Math.abs(Number(window.scrollX || window.pageXOffset || 0)),
+        Math.abs(Number(document.documentElement?.scrollLeft || 0)),
+        Math.abs(Number(document.body?.scrollLeft || 0)),
+      );
+      if (documentLeft < 1) return;
+      const top = Number(window.scrollY || window.pageYOffset || 0);
+      window.scrollTo(0, top);
+      if (document.documentElement) document.documentElement.scrollLeft = 0;
+      if (document.body) document.body.scrollLeft = 0;
+    };
+
+    const scheduleRestore = () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(restoreHorizontalOrigin);
+    };
+
+    const root = workspaceRef.current;
+    root?.addEventListener('focusin', scheduleRestore, true);
+    root?.addEventListener('keydown', scheduleRestore, true);
+    root?.addEventListener('input', scheduleRestore, true);
+    window.addEventListener('scroll', scheduleRestore, { passive: true });
+    scheduleRestore();
+
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      root?.removeEventListener('focusin', scheduleRestore, true);
+      root?.removeEventListener('keydown', scheduleRestore, true);
+      root?.removeEventListener('input', scheduleRestore, true);
+      window.removeEventListener('scroll', scheduleRestore);
+    };
+  }, [instanceId]);
+
   // Move the reader to the response when it changes. Chromebook screens are
   // short, and a student who submitted at the bottom of the card should not
   // have to hunt for what the platform said back.
@@ -369,7 +423,7 @@ export const PathSessionPlayer = ({
   const canonical = secureQuestion || questionInstance.canonicalQuestion || null;
   if (canonical) {
     return (
-      <main style={TOOL_WRAPPER}>
+      <main ref={workspaceRef} style={TOOL_WRAPPER}>
         <SessionHeader
           session={session}
           questionInstance={questionInstance}
@@ -474,7 +528,7 @@ export const PathSessionPlayer = ({
       : { background: '#fff4ce', color: '#7a4f00' };
 
   return (
-    <main style={WRAPPER}>
+    <main ref={workspaceRef} style={WRAPPER}>
       <SessionHeader
         session={session}
         questionInstance={questionInstance}

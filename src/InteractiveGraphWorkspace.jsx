@@ -133,6 +133,22 @@ const normalizeAnalysisRequests = (question, spec, window, allowDefault) => {
   const requests = provided || (allowDefault ? [{ id: 'feature', kind: 'point', feature: question.analysisFeature || 'vertex', label: question.analysisFeatureLabel || question.analysisFeature || 'requested feature' }] : []);
   return requests.map((request, index) => {
     const id = String(request.id || `analysis-${index + 1}`);
+    if (request.kind === 'value') {
+      const authoredExpected = Array.isArray(request.expected)
+        ? request.expected
+        : request.expected !== undefined && request.expected !== null
+          ? [request.expected]
+          : [];
+      const authoredAccepted = Array.isArray(request.acceptedAnswers) ? request.acceptedAnswers : [];
+      return {
+        ...request,
+        id,
+        kind: 'value',
+        label: request.label || request.prompt || 'Answer',
+        responseMode: request.responseMode || 'input',
+        acceptedAnswers: authoredAccepted.length ? authoredAccepted : authoredExpected,
+      };
+    }
     if (['domain', 'range'].includes(request.kind)) {
       const notation = request.notation || 'interval';
       return { ...request, id, kind: request.kind, label: request.label || `${request.kind === 'domain' ? 'Domain' : 'Range'} in ${notation} notation`, notation, acceptedAnswers: request.acceptedAnswers || getDomainRangeAcceptedAnswers(spec, request.kind, notation) };
@@ -203,7 +219,25 @@ const stageButtonStyle = (active, disabled = false) => ({
 // The keypad decision itself lives in the contract (analysisKeypadProfile) —
 // it is the same question the `kind` answers, and keeping it there is what
 // lets it be tested without a browser.
+const analysisAnswerFormatFor = (part) => {
+  const declared = String(part?.answerFormat || part?.notation || '').trim();
+  const normalized = declared.toLowerCase().replace(/[^a-z0-9]+/g, '');
+  if (['orderedpair', 'coordinate', 'coordinates', 'point'].includes(normalized)) return 'orderedPair';
+  if (declared) return declared;
+
+  // Existing secure Path questions predate answerFormat metadata. Their
+  // student-visible label is still enough to distinguish a point/coordinate
+  // value from a scalar without exposing the answer.
+  const language = `${part?.label || ''} ${part?.prompt || ''}`.toLowerCase();
+  if (part?.kind === 'value' && /\b(ordered\s*pair|coordinate|inverse\s*point|point)\b/.test(language)) {
+    return 'orderedPair';
+  }
+  return '';
+};
+
 const analysisPlaceholderFor = (part) => {
+  const answerFormat = analysisAnswerFormatFor(part);
+  if (answerFormat === 'orderedPair') return 'for example (2, -5)';
   const keypad = analysisKeypadProfile(part);
   if (keypad === 'interval') return 'for example [2, ∞)';
   if (keypad === 'inequality') return 'for example x ≥ 2';
@@ -354,6 +388,23 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
     onUndoStateChange?.({ canUndo: history.canUndo, onUndo: history.undo, label: stage === 'analysis' ? 'Undo the last investigation response' : 'Undo the last graph-construction action' });
     return () => onUndoStateChange?.(null);
   }, [stage, construction, analysis, constructionHistory.canUndo, analysisHistory.canUndo, onUndoStateChange]);
+
+  useEffect(() => {
+    const recovered = {};
+    analysisParts.forEach((part) => {
+      if (part.kind !== 'value') return;
+      if (String(analysis.answers?.[part.id] || '').trim()) return;
+      const staleSelections = analysis.selections?.[part.id];
+      if (Array.isArray(staleSelections) && staleSelections.length === 1 && Array.isArray(staleSelections[0])) {
+        recovered[part.id] = pointLabel(staleSelections[0]);
+      }
+    });
+    if (!Object.keys(recovered).length) return;
+    analysisHistory.setValue((current) => ({
+      ...current,
+      answers: { ...current.answers, ...recovered },
+    }), { record: false });
+  }, [analysisParts, analysis.answers, analysis.selections]);
 
   const analysisGradeParts = useMemo(() => analysisParts.map((part) => {
     if (part.kind === 'point') {
@@ -784,7 +835,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
                     {part.responseMode !== 'input' && <div style={{ marginTop: '5px', fontSize: '12px', color: '#5f6368' }}>{noneSelected ? 'Marked: does not exist' : `${selected.length}/${part.expected.length || 1} selected`}</div>}
                     {part.allowNone && part.responseMode !== 'input' && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, noneSelections: { ...current.noneSelections, [part.id]: !current.noneSelections[part.id] }, selections: { ...current.selections, [part.id]: [] } }))} style={{ marginTop: '7px', padding: '6px 9px', borderRadius: '7px', border: '1px solid #c5d5ef', background: noneSelected ? '#e8f0fe' : '#fff', color: '#174ea6', fontWeight: 'bold' }}>Does not exist</button>}
                     {part.responseMode !== 'click' && <div style={{ marginTop: '8px' }}><MathInput value={analysis.typedPoints[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, typedPoints: { ...current.typedPoints, [part.id]: value } }))} placeholder={part.expected.length > 1 ? '(x₁, y₁), (x₂, y₂)' : '(x, y) or DNE'} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} /></div>}
-                  </> : <div style={{ marginTop: '8px' }}>{part.allowsEmptyAnswer && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: 'does not exist' } }))} style={{ marginBottom: '7px', padding: '6px 9px', borderRadius: '7px', border: '1px solid #c5d5ef', background: String(analysis.answers[part.id] || '').toLowerCase().includes('exist') ? '#e8f0fe' : '#fff', color: '#174ea6', fontWeight: 'bold' }}>Does not exist</button>}<MathInput value={analysis.answers[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: value } }))} toolProfile={analysisKeypadProfile(part)} showToolsInitially placeholder={analysisPlaceholderFor(part)} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} /></div>}
+                  </> : <div style={{ marginTop: '8px' }}>{part.allowsEmptyAnswer && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: 'does not exist' } }))} style={{ marginBottom: '7px', padding: '6px 9px', borderRadius: '7px', border: '1px solid #c5d5ef', background: String(analysis.answers[part.id] || '').toLowerCase().includes('exist') ? '#e8f0fe' : '#fff', color: '#174ea6', fontWeight: 'bold' }}>Does not exist</button>}<MathInput value={analysis.answers[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: value } }))} toolProfile={analysisKeypadProfile(part)} answerFormat={analysisAnswerFormatFor(part)} showToolsInitially placeholder={analysisPlaceholderFor(part)} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} /></div>}
                 </div>;
               })}
             </>
