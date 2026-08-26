@@ -103,6 +103,7 @@ test('coordinated assessment refresh is SAT ACT TSIA2 only and switches the mani
   assert.doesNotMatch(coordinatedList, /asvab/i, 'ASVAB must not be part of this coordinated release refresh');
 
   const refreshStart = indexOfOrFail('exports.refreshReleasedCcmrPathBanks = onCall');
+  const refreshBlock = source.slice(refreshStart);
   const validation = source.indexOf('dryRun: true', refreshStart);
   const updating = source.indexOf('beginAssessmentContentReleaseUpdate', refreshStart);
   const write = source.indexOf('dryRun: false', refreshStart);
@@ -110,4 +111,8 @@ test('coordinated assessment refresh is SAT ACT TSIA2 only and switches the mani
   assert.ok(validation > refreshStart && validation < updating, 'full package validation must happen before the manifest enters updating state');
   assert.ok(updating < write, 'manifest must become unavailable before the first bank write');
   assert.ok(write < activate, 'manifest cannot activate the new release until writes finish');
+
+  assert.match(refreshBlock, /currentManifest\?\.status === "updating"[\s\S]*currentManifest\?\.updateOperation === "coordinated-refresh"/, 'a failed live refresh may only be retried through the coordinated refresh operation');
+  assert.match(refreshBlock, /samePendingRelease/, 'a failed live refresh must prove the retry targets the same pending release package');
+  assert.match(refreshBlock, /updateOperation: "coordinated-refresh"/, 'the live refresh must label its manifest operation before any bank write');
 });
