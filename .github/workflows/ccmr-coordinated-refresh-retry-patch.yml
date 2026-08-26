@@ -1,4 +1,4 @@
-name: Temporary CCMR Coordinated Refresh Retry Patch
+name: Temporary CCMR Runtime Safety Patch
 
 on:
   push:
@@ -6,6 +6,7 @@ on:
       - ccmr-fidelity-v2-1-authentic-language
     paths:
       - 'scripts/patch-ccmr-coordinated-refresh-retry.mjs'
+      - 'scripts/patch-ccmr-released-bank-withdrawal.mjs'
       - '.github/workflows/ccmr-coordinated-refresh-retry-patch.yml'
   workflow_dispatch:
 
@@ -22,9 +23,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Apply guarded runtime patch
-        run: node scripts/patch-ccmr-coordinated-refresh-retry.mjs
-      - name: Verify syntax and retry contract
+      - name: Apply guarded withdrawal patch
+        run: node scripts/patch-ccmr-released-bank-withdrawal.mjs
+      - name: Verify syntax and release-safety contracts
         run: |
           node --check functions/index.js
           node --test tests/platform/ccmrSessionRuntimeWiring.test.mjs
@@ -37,5 +38,5 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add functions/index.js
-          git commit -m 'Protect coordinated CCMR refresh retries'
+          git commit -m 'Protect released CCMR banks from single-item withdrawal'
           git push origin HEAD:ccmr-fidelity-v2-1-authentic-language
