@@ -4,8 +4,7 @@
   "framework": "digitalSAT",
   "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
   "sourceOfTruth": "drafts/ccmr-v2.1/digitalSAT",
-  "generatedBy": "scripts/build-ccmr-v2-1-production-release.mjs",
-  "documents": [
+  "items": [
     {
       "id": "mm_sat_A_10A_1_add-quadratics_v21",
       "active": true,
@@ -354,7 +353,7 @@
           "B": "p+q",
           "satDistractor1": "p-q",
           "satDistractor2": "p",
-          "satDistractor3": "p"
+          "satDistractor3": "q"
         },
         "constraints": [
           "satDistractor1!=B",
@@ -632,7 +631,7 @@
           "k": "target+f",
           "satDistractor1": "target-f",
           "satDistractor2": "target",
-          "satDistractor3": "target"
+          "satDistractor3": "f"
         },
         "constraints": [
           "satDistractor1!=k",
@@ -920,7 +919,7 @@
           "k": "p+q",
           "satDistractor1": "p-q",
           "satDistractor2": "p",
-          "satDistractor3": "p"
+          "satDistractor3": "q"
         },
         "constraints": [
           "satDistractor1!=k",
@@ -2026,7 +2025,7 @@
           "b": "p+q",
           "satDistractor1": "p-q",
           "satDistractor2": "p",
-          "satDistractor3": "p"
+          "satDistractor3": "q"
         },
         "constraints": [
           "p!=q",
@@ -4312,7 +4311,7 @@
           "sum": "p+q",
           "satDistractor1": "p-q",
           "satDistractor2": "p",
-          "satDistractor3": "p"
+          "satDistractor3": "q"
         },
         "constraints": [
           "p!=q",
@@ -5231,7 +5230,7 @@
           "k": "n*n",
           "satDistractor1": "(n+n)",
           "satDistractor2": "n",
-          "satDistractor3": "n"
+          "satDistractor3": "25"
         },
         "constraints": [
           "satDistractor1!=k",
@@ -5668,7 +5667,7 @@
           "k": "m*m",
           "satDistractor1": "(m+m)",
           "satDistractor2": "m",
-          "satDistractor3": "m"
+          "satDistractor3": "n*n"
         },
         "constraints": [
           "satDistractor1!=k",
@@ -6653,7 +6652,7 @@
           "k": "a+b",
           "satDistractor1": "a-b",
           "satDistractor2": "a",
-          "satDistractor3": "a"
+          "satDistractor3": "b"
         },
         "constraints": [
           "m!=4",
@@ -7004,7 +7003,7 @@
           "n": "a-b",
           "satDistractor1": "a+b",
           "satDistractor2": "a",
-          "satDistractor3": "a"
+          "satDistractor3": "b"
         },
         "constraints": [
           "satDistractor1!=n",
@@ -9835,7 +9834,7 @@
           "ans": "m+k",
           "satDistractor1": "m-k",
           "satDistractor2": "m",
-          "satDistractor3": "m"
+          "satDistractor3": "k"
         },
         "constraints": [
           "satDistractor1!=ans",
@@ -11558,7 +11557,7 @@
         "derived": {
           "k": "F*r*r",
           "satDistractor1": "F*r",
-          "satDistractor2": "F*r",
+          "satDistractor2": "r*r",
           "satDistractor3": "(F+r+r)"
         },
         "constraints": [
@@ -12850,7 +12849,7 @@
           "sum": "m+b",
           "satDistractor1": "m-b",
           "satDistractor2": "m",
-          "satDistractor3": "m"
+          "satDistractor3": "b"
         },
         "constraints": [
           "satDistractor1!=sum",
@@ -16636,7 +16635,7 @@
           "r": "y1-q",
           "satDistractor1": "y1+q",
           "satDistractor2": "y1",
-          "satDistractor3": "y1"
+          "satDistractor3": "q"
         },
         "constraints": [
           "p!=q",
@@ -17692,7 +17691,7 @@
           "sum": "v+h",
           "satDistractor1": "v-h",
           "satDistractor2": "v",
-          "satDistractor3": "v"
+          "satDistractor3": "h"
         },
         "constraints": [
           "a!=b",
@@ -19683,7 +19682,7 @@
           "sum": "b+c",
           "satDistractor1": "b-c",
           "satDistractor2": "b",
-          "satDistractor3": "b"
+          "satDistractor3": "c"
         },
         "constraints": [
           "m1!=m2",
@@ -20515,7 +20514,7 @@
           "answer": "mp-mq",
           "satDistractor1": "mp+mq",
           "satDistractor2": "mp",
-          "satDistractor3": "mp"
+          "satDistractor3": "mq"
         },
         "constraints": [
           "mp!=mq",
@@ -26100,7 +26099,7 @@
           "answer": "p+q",
           "satDistractor1": "p-q",
           "satDistractor2": "p",
-          "satDistractor3": "p"
+          "satDistractor3": "q"
         },
         "constraints": [
           "m1!=m2",
@@ -27972,7 +27971,7 @@
           "answer": "gap+1",
           "satDistractor1": "gap-1",
           "satDistractor2": "gap",
-          "satDistractor3": "gap"
+          "satDistractor3": "(answer)+1"
         },
         "constraints": [
           "satDistractor1!=answer",
@@ -30856,7 +30855,7 @@
           "d": "b+delta*t",
           "satDistractor1": "c-delta",
           "satDistractor2": "c",
-          "satDistractor3": "c"
+          "satDistractor3": "delta"
         },
         "constraints": [
           "satDistractor1!=k",
@@ -31777,7 +31776,7 @@
           "sum": "x+y",
           "satDistractor1": "x-y",
           "satDistractor2": "x",
-          "satDistractor3": "x"
+          "satDistractor3": "y"
         },
         "constraints": [
           "satDistractor1!=sum",
@@ -36263,7 +36262,7 @@
           "k": "h*h",
           "satDistractor1": "(h+h)",
           "satDistractor2": "h",
-          "satDistractor3": "h"
+          "satDistractor3": "4*h*h"
         },
         "constraints": [
           "satDistractor1!=k",
@@ -40201,7 +40200,7 @@
           "value": "A+k",
           "satDistractor1": "A-k",
           "satDistractor2": "A",
-          "satDistractor3": "A"
+          "satDistractor3": "k"
         },
         "constraints": [
           "satDistractor1!=value",
@@ -46567,7 +46566,7 @@
           "count": "span+1",
           "satDistractor1": "span-1",
           "satDistractor2": "span",
-          "satDistractor3": "span"
+          "satDistractor3": "(count)+1"
         },
         "constraints": [
           "satDistractor1!=count",
@@ -49683,7 +49682,7 @@
           "dval": "s*r",
           "satDistractor1": "(r+r)",
           "satDistractor2": "r",
-          "satDistractor3": "r"
+          "satDistractor3": "dval*dval"
         },
         "constraints": [
           "satDistractor1!=t",
@@ -52327,7 +52326,7 @@
           "k": "n-p",
           "satDistractor1": "n+p",
           "satDistractor2": "n",
-          "satDistractor3": "n"
+          "satDistractor3": "p"
         },
         "constraints": [
           "satDistractor1!=k",
@@ -63815,7 +63814,7 @@
           "k": "a+c",
           "satDistractor1": "a-c",
           "satDistractor2": "a",
-          "satDistractor3": "a"
+          "satDistractor3": "c"
         },
         "constraints": [
           "satDistractor1!=k",
@@ -64557,7 +64556,7 @@
           "a2": "a*a",
           "answer": "a*xval*xval",
           "satDistractor1": "a*xval",
-          "satDistractor2": "a*xval",
+          "satDistractor2": "xval*xval",
           "satDistractor3": "(a+xval+xval)"
         },
         "constraints": [
@@ -69881,7 +69880,7 @@
           "answer": "k*k",
           "satDistractor1": "(k+k)",
           "satDistractor2": "k",
-          "satDistractor3": "k"
+          "satDistractor3": "r*r"
         },
         "constraints": [
           "satDistractor1!=answer",
@@ -71225,7 +71224,7 @@
           "answer": "estimate-margin",
           "satDistractor1": "estimate+margin",
           "satDistractor2": "estimate",
-          "satDistractor3": "estimate"
+          "satDistractor3": "margin"
         },
         "constraints": [
           "satDistractor1!=answer",
@@ -72666,7 +72665,7 @@
           "answer": "a+b",
           "satDistractor1": "a-b",
           "satDistractor2": "a",
-          "satDistractor3": "a"
+          "satDistractor3": "180-answer"
         },
         "constraints": [
           "a+b<170",
@@ -77634,29 +77633,27 @@
       }
     }
   ],
-  "releaseSummary": {
-    "domains": {
-      "algebra": {
-        "items": 200,
-        "direct": 125,
-        "challenge": 75
-      },
-      "advancedMath": {
-        "items": 328,
-        "direct": 205,
-        "challenge": 123
-      },
-      "problemSolvingData": {
-        "items": 104,
-        "direct": 65,
-        "challenge": 39
-      },
-      "geometryTrigonometry": {
-        "items": 32,
-        "direct": 20,
-        "challenge": 12
-      }
+  "domains": {
+    "algebra": {
+      "items": 200,
+      "direct": 125,
+      "challenge": 75
     },
-    "documents": 664
-  }
+    "advancedMath": {
+      "items": 328,
+      "direct": 205,
+      "challenge": 123
+    },
+    "problemSolvingData": {
+      "items": 104,
+      "direct": 65,
+      "challenge": 39
+    },
+    "geometryTrigonometry": {
+      "items": 32,
+      "direct": 20,
+      "challenge": 12
+    }
+  },
+  "unroutedItemIds": []
 }
