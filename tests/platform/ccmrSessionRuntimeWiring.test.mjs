@@ -54,6 +54,25 @@ test('assessment candidate selection cannot cross the session content release', 
   assert.notEqual(releaseFilter, -1, 'candidate plans must filter to the content release stamped on the session');
 });
 
+test('starter initializer is fresh-install only and protects tracked assessment writes with the release manifest', () => {
+  const initializerStart = indexOfOrFail('exports.initializeStarterPathQuestionBank = onCall');
+  const initializerEnd = source.indexOf('Root-admin coordinated assessment-bank refresh.', initializerStart);
+  assert.ok(initializerEnd > initializerStart, 'starter initializer must end before the coordinated refresh implementation');
+  const block = source.slice(initializerStart, initializerEnd);
+
+  assert.match(block, /collection\(["']pathQuestionBank["']\)\.limit\(1\)\.get\(\)/, 'starter initializer must verify the live bank is empty before writing');
+  assert.match(block, /fresh-install-only|fresh install only/i, 'starter initializer must clearly reject use as a live-bank refresh');
+
+  const hold = block.indexOf('beginAssessmentContentReleaseUpdate');
+  const write = block.indexOf('processPathSeedImport({ db, actor, items: taggedItems, dryRun: false })');
+  const activate = block.indexOf('completeAssessmentContentReleaseUpdate');
+  assert.ok(hold >= 0, 'starter initializer must put tracked assessment releases into updating state before seeding');
+  assert.ok(write >= 0, 'starter initializer must still use the production seed importer');
+  assert.ok(activate >= 0, 'starter initializer must atomically activate tracked assessment releases after seeding');
+  assert.ok(hold < write, 'starter initializer must close tracked assessment issuance before its first bank write');
+  assert.ok(write < activate, 'starter initializer cannot activate tracked assessment releases until the seed write finishes');
+});
+
 test('coordinated assessment refresh is SAT ACT TSIA2 only and switches the manifest around writes', () => {
   indexOfOrFail('const COORDINATED_CCMR_RELEASE_SEED_FILES = Object.freeze([', 'runtime must define a narrow coordinated assessment package');
   indexOfOrFail('"digitalSAT_pathQuestionBank_seed.json"');
