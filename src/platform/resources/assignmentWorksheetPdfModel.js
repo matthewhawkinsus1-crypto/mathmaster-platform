@@ -98,5 +98,5 @@ const filePart = (value, fallback) => {
 };
 
 export const worksheetFileName = ({ assignmentTitle = '', studentName = '' } = {}) => (
-  `${filePart(assignmentTitle, 'MathMaster_Assignment')}-${filePart(studentName, 'Student')}.pdf`
+  `${filePart(assignmentTitle, 'MathMaster_Assignment')}-${filePart(studentName, 'Printable')}.pdf`
 );

@@ -85,6 +85,7 @@ import {
 import TeacherSidebar from './TeacherSidebar';
 import AssignmentLibrary from './AssignmentLibrary';
 import AssignmentCardMenu from './AssignmentCardMenu';
+import TeacherAssignmentPdfDialog from './components/teacher/TeacherAssignmentPdfDialog.jsx';
 import ClassesWorkspace from './ClassesWorkspace';
 import { TEXAS_MATH_ACTIVE_COURSES, getTexasStandardsForCourse } from './texasStandards.js';
 import ClassContextBar from './components/teacher/ClassContextBar.jsx';
@@ -158,6 +159,11 @@ import {
 } from './platform/resources/lessonNotesPdf.js';
 import { buildAssignmentWorksheetModel } from './platform/resources/assignmentWorksheetPdfModel.js';
 import { downloadAssignmentWorksheetPdf } from './platform/resources/assignmentWorksheetPdf.js';
+import {
+  assignmentNeedsStudentForWorksheet,
+  buildTeacherAssignmentWorksheetModel,
+  eligibleStudentsForTeacherWorksheet,
+} from './platform/resources/teacherAssignmentWorksheetExport.js';
 import {
   classroomPostingMode,
   mappedCourseIdsForAssignment,
@@ -386,6 +392,8 @@ function App() {
   const [previewScratchpads, setPreviewScratchpads] = useState({});
   const [teacherScratchpadDialog, setTeacherScratchpadDialog] = useState(null);
   const [teacherScratchpadLoading, setTeacherScratchpadLoading] = useState(false);
+  const [teacherWorksheetDialog, setTeacherWorksheetDialog] = useState(null);
+  const [teacherWorksheetBusy, setTeacherWorksheetBusy] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [assignmentOverviewExpanded, setAssignmentOverviewExpanded] = useState(false);
   const assignmentQuestionStageRef = useRef(null);
@@ -1777,6 +1785,70 @@ function App() {
       console.error('Could not export assignment PDF:', error);
       toastError('Could not export PDF', error?.message || 'MathMaster could not build the printable assignment.');
     }
+  };
+
+  const teacherWorksheetStudentsFor = (assignment) => (
+    eligibleStudentsForTeacherWorksheet(assignment, allStudents)
+      .slice()
+      .sort(compareStudentsByName)
+  );
+
+  const exportTeacherAssignmentWorksheetPdf = async (assignment, student = null) => {
+    if (user?.role !== 'teacher' || !assignment?.questions?.length) return;
+    setTeacherWorksheetBusy(true);
+    try {
+      const masteryProfile = student ? teacherMasteryProfilesByStudentId?.[student.id] || null : null;
+      const selectedStudent = student
+        ? { ...student, displayName: formatStudentName(student) }
+        : null;
+      const selectedStudentProfile = selectedStudent
+        ? {
+            ...(selectedStudent.profile || {}),
+            courseLevel: selectedStudent.profile?.courseLevel || selectedStudent.courseLevel || null,
+            adaptiveInstruction: masteryProfile?.adaptiveInstruction
+              || selectedStudent.profile?.adaptiveInstruction,
+          }
+        : null;
+      const model = buildTeacherAssignmentWorksheetModel({
+        assignment,
+        student: selectedStudent,
+        learningProfile: selectedStudent ? teacherLearningProfiles?.[selectedStudent.id] || null : null,
+        studentProfile: selectedStudentProfile,
+      });
+      const result = await downloadAssignmentWorksheetPdf({ model });
+      toastSuccess(
+        'PDF ready',
+        selectedStudent
+          ? `${formatStudentName(selectedStudent)} · ${result.pageCount} printable page${result.pageCount === 1 ? '' : 's'} exported.`
+          : `${result.pageCount} printable page${result.pageCount === 1 ? '' : 's'} exported with blank student fields.`,
+      );
+      setTeacherWorksheetDialog(null);
+    } catch (error) {
+      console.error('Could not export teacher assignment PDF:', error);
+      toastError('Could not export PDF', error?.message || 'MathMaster could not build the printable assignment.');
+    } finally {
+      setTeacherWorksheetBusy(false);
+    }
+  };
+
+  const beginTeacherWorksheetExport = async (assignment) => {
+    if (!assignment?.questions?.length) {
+      toastInfo('Nothing to export', 'This assignment does not currently contain printable questions.');
+      return;
+    }
+    if (!assignmentNeedsStudentForWorksheet(assignment)) {
+      await exportTeacherAssignmentWorksheetPdf(assignment, null);
+      return;
+    }
+    const students = teacherWorksheetStudentsFor(assignment);
+    if (!students.length) {
+      toastInfo(
+        'Student version needed',
+        'This assignment uses personalized versions, but no roster student is available for its current audience. Assign it to a class or add a student first.',
+      );
+      return;
+    }
+    setTeacherWorksheetDialog({ assignmentId: assignment.id });
   };
 
   const startAssignment = (assignmentId, requestedQuestionIndex = 0) => {
@@ -4885,6 +4957,21 @@ function App() {
         {renderDeleteAssignmentDialog()}
         {renderExportJsonDialog()}
         {renderTeacherScratchpadDialog()}
+        {teacherWorksheetDialog && (() => {
+          const assignment = assignments.find((item) => item.id === teacherWorksheetDialog.assignmentId) || null;
+          if (!assignment) return null;
+          const students = teacherWorksheetStudentsFor(assignment);
+          return (
+            <TeacherAssignmentPdfDialog
+              key={assignment.id}
+              assignment={assignment}
+              students={students}
+              busy={teacherWorksheetBusy}
+              onCancel={() => { if (!teacherWorksheetBusy) setTeacherWorksheetDialog(null); }}
+              onExport={(student) => exportTeacherAssignmentWorksheetPdf(assignment, student)}
+            />
+          );
+        })()}
         {assignmentPreflight && (
           <LessonPreflightModal
             key={`${assignmentPreflight.lessonBundle.bundleId}-${assignmentPreflight.sourceLabel}`}
@@ -5232,6 +5319,7 @@ function App() {
                           items={[
                             { key: 'preview', label: 'View as Student', onClick: () => startTeacherPreview(assignment.id) },
                             { key: 'edit-questions', label: 'Edit Questions', onClick: () => openQuestionEditor(assignment) },
+                            { key: 'export-pdf', label: 'Export Printable PDF', onClick: () => beginTeacherWorksheetExport(assignment) },
                             { key: 'export-json', label: 'Export JSON', onClick: () => { setExportJsonAssignment(assignment); setExportJsonCopied(false); } },
                             { key: 'dates-classes', label: 'Dates & Classes', onClick: () => beginEditAssignmentDates(assignment) },
                             { key: 'move-folder', label: 'Move to Folder', onClick: () => { setMovingFolderAssignmentId(assignment.id); setMovingFolderValue(assignment.folder || ''); } },
