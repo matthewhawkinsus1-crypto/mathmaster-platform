@@ -14,6 +14,7 @@ import { COMPAT, COMPAT_LABEL, buildToolSupportMatrix } from '../../platform/sup
 import { PATH_TOOL_IDS } from '../../../functions/shared/pathToolContracts.mjs';
 import { SUPPORT } from '../../../functions/shared/supportEntitlements.mjs';
 import { ROOT_ADMIN_EMAIL } from '../../../functions/shared/rolePolicy.mjs';
+import { buildAssessmentCoverageAudit, ASSESSMENT_COVERAGE_MISMATCH } from '../../platform/ccmr/assessmentCoverageAudit.js';
 
 // Which standards My Math Path can actually teach.
 //
@@ -244,6 +245,7 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
       : all;
   }, [index, onlyGaps]);
   const summary = index?.summary || null;
+  const assessmentCoverageAudit = useMemo(() => buildAssessmentCoverageAudit(index), [index]);
 
   return (
     <div>
@@ -361,6 +363,56 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
           “Recompute” rebuilds the report from those three sources. It does not inspect class assignments, and it does not publish assignment questions into the Path bank.
           Grade 6, 7, 8, Algebra I, and Algebra II are mapped from the canonical standards registry on the server, not from a browser wheel.
         </p>
+      </section>
+
+
+      <section style={{ ...card, background: !assessmentCoverageAudit.known ? '#fef7e0' : assessmentCoverageAudit.rows.length ? '#fff8f0' : assessmentCoverageAudit.gaps?.length ? '#fef7e0' : '#e6f4ea' }}>
+        <h3 style={{ margin: 0 }}>Assessment publication coverage</h3>
+        <p style={{ margin: '6px 0 10px', color: '#5f6368', fontSize: 13, lineHeight: 1.55, maxWidth: 820 }}>
+          Crosswalk relevance and published practice are checked separately. A student only gets an assessment launch when both agree.
+          A hard mismatch means authored bank content disagrees with publication or mapping. Crosswalk-only relationships are tracked separately and do not fail the release.
+        </p>
+        {!assessmentCoverageAudit.known ? (
+          <p style={{ margin: 0, color: '#7a4f00', fontWeight: 800, fontSize: 13 }}>
+            Recompute coverage from the secure bank to build the framework-aware publication audit.
+          </p>
+        ) : (
+          <>
+            {assessmentCoverageAudit.rows.length === 0 ? (
+              <p style={{ margin: 0, color: '#137333', fontWeight: 800, fontSize: 13 }}>
+                No authored-bank publication defects were found for this course.
+              </p>
+            ) : (
+              <>
+                <p role="alert" style={{ margin: '0 0 10px', color: '#a50e0e', fontWeight: 850, fontSize: 13 }}>
+                  {assessmentCoverageAudit.rows.length} authored-bank publication mismatch{assessmentCoverageAudit.rows.length === 1 ? '' : 'es'} need review.
+                </p>
+                <div style={{ display: 'grid', gap: 8 }}>
+                  {assessmentCoverageAudit.rows.map((row) => (
+                    <div key={`${row.teksCode}:${row.framework}`} style={{ padding: '10px 12px', border: '1px solid #f0d2b5', borderRadius: 9, background: '#fff' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <strong>{row.teksCode} · {row.frameworkLabel}</strong>
+                        <button type="button" style={quiet} onClick={() => runDiagnostic(row.teksCode, row.framework)} disabled={diagnosticBusy}>
+                          Diagnose
+                        </button>
+                      </div>
+                      <div style={{ marginTop: 4, color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>
+                        {row.mismatch === ASSESSMENT_COVERAGE_MISMATCH.CROSSWALK_WITHOUT_PUBLISHED_PRACTICE
+                          ? `The bank contains ${row.authoredCount} authored item(s) for this pair, but none are currently publishable.`
+                          : `The active secure bank has ${row.familyCount} published family/families, but the authored crosswalk says this assessment does not apply.`}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+            {assessmentCoverageAudit.gaps?.length ? (
+              <p style={{ margin: assessmentCoverageAudit.rows.length ? '10px 0 0' : '8px 0 0', color: '#7a4f00', fontWeight: 700, fontSize: 12, lineHeight: 1.5 }}>
+                {assessmentCoverageAudit.gaps.length} crosswalk relationship{assessmentCoverageAudit.gaps.length === 1 ? '' : 's'} have no authored bank content in this release. They remain unavailable to students, but they are informational coverage gaps rather than publication defects.
+              </p>
+            ) : null}
+          </>
+        )}
       </section>
 
       <section style={card}>

@@ -71,6 +71,7 @@ export const SkillDetailCardModal = ({
             pathOptions={pathOptions}
             assessmentEvidence={assessmentContext.assessmentEvidence}
             directIndex={assessmentContext.directIndex}
+            coverage={assessmentContext.coverage}
             goals={assessmentContext.goals}
             teacherPriorities={assessmentContext.teacherPriorities}
             onChoose={(choice) => { onClose?.(); onPracticeAs(choice); }}

@@ -4,10 +4,9 @@ import { referenceLabel } from '../../platform/ccmr/assessmentStandardReferences
 import CcmrReferenceList from '../common/CcmrReferenceList.jsx';
 import { resolveAssessmentPracticeStage } from '../../platform/ccmr/assessmentFidelity.js';
 
-// "Practice This Skill As…" now carries the actual official assessment
-// reference beside the pathway. That means a student choosing ACT can see
-// "F 502" before they start, while SAT/TSIA2/ASVAB preserve the official
-// domain/skill/subtest labels those programs actually publish.
+// "Practice This Skill As…" is now gated by the active secure bank, not by a
+// crosswalk alone. A legitimate mathematical connection can still be shown in
+// the CCMR explorer, but this menu only offers a door the server can open.
 
 const STATUS_NOTE = {
   [READINESS.TRANSFER_GAP]: { text: 'Worth a look', color: '#a50e0e', background: '#fce8e6' },
@@ -24,6 +23,7 @@ export default function PracticeAsMenu({
   pathOptions = null,
   assessmentEvidence = {},
   directIndex = null,
+  coverage = undefined,
   goals = [],
   teacherPriorities = [],
   activeFramework = 'course',
@@ -31,8 +31,8 @@ export default function PracticeAsMenu({
 }) {
   const [expandedFramework, setExpandedFramework] = useState(null);
   const options = useMemo(() => getAssessmentPathOptions({
-    skillId, pathOptions, assessmentEvidence, directIndex, goals, teacherPriorities,
-  }), [skillId, pathOptions, assessmentEvidence, directIndex, goals, teacherPriorities]);
+    skillId, pathOptions, assessmentEvidence, directIndex, coverage, goals, teacherPriorities,
+  }), [skillId, pathOptions, assessmentEvidence, directIndex, coverage, goals, teacherPriorities]);
 
   const available = options.availablePathways;
   if (!available.length) return null;

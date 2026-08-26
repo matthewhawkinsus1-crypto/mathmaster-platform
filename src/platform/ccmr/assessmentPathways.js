@@ -18,12 +18,16 @@
 // contexts.
 
 import { STATUS } from '../path/recommendationEngine.js';
-import { describeSkill } from '../path/skillGraph.js';
+import { describeSkill, teksCodeFromSkillId } from '../path/skillGraph.js';
 import { ASSESSMENT_FRAMEWORKS, FRAMEWORK_LABELS, listFrameworkAlignments, resolveAlignment } from './assessmentCrosswalk.js';
 import { EVIDENCE_BASIS, getEvidence, hasPractised } from './assessmentEvidence.js';
 import { getAssessmentProfile } from './assessmentProfiles.js';
 import { CCMR_STAGE, resolveAssessmentPracticeStage } from './assessmentFidelity.js';
 import { getAssessmentStandardReferences } from './assessmentStandardReferences.js';
+import {
+  frameworkCoverageKnown,
+  frameworkCoverageRecord,
+} from '../../../functions/shared/pathCoverage.mjs';
 
 export const READINESS = Object.freeze({
   NOT_AVAILABLE: 'not_available',
@@ -61,6 +65,10 @@ export const CCMR_REASON = Object.freeze({
   NO_ASVAB_ALIGNMENT: 'no-meaningful-asvab-alignment',
   BEYOND_PACING: 'beyond-course-pacing',
   HIGH_RELEVANCE: 'high-relevance-to-selected-framework',
+  COVERAGE_UNKNOWN: 'assessment-publication-coverage-unknown',
+  PUBLISHED_ASSESSMENT_PRACTICE: 'published-assessment-practice',
+  CROSSWALK_WITHOUT_PUBLISHED_PRACTICE: 'crosswalk-without-published-assessment-practice',
+  PUBLISHED_WITHOUT_CROSSWALK: 'published-assessment-practice-without-crosswalk',
 });
 
 // Core mastery at or above this is "the student can do the mathematics", which
@@ -107,6 +115,73 @@ const weightFor = ({ framework, goals, teacherPriorities }) => {
   if ((goals || []).includes(framework)) weight += 0.35;
   if ((teacherPriorities || []).includes(framework)) weight += 0.5;
   return weight;
+};
+
+
+/**
+ * Publication is a fact about the active secure bank, not about the crosswalk.
+ * Undefined preserves old pure-unit callers; an explicit null/old index fails
+ * closed in production until coverage has been rebuilt to schema 2.
+ */
+export const resolveAssessmentPublication = ({ coverage = undefined, skillId, framework, alignment }) => {
+  if (coverage === undefined) {
+    return { known: false, legacy: true, published: true, familyCount: null, state: 'legacy_assumed' };
+  }
+  const teksCode = teksCodeFromSkillId(skillId) || String(skillId || '').replace(/^teks:/i, '');
+  if (!frameworkCoverageKnown(coverage, framework)) {
+    return { known: false, legacy: false, published: false, familyCount: 0, state: 'coverage_unknown' };
+  }
+  const record = frameworkCoverageRecord(coverage, teksCode, framework);
+  const published = record?.published === true;
+  let state = published ? 'published' : 'not_published';
+  if (alignment && !published) state = 'crosswalk_without_published_practice';
+  if (!alignment && published) state = 'published_without_crosswalk';
+  return {
+    known: true,
+    legacy: false,
+    published,
+    familyCount: Number(record?.familyCount || 0),
+    issuableCount: Number(record?.issuableCount || 0),
+    state,
+  };
+};
+
+const applyPublicationGate = ({ verdict, alignment, publication }) => {
+  if (publication.legacy) return verdict;
+  if (!publication.known) {
+    return {
+      ...verdict,
+      status: READINESS.NOT_AVAILABLE,
+      available: false,
+      score: 0,
+      reasons: [...new Set([...(verdict.reasons || []), CCMR_REASON.COVERAGE_UNKNOWN])],
+    };
+  }
+  if (!alignment && publication.published) {
+    return {
+      ...verdict,
+      status: READINESS.NOT_AVAILABLE,
+      available: false,
+      score: 0,
+      reasons: [...new Set([...(verdict.reasons || []), CCMR_REASON.PUBLISHED_WITHOUT_CROSSWALK])],
+    };
+  }
+  if (alignment && !publication.published) {
+    return {
+      ...verdict,
+      status: READINESS.NOT_AVAILABLE,
+      available: false,
+      score: 0,
+      reasons: [...new Set([...(verdict.reasons || []), CCMR_REASON.CROSSWALK_WITHOUT_PUBLISHED_PRACTICE])],
+    };
+  }
+  if (alignment && publication.published) {
+    return {
+      ...verdict,
+      reasons: [...new Set([...(verdict.reasons || []), CCMR_REASON.PUBLISHED_ASSESSMENT_PRACTICE])],
+    };
+  }
+  return verdict;
 };
 
 /**
@@ -247,6 +322,7 @@ export const getAssessmentPathOptions = ({
   pathOptions = null,
   assessmentEvidence = {},
   directIndex = null,
+  coverage = undefined,
   goals = [],
   teacherPriorities = [],
 } = {}) => {
@@ -254,7 +330,9 @@ export const getAssessmentPathOptions = ({
   const pathways = ASSESSMENT_FRAMEWORKS.map((framework) => {
     const alignment = resolveAlignment({ skillId, framework, directIndex });
     const evidence = getEvidence(assessmentEvidence, skillId, framework);
-    const verdict = classifyAssessmentSkill({ row, framework, alignment, evidence, goals, teacherPriorities });
+    const publication = resolveAssessmentPublication({ coverage, skillId, framework, alignment });
+    const rawVerdict = classifyAssessmentSkill({ row, framework, alignment, evidence, goals, teacherPriorities });
+    const verdict = applyPublicationGate({ verdict: rawVerdict, alignment, publication });
     const practiceStage = resolveAssessmentPracticeStage(evidence);
     return {
       framework,
@@ -269,6 +347,8 @@ export const getAssessmentPathOptions = ({
       status: verdict.status,
       score: verdict.score,
       reasonCodes: verdict.reasons,
+      publicationState: publication.state,
+      publishedFamilyCount: publication.familyCount,
       practiceStage,
       evidence,
     };
@@ -321,6 +401,7 @@ export const getAssessmentRecommendations = ({
   pathOptions = null,
   assessmentEvidence = {},
   directIndex = null,
+  coverage = undefined,
   goals = [],
   teacherPriorities = [],
 } = {}) => {
@@ -328,7 +409,9 @@ export const getAssessmentRecommendations = ({
   const items = rows.map((row) => {
     const alignment = resolveAlignment({ skillId: row.skillId, framework, directIndex });
     const evidence = getEvidence(assessmentEvidence, row.skillId, framework);
-    const verdict = classifyAssessmentSkill({ row, framework, alignment, evidence, goals, teacherPriorities });
+    const publication = resolveAssessmentPublication({ coverage, skillId: row.skillId, framework, alignment });
+    const rawVerdict = classifyAssessmentSkill({ row, framework, alignment, evidence, goals, teacherPriorities });
+    const verdict = applyPublicationGate({ verdict: rawVerdict, alignment, publication });
     const practiceStage = resolveAssessmentPracticeStage(evidence);
     return {
       skillId: row.skillId,
@@ -345,6 +428,8 @@ export const getAssessmentRecommendations = ({
       provisional: verdict.provisional,
       score: verdict.score,
       reasons: verdict.reasons,
+      publicationState: publication.state,
+      publishedFamilyCount: publication.familyCount,
       practiceStage,
       evidence,
     };
@@ -393,6 +478,15 @@ function groupByDomain(items) {
 export const explainAssessmentRecommendation = (item) => {
   if (!item) return '';
   const name = getAssessmentProfile(item.framework)?.displayName || item.framework;
+  if (item.reasons?.includes(CCMR_REASON.COVERAGE_UNKNOWN)) {
+    return `MathMaster is checking which ${name} practice is published. Try again in a moment.`;
+  }
+  if (item.reasons?.includes(CCMR_REASON.CROSSWALK_WITHOUT_PUBLISHED_PRACTICE)) {
+    return `${name} practice is not available for this skill.`;
+  }
+  if (item.reasons?.includes(CCMR_REASON.NO_ALIGNMENT) || item.reasons?.includes(CCMR_REASON.PUBLISHED_WITHOUT_CROSSWALK)) {
+    return `This skill is not part of ${name} math practice.`;
+  }
   switch (item.status) {
     case READINESS.TRANSFER_GAP:
       return `You know the math — practice the format. Your course performance on this is strong, but ${name}-style questions have been harder. Let's work on transferring what you know.`;
@@ -415,7 +509,7 @@ export const explainAssessmentRecommendation = (item) => {
     default:
       return item.reasons?.includes(CCMR_REASON.CORE_NOT_READY)
         ? 'Strengthen the math first. This pathway uses a skill you\'re still developing — build the skill, then come back to this version.'
-        : `This isn't part of the ${name} yet.`;
+        : `This skill is not part of ${name} math practice.`;
   }
 };
 

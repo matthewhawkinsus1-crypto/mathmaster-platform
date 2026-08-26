@@ -138,6 +138,7 @@ function PathNode({ node, onChoose, practiceAs, disabled = false }) {
           pathOptions={practiceAs.pathOptions}
           assessmentEvidence={practiceAs.assessmentEvidence}
           directIndex={practiceAs.directIndex}
+          coverage={practiceAs.coverage}
           goals={practiceAs.goals}
           teacherPriorities={practiceAs.teacherPriorities}
           onChoose={practiceAs.onChoose}
@@ -191,6 +192,7 @@ export const StudentLearningPath = ({
     pathOptions,
     assessmentEvidence: assessmentContext.assessmentEvidence || {},
     directIndex: assessmentContext.directIndex || null,
+    coverage: assessmentContext.coverage,
     goals: assessmentContext.goals || [],
     teacherPriorities: assessmentContext.teacherPriorities || [],
     onChoose: onPracticeAs,

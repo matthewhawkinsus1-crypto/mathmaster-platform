@@ -29,7 +29,7 @@ const STATUS_STYLE = {
   [READINESS.STRONG]: { label: 'Strong', border: '#137333', background: '#e6f4ea', chip: '#137333' },
   [READINESS.CHALLENGE_READY]: { label: 'Challenge ready', border: '#7e57c2', background: '#f3ecfd', chip: '#5b21b6' },
   [READINESS.MAINTENANCE]: { label: 'Challenge complete', border: '#137333', background: '#e6f4ea', chip: '#137333' },
-  [READINESS.NOT_AVAILABLE]: { label: 'Not open yet', border: '#bdc1c6', background: '#f8f9fa', chip: '#5f6368' },
+  [READINESS.NOT_AVAILABLE]: { label: 'Not available', border: '#bdc1c6', background: '#f8f9fa', chip: '#5f6368' },
 };
 
 const BUCKET_TITLES = [
@@ -79,7 +79,7 @@ function SkillRow({ item, onPractise, showFramework = false, readOnly = false })
         </div>
         {item.status === READINESS.NOT_AVAILABLE ? (
           <span style={{ minHeight: 38, display: 'inline-flex', alignItems: 'center', padding: '8px 12px', borderRadius: 8, background: '#f1f3f4', color: '#5f6368', fontWeight: 850, fontSize: 12 }}>
-            Not open yet
+            Not available
           </span>
         ) : readOnly ? (
           <span style={{ minHeight: 38, display: 'inline-flex', alignItems: 'center', padding: '8px 12px', borderRadius: 8, background: '#f1f3f4', color: '#5f6368', fontWeight: 850, fontSize: 12 }}>
@@ -136,6 +136,7 @@ export default function CCMRHub({
   pathOptions = null,
   assessmentEvidence = {},
   directIndex = null,
+  coverage = undefined,
   goals = [],
   teacherPriorities = [],
   onChangeGoals,
@@ -153,11 +154,11 @@ export default function CCMRHub({
     const result = {};
     ASSESSMENT_FRAMEWORKS.forEach((id) => {
       result[id] = getAssessmentRecommendations({
-        framework: id, pathOptions, assessmentEvidence, directIndex, goals, teacherPriorities,
+        framework: id, pathOptions, assessmentEvidence, directIndex, coverage, goals, teacherPriorities,
       });
     });
     return result;
-  }, [pathOptions, assessmentEvidence, directIndex, goals, teacherPriorities]);
+  }, [pathOptions, assessmentEvidence, directIndex, coverage, goals, teacherPriorities]);
 
   // A framework with nothing eligible is not shown at all. That is the honest
   // consequence of the coverage audit: if no skill this student can reach is

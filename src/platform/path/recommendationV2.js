@@ -26,6 +26,7 @@
 import {
   GAP, INSTRUCTIONAL_BAND, diagnoseGaps,
 } from '../profile/studentLearningProfile.js';
+import { isFrameworkSkillLaunchable } from '../../../functions/shared/pathCoverage.mjs';
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -451,6 +452,16 @@ export const optimizeWeeklySet = ({
  * This is the entry point. Everything above is exported so a teacher-facing
  * simulator can show each step rather than only the answer.
  */
+
+export const publishedTransferFrameworkFor = ({ coverage = undefined, teksCode, framework }) => {
+  if (!framework) return null;
+  // Preserve pure legacy callers that intentionally do not have a coverage
+  // input. Production passes an explicit index (or null while it is loading),
+  // and therefore fails closed.
+  if (coverage === undefined) return framework;
+  return isFrameworkSkillLaunchable(coverage, teksCode, framework) ? framework : null;
+};
+
 export const buildWeeklyRecommendations = ({
   rows = [],
   profile = null,
@@ -464,6 +475,7 @@ export const buildWeeklyRecommendations = ({
   sessions = 4,
   honors = false,
   interventionMode = false,
+  coverage = undefined,
   now = Date.now(),
 } = {}) => {
   const currentSet = new Set(currentInstructionSkills.map(String));
@@ -475,6 +487,11 @@ export const buildWeeklyRecommendations = ({
 
   const candidates = list(rows).map((row) => {
     const code = String(row.teksCode || row.code || row.skillId || '');
+    const transferGapFramework = publishedTransferFrameworkFor({
+      coverage,
+      teksCode: code,
+      framework: transferGaps[0]?.framework || null,
+    });
     const masteryEntry = masteryProfilesByTeks[code] || null;
     const retentionEntry = retentionSchedules[code] || null;
     const lifecycle = resolveLifecycle({ masteryEntry, retentionEntry });
@@ -491,7 +508,7 @@ export const buildWeeklyRecommendations = ({
       lifecycle,
       isCurrentInstruction: currentSet.has(String(row.skillId)) || currentSet.has(code),
       isPrerequisiteOfCurrent: prereqSet.has(String(row.skillId)) || prereqSet.has(code),
-      transferGapFramework: transferGaps[0]?.framework || null,
+      transferGapFramework,
       masteryEstimate: masteryEntry?.mastery?.estimate ?? null,
     });
 
@@ -535,7 +552,7 @@ export const buildWeeklyRecommendations = ({
       purpose,
       purposeLabel: PURPOSE_LABEL[purpose],
       studentExplanation: STUDENT_EXPLANATION[purpose],
-      context: purpose === PURPOSE.TRANSFER ? (transferGaps[0]?.framework || 'course') : 'course',
+      context: purpose === PURPOSE.TRANSFER ? (transferGapFramework || 'course') : 'course',
       dok: target.dok,
       difficultyBand: target.difficultyBand,
       targetReason: target.reason,
