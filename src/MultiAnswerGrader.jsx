@@ -188,7 +188,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                   }}
                 />
               ) : (
-                <MathInput value={answers[field.id] || ''} onChange={(value) => history.setValue((current) => ({ ...current, [field.id]: value }))} placeholder={field.placeholder || (shouldUseSetInput(field) ? '{…}' : 'answer')} ariaLabel={field.label || field.id} toolProfile={field.toolProfile || (shouldUseSetInput(field) ? 'set' : 'basic')} showToolsInitially={shouldUseSetInput(field)} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
+                <MathInput value={answers[field.id] || ''} onChange={(value) => history.setValue((current) => ({ ...current, [field.id]: value }))} placeholder={field.placeholder || (shouldUseSetInput(field) ? '{…}' : 'answer')} ariaLabel={field.label || field.id} toolProfile={field.toolProfile || (shouldUseSetInput(field) ? 'set' : 'basic')} answerFormat={field.answerFormat || field.inputContract?.format || field.notation || field.inputMode || ''} requiredSymbols={field.requiredSymbols || field.inputContract?.requiredSymbols || []} showToolsInitially={shouldUseSetInput(field)} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
               )}
             </div>
           );

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import 'mathlive';
+import { resolveRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
 
 const BASIC_KEYS = [
   { label: 'π', command: '\\pi', ariaLabel: 'Insert pi' },
@@ -22,6 +23,30 @@ const MOBILE_ENTRY_KEYS = [
 ];
 
 const MOBILE_BACKSPACE_KEY = { label: '⌫', action: 'deleteBackward', ariaLabel: 'Delete previous character' };
+
+const ANSWER_SYMBOL_KEYS = Object.freeze({
+  '(': { label: '(', command: '(', ariaLabel: 'Insert open parenthesis' },
+  ')': { label: ')', command: ')', ariaLabel: 'Insert close parenthesis' },
+  ',': { label: ',', command: ',', ariaLabel: 'Insert comma' },
+  '[': { label: '[', command: '[', ariaLabel: 'Insert open bracket' },
+  ']': { label: ']', command: ']', ariaLabel: 'Insert close bracket' },
+  '{': { label: '{', command: '\\lbrace', ariaLabel: 'Insert opening set brace' },
+  '}': { label: '}', command: '\\rbrace', ariaLabel: 'Insert closing set brace' },
+  '∞': { label: '∞', command: '\\infty', ariaLabel: 'Insert positive infinity' },
+  '∪': { label: '∪', command: '\\cup', ariaLabel: 'Insert union' },
+  '<': { label: '<', command: '<', ariaLabel: 'Insert less than' },
+  '≤': { label: '≤', command: '\\le', ariaLabel: 'Insert less than or equal to' },
+  '>': { label: '>', command: '>', ariaLabel: 'Insert greater than' },
+  '≥': { label: '≥', command: '\\ge', ariaLabel: 'Insert greater than or equal to' },
+  '≠': { label: '≠', command: '\\ne', ariaLabel: 'Insert not equal to' },
+  '=': { label: '=', command: '=', ariaLabel: 'Insert equals sign' },
+  '−': { label: '−', command: '-', ariaLabel: 'Insert negative sign' },
+  '-': { label: '−', command: '-', ariaLabel: 'Insert negative sign' },
+  x: { label: 'x', command: 'x', ariaLabel: 'Insert x' },
+  y: { label: 'y', command: 'y', ariaLabel: 'Insert y' },
+});
+
+const toolIdentity = (tool) => `${tool?.command || ''}|${tool?.action || ''}|${tool?.label || ''}`;
 
 const FUNCTION_KEYS = [
   { label: 'x', command: 'x', ariaLabel: 'Insert x' },
@@ -139,6 +164,8 @@ export default function MathInput({
   compact = false,
   maxWidth = 540,
   contextSymbols = [],
+  answerFormat = '',
+  requiredSymbols = [],
   collapseSignal = 0,
   onSubmit = null,
 }) {
@@ -146,15 +173,30 @@ export default function MathInput({
   const onChangeRef = useRef(onChange);
   const [showTools, setShowTools] = useState(showToolsInitially);
   const [isMobile, setIsMobile] = useState(detectMobileInput);
+  const requiredAnswerSymbols = useMemo(
+    () => resolveRequiredAnswerSymbols({ answerFormat, toolProfile, requiredSymbols }),
+    [answerFormat, toolProfile, requiredSymbols],
+  );
+  const requiredTools = useMemo(
+    () => requiredAnswerSymbols.map((symbol) => ANSWER_SYMBOL_KEYS[symbol]).filter(Boolean),
+    [requiredAnswerSymbols],
+  );
+  const unservedRequiredSymbols = useMemo(
+    () => requiredAnswerSymbols.filter((symbol) => !ANSWER_SYMBOL_KEYS[symbol]),
+    [requiredAnswerSymbols],
+  );
+  const shouldSuppressNativeKeyboard = isMobile && toolProfile !== 'function' && unservedRequiredSymbols.length === 0;
   const tools = useMemo(() => {
     if (!isMobile) return getToolKeys(toolProfile, { contextSymbols });
-    const combined = [...MOBILE_ENTRY_KEYS, ...getToolKeys(toolProfile, { isMobile: true, contextSymbols })];
+    const requiredIds = new Set(requiredTools.map(toolIdentity));
+    const combined = [...MOBILE_ENTRY_KEYS, ...getToolKeys(toolProfile, { isMobile: true, contextSymbols })]
+      .filter((tool) => !requiredIds.has(toolIdentity(tool)));
     // Backspace is deliberately appended LAST on every mobile keypad. With the
     // grid filling left-to-right, this pins the editing control to the bottom-
     // right instead of letting contextual equation symbols push it into a
     // different location from question to question.
     return [...combined.filter((tool) => tool.action !== 'deleteBackward'), MOBILE_BACKSPACE_KEY];
-  }, [toolProfile, isMobile, contextSymbols]);
+  }, [toolProfile, isMobile, contextSymbols, requiredTools]);
 
   useEffect(() => {
     const update = () => setIsMobile(detectMobileInput());
@@ -180,7 +222,7 @@ export default function MathInput({
     // rules are different: students may legitimately need arbitrary names, so
     // keep the device keyboard there. Algebra operations now have an equation-
     // aware symbol strip, so they no longer need the full phone keyboard.
-    if (isMobile && toolProfile !== 'function') mathField.setAttribute('inputmode', 'none');
+    if (shouldSuppressNativeKeyboard) mathField.setAttribute('inputmode', 'none');
     else mathField.removeAttribute('inputmode');
     mathField.menuItems = [];
     mathField.smartFence = true;
@@ -233,7 +275,7 @@ export default function MathInput({
       mathField.removeEventListener('keydown', preventUnusedModes, { capture: true });
       mathField.removeEventListener('contextmenu', preventContextMenu);
     };
-  }, [placeholder, isMobile, toolProfile, onSubmit]);
+  }, [placeholder, isMobile, toolProfile, onSubmit, shouldSuppressNativeKeyboard]);
 
   useEffect(() => {
     if (mfRef.current && mfRef.current.value !== value) mfRef.current.value = value || '';
@@ -298,7 +340,7 @@ export default function MathInput({
         ref={mfRef}
         aria-label={ariaLabel || placeholder || 'Math answer'}
         math-virtual-keyboard-policy="manual"
-        inputmode={isMobile && toolProfile !== 'function' ? 'none' : undefined}
+        inputmode={shouldSuppressNativeKeyboard ? 'none' : undefined}
         onFocus={() => { if (isMobile) setShowTools(true); }}
         style={{
           display: 'block',
@@ -313,6 +355,53 @@ export default function MathInput({
           boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)',
         }}
       />
+
+      {isMobile && requiredTools.length > 0 && (
+        <div
+          className="mathmaster-required-answer-keys"
+          aria-label="Keys needed for this answer"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${Math.min(4, requiredTools.length)}, minmax(58px, 1fr))`,
+            gap: '8px',
+            marginTop: '10px',
+            padding: '10px',
+            border: '2px solid #8ab4f8',
+            borderRadius: '10px',
+            background: '#eef4ff',
+          }}
+        >
+          <div style={{ gridColumn: '1 / -1', color: '#174ea6', fontSize: '12px', fontWeight: 900, textAlign: 'left' }}>Needed for this answer</div>
+          {requiredTools.map((tool) => (
+            <button
+              type="button"
+              key={`required-${tool.ariaLabel}`}
+              aria-label={tool.ariaLabel}
+              title={tool.ariaLabel}
+              onPointerDown={(event) => event.preventDefault()}
+              onClick={() => insert(tool.command, tool.action)}
+              style={{
+                minHeight: '48px',
+                border: '2px solid #8ab4f8',
+                borderRadius: '8px',
+                background: '#fff',
+                color: '#174ea6',
+                fontSize: '21px',
+                fontWeight: 900,
+                cursor: 'pointer',
+              }}
+            >
+              {tool.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {isMobile && unservedRequiredSymbols.length > 0 && (
+        <div role="status" style={{ marginTop: '8px', padding: '8px 10px', borderRadius: '8px', background: '#fff4ce', color: '#7a4f00', fontSize: '12px', fontWeight: 700 }}>
+          Additional symbol needed: {unservedRequiredSymbols.join(', ')}. Your device keyboard remains available.
+        </div>
+      )}
 
       <button
         type="button"

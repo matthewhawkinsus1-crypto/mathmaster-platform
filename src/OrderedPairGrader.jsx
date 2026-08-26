@@ -38,7 +38,7 @@ export default function OrderedPairGrader({ question, onStateChange, onUndoState
       <QuestionVisual question={question} />
       <div style={{ marginTop: '24px' }}>
         <MathDisplay value="(x, y) =" format="ascii-math" inline style={{ display: 'block', marginBottom: '10px', fontSize: '21px', fontWeight: 'bold' }} />
-        <MathInput value={studentAnswer} onChange={setStudentAnswer} placeholder="(x, y)" ariaLabel="Ordered pair answer" onUndoStateChange={onUndoStateChange} inputStatus={incorrect ? 'incorrect' : 'neutral'} />
+        <MathInput value={studentAnswer} onChange={setStudentAnswer} placeholder="(x, y)" ariaLabel="Ordered pair answer" answerFormat="orderedPair" onUndoStateChange={onUndoStateChange} inputStatus={incorrect ? 'incorrect' : 'neutral'} />
       </div>
     </div>
   );
