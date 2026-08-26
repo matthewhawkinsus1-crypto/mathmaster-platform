@@ -2169,7 +2169,7 @@ exports.withdrawQuestionFromPathBank = onCall(async (request) => {
  * This is a global administrative operation, not a teacher-assignment mapping.
  * The server owns the course-standard list through the canonical Texas registry.
  */
-exports.rebuildPathCoverage = onCall({ timeoutSeconds: 540, memory: "1GiB" }, async (request) => {
+exports.rebuildPathCoverage = onCall({ timeoutSeconds: 540, memory: "1GiB", invoker: "public" }, async (request) => {
   await requireRootAdmin(request);
   const db = getFirestore();
   const requestedCourses = Array.isArray(request.data?.courses) ? request.data.courses : [];
