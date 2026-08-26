@@ -226,6 +226,8 @@ function MathField({ field, profile, value, onChange, onSubmit, disabled, autoFo
         value={value ?? ''}
         onChange={onChange}
         toolProfile={TOOL_PROFILE[profile] || 'expression'}
+        answerFormat={field.answerFormat || field.inputContract?.format || field.notation || field.inputMode || (profile === 'orderedPair' ? 'orderedPair' : profile)}
+        requiredSymbols={field.requiredSymbols || field.inputContract?.requiredSymbols || []}
         placeholder={field.placeholder || ''}
         ariaLabel={field.label || 'Answer'}
         focusSignal={autoFocus ? 1 : 0}
