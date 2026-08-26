@@ -19,6 +19,7 @@ import { questionAssessmentFramework } from '../../platform/student/questionAlig
 import { getAssessmentStandardReferences, referenceLabel } from '../../platform/ccmr/assessmentStandardReferences.js';
 import { assessmentItemTypeLabel, describeChallengeTier, frameworkExperience } from '../../platform/ccmr/assessmentFidelity.js';
 import { ENTER_TO_CONTINUE_HINT, shouldAdvanceOnEnter } from '../../platform/interaction/answerEntryUx.js';
+import { gradingClosesQuestion, latestAttemptCount } from '../../platform/path/pathProgression.js';
 
 // Three ways a path question can arrive, in order of preference.
 //
@@ -258,6 +259,8 @@ export const PathSessionPlayer = ({
   solutionReview = null,
   routeNotice = null,
   isSubmitting,
+  isAdvancing = false,
+  continueLabel = 'Next question',
   assessmentFramework = null,
   weeklyGoalRequired = null,
   studentProfile,
@@ -340,7 +343,7 @@ export const PathSessionPlayer = ({
   // This only activates after correctness is confirmed; wrong/finalized work
   // still requires the student to review the on-screen next step.
   useEffect(() => {
-    const canAdvance = Boolean(lastGradingResult?.isCorrect && typeof onContinue === 'function');
+    const canAdvance = Boolean(gradingClosesQuestion(lastGradingResult) && typeof onContinue === 'function' && !isAdvancing);
     if (!canAdvance || typeof window === 'undefined') return undefined;
     const handleContinueShortcut = (event) => {
       if (!shouldAdvanceOnEnter({ event, canAdvance })) return;
@@ -350,15 +353,16 @@ export const PathSessionPlayer = ({
     };
     window.addEventListener('keydown', handleContinueShortcut, true);
     return () => window.removeEventListener('keydown', handleContinueShortcut, true);
-  }, [lastGradingResult?.isCorrect, onContinue]);
+  }, [lastGradingResult, onContinue, isAdvancing]);
 
   if (!questionInstance) {
     return <div style={{ padding: 50, textAlign: 'center', color: '#5f6368' }}>Preparing the next question…</div>;
   }
 
-  const attemptsUsed = Number(questionInstance.attemptsUsed ?? lastGradingResult?.attemptNumber) || 0;
+  const attemptsUsed = latestAttemptCount(questionInstance, lastGradingResult);
   const attemptsAllowed = Number(questionInstance.attemptsAllowed) || activityPolicy.attempts || 3;
   const attemptsLeft = Math.max(0, attemptsAllowed - attemptsUsed);
+  const finalized = gradingClosesQuestion(lastGradingResult);
 
   // A secure payload wins over a canonical one: if the server built a tool
   // payload it also kept the grading definition, and the verdict is its own.
@@ -414,8 +418,8 @@ export const PathSessionPlayer = ({
         />
 
         <PathSolutionReview review={solutionReview} wasCorrect={Boolean(lastGradingResult?.isCorrect)} />
-        {solutionReview && onContinue && (
-          <ContinueAction onContinue={onContinue} />
+        {onContinue && (
+          <ContinueAction onContinue={onContinue} pending={isAdvancing} label={continueLabel} />
         )}
       </main>
     );
@@ -428,7 +432,6 @@ export const PathSessionPlayer = ({
     : [{ id: 'answer', label: 'Answer', inputProfile: questionInstance.choices?.length ? 'choice' : 'text' }];
   const values = responsesByQuestion[instanceId] || {};
   const complete = pathResponseComplete(fields, values);
-  const finalized = Boolean(lastGradingResult?.questionFinalized);
 
   const setFieldValue = (fieldId, value) => {
     setResponsesByQuestion((current) => ({
@@ -597,7 +600,7 @@ export const PathSessionPlayer = ({
       <PathSolutionReview review={solutionReview} wasCorrect={Boolean(lastGradingResult?.isCorrect)} />
 
       {finalized && onContinue && (
-        <ContinueAction onContinue={onContinue} />
+        <ContinueAction onContinue={onContinue} pending={isAdvancing} label={continueLabel} />
       )}
 
       <CalculatorPanel policy={calculatorPolicy} onCalculatorOpened={() => setCalculatorUsed(true)} />
@@ -605,15 +608,22 @@ export const PathSessionPlayer = ({
   );
 };
 
-const ContinueAction = ({ onContinue }) => (
+const ContinueAction = ({ onContinue, pending = false, label = 'Next question' }) => (
   <div style={{ marginTop: 16 }}>
     <button
       type="button"
       onClick={onContinue}
+      disabled={pending}
       aria-keyshortcuts="Enter"
-      style={{ ...continueButtonStyle, marginTop: 0 }}
+      aria-busy={pending ? 'true' : undefined}
+      style={{
+        ...continueButtonStyle,
+        marginTop: 0,
+        opacity: pending ? 0.7 : 1,
+        cursor: pending ? 'wait' : 'pointer',
+      }}
     >
-      Next question
+      {pending ? 'Loading next question…' : label}
     </button>
     <p style={{ margin: '7px 0 0', textAlign: 'center', color: '#5f6368', fontSize: 12.5, fontWeight: 750 }}>
       {ENTER_TO_CONTINUE_HINT}

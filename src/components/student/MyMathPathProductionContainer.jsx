@@ -6,6 +6,7 @@ import { explainStepForStudent } from '../../platform/path/pathSessionRouting.js
 import { fetchQuestionWithContentReleaseRollover } from '../../platform/path/sessionContentReleaseRollover.js';
 import { FRAMEWORK_LABELS } from '../../platform/ccmr/assessmentCrosswalk.js';
 import { describeChallengeTier } from '../../platform/ccmr/assessmentFidelity.js';
+import { responseClosesQuestion } from '../../platform/path/pathProgression.js';
 
 // The session runtime is injected.
 //
@@ -58,6 +59,7 @@ export const MyMathPathProductionContainer = ({
   // a review the student never sees is not a review, and auto-advancing past it
   // is how "show a meaningful solution" turns into "flash one for 300ms".
   const [awaitingContinue, setAwaitingContinue] = useState(false);
+  const [advancing, setAdvancing] = useState(false);
   const [routeNotice, setRouteNotice] = useState(null);
   const pendingSubmissionRef = useRef(null);
   const completionReportedRef = useRef(false);
@@ -173,9 +175,12 @@ export const MyMathPathProductionContainer = ({
   }, [session?.lastDecision]);
 
   const advanceToNextQuestion = useCallback(async () => {
-    if (!session || session.status !== 'active') return;
-    setAwaitingContinue(false);
+    if (!session || session.status !== 'active' || advancing) return;
+    // IMPORTANT: awaitingContinue stays TRUE until the next question actually
+    // arrives. The previous code cleared it before the network call, so one
+    // failed request removed the student's Next button and stranded them.
     setSubmissionError(null);
+    setAdvancing(true);
     try {
       const next = await fetchQuestionWithContentReleaseRollover({
         session,
@@ -192,9 +197,14 @@ export const MyMathPathProductionContainer = ({
       if (next.rolledOver) setRouteNotice(contentRefreshNotice);
       else setRouteNotice(decisionNotice);
     } catch (caught) {
+      // Leave awaitingContinue true. The same button becomes an explicit retry
+      // rather than disappearing after a Wi-Fi/callable failure.
+      setAwaitingContinue(true);
       setSubmissionError(caught.message || 'The next question could not be loaded. Try again.');
+    } finally {
+      setAdvancing(false);
     }
-  }, [session, sessionLaunchConfig, fetchNextSanitizedQuestion, startOrResumePathSession, decisionNotice]);
+  }, [session, sessionLaunchConfig, fetchNextSanitizedQuestion, startOrResumePathSession, decisionNotice, advancing]);
 
   const handleSubmitAnswer = async (responsePayload, supportUsage = {}, grade = null) => {
     if (!session || !currentQuestion || submitting) return;
@@ -231,7 +241,8 @@ export const MyMathPathProductionContainer = ({
       setSolutionReview(result.solutionReview || null);
       setSession(result.session);
 
-      if (result.grading?.questionFinalized && result.session.status === 'active') {
+      const questionClosed = responseClosesQuestion(result);
+      if (questionClosed && result.session.status === 'active') {
         // Hold here so the review can be read. `advanceToNextQuestion` is what
         // fetches the next one, and the student presses the button.
         setAwaitingContinue(true);
@@ -242,8 +253,8 @@ export const MyMathPathProductionContainer = ({
       } else {
         // Session finished. The review stays on screen; the completion panel
         // renders under it once the student continues.
-        setAwaitingContinue(Boolean(result.solutionReview));
-        if (!result.solutionReview) setCurrentQuestion(null);
+        setAwaitingContinue(Boolean(result.solutionReview) || questionClosed);
+        if (!result.solutionReview && !questionClosed) setCurrentQuestion(null);
       }
       onSimulationEvent?.({
         id: `path-event-${Date.now()}`,
@@ -570,6 +581,8 @@ export const MyMathPathProductionContainer = ({
         solutionReview={solutionReview}
         routeNotice={routeNotice}
         isSubmitting={submitting}
+        isAdvancing={advancing}
+        continueLabel={submissionError && awaitingContinue ? 'Try next question again' : 'Next question'}
         assessmentFramework={assessmentFramework}
         weeklyGoalRequired={weeklyGoalRequired}
         studentProfile={studentProfile}

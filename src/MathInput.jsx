@@ -249,6 +249,13 @@ export default function MathInput({
         onSubmit();
         return;
       }
+      if (event.key === ' ' || event.code === 'Space') {
+        event.preventDefault();
+        event.stopPropagation();
+        mathField.executeCommand?.('moveAfterParent');
+        onChangeRef.current(mathField.value);
+        return;
+      }
       if (event.key === 'Escape') event.preventDefault();
       if (event.key === '\\') {
         event.preventDefault();
@@ -335,7 +342,16 @@ export default function MathInput({
       : '#1a73e8';
 
   return (
-    <div className="mathmaster-math-input" style={{ width: `min(100%, ${maxWidth}px)`, margin: '0 auto' }}>
+    <div
+      className="mathmaster-math-input"
+      style={{
+        width: `min(100%, ${maxWidth}px)`,
+        maxWidth: '100%',
+        minWidth: 0,
+        margin: '0 auto',
+        overflowX: 'clip',
+      }}
+    >
       <math-field
         ref={mfRef}
         aria-label={ariaLabel || placeholder || 'Math answer'}
@@ -345,6 +361,8 @@ export default function MathInput({
         style={{
           display: 'block',
           width: '100%',
+          maxWidth: '100%',
+          minWidth: 0,
           minHeight: compact ? '44px' : '54px',
           fontSize: compact ? '20px' : '24px',
           padding: compact ? '8px 10px' : '12px 14px',
@@ -362,7 +380,10 @@ export default function MathInput({
           aria-label="Keys needed for this answer"
           style={{
             display: 'grid',
-            gridTemplateColumns: `repeat(${Math.min(4, requiredTools.length)}, minmax(58px, 1fr))`,
+            width: '100%',
+            maxWidth: '100%',
+            minWidth: 0,
+            gridTemplateColumns: `repeat(${Math.min(4, requiredTools.length)}, minmax(0, 1fr))`,
             gap: '8px',
             marginTop: '10px',
             padding: '10px',
@@ -427,7 +448,10 @@ export default function MathInput({
           aria-label="Math tools"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(54px, 1fr))',
+            width: '100%',
+            maxWidth: '100%',
+            minWidth: 0,
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(54px, 100%), 1fr))',
             gap: '8px',
             marginTop: '10px',
             padding: '10px',
