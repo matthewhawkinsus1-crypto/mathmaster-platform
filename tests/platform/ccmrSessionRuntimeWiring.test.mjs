@@ -54,6 +54,20 @@ test('assessment candidate selection cannot cross the session content release', 
   assert.notEqual(releaseFilter, -1, 'candidate plans must filter to the content release stamped on the session');
 });
 
+test('manual custom seed writes cannot bypass the coordinated assessment release manifest', () => {
+  const importerStart = indexOfOrFail('exports.seedPathQuestionBank = onCall');
+  const importerEnd = source.indexOf('const BUILT_IN_PATH_SEED_FILES = Object.freeze([', importerStart);
+  assert.ok(importerEnd > importerStart, 'manual seed importer must end before built-in seed declarations');
+  const block = source.slice(importerStart, importerEnd);
+
+  assert.match(block, /COORDINATED_CCMR_RELEASE_FRAMEWORKS/, 'manual importer must recognize release-managed assessment frameworks');
+  assert.match(block, /if\s*\(!dryRun/, 'read-only validation must remain available while protected writes are blocked');
+  assert.match(block, /refreshReleasedCcmrPathBanks/, 'blocked release-managed writes must direct admins to the atomic refresh callable');
+  const guard = block.indexOf('COORDINATED_CCMR_RELEASE_FRAMEWORKS');
+  const write = block.indexOf('return processPathSeedImport({ db, actor, items, dryRun })');
+  assert.ok(guard >= 0 && write >= 0 && guard < write, 'release-managed framework guard must run before the generic importer can write');
+});
+
 test('starter initializer is fresh-install only and protects tracked assessment writes with the release manifest', () => {
   const initializerStart = indexOfOrFail('exports.initializeStarterPathQuestionBank = onCall');
   const initializerEnd = source.indexOf('Root-admin coordinated assessment-bank refresh.', initializerStart);
