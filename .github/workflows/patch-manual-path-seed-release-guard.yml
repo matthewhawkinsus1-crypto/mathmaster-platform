@@ -1,0 +1,44 @@
+name: Patch Manual Path Seed Release Guard
+
+on:
+  push:
+    branches:
+      - ccmr-fidelity-v2-1-authentic-language
+    paths:
+      - 'scripts/patch-manual-path-seed-release-guard.mjs'
+      - '.github/workflows/patch-manual-path-seed-release-guard.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ccmr-fidelity-v2-1-authentic-language
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check guarded patch target
+        run: node scripts/patch-manual-path-seed-release-guard.mjs --check
+      - name: Apply guarded patch
+        run: node scripts/patch-manual-path-seed-release-guard.mjs
+      - name: Verify runtime syntax and release wiring
+        run: |
+          node --check functions/index.js
+          node --test tests/platform/ccmrSessionContentRelease.test.mjs
+          node --test tests/platform/ccmrSessionRuntimeWiring.test.mjs
+      - name: Commit runtime patch
+        run: |
+          if git diff --quiet -- functions/index.js; then
+            echo 'No runtime changes to commit.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add functions/index.js
+          git commit -m 'Block release-managed writes in generic Path importer'
+          git push origin HEAD:ccmr-fidelity-v2-1-authentic-language
