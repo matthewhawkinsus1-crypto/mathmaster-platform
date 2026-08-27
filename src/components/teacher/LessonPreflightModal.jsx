@@ -622,7 +622,7 @@ export const LessonPreflightModal = ({
     <>
       <label style={{ display: 'block', fontSize: 12, fontWeight: 800, marginBottom: 4 }}>Activity stage</label>
       <select value={demoActivityIndex} onChange={(event) => { setDemoActivityIndex(Number(event.target.value)); setDemoQuestionIndex(0); }} style={{ ...inputStyle, marginBottom: 14 }}>
-        {activities.map((activity, index) => <option key={activity.activityId} value={index}>{activity.title} ({activity.role.toUpperCase()})</option>)}
+        {activities.map((activity, index) => <option key={activity.id || activity.sectionId} value={index}>{activity.title} ({activity.role.toUpperCase()})</option>)}
       </select>
       {currentPolicy && (
         <div style={{ background: '#fff', padding: 10, borderRadius: 6, border: '1px solid #e0e0e0', marginBottom: 14, fontSize: 12, lineHeight: 1.55 }}>
@@ -654,7 +654,7 @@ export const LessonPreflightModal = ({
             <div style={{ fontSize: 12, color: '#5f6368' }}>Question {demoQuestionIndex + 1} of {questions.length}</div>
           </div>
           <MathMasterToolWrapper
-            key={`${currentActivity.activityId}-${currentQuestion.questionId}-${demoCalculator}-${demoTranslation}`}
+            key={`${currentActivity.id || currentActivity.sectionId}-${currentQuestion.questionId || demoQuestionIndex}-${demoCalculator}-${demoTranslation}`}
             activityRole={currentActivity.role}
             question={currentQuestion}
             student={{ id: 'teacher_preview_user', supportProfile: { accommodations: demoCalculator ? ['calculator'] : [], modifications: [], translationLanguage: demoTranslation } }}
@@ -675,7 +675,7 @@ export const LessonPreflightModal = ({
 
       <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10, marginBottom: 18 }}>
         {activities.map((activity) => (
-          <div key={activity.activityId} style={{ padding: 11, border: '1px solid #d9e2f1', borderRadius: 8, background: '#fbfdff' }}>
+          <div key={activity.id || activity.sectionId} style={{ padding: 11, border: '1px solid #d9e2f1', borderRadius: 8, background: '#fbfdff' }}>
             <strong>{humanRole(activity.role)}</strong>
             <div style={{ fontSize: 12, color: '#5f6368', lineHeight: 1.5 }}>
               {activity.isModelingLab ? `DOK ${activity.labDefinition?.dokLevel || 3} modeling lab` : `${activity.questions.length} question${activity.questions.length === 1 ? '' : 's'}`} · {activity.policy.attemptsAllowed} attempt{activity.policy.attemptsAllowed === 1 ? '' : 's'} · {activity.policy.feedbackMode}
