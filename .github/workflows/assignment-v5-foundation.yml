@@ -34,6 +34,12 @@ on:
       - 'tests/platform/honorsCcmrAuthoringV5.test.mjs'
       - 'tests/platform/digitalSatV21AuthoringGate.test.mjs'
       - 'scripts/validate-authoring-v5.mjs'
+      - 'scripts/audit-assignment-authoring-boundary.mjs'
+      - 'teacher-import-jsons/**'
+      - 'content/generated/**'
+      - 'SAMPLE_*ASSIGNMENT*.json'
+      - 'SAMPLE_*LESSON*.json'
+      - 'SAMPLE_*AUTHORING*.json'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/assignment-v5-foundation.yml'
@@ -61,6 +67,9 @@ jobs:
 
       - name: Permanent V5 validator
         run: npm run validate:authoring-v5
+
+      - name: Legacy authoring boundary audit
+        run: npm run audit:assignment-authoring-boundary
 
       - name: PDF and worksheet regressions
         run: >
