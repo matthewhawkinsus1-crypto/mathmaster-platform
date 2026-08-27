@@ -67,8 +67,32 @@
 
 @media (max-width: 768px), (pointer: coarse) {
   html, body, #root {
+    width: 100%;
     max-width: 100%;
     overflow-x: clip;
+    overscroll-behavior-x: none;
+  }
+
+  /* overflow:hidden/clip prevents a visible scrollbar, but browsers can still
+     programmatically change scrollLeft while keeping a focused caret visible.
+     These are page/question-level shells, never intentional x-scrollers. */
+  .mathmaster-assignment-screen,
+  .mathmaster-assignment-shell,
+  .mathmaster-question-stage,
+  .mathmaster-question-container,
+  .mathmaster-question-container .question-prompt-panel,
+  .mathmaster-question-container .response-inputs-section {
+    max-width: 100%;
+    overflow-x: clip !important;
+    overscroll-behavior-x: none;
+  }
+
+  .mathmaster-question-container .mathmaster-math-input,
+  .mathmaster-question-container .mathmaster-math-input math-field {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
   }
 
   .mathmaster-no-mobile-drag {
