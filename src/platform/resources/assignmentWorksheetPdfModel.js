@@ -313,7 +313,7 @@ const safeTable = (table = {}) => {
 const graphWithFunctionSpec = (question = {}) => {
   if (isObject(question.graph)) {
     const graph = { ...question.graph };
-    if (!Array.isArray(graph.functions) && isObject(question.functionSpec)) {
+    if ((!Array.isArray(graph.functions) || graph.functions.length === 0) && isObject(question.functionSpec)) {
       graph.functions = [{ ...question.functionSpec, type: question.functionSpec.type === 'linear' ? 'line' : question.functionSpec.type }];
     }
     return graph;
