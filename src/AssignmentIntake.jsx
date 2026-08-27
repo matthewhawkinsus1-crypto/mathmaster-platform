@@ -547,7 +547,7 @@ export default function AssignmentIntake({
           <div style={{ flex: 1, minWidth: 0 }}>
             <h3 style={{ margin: '0 0 4px', fontSize: 18, color: '#172033' }}>4. Build with AI, then review in MathMaster</h3>
             <p style={{ margin: '0 0 14px', color: '#5f6b7a', lineHeight: 1.55, fontSize: 14 }}>
-              After the AI returns one Assignment V5 JSON object, paste it here, upload a <code>.json</code> file, or drag it in.
+              After the AI returns the finished MathMaster assignment, paste it here, upload the assignment file, or drag it in.
               MathMaster then checks standards, grading, mobile inputs, supports, adaptive rigor, CCMR fidelity, and PDF renderability before Preflight.
               Preflight handles classes, dates, folder, section access, student preview, and publishing.
             </p>
