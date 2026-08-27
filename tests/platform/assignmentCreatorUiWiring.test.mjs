@@ -8,7 +8,9 @@ test('teacher assignment intake exposes guided planning rather than raw schema e
   assert.match(source, /1\. Lesson and purpose/);
   assert.match(source, /2\. Sections, student versions, and rigor/);
   assert.match(source, /3\. Supports, Honors, and outputs/);
-  assert.match(source, /4\. Build with AI, then review in MathMaster/);
+  assert.match(source, /4\. Review the AI result in MathMaster/);
+  assert.match(source, /Build Assignment in MathMaster/);
+  assert.match(source, /Copy Complete AI Build Request/);
   assert.match(source, /NO CODE REQUIRED/);
   assert.match(source, /Paste AI Assignment/);
   assert.match(source, /Upload Assignment File/);
