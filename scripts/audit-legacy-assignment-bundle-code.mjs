@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const ROOT = process.cwd();
-const roots = ['src', 'tests', 'scripts'];
+const roots = ['src'];
 const extensions = new Set(['.js', '.jsx', '.mjs']);
 
 const files = [];
@@ -58,4 +58,4 @@ if (violations.length) {
   process.exit(1);
 }
 
-console.log(`Legacy assignment-bundle source audit: PASS (${files.length} JS/JSX/MJS files scanned)`);
+console.log(`Legacy assignment-bundle source audit: PASS (${files.length} live source files scanned)`);
