@@ -133,11 +133,12 @@ export const scrollFocusedControlVertically = (
   }
 
   if (Math.abs(deltaY) > 0.5) {
+    const originalLeft = numberOrZero(scroller.scrollLeft);
     try {
       scroller.scrollBy({ top: deltaY, left: 0, behavior: 'auto' });
     } catch {
       scroller.scrollTop = numberOrZero(scroller.scrollTop) + deltaY;
-      setScrollLeftZero(scroller);
+      scroller.scrollLeft = originalLeft;
     }
   }
 
