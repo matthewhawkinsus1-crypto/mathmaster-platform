@@ -2558,6 +2558,15 @@ async function preproductionStudentAuthUsers(db) {
   return students;
 }
 
+async function preproductionResetControl(db) {
+  const snapshot = await db.doc(adminPolicy.PREPRODUCTION_CONTROL_DOCUMENT).get();
+  const data = snapshot.exists ? snapshot.data() || {} : {};
+  return {
+    locked: data.locked === true,
+    lockedAt: serializableDate(data.lockedAt),
+  };
+}
+
 async function preproductionResetPreview(db) {
   const [gradesSnapshot, authStudents, ...collectionSnapshots] = await Promise.all([
     db.collection("grades").get(),
@@ -2570,12 +2579,16 @@ async function preproductionResetPreview(db) {
   adminPolicy.PREPRODUCTION_RESET_COLLECTIONS.forEach((collectionName, index) => {
     collections[collectionName] = collectionSnapshots[index].size;
   });
+  const control = await preproductionResetControl(db);
   return {
     studentRosterRecords: gradesSnapshot.docs.filter((entry) => entry.id !== "test_connection").length,
     studentAuthUsers: authStudents.length,
     assignments: collections.assignments || 0,
     collections,
     preservedCollections: [...adminPolicy.PREPRODUCTION_PRESERVED_COLLECTIONS],
+    resetLocked: control.locked,
+    resetLockedAt: control.lockedAt,
+    lockConfirmationRequired: adminPolicy.preproductionLockConfirmation(),
   };
 }
 
@@ -2634,6 +2647,13 @@ exports.resetPreproductionTestData = onCall(async (request) => {
       confirmationRequired: adminPolicy.preproductionResetConfirmation(),
       ...preview,
     };
+  }
+
+  if (preview.resetLocked) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Pre-production reset has been permanently locked for live-student production use.",
+    );
   }
 
   if (!adminPolicy.isPreproductionResetConfirmed(request.data?.confirmation)) {
@@ -2703,6 +2723,49 @@ exports.resetPreproductionTestData = onCall(async (request) => {
  * the server resolves every MathMaster collection that can contain student
  * identity, assessment, practice, evidence, or Classroom-link data.
  */
+
+/**
+ * One-way root-admin production lock for the bulk test reset.
+ *
+ * There is deliberately no unlock callable. Re-enabling the reset after this
+ * point requires an explicit backend change outside the application.
+ */
+exports.lockPreproductionResetForProduction = onCall(async (request) => {
+  const actor = await requireRootAdmin(request);
+  const db = getFirestore();
+
+  if (!adminPolicy.isPreproductionLockConfirmed(request.data?.confirmation)) {
+    throw new HttpsError(
+      "failed-precondition",
+      `Production lock requires the exact confirmation ${adminPolicy.preproductionLockConfirmation()}.`,
+    );
+  }
+
+  const ref = db.doc(adminPolicy.PREPRODUCTION_CONTROL_DOCUMENT);
+  const existing = await ref.get();
+  if (existing.data()?.locked === true) {
+    return {
+      success: true,
+      alreadyLocked: true,
+      locked: true,
+      lockedAt: serializableDate(existing.data()?.lockedAt),
+    };
+  }
+
+  await ref.set({
+    locked: true,
+    lockedAt: FieldValue.serverTimestamp(),
+    lockedByUid: actor.uid,
+    lockedByEmail: actor.email || null,
+  });
+
+  await writeAdminAudit(db, actor, "preproduction_reset_locked_for_production", "preproduction-test-data", {
+    irreversibleInApp: true,
+  });
+
+  return { success: true, alreadyLocked: false, locked: true };
+});
+
 exports.permanentlyDeleteStudent = onCall(async (request) => {
   const actor = await requireRootAdmin(request);
   const db = getFirestore();
