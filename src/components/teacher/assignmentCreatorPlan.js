@@ -5,6 +5,8 @@ export const CREATOR_SECTION_DEFAULTS = Object.freeze({
   classwork: Object.freeze({ enabled: true, count: 6, mode: 'shared', label: 'Classwork' }),
   practice: Object.freeze({ enabled: true, count: 8, mode: 'personalized', label: 'Practice' }),
   dol: Object.freeze({ enabled: true, count: 2, mode: 'shared', label: 'DOL' }),
+  quiz: Object.freeze({ enabled: false, count: 8, mode: 'shared', label: 'Quiz' }),
+  test: Object.freeze({ enabled: false, count: 15, mode: 'shared', label: 'Test' }),
 });
 
 const clean = (value) => String(value ?? '').trim();
@@ -48,7 +50,7 @@ export const normalizeAssignmentCreatorPlan = (input = {}) => {
     return [role, {
       ...defaults,
       ...source,
-      enabled: source.enabled !== false,
+      enabled: source.enabled == null ? defaults.enabled : source.enabled !== false,
       count: clampCount(source.count, defaults.count),
       mode,
     }];
