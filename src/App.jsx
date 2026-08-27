@@ -112,7 +112,6 @@ import {
   isLibraryAssignment, resolveAssignmentDates, resolveCreationMode,
 } from './assignmentDestinations';
 import LessonPreflightModal from './components/teacher/LessonPreflightModal';
-import { normalizeLessonBundle } from './platform/schemas/BundleDefinition';
 import { rebuildV5SectionsFromQuestions } from './platform/contract/assignmentSchemaV5.js';
 import { normalizeLabDefinition } from './platform/labs/labDefinitionSchema.js';
 import { normalizeContextualQuestion } from './platform/context/wordProblemLayer';
@@ -2511,57 +2510,22 @@ function App() {
     return { ok: true, errors, warnings, parsed: { ...parsed, metadata }, sourceSchemaVersion: parsed.sourceSchemaVersion || null, compilerDefect: false };
   };
 
-  const buildPreflightBundle = (parsed, metadata) => {
-    if (parsed.isBundle && parsed.bundleSource?.schemaVersion === 5) {
-      return normalizeLessonBundle({
-        lessonMetadata: {
-          title: metadata?.title || parsed.bundleSource?.assignment?.title || 'Untitled Lesson',
-          course: metadata?.curriculum?.course || parsed.bundleSource?.assignment?.courseId || 'Unknown Course',
-          topic: metadata?.curriculum?.topic || null,
-        },
-        activities: parsed.bundleSource.sections || [],
-      });
-    }
-
-    const activityGroups = new Map();
-    parsed.questions.forEach((question, questionIndex) => {
-      const isDOL = Boolean(metadata?.dol?.enabled && Number(metadata?.dol?.questionIndex) === questionIndex);
-      const role = resolveQuestionActivityRole({
-        question,
-        assignment: { assignmentType: metadata?.assignmentType || 'practice' },
-        isDOL,
-      });
-      if (!activityGroups.has(role)) {
-        activityGroups.set(role, {
-          role,
-          title: activityTitleForRole(role),
-          questions: [],
-        });
-      }
-      activityGroups.get(role).questions.push(question);
-    });
-
-    return normalizeLessonBundle({
-      lessonMetadata: {
-        title: metadata?.title || 'Untitled Lesson',
-        course: metadata?.curriculum?.course || 'Unknown Course',
-        topic: metadata?.curriculum?.topic || null,
-      },
-      activities: [...activityGroups.values()],
-    });
-  };
 
   // The teacher sets classes, dates, folder and publishing here — the JSON never
   // carries them, so there are no manual fallbacks to merge any more.
   const openAssignmentPreflight = (inspected, sourceName) => {
     try {
       const { metadata } = inspected;
-      const lessonBundle = buildPreflightBundle(inspected, metadata);
+      const assignmentV5 = inspected.bundleSource;
+      if (!assignmentV5 || Number(assignmentV5.schemaVersion) !== 5) {
+        throw new Error('Preflight requires one canonical MathMaster Assignment V5 object.');
+      }
+      const sections = Array.isArray(assignmentV5.sections) ? assignmentV5.sections : [];
       const dolQuestionFromRole = inspected.questions.findIndex((question) => (
         resolveQuestionActivityRole({ question, assignment: { assignmentType: metadata?.assignmentType || 'practice' } }) === 'dol'
       ));
       const initialDraft = {
-        title: metadata?.title || lessonBundle.lessonMetadata?.title || '',
+        title: metadata?.title || assignmentV5.assignment?.title || '',
         folder: metadata?.folder || '',
         dueAt: toDateTimeLocalInputValue(metadata?.dueAt || ''),
         lateDueAt: toDateTimeLocalInputValue(metadata?.lateDueAt || ''),
@@ -2573,12 +2537,12 @@ function App() {
         guidedNotesBySection: { classwork: 'automatic', practice: 'off', ...(metadata?.guidedNotesBySection || {}) },
         assignedClassPeriods: [...(metadata?.assignedClassPeriods || [])],
         assignedClassIds: [...(metadata?.assignedClassIds || [])],
-        warmupEnabled: lessonBundle.activities.some((activity) => activity.role === 'warmup')
+        warmupEnabled: sections.some((section) => section.role === 'warmup')
           && (metadata?.provided?.warmup ? metadata.warmup.enabled !== false : true),
         warmupMinutesBeforeStart: metadata?.warmup?.minutesBeforeStart ?? 7,
         warmupInstructionDate: metadata?.warmup?.instructionDate || '',
         warmupInstructionDatesByClassPeriod: metadata?.warmup?.instructionDatesByClassPeriod || {},
-        dolEnabled: lessonBundle.activities.some((activity) => activity.role === 'dol')
+        dolEnabled: sections.some((section) => section.role === 'dol')
           && (metadata?.provided?.dol ? metadata.dol.enabled === true : true),
         dolMinutesBeforeEnd: metadata?.dol?.minutesBeforeEnd ?? 10,
         dolInstructionDate: metadata?.dol?.instructionDate || '',
@@ -2608,7 +2572,7 @@ function App() {
         preflight: metadata?.preflight || null,
       };
       setAssignmentPreflight({
-        lessonBundle,
+        assignmentV5,
         initialDraft,
         questions: inspected.questions,
         authoringWarnings: inspected.authoringWarnings || [],
@@ -5114,8 +5078,8 @@ function App() {
         })()}
         {assignmentPreflight && (
           <LessonPreflightModal
-            key={`${assignmentPreflight.lessonBundle.bundleId}-${assignmentPreflight.sourceLabel}`}
-            lessonBundle={assignmentPreflight.lessonBundle}
+            key={`${assignmentPreflight.assignmentV5.assignment?.title || 'assignment-v5'}-${assignmentPreflight.sourceLabel}`}
+            assignmentV5={assignmentPreflight.assignmentV5}
             initialDraft={assignmentPreflight.initialDraft}
             classPeriods={CLASS_PERIODS}
             classes={classes}
