@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { auditQuestionAnswerEntry } from '../../src/platform/preflight/answerEntryPreflight.js';
+import { validateQuestionInteractionContracts } from '../../src/platform/interaction/interactionContract.js';
 import { validateQuestionSemantics } from '../../src/platform/contract/semanticValidation.js';
 import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/assignmentV5PreflightModel.js';
 
@@ -17,13 +17,13 @@ test('symbolic multi-answer fields with parentheses, variables and fractions are
       },
     ],
   };
-  const result = auditQuestionAnswerEntry(question, { label: 'Inverse question' });
+  const result = validateQuestionInteractionContracts(question, { label: 'Inverse question' });
   assert.deepEqual(result.errors, []);
   assert.deepEqual(validateQuestionSemantics(question, { label: 'Inverse question' }).errors, []);
 });
 
 test('interval notation is inferred as enterable from the accepted answer itself', () => {
-  const result = auditQuestionAnswerEntry({
+  const result = validateQuestionInteractionContracts({
     type: 'multiAnswer',
     answerFields: [
       { id: 'domain', label: 'Domain', answer: '[-4, ∞)' },
@@ -33,7 +33,7 @@ test('interval notation is inferred as enterable from the accepted answer itself
 });
 
 test('unsupported notation blocks Preflight instead of falling through to students', () => {
-  const result = auditQuestionAnswerEntry({
+  const result = validateQuestionInteractionContracts({
     type: 'multiAnswer',
     answerFields: [
       { id: 'angle', label: 'Angle expression', answer: 'θ + 30' },
@@ -44,7 +44,7 @@ test('unsupported notation blocks Preflight instead of falling through to studen
 });
 
 test('plain text response fields cannot silently carry mathematical notation', () => {
-  const result = auditQuestionAnswerEntry({
+  const result = validateQuestionInteractionContracts({
     responseFields: [
       {
         id: 'domain',
@@ -59,7 +59,7 @@ test('plain text response fields cannot silently carry mathematical notation', (
 });
 
 test('choice and genuine word response fields remain valid', () => {
-  assert.deepEqual(auditQuestionAnswerEntry({
+  assert.deepEqual(validateQuestionInteractionContracts({
     answerFields: [
       { id: 'kind', type: 'choice', options: ['linear', 'quadratic'], answer: 'linear' },
       { id: 'meaning', type: 'text', answer: 'continuous' },
@@ -68,7 +68,7 @@ test('choice and genuine word response fields remain valid', () => {
 });
 
 test('explicit unsupported requiredSymbols are blocking even when the expected answer is hidden', () => {
-  const result = auditQuestionAnswerEntry({
+  const result = validateQuestionInteractionContracts({
     responseFields: [
       {
         id: 'angle',
