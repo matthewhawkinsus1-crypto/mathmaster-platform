@@ -12,6 +12,7 @@ import {
   describePreflightAction, stepIndex, summarizePreflightReadiness,
 } from './preflightSteps';
 import AdaptivePreview from './AdaptivePreview.jsx';
+import { buildPreflightReviewedAssignmentV5 } from './preflightV5Review.js';
 
 // Narrow enough that side-by-side panels stop working. Matches the breakpoint
 // the student-side mobile container already uses, so the two agree about what
@@ -136,11 +137,16 @@ export const LessonPreflightModal = ({
   const [previewOpen, setPreviewOpen] = useState(false);
   const [honorsEnrichmentQuestion, setHonorsEnrichmentQuestion] = useState(null);
 
-  // Assignment V5 is the Preflight source of truth. The model validates V5
-  // directly and attaches the effective role policy used by the preview.
+  // Teacher review controls edit canonical Assignment V5, not a parallel
+  // legacy projection. The exact reviewed V5 object is revalidated before it
+  // powers preview, Classroom planning, and final publishing.
+  const reviewedAssignmentV5 = useMemo(
+    () => buildPreflightReviewedAssignmentV5(assignmentV5, draft),
+    [assignmentV5, draft],
+  );
   const preflightModel = useMemo(
-    () => buildAssignmentV5PreflightModel(assignmentV5, { titleOverride: draft.title }),
-    [assignmentV5, draft.title],
+    () => buildAssignmentV5PreflightModel(reviewedAssignmentV5),
+    [reviewedAssignmentV5],
   );
   const effectiveAssignmentV5 = preflightModel.assignmentV5;
   const activities = preflightModel.sections;
@@ -223,7 +229,13 @@ export const LessonPreflightModal = ({
   if (!assignmentV5) return null;
 
   const setField = (field, value) => setDraft((current) => ({ ...current, [field]: value }));
-  const sectionVariantMode = (role) => draft.sectionVariantModes?.[role] || draft.variantMode || 'shared';
+  const sectionVariantMode = (role) => (
+    draft.sectionVariantModes?.[role]
+    || assignmentV5?.variantPolicy?.sectionModes?.[role]
+    || draft.variantMode
+    || assignmentV5?.variantPolicy?.mode
+    || 'shared'
+  );
   const setSectionVariantMode = (role, value) => setDraft((current) => ({
     ...current,
     sectionVariantModes: { ...(current.sectionVariantModes || {}), [role]: value },
@@ -238,6 +250,22 @@ export const LessonPreflightModal = ({
   const setGuidedNotesMode = (role, value) => setDraft((current) => ({
     ...current,
     guidedNotesBySection: { ...(current.guidedNotesBySection || {}), [role]: value },
+  }));
+  const outputProfileEnabled = (key) => (
+    draft.outputProfiles?.[key]?.enabled
+    ?? assignmentV5?.outputProfiles?.[key]?.enabled
+    ?? true
+  );
+  const setOutputProfileEnabled = (key, enabled) => setDraft((current) => ({
+    ...current,
+    outputProfiles: {
+      ...(current.outputProfiles || assignmentV5?.outputProfiles || {}),
+      [key]: {
+        ...(assignmentV5?.outputProfiles?.[key] || {}),
+        ...(current.outputProfiles?.[key] || {}),
+        enabled,
+      },
+    },
   }));
   const resolvedSectionVariantModes = Object.fromEntries(activityRoles.map((role) => [role, sectionVariantMode(role)]));
   // Temporary assignment-level runtime projection for readers that have not
@@ -478,6 +506,41 @@ export const LessonPreflightModal = ({
             courseId={draft?.courseId || 'algebra1'}
             honors={String(draft?.courseLevel || '').toLowerCase() === 'honors'}
           />
+        </div>
+      </fieldset>
+
+      <fieldset style={fieldsetStyle}>
+        <legend style={legendStyle}>Printable and shareable outputs</legend>
+        <p style={{ margin: '0 0 12px', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>
+          These switches update the canonical V5 output profiles and are rechecked immediately for PDF
+          representation and page-fit safety. Digital delivery continues to use the same resolved questions.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10 }}>
+          {[
+            ['studentWorksheetPdf', 'Student worksheet PDF', 'Printable assignment without answers.'],
+            ['teacherWorksheetPdf', 'Teacher copy PDF', 'Answers and available worked solutions.'],
+            ['answerKeyPdf', 'Compact answer key PDF', 'Answer-focused print copy.'],
+            ['lessonNotesPdf', 'Lesson notes PDF', 'Separate notes/resource handout.'],
+          ].map(([key, label, description]) => (
+            <label key={key} style={{
+              display: 'flex', gap: 10, alignItems: 'flex-start', minHeight: 58,
+              padding: 10, border: '1px solid #d8dde6', borderRadius: 8, background: '#fbfdff',
+            }}>
+              <input
+                type="checkbox"
+                style={{ ...checkboxStyle, marginTop: 2 }}
+                checked={outputProfileEnabled(key)}
+                onChange={(event) => setOutputProfileEnabled(key, event.target.checked)}
+              />
+              <span>
+                <strong style={{ display: 'block', color: '#202124' }}>{label}</strong>
+                <span style={{ display: 'block', marginTop: 2, color: '#5f6368', fontSize: 11.5, lineHeight: 1.4 }}>{description}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        <div style={{ marginTop: 10, padding: '9px 11px', borderRadius: 8, background: '#f7faff', color: '#526274', fontSize: 12, lineHeight: 1.5 }}>
+          Student IEP/504/EB access supports remain automatic and server-resolved. Changing an output does not change the assessed standard.
         </div>
       </fieldset>
 
@@ -844,7 +907,35 @@ export const LessonPreflightModal = ({
                   // teacher can tap it at all it always does something: create,
                   // or jump to the step that is blocking creation.
                   if (!canCreate) { if (readiness.firstBlockedStep) goToStep(readiness.firstBlockedStep); return; }
-                  onConfirmPublish?.({ draft: { ...draft, assignmentType: derivedAssignmentType, variantMode: runtimeVariantMode, sectionVariantModes: resolvedSectionVariantModes, warmupEnabled: hasAuthoredWarmup && draft.warmupEnabled !== false, warmupInstructionDate: resolvedWarmupInstructionDate, warmupInstructionDatesByClassPeriod: resolvedWarmupInstructionDatesByClassPeriod, dolEnabled: hasAuthoredDOL && draft.dolEnabled === true, dolInstructionDate: resolvedDOLInstructionDate, dolInstructionDatesByClassPeriod: resolvedDOLInstructionDatesByClassPeriod, honorsEnrichmentQuestion }, publicationPlan, assignmentV5: effectiveAssignmentV5, honorsReport });
+                  onConfirmPublish?.({
+                    draft: {
+                      ...draft,
+                      assignmentType: derivedAssignmentType,
+                      variantMode: runtimeVariantMode,
+                      sectionVariantModes: resolvedSectionVariantModes,
+                      variantPolicy: effectiveAssignmentV5.variantPolicy,
+                      differentiationPolicy: effectiveAssignmentV5.differentiationPolicy,
+                      supportPolicy: effectiveAssignmentV5.supportPolicy,
+                      toolPolicy: effectiveAssignmentV5.toolPolicy,
+                      deliveryPolicy: effectiveAssignmentV5.deliveryPolicy,
+                      gradingPolicy: effectiveAssignmentV5.gradingPolicy,
+                      evidencePolicy: effectiveAssignmentV5.evidencePolicy,
+                      outputProfiles: effectiveAssignmentV5.outputProfiles,
+                      classroomIntegration: effectiveAssignmentV5.classroomIntegration,
+                      provenance: effectiveAssignmentV5.provenance,
+                      preflight: effectiveAssignmentV5.preflight,
+                      warmupEnabled: hasAuthoredWarmup && draft.warmupEnabled !== false,
+                      warmupInstructionDate: resolvedWarmupInstructionDate,
+                      warmupInstructionDatesByClassPeriod: resolvedWarmupInstructionDatesByClassPeriod,
+                      dolEnabled: hasAuthoredDOL && draft.dolEnabled === true,
+                      dolInstructionDate: resolvedDOLInstructionDate,
+                      dolInstructionDatesByClassPeriod: resolvedDOLInstructionDatesByClassPeriod,
+                      honorsEnrichmentQuestion,
+                    },
+                    publicationPlan,
+                    assignmentV5: effectiveAssignmentV5,
+                    honorsReport,
+                  });
                 }}
                 style={{ flex: isNarrow ? 2 : undefined, minHeight: isNarrow ? 48 : 44, padding: '10px 20px', border: 'none', borderRadius: 8, background: canCreate ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 800 }}
               >
