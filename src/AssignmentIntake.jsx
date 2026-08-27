@@ -9,6 +9,10 @@ import {
   CREATOR_RIGOR_PRESETS,
   defaultAssignmentCreatorPlan,
 } from './components/teacher/assignmentCreatorPlan.js';
+import {
+  assignmentAiFallbackRecommended,
+  buildAssignmentWithAI,
+} from './services/assignmentAiService.js';
 
 const card = {
   border: '1px solid #d9e2f1',
@@ -107,6 +111,7 @@ export default function AssignmentIntake({
   const [dropActive, setDropActive] = useState(false);
   const [creatorPlan, setCreatorPlan] = useState(() => defaultAssignmentCreatorPlan('algebra1'));
   const [busy, setBusy] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
   const [failure, setFailure] = useState(null);
   const fileInputRef = useRef(null);
 
@@ -146,6 +151,27 @@ export default function AssignmentIntake({
       );
     } catch (error) {
       toastError?.('Finish the assignment plan', error.message);
+    }
+  };
+
+  const handleBuildInsideMathMaster = async () => {
+    clearFailure();
+    setAiBusy(true);
+    try {
+      const request = buildAssignmentCreatorRequest(creatorPlan);
+      const built = await buildAssignmentWithAI(request);
+      await acceptJson(built.assignmentJson, 'Built in MathMaster');
+    } catch (error) {
+      if (assignmentAiFallbackRecommended(error)) {
+        toastInfo?.(
+          'Built-in AI is unavailable right now',
+          'Your assignment plan is safe. Use “Copy Complete AI Build Request” and paste it into ChatGPT, Claude, or Gemini, then bring the finished assignment back here.',
+        );
+      } else {
+        toastError?.('Could not build the assignment', error.message);
+      }
+    } finally {
+      setAiBusy(false);
     }
   };
 
@@ -525,7 +551,20 @@ export default function AssignmentIntake({
             </label>
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
-              <button type="button" onClick={handleCopyBuildRequest} style={primaryButton}>
+              <button
+                type="button"
+                onClick={handleBuildInsideMathMaster}
+                disabled={busy || aiBusy}
+                style={{ ...primaryButton, opacity: busy || aiBusy ? 0.6 : 1 }}
+              >
+                {aiBusy ? '✨ Building assignment…' : '✨ Build Assignment in MathMaster'}
+              </button>
+              <button
+                type="button"
+                onClick={handleCopyBuildRequest}
+                disabled={busy || aiBusy}
+                style={{ ...secondaryButton, opacity: busy || aiBusy ? 0.6 : 1 }}
+              >
                 📋 Copy Complete AI Build Request
               </button>
               <details>
@@ -545,11 +584,11 @@ export default function AssignmentIntake({
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
           {stepBadge(4)}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h3 style={{ margin: '0 0 4px', fontSize: 18, color: '#172033' }}>4. Build with AI, then review in MathMaster</h3>
+            <h3 style={{ margin: '0 0 4px', fontSize: 18, color: '#172033' }}>4. Review the AI result in MathMaster</h3>
             <p style={{ margin: '0 0 14px', color: '#5f6b7a', lineHeight: 1.55, fontSize: 14 }}>
-              After the AI returns the finished MathMaster assignment, paste it here, upload the assignment file, or drag it in.
-              MathMaster then checks standards, grading, mobile inputs, supports, adaptive rigor, CCMR fidelity, and PDF renderability before Preflight.
-              Preflight handles classes, dates, folder, section access, student preview, and publishing.
+              “Build Assignment in MathMaster” sends your plan through the protected server AI when it is configured.
+              You can also paste or upload a finished assignment from ChatGPT, Claude, or Gemini.
+              Either route goes through the same MathMaster checks for standards, grading, mobile inputs, supports, adaptive rigor, CCMR fidelity, and PDF renderability before Assignment Review.
             </p>
 
             <div
@@ -567,10 +606,10 @@ export default function AssignmentIntake({
                 display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center',
               }}
             >
-              <button type="button" onClick={handlePaste} disabled={busy} style={{ ...primaryButton, opacity: busy ? 0.6 : 1 }}>
+              <button type="button" onClick={handlePaste} disabled={busy || aiBusy} style={{ ...primaryButton, opacity: busy || aiBusy ? 0.6 : 1 }}>
                 📥 Paste AI Assignment
               </button>
-              <button type="button" onClick={() => fileInputRef.current?.click()} disabled={busy} style={{ ...secondaryButton, opacity: busy ? 0.6 : 1 }}>
+              <button type="button" onClick={() => fileInputRef.current?.click()} disabled={busy || aiBusy} style={{ ...secondaryButton, opacity: busy || aiBusy ? 0.6 : 1 }}>
                 ⬆ Upload Assignment File
               </button>
               <input
