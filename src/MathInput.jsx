@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import 'mathlive';
 import { resolveRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
+import { buildMobileMathTools } from './platform/interaction/mobileKeypadPolicy.js';
 import { scheduleHorizontalViewportStabilization } from './platform/mobile/mobileFocusViewport.js';
 
 const BASIC_KEYS = [
@@ -45,9 +46,8 @@ const ANSWER_SYMBOL_KEYS = Object.freeze({
   '-': { label: '−', command: '-', ariaLabel: 'Insert negative sign' },
   x: { label: 'x', command: 'x', ariaLabel: 'Insert x' },
   y: { label: 'y', command: 'y', ariaLabel: 'Insert y' },
+  'ⁿ√': { label: 'ⁿ√', command: '\\sqrt[#?]{#0}', ariaLabel: 'Insert nth root' },
 });
-
-const toolIdentity = (tool) => `${tool?.command || ''}|${tool?.action || ''}|${tool?.label || ''}`;
 
 const FUNCTION_KEYS = [
   { label: 'x', command: 'x', ariaLabel: 'Insert x' },
@@ -205,14 +205,20 @@ export default function MathInput({
   const shouldSuppressNativeKeyboard = isMobile && toolProfile !== 'function' && unservedRequiredSymbols.length === 0;
   const tools = useMemo(() => {
     if (!isMobile) return getToolKeys(toolProfile, { contextSymbols });
-    const requiredIds = new Set(requiredTools.map(toolIdentity));
-    const combined = [...MOBILE_ENTRY_KEYS, ...getToolKeys(toolProfile, { isMobile: true, contextSymbols })]
-      .filter((tool) => !requiredIds.has(toolIdentity(tool)));
-    // Backspace is deliberately appended LAST on every mobile keypad. With the
-    // grid filling left-to-right, this pins the editing control to the bottom-
-    // right instead of letting contextual equation symbols push it into a
-    // different location from question to question.
-    return [...combined.filter((tool) => tool.action !== 'deleteBackward'), MOBILE_BACKSPACE_KEY];
+
+    // Mobile equation pads are intentionally opinionated:
+    // - parentheses are ALWAYS directly reachable;
+    // - semantic duplicates such as the second '=' are removed;
+    // - nth root is omitted from the crowded generic equation pad unless the
+    //   question explicitly declares it as a required symbol;
+    // - Backspace stays fixed in the final grid position.
+    return buildMobileMathTools({
+      toolProfile,
+      entryKeys: MOBILE_ENTRY_KEYS,
+      profileKeys: getToolKeys(toolProfile, { isMobile: true, contextSymbols }),
+      requiredTools,
+      backspaceKey: MOBILE_BACKSPACE_KEY,
+    });
   }, [toolProfile, isMobile, contextSymbols, requiredTools]);
 
   useEffect(() => {
