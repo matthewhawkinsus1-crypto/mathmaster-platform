@@ -41,7 +41,7 @@ const acceptedValues = (field = {}, preferredKey) => {
 const comparableScalar = (value) => ['string', 'number', 'boolean'].includes(typeof value);
 
 const comparatorForField = (field = {}) => {
-  const mode = gradingMode(field);
+  const modeToken = gradingMode(field).toLowerCase();
   if (modeToken === 'equivalentexpression') {
     return (left, right) => sameEquivalentExpression(left, right);
   }
