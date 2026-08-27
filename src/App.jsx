@@ -133,6 +133,11 @@ import { buildStudentPathOptions } from './platform/path/studentPathOptions.js';
 import { fetchStudentEvidenceEvents } from './platform/history/evidencePersistence.js';
 import { COMPARABILITY, describeDeliveredRigor, explainGrade, rigorComparability, splitGrade } from './platform/teacher/gradeEvidence.js';
 import { buildStudentDashboardModel, resolveNextAction } from './studentDashboardModel.js';
+import {
+  readStudentRouteState,
+  studentRouteKey,
+  writeStudentRouteState,
+} from './platform/student/browserHistory.js';
 import { questionAssessmentFramework } from './platform/student/questionAlignmentInfo.js';
 import { FRAMEWORK_LABELS } from './platform/ccmr/assessmentCrosswalk.js';
 import { compareStudentsByName, formatStudentName } from './platform/studentName';
@@ -420,6 +425,83 @@ function App() {
   const [sectionAccessBusyKey, setSectionAccessBusyKey] = useState(null);
   const [studentDashboardMode, setStudentDashboardMode] = useState('assignments');
   const [liveChallengeInvite, setLiveChallengeInvite] = useState(null);
+
+  // Browser Back/Forward should move through MathMaster's logical student
+  // screens before it ever considers the website that launched MathMaster.
+  //
+  // The app is intentionally state-driven rather than react-router driven, so
+  // without these same-document History API entries Safari/Chrome sees the
+  // entire student experience as one page. A Back press from a question can
+  // therefore leave MathMaster altogether.
+  const studentBrowserHistoryReadyRef = useRef(false);
+  const studentBrowserRoute = useMemo(() => {
+    if (user?.role !== 'student') return null;
+    if (activeView === 'assignment') {
+      return {
+        surface: 'assignment',
+        assignmentId: activeAssignmentId || '',
+        questionIndex: currentQuestionIndex,
+      };
+    }
+    return {
+      surface: 'dashboard',
+      dashboardMode: studentDashboardMode || 'assignments',
+    };
+  }, [user?.role, activeView, activeAssignmentId, currentQuestionIndex, studentDashboardMode]);
+
+  useEffect(() => {
+    if (!studentBrowserRoute) {
+      studentBrowserHistoryReadyRef.current = false;
+      return;
+    }
+
+    const current = readStudentRouteState(window.history.state);
+    const currentKey = current ? studentRouteKey(current) : null;
+    const targetKey = studentRouteKey(studentBrowserRoute);
+
+    // Mark the document entry the student arrived on as MathMaster Home. From
+    // this point onward internal navigation pushes same-document entries.
+    if (!studentBrowserHistoryReadyRef.current) {
+      studentBrowserHistoryReadyRef.current = true;
+      if (currentKey !== targetKey) {
+        writeStudentRouteState(studentBrowserRoute, { replace: true });
+      }
+      return;
+    }
+
+    // A popstate restoration changes React state AFTER the browser has already
+    // moved to the matching history entry. Seeing the same key here prevents
+    // that restoration from immediately pushing a duplicate entry.
+    if (currentKey !== targetKey) {
+      writeStudentRouteState(studentBrowserRoute);
+    }
+  }, [studentBrowserRoute]);
+
+  useEffect(() => {
+    if (user?.role !== 'student') return undefined;
+
+    const restoreFromBrowserHistory = (event) => {
+      const route = readStudentRouteState(event.state);
+      if (!route) return;
+
+      if (route.surface === 'assignment') {
+        setStudentDashboardMode('assignments');
+        setPathLaunchTeks(null);
+        setActiveAssignmentId(route.assignmentId || null);
+        setCurrentQuestionIndex(route.questionIndex || 0);
+        setActiveView('assignment');
+        return;
+      }
+
+      setActiveView('dashboard');
+      setActiveAssignmentId(null);
+      setStudentDashboardMode(route.dashboardMode || 'assignments');
+      if (route.dashboardMode !== 'mathPath') setPathLaunchTeks(null);
+    };
+
+    window.addEventListener('popstate', restoreFromBrowserHistory);
+    return () => window.removeEventListener('popstate', restoreFromBrowserHistory);
+  }, [user?.role]);
 
 
   // A Live Challenge invitation is one tiny per-student pointer. Listening at
