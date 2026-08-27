@@ -115,6 +115,9 @@ export const inferAnswerFormatFromExpected = (value) => {
   if (/^[\(].*,.*[\)]$/.test(text)) return 'orderedPair';
   if (/=/.test(text)) return 'equation';
   if (/^-?(?:\d+(?:\.\d+)?|\.\d+)$/.test(text)) return 'number';
+  // Genuine words such as "continuous", "increasing", or "no solution" are
+  // language responses, not symbolic expressions merely because they contain letters.
+  if (/^[A-Za-z]+(?:\s+[A-Za-z]+){0,4}$/.test(text) && !/^[A-Za-z]$/.test(text)) return '';
   if (/[A-Za-z]|\\frac|\\sqrt|\^|[+\-*/]/.test(text)) return 'expression';
   return '';
 };
