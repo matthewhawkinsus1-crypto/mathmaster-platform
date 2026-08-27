@@ -66,6 +66,12 @@ const copyCommon = (source, target = {}) => {
   ['prompt','activityRole','dok','difficultyBand','calculator','assessmentContext','context','familyId','assessedConstruct','guidedNotes','guidedSteps','referenceInfo'].forEach((key) => {
     if (source[key] != null) target[key] = source[key];
   });
+  // Canonical V5 questions keep the normalized mathematical intent that chose
+  // their renderer. This lets MathMaster export/re-import its own assignments
+  // without asking an outside AI to reconstruct intent from internal type ids.
+  const studentActions = normalizeActions(source);
+  if (studentActions.length) target.studentActions = studentActions;
+  if (source.questionId) target.questionId = source.questionId;
   if (source.standard) target.standard = source.standard;
   if (source.primaryStandard) target.primaryStandard = source.primaryStandard;
   if (source.secondaryStandards) target.secondaryStandards = source.secondaryStandards;
