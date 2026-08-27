@@ -189,7 +189,7 @@ const SECTION_ACCESS_STATES = new Set(['open', 'closed']);
 // students may revisit everything, but none of it writes grades/evidence.
 export const getSectionAccessState = ({ assignment, activityRole, classId = null, classPeriod, nowValue = Date.now() }) => {
   const role = String(activityRole || '').trim().toLowerCase();
-  const questions = Array.isArray(assignment?.questions) ? assignment.questions : [];
+  const questions = runtimeQuestionsFromAssignment(assignment);
   const exists = questions.some((question) => questionIsIncluded(question)
     && resolveQuestionActivityRole({ question, assignment }) === role);
   const lifecycle = getAssignmentLifecycle(assignment, nowValue);
@@ -350,7 +350,7 @@ export const getPeriodWindow = (scheduleValue, classPeriod, nowValue = Date.now(
 };
 
 export const getWarmupState = ({ assignment, schedule, classId = null, classPeriod, nowValue = Date.now() }) => {
-  const questions = Array.isArray(assignment?.questions) ? assignment.questions : [];
+  const questions = runtimeQuestionsFromAssignment(assignment);
   const includedQuestions = questions.filter(questionIsIncluded);
   const enabled = assignment?.warmup?.enabled ?? includedQuestions.some((question) => (
     resolveQuestionActivityRole({ question, assignment }) === ACTIVITY_ROLES.WARMUP
