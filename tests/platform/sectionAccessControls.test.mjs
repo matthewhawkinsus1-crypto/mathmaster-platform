@@ -4,18 +4,19 @@ import { getSectionAccessState } from '../../src/assignmentLifecycle.js';
 
 const NOW = new Date('2026-08-13T12:00:00');
 const base = {
+  schemaVersion: 5,
   releaseAt: '2026-08-13T08:00',
   dueAt: '2026-08-13T15:00',
   lateDueAt: '2026-08-13T16:00',
-  questions: [
-    { activityRole: 'warmup' },
-    { activityRole: 'classwork' },
-    { activityRole: 'practice' },
-    { activityRole: 'dol' },
+  sections: [
+    { id: 'warmup', role: 'warmup', title: 'Warm-Up', questions: [{ type: 'multiAnswer' }] },
+    { id: 'classwork', role: 'classwork', title: 'Classwork', questions: [{ type: 'multiAnswer' }] },
+    { id: 'practice', role: 'practice', title: 'Practice', questions: [{ type: 'multiAnswer' }] },
+    { id: 'dol', role: 'dol', title: 'DOL', questions: [{ type: 'multiAnswer' }] },
   ],
 };
 
-test('classwork and practice default to open for backward compatibility', () => {
+test('classwork and practice default to open when no teacher lock is configured', () => {
   assert.equal(getSectionAccessState({ assignment: base, activityRole: 'classwork', classPeriod: 'Period 3', nowValue: NOW }).isOpen, true);
   assert.equal(getSectionAccessState({ assignment: base, activityRole: 'practice', classPeriod: 'Period 3', nowValue: NOW }).isOpen, true);
 });
