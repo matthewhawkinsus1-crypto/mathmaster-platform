@@ -42,6 +42,18 @@ const formatForProfile = (profile) => ({
   number: 'number',
 }[profile] || '');
 
+const profileForAnswerFormat = (format) => {
+  const token = clean(format).toLowerCase().replace(/[^a-z0-9]+/g, '');
+  if (['orderedpair','coordinate','coordinates','point'].includes(token)) return 'orderedPair';
+  if (['interval','intervalnotation'].includes(token)) return 'interval';
+  if (['set','setnotation'].includes(token)) return 'set';
+  if (['inequality','inequalitynotation'].includes(token)) return 'inequality';
+  if (['equation','formula'].includes(token)) return 'equation';
+  if (['expression','symbolic','math'].includes(token)) return 'expression';
+  if (['number','numeric','integer','decimal'].includes(token)) return 'number';
+  return '';
+};
+
 const valueCandidate = (source = {}) => {
   const candidates = [
     source.expected,
@@ -150,20 +162,11 @@ const mergeRequiredSymbols = (...groups) => [...new Set(
 const isChoiceProfile = (profile) => profile === 'choice';
 const isTextProfile = (profile) => profile === 'text';
 
-const hasStructuralMathRequirement = (symbols = []) => symbols.some((symbol) => (
-  !/^[A-Za-z]$/.test(symbol)
-  || ['x','y'].includes(symbol)
-));
-
 export const normalizeResponseFieldInteractionContract = (field = {}) => {
   if (!isObject(field)) return field;
   const expected = valueCandidate(field);
   const inferredProfile = inferredProfileForExpected(expected);
   const authoredProfile = normalizeInteractionInputProfile(field.inputProfile);
-  const profile = authoredProfile || inferredProfile || 'text';
-
-  if (isChoiceProfile(profile)) return { ...field, inputProfile: profile };
-
   const authoredFormat = clean(
     field.answerFormat
     ?? field.inputContract?.format
@@ -171,6 +174,11 @@ export const normalizeResponseFieldInteractionContract = (field = {}) => {
     ?? field.inputMode
     ?? '',
   );
+  const formatProfile = profileForAnswerFormat(authoredFormat);
+  const profile = authoredProfile || formatProfile || inferredProfile || 'text';
+
+  if (isChoiceProfile(profile)) return { ...field, inputProfile: profile };
+
   const inferredFormat = inferAnswerFormatFromExpected(expected);
   const answerFormat = authoredFormat || formatForProfile(profile) || inferredFormat;
   const inferredSymbols = inferRequiredSymbolsFromExpected(expected);
@@ -234,16 +242,17 @@ const validateField = (field = {}, label) => {
   const inferredProfile = inferredProfileForExpected(expected);
   const inferredSymbols = inferRequiredSymbolsFromExpected(expected);
   const answerFormat = clean(field.answerFormat ?? field.inputContract?.format ?? field.notation ?? field.inputMode ?? formatForProfile(profile));
+  const semanticProfile = profileForAnswerFormat(answerFormat) || inferredProfile;
   const required = resolveRequiredAnswerSymbols({
     answerFormat,
     toolProfile: profile === 'orderedPair' || profile === 'number' ? 'expression' : profile,
     requiredSymbols: mergeRequiredSymbols(field.requiredSymbols, field.inputContract?.requiredSymbols, inferredSymbols),
   });
 
-  if (profile && isTextProfile(profile) && inferredProfile && inferredProfile !== 'text' && hasStructuralMathRequirement(inferredSymbols)) {
-    errors.push(`${label} expects mathematical notation but uses inputProfile "text". Use ${inferredProfile} (or another MathInput profile) so mobile students receive a mathematical keypad.`);
-  } else if (profile && profile !== 'text' && !profileCanRepresent(profile, inferredProfile)) {
-    errors.push(`${label} uses inputProfile "${profile}" but the expected response is ${inferredProfile}. Align the input profile with the mathematical answer.`);
+  if (profile && isTextProfile(profile) && semanticProfile && semanticProfile !== 'text') {
+    errors.push(`${label} expects mathematical notation but uses inputProfile "text". Use ${semanticProfile} (or another MathInput profile) so mobile students receive a mathematical keypad.`);
+  } else if (profile && profile !== 'text' && !profileCanRepresent(profile, semanticProfile)) {
+    errors.push(`${label} uses inputProfile "${profile}" but the response contract is ${semanticProfile}. Align the input profile with the mathematical answer.`);
   }
 
   const unsupported = required.filter((symbol) => !answerSymbolSpec(symbol));
