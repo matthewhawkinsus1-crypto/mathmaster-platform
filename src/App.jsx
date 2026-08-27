@@ -5425,7 +5425,7 @@ function App() {
                           items={[
                             { key: 'preview', label: 'View as Student', onClick: () => startTeacherPreview(assignment.id) },
                             { key: 'edit-questions', label: 'Edit Questions', onClick: () => openQuestionEditor(assignment) },
-                            { key: 'export-pdf', label: 'Export Printable PDF', onClick: () => beginTeacherWorksheetExport(assignment) },
+                            { key: 'export-pdf', label: 'Print / Answer Key', onClick: () => beginTeacherWorksheetExport(assignment) },
                             { key: 'export-json', label: 'Export JSON', onClick: () => { setExportJsonAssignment(assignment); setExportJsonCopied(false); } },
                             { key: 'dates-classes', label: 'Dates & Classes', onClick: () => beginEditAssignmentDates(assignment) },
                             { key: 'move-folder', label: 'Move to Folder', onClick: () => { setMovingFolderAssignmentId(assignment.id); setMovingFolderValue(assignment.folder || ''); } },
