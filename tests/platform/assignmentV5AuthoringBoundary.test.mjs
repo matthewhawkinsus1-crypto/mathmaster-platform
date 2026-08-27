@@ -5,6 +5,7 @@ import fs from 'node:fs';
 const app = fs.readFileSync('src/App.jsx', 'utf8');
 const intake = fs.readFileSync('src/AssignmentIntake.jsx', 'utf8');
 const modal = fs.readFileSync('src/components/teacher/LessonPreflightModal.jsx', 'utf8');
+const questionEditor = fs.readFileSync('src/AssignmentQuestionEditor.jsx', 'utf8');
 
 test('new authoring enters through Assignment V5 and reviewed Preflight', () => {
   assert.match(intake, /Paste AI Assignment/);
@@ -43,6 +44,12 @@ test('library assignment routes back through V5 Preflight instead of direct publ
 test('platform self-export is V5 and cannot resurrect the retired portable V2 package', () => {
   assert.match(app, /buildPortableAssignmentPackage = \(assignment\) => storedAssignmentToV5/);
   assert.doesNotMatch(app, /schemaVersion:\s*2[\s\S]{0,500}questions:\s*assignment\.questions/);
+});
+
+test('normal question editing also stays no-code', () => {
+  assert.doesNotMatch(questionEditor, /Edit JSON|Apply Question JSON|questionJson/);
+  assert.match(questionEditor, /Repair \/ Rewrite with AI/);
+  assert.match(questionEditor, /Paste AI Replacement/);
 });
 
 test('normal teacher creator does not expose raw JSON editing or schema jargon', () => {
