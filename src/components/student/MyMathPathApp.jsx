@@ -6,6 +6,7 @@ import MyMathPathProductionContainer from './MyMathPathProductionContainer.jsx';
 import StudentPracticeHistory from './StudentPracticeHistory.jsx';
 import WeeklyPathGoalPanel from './WeeklyPathGoalPanel.jsx';
 import { fetchStudentMasteryState } from '../../services/masteryStateService.js';
+import { fetchMyMathPathSkillProgress } from '../../services/pathSessionService.js';
 import { fetchStudentEvidenceEvents } from '../../platform/history/evidencePersistence.js';
 import { toCanonicalKey, toDisplayCode } from '../../utils/teksUtils.js';
 import { fetchPathCoverage } from '../../platform/path/pathCoverageService.js';
@@ -104,6 +105,7 @@ export const MyMathPathExperience = ({
   // simulating the copy.
   masteryData = { masteryProfilesByTEKS: {}, retentionSchedulesByTEKS: {} },
   evidenceEvents = [],
+  skillProgressByTEKS = {},
   // The Teacher Path Simulator forces assessment evidence directly — "what
   // does this student's SAT wheel look like at 45%?" — so it supplies the
   // whole context rather than having one derived from a synthetic document.
@@ -452,6 +454,7 @@ export const MyMathPathExperience = ({
           )}
           <StudentLearningPath
             pathOptions={pathOptions}
+            skillProgressByTEKS={skillProgressByTEKS}
             // Availability is checked BEFORE the card is drawn, not after the
             // student clicks it. `startSession` still fails closed on top of
             // this; a student should simply never reach that path.
@@ -502,6 +505,7 @@ export const MyMathPathApp = (props) => {
   const { studentId, assignments } = props;
   const [masteryData, setMasteryData] = useState({ masteryProfilesByTEKS: {}, retentionSchedulesByTEKS: {} });
   const [evidenceEvents, setEvidenceEvents] = useState([]);
+  const [skillProgressByTEKS, setSkillProgressByTEKS] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [historyError, setHistoryError] = useState(null);
@@ -509,14 +513,22 @@ export const MyMathPathApp = (props) => {
   const loadState = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const [masteryResult, historyResult] = await Promise.allSettled([
+    const [masteryResult, historyResult, passProgressResult] = await Promise.allSettled([
       fetchStudentMasteryState(studentId, { assignments }),
       fetchStudentEvidenceEvents(studentId),
+      fetchMyMathPathSkillProgress(),
     ]);
     if (masteryResult.status === 'fulfilled') setMasteryData(masteryResult.value);
     else setError(masteryResult.reason?.message || 'Mastery data is unavailable.');
     if (historyResult.status === 'fulfilled') { setEvidenceEvents(historyResult.value); setHistoryError(null); }
     else setHistoryError(historyResult.reason?.message || 'Practice history is temporarily unavailable.');
+    if (passProgressResult.status === 'fulfilled') {
+      setSkillProgressByTEKS(passProgressResult.value?.byTeksCode || {});
+    } else {
+      // Pass badges are an enhancement, never a gate to the learning path.
+      setSkillProgressByTEKS({});
+      console.warn('Could not load Path pass progress:', passProgressResult.reason);
+    }
     setLoading(false);
   }, [studentId, assignments]);
 
@@ -527,6 +539,7 @@ export const MyMathPathApp = (props) => {
       {...props}
       masteryData={masteryData}
       evidenceEvents={evidenceEvents}
+      skillProgressByTEKS={skillProgressByTEKS}
       loading={loading}
       error={error}
       historyError={historyError}
