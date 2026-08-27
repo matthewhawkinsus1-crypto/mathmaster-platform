@@ -117,6 +117,7 @@ import {
   canonicalV5PersistencePatch,
   storedAssignmentToV5,
 } from './platform/contract/storedAssignmentV5.js';
+import { hydrateAssignmentRuntime } from './platform/contract/assignmentRuntimeProjection.js';
 import { buildAssignmentV5PreflightModel } from './platform/preflight/assignmentV5PreflightModel.js';
 import { normalizeLabDefinition } from './platform/labs/labDefinitionSchema.js';
 import { normalizeContextualQuestion } from './platform/context/wordProblemLayer';
@@ -1003,7 +1004,7 @@ function App() {
     const querySnapshot = await getDocs(collection(db, 'assignments'));
     const fetchedAssignments = [];
     querySnapshot.forEach((assignmentDoc) => {
-      fetchedAssignments.push({ id: assignmentDoc.id, ...assignmentDoc.data() });
+      fetchedAssignments.push(hydrateAssignmentRuntime({ id: assignmentDoc.id, ...assignmentDoc.data() }));
     });
     fetchedAssignments.sort((a, b) => String(a.dueAt || a.dueDate || '').localeCompare(String(b.dueAt || b.dueDate || '')));
     setAssignments(fetchedAssignments);
@@ -1203,7 +1204,7 @@ function App() {
   const getLiveAssignment = async (assignmentId) => {
     const assignmentSnapshot = await getDoc(doc(db, 'assignments', assignmentId));
     if (!assignmentSnapshot.exists()) return null;
-    return { id: assignmentSnapshot.id, ...assignmentSnapshot.data() };
+    return hydrateAssignmentRuntime({ id: assignmentSnapshot.id, ...assignmentSnapshot.data() });
   };
 
   const leaveUnavailableAssignment = () => {
@@ -2779,7 +2780,6 @@ function App() {
 
       const assignmentPayloadBase = {
         schemaVersion: 5,
-        runtimeProjectionVersion: 1,
         title,
         courseId: reviewedV5.assignment?.courseId || null,
         dueAt,
@@ -2912,9 +2912,6 @@ function App() {
           assignedClassPeriods: destination.periods,
           assignedClassIds: destination.classIds || [],
           sections: rebuildV5SectionsFromQuestions(reviewedV5, variantQuestions),
-          // Temporary runtime projection. New authoring and persistence logic
-          // treats sections[] as canonical; mature renderers still read questions.
-          questions: variantQuestions,
           courseProfile: { course: destination.course, courseLevel: destination.courseLevel },
           rigorVariant: destination.courseLevel,
           rigorVariantGroupId: splitVariantGroupId,
@@ -2942,7 +2939,7 @@ function App() {
         } else {
           await setDoc(assignmentRef, payload);
         }
-        return { id: assignmentRef.id, ...payload };
+        return hydrateAssignmentRuntime({ id: assignmentRef.id, ...payload });
       };
 
       const destinationVariants = destinationGroups.map((destination) => {
@@ -3097,8 +3094,8 @@ function App() {
       (student) => student.gradesByAssignment?.[existing.id] !== undefined,
     );
     if (hasStudentData) {
-      const originalQuestionState = canonicalV5PersistencePatch(originalV5).questions;
-      const reviewedQuestionState = canonicalV5PersistencePatch(model.assignmentV5).questions;
+      const originalQuestionState = flattenV5Sections(originalV5);
+      const reviewedQuestionState = flattenV5Sections(model.assignmentV5);
       const questionContentChanged = JSON.stringify(originalQuestionState) !== JSON.stringify(reviewedQuestionState);
       const historicalFields = [
         'variantPolicy',
@@ -3257,7 +3254,7 @@ function App() {
       throw new Error(`These question edits cannot be saved until MathMaster’s assignment checks are clean:\n${model.errors.join('\n')}`);
     }
     const persistence = canonicalV5PersistencePatch(model.assignmentV5);
-    const persistedQuestions = persistence.questions;
+    const persistedQuestions = flattenV5Sections(model.assignmentV5);
     const dolIndex = resolveDOLQuestionIndex({
       ...questionEditorAssignment,
       questions: persistedQuestions,
@@ -3838,7 +3835,13 @@ function App() {
         throw new Error(`The copy cannot be created until MathMaster’s assignment checks are clean:\n${model.errors.join('\n')}`);
       }
       const persistence = canonicalV5PersistencePatch(model.assignmentV5);
-      const { id: _id, archived: _archived, ...rest } = assignment;
+      const {
+        id: _id,
+        archived: _archived,
+        questions: _runtimeQuestions,
+        runtimeProjectionVersion: _legacyRuntimeProjectionVersion,
+        ...rest
+      } = assignment;
       await addDoc(collection(db, 'assignments'), {
         ...rest,
         ...persistence,

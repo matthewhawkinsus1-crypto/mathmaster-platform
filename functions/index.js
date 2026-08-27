@@ -11,6 +11,7 @@ const { onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/
 const logger = require("firebase-functions/logger");
 
 const classroomLib = require("./lib/classroom");
+const { runtimeQuestionCount } = require("./lib/assignmentRuntime");
 const driveResources = require("./lib/driveResources");
 const { encryptLaunchPayload, decryptLaunchToken } = require("./lib/linkToken");
 const {
@@ -4268,7 +4269,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
       const assignment = assignmentSnap.exists ? assignmentSnap.data() : {};
       if (assignmentFeedbackIsHeld(assignment)) continue;
       const questionCount = assignmentSnap.exists
-        ? (assignment.questions || []).length
+        ? runtimeQuestionCount(assignment)
         : 0;
       const assignmentTracker = afterByAssignment[assignmentId];
       if (!isAssignmentComplete(assignmentTracker, questionCount)) continue;

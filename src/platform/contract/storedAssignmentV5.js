@@ -56,9 +56,7 @@ export const storedAssignmentToV5 = (assignment = {}, {
   }
   const sourceQuestions = Array.isArray(questions)
     ? questions
-    : Array.isArray(assignment.questions) && assignment.questions.length
-      ? assignment.questions
-      : flattenV5Sections(assignment);
+    : flattenV5Sections(assignment);
   const courseId = inferStoredAssignmentCourseId(assignment, sourceQuestions);
   if (!courseId) {
     throw new Error(
@@ -105,14 +103,12 @@ export const storedAssignmentToV5 = (assignment = {}, {
 
 export const canonicalV5PersistencePatch = (assignmentV5 = {}) => ({
   schemaVersion: 5,
-  runtimeProjectionVersion: 1,
   title: assignmentV5.assignment?.title || '',
   courseId: assignmentV5.assignment?.courseId || null,
   folder: assignmentV5.assignment?.folder || null,
   instructionalPurpose: assignmentV5.assignment?.instructionalPurpose || 'lesson',
   gradingPurpose: assignmentV5.assignment?.gradingPurpose ?? null,
   sections: assignmentV5.sections || [],
-  questions: flattenV5Sections(assignmentV5),
   variantPolicy: assignmentV5.variantPolicy || {},
   variantMode: assignmentV5.variantPolicy?.mode || 'personalized',
   sectionVariantModes: assignmentV5.variantPolicy?.sectionModes || {},
