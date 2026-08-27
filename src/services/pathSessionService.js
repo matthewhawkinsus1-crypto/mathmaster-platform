@@ -64,6 +64,7 @@ const pathOperationLabel = Object.freeze({
   startMyMathPathSession: 'start this practice session',
   issueNextQuestion: 'prepare the next secure question',
   submitPathResponse: 'check this response',
+  getMyMathPathSkillProgress: 'load your completed Path passes',
 });
 
 const normalizePathCallableError = (caught, operation) => {
@@ -164,6 +165,14 @@ export const startOrResumePathSession = async ({ targetAlignmentKey, sessionKind
     weeklySlotKey: weeklySlotKey || null,
     weeklySlot: weeklySlot || null,
   });
+};
+
+export const fetchMyMathPathSkillProgress = async () => {
+  assertRuntimeAvailable();
+  if (usingMockRuntime()) {
+    return { success: true, byTeksCode: {}, skillsWithCompletedPasses: 0, totalCompletedPasses: 0 };
+  }
+  return invokePathCallable('getMyMathPathSkillProgress', {});
 };
 
 export const fetchNextSanitizedQuestion = async ({ sessionId }) => {
