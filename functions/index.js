@@ -18,6 +18,8 @@ const {
   GOOGLE_API_SECRETS,
   GOOGLE_AND_LINK_SECRETS,
   LINK_ENCRYPTION_KEY,
+  ASSIGNMENT_AI_SECRETS,
+  readOpenAiApiKey,
   readPublicEnv,
   readGoogleClientId,
   readGoogleClientSecret,
@@ -46,6 +48,7 @@ const rigorPolicy = require("./lib/rigorPolicy");
 // server-side facts (mastery documents, coverage indexes) it reasons over.
 const pathRouting = require("./lib/pathRouting");
 const pathContentRelease = require("./lib/pathContentRelease");
+const assignmentAi = require("./lib/assignmentAi");
 
 // HTTPS/callable transport must be reachable by the Firebase client SDK.
 // MathMaster authorization still happens INSIDE each callable through
@@ -7313,3 +7316,103 @@ exports.updateMyMathPathMasteryFromEvidence = onDocumentCreated(
     });
   },
 );
+
+
+// --- Integrated assignment authoring AI -------------------------------------
+//
+// The browser sends the SAME complete MathMaster authoring request that the
+// teacher can copy into an outside AI. The provider key never leaves Functions.
+// Output still goes through the browser's canonical Assignment V5 compiler and
+// Preflight before anything can be saved or published.
+const ASSIGNMENT_AI_USAGE_COLLECTION = "assignmentAiUsage";
+const ASSIGNMENT_AI_MIN_INTERVAL_MS = 12 * 1000;
+const ASSIGNMENT_AI_DAILY_LIMIT = 50;
+
+async function reserveAssignmentAiUsage(db, teacherUid) {
+  const ref = db.collection(ASSIGNMENT_AI_USAGE_COLLECTION).doc(String(teacherUid));
+  const now = Date.now();
+  const dayKey = new Date(now).toISOString().slice(0, 10);
+
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const data = snapshot.exists ? (snapshot.data() || {}) : {};
+    const previous = toDate(data.lastStartedAt)?.getTime() || 0;
+    if (previous && now - previous < ASSIGNMENT_AI_MIN_INTERVAL_MS) {
+      throw new HttpsError(
+        "resource-exhausted",
+        "An assignment is already being built. Wait a few seconds before starting another one.",
+      );
+    }
+
+    const dayCount = data.dayKey === dayKey ? Math.max(0, Number(data.dayCount) || 0) : 0;
+    if (dayCount >= ASSIGNMENT_AI_DAILY_LIMIT) {
+      throw new HttpsError(
+        "resource-exhausted",
+        "This teacher account reached MathMaster's daily AI assignment-build limit. Use the copy/paste AI workflow or try again tomorrow.",
+      );
+    }
+
+    transaction.set(ref, {
+      dayKey,
+      dayCount: dayCount + 1,
+      lastStartedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    return { dayKey, dayCount: dayCount + 1 };
+  });
+}
+
+function translateAssignmentAiError(error) {
+  if (error instanceof HttpsError) return error;
+  if (error instanceof assignmentAi.AssignmentAiError) {
+    return new HttpsError(
+      error.code || "internal",
+      error.message || "MathMaster could not build this assignment with AI.",
+      error.details || undefined,
+    );
+  }
+  logger.error("Integrated assignment AI failed", {
+    name: error?.name || null,
+    message: error?.message || String(error),
+  });
+  return new HttpsError(
+    "internal",
+    "MathMaster could not build this assignment with AI. Use the copy/paste AI workflow while the service is checked.",
+  );
+}
+
+exports.authorAssignmentWithAI = onCall({
+  secrets: ASSIGNMENT_AI_SECRETS,
+  timeoutSeconds: 300,
+  memory: "1GiB",
+}, async (request) => {
+  const teacherUid = await requireTeacher(request);
+  const prompt = String(request.data?.prompt || "").trim();
+  const requestedModel = String(readPublicEnv("OPENAI_ASSIGNMENT_MODEL", assignmentAi.DEFAULT_ASSIGNMENT_MODEL) || "").trim()
+    || assignmentAi.DEFAULT_ASSIGNMENT_MODEL;
+
+  try {
+    await reserveAssignmentAiUsage(getFirestore(), teacherUid);
+    const result = await assignmentAi.callOpenAiAssignmentAuthor({
+      apiKey: readOpenAiApiKey(),
+      prompt,
+      model: requestedModel,
+    });
+
+    await getFirestore().collection("assignmentAiAudit").add({
+      teacherUid,
+      teacherEmail: callerEmail(request),
+      provider: "openai",
+      model: result.model,
+      responseId: result.responseId,
+      usage: result.usage || null,
+      promptCharacters: prompt.length,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    return result;
+  } catch (error) {
+    throw translateAssignmentAiError(error);
+  }
+});
