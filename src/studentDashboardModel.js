@@ -123,13 +123,15 @@ export const buildStudentDashboardModel = ({
     if (!canResume(assignment)) return false;
     const assignmentTracker = tracker[assignment.id];
     if (!assignmentTracker) return false;
-    return assignment.questions?.some((question, index) => questionIsIncluded(question)
+    return runtimeQuestionsFromAssignment(assignment).some((question, index) => questionIsIncluded(question)
       && !['correct', 'expired'].includes(normalizeQuestionRecord(assignmentTracker[index]).status));
   });
   const resumeAssignment = savedResume || fallbackResume || null;
 
-  const fallbackQuestionIndex = resumeAssignment?.questions?.findIndex((question, index) => questionIsIncluded(question)
-    && !['correct', 'expired'].includes(normalizeQuestionRecord(tracker[resumeAssignment.id]?.[index]).status)) ?? -1;
+  const fallbackQuestionIndex = resumeAssignment
+    ? runtimeQuestionsFromAssignment(resumeAssignment).findIndex((question, index) => questionIsIncluded(question)
+      && !['correct', 'expired'].includes(normalizeQuestionRecord(tracker[resumeAssignment.id]?.[index]).status))
+    : -1;
   const savedResumeIncluded = savedResume ? getIncludedQuestionIndices(savedResume) : [];
   const requestedResumeIndex = Number(resumeAction?.questionIndex) || 0;
   const resumeQuestionIndex = savedResume
