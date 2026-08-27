@@ -3,10 +3,11 @@
   "assignment": {
     "title": "Algebra II Honors — Lesson 1 Day 2: Function Attributes and Relations",
     "courseId": "algebra2",
-    "assignmentType": "notesClasswork",
-    "folder": "Algebra II/Module 1/Functions"
+    "folder": "Algebra II/Module 1/Functions",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork"
   },
-  "activities": [
+  "sections": [
     {
       "role": "warmup",
       "title": "Warm-Up",
@@ -71,7 +72,8 @@
           "dok": 1,
           "difficultyBand": 1
         }
-      ]
+      ],
+      "id": "warmup-1"
     },
     {
       "role": "classwork",
@@ -307,7 +309,8 @@
           "domainPrompt": "State the reasonable domain for time in interval notation.",
           "rangePrompt": "State the reasonable range for water volume in interval notation."
         }
-      ]
+      ],
+      "id": "classwork-2"
     },
     {
       "role": "practice",
@@ -467,7 +470,8 @@
           "dok": 2,
           "difficultyBand": 2
         }
-      ]
+      ],
+      "id": "practice-3"
     },
     {
       "role": "dol",
@@ -564,7 +568,17 @@
           "dok": 2,
           "difficultyBand": 2
         }
-      ]
+      ],
+      "id": "dol-4"
     }
-  ]
+  ],
+  "variantPolicy": {
+    "mode": "personalized",
+    "sectionModes": {
+      "warmup": "shared",
+      "classwork": "shared",
+      "practice": "personalized",
+      "dol": "shared"
+    }
+  }
 }
