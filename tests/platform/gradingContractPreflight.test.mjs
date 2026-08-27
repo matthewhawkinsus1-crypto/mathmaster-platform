@@ -76,13 +76,13 @@ test('form-specific prompts cannot opt into permissive expression equivalence', 
   assert.ok(result.errors.some((message) => /specific algebraic form/.test(message)));
 });
 
-test('auto-graded response fields require a key but teacher-reviewed fields do not', () => {
+test('generic response fields require a grading key instead of pretending autoGrade false is a runtime bypass', () => {
   const missing = validateQuestionGradingContracts({
     responseFields: [{ id: 'why', label: 'Explain your reasoning', inputProfile: 'text' }],
   });
   assert.ok(missing.errors.some((message) => /has no grading key/.test(message)));
 
-  const manual = validateQuestionGradingContracts({
+  const fakeManual = validateQuestionGradingContracts({
     responseFields: [{
       id: 'why',
       label: 'Explain your reasoning',
@@ -90,7 +90,7 @@ test('auto-graded response fields require a key but teacher-reviewed fields do n
       autoGrade: false,
     }],
   });
-  assert.deepEqual(manual.errors, []);
+  assert.ok(fakeManual.errors.some((message) => /has no grading key/.test(message)));
 });
 
 test('accepted list cannot override expected in secure response fields', () => {
