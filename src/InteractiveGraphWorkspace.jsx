@@ -5,7 +5,7 @@ import MathText from './components/common/MathText.jsx';
 import { toPlainMath } from './components/common/mathSegments.js';
 import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
 import QuestionPrompt from './QuestionPrompt';
-import { FUNCTION_GRAPH_LABELS } from './functionGraphUtils';
+import { FUNCTION_GRAPH_LABELS, evaluateGraphFunction } from './functionGraphUtils';
 import { POINT_FEATURES } from './analysisRequestCatalog';
 import { analysisKeypadProfile } from '../functions/shared/pathToolContracts.mjs';
 import useUndoHistory from './useUndoHistory';
@@ -133,6 +133,21 @@ const normalizeAnalysisRequests = (question, spec, window, allowDefault) => {
   const requests = provided || (allowDefault ? [{ id: 'feature', kind: 'point', feature: question.analysisFeature || 'vertex', label: question.analysisFeatureLabel || question.analysisFeature || 'requested feature' }] : []);
   return requests.map((request, index) => {
     const id = String(request.id || `analysis-${index + 1}`);
+    if (request.kind === 'inversePoint') {
+      const sourceTask = (question.pointTasks || []).find((task) => String(task?.id || '') === String(request.sourceTaskId || ''));
+      const sourceX = Number(sourceTask?.x);
+      const sourceY = Number.isFinite(sourceX) ? evaluateGraphFunction(spec, sourceX) : Number.NaN;
+      const expected = Number.isFinite(sourceX) && Number.isFinite(sourceY) ? [[sourceY, sourceX]] : [];
+      return {
+        ...request,
+        id,
+        kind: 'inversePoint',
+        expected,
+        requiredCount: expected.length,
+        allowNone: false,
+        responseMode: request.responseMode || 'click',
+      };
+    }
     if (request.kind === 'value') {
       const authoredExpected = Array.isArray(request.expected)
         ? request.expected
@@ -269,6 +284,8 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
   const studentChoosesX = Boolean(question.studentChoosesX || question.chooseXValues);
   const pointOnly = Boolean(question.pointOnly || question.plotMode === 'points');
   const constructionEnabled = mode !== 'analysis';
+  const inverseReflection = question.inverseReflection?.enabled ? question.inverseReflection : null;
+  const inverseReflectionEnabled = Boolean(inverseReflection && constructionEnabled);
   const tasks = useMemo(() => constructionEnabled ? (question.pointTasks || buildInteractivePointTasks(functionSpec, { points: question.graphAnswer?.suggestedPoints, includeUndefinedChecks: question.includeUndefinedChecks, undefinedCount: question.undefinedCount, studentChoosesX })) : [], [question, functionSpec, studentChoosesX, constructionEnabled]);
   // Magnetic targets are NEVER inferred from task.expected. They must be
   // explicitly supplied as student-known coordinates (for example, points from
@@ -278,7 +295,31 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
     () => normalizeMagneticSnapTargets(question.magneticSnapTargets, tasks),
     [question.magneticSnapTargets, tasks],
   );
-  const window = useMemo(() => buildInteractiveGraphWindow(functionSpec, tasks, graph), [functionSpec, tasks, graph]);
+  const inversePreviewPoints = useMemo(() => {
+    if (!inverseReflectionEnabled) return [];
+    const requested = new Set((inverseReflection.sourceTaskIds || []).map(String));
+    return (question.pointTasks || [])
+      .filter((task) => !requested.size || requested.has(String(task?.id || '')))
+      .map((task) => {
+        const sourceX = Number(task?.x);
+        const sourceY = Number.isFinite(sourceX) ? evaluateGraphFunction(functionSpec, sourceX) : Number.NaN;
+        return Number.isFinite(sourceX) && Number.isFinite(sourceY) ? [sourceY, sourceX] : null;
+      })
+      .filter(Boolean);
+  }, [inverseReflectionEnabled, inverseReflection, question.pointTasks, functionSpec]);
+
+  const baseWindow = useMemo(() => buildInteractiveGraphWindow(functionSpec, tasks, graph), [functionSpec, tasks, graph]);
+  const window = useMemo(() => {
+    if (!inverseReflectionEnabled || !inversePreviewPoints.length) return baseWindow;
+    const margin = Math.max(1, Number(baseWindow.snapStep || 0.5) * 2);
+    return {
+      ...baseWindow,
+      xMin: Math.min(Number(baseWindow.xMin), ...inversePreviewPoints.map((point) => point[0] - margin)),
+      xMax: Math.max(Number(baseWindow.xMax), ...inversePreviewPoints.map((point) => point[0] + margin)),
+      yMin: Math.min(Number(baseWindow.yMin), ...inversePreviewPoints.map((point) => point[1] - margin)),
+      yMax: Math.max(Number(baseWindow.yMax), ...inversePreviewPoints.map((point) => point[1] + margin)),
+    };
+  }, [baseWindow, inverseReflectionEnabled, inversePreviewPoints]);
   const xGridStep = Math.max(0.000001, Number(window.xStep ?? 1));
   const yGridStep = Math.max(0.000001, Number(window.yStep ?? 1));
   const skipCounting = xGridStep > 1 || yGridStep > 1;
@@ -325,6 +366,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
     graph: window,
     pointTasks: tasks,
     analysisRequests: analysisParts,
+    inverseReflection,
     pointOnly,
   });
 
@@ -335,7 +377,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
     draftKey ? `${draftKey}:graph-construction` : null,
   );
   const analysisHistory = useUndoHistory(
-    { selections: {}, answers: {}, typedPoints: {}, noneSelections: {} },
+    { selections: {}, answers: {}, typedPoints: {}, noneSelections: {}, inversePointsValidated: false, inverseStrokes: [], inverseSnapped: false },
     60,
     draftKey ? `${draftKey}:graph-analysis` : null,
   );
@@ -354,6 +396,18 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
   const axisY = window.xMin <= 0 && window.xMax >= 0 ? toScreenX(0) : toScreenX(window.xMin);
   const idealPaths = useMemo(() => visiblePaths.map((path) => buildSmoothGraphPath(path, toScreenX, toScreenY)), [visiblePaths, window]);
   const idealScreenPointPaths = useMemo(() => visiblePaths.map((path) => path.map(([x, y]) => [toScreenX(x), toScreenY(y)])), [visiblePaths, window]);
+  const inverseVisiblePaths = useMemo(
+    () => inverseReflectionEnabled
+      ? visiblePaths
+        .map((path) => path.map(([x, y]) => [y, x]).filter(([x, y]) => x >= window.xMin && x <= window.xMax && y >= window.yMin && y <= window.yMax))
+        .filter((path) => path.length > 1)
+      : [],
+    [inverseReflectionEnabled, visiblePaths, window],
+  );
+  const inverseIdealPaths = useMemo(() => inverseVisiblePaths.map((path) => buildSmoothGraphPath(path, toScreenX, toScreenY)), [inverseVisiblePaths, window]);
+  const inverseIdealScreenPointPaths = useMemo(() => inverseVisiblePaths.map((path) => path.map(([x, y]) => [toScreenX(x), toScreenY(y)])), [inverseVisiblePaths, window]);
+  const reflectionLineMin = Math.max(window.xMin, window.yMin);
+  const reflectionLineMax = Math.min(window.xMax, window.yMax);
   const resolvedPointTasks = useMemo(() => tasks.map((task) => ({ ...task, resolvedExpected: resolveTaskExpected(task, functionSpec, construction.chosenXValues) })), [tasks, functionSpec, construction.chosenXValues]);
   const requiredGraphPoints = useMemo(() => resolvedPointTasks.filter((task) => Array.isArray(task.resolvedExpected) && task.role !== 'center').map((task) => [toScreenX(task.resolvedExpected[0]), toScreenY(task.resolvedExpected[1])]), [resolvedPointTasks, window]);
   const requiredStrokeCount = functionSpec.type === 'rational' ? 2 : 1;
@@ -364,7 +418,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
   useEffect(() => {
     if (!draftKey) {
       constructionHistory.reset({ placements: {}, chosenXValues: initialChosenX, pointsValidated: false, strokes: [], snapped: false, markerPlacements: {} });
-      analysisHistory.reset({ selections: {}, answers: {}, typedPoints: {}, noneSelections: {} });
+      analysisHistory.reset({ selections: {}, answers: {}, typedPoints: {}, noneSelections: {}, inversePointsValidated: false, inverseStrokes: [], inverseSnapped: false });
     }
     setActiveTaskId(null);
     setDraggingTaskId(null);
@@ -375,7 +429,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
     setPointFeedback('');
     setDrawFeedback('');
     setActiveMarker(null);
-    setActiveAnalysisPartId(analysisParts.find((part) => part.kind === 'point')?.id || analysisParts[0]?.id || null);
+    setActiveAnalysisPartId(analysisParts.find((part) => ['inversePoint', 'point'].includes(part.kind))?.id || analysisParts[0]?.id || null);
     if (!draftKey) setStage(mode === 'analysis' ? 'analysis' : 'construct');
   }, [questionSemanticKey, draftKey]);
 
@@ -407,7 +461,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
   }, [analysisParts, analysis.answers, analysis.selections]);
 
   const analysisGradeParts = useMemo(() => analysisParts.map((part) => {
-    if (part.kind === 'point') {
+    if (['point', 'inversePoint'].includes(part.kind)) {
       const selected = analysis.selections[part.id] || [];
       const noneSelected = Boolean(analysis.noneSelections[part.id]);
       const typed = String(analysis.typedPoints[part.id] || '');
@@ -422,6 +476,28 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
     const response = String(analysis.answers[part.id] || '');
     return { id: part.id, label: part.label, isComplete: response.trim() !== '', isCorrect: response.trim() !== '' && setAnswerMatches(response, part.acceptedAnswers), response };
   }), [analysisParts, analysis, snapStep]);
+
+  const inversePointParts = useMemo(() => analysisParts.filter((part) => part.kind === 'inversePoint'), [analysisParts]);
+  const inversePointGrades = useMemo(() => inversePointParts.map((part) => analysisGradeParts.find((grade) => grade.id === part.id)).filter(Boolean), [inversePointParts, analysisGradeParts]);
+  const inversePointsComplete = inversePointGrades.length > 0 && inversePointGrades.every((part) => part.isComplete);
+  const inversePointsCorrect = inversePointGrades.length > 0 && inversePointGrades.every((part) => part.isCorrect);
+  const inverseRequiredGraphPoints = useMemo(() => inversePointParts.flatMap((part) => part.expected || []).map(([x, y]) => [toScreenX(x), toScreenY(y)]), [inversePointParts, window]);
+  const inverseSketchRequired = Boolean(inverseReflectionEnabled && inverseReflection?.requireInverseSketch !== false);
+  const inverseSketchComplete = !inverseSketchRequired || Boolean(analysis.inverseSnapped);
+
+  const checkInversePoints = () => {
+    if (!inversePointsComplete) {
+      setDrawFeedback('Place both reflected points before checking them.');
+      return;
+    }
+    if (!inversePointsCorrect) {
+      analysisHistory.setValue((current) => ({ ...current, inversePointsValidated: false, inverseStrokes: [], inverseSnapped: false }));
+      setDrawFeedback('At least one reflected point needs revision. Reflection across y=x swaps the coordinates.');
+      return;
+    }
+    analysisHistory.setValue((current) => ({ ...current, inversePointsValidated: true, inverseStrokes: [], inverseSnapped: false }));
+    setDrawFeedback('Both reflected points are correct. Now draw the inverse line through them.');
+  };
 
   const markerParts = useMemo(() => endpointRequirements.flatMap((requirement, index) => {
     const placement = construction.markerPlacements[requirement.id];
@@ -460,9 +536,12 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
       ...(pointOnly ? [] : [{ id: 'graph-curve', label: 'Freehand curve and snap', isComplete: construction.snapped, isCorrect: construction.snapped, response: construction.snapped ? 'snapped' : 'not snapped' }]),
       ...(pointOnly ? [] : markerParts),
     ] : [];
-    const parts = [...constructionParts, ...(analysisEnabled ? analysisGradeParts : [])];
+    const inverseSketchPart = inverseSketchRequired
+      ? [{ id: 'inverse-line-sketch', label: 'Draw the inverse through the reflected points', isComplete: Boolean(analysis.inverseSnapped), isCorrect: Boolean(analysis.inverseSnapped), response: analysis.inverseSnapped ? 'snapped' : 'not complete' }]
+      : [];
+    const parts = [...constructionParts, ...(analysisEnabled ? [...analysisGradeParts, ...inverseSketchPart] : [])];
     const constructionComplete = !constructionEnabled || (construction.pointsValidated && (pointOnly || (construction.snapped && allMarkersPlaced)));
-    const analysisComplete = !analysisEnabled || (analysisGradeParts.length > 0 && analysisGradeParts.every((part) => part.isComplete));
+    const analysisComplete = !analysisEnabled || (analysisGradeParts.length > 0 && analysisGradeParts.every((part) => part.isComplete) && inverseSketchComplete);
     const complete = constructionComplete && analysisComplete;
     const correct = complete && parts.every((part) => part.isCorrect);
     onStateChange({
@@ -472,7 +551,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
       questionDetails: `${question.prompt || (pointOnly ? 'Plot the table points.' : 'Investigate the function.')} Points: ${Object.entries(construction.placements).map(([id, value]) => `${id}=${taskPlacementLabel(value)}`).join('; ') || 'not required'}. ${pointOnly ? 'Point-only graph.' : `Curve: ${construction.snapped ? 'complete' : 'incomplete'}. Graph boundaries/continuation: ${Object.entries(construction.markerPlacements).map(([id, value]) => `${id}=${markerValue(value)}`).join('; ') || 'not entered'}.`} Analysis: ${analysisGradeParts.map((part) => `${part.label}=${part.response || 'blank'}`).join('; ') || 'not required'}.`,
       parts,
     });
-  }, [construction, analysis, constructionEnabled, analysisEnabled, pointParts, markerParts, analysisGradeParts, allMarkersPlaced, pointOnly, question, onStateChange]);
+  }, [construction, analysis, constructionEnabled, analysisEnabled, pointParts, markerParts, analysisGradeParts, allMarkersPlaced, pointOnly, question, onStateChange, inverseSketchRequired, inverseSketchComplete]);
 
   const eventToScreenPoint = (event) => {
     const svg = svgRef.current;
