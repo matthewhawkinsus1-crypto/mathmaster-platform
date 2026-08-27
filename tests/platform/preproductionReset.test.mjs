@@ -11,11 +11,15 @@ const authService = readFileSync(new URL('../../src/auth/authService.js', import
 const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 const panel = readFileSync(new URL('../../src/components/admin/PreproductionReset.jsx', import.meta.url), 'utf8');
 
-test('pre-production reset requires one exact destructive confirmation phrase', () => {
+test('pre-production reset and production lock each require an exact typed phrase', () => {
   assert.equal(admin.preproductionResetConfirmation(), 'RESET TEST DATA');
   assert.equal(admin.isPreproductionResetConfirmed('RESET TEST DATA'), true);
   assert.equal(admin.isPreproductionResetConfirmed('reset test data'), false);
   assert.equal(admin.isPreproductionResetConfirmed('RESET ALL DATA'), false);
+
+  assert.equal(admin.preproductionLockConfirmation(), 'LOCK FOR PRODUCTION');
+  assert.equal(admin.isPreproductionLockConfirmed('LOCK FOR PRODUCTION'), true);
+  assert.equal(admin.isPreproductionLockConfirmed('lock for production'), false);
 });
 
 test('reset collection policy deletes test/runtime state but explicitly preserves platform configuration', () => {
@@ -59,6 +63,7 @@ test('reset collection policy deletes test/runtime state but explicitly preserve
     'settings',
     'teacherDirectory',
     'teacherIntegrations',
+    'classroomCourseMappings',
     'adminAuditLog',
     'pathQuestionBank',
     'pathCoverage',
@@ -70,6 +75,37 @@ test('reset collection policy deletes test/runtime state but explicitly preserve
   }
 });
 
+
+
+test('production lock is root-admin only, one-way in the app, and reset refuses destructive execution after locking', () => {
+  const resetStart = functionsSource.indexOf('exports.resetPreproductionTestData');
+  const lockStart = functionsSource.indexOf('exports.lockPreproductionResetForProduction');
+  const deleteStart = functionsSource.indexOf('exports.permanentlyDeleteStudent', lockStart);
+  assert.ok(resetStart >= 0 && lockStart > resetStart && deleteStart > lockStart);
+
+  const resetBlock = functionsSource.slice(resetStart, lockStart);
+  const lockBlock = functionsSource.slice(lockStart, deleteStart);
+
+  assert.match(resetBlock, /if \(preview\.resetLocked\)/);
+  assert.match(resetBlock, /permanently locked for live-student production use/);
+
+  assert.match(lockBlock, /await requireRootAdmin\(request\)/);
+  assert.match(lockBlock, /adminPolicy\.isPreproductionLockConfirmed/);
+  assert.match(lockBlock, /PREPRODUCTION_CONTROL_DOCUMENT/);
+  assert.match(lockBlock, /locked:\s*true/);
+  assert.match(lockBlock, /preproduction_reset_locked_for_production/);
+  assert.match(lockBlock, /irreversibleInApp:\s*true/);
+
+  assert.equal(functionsSource.includes('unlockPreproductionReset'), false);
+  assert.equal(authService.includes('unlockPreproductionReset'), false);
+});
+
+test('production lifecycle control is server-only under Firestore rules', () => {
+  const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
+  assert.equal(rules.includes('match /adminControl/'), false);
+  assert.match(rules, /match \/\{document=\*\*\} \{/);
+  assert.match(rules, /allow read, write: if false/);
+});
 test('server reset callable is root-admin only and separates preview from destructive execution', () => {
   const start = functionsSource.indexOf('exports.resetPreproductionTestData');
   const end = functionsSource.indexOf('exports.permanentlyDeleteStudent', start);
@@ -127,6 +163,7 @@ test('teacher admin client exposes preview and reset only through the audited ca
   assert.match(authService, /callable\('resetPreproductionTestData'\)\(\{ dryRun: true \}\)/);
   assert.match(authService, /resetPreproductionTestData: \(confirmation\)/);
   assert.match(authService, /dryRun: false, confirmation/);
+  assert.match(authService, /lockPreproductionResetForProduction: \(confirmation\)/);
 });
 
 test('root Administration exposes a dedicated pre-production reset tab and refreshes stale in-memory test data', () => {
@@ -139,12 +176,17 @@ test('root Administration exposes a dedicated pre-production reset tab and refre
   assert.match(app, /fetchStudents\(\)/);
 });
 
-test('reset panel requires acknowledgement plus exact server-provided phrase and explains Google Classroom limitation', () => {
+test('reset panel requires exact phrases, disables bulk reset after locking, and explains Google Classroom limitation', () => {
   assert.match(panel, /previewPreproductionReset/);
   assert.match(panel, /confirmationRequired = preview\?\.confirmationRequired \|\| 'RESET TEST DATA'/);
-  assert.match(panel, /acknowledged/);
+  assert.match(panel, /lockConfirmationRequired = preview\?\.lockConfirmationRequired \|\| 'LOCK FOR PRODUCTION'/);
+  assert.match(panel, /preview\?\.resetLocked !== true/);
   assert.match(panel, /confirmation\.trim\(\) === confirmationRequired/);
+  assert.match(panel, /lockConfirmation\.trim\(\) === lockConfirmationRequired/);
   assert.match(panel, /Permanently Reset Test Data/);
+  assert.match(panel, /Lock Bulk Reset for Production/);
+  assert.match(panel, /Production Lock Active/);
+  assert.match(panel, /no unlock action/i);
   assert.match(panel, /does not delete coursework/);
   assert.match(panel, /Google Classroom/);
   assert.doesNotMatch(panel, /deleteDoc\(|collection\(db/);
