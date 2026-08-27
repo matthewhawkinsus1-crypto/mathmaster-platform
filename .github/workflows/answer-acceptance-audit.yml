@@ -5,6 +5,9 @@ on:
     paths:
       - 'functions/shared/**'
       - 'functions/lib/mathPath.js'
+      - 'src/MathInput.jsx'
+      - 'src/platform/interaction/mobileKeypadPolicy.js'
+      - 'tests/platform/mobileEquationKeypadPolicy.test.mjs'
       - 'functions/seeds/pathQuestionBank/**'
       - 'seed/pathQuestionBank/**'
       - 'src/grading/**'
@@ -18,6 +21,9 @@ on:
     paths:
       - 'functions/shared/**'
       - 'functions/lib/mathPath.js'
+      - 'src/MathInput.jsx'
+      - 'src/platform/interaction/mobileKeypadPolicy.js'
+      - 'tests/platform/mobileEquationKeypadPolicy.test.mjs'
       - 'functions/seeds/pathQuestionBank/**'
       - 'seed/pathQuestionBank/**'
       - 'src/grading/**'
@@ -40,5 +46,5 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm --prefix functions ci
-      - run: node --test tests/platform/correctAnswerAcceptance.test.mjs tests/platform/pathPassCompletion.test.mjs tests/platform/algebraicForm.test.mjs tests/platform/setAnswerEquivalence.test.mjs tests/platform/pathToolGraders.test.mjs
+      - run: node --test tests/platform/correctAnswerAcceptance.test.mjs tests/platform/pathPassCompletion.test.mjs tests/platform/mobileEquationKeypadPolicy.test.mjs tests/platform/algebraicForm.test.mjs tests/platform/setAnswerEquivalence.test.mjs tests/platform/pathToolGraders.test.mjs
       - run: npm run audit:answer-acceptance
