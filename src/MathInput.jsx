@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import 'mathlive';
-import { resolveRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
+import { ANSWER_SYMBOL_SPECS, resolveRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
 import { buildMobileMathTools } from './platform/interaction/mobileKeypadPolicy.js';
 import { scheduleHorizontalViewportStabilization } from './platform/mobile/mobileFocusViewport.js';
 
@@ -25,29 +25,6 @@ const MOBILE_ENTRY_KEYS = [
 ];
 
 const MOBILE_BACKSPACE_KEY = { label: '⌫', action: 'deleteBackward', ariaLabel: 'Delete previous character' };
-
-const ANSWER_SYMBOL_KEYS = Object.freeze({
-  '(': { label: '(', command: '(', ariaLabel: 'Insert open parenthesis' },
-  ')': { label: ')', command: ')', ariaLabel: 'Insert close parenthesis' },
-  ',': { label: ',', command: ',', ariaLabel: 'Insert comma' },
-  '[': { label: '[', command: '[', ariaLabel: 'Insert open bracket' },
-  ']': { label: ']', command: ']', ariaLabel: 'Insert close bracket' },
-  '{': { label: '{', command: '\\lbrace', ariaLabel: 'Insert opening set brace' },
-  '}': { label: '}', command: '\\rbrace', ariaLabel: 'Insert closing set brace' },
-  '∞': { label: '∞', command: '\\infty', ariaLabel: 'Insert positive infinity' },
-  '∪': { label: '∪', command: '\\cup', ariaLabel: 'Insert union' },
-  '<': { label: '<', command: '<', ariaLabel: 'Insert less than' },
-  '≤': { label: '≤', command: '\\le', ariaLabel: 'Insert less than or equal to' },
-  '>': { label: '>', command: '>', ariaLabel: 'Insert greater than' },
-  '≥': { label: '≥', command: '\\ge', ariaLabel: 'Insert greater than or equal to' },
-  '≠': { label: '≠', command: '\\ne', ariaLabel: 'Insert not equal to' },
-  '=': { label: '=', command: '=', ariaLabel: 'Insert equals sign' },
-  '−': { label: '−', command: '-', ariaLabel: 'Insert negative sign' },
-  '-': { label: '−', command: '-', ariaLabel: 'Insert negative sign' },
-  x: { label: 'x', command: 'x', ariaLabel: 'Insert x' },
-  y: { label: 'y', command: 'y', ariaLabel: 'Insert y' },
-  'ⁿ√': { label: 'ⁿ√', command: '\\sqrt[#?]{#0}', ariaLabel: 'Insert nth root' },
-});
 
 const FUNCTION_KEYS = [
   { label: 'x', command: 'x', ariaLabel: 'Insert x' },
@@ -195,11 +172,11 @@ export default function MathInput({
     [answerFormat, toolProfile, requiredSymbols],
   );
   const requiredTools = useMemo(
-    () => requiredAnswerSymbols.map((symbol) => ANSWER_SYMBOL_KEYS[symbol]).filter(Boolean),
+    () => requiredAnswerSymbols.map((symbol) => ANSWER_SYMBOL_SPECS[symbol]).filter(Boolean),
     [requiredAnswerSymbols],
   );
   const unservedRequiredSymbols = useMemo(
-    () => requiredAnswerSymbols.filter((symbol) => !ANSWER_SYMBOL_KEYS[symbol]),
+    () => requiredAnswerSymbols.filter((symbol) => !ANSWER_SYMBOL_SPECS[symbol]),
     [requiredAnswerSymbols],
   );
   const shouldSuppressNativeKeyboard = isMobile && toolProfile !== 'function' && unservedRequiredSymbols.length === 0;
