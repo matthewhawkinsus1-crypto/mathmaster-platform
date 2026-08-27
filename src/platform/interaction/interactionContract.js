@@ -32,6 +32,19 @@ export const normalizeInteractionInputProfile = (value) => {
     : raw;
 };
 
+export const toolProfileForInputProfile = (value) => {
+  const profile = normalizeInteractionInputProfile(value);
+  return ({
+    interval: 'interval',
+    inequality: 'inequality',
+    set: 'set',
+    equation: 'equation',
+    expression: 'expression',
+    orderedPair: 'expression',
+    number: 'expression',
+  })[profile] || 'expression';
+};
+
 const formatForProfile = (profile) => ({
   orderedPair: 'orderedPair',
   interval: 'interval',
