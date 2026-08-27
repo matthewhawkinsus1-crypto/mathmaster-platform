@@ -117,7 +117,7 @@ import {
   canonicalV5PersistencePatch,
   storedAssignmentToV5,
 } from './platform/contract/storedAssignmentV5.js';
-import { hydrateAssignmentRuntime } from './platform/contract/assignmentRuntimeProjection.js';
+import { hydrateAssignmentRuntime, runtimeQuestionsFromAssignment } from './platform/contract/assignmentRuntimeProjection.js';
 import { buildAssignmentV5PreflightModel } from './platform/preflight/assignmentV5PreflightModel.js';
 import { normalizeLabDefinition } from './platform/labs/labDefinitionSchema.js';
 import { normalizeContextualQuestion } from './platform/context/wordProblemLayer';
@@ -239,7 +239,7 @@ const normalizeAssignmentQuestions = (questions = []) => questions.map((question
 const assignmentFeedbackWasReleased = (assignment) => assignment?.feedbackReleased === true || Boolean(assignment?.feedbackReleasedAt);
 
 const assignmentUsesTeacherReleasePolicy = (assignment) => (
-  (assignment?.questions || []).some((question) => {
+  runtimeQuestionsFromAssignment(assignment).some((question) => {
     const role = resolveQuestionActivityRole({ question, assignment });
     return getEffectiveActivityPolicy(role).feedback === 'teacherRelease';
   })
@@ -1360,7 +1360,7 @@ function App() {
   };
 
   const calculateGrade = (assignmentTracker, assignmentData) => {
-    if (!assignmentTracker || !assignmentData?.questions?.length) return 0;
+    if (!assignmentTracker || !runtimeQuestionsFromAssignment(assignmentData).length) return 0;
     const included = getIncludedQuestionIndices(assignmentData);
     if (!included.length) return 0;
     const earnedCredit = included.reduce(
@@ -1371,7 +1371,7 @@ function App() {
   };
 
   const calculatePracticeProgress = (assignmentTracker, assignmentData) => {
-    if (!assignmentTracker || !assignmentData?.questions?.length) {
+    if (!assignmentTracker || !runtimeQuestionsFromAssignment(assignmentData).length) {
       return { attempted: 0, correct: 0, total: 0 };
     }
 
@@ -1450,7 +1450,7 @@ function App() {
   const activeSupportPresentation = getStudentSupportPresentation(user?.profile);
   const activeDOLState = getDOLState({ assignment: activeAssignmentData, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now });
   const activeQuestionRole = resolveQuestionActivityRole({
-    question: activeAssignmentData?.questions?.[currentQuestionIndex],
+    question: runtimeQuestionsFromAssignment(activeAssignmentData)[currentQuestionIndex],
     assignment: activeAssignmentData,
     isDOL: activeDOLState.enabled && currentQuestionIndex === activeDOLState.questionIndex,
   });
@@ -1463,7 +1463,7 @@ function App() {
       : tracker[activeAssignmentId] || {};
 
   useEffect(() => {
-    if (!activeAssignmentData?.questions?.length) return;
+    if (!runtimeQuestionsFromAssignment(activeAssignmentData).length) return;
     const included = getIncludedQuestionIndices(activeAssignmentData);
     if (!included.length) return;
     if (!included.includes(currentQuestionIndex)) setCurrentQuestionIndex(included[0]);
@@ -1521,10 +1521,10 @@ function App() {
 
     const publish = () => {
       const included = getIncludedQuestionIndices(activeAssignmentData);
-      const question = activeAssignmentData.questions?.[currentQuestionIndex];
+      const question = runtimeQuestionsFromAssignment(activeAssignmentData)[currentQuestionIndex];
       const record = normalizeQuestionRecord(activeWorkingTracker?.[currentQuestionIndex]);
       const sectionIndices = included.filter((index) => (
-        resolveQuestionActivityRole({ question: activeAssignmentData.questions?.[index], assignment: activeAssignmentData }) === activeQuestionRole
+        resolveQuestionActivityRole({ question: runtimeQuestionsFromAssignment(activeAssignmentData)[index], assignment: activeAssignmentData }) === activeQuestionRole
       ));
       const payload = buildLiveStatus({
         assignmentId: activeAssignmentId,
@@ -1720,7 +1720,7 @@ function App() {
     if (!activeAssignmentId || newIndex === currentQuestionIndex) return;
     setAssignmentOverviewExpanded(false);
     const localAssignment = assignments.find((item) => item.id === activeAssignmentId);
-    if (localAssignment?.questions && !questionIsIncluded(localAssignment.questions[newIndex])) return;
+    if (!questionIsIncluded(runtimeQuestionsFromAssignment(localAssignment)[newIndex])) return;
 
     if (isTeacherPreview) {
       setPreviewTracker((current) => ({
@@ -1788,7 +1788,7 @@ function App() {
 
   const exportAssignmentWorksheetPdf = async (assignmentId) => {
     const assignmentData = assignments.find((assignment) => assignment.id === assignmentId);
-    if (user?.role !== 'student' || !assignmentData?.questions?.length) return;
+    if (user?.role !== 'student' || !runtimeQuestionsFromAssignment(assignmentData).length) return;
     if (!assignmentIsForStudent(assignmentData, { classId: user.classId || null, classPeriod: user.classPeriod })) {
       toastWarning('PDF not available', 'This assignment is not assigned to your class.');
       return;
@@ -1812,7 +1812,7 @@ function App() {
     const printableEntries = [];
 
     for (const index of getIncludedQuestionIndices(assignmentData)) {
-      const question = assignmentData.questions?.[index];
+      const question = runtimeQuestionsFromAssignment(assignmentData)[index];
       if (!question || !questionIsIncluded(question)) continue;
       const sectionRole = resolveQuestionActivityRole({ question, assignment: assignmentData });
       const timedDol = sectionRole === 'dol'
@@ -1882,7 +1882,7 @@ function App() {
   );
 
   const exportTeacherAssignmentWorksheetPdf = async (assignment, student = null, outputMode = PRINT_OUTPUT_MODES.STUDENT) => {
-    if (user?.role !== 'teacher' || !assignment?.questions?.length) return;
+    if (user?.role !== 'teacher' || !runtimeQuestionsFromAssignment(assignment).length) return;
     setTeacherWorksheetBusy(true);
     try {
       const masteryProfile = student ? teacherMasteryProfilesByStudentId?.[student.id] || null : null;
@@ -1924,7 +1924,7 @@ function App() {
   };
 
   const beginTeacherWorksheetExport = async (assignment) => {
-    if (!assignment?.questions?.length) {
+    if (!runtimeQuestionsFromAssignment(assignment).length) {
       toastInfo('Nothing to export', 'This assignment does not currently contain printable questions.');
       return;
     }
@@ -1944,7 +1944,7 @@ function App() {
     const assignmentData = assignments.find(
       (assignment) => assignment.id === assignmentId,
     );
-    if (!assignmentData?.questions) return;
+    if (!runtimeQuestionsFromAssignment(assignmentData).length) return;
     if (user?.role === 'student' && !assignmentIsForStudent(assignmentData, { classId: user.classId || null, classPeriod: user.classPeriod })) {
       toastWarning('Not assigned to your class', 'This assignment is not assigned to your class period.');
       return;
@@ -1981,7 +1981,7 @@ function App() {
       setPracticeTracker((current) => ({
         ...current,
         [assignmentId]: current[assignmentId] || createPracticeAssignmentTracker(
-          assignmentData.questions,
+          runtimeQuestionsFromAssignment(assignmentData),
           tracker[assignmentId] || {},
         ),
       }));
@@ -1989,7 +1989,7 @@ function App() {
     } else if (!tracker[assignmentId]) {
       setTracker((current) => ({
         ...current,
-        [assignmentId]: createEmptyAssignmentTracker(assignmentData.questions),
+        [assignmentId]: createEmptyAssignmentTracker(runtimeQuestionsFromAssignment(assignmentData)),
       }));
     }
 
@@ -2000,12 +2000,12 @@ function App() {
     const assignmentData = assignments.find(
       (assignment) => assignment.id === assignmentId,
     );
-    if (!assignmentData?.questions) return;
+    if (!runtimeQuestionsFromAssignment(assignmentData).length) return;
 
     setActiveAssignmentId(assignmentId);
     setCurrentQuestionIndex(getIncludedQuestionIndices(assignmentData)[0] ?? 0);
     setAssignmentOverviewExpanded(false);
-    setPreviewTracker(createEmptyAssignmentTracker(assignmentData.questions));
+    setPreviewTracker(createEmptyAssignmentTracker(runtimeQuestionsFromAssignment(assignmentData)));
     setPreviewScratchpads({});
     setActiveView('teacherPreview');
   };
@@ -2168,7 +2168,7 @@ function App() {
     const localAssignment = assignments.find((item) => item.id === activeAssignmentId);
     if (getAssignmentLifecycle(localAssignment, Date.now()).isPracticeOnly) {
       const currentPractice = practiceTracker[activeAssignmentId]
-        || createPracticeAssignmentTracker(localAssignment?.questions || [], tracker[activeAssignmentId] || {});
+        || createPracticeAssignmentTracker(runtimeQuestionsFromAssignment(localAssignment), tracker[activeAssignmentId] || {});
       const outcome = applyAttempt(currentPractice[currentQuestionIndex]);
       setPracticeTracker((current) => ({
         ...current,
@@ -2268,11 +2268,11 @@ function App() {
 
       // Phase 5C is a non-blocking dual write. Assignment grading remains
       // authoritative for this UI even when the audit timeline is unavailable.
-      if (assignment.questions?.[currentQuestionIndex]?.type !== 'modelingLab') {
+      if (runtimeQuestionsFromAssignment(assignment)[currentQuestionIndex]?.type !== 'modelingLab') {
         const evidenceEvent = buildAttemptEvidenceEvent({
           studentId: user.id,
           assignment,
-          question: assignment.questions?.[currentQuestionIndex],
+          question: runtimeQuestionsFromAssignment(assignment)[currentQuestionIndex],
           questionIndex: currentQuestionIndex,
           activityRole: activeQuestionRole,
           attemptRecord: outcome.record,
@@ -2283,7 +2283,7 @@ function App() {
           // difficulty here meant every mastery conclusion downstream was drawn
           // from what the question claimed rather than what the student answered.
           delivered: resolveDeliveredQuestionMetadata({
-            question: assignment.questions?.[currentQuestionIndex],
+            question: runtimeQuestionsFromAssignment(assignment)[currentQuestionIndex],
             learningProfile: studentLearningProfile,
             activityRole: activeQuestionRole,
             variationMode: getSectionVariantMode(assignment, activeQuestionRole),
@@ -2302,7 +2302,7 @@ function App() {
 
   const handleStepGrade = async ({ stepGrade, countsAttempt, statePatch, supportUsage: providedSupportUsage = null }) => {
     if (!activeAssignmentId) return null;
-    const supportUsage = providedSupportUsage || buildSupportUsage(user?.profile, activeAssignmentData?.questions?.[currentQuestionIndex]);
+    const supportUsage = providedSupportUsage || buildSupportUsage(user?.profile, runtimeQuestionsFromAssignment(activeAssignmentData)[currentQuestionIndex]);
     const applyStep = (record) =>
       recordQuestionStep({
         record,
@@ -2326,7 +2326,7 @@ function App() {
     const localAssignment = assignments.find((item) => item.id === activeAssignmentId);
     if (getAssignmentLifecycle(localAssignment, Date.now()).isPracticeOnly) {
       const currentPractice = practiceTracker[activeAssignmentId]
-        || createPracticeAssignmentTracker(localAssignment?.questions || [], tracker[activeAssignmentId] || {});
+        || createPracticeAssignmentTracker(runtimeQuestionsFromAssignment(localAssignment), tracker[activeAssignmentId] || {});
       const outcome = applyStep(currentPractice[currentQuestionIndex]);
       setPracticeTracker((current) => ({
         ...current,
@@ -2413,7 +2413,7 @@ function App() {
     const localAssignment = assignments.find((item) => item.id === activeAssignmentId);
     if (getAssignmentLifecycle(localAssignment, Date.now()).isPracticeOnly) {
       const currentPractice = practiceTracker[activeAssignmentId]
-        || createPracticeAssignmentTracker(localAssignment?.questions || [], tracker[activeAssignmentId] || {});
+        || createPracticeAssignmentTracker(runtimeQuestionsFromAssignment(localAssignment), tracker[activeAssignmentId] || {});
       const replacement = requestReplacementQuestion(currentPractice[currentQuestionIndex], options);
       setPracticeTracker((current) => ({
         ...current,
@@ -3821,7 +3821,7 @@ function App() {
 
   const handleDuplicateAssignment = async (assignment) => {
     try {
-      const duplicateQuestions = (assignment.questions || []).map((question) => ({
+      const duplicateQuestions = runtimeQuestionsFromAssignment(assignment).map((question) => ({
         ...question,
         questionId: createQuestionId(),
       }));
@@ -4143,7 +4143,7 @@ function App() {
       return;
     }
 
-    const hasDOL = Boolean(assignment?.dol?.enabled || assignment?.questions?.some((question) => (
+    const hasDOL = Boolean(assignment?.dol?.enabled || runtimeQuestionsFromAssignment(assignment).some((question) => (
       resolveQuestionActivityRole({ question, assignment }) === 'dol'
     )));
     const patch = {
@@ -4804,7 +4804,7 @@ function App() {
       );
     }
 
-    const questions = assignment.questions || [];
+    const questions = runtimeQuestionsFromAssignment(assignment);
     const includedQuestionIndices = getIncludedQuestionIndices(questions);
     const lifecycle = getAssignmentLifecycle(assignment, now);
     const recordedTracker = tracker[activeAssignmentId] || {};
@@ -5733,7 +5733,7 @@ function App() {
                   const lifecycle = getAssignmentLifecycle(assignment, now);
                   const affectedStudents = allStudents.filter((student) => student.gradesByAssignment?.[assignment.id] !== undefined).length;
                   const isSelected = selectedAssignmentIds.has(assignment.id);
-                  const hasDOL = Boolean(assignment?.dol?.enabled || assignment?.questions?.some((question) => resolveQuestionActivityRole({ question, assignment }) === 'dol'));
+                  const hasDOL = Boolean(assignment?.dol?.enabled || runtimeQuestionsFromAssignment(assignment).some((question) => resolveQuestionActivityRole({ question, assignment }) === 'dol'));
                   const hasSectionVersions = Object.keys(assignment.sectionVariantModes || {}).length > 0;
                   return (
                     <article key={assignment.id} style={{ background: '#f8f9fa', padding: '18px', marginBottom: '12px', borderRadius: '10px', border: `1px solid ${isSelected ? 'var(--mm-primary)' : lifecycle.isLate ? '#f9ab00' : lifecycle.isPracticeOnly ? '#5f6368' : '#e0e3e7'}`, boxShadow: isSelected ? '0 0 0 2px var(--mm-primary-soft)' : 'none' }}>
@@ -5756,7 +5756,7 @@ function App() {
                                 plainly is the whole point of allowing it to exist. */}
                             {isLibraryAssignment(assignment) && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#fef7e0', color: '#7a4f00' }}>NOT ASSIGNED</span>}
                           </div>
-                          <div style={{ marginTop: '7px', color: '#5f6368', fontSize: '13px', lineHeight: 1.55 }}>{getIncludedQuestionIndices(assignment).length} included question{getIncludedQuestionIndices(assignment).length === 1 ? '' : 's'}{(assignment.questions?.length || 0) !== getIncludedQuestionIndices(assignment).length ? ` · ${assignment.questions.length - getIncludedQuestionIndices(assignment).length} excluded` : ''} · {isLibraryAssignment(assignment) ? 'Not assigned to a class' : `Classes: ${(assignment.assignedClassPeriods || []).join(', ')}`}<br />{isLibraryAssignment(assignment) ? 'No due date yet' : `Due ${formatDueDate(assignment)} · Late close ${formatLateDueDate(assignment)}`} · {affectedStudents} student record{affectedStudents === 1 ? '' : 's'}</div>
+                          <div style={{ marginTop: '7px', color: '#5f6368', fontSize: '13px', lineHeight: 1.55 }}>{getIncludedQuestionIndices(assignment).length} included question{getIncludedQuestionIndices(assignment).length === 1 ? '' : 's'}{runtimeQuestionsFromAssignment(assignment).length !== getIncludedQuestionIndices(assignment).length ? ` · ${assignment.questions.length - getIncludedQuestionIndices(assignment).length} excluded` : ''} · {isLibraryAssignment(assignment) ? 'Not assigned to a class' : `Classes: ${(assignment.assignedClassPeriods || []).join(', ')}`}<br />{isLibraryAssignment(assignment) ? 'No due date yet' : `Due ${formatDueDate(assignment)} · Late close ${formatLateDueDate(assignment)}`} · {affectedStudents} student record{affectedStudents === 1 ? '' : 's'}</div>
                         </div>
                         <AssignmentCardMenu
                           ariaLabel={`More actions for ${assignment.title}`}
@@ -6038,7 +6038,7 @@ function App() {
                     {gradeExplanation && <div style={{ marginTop: 4, fontSize: 11, color: '#5f6368', lineHeight: 1.4, maxWidth: 280 }}>{gradeExplanation}</div>}</td><td style={{ fontSize: '12px' }}>{modified ? `Modified: ${(usage.modifications || []).join(', ')}` : (usage.accommodations || []).length ? `Accommodated: ${usage.accommodations.join(', ')}` : 'Standard'}</td><td style={{ fontSize: '12px', lineHeight: 1.45 }}>Total {formatTime(activity.totalTimeSeconds || 0)}<br />On time {formatTime(activity.onTimeSeconds || 0)} · Late {formatTime(activity.lateSeconds || 0)}<br />Last on-time: {formatTimeStamp(activity.lastActiveBeforeDue)}<br />Last late: {formatTimeStamp(activity.lastActiveLate)}</td><td style={{ fontSize: '12px' }}>DOL: {latestDol ? `${latestDol.score}%` : '—'}<br />Classwork: {classwork?.score ? `${classwork.score}%` : '—'}</td><td><button onClick={() => setGradebookFilter((current) => ({ ...current, student }))} disabled={!grades} style={{ padding: '8px 12px', border: 0, borderRadius: '6px', background: grades ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 'bold' }}>Details</button></td></tr>; })}</tbody></table></div>
                 )}
 
-                {gradebookFilter.student && selectedAssignment && (() => { const student = gradebookFilter.student; const studentGrades = student.gradesByAssignment?.[selectedAssignment.id] || {}; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? '#efe4ff' : '#e8f0fe', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{formatStudentName(student)} · {selectedAssignment.title}</h3><div style={{ marginTop: 6 }}><StudentPerformanceBadge profile={teacherLearningProfiles[student.id]} size="small" studentName={formatStudentName(student)} /></div><div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>Student ID {student.id}</div><div style={{ marginTop: '5px' }}>Score: <strong>{calculateGrade(studentGrades, selectedAssignment)}%</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>Total engagement {formatTime(activity.totalTimeSeconds || 0)} · Late engagement {formatTime(activity.lateSeconds || 0)}</div>{(() => { const delivered = describeDeliveredRigor(classEvidenceByStudentId[student.id] || [], selectedAssignment.id); if (!delivered) return null; return <div style={{ marginTop: 8, padding: '9px 11px', borderRadius: 8, background: '#fff', border: '1px solid #d8dde6' }}><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368' }}>What this student was given</div><div style={{ marginTop: 3, fontSize: 12.5, color: '#202124' }}>{delivered.summary}</div>{delivered.reasons.map((reason) => <div key={reason} style={{ marginTop: 4, fontSize: 12, color: '#5f6368', lineHeight: 1.45 }}>{reason}</div>)}</div>; })()}</div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: '#fff', color: '#6f2da8', fontWeight: 900 }}>Generate IEP Report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px' }}>{selectedAssignment.questions.map((question, index) => { if (!questionIsIncluded(question)) return null; const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? '#e6f4ea' : record.status === 'expired' && credit < 50 ? '#fce8e6' : credit >= 50 ? '#fff4ce' : '#f1f3f4', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? '#137333' : '#b3261e' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid #aeb8c6', borderRadius: '6px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>View Student Work</button></article>; })}</div></div>; })()}
+                {gradebookFilter.student && selectedAssignment && (() => { const student = gradebookFilter.student; const studentGrades = student.gradesByAssignment?.[selectedAssignment.id] || {}; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? '#efe4ff' : '#e8f0fe', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{formatStudentName(student)} · {selectedAssignment.title}</h3><div style={{ marginTop: 6 }}><StudentPerformanceBadge profile={teacherLearningProfiles[student.id]} size="small" studentName={formatStudentName(student)} /></div><div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>Student ID {student.id}</div><div style={{ marginTop: '5px' }}>Score: <strong>{calculateGrade(studentGrades, selectedAssignment)}%</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>Total engagement {formatTime(activity.totalTimeSeconds || 0)} · Late engagement {formatTime(activity.lateSeconds || 0)}</div>{(() => { const delivered = describeDeliveredRigor(classEvidenceByStudentId[student.id] || [], selectedAssignment.id); if (!delivered) return null; return <div style={{ marginTop: 8, padding: '9px 11px', borderRadius: 8, background: '#fff', border: '1px solid #d8dde6' }}><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368' }}>What this student was given</div><div style={{ marginTop: 3, fontSize: 12.5, color: '#202124' }}>{delivered.summary}</div>{delivered.reasons.map((reason) => <div key={reason} style={{ marginTop: 4, fontSize: 12, color: '#5f6368', lineHeight: 1.45 }}>{reason}</div>)}</div>; })()}</div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: '#fff', color: '#6f2da8', fontWeight: 900 }}>Generate IEP Report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px' }}>{runtimeQuestionsFromAssignment(selectedAssignment).map((question, index) => { if (!questionIsIncluded(question)) return null; const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? '#e6f4ea' : record.status === 'expired' && credit < 50 ? '#fce8e6' : credit >= 50 ? '#fff4ce' : '#f1f3f4', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? '#137333' : '#b3261e' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid #aeb8c6', borderRadius: '6px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>View Student Work</button></article>; })}</div></div>; })()}
               </div>
             )}
 
