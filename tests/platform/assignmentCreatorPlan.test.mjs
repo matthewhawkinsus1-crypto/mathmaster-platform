@@ -11,6 +11,8 @@ assert.equal(defaults.sections.warmup.count, 3);
 assert.equal(defaults.sections.classwork.count, 6);
 assert.equal(defaults.sections.practice.count, 8);
 assert.equal(defaults.sections.dol.count, 2);
+assert.equal(defaults.sections.quiz.enabled, false);
+assert.equal(defaults.sections.test.enabled, false);
 assert.equal(defaults.sections.practice.mode, 'personalized');
 
 const normalized = normalizeAssignmentCreatorPlan({
