@@ -1,0 +1,64 @@
+name: Assignment V5 Foundation
+
+on:
+  push:
+    branches:
+      - assignment-v5-canonical
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/assignmentBlueprint.js'
+      - 'src/App.jsx'
+      - 'src/platform/contract/**'
+      - 'src/platform/curriculum/instructionalScope.js'
+      - 'src/platform/authoring/**'
+      - 'src/platform/resources/**'
+      - 'src/components/teacher/TeacherAssignmentPdfDialog.jsx'
+      - 'tests/platform/assignment*V5*.test.mjs'
+      - 'tests/platform/assignmentWorksheetPdf*.test.mjs'
+      - 'tests/platform/authoring*.test.mjs'
+      - 'tests/platform/honorsCcmrAuthoringV5.test.mjs'
+      - 'tests/platform/digitalSatV21AuthoringGate.test.mjs'
+      - 'scripts/validate-authoring-v5.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/assignment-v5-foundation.yml'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Canonical V5 tests
+        run: npm run test:authoring-v5
+
+      - name: Permanent V5 validator
+        run: npm run validate:authoring-v5
+
+      - name: PDF and worksheet regressions
+        run: >
+          node --test
+          tests/platform/assignmentWorksheetPdf.test.mjs
+          tests/platform/assignmentWorksheetPdfIntegration.test.mjs
+          tests/platform/teacherAssignmentWorksheetExport.test.mjs
+          tests/platform/teacherAssignmentPdfWiring.test.mjs
+
+      - name: Digital SAT V2.1 authoring gate
+        run: node --test tests/platform/digitalSatV21AuthoringGate.test.mjs
+
+      - name: Production build
+        run: npm run build
