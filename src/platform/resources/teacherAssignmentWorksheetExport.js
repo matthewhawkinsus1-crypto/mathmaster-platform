@@ -10,6 +10,7 @@ import { resolveQuestionActivityRole } from '../policies/activityPolicies.js';
 import { resolveDeliveredQuestionMetadata } from '../assignments/assignmentAdaptation.js';
 import { normalizeContextualQuestion } from '../context/wordProblemLayer.js';
 import { buildAssignmentWorksheetModel, PRINT_OUTPUT_MODES } from './assignmentWorksheetPdfModel.js';
+import { runtimeQuestionsFromAssignment } from '../contract/assignmentRuntimeProjection.js';
 
 const activityTitleForRole = (role) => ({
   warmup: 'Warm-Up',
@@ -33,14 +34,15 @@ const assignmentHasAudience = (assignment = {}) => (
   || (Array.isArray(assignment.assignedClassPeriods) && assignment.assignedClassPeriods.length > 0)
 );
 
-export const assignmentNeedsStudentForWorksheet = (assignment = {}) => (
-  getIncludedQuestionIndices(assignment).some((index) => {
-    const question = assignment.questions?.[index];
+export const assignmentNeedsStudentForWorksheet = (assignment = {}) => {
+  const questions = runtimeQuestionsFromAssignment(assignment);
+  return getIncludedQuestionIndices(questions).some((index) => {
+    const question = questions[index];
     if (!question || !questionIsIncluded(question)) return false;
     const sectionRole = resolveQuestionActivityRole({ question, assignment });
     return getSectionVariantMode(assignment, sectionRole) !== 'shared';
-  })
-);
+  });
+};
 
 export const eligibleStudentsForTeacherWorksheet = (assignment = {}, students = []) => {
   const roster = Array.isArray(students) ? students.filter(Boolean) : [];
@@ -58,7 +60,8 @@ export const buildTeacherAssignmentWorksheetModel = ({
   studentProfile = null,
   outputMode = PRINT_OUTPUT_MODES.STUDENT,
 } = {}) => {
-  if (!assignment?.questions?.length) throw new Error('This assignment does not contain printable questions.');
+  const sourceQuestions = runtimeQuestionsFromAssignment(assignment);
+  if (!sourceQuestions.length) throw new Error('This assignment does not contain printable questions.');
 
   const needsStudent = assignmentNeedsStudentForWorksheet(assignment);
   if (needsStudent && !student?.id) {
@@ -77,8 +80,8 @@ export const buildTeacherAssignmentWorksheetModel = ({
   ).toLowerCase() === 'honors';
   const assignmentTracker = student?.gradesByAssignment?.[assignment.id] || {};
 
-  for (const index of getIncludedQuestionIndices(assignment)) {
-    const question = assignment.questions?.[index];
+  for (const index of getIncludedQuestionIndices(sourceQuestions)) {
+    const question = sourceQuestions[index];
     if (!question || !questionIsIncluded(question)) continue;
 
     const sectionRole = resolveQuestionActivityRole({ question, assignment });
