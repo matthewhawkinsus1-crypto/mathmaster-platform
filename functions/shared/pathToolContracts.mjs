@@ -206,6 +206,77 @@ export const pathIntervalNotationMatches = (studentText, expectedIntervals, tole
   return parsed ? samePathIntervals(parsed, expectedIntervals, tolerance) : false;
 };
 
+// Function-investigation analysis parts use the SAME interval notation field as
+// the interval-number-line tool, but historically went through scalar
+// `sameValue()` grading instead. That made a mathematically correct domain
+// such as `(-\\infty,\\infty)` fail against an authored key like
+// "all real numbers" or "(-inf,inf)".
+//
+// Keep the interval semantics here at the shared client/server contract so the
+// browser preview, secure Cloud Function verdict, and teacher simulator cannot
+// drift again.
+const FUNCTION_ANALYSIS_INTERVAL_KINDS = new Set([
+  'domain', 'range', 'increasing', 'decreasing', 'constant', 'positive', 'negative',
+]);
+
+const normalizeAllRealText = (value) => String(value ?? '')
+  .toLowerCase()
+  .replace(UNICODE_MINUS, '-')
+  .replace(/\\left|\\right/g, '')
+  .replace(/\\mathbb\s*\{?r\}?/g, 'r')
+  .replace(/ℝ/g, 'r')
+  .replace(/[\s_{}]/g, '')
+  .replace(/\\(?:,|;|!|quad|qquad)/g, '');
+
+const isAllRealText = (value) => {
+  const text = normalizeAllRealText(value);
+  return [
+    'allrealnumbers',
+    'allreals',
+    'realnumbers',
+    'reals',
+    'r',
+    'x∈r',
+    'xinr',
+  ].includes(text);
+};
+
+const intervalTextToPathIntervals = (value) => {
+  if (isAllRealText(value)) {
+    return [{
+      min: -PATH_INFINITY,
+      max: PATH_INFINITY,
+      minClosed: false,
+      maxClosed: false,
+    }];
+  }
+  return parsePathIntervalNotation(value);
+};
+
+export const pathAnalysisTextMatches = (
+  studentText,
+  candidates = [],
+  { kind = '', notation = '', tolerance = 1e-6 } = {},
+) => {
+  const resolvedNotation = String(notation || '').trim()
+    || (FUNCTION_ANALYSIS_INTERVAL_KINDS.has(String(kind || '')) ? 'interval' : '');
+
+  if (resolvedNotation === 'interval') {
+    const studentIntervals = intervalTextToPathIntervals(studentText);
+    return list(candidates).some((candidate) => {
+      const expectedIntervals = intervalTextToPathIntervals(candidate);
+      if (studentIntervals && expectedIntervals) {
+        return samePathIntervals(studentIntervals, expectedIntervals, tolerance);
+      }
+      // "does not exist", "none", and other explicitly authored textual
+      // interval answers still need a safe fallback.
+      return sameValue(studentText, candidate, tolerance);
+    });
+  }
+
+  return list(candidates).some((candidate) => sameValue(studentText, candidate, tolerance));
+};
+
 /**
  * Can an equation actually be read out of this question?
  *
@@ -686,6 +757,10 @@ const CONTRACTS = {
         .map((part, index) => ({
           id: String(part?.id || `analysis-${index + 1}`),
           kind: String(part?.kind || 'text'),
+          notation: String(
+            part?.notation
+            || (FUNCTION_ANALYSIS_INTERVAL_KINDS.has(String(part?.kind || '')) ? 'interval' : ''),
+          ),
           renderable: analysisKindIsRenderable(part),
           expected: list(part?.expected),
           accepted: list(part?.acceptedAnswers),
@@ -721,7 +796,14 @@ const CONTRACTS = {
         }
         const given = raw.answers?.[part.id];
         const candidates = part.accepted.length ? part.accepted : part.expected;
-        parts.push({ id: part.id, isCorrect: candidates.some((entry) => sameValue(given, entry, definition.tolerance)) });
+        parts.push({
+          id: part.id,
+          isCorrect: pathAnalysisTextMatches(given, candidates, {
+            kind: part.kind,
+            notation: part.notation,
+            tolerance: definition.tolerance,
+          }),
+        });
       });
       const correct = parts.filter((part) => part.isCorrect).length;
       const result = graded(parts.length > 0 && correct === parts.length, parts);
