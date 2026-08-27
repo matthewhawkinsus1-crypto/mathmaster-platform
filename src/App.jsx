@@ -113,6 +113,11 @@ import {
 } from './assignmentDestinations';
 import LessonPreflightModal from './components/teacher/LessonPreflightModal';
 import { flattenV5Sections, rebuildV5SectionsFromQuestions } from './platform/contract/assignmentSchemaV5.js';
+import {
+  canonicalV5PersistencePatch,
+  storedAssignmentToV5,
+} from './platform/contract/storedAssignmentV5.js';
+import { buildAssignmentV5PreflightModel } from './platform/preflight/assignmentV5PreflightModel.js';
 import { normalizeLabDefinition } from './platform/labs/labDefinitionSchema.js';
 import { normalizeContextualQuestion } from './platform/context/wordProblemLayer';
 import { buildAttemptEvidenceEvent } from './platform/history/evidenceEvent.js';
@@ -2514,7 +2519,7 @@ function App() {
 
   // The teacher sets classes, dates, folder and publishing here — the JSON never
   // carries them, so there are no manual fallbacks to merge any more.
-  const openAssignmentPreflight = (inspected, sourceName) => {
+  const openAssignmentPreflight = (inspected, sourceName, draftOverrides = {}) => {
     try {
       const { metadata } = inspected;
       const assignmentV5 = inspected.bundleSource;
@@ -2571,6 +2576,7 @@ function App() {
         classroomIntegration: metadata?.classroomIntegration || null,
         provenance: metadata?.provenance || null,
         preflight: metadata?.preflight || null,
+        ...draftOverrides,
       };
       setAssignmentPreflight({
         assignmentV5,
@@ -2772,6 +2778,7 @@ function App() {
         schemaVersion: 5,
         runtimeProjectionVersion: 1,
         title,
+        courseId: reviewedV5.assignment?.courseId || null,
         dueAt,
         lateDueAt,
         dueDate,
@@ -3056,19 +3063,23 @@ function App() {
     const normalizedQuestions = normalizeAssignmentQuestions(questions);
     const included = normalizedQuestions.filter(questionIsIncluded);
     if (!included.length) throw new Error('At least one included question is required.');
-    validateAssignmentQuestions(included, {
-      variantMode: questionEditorAssignment.variantMode,
-      allowFixed: questionEditorAssignment.variantMode === 'shared',
+
+    const candidateV5 = storedAssignmentToV5(questionEditorAssignment, {
+      titleOverride: title,
+      questions: normalizedQuestions,
     });
+    const model = buildAssignmentV5PreflightModel(candidateV5);
+    if (!model.isValid) {
+      throw new Error(`These question edits cannot be saved until V5 Preflight is clean:\n${model.errors.join('\n')}`);
+    }
+    const persistence = canonicalV5PersistencePatch(model.assignmentV5);
+    const persistedQuestions = persistence.questions;
     const dolIndex = resolveDOLQuestionIndex({
       ...questionEditorAssignment,
-      questions: normalizedQuestions,
+      questions: persistedQuestions,
     });
     await updateDoc(doc(db, 'assignments', questionEditorAssignment.id), {
-      title,
-      sections: rebuildV5SectionsFromQuestions(questionEditorAssignment, normalizedQuestions),
-      questions: normalizedQuestions,
-      runtimeProjectionVersion: 1,
+      ...persistence,
       'dol.questionIndex': dolIndex >= 0 ? dolIndex : null,
       updatedAt: new Date().toISOString(),
     });
@@ -3628,20 +3639,50 @@ function App() {
   };
 
   const handleDuplicateAssignment = async (assignment) => {
-    const { id: _id, archived: _archived, ...rest } = assignment;
-    const duplicateQuestions = (assignment.questions || []).map((question) => ({ ...question, questionId: createQuestionId() }));
-    await addDoc(collection(db, 'assignments'), {
-      ...rest,
-      schemaVersion: 5,
-      runtimeProjectionVersion: 1,
-      assignmentKey: null,
-      title: `${assignment.title} (Copy)`,
-      sections: rebuildV5SectionsFromQuestions(assignment, duplicateQuestions),
-      questions: duplicateQuestions,
-      createdAt: new Date(),
-    });
-    await fetchAssignments();
-    toastSuccess(`Duplicated “${assignment.title}”`, 'The copy is unpublished from Google Classroom and has no student records.');
+    try {
+      const duplicateQuestions = (assignment.questions || []).map((question) => ({
+        ...question,
+        questionId: createQuestionId(),
+      }));
+      const candidateV5 = storedAssignmentToV5(assignment, {
+        titleOverride: `${assignment.title} (Copy)`,
+        questions: duplicateQuestions,
+        resetAssignmentKey: true,
+      });
+      const model = buildAssignmentV5PreflightModel(candidateV5);
+      if (!model.isValid) {
+        throw new Error(`The copy cannot be created until V5 Preflight is clean:\n${model.errors.join('\n')}`);
+      }
+      const persistence = canonicalV5PersistencePatch(model.assignmentV5);
+      const { id: _id, archived: _archived, ...rest } = assignment;
+      await addDoc(collection(db, 'assignments'), {
+        ...rest,
+        ...persistence,
+        assignmentKey: null,
+        assignedClassIds: [],
+        assignedClassPeriods: [],
+        dueAt: null,
+        dueDate: null,
+        lateDueAt: null,
+        lateDueDate: null,
+        releaseAt: null,
+        courseProfile: { course: model.assignmentV5.assignment.courseId, courseLevel: null },
+        rigorVariant: null,
+        rigorVariantGroupId: null,
+        honorsContractVersion: null,
+        honorsContractScope: null,
+        feedbackReleased: false,
+        feedbackReleasedAt: null,
+        createdAt: new Date(),
+      });
+      await fetchAssignments();
+      toastSuccess(
+        `Duplicated “${assignment.title}”`,
+        'The copy passed V5 Preflight and was saved as an unassigned library item with no student records.',
+      );
+    } catch (error) {
+      toastError('Could not duplicate assignment', error.message);
+    }
   };
 
   const handleToggleArchiveAssignment = async (assignment) => {
@@ -4263,27 +4304,8 @@ function App() {
     }
   };
 
-  const buildPortableAssignmentPackage = (assignment) => ({
-    schemaVersion: 2,
-    assignment: {
-      assignmentKey: assignment.assignmentKey || assignment.id || null,
-      title: assignment.title || '',
-      folder: assignment.folder || null,
-      template: assignment.assignmentTemplate || null,
-      assignmentType: assignment.assignmentType || 'practice',
-      variantMode: assignment.variantMode || 'personalized',
-      sectionVariantModes: assignment.sectionVariantModes || {},
-      classes: assignment.assignedClassPeriods || [],
-      releaseAt: assignment.releaseAt || null,
-      dueAt: assignment.dueAt || assignment.dueDate || null,
-      lateDueAt: assignment.lateDueAt || assignment.lateDueDate || null,
-      prerequisiteAssignmentId: assignment.prerequisiteAssignmentId || null,
-      completionRule: assignment.completionRule || null,
-      dol: assignment.dol || { enabled: false, minutesBeforeEnd: 10, questionIndex: null },
-      standards: assignment.standards || [],
-      curriculum: assignment.curriculum || null,
-    },
-    questions: assignment.questions || [],
+  const buildPortableAssignmentPackage = (assignment) => storedAssignmentToV5(assignment, {
+    resetAssignmentKey: true,
   });
 
   const renderExportJsonDialog = () => {
@@ -4327,7 +4349,7 @@ function App() {
               Export JSON &middot; {exportJsonAssignment.title}
             </h2>
             <p style={{ margin: '8px 0 0', color: '#5f6368', fontSize: '13px' }}>
-              This portable Assignment Package can be re-imported into MathMaster. It includes the assignment metadata, dates, class periods, folder, DOL settings, and questions without Firestore-only fields.
+              This is canonical MathMaster Assignment V5 JSON and can be brought directly back through the V5 creator. Student/class dates and Firestore-only publication state are intentionally not embedded in the authoring object.
             </p>
           </div>
           <div style={{ padding: '20px 28px' }}>
