@@ -3835,7 +3835,13 @@ function App() {
         throw new Error(`The copy cannot be created until MathMaster’s assignment checks are clean:\n${model.errors.join('\n')}`);
       }
       const persistence = canonicalV5PersistencePatch(model.assignmentV5);
-      const { id: _id, archived: _archived, ...rest } = assignment;
+      const {
+        id: _id,
+        archived: _archived,
+        questions: _runtimeQuestions,
+        runtimeProjectionVersion: _legacyRuntimeProjectionVersion,
+        ...rest
+      } = assignment;
       await addDoc(collection(db, 'assignments'), {
         ...rest,
         ...persistence,
