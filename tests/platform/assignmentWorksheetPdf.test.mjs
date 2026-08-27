@@ -148,3 +148,83 @@ test('worksheet file name is safe and student-specific without exposing IDs', ()
     'Algebra_1_Functions_Practice-A_Student.pdf',
   );
 });
+
+
+test('graph-analysis worksheets carry the actual graph instead of a generic blank grid', () => {
+  const printable = printableQuestionFromResolved({
+    type: 'graphAnalysis',
+    prompt: 'Use the graph to identify the vertex.',
+    functionSpec: { type: 'quadratic', a: 1, h: 2, k: -3 },
+  });
+  assert.equal(printable.visuals[0].kind, 'graph');
+  assert.equal(printable.visuals[0].graph.functions[0].type, 'quadratic');
+  assert.equal(printable.visuals[0].graph.functions[0].h, 2);
+});
+
+test('graph-construction student worksheet gets the function rule and blank workspace without the solved curve', () => {
+  const student = printableQuestionFromResolved({
+    type: 'functionGraph',
+    prompt: 'Graph the function.',
+    functionSpec: { type: 'linear', m: 2, b: -3 },
+    graph: { xMin: -5, xMax: 5, yMin: -8, yMax: 8 },
+  }, { includeAnswers: false });
+  assert.ok(student.givens.some((line) => /Function:/.test(line)));
+  assert.equal(student.visuals[0].kind, 'blankGraph');
+  assert.equal(JSON.stringify(student.visuals).includes('"functions"'), false);
+
+  const teacher = printableQuestionFromResolved({
+    type: 'functionGraph',
+    prompt: 'Graph the function.',
+    functionSpec: { type: 'linear', m: 2, b: -3 },
+    graph: { xMin: -5, xMax: 5, yMin: -8, yMax: 8 },
+  }, { includeAnswers: true });
+  assert.equal(teacher.visuals[0].kind, 'graph');
+  assert.ok(teacher.visuals[0].graph.functions.length > 0);
+});
+
+test('printable tables preserve visible rows and blanks but strip hidden answer maps', () => {
+  const printable = printableQuestionFromResolved({
+    type: 'table',
+    prompt: 'Complete the table.',
+    table: {
+      columns: [{ key: 'x', label: 'x' }, { key: 'y', label: 'f(x)' }],
+      rows: [{ x: 0, y: null }, { x: 1, y: null }],
+      answers: { '0:y': 2, '1:y': 5 },
+    },
+  });
+  const table = printable.visuals.find((visual) => visual.kind === 'table');
+  assert.ok(table);
+  assert.deepEqual(table.table.rows, [{ x: 0, y: '' }, { x: 1, y: '' }]);
+  assert.equal(JSON.stringify(table).includes('0:y'), false);
+  assert.equal(JSON.stringify(table).includes('"answers"'), false);
+});
+
+test('student number-line worksheet never prints the hidden interval answer', () => {
+  const question = {
+    type: 'intervalNumberLine',
+    prompt: 'Graph the solution.',
+    inequalityText: 'x ≥ 3',
+    min: -5,
+    max: 8,
+    intervals: [{ min: 3, max: null, minClosed: true, maxClosed: false }],
+  };
+  const student = printableQuestionFromResolved(question, { includeAnswers: false });
+  const studentLine = student.visuals.find((visual) => visual.kind === 'numberLine');
+  assert.deepEqual(studentLine.intervals, []);
+  assert.equal(studentLine.showAnswer, false);
+
+  const teacher = printableQuestionFromResolved(question, { includeAnswers: true });
+  const teacherLine = teacher.visuals.find((visual) => visual.kind === 'numberLine');
+  assert.equal(teacherLine.showAnswer, true);
+  assert.equal(teacherLine.intervals[0].min, 3);
+});
+
+test('structured equations are carried into printable givens without relying on prompt duplication', () => {
+  const printable = printableQuestionFromResolved({
+    type: 'literal',
+    prompt: 'Solve for r.',
+    equation: 'A=πr^2',
+    solveFor: 'r',
+  });
+  assert.ok(printable.givens.some((line) => line.includes('A=πr^2')));
+});
