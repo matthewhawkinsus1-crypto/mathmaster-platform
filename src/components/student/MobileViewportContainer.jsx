@@ -31,6 +31,7 @@ export const MobileViewportContainer = ({
   responseFields = null,
 }) => {
   const rootRef = useRef(null);
+  const focusedScrollerLockRef = useRef({ element: null, left: 0 });
   const [isPromptCollapsed, setIsPromptCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(detectMobile);
   const [isLandscape, setIsLandscape] = useState(detectLandscape);
@@ -138,6 +139,16 @@ export const MobileViewportContainer = ({
     const target = event.target;
     if (target?.matches?.(NUMERIC_SELECTOR)) setNumericTarget(target);
 
+    // Remember the local horizontal position at focus time. Some MathLive and
+    // browser caret routines scroll the nearest overflow:auto ancestor after
+    // EVERY keystroke. If that ancestor is the tool workspace, page-level
+    // scroll locks alone cannot stop the visible sideways jump.
+    const localScroller = target?.closest?.('.question-prompt-panel, .math-tool-workspace, .mathmaster-mobile-local-scroll');
+    focusedScrollerLockRef.current = {
+      element: localScroller || null,
+      left: Number(localScroller?.scrollLeft || 0),
+    };
+
     // NEVER use scrollIntoView() for mobile answer controls. Even with
     // inline:'nearest', Safari/Chrome may programmatically change scrollLeft on
     // overflow:hidden ancestors. The result looks like the entire question
@@ -147,6 +158,37 @@ export const MobileViewportContainer = ({
       scrollFocusedControlVertically(target, { root: rootRef.current });
       scheduleHorizontalViewportStabilization({ root: rootRef.current });
     });
+  };
+
+  const restoreFocusedHorizontalPosition = () => {
+    if (!isMobile) return;
+    const lock = focusedScrollerLockRef.current;
+    const restore = () => {
+      if (lock.element?.isConnected && Math.abs(Number(lock.element.scrollLeft || 0) - Number(lock.left || 0)) > 0.5) {
+        lock.element.scrollLeft = Number(lock.left || 0);
+      }
+      stabilizeHorizontalViewport({ root: rootRef.current });
+    };
+    if (typeof queueMicrotask === 'function') queueMicrotask(restore);
+    window.requestAnimationFrame(restore);
+  };
+
+  const handleInputCapture = () => {
+    restoreFocusedHorizontalPosition();
+  };
+
+  const handleKeyDownCapture = (event) => {
+    if (!isMobile) return;
+    if (event.key?.length === 1 || ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+      restoreFocusedHorizontalPosition();
+    }
+  };
+
+  const handleBlurCapture = (event) => {
+    if (!isMobile) return;
+    if (rootRef.current?.contains?.(event.relatedTarget)) return;
+    focusedScrollerLockRef.current = { element: null, left: 0 };
+    scheduleHorizontalViewportStabilization({ root: rootRef.current });
   };
 
   const applyKey = (key) => {
@@ -186,6 +228,9 @@ export const MobileViewportContainer = ({
     <div
       ref={rootRef}
       onFocusCapture={handleFocusCapture}
+      onInputCapture={handleInputCapture}
+      onKeyDownCapture={handleKeyDownCapture}
+      onBlurCapture={handleBlurCapture}
       className={`mathmaster-question-container mathmaster-mobile-interaction-root ${isLandscape ? 'mode-landscape' : 'mode-portrait'} ${numericTarget ? 'numeric-keypad-open' : ''}`}
       style={{
         '--mm-visual-viewport-width': `${visualViewport.width}px`,
