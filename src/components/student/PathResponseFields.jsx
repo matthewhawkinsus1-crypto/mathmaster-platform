@@ -165,7 +165,12 @@ function WordField({ field, value, onChange, onSubmit, disabled, autoFocus }) {
   const hint = field.responseHint || null;
 
   useEffect(() => {
-    if (autoFocus) inputRef.current?.focus();
+    if (!autoFocus || !inputRef.current) return;
+    try {
+      inputRef.current.focus({ preventScroll: true });
+    } catch {
+      inputRef.current.focus();
+    }
   }, [autoFocus]);
 
   return (
