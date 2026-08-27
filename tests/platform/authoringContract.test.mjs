@@ -30,7 +30,7 @@ assert.match(v5, /lessonNotesPdf/);
 assert.match(v5, /Honors \+ CCMR Practice/);
 assert.match(v5, /about 15%/);
 assert.match(v5, /assessmentContext/);
-assert.match(v5, /TEKS.*CCMR/i);
+assert.match(v5, /CCMR \/ assessment fidelity/i);
 assert.match(v5, /A\.2B/);
 ['constructGraph', 'readGraph', 'completeTable', 'buildMapping', 'classifyContinuity'].forEach((action) => {
   assert.ok(v5.includes(action), `V5 contract lists student action ${action}`);
