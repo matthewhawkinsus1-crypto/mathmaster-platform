@@ -113,6 +113,7 @@ import {
 } from './assignmentDestinations';
 import LessonPreflightModal from './components/teacher/LessonPreflightModal';
 import { normalizeLessonBundle } from './platform/schemas/BundleDefinition';
+import { rebuildV5SectionsFromQuestions } from './platform/contract/assignmentSchemaV5.js';
 import { normalizeLabDefinition } from './platform/labs/labDefinitionSchema.js';
 import { normalizeContextualQuestion } from './platform/context/wordProblemLayer';
 import { buildAttemptEvidenceEvent } from './platform/history/evidenceEvent.js';
@@ -2511,7 +2512,16 @@ function App() {
   };
 
   const buildPreflightBundle = (parsed, metadata) => {
-    if (parsed.isBundle && parsed.bundleSource) return normalizeLessonBundle(parsed.bundleSource);
+    if (parsed.isBundle && parsed.bundleSource?.schemaVersion === 5) {
+      return normalizeLessonBundle({
+        lessonMetadata: {
+          title: metadata?.title || parsed.bundleSource?.assignment?.title || 'Untitled Lesson',
+          course: metadata?.curriculum?.course || parsed.bundleSource?.assignment?.courseId || 'Unknown Course',
+          topic: metadata?.curriculum?.topic || null,
+        },
+        activities: parsed.bundleSource.sections || [],
+      });
+    }
 
     const activityGroups = new Map();
     parsed.questions.forEach((question, questionIndex) => {
@@ -2583,13 +2593,26 @@ function App() {
         // Preflight shows it for review but does not need the teacher to retype it.
         classroomPackage: metadata?.classroomPackage || null,
         lessonResources: metadata?.lessonResources || null,
+        instructionalPurpose: metadata?.instructionalPurpose || 'lesson',
+        gradingPurpose: metadata?.gradingPurpose || null,
+        variantPolicy: metadata?.variantPolicy || null,
+        differentiationPolicy: metadata?.differentiationPolicy || null,
+        supportPolicy: metadata?.supportPolicy || null,
+        toolPolicy: metadata?.toolPolicy || null,
+        deliveryPolicy: metadata?.deliveryPolicy || null,
+        gradingPolicy: metadata?.gradingPolicy || null,
+        evidencePolicy: metadata?.evidencePolicy || null,
+        outputProfiles: metadata?.outputProfiles || null,
+        classroomIntegration: metadata?.classroomIntegration || null,
+        provenance: metadata?.provenance || null,
+        preflight: metadata?.preflight || null,
       };
       setAssignmentPreflight({
         lessonBundle,
         initialDraft,
         questions: inspected.questions,
         authoringWarnings: inspected.authoringWarnings || [],
-        sourceLabel: `${sourceName || 'Pasted JSON'} · ${inspected.isBundle ? 'Bundle V3' : inspected.isPackage ? `Package V${inspected.schemaVersion}` : 'Legacy array'}`,
+        sourceLabel: `${sourceName || 'Pasted JSON'} · Assignment V5`,
       });
       return true;
     } catch (error) {
@@ -2638,8 +2661,8 @@ function App() {
       const dueValue = teacherReview ? teacherReview.dueAt : packageMetadata?.dueAt || '';
       const lateDueValue = teacherReview ? teacherReview.lateDueAt : packageMetadata?.lateDueAt || '';
       const releaseValue = teacherReview ? teacherReview.releaseAt : packageMetadata?.releaseAt || '';
-      // assignmentType is retained only as a backwards-compatible storage field.
-      // Runtime behavior comes from each question's authored activityRole.
+      // assignmentType is a runtime projection for existing activity-policy code.
+      // V5 sections/activityRole remain the authoring source of truth.
       const sourceAssignmentType = teacherReview?.assignmentType || packageMetadata?.assignmentType || 'practice';
       const requestedVariantMode = teacherReview?.variantMode || packageMetadata?.variantMode || 'personalized';
       const variantMode = overrideVariantMode || requestedVariantMode;
@@ -2751,9 +2774,8 @@ function App() {
         const authoredDOLIndex = authoredRoles.findIndex((role) => role === 'dol');
         dolQuestionIndex = authoredDOLIndex >= 0 ? authoredDOLIndex : null;
       }
-      // If the bundle marks a DOL role, that role is the source of truth. A
-      // legacy package with a timed DOL index is still honored for backwards
-      // compatibility.
+      // The authored V5 DOL role is the source of truth; the numeric index is
+      // derived only for the current runtime access policy.
       dolEnabled = Boolean(dolEnabled && Number.isInteger(dolQuestionIndex));
 
       const folder = teacherReview
@@ -2773,6 +2795,8 @@ function App() {
       }
 
       const assignmentPayloadBase = {
+        schemaVersion: 5,
+        runtimeProjectionVersion: 1,
         title,
         dueAt,
         lateDueAt,
@@ -2821,6 +2845,24 @@ function App() {
         } : null,
         classroomPackage: teacherReview?.classroomPackage || packageMetadata?.classroomPackage || null,
         lessonResources: teacherReview?.lessonResources || packageMetadata?.lessonResources || null,
+        instructionalPurpose: teacherReview?.instructionalPurpose || packageMetadata?.instructionalPurpose || 'lesson',
+        gradingPurpose: teacherReview?.gradingPurpose || packageMetadata?.gradingPurpose || null,
+        variantPolicy: {
+          ...(packageMetadata?.variantPolicy || {}),
+          ...(teacherReview?.variantPolicy || {}),
+          mode: variantMode,
+          sectionModes: sectionVariantModes,
+        },
+        differentiationPolicy: teacherReview?.differentiationPolicy || packageMetadata?.differentiationPolicy || null,
+        supportPolicy: teacherReview?.supportPolicy || packageMetadata?.supportPolicy || null,
+        toolPolicy: teacherReview?.toolPolicy || packageMetadata?.toolPolicy || null,
+        deliveryPolicy: teacherReview?.deliveryPolicy || packageMetadata?.deliveryPolicy || null,
+        gradingPolicy: teacherReview?.gradingPolicy || packageMetadata?.gradingPolicy || null,
+        evidencePolicy: teacherReview?.evidencePolicy || packageMetadata?.evidencePolicy || null,
+        outputProfiles: teacherReview?.outputProfiles || packageMetadata?.outputProfiles || null,
+        classroomIntegration: teacherReview?.classroomIntegration || packageMetadata?.classroomIntegration || null,
+        provenance: teacherReview?.provenance || packageMetadata?.provenance || null,
+        preflight: teacherReview?.preflight || packageMetadata?.preflight || { required: true },
         createdAt: new Date(),
       };
 
@@ -2829,10 +2871,18 @@ function App() {
       }
 
       const bundleLabs = parsed.isBundle
-        ? (parsed.bundleSource?.activities || []).filter((activity) => activity?.labDefinition || activity?.isModelingLab)
+        ? (parsed.bundleSource?.sections || []).flatMap((section) => (
+            (section?.questions || [])
+              .filter((question) => question?.type === 'modelingLab' && question?.labDefinition)
+              .map((question) => ({
+                activityId: section.id || null,
+                role: section.role || 'classwork',
+                labDefinition: question.labDefinition,
+              }))
+          ))
         : [];
       const privateLabsById = new Map(bundleLabs.map((activity) => {
-        const definition = normalizeLabDefinition(activity.labDefinition || activity, { includeEvaluation: true });
+        const definition = normalizeLabDefinition(activity.labDefinition, { includeEvaluation: true });
         return [definition.labId, { definition, activity }];
       }));
 
@@ -2880,6 +2930,9 @@ function App() {
           ...assignmentPayloadBase,
           assignedClassPeriods: destination.periods,
           assignedClassIds: destination.classIds || [],
+          sections: rebuildV5SectionsFromQuestions(parsed.bundleSource, variantQuestions),
+          // Temporary runtime projection. New authoring and persistence logic
+          // treats sections[] as canonical; mature renderers still read questions.
           questions: variantQuestions,
           courseProfile: { course: destination.course, courseLevel: destination.courseLevel },
           rigorVariant: destination.courseLevel,
