@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import MathText from '../common/MathText.jsx';
 import MathInput from '../../MathInput.jsx';
+import { normalizeInteractionInputProfile, toolProfileForInputProfile } from '../../platform/interaction/interactionContract.js';
 
 // The generic secure Path response.
 //
@@ -67,30 +68,7 @@ const HINT = {
   lineHeight: 1.5,
 };
 
-// Which MathInput keypad each answer profile gets, so the symbols on offer are
-// the ones the question actually needs.
-const TOOL_PROFILE = {
-  interval: 'interval',
-  inequality: 'inequality',
-  set: 'set',
-  equation: 'equation',
-  expression: 'expression',
-  orderedPair: 'expression',
-  number: 'expression',
-};
-
-const normalizeProfile = (profile) => {
-  const value = String(profile || 'text').trim();
-  if (['choice', 'multipleChoice', 'multiple-choice', 'select'].includes(value)) return 'choice';
-  if (['number', 'numeric', 'integer', 'decimal'].includes(value)) return 'number';
-  if (['expression', 'symbolic', 'math'].includes(value)) return 'expression';
-  if (['equation', 'formula'].includes(value)) return 'equation';
-  if (['interval', 'intervalNotation'].includes(value)) return 'interval';
-  if (['inequality'].includes(value)) return 'inequality';
-  if (['set', 'setNotation'].includes(value)) return 'set';
-  if (['orderedPair', 'ordered-pair', 'point'].includes(value)) return 'orderedPair';
-  return 'text';
-};
+const normalizeProfile = (profile) => normalizeInteractionInputProfile(profile) || 'text';
 
 const DEFAULT_HINT = {
   interval: 'Write your answer in interval notation, for example [-3, 5).',
@@ -230,7 +208,7 @@ function MathField({ field, profile, value, onChange, onSubmit, disabled, autoFo
       <MathInput
         value={value ?? ''}
         onChange={onChange}
-        toolProfile={TOOL_PROFILE[profile] || 'expression'}
+        toolProfile={toolProfileForInputProfile(profile)}
         answerFormat={field.answerFormat || field.inputContract?.format || field.notation || field.inputMode || (profile === 'orderedPair' ? 'orderedPair' : profile)}
         requiredSymbols={field.requiredSymbols || field.inputContract?.requiredSymbols || []}
         placeholder={field.placeholder || ''}
