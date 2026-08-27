@@ -64,6 +64,7 @@ const PREPRODUCTION_PRESERVED_COLLECTIONS = Object.freeze([
   "teacherDirectory",
   "teacherIntegrations",
   "classroomCourseMappings",
+  "adminControl",
   "adminAuditLog",
   "pathQuestionBank",
   "pathCoverage",
