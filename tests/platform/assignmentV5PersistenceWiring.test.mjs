@@ -19,11 +19,12 @@ test('question edits and duplication rebuild canonical V5 sections', () => {
   assert.match(source, /sections:\s*rebuildV5SectionsFromQuestions\(assignment, duplicateQuestions\)/);
 });
 
-test('preflight adapts V5 sections instead of treating the source as Bundle V3', () => {
+test('preflight stores and passes the canonical V5 object without a Bundle V3 adapter', () => {
   const source = fs.readFileSync('src/App.jsx', 'utf8');
-  assert.match(source, /parsed\.bundleSource\?\.schemaVersion === 5/);
-  assert.match(source, /activities:\s*parsed\.bundleSource\.sections \|\| \[\]/);
-  assert.match(source, /Assignment V5/);
+  assert.match(source, /const assignmentV5 = inspected\.bundleSource/);
+  assert.match(source, /Number\(assignmentV5\.schemaVersion\) !== 5/);
+  assert.match(source, /assignmentV5=\{assignmentPreflight\.assignmentV5\}/);
+  assert.doesNotMatch(source, /buildPreflightBundle|normalizeLessonBundle/);
 });
 
 console.log('assignmentV5PersistenceWiring.test.mjs: all assertions passed');
