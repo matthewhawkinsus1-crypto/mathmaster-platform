@@ -41,6 +41,8 @@ const PREPRODUCTION_RESET_COLLECTIONS = Object.freeze([
   "studentAliases",
   "studentDirectory",
   "classJoinCodes",
+  "authThrottle",
+  "oauthStates",
   "activePathLocks",
   "weeklyPathGoalSnapshots",
   "pathSessions",
