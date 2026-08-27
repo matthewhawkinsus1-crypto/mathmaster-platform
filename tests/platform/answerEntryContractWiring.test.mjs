@@ -15,6 +15,7 @@ test('MathInput resolves required symbols and renders a priority mobile key stri
   assert.match(mathInput, /Needed for this answer/);
   assert.match(mathInput, /unservedRequiredSymbols/);
   assert.match(mathInput, /requiredAnswerSymbols/);
+  assert.match(mathInput, /requiredAnswerToolForSymbol/);
 });
 
 test('unknown required symbols fail open to the device keyboard instead of trapping touch users', () => {
@@ -22,7 +23,8 @@ test('unknown required symbols fail open to the device keyboard instead of trapp
   assert.match(mathInput, /Additional symbol needed/);
 });
 
-test('multi-answer fields can carry an authored input contract forward to MathInput', () => {
+test('multi-answer fields infer required mobile keys and still honor authored semantic contracts', () => {
+  assert.match(multiAnswer, /inferRequiredAnswerSymbols\(acceptedAnswersForField\(field\)\)/);
   assert.match(multiAnswer, /answerFormat=\{field\.answerFormat \|\| field\.inputContract\?\.format/);
-  assert.match(multiAnswer, /requiredSymbols=\{field\.requiredSymbols \|\| field\.inputContract\?\.requiredSymbols/);
+  assert.match(multiAnswer, /requiredSymbols=\{requiredSymbols\}/);
 });

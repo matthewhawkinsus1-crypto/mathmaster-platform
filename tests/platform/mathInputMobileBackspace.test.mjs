@@ -32,3 +32,25 @@ test('MathInput pins the policy-provided Backspace key to the final mobile grid 
   assert.match(source, /className=\{tool\.action === 'deleteBackward' \? 'mathmaster-fixed-backspace'/);
   assert.match(source, /gridColumn: '-2 \/ -1'/);
 });
+
+
+test('parentheses remain directly reachable on every controlled mobile math profile', () => {
+  const profiles = ['expression', 'equation', 'interval', 'inequality', 'set', 'function'];
+  profiles.forEach((toolProfile) => {
+    const tools = buildMobileMathTools({
+      toolProfile,
+      entryKeys: [{ label: '1', command: '1', ariaLabel: 'Insert 1' }],
+      profileKeys: [],
+      requiredTools: [],
+      backspaceKey: { label: '⌫', action: 'deleteBackward', ariaLabel: 'Delete previous character' },
+    });
+    assert.ok(tools.some((tool) => tool.command === '('), `${toolProfile} is missing open parenthesis`);
+    assert.ok(tools.some((tool) => tool.command === ')'), `${toolProfile} is missing close parenthesis`);
+  });
+});
+
+test('MathInput resolves required keys from the shared interaction symbol registry', () => {
+  const source = fs.readFileSync(new URL('../../src/MathInput.jsx', import.meta.url), 'utf8');
+  assert.match(source, /requiredAnswerToolForSymbol/);
+  assert.doesNotMatch(source, /const ANSWER_SYMBOL_KEYS/);
+});

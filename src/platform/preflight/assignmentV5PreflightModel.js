@@ -2,6 +2,7 @@ import { normalizeAssignmentV5, validateAssignmentV5, flattenV5Sections } from '
 import { validateQuestionsSemantics } from '../contract/semanticValidation.js';
 import { validateAlignments, auditAlignmentSpecificity } from '../contract/alignments.js';
 import { toEnforcedActivityPolicy } from '../policies/activityPolicies.js';
+import { validateAssignmentInteractionContracts } from '../interaction/interactionContract.js';
 
 const clean = (value) => String(value ?? '').trim();
 
@@ -39,8 +40,9 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
 
   const questions = flattenV5Sections({ ...source, sections });
   const semantic = validateQuestionsSemantics(questions);
-  const errors = [...structural.errors, ...semantic.errors];
-  const warnings = [...structural.warnings, ...semantic.warnings];
+  const interaction = validateAssignmentInteractionContracts(questions);
+  const errors = [...structural.errors, ...semantic.errors, ...interaction.errors];
+  const warnings = [...structural.warnings, ...semantic.warnings, ...interaction.warnings];
 
   questions.forEach((question, index) => {
     const alignment = validateAlignments(question, { label: `Question ${index + 1}` });

@@ -5,6 +5,7 @@ import QuestionPrompt from './QuestionPrompt';
 import QuestionVisual from './QuestionVisual';
 import { looksLikeFiniteSetNotation, matchesFieldAnswer } from './answerUtils';
 import { resolveLabelFormat } from './labelFormat';
+import { inferRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
 import useUndoHistory from './useUndoHistory';
 
 const TEXTUAL_MATH_SIGNAL = /[=<>≤≥≠+*/^()[\]{}\\∞π√∪∩]/;
@@ -124,6 +125,12 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
         {safeFields.map((field) => {
           const grade = feedback?.partGrades?.find((part) => part.id === field.id);
           const choiceOptions = choiceOptionsForField(field);
+          const inferredRequiredSymbols = inferRequiredAnswerSymbols(acceptedAnswersForField(field));
+          const requiredSymbols = [
+            ...(Array.isArray(field.requiredSymbols) ? field.requiredSymbols : []),
+            ...(Array.isArray(field.inputContract?.requiredSymbols) ? field.inputContract.requiredSymbols : []),
+            ...inferredRequiredSymbols,
+          ];
           return (
             <div key={field.id} style={{ padding: '16px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : '#dfe3e7'}`, borderRadius: '10px', background: grade && !grade.isCorrect ? '#fff8f7' : '#fbfcfe' }}>
               <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', color: '#3c4043' }}>
@@ -188,7 +195,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                   }}
                 />
               ) : (
-                <MathInput value={answers[field.id] || ''} onChange={(value) => history.setValue((current) => ({ ...current, [field.id]: value }))} placeholder={field.placeholder || (shouldUseSetInput(field) ? '{…}' : 'answer')} ariaLabel={field.label || field.id} toolProfile={field.toolProfile || (shouldUseSetInput(field) ? 'set' : 'basic')} answerFormat={field.answerFormat || field.inputContract?.format || field.notation || field.inputMode || ''} requiredSymbols={field.requiredSymbols || field.inputContract?.requiredSymbols || []} showToolsInitially={shouldUseSetInput(field)} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
+                <MathInput value={answers[field.id] || ''} onChange={(value) => history.setValue((current) => ({ ...current, [field.id]: value }))} placeholder={field.placeholder || (shouldUseSetInput(field) ? '{…}' : 'answer')} ariaLabel={field.label || field.id} toolProfile={field.toolProfile || (shouldUseSetInput(field) ? 'set' : 'basic')} answerFormat={field.answerFormat || field.inputContract?.format || field.notation || field.inputMode || ''} requiredSymbols={requiredSymbols} showToolsInitially={shouldUseSetInput(field) || inferredRequiredSymbols.length > 0} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
               )}
             </div>
           );

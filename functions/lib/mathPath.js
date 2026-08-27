@@ -164,17 +164,34 @@ function normalizeChoices(choices) {
 }
 
 function normalizeResponseFields(fields = []) {
-  return (Array.isArray(fields) ? fields : []).map((field, index) => ({
-    id: String(field?.id || `response-${index + 1}`),
-    label: String(field?.label || `Response ${index + 1}`),
-    inputProfile: field?.inputProfile || 'text',
-    unit: field?.unit || null,
-    // Short instruction rendered with the input ("Give your answer in interval
-    // notation"). Presentation only.
-    responseHint: field?.responseHint ? String(field.responseHint).slice(0, 160) : null,
-    placeholder: field?.placeholder ? String(field.placeholder).slice(0, 60) : null,
-    ...(Array.isArray(field?.choices) ? { choices: normalizeChoices(field.choices) } : {}),
-  }));
+  const safeSymbols = (value) => (Array.isArray(value) ? value : [])
+    .map((symbol) => String(symbol || '').trim())
+    .filter(Boolean)
+    .slice(0, 16);
+  return (Array.isArray(fields) ? fields : []).map((field, index) => {
+    const answerFormat = field?.answerFormat || field?.inputContract?.format || null;
+    const requiredSymbols = safeSymbols(field?.requiredSymbols || field?.inputContract?.requiredSymbols);
+    return {
+      id: String(field?.id || `response-${index + 1}`),
+      label: String(field?.label || `Response ${index + 1}`),
+      inputProfile: field?.inputProfile || 'text',
+      unit: field?.unit || null,
+      // Entry metadata is public presentation state, not grading state. Preserve
+      // it so the client can guarantee that the expected notation is typeable,
+      // while expected/accepted answers remain server-private.
+      answerFormat: answerFormat ? String(answerFormat).slice(0, 40) : null,
+      requiredSymbols,
+      inputContract: answerFormat || requiredSymbols.length ? {
+        format: answerFormat ? String(answerFormat).slice(0, 40) : null,
+        requiredSymbols,
+      } : null,
+      // Short instruction rendered with the input ("Give your answer in interval
+      // notation"). Presentation only.
+      responseHint: field?.responseHint ? String(field.responseHint).slice(0, 160) : null,
+      placeholder: field?.placeholder ? String(field.placeholder).slice(0, 60) : null,
+      ...(Array.isArray(field?.choices) ? { choices: normalizeChoices(field.choices) } : {}),
+    };
+  });
 }
 
 // Question material a student must SEE to answer: the table they are reading,

@@ -2,6 +2,7 @@ import { validateInstructionalScopeV5 } from '../curriculum/instructionalScope.j
 import { looksLikeFiniteSetNotation } from '../../../functions/shared/answerEquivalence.mjs';
 import { normalizeStaticGraphPoints } from '../../graphPointUtils.js';
 import { normalizeLessonPublishingIntentV5 } from '../authoring/lessonPublishingIntent.js';
+import { normalizeQuestionInteractionContracts } from '../interaction/interactionContract.js';
 import {
   normalizeAssignmentV5,
   validateAssignmentV5,
@@ -794,14 +795,15 @@ export const compileAuthoringIntentV5 = (input = {}) => {
         }
       : question;
     const compiled = compileOne(source, index, repairs);
+    const interactionSafe = normalizeQuestionInteractionContracts(compiled);
     decisions.push({
       index,
       sectionId,
       sectionRole: role,
-      type: compiled.type,
+      type: interactionSafe.type,
       actions: normalizeActions(source),
     });
-    return compiled;
+    return interactionSafe;
   });
 
   const sections = input.sections.map((section, sectionIndex) => {
