@@ -6,7 +6,8 @@ test('assignment creation persists canonical V5 sections and policy metadata', (
   const source = fs.readFileSync('src/App.jsx', 'utf8');
   assert.match(source, /schemaVersion:\s*5/);
   assert.match(source, /runtimeProjectionVersion:\s*1/);
-  assert.match(source, /sections:\s*rebuildV5SectionsFromQuestions\(parsed\.bundleSource, variantQuestions\)/);
+  assert.match(source, /const reviewedQuestions = flattenV5Sections\(reviewedV5\)/);
+  assert.match(source, /sections:\s*rebuildV5SectionsFromQuestions\(reviewedV5, variantQuestions\)/);
   assert.match(source, /variantPolicy:/);
   assert.match(source, /differentiationPolicy:/);
   assert.match(source, /supportPolicy:/);
@@ -28,3 +29,12 @@ test('preflight stores and passes the canonical V5 object without a Bundle V3 ad
 });
 
 console.log('assignmentV5PersistenceWiring.test.mjs: all assertions passed');
+
+
+test('teacher-reviewed canonical policy values are persisted from reviewedV5', () => {
+  const source = fs.readFileSync('src/App.jsx', 'utf8');
+  assert.match(source, /differentiationPolicy:\s*reviewedV5\.differentiationPolicy/);
+  assert.match(source, /supportPolicy:\s*reviewedV5\.supportPolicy/);
+  assert.match(source, /outputProfiles:\s*reviewedV5\.outputProfiles/);
+  assert.match(source, /preflight:\s*reviewedV5\.preflight/);
+});
