@@ -94,10 +94,11 @@ export const inferRequiredAnswerSymbols = (values = []) => {
   if (/\(/.test(text) || /\\left\s*\(/.test(text)) add('(');
   if (/\)/.test(text) || /\\right\s*\)/.test(text)) add(')');
   if (/,/.test(text)) add(',');
-  if (/\[/.test(text)) add('[');
-  if (/\]/.test(text)) add(']');
-  if (/\{|\\lbrace/.test(text)) add('{');
-  if (/\}|\\rbrace/.test(text)) add('}');
+  const latexGrouping = /\\(?:frac|sqrt|text|operatorname)\b/.test(text);
+  if (/(^|∪|\\cup)\s*\[/.test(text)) add('[');
+  if (/\]\s*(?:$|∪|\\cup)/.test(text)) add(']');
+  if (/\\lbrace|\\\{/.test(text) || (!latexGrouping && /\{/.test(text))) add('{');
+  if (/\\rbrace|\\\}/.test(text) || (!latexGrouping && /\}/.test(text))) add('}');
   if (/∞|\\infty|\b(?:infinity|inf)\b/i.test(text)) add('∞');
   if (/∪|\\cup/.test(text)) add('∪');
   if (/∅|\\varnothing|\\emptyset/.test(text)) add('∅');
@@ -118,6 +119,8 @@ export const inferRequiredAnswerSymbols = (values = []) => {
   const variableText = normalizedMathText(text);
   const letters = variableText.match(/[A-Za-z]/g) || [];
   letters.forEach(add);
+  const greekLetters = variableText.match(/[\u0370-\u03FF]/g) || [];
+  greekLetters.forEach(add);
   return required;
 };
 
