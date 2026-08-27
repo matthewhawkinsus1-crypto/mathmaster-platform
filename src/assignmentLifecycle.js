@@ -1,4 +1,5 @@
 import { ACTIVITY_ROLES, resolveQuestionActivityRole } from './platform/policies/activityPolicies.js';
+import { runtimeQuestionsFromAssignment } from './platform/contract/assignmentRuntimeProjection.js';
 
 export const CLASS_PERIODS = Array.from({ length: 8 }, (_, index) => `Period ${index + 1}`);
 
@@ -8,9 +9,7 @@ export const questionIsIncluded = (question) => question?.teacherExcluded !== tr
 export const getIncludedQuestionIndices = (assignmentOrQuestions) => {
   const questions = Array.isArray(assignmentOrQuestions)
     ? assignmentOrQuestions
-    : Array.isArray(assignmentOrQuestions?.questions)
-      ? assignmentOrQuestions.questions
-      : [];
+    : runtimeQuestionsFromAssignment(assignmentOrQuestions);
   return questions.reduce((indices, question, index) => {
     if (questionIsIncluded(question)) indices.push(index);
     return indices;
@@ -408,7 +407,7 @@ export const getWarmupState = ({ assignment, schedule, classId = null, classPeri
 };
 
 export const resolveDOLQuestionIndices = (assignment) => {
-  const questions = Array.isArray(assignment?.questions) ? assignment.questions : [];
+  const questions = runtimeQuestionsFromAssignment(assignment);
   const included = getIncludedQuestionIndices(questions);
   if (!included.length) return [];
 
@@ -431,7 +430,7 @@ export const resolveDOLQuestionIndices = (assignment) => {
 export const resolveDOLQuestionIndex = (assignment) => resolveDOLQuestionIndices(assignment)[0] ?? -1;
 
 export const getDOLState = ({ assignment, schedule, classId = null, classPeriod, nowValue = Date.now() }) => {
-  const questions = Array.isArray(assignment?.questions) ? assignment.questions : [];
+  const questions = runtimeQuestionsFromAssignment(assignment);
   const includedQuestions = questions.filter(questionIsIncluded);
   const hasAuthoredDOL = includedQuestions.some((question) => (
     resolveQuestionActivityRole({ question, assignment }) === ACTIVITY_ROLES.DOL
@@ -555,7 +554,7 @@ export const recordAssignmentActivity = ({ activity, assignment, seconds = 0, no
 };
 
 export const evaluateClassworkCompletion = ({ assignment, assignmentTracker, activity }) => {
-  const questions = Array.isArray(assignment?.questions) ? assignment.questions : [];
+  const questions = runtimeQuestionsFromAssignment(assignment);
   const included = getIncludedQuestionIndices(questions);
   const classworkIndices = included.filter((index) => (
     resolveQuestionActivityRole({ question: questions[index], assignment }) === ACTIVITY_ROLES.CLASSWORK
