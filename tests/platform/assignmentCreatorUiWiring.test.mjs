@@ -10,6 +10,11 @@ test('teacher assignment intake exposes guided V5 planning rather than raw schem
   assert.match(source, /3\. Supports, Honors, and outputs/);
   assert.match(source, /4\. Build with AI, then review in MathMaster/);
   assert.match(source, /NO CODE REQUIRED/);
+  assert.match(source, /Paste AI Assignment/);
+  assert.match(source, /Upload Assignment File/);
+  assert.match(source, /Copy technical authoring contract/);
+  assert.doesNotMatch(source, />V5 · NO CODE REQUIRED</);
+  assert.doesNotMatch(source, /Paste V5 JSON from Clipboard|Upload V5 JSON/);
   assert.match(source, /What are students learning or practicing/);
   assert.match(source, /Printable student worksheet PDF/);
   assert.match(source, /Teacher copy PDF with answers\/available solutions/);
@@ -22,8 +27,7 @@ test('teacher assignment intake exposes guided V5 planning rather than raw schem
   assert.match(source, /IEP\/504\/EB access supports/);
   assert.match(source, /Honors \+ CCMR/);
   assert.match(source, /Copy Complete AI Build Request/);
-  assert.match(source, /Paste V5 JSON from Clipboard/);
-  assert.doesNotMatch(source, /textarea[^>]+rawJson|Edit raw JSON/i);
+    assert.doesNotMatch(source, /textarea[^>]+rawJson|Edit raw JSON/i);
 });
 
 test('all canonical V5 section roles are available to the creator', () => {
