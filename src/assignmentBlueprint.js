@@ -2,99 +2,50 @@ import { isPersonalizedBlueprint } from './problemGenerator.js';
 import { normalizeQuestionStandards } from './questionMetadata.js';
 import { getTexasStandard } from './texasStandards.js';
 import { MISSING_TOOL_IDS, validateToolQuestion } from './tools/toolSchemas.js';
-import { normalizeLabDefinition } from './platform/labs/labDefinitionSchema.js';
 import { compileAuthoringIntentV5 } from './platform/contract/authoringIntentV5.js';
+import { flattenV5Sections } from './platform/contract/assignmentSchemaV5.js';
 import { looksLikeFiniteSetNotation } from '../functions/shared/answerEquivalence.mjs';
 
-export const DEFAULT_ASSIGNMENT_BLUEPRINT = `[
-  {
-    "type": "stepAlgebra",
-    "prompt": "Solve the equation by keeping both sides balanced.",
-    "mode": "rigorous",
-    "objective": { "kind": "isolate", "variable": "x", "simplifyRequired": true },
-    "generator": {
-      "kind": "stepLinearEquation",
-      "solutionRange": [-9, 9],
-      "coefficientRange": [2, 9],
-      "constantRange": [-12, 12]
+export const DEFAULT_ASSIGNMENT_BLUEPRINT = `{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Algebra I — Sample Lesson",
+    "courseId": "algebra1",
+    "folder": "Algebra I/Sample",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork"
+  },
+  "variantPolicy": {
+    "mode": "personalized",
+    "sectionModes": {
+      "warmup": "shared",
+      "classwork": "shared",
+      "practice": "personalized",
+      "dol": "shared"
     }
   },
-  {
-    "type": "literal",
-    "prompt": "Solve the literal equation for the indicated variable.",
-    "generator": {
-      "kind": "literalLinear",
-      "coefficientRange": [2, 12],
-      "constantRange": [-15, 15]
-    }
+  "outputProfiles": {
+    "digital": { "enabled": true },
+    "studentWorksheetPdf": { "enabled": true, "includeWorkspace": true },
+    "lessonNotesPdf": { "enabled": true, "targetPages": 2 }
   },
-  {
-    "type": "system",
-    "prompt": "Solve the system. Enter the solution as an ordered pair.",
-    "showEquations": true,
-    "showGraph": true,
-    "generator": {
-      "kind": "linearSystem",
-      "xRange": [-10, 10],
-      "yRange": [-10, 10]
+  "sections": [
+    {
+      "role": "classwork",
+      "title": "Classwork",
+      "questions": [
+        {
+          "standard": "A.5A",
+          "prompt": "Solve 3x + 6 = 21.",
+          "studentActions": ["solveStepByStep"],
+          "equation": "3x+6=21",
+          "dok": 1,
+          "difficultyBand": 3
+        }
+      ]
     }
-  },
-  {
-    "type": "table",
-    "prompt": "Complete the missing values in the function table.",
-    "showRule": true,
-    "generator": {
-      "kind": "functionTable",
-      "ruleType": "linear",
-      "rowCount": 5,
-      "blankCount": 3,
-      "slopeRange": [-6, 6],
-      "interceptRange": [-12, 12]
-    }
-  },
-  {
-    "type": "orderedPair",
-    "prompt": "Write the coordinates of the plotted point as an ordered pair.",
-    "generator": {
-      "kind": "orderedPair",
-      "xRange": [-99, 99],
-      "yRange": [-99, 99],
-      "windowRadius": 6
-    }
-  },
-  {
-    "type": "multiAnswer",
-    "prompt": "For the line shown, enter both requested values.",
-    "generator": {
-      "kind": "lineFeatures",
-      "slopeRange": [-99, 99],
-      "interceptRange": [-99, 99]
-    }
-  },
-  {
-    "type": "functionInvestigation",
-    "prompt": "Choose x-values, construct the graph, show end behavior, and complete the requested analysis.",
-    "showEquation": true,
-    "showCoordinates": true,
-    "studentChoosesX": true,
-    "includeUndefinedChecks": true,
-    "requireEndpointMarkers": true,
-    "analysisRequests": [
-      { "id": "roots", "kind": "point", "feature": "xIntercepts", "responseMode": "both", "allowNone": true, "label": "X-intercepts" },
-      { "id": "domain", "kind": "domain", "notation": "interval", "label": "Domain" },
-      { "id": "range", "kind": "range", "notation": "inequality", "label": "Range" },
-      { "id": "increasing", "kind": "increasing", "notation": "interval", "label": "Increasing interval(s)" }
-    ],
-    "generator": {
-      "kind": "parentFunctionGraph",
-      "functionTypes": ["absolute", "quadratic", "squareRoot", "cubic", "cubeRoot", "logarithmic", "exponential", "rational"],
-      "coefficientChoices": [-2, -1, 1, 2],
-      "hRange": [-3, 3],
-      "kRange": [-3, 3],
-      "baseChoices": [2]
-    }
-  }
-]`;
+  ]
+}`;
 
 export const MATH_BLUEPRINT_GUIDE = `ASSIGNMENT PACKAGE V2 — RECOMMENDED
 
@@ -922,129 +873,78 @@ export const parseAssignmentBlueprintText = (rawValue) => {
     .trim();
 
   if (!normalizedText) {
-    throw new Error('The assignment JSON box is empty. Paste a question array or an Assignment Package object.');
+    throw new Error('Assignment V5 JSON is empty. Paste one schemaVersion 5 assignment object.');
   }
 
   normalizedText = stripOuterCodeFence(normalizedText, repairs);
   normalizedText = extractJsonPayload(normalizedText, repairs);
   normalizedText = replacePythonLiteralsOutsideStrings(normalizedText, repairs);
 
-  // Runs whether or not the text parses: "\le" throws, but "\frac" parses into
+  // Runs whether or not the text parses: "\\le" throws, but "\\frac" parses into
   // a formfeed and silently corrupts the prompt, so both need the same pass.
   normalizedText = escapeStrayBackslashesInStrings(normalizedText, repairs);
 
   try {
-    let parsed = JSON.parse(normalizedText);
-    const sourceSchemaVersion = !Array.isArray(parsed) && parsed && typeof parsed === 'object'
-      ? Number(parsed.schemaVersion) || null
-      : null;
-    if (!Array.isArray(parsed) && parsed && typeof parsed === 'object' && Number(parsed.schemaVersion) === 5) {
-      const compiledV5 = compileAuthoringIntentV5(parsed);
-      parsed = compiledV5.package;
-      repairs.push(...compiledV5.repairs);
+    const source = JSON.parse(normalizedText);
+    if (Array.isArray(source)) {
+      throw new Error('Assignment V5 does not accept raw question arrays. Create one schemaVersion 5 object with sections[].');
     }
-    if (Array.isArray(parsed)) {
-      const questions = normalizeQuestionStorageShapes(parsed, repairs);
-      return {
-        questions,
-        assignment: null,
-        schemaVersion: 1,
-        sourceSchemaVersion,
-        isPackage: false,
-        normalizedText: JSON.stringify(questions, null, 2),
-        repairs,
-      };
+    if (!source || typeof source !== 'object') {
+      throw new Error('Assignment V5 must be one JSON object.');
+    }
+    const sourceSchemaVersion = Number(source.schemaVersion) || null;
+    if (sourceSchemaVersion !== 5) {
+      throw new Error(`Assignment V5 is the only supported assignment format. Received schemaVersion ${sourceSchemaVersion ?? 'missing'}; V4 and earlier test assignments may be discarded.`);
     }
 
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      throw new Error('Assignment JSON must be either a question array or an object containing a questions array.');
-    }
+    const compiledV5 = compileAuthoringIntentV5(source);
+    const parsed = compiledV5.package;
+    repairs.push(...compiledV5.repairs);
 
-    const hasBundleActivities = Array.isArray(parsed.activities);
-    const normalizedActivities = hasBundleActivities
-      ? parsed.activities.map((activity, activityIndex) => {
-          const activityRole = activity?.role || 'classwork';
-          const normalizedActivityQuestions = normalizeQuestionStorageShapes(
-            Array.isArray(activity?.questions)
-              ? activity.questions.map((question) => ({
-                  ...question,
-                  activityRole: question?.activityRole || activityRole,
-                }))
-              : [],
-            repairs,
-          );
-          return { ...activity, questions: normalizedActivityQuestions, __activityIndex: activityIndex };
-        })
-      : [];
-
-    const bundledQuestions = hasBundleActivities
-      ? normalizedActivities.flatMap((activity) => {
-          const activityRole = activity?.role || 'classwork';
-          const standardQuestions = activity.questions || [];
-          if (!activity?.labDefinition && !activity?.isModelingLab) return standardQuestions;
-          const labSource = activity.labDefinition || activity;
-          const publicLab = normalizeLabDefinition(labSource);
-          return [...standardQuestions, {
-            type: 'modelingLab',
-            questionId: String(activity?.questionId || `${activity.activityId || `activity-${Number(activity.__activityIndex || 0) + 1}`}-lab`),
-            familyId: `modelingLab:${labSource.labType || 'optimization'}`,
-            activityRole,
-            dok: Number(labSource.dokLevel || labSource.dok || 3),
-            teks: labSource.teksAlignments || labSource.teks || [],
-            prompt: labSource.guidingQuestion || labSource.title || 'Interactive mathematical modeling lab',
-            labDefinition: publicLab,
-          }];
-        })
-      : [];
-
-    if (!Array.isArray(parsed.questions) && !hasBundleActivities) {
-      throw new Error('Assignment Package JSON is missing a top-level "questions" array or Bundle V3 "activities" array.');
-    }
-
-    // Bundle V3 is authoritative when activities are present. Some transition
-    // files also contain a legacy top-level questions mirror; using that mirror
-    // would make the student assignment differ from the pre-flight preview.
-    const questions = hasBundleActivities
-      ? bundledQuestions
-      : normalizeQuestionStorageShapes(parsed.questions, repairs);
+    const questions = normalizeQuestionStorageShapes(flattenV5Sections(parsed), repairs);
     if (questions.length === 0) {
-      throw new Error('Assignment Package JSON contains no questions.');
+      throw new Error('Assignment V5 contains no questions.');
     }
 
-    const lessonMetadata = parsed.lessonMetadata && typeof parsed.lessonMetadata === 'object' && !Array.isArray(parsed.lessonMetadata)
-      ? parsed.lessonMetadata
-      : {};
-    const assignmentMetadata = parsed.assignment || parsed.metadata || (hasBundleActivities
-      ? {
-          title: lessonMetadata.title,
-          curriculum: lessonMetadata.course ? { course: lessonMetadata.course, topic: lessonMetadata.topic ?? null } : null,
-        }
-      : {});
+    const assignmentMetadata = {
+      ...(parsed.assignment || {}),
+      schemaVersion: 5,
+      variantPolicy: parsed.variantPolicy,
+      differentiationPolicy: parsed.differentiationPolicy,
+      supportPolicy: parsed.supportPolicy,
+      toolPolicy: parsed.toolPolicy,
+      deliveryPolicy: parsed.deliveryPolicy,
+      gradingPolicy: parsed.gradingPolicy,
+      evidencePolicy: parsed.evidencePolicy,
+      outputProfiles: parsed.outputProfiles,
+      classroomIntegration: parsed.classroomIntegration,
+      provenance: parsed.provenance,
+      preflight: parsed.preflight,
+      sections: parsed.sections.map((section) => ({
+        id: section.id,
+        role: section.role,
+        title: section.title,
+        questionCount: Array.isArray(section.questions) ? section.questions.length : 0,
+      })),
+    };
 
     return {
       questions,
       assignment: assignmentMetadata,
-      schemaVersion: Number(parsed.schemaVersion) || 2,
-      sourceSchemaVersion,
+      schemaVersion: 5,
+      sourceSchemaVersion: 5,
       isPackage: true,
-      isBundle: hasBundleActivities,
-      bundleSource: hasBundleActivities
-        ? { ...parsed, activities: normalizedActivities.map(({ __activityIndex, ...activity }) => activity) }
-        : null,
-      normalizedText: JSON.stringify(
-        hasBundleActivities
-          ? { ...parsed, activities: normalizedActivities.map(({ __activityIndex, ...activity }) => activity) }
-          : { ...parsed, questions },
-        null,
-        2,
-      ),
+      isBundle: true,
+      bundleSource: parsed,
+      normalizedText: JSON.stringify(parsed, null, 2),
       repairs,
+      warnings: compiledV5.warnings || [],
     };
   } catch (error) {
-    if (String(error?.message || '').startsWith('Assignment ')) throw error;
+    if (!(error instanceof SyntaxError)) throw error;
     const detail = describeJsonParseError(error, normalizedText);
     throw new Error(
-      `${detail} Paste a JSON question array or Assignment Package object. JSON uses lowercase true, false, and null.`,
+      `${detail} Paste one valid MathMaster Assignment V5 JSON object. JSON uses lowercase true, false, and null.`,
     );
   }
 };
@@ -1204,6 +1104,42 @@ export const normalizeAssignmentPackageMetadata = (rawAssignment = {}, questions
     lessonResources: merged.lessonResources && typeof merged.lessonResources === 'object' && !Array.isArray(merged.lessonResources)
       ? merged.lessonResources
       : null,
+    instructionalPurpose: String(merged.instructionalPurpose || '').trim() || 'lesson',
+    gradingPurpose: String(merged.gradingPurpose || '').trim() || null,
+    variantPolicy: merged.variantPolicy && typeof merged.variantPolicy === 'object' && !Array.isArray(merged.variantPolicy)
+      ? merged.variantPolicy
+      : { mode: variantMode, sectionModes: normalizeSectionVariantModes(merged.sectionVariantModes) },
+    differentiationPolicy: merged.differentiationPolicy && typeof merged.differentiationPolicy === 'object' && !Array.isArray(merged.differentiationPolicy)
+      ? merged.differentiationPolicy
+      : null,
+    supportPolicy: merged.supportPolicy && typeof merged.supportPolicy === 'object' && !Array.isArray(merged.supportPolicy)
+      ? merged.supportPolicy
+      : null,
+    toolPolicy: merged.toolPolicy && typeof merged.toolPolicy === 'object' && !Array.isArray(merged.toolPolicy)
+      ? merged.toolPolicy
+      : null,
+    deliveryPolicy: merged.deliveryPolicy && typeof merged.deliveryPolicy === 'object' && !Array.isArray(merged.deliveryPolicy)
+      ? merged.deliveryPolicy
+      : null,
+    gradingPolicy: merged.gradingPolicy && typeof merged.gradingPolicy === 'object' && !Array.isArray(merged.gradingPolicy)
+      ? merged.gradingPolicy
+      : null,
+    evidencePolicy: merged.evidencePolicy && typeof merged.evidencePolicy === 'object' && !Array.isArray(merged.evidencePolicy)
+      ? merged.evidencePolicy
+      : null,
+    outputProfiles: merged.outputProfiles && typeof merged.outputProfiles === 'object' && !Array.isArray(merged.outputProfiles)
+      ? merged.outputProfiles
+      : null,
+    classroomIntegration: merged.classroomIntegration && typeof merged.classroomIntegration === 'object' && !Array.isArray(merged.classroomIntegration)
+      ? merged.classroomIntegration
+      : null,
+    provenance: merged.provenance && typeof merged.provenance === 'object' && !Array.isArray(merged.provenance)
+      ? merged.provenance
+      : null,
+    preflight: merged.preflight && typeof merged.preflight === 'object' && !Array.isArray(merged.preflight)
+      ? merged.preflight
+      : null,
+    sections: Array.isArray(merged.sections) ? merged.sections : [],
   };
 };
 
