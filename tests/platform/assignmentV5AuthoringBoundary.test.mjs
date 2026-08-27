@@ -7,7 +7,7 @@ const intake = fs.readFileSync('src/AssignmentIntake.jsx', 'utf8');
 const modal = fs.readFileSync('src/components/teacher/LessonPreflightModal.jsx', 'utf8');
 
 test('new authoring enters through Assignment V5 and reviewed Preflight', () => {
-  assert.match(intake, /Paste V5 JSON from Clipboard/);
+  assert.match(intake, /Paste AI Assignment/);
   assert.match(app, /const reviewedV5 = reviewedAssignmentV5/);
   assert.match(app, /flattenV5Sections\(reviewedV5\)/);
   assert.match(modal, /buildPreflightReviewedAssignmentV5/);
@@ -45,9 +45,13 @@ test('platform self-export is V5 and cannot resurrect the retired portable V2 pa
   assert.doesNotMatch(app, /schemaVersion:\s*2[\s\S]{0,500}questions:\s*assignment\.questions/);
 });
 
-test('normal teacher creator does not expose raw JSON editing', () => {
+test('normal teacher creator does not expose raw JSON editing or schema jargon', () => {
   assert.doesNotMatch(intake, /Edit raw JSON|textarea[^>]+rawJson/i);
   assert.match(intake, /NO CODE REQUIRED/);
+  assert.match(intake, /Paste AI Assignment/);
+  assert.doesNotMatch(intake, /Paste V5 JSON from Clipboard|Upload V5 JSON|V5 · NO CODE REQUIRED/);
+  assert.match(modal, /Back to Creator/);
+  assert.doesNotMatch(modal, />Back to JSON</);
 });
 
 test('legacy Lesson Bundle authoring adapters stay out of the V5 path', () => {
