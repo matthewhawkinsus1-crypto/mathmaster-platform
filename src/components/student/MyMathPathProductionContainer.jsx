@@ -7,6 +7,7 @@ import { fetchQuestionWithContentReleaseRollover } from '../../platform/path/ses
 import { FRAMEWORK_LABELS } from '../../platform/ccmr/assessmentCrosswalk.js';
 import { describeChallengeTier } from '../../platform/ccmr/assessmentFidelity.js';
 import { responseClosesQuestion } from '../../platform/path/pathProgression.js';
+import { coursePathLevelName } from '../../platform/path/pathPassPresentation.js';
 
 // The session runtime is injected.
 //
@@ -49,6 +50,7 @@ export const MyMathPathProductionContainer = ({
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [errorReason, setErrorReason] = useState(null);
   const [configurationError, setConfigurationError] = useState(null);
   const [submissionError, setSubmissionError] = useState(null);
   const [lastGradingResult, setLastGradingResult] = useState(null);
@@ -102,6 +104,7 @@ export const MyMathPathProductionContainer = ({
   const initializeSession = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setErrorReason(null);
     setConfigurationError(null);
     setSubmissionError(null);
     completionReportedRef.current = false;
@@ -111,6 +114,7 @@ export const MyMathPathProductionContainer = ({
       // hits one blip and recovers is not permanently shown the "this is not
       // working" screen.
       setRetryCount(0);
+      setErrorReason(null);
       if (result.session.status === 'active') {
         const next = await fetchQuestionWithContentReleaseRollover({
           session: result.session,
@@ -129,6 +133,7 @@ export const MyMathPathProductionContainer = ({
       // A deployment that cannot reach the secure Path is a service problem,
       // not a mathematics problem, and it is said differently.
       setRetryCount((current) => current + 1);
+      setErrorReason(caught?.reason || null);
       if (caught?.isConfigurationError) setConfigurationError(caught.message);
       else setError(caught.message || 'Unable to load this My Math Path session.');
     } finally {
@@ -467,6 +472,53 @@ export const MyMathPathProductionContainer = ({
     );
   }
 
+  const nextLevelUnavailable = errorReason === 'all-candidate-preparations-failed';
+  const completedSessionError = /session is already complete|session is already completed/i.test(String(error || ''));
+
+  if (nextLevelUnavailable || completedSessionError) {
+    return (
+      <section
+        role="status"
+        style={{
+          maxWidth: 620,
+          margin: '40px auto',
+          padding: 24,
+          borderRadius: 14,
+          background: completedSessionError ? '#e6f4ea' : '#fff4ce',
+          border: completedSessionError ? '2px solid #81c995' : '2px solid #f0d489',
+          color: completedSessionError ? '#137333' : '#7a4f00',
+          textAlign: 'left',
+        }}
+      >
+        <h1 style={{ margin: '0 0 8px', fontSize: 21, color: 'inherit' }}>
+          {completedSessionError ? 'This Path pass is already complete' : 'Next level is temporarily unavailable'}
+        </h1>
+        <p style={{ margin: '0 0 10px', lineHeight: 1.65, color: '#3c4043' }}>
+          {completedSessionError
+            ? 'Your completed pass is saved. Return to My Math Path to see its completion badge and choose the next level or another open skill.'
+            : 'Your earlier Path pass is still complete. MathMaster could not prepare a usable question for the next level, so it stopped instead of giving you broken or duplicate work.'}
+        </p>
+        {!completedSessionError && (
+          <p style={{ margin: '0 0 14px', fontSize: 13, lineHeight: 1.6, color: '#7a4f00' }}>
+            Your teacher can repair the affected question family in Path content coverage. This does not erase the level you already completed.
+          </p>
+        )}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {nextLevelUnavailable && retryCount < 2 && (
+            <button type="button" onClick={initializeSession} style={{ minHeight: 44, padding: '0 16px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 850, cursor: 'pointer' }}>
+              Try next level again
+            </button>
+          )}
+          {onReturnToDashboard && (
+            <button type="button" onClick={onReturnToDashboard} style={{ minHeight: 44, padding: '10px 16px', border: '1px solid #9aa0a6', borderRadius: 8, background: '#fff', color: '#174ea6', fontWeight: 850, cursor: 'pointer' }}>
+              Back to My Math Path
+            </button>
+          )}
+        </div>
+      </section>
+    );
+  }
+
   if (error) {
     return (
       <div role="alert" style={{ maxWidth: 560, margin: '40px auto', padding: 22, borderRadius: 10, background: '#fce8e6', color: '#a50e0e', textAlign: 'left' }}>
@@ -502,6 +554,11 @@ export const MyMathPathProductionContainer = ({
     const independentRate = Number(session?.summary?.independentSuccesses || 0) / completedCount;
     const challengePassed = sessionAccuracy >= 0.8 && independentRate >= 0.6;
     const weeklyTargetReached = Boolean(completesWeeklyGoal && !paused);
+    const coursePassLevel = !directAssessment && session?.sessionKind !== 'retentionProbe'
+      ? Math.max(1, Math.min(3, Number(session?.coursePassLevel || 1)))
+      : null;
+    const coursePassName = coursePassLevel ? coursePathLevelName(coursePassLevel) : null;
+    const nextCourseLevel = coursePassLevel && coursePassLevel < 3 ? coursePassLevel + 1 : null;
     return (
       <section style={{
         maxWidth: 650, margin: '36px auto', padding: weeklyTargetReached ? 38 : 30,
@@ -513,7 +570,15 @@ export const MyMathPathProductionContainer = ({
       }}>
         {weeklyTargetReached && <div aria-hidden="true" style={{ fontSize: 54, lineHeight: 1, marginBottom: 8 }}>🎉</div>}
         <h1 style={{ color: weeklyTargetReached ? '#12633a' : '#202124', fontSize: weeklyTargetReached ? 30 : undefined, marginBottom: weeklyTargetReached ? 8 : undefined }}>
-          {weeklyTargetReached ? 'Weekly target reached!' : paused ? 'Practice paused' : directAssessment ? `${challenge.label} complete` : 'Session complete'}
+          {weeklyTargetReached
+            ? 'Weekly target reached!'
+            : paused
+              ? 'Practice paused'
+              : directAssessment
+                ? `${challenge.label} complete`
+                : coursePassLevel
+                  ? `Level ${coursePassLevel} complete`
+                  : 'Session complete'}
         </h1>
         {weeklyTargetReached && (
           <div style={{ margin: '0 auto 16px', maxWidth: 520, color: '#245c33', fontSize: 16, fontWeight: 800, lineHeight: 1.55 }}>
@@ -521,6 +586,18 @@ export const MyMathPathProductionContainer = ({
               ? `You completed all ${weeklyGoalRequired} of ${weeklyGoalRequired} weekly Path sessions.`
               : 'You completed every assigned weekly Path session.'}
             {' '}Free-choice paths are unlocked for the rest of the week.
+          </div>
+        )}
+        {coursePassLevel && !paused && (
+          <div style={{ margin: '0 auto 16px', maxWidth: 540 }}>
+            <div style={{ display: 'inline-block', padding: '6px 11px', borderRadius: 999, background: '#e6f4ea', color: '#137333', fontSize: 12, fontWeight: 950, letterSpacing: '.04em', textTransform: 'uppercase' }}>
+              ✓ Path Pass {coursePassLevel} complete · {coursePassName}
+            </div>
+            <p style={{ margin: '10px 0 0', color: '#3c4043', fontSize: 14, lineHeight: 1.6 }}>
+              {nextCourseLevel
+                ? `This pass is recorded on your Path card. Your next visit is Level ${nextCourseLevel} · ${coursePathLevelName(nextCourseLevel)}, with more demanding work.`
+                : 'This advanced pass is recorded on your Path card. If the mastery evidence is not complete yet, you can continue advanced practice without losing any completed passes.'}
+            </p>
           </div>
         )}
         {directAssessment && !paused && (
@@ -531,7 +608,9 @@ export const MyMathPathProductionContainer = ({
         <p style={{ color: '#5f6368', lineHeight: 1.6 }}>
           {paused
             ? (session.teacherMessage || 'Your progress is saved. Check in with your teacher before continuing this skill.')
-            : `You worked through ${session.summary?.completedQuestions || session.pathState?.counters?.questionsThisSession || 0} questions.`}
+            : coursePassLevel
+              ? `You completed ${session.summary?.completedQuestions || session.pathState?.counters?.questionsThisSession || 0} questions in this Path pass.`
+              : `You worked through ${session.summary?.completedQuestions || session.pathState?.counters?.questionsThisSession || 0} questions.`}
         </p>
         {!paused && (
           <div style={{ margin: '18px 0', padding: 13, borderRadius: 8, background: '#e6f4ea', color: '#137333', lineHeight: 1.6 }}>
