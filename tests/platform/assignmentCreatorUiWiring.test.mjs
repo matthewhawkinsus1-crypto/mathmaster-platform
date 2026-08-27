@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-test('teacher assignment intake exposes guided V5 planning rather than raw schema editing', () => {
+test('teacher assignment intake exposes guided planning rather than raw schema editing', () => {
   const source = fs.readFileSync('src/AssignmentIntake.jsx', 'utf8');
   assert.match(source, /Assignment creator steps/);
   assert.match(source, /1\. Lesson and purpose/);
@@ -27,7 +27,7 @@ test('teacher assignment intake exposes guided V5 planning rather than raw schem
   assert.match(source, /IEP\/504\/EB access supports/);
   assert.match(source, /Honors \+ CCMR/);
   assert.match(source, /Copy Complete AI Build Request/);
-    assert.doesNotMatch(source, /textarea[^>]+rawJson|Edit raw JSON/i);
+  assert.doesNotMatch(source, /textarea[^>]+rawJson|Edit raw JSON/i);
 });
 
 test('all canonical V5 section roles are available to the creator', () => {
