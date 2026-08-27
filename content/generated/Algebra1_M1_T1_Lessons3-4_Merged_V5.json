@@ -2,7 +2,6 @@
   "schemaVersion": 5,
   "assignment": {
     "courseId": "algebra1",
-    "assignmentType": "notesClasswork",
     "warmup": {
       "enabled": true,
       "minutesBeforeStart": 7
@@ -12,7 +11,9 @@
       "minutesBeforeEnd": 10
     },
     "title": "Algebra I — Module 1 Topic 1 Lessons 3–4: Functions, Families, and Characteristics",
-    "folder": "Algebra I/Module 1/Topic 1/Lessons 3-4"
+    "folder": "Algebra I/Module 1/Topic 1/Lessons 3-4",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork"
   },
   "lessonMetadata": {
     "provider": "Bluebonnet",
@@ -25,7 +26,7 @@
     ],
     "sourceFocus": "Function definition and notation; multiple representations; domain/range; Vertical Line Test; discrete/continuous; linear, exponential, and quadratic families; characteristics-to-family reasoning; building and distinguishing functions from characteristics."
   },
-  "activities": [
+  "sections": [
     {
       "role": "warmup",
       "title": "Warm-Up — Function or Not?",
@@ -151,7 +152,8 @@
           "dok": 2,
           "difficultyBand": 2
         }
-      ]
+      ],
+      "id": "warmup-1"
     },
     {
       "role": "classwork",
@@ -687,7 +689,8 @@
           "dok": 3,
           "difficultyBand": 3
         }
-      ]
+      ],
+      "id": "classwork-2"
     },
     {
       "role": "practice",
@@ -824,7 +827,8 @@
           "dok": 2,
           "difficultyBand": 3
         }
-      ]
+      ],
+      "id": "practice-3"
     },
     {
       "role": "dol",
@@ -964,7 +968,17 @@
           "dok": 3,
           "difficultyBand": 3
         }
-      ]
+      ],
+      "id": "dol-4"
     }
-  ]
+  ],
+  "variantPolicy": {
+    "mode": "personalized",
+    "sectionModes": {
+      "warmup": "shared",
+      "classwork": "shared",
+      "practice": "personalized",
+      "dol": "shared"
+    }
+  }
 }
