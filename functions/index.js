@@ -2716,15 +2716,6 @@ exports.resetPreproductionTestData = onCall(async (request) => {
 });
 
 /**
- * Root-admin-only permanent student erasure.
- *
- * This intentionally lives behind a callable instead of Firestore delete
- * rules. The browser never receives authority to recursively erase records;
- * the server resolves every MathMaster collection that can contain student
- * identity, assessment, practice, evidence, or Classroom-link data.
- */
-
-/**
  * One-way root-admin production lock for the bulk test reset.
  *
  * There is deliberately no unlock callable. Re-enabling the reset after this
@@ -2766,6 +2757,14 @@ exports.lockPreproductionResetForProduction = onCall(async (request) => {
   return { success: true, alreadyLocked: false, locked: true };
 });
 
+/**
+ * Root-admin-only permanent student erasure.
+ *
+ * This intentionally lives behind a callable instead of Firestore delete
+ * rules. The browser never receives authority to recursively erase records;
+ * the server resolves every MathMaster collection that can contain student
+ * identity, assessment, practice, evidence, or Classroom-link data.
+ */
 exports.permanentlyDeleteStudent = onCall(async (request) => {
   const actor = await requireRootAdmin(request);
   const db = getFirestore();
