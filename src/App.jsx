@@ -2798,11 +2798,9 @@ function App() {
           earlyUnlocks: {},
         },
         folder,
-        assignmentPackageSchemaVersion: parsed.isPackage ? parsed.schemaVersion : 1,
         assignmentTemplate: packageMetadata?.template || null,
         standards: packageMetadata?.standards || [],
         curriculum: packageMetadata?.curriculum || null,
-        lessonBundleId: parsed.isBundle ? parsed.bundleSource?.bundleId || null : null,
         publicationSettings: teacherReview ? {
           strategy: teacherReview.publicationStrategy || 'hybrid',
           includeWarmupInClassroom: teacherReview.includeWarmupInClassroom === true,
