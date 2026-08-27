@@ -1,6 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { buildPathMap } from '../../platform/path/pathMap.js';
 import PracticeAsMenu from './PracticeAsMenu.jsx';
+import {
+  describeCoursePathPass,
+  summarizeCoursePathPasses,
+} from '../../platform/path/pathPassPresentation.js';
 
 // The student's actual learning path.
 //
@@ -50,19 +54,60 @@ const whyLabel = (blockedBy) => (
         : 'Why this comes first'
 );
 
-function PathNode({ node, onChoose, practiceAs, disabled = false }) {
+function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress = null }) {
   const [showWhy, setShowWhy] = useState(false);
   const clickable = node.selectable && typeof onChoose === 'function' && !disabled;
+  const pass = describeCoursePathPass(passProgress || {}, { mastered: node.status === 'mastered' });
 
   return (
-    <div style={{ ...cardStyle(node.tone, node.selectable && !disabled, node.blockedBy), opacity: disabled && node.selectable ? 0.58 : 1 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
+    <div style={{
+      ...cardStyle(node.tone, node.selectable && !disabled, node.blockedBy),
+      opacity: disabled && node.selectable ? 0.58 : 1,
+      ...(pass.hasCompletedPass ? {
+        borderWidth: 3,
+        background: '#fbfff8',
+        boxShadow: '0 6px 18px rgba(19,115,51,0.12)',
+      } : {}),
+    }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
         <span aria-hidden="true" style={{ fontSize: 15 }}>{node.symbol}</span>
         <strong style={{ fontSize: 16 }}>{node.title}</strong>
         <span style={{ fontSize: 11, fontWeight: 800, color: node.tone, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
           {node.statusLabel}
         </span>
       </div>
+
+      {pass.hasCompletedPass && (
+        <div
+          role="status"
+          style={{
+            margin: '8px 0 10px',
+            padding: '10px 11px',
+            border: `2px solid ${pass.tone}`,
+            borderRadius: 10,
+            background: pass.background,
+            color: pass.tone,
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 950, letterSpacing: '.045em', textTransform: 'uppercase' }}>
+            {pass.completedLabel}
+          </div>
+          <div style={{ marginTop: 3, fontSize: 13, fontWeight: 900 }}>
+            {pass.nextLabel}
+          </div>
+          {node.status !== 'mastered' && (
+            <div style={{ marginTop: 4, color: '#3c4043', fontSize: 11.5, lineHeight: 1.45 }}>
+              This Path pass is complete. Mastery is tracked separately and can require broader or higher-level evidence.
+            </div>
+          )}
+        </div>
+      )}
+
+      {!pass.hasCompletedPass && node.selectable && !disabled && (
+        <div style={{ margin: '4px 0 9px', color: '#174ea6', fontSize: 11.5, fontWeight: 850 }}>
+          {pass.levelLabel}
+        </div>
+      )}
       {node.description && (
         <p style={{ margin: '0 0 8px', fontSize: 13, color: '#3c4043', lineHeight: 1.5 }}>{node.description}</p>
       )}
@@ -126,7 +171,7 @@ function PathNode({ node, onChoose, practiceAs, disabled = false }) {
           onClick={() => onChoose(node)}
           style={{ padding: '9px 14px', minHeight: 40, border: 0, borderRadius: 8, background: node.tone, color: '#fff', fontWeight: 900, cursor: 'pointer' }}
         >
-          Start practice
+          {pass.buttonLabel}
         </button>
       )}
 
@@ -148,7 +193,7 @@ function PathNode({ node, onChoose, practiceAs, disabled = false }) {
   );
 }
 
-function PathSection({ title, note, nodes, onChoose, practiceAs, disabled = false }) {
+function PathSection({ title, note, nodes, onChoose, practiceAs, disabled = false, skillProgressByTEKS = {} }) {
   if (!nodes.length) return null;
   return (
     <section style={section}>
@@ -156,7 +201,14 @@ function PathSection({ title, note, nodes, onChoose, practiceAs, disabled = fals
       {note && <p style={{ margin: '0 0 12px', fontSize: 12, color: '#5f6368' }}>{note}</p>}
       <div style={nodeRow}>
         {nodes.map((node) => (
-          <PathNode key={node.skillId} node={node} onChoose={onChoose} practiceAs={practiceAs} disabled={disabled} />
+          <PathNode
+            key={node.skillId}
+            node={node}
+            onChoose={onChoose}
+            practiceAs={practiceAs}
+            disabled={disabled}
+            passProgress={skillProgressByTEKS[node.code] || null}
+          />
         ))}
       </div>
     </section>
@@ -183,11 +235,20 @@ export const StudentLearningPath = ({
   // cannot look complete while failing to count.
   freeChoiceLocked = false,
   freeChoiceMessage = null,
+  // Server-owned completed course Path passes. This is intentionally separate
+  // from mastery: a full Path can be completed before the evidence engine is
+  // ready to make the stronger "Mastered" claim.
+  skillProgressByTEKS = {},
 }) => {
   const map = useMemo(
     () => buildPathMap(pathOptions, { ...(limits ? { limits } : {}), ...(isCovered ? { isCovered } : {}) }),
     [pathOptions, limits, isCovered],
   );
+  const passSummary = useMemo(
+    () => summarizeCoursePathPasses(skillProgressByTEKS),
+    [skillProgressByTEKS],
+  );
+
   const practiceAs = useMemo(() => (assessmentContext && onPracticeAs ? {
     pathOptions,
     assessmentEvidence: assessmentContext.assessmentEvidence || {},
@@ -233,8 +294,11 @@ export const StudentLearningPath = ({
     <div style={{ maxWidth: 940, margin: '0 auto', padding: '20px 16px 40px' }}>
       <header style={{ textAlign: 'left', marginBottom: 14 }}>
         <h2 style={{ margin: 0, fontSize: 24, color: '#202124' }}>Your path</h2>
-        <p style={{ margin: '4px 0 0', color: '#5f6368', fontSize: 13 }}>
-          {map.masteredCount} of {map.totalSkills} skills mastered so far.
+        <p style={{ margin: '4px 0 0', color: '#5f6368', fontSize: 13, lineHeight: 1.55 }}>
+          <strong>{map.masteredCount} of {map.totalSkills}</strong> skills mastered.
+          {passSummary.totalCompletedPasses > 0 && (
+            <> · <strong>{passSummary.totalCompletedPasses}</strong> Path {passSummary.totalCompletedPasses === 1 ? 'pass' : 'passes'} completed across <strong>{passSummary.completedSkillCount}</strong> {passSummary.completedSkillCount === 1 ? 'skill' : 'skills'}.</>
+          )}
           {map.pacingIsProvisional ? ' Your class position is provisional, so timing may shift.' : ''}
         </p>
       </header>
@@ -251,6 +315,7 @@ export const StudentLearningPath = ({
         onChoose={choose}
         practiceAs={practiceAs}
         disabled={freeChoiceLocked}
+        skillProgressByTEKS={skillProgressByTEKS}
       />
       <PathSection
         title="Also open to you"
@@ -259,6 +324,7 @@ export const StudentLearningPath = ({
         onChoose={choose}
         practiceAs={practiceAs}
         disabled={freeChoiceLocked}
+        skillProgressByTEKS={skillProgressByTEKS}
       />
       <PathSection
         title="Needs support"
@@ -267,6 +333,7 @@ export const StudentLearningPath = ({
         onChoose={choose}
         practiceAs={practiceAs}
         disabled={freeChoiceLocked}
+        skillProgressByTEKS={skillProgressByTEKS}
       />
       <PathSection
         title="Coming up next"
@@ -274,6 +341,7 @@ export const StudentLearningPath = ({
         onChoose={choose}
         practiceAs={practiceAs}
         disabled={freeChoiceLocked}
+        skillProgressByTEKS={skillProgressByTEKS}
       />
       <PathSection
         title="Challenge"
@@ -282,6 +350,7 @@ export const StudentLearningPath = ({
         onChoose={choose}
         practiceAs={practiceAs}
         disabled={freeChoiceLocked}
+        skillProgressByTEKS={skillProgressByTEKS}
       />
       {/* Retention sits between "mastered" and "current": it is work on a skill
           the student has already shown, offered briefly and with a reason, so it
@@ -293,6 +362,7 @@ export const StudentLearningPath = ({
         onChoose={choose}
         practiceAs={practiceAs}
         disabled={freeChoiceLocked}
+        skillProgressByTEKS={skillProgressByTEKS}
       />
       <PathSection
         title="Mastered"
@@ -301,6 +371,7 @@ export const StudentLearningPath = ({
         onChoose={choose}
         practiceAs={practiceAs}
         disabled={freeChoiceLocked}
+        skillProgressByTEKS={skillProgressByTEKS}
       />
     </div>
   );
