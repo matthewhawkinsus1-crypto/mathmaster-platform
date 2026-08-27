@@ -1,5 +1,7 @@
 import { sameValue } from '../../../functions/shared/answerEquivalence.mjs';
 import { sameEquivalentExpression } from '../../equivalentExpression.js';
+import { matchesFieldAnswer } from '../../answerUtils.js';
+import { gradeResponseField } from '../../grading/fieldGrader.js';
 
 const clean = (value) => String(value ?? '').trim();
 const isObject = (value) => Boolean(value && typeof value === 'object' && !Array.isArray(value));
@@ -87,6 +89,58 @@ const validateTolerance = (field, key, label, errors) => {
   }
 };
 
+
+const responseFieldUsesUnitGrader = (field = {}) => Boolean(
+  field.expectedUnit || field.unit || clean(field.inputProfile).toLowerCase() === 'unit'
+);
+
+const acceptedListHasRuntimePrecedence = (collection, field = {}) => {
+  if (collection === 'answerFields') return true;
+  if (collection === 'responseFields' || collection === 'responses') {
+    return !responseFieldUsesUnitGrader(field);
+  }
+  return false;
+};
+
+const runtimeHasGradingKey = ({ collection, field, primary, accepted }) => {
+  if (collection === 'answerFields') return isPresent(primary) || accepted.length > 0;
+  if (collection === 'responseFields' || collection === 'responses') {
+    if (responseFieldUsesUnitGrader(field)) return isPresent(field.expected);
+    return isPresent(primary) || accepted.length > 0;
+  }
+  return isPresent(primary) || accepted.length > 0;
+};
+
+const runtimeSelfGradesCanonicalKey = ({ collection, field, primary, accepted }) => {
+  const probe = isPresent(primary) ? primary : accepted[0];
+  if (!isPresent(probe)) return null;
+
+  try {
+    if (collection === 'answerFields') {
+      if (!comparableScalar(probe)) return null;
+      return matchesFieldAnswer(probe, field);
+    }
+
+    if (collection === 'responseFields' || collection === 'responses') {
+      if (responseFieldUsesUnitGrader(field)) {
+        if (!isPresent(field.expected)) return false;
+        const expectedUnit = field.expectedUnit ?? field.unit ?? '';
+        const result = gradeResponseField(field, {
+          value: field.expected,
+          unit: expectedUnit,
+        });
+        return result?.isCorrect === true;
+      }
+
+      if (!comparableScalar(probe)) return null;
+      return gradeResponseField(field, probe)?.isCorrect === true;
+    }
+  } catch {
+    return false;
+  }
+  return null;
+};
+
 const validateField = (field, {
   collection,
   index,
@@ -118,9 +172,9 @@ const validateField = (field, {
     );
   }
 
-  if (autoGraded && !isPresent(primary) && accepted.length === 0) {
+  if (autoGraded && !runtimeHasGradingKey({ collection, field, primary, accepted })) {
     errors.push(
-      `${display} has no grading key. Add the mathematically intended answer/expected value, or explicitly mark the response for teacher review.`,
+      `${display} has no runtime-usable grading key. Add the mathematically intended answer/expected value. Unit responses specifically require expected + expectedUnit/unit; accepted lists are not used by that grader.`,
     );
   }
 
@@ -141,9 +195,21 @@ const validateField = (field, {
 
   // The runtime gives the accepted list precedence over the single key. If they
   // disagree, the visible/intended key can never earn credit.
-  if (isPresent(primary) && accepted.length && !accepted.some((value) => equivalent(field, primary, value))) {
+  if (
+    acceptedListHasRuntimePrecedence(collection, field)
+    && isPresent(primary)
+    && accepted.length
+    && !accepted.some((value) => equivalent(field, primary, value))
+  ) {
     errors.push(
       `${display} has a primary grading key that is not represented by its ${preferredAccepted} list. The runtime reads the list first, so the declared correct answer could be marked wrong. Remove the stale list or include a mathematically equivalent key.`,
+    );
+  }
+
+  const runtimeSelfGrade = runtimeSelfGradesCanonicalKey({ collection, field, primary, accepted });
+  if (runtimeSelfGrade === false) {
+    errors.push(
+      `${display} fails MathMaster's runtime self-grade check: the canonical grading key is not accepted by the same grader the student will use. Fix the key/grading metadata before publishing.`,
     );
   }
 

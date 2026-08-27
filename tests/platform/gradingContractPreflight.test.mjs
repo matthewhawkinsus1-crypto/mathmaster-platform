@@ -80,7 +80,7 @@ test('generic response fields require a grading key instead of pretending autoGr
   const missing = validateQuestionGradingContracts({
     responseFields: [{ id: 'why', label: 'Explain your reasoning', inputProfile: 'text' }],
   });
-  assert.ok(missing.errors.some((message) => /has no grading key/.test(message)));
+  assert.ok(missing.errors.some((message) => /no runtime-usable grading key/.test(message)));
 
   const fakeManual = validateQuestionGradingContracts({
     responseFields: [{
@@ -90,7 +90,7 @@ test('generic response fields require a grading key instead of pretending autoGr
       autoGrade: false,
     }],
   });
-  assert.ok(fakeManual.errors.some((message) => /has no grading key/.test(message)));
+  assert.ok(fakeManual.errors.some((message) => /no runtime-usable grading key/.test(message)));
 });
 
 test('accepted list cannot override expected in secure response fields', () => {
@@ -117,6 +117,66 @@ test('a choice field must have at least one grading key that matches a displayed
     }],
   });
   assert.ok(result.errors.some((message) => /every visible option and still be marked wrong/.test(message)));
+});
+
+test('regular answerFields self-grade their canonical key through the actual MultiAnswer grader', () => {
+  const good = validateQuestionGradingContracts({
+    answerFields: [{
+      id: 'quadratic',
+      label: 'Standard form',
+      answer: 'y=1*x^2+(-6)*x+(1)',
+      acceptedAnswers: ['y=x^{2}-6x+1'],
+    }],
+  });
+  assert.deepEqual(good.errors, []);
+
+  const bad = validateQuestionGradingContracts({
+    answerFields: [{
+      id: 'value',
+      label: 'Value',
+      answer: '4',
+      acceptedAnswers: ['5'],
+    }],
+  });
+  assert.ok(bad.errors.some((message) => /runtime self-grade check/.test(message)));
+});
+
+test('secure responseFields self-grade the canonical key through gradeResponseField', () => {
+  const result = validateQuestionGradingContracts({
+    responseFields: [{
+      id: 'quadratic',
+      label: 'Standard form',
+      inputProfile: 'equation',
+      expected: 'y=1*x^2+(-6)*x+(1)',
+    }],
+  });
+  assert.deepEqual(result.errors, []);
+});
+
+test('unit response self-grade includes the required unit', () => {
+  const result = validateQuestionGradingContracts({
+    responseFields: [{
+      id: 'distance',
+      label: 'Distance',
+      inputProfile: 'unit',
+      expected: 12,
+      expectedUnit: 'm',
+    }],
+  });
+  assert.deepEqual(result.errors, []);
+});
+
+test('unit response cannot rely on accepted list because the runtime unit grader ignores it', () => {
+  const result = validateQuestionGradingContracts({
+    responseFields: [{
+      id: 'distance',
+      label: 'Distance',
+      inputProfile: 'unit',
+      expectedUnit: 'm',
+      accepted: ['12'],
+    }],
+  });
+  assert.ok(result.errors.some((message) => /no runtime-usable grading key/.test(message)));
 });
 
 test('negative or nonnumeric tolerances are rejected', () => {
