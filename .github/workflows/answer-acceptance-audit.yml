@@ -11,6 +11,8 @@ on:
       - 'teacher-import-jsons/**'
       - 'scripts/audit-correct-answer-acceptance.mjs'
       - 'tests/platform/correctAnswerAcceptance.test.mjs'
+      - 'tests/platform/pathPassCompletion.test.mjs'
+      - '.github/workflows/answer-acceptance-audit.yml'
       - 'package.json'
   pull_request:
     paths:
@@ -22,6 +24,8 @@ on:
       - 'teacher-import-jsons/**'
       - 'scripts/audit-correct-answer-acceptance.mjs'
       - 'tests/platform/correctAnswerAcceptance.test.mjs'
+      - 'tests/platform/pathPassCompletion.test.mjs'
+      - '.github/workflows/answer-acceptance-audit.yml'
       - 'package.json'
 
 jobs:
@@ -36,5 +40,5 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm --prefix functions ci
-      - run: node --test tests/platform/correctAnswerAcceptance.test.mjs tests/platform/algebraicForm.test.mjs tests/platform/setAnswerEquivalence.test.mjs tests/platform/pathToolGraders.test.mjs
+      - run: node --test tests/platform/correctAnswerAcceptance.test.mjs tests/platform/pathPassCompletion.test.mjs tests/platform/algebraicForm.test.mjs tests/platform/setAnswerEquivalence.test.mjs tests/platform/pathToolGraders.test.mjs
       - run: npm run audit:answer-acceptance
