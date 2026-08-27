@@ -11,9 +11,13 @@ const schedule = {
   },
 };
 const assignment = {
+  schemaVersion: 5,
   releaseAt: `${dateKey}T00:00:00`,
   warmup: { enabled: true, minutesBeforeStart: 7 },
-  questions: [{ activityRole: 'warmup' }, { activityRole: 'classwork' }],
+  sections: [
+    { id: 'warmup', role: 'warmup', title: 'Warm-Up', questions: [{ type: 'multiAnswer' }] },
+    { id: 'classwork', role: 'classwork', title: 'Classwork', questions: [{ type: 'multiAnswer' }] },
+  ],
 };
 const at = (time) => new Date(`${dateKey}T${time}:00`);
 
@@ -43,12 +47,18 @@ console.log('warmupLifecycle.test.mjs: all assertions passed');
 
 // Bundled DOLs are one timed section: every authored DOL question is gated.
 const { resolveDOLQuestionIndices } = await import('../../src/assignmentLifecycle.js');
-const dolBundle = { questions: [
-  { activityRole: 'warmup' },
-  { activityRole: 'classwork' },
-  { activityRole: 'dol' },
-  { activityRole: 'dol' },
-  { activityRole: 'dol' },
-] };
+const dolBundle = {
+  schemaVersion: 5,
+  sections: [
+    { id: 'warmup', role: 'warmup', title: 'Warm-Up', questions: [{ type: 'multiAnswer' }] },
+    { id: 'classwork', role: 'classwork', title: 'Classwork', questions: [{ type: 'multiAnswer' }] },
+    {
+      id: 'dol',
+      role: 'dol',
+      title: 'DOL',
+      questions: [{ type: 'multiAnswer' }, { type: 'multiAnswer' }, { type: 'multiAnswer' }],
+    },
+  ],
+};
 assert.deepEqual(resolveDOLQuestionIndices(dolBundle), [2,3,4]);
 console.log('bundled DOL section indices: all assertions passed');
