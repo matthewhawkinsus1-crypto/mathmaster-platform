@@ -4394,10 +4394,10 @@ function App() {
         >
           <div style={{ padding: '24px 28px', borderBottom: '1px solid #e8eaed' }}>
             <h2 id="export-json-title" style={{ margin: 0, color: '#202124' }}>
-              Export JSON &middot; {exportJsonAssignment.title}
+              Export Assignment &middot; {exportJsonAssignment.title}
             </h2>
             <p style={{ margin: '8px 0 0', color: '#5f6368', fontSize: '13px' }}>
-              This is canonical MathMaster Assignment V5 JSON and can be brought directly back through the V5 creator. Student/class dates and Firestore-only publication state are intentionally not embedded in the authoring object.
+              This is a portable MathMaster assignment. You can copy it into another MathMaster authoring workflow and bring it back through Assignment Creator. Student/class dates and publication records stay out of the portable assignment.
             </p>
           </div>
           <div style={{ padding: '20px 28px' }}>
@@ -5502,7 +5502,7 @@ function App() {
                             { key: 'preview', label: 'View as Student', onClick: () => startTeacherPreview(assignment.id) },
                             { key: 'edit-questions', label: 'Edit Questions', onClick: () => openQuestionEditor(assignment) },
                             { key: 'export-pdf', label: 'Print / Answer Key', onClick: () => beginTeacherWorksheetExport(assignment) },
-                            { key: 'export-json', label: 'Export JSON', onClick: () => { setExportJsonAssignment(assignment); setExportJsonCopied(false); } },
+                            { key: 'export-json', label: 'Export Assignment', onClick: () => { setExportJsonAssignment(assignment); setExportJsonCopied(false); } },
                             { key: 'dates-classes', label: 'Dates & Classes', onClick: () => beginEditAssignmentDates(assignment) },
                             { key: 'move-folder', label: 'Move to Folder', onClick: () => { setMovingFolderAssignmentId(assignment.id); setMovingFolderValue(assignment.folder || ''); } },
                             { key: 'duplicate', label: 'Duplicate', onClick: () => handleDuplicateAssignment(assignment) },
