@@ -18,8 +18,8 @@ import {
   EVIDENCE_MODES,
 } from './alignments.js';
 
-export const CONTRACT_SCHEMA_VERSION = 4;
-export const CONTRACT_SCHEMA_NAME = 'MathMaster Assignment Bundle V4';
+export const CONTRACT_SCHEMA_VERSION = 5;
+export const CONTRACT_SCHEMA_NAME = 'MathMaster Assignment V5';
 
 // Every field the platform owns. An AI that invents these produces JSON that
 // looks authoritative and silently contradicts instructional policy, so the
@@ -451,456 +451,13 @@ const planningSection = () => section('Plan before you generate', [
  * rather than maintained by hand. Paste the result into any AI assistant and it
  * knows exactly what MathMaster will accept.
  */
-export const buildAdvancedAuthoringContract = ({ generatedAt = new Date() } = {}) => {
-  const parts = [];
-
-  parts.push([
-    `# ${CONTRACT_SCHEMA_NAME}`,
-    `Schema version: ${CONTRACT_SCHEMA_VERSION}`,
-    `Generated from the running MathMaster build on ${generatedAt.toISOString().slice(0, 10)}.`,
-    '',
-    'You are authoring a math assignment for MathMaster. Read this contract, then',
-    'return **one valid JSON object and nothing else** — no prose, no markdown',
-    'fence, no explanation before or after.',
-    '',
-  ].join('\n'));
-
-  parts.push(section('Top-level structure', [
-    '```json',
-    '{',
-    `  "schemaVersion": ${CONTRACT_SCHEMA_VERSION},`,
-    '  "assignment": {',
-    '    "title": "Systems of Equations — Classwork",',
-    '    "assignmentType": "notesClasswork | practice",',
-    '    "variantMode": "adaptive | personalized | shared",',
-    '    "sectionVariantModes": { "practice": "adaptive", "classwork": "shared", "dol": "shared" },',
-    '    "courseId": "algebra1 | algebra2",',
-    '    "folder": "Algebra I/Module 3/Systems"',
-    '  },',
-    '  "questions": [ /* see below */ ]',
-    '}',
-    '```',
-    '',
-    line('`assignment.folder` is optional. Dates, class periods, release behaviour and'),
-    line('publication are set by the teacher in Preflight — do not put them in the JSON.'),
-  ]));
-
-  parts.push(section('Question structure', [
-    '```json',
-    '{',
-    '  "type": "algebra",',
-    '  "prompt": "Solve for x.",',
-    '  "activityRole": "classwork",',
-    '  "dok": 2,',
-    '  "difficultyBand": 3,',
-    '  "calculator": "none",',
-    '  "responseType": "numeric",',
-    '  "generator": { "solutionRange": [-9, 9], "coefficientRange": [2, 9] },',
-    '  "alignments": [',
-    '    { "framework": "teks", "code": "A.5A", "role": "primary", "evidenceLevel": "assessed" }',
-    '  ],',
-    '  "assessmentContext": { "framework": "course" }',
-    '}',
-    '```',
-    '',
-    line('**Required on every question:** `type`, `prompt`, and at least one `alignments`'),
-    line('entry with `role: "primary"`.'),
-    line('**Optional:** `activityRole`, `dok`, `difficultyBand`, `calculator`,'),
-    line('`responseType`, `generator`, `assessmentContext`, `context` (word-problem scenario).'),
-  ]));
-
-  parts.push(section('Analysis requests on a graph', [
-    line('`graphAnalysis` and `functionInvestigation` ask their sub-questions through'),
-    line('`analysisRequests`. Each entry needs an `id` and a `kind`. These are the only'),
-    line('legal values — anything else is rejected, so do not invent one:'),
-    '',
-    line('**Answered by typing an interval or an inequality:**'),
-    ...NOTATION_ANALYSIS_KINDS.map((kind) => bullet(`\`"kind": "${kind}"\``)),
-    '',
-    line('Add `"notation"` to say how the answer is written:'),
-    ...ANALYSIS_NOTATIONS.map((notation) => bullet(`\`"${notation}"\``)),
-    '',
-    line('**Answered by clicking a point on the graph.** Use `"kind": "point"` *together'),
-    line('with* a `feature`. `"kind": "point"` on its own has no location to find, so the'),
-    line('student gets an empty click target:'),
-    ...POINT_FEATURES.map((feature) => bullet(`\`{ "id": "...", "kind": "point", "feature": "${feature}" }\``)),
-    '',
-    line('**Where a function is positive or negative** is `"kind": "positive"` and'),
-    line('`"kind": "negative"`. It is not a point feature — do not write `"kind": "point"`'),
-    line('for it.'),
-    '',
-    '```json',
-    '"analysisRequests": [',
-    '  { "id": "domain", "kind": "domain", "notation": "interval" },',
-    '  { "id": "pos", "kind": "positive", "notation": "interval" },',
-    '  { "id": "roots", "kind": "point", "feature": "xIntercepts" }',
-    ']',
-    '```',
-  ]));
-
-  parts.push(section('Writing math inside prompts', [
-    line('Prompts, labels and context are rendered as **plain text**. LaTeX is not'),
-    line('typeset — a student would see the raw markup — and a backslash is not a legal'),
-    line('JSON escape, so LaTeX also breaks the file. `\\frac` is the worst case: it'),
-    line('parses without complaint because `\\f` means formfeed, silently replacing the'),
-    line('fraction with an invisible control character.'),
-    '',
-    line('**Never write LaTeX.** No `\\frac`, `\\le`, `\\text{}`, `\\times`, `$…$`,'),
-    line('`\\(…\\)`, `\\begin{}`. Write the mathematics in Unicode instead:'),
-    ...[
-      ['\\le / \\leq', '≤'],
-      ['\\ge / \\geq', '≥'],
-      ['\\neq', '≠'],
-      ['\\infty', '∞'],
-      ['\\times', '×'],
-      ['\\div', '÷'],
-      ['\\pm', '±'],
-      ['\\pi', 'π'],
-      ['\\theta', 'θ'],
-      ['\\sqrt{x}', '√x'],
-      ['\\cup', '∪'],
-      ['\\frac{1}{2}', '1/2  (or ½)'],
-      ['x^2', 'x²  (or x^2 — the caret is fine)'],
-      ['\\{1, 2, 3\\}', '{1, 2, 3}'],
-    ].map(([latex, unicode]) => bullet(`\`${latex}\` → \`${unicode}\``)),
-    '',
-    line('The only backslash that ever belongs in this JSON is `\\n` for a line break'),
-    line('and `\\"` for a quotation mark inside a string.'),
-  ]));
-
-  parts.push(section('Static graph objects — do not guess the function schema', [
-    line('Read-only graphs (`graph`, and each `graphs[].graph` inside graphScenarioMatch or graphComparison) use the shared `GraphDisplay` contract.'),
-    line('Canonical storage nests each graph choice as `{ "id": "g1", "graph": { ... } }`, but authoring intake also accepts graph fields directly on the choice and normalizes them.'),
-    line('A scenario canonically uses `description` (with optional `title`); authoring intake also accepts common `text`/`prompt` aliases.'),
-    '',
-    line('A quadratic may be written in either of these TWO forms. Choose one form and never mix them:'),
-    bullet('Standard form: `{ "type": "quadratic", "a": -1, "b": 8, "c": 0 }` means y = ax² + bx + c.'),
-    bullet('Vertex form: `{ "type": "quadratic", "a": -1, "h": 4, "k": 16 }` means y = a(x - h)² + k.'),
-    line('Vertex form is especially useful when the maximum/minimum must be placed deliberately. Standard form remains supported for older content.'),
-    '',
-    line('For routine static graphs, omit `yMin`/`yMax` unless the viewing window is itself instructional. MathMaster auto-fits the rendered y-window to keep the authored mathematics visible. Use `lockViewport: true` only when a specific crop/window is part of the task.'),
-    line('Do not use negative x-values for a real-world axis such as elapsed time unless the context explicitly permits negative time.'),
-    line('If the context is countable only in whole units (tickets, packs, people), use plotted `points` rather than a continuous line when discreteness matters instructionally.'),
-  ]));
-
-  parts.push(section('Question and tool types', [
-    line('Core types:'),
-    ...CORE_QUESTION_TYPES.map((type) => bullet(type)),
-    '',
-    line(`All ${SUPPORTED_QUESTION_TYPES.length} accepted values for "type" are listed here and in the tool section below.`),
-  ]));
-
-  parts.push(fidelitySection());
-  // Representation fidelity is about what the student looks at; task fidelity is
-  // about what they do. The second is violated more often, so it sits directly
-  // after the first rather than further down.
-  parts.push(taskFidelitySection());
-  parts.push(sectionBalanceRigorSection());
-  parts.push(planningSection());
-  parts.push(typeRecipeSection());
-  parts.push(toolSection());
-
-  parts.push(activityRoleSection());
-
-  parts.push(section('Depth of Knowledge', DOK_LEVELS.map((level) => (
-    bullet(`${level.level ?? level.value ?? level.id} — ${level.label || level.name || ''}${level.description ? `: ${level.description}` : ''}`)
-  )).concat([
-    '',
-    line('`"dok"` must be an integer 1–4. modelingLab questions must be DOK 3 or 4.'),
-    line('For newly AI-authored assessed questions, always include DOK explicitly. DOK is cognitive demand, not numeric/task difficulty.'),
-  ])));
-
-  parts.push(section('Difficulty bands', [
-    line('`"difficultyBand"` is an integer 1–5, where 1 is most scaffolded and 5 is most demanding.'),
-    line('For newly AI-authored assessed questions, always include difficultyBand explicitly. Band 3 is the normal independent course expectation; difficulty is separate from DOK.'),
-    line('Instructional levels available for modified content:'),
-    ...INSTRUCTIONAL_LEVELS.map((level) => bullet(`${level.key || level.id} — ${level.label || ''}`)),
-  ]));
-
-  parts.push(section('Calculator', [
-    line('`"calculator"` accepts:'),
-    ...Object.values(CALCULATOR_MODES).map((mode) => bullet(`"${mode}"`)),
-    '',
-    line('Use "none" for items that assess computation itself. Use "teacherChoice" to let'),
-    line('the teacher decide at Preflight. Assessment contexts can override this.'),
-  ]));
-
-  parts.push(section('Response types', RESPONSE_TYPES.map((entry) => bullet(`"${entry.id}" — ${entry.note}`))));
-
-  parts.push(section('Generator fields', [
-    line('Generators make each student see a different version of the same question.'),
-    line('Ranges are inclusive `[min, max]` integer pairs.'),
-    ...GENERATOR_FIELDS.map((entry) => bullet(`\`${entry.field}\` — ${entry.shape}: ${entry.note}`)),
-    '',
-    line('`assignment.variantMode: "shared"` means every student receives the same authored instance.'),
-    line('`assignment.variantMode: "personalized"` is the legacy name for VARIANT: same TEKS, DOK, and difficulty, with stable student-specific generated values/context where the question supports it.'),
-    line('`assignment.variantMode: "adaptive"` allows Practice to choose an appropriate family, DOK, and difficulty inside the authored policy envelope while preserving the assigned TEKS.'),
-    line('Legacy `"personalized"` remains valid and must never be silently treated as adaptive.'),
-    '',
-    line('`assignment.sectionVariantModes` sets the mode PER SECTION and overrides'),
-    line('`variantMode` for the roles it names. This is how one assignment says'),
-    line('"adapt the independent Practice, but give every student the identical'),
-    line('guided Classwork and the identical DOL" — which is the ordinary case for'),
-    line('a lesson, and cannot be expressed with a single assignment-level mode.'),
-    line('Keys are activity roles (`warmup`, `classwork`, `practice`, `dol`); values'),
-    line('are the same three modes. A role that is not named falls back to'),
-    line('`assignment.variantMode`. Unknown keys and unknown modes are dropped'),
-    line('rather than guessed at, so a typo cannot silently make an assessment adaptive.'),
-    line('Assessment sections such as DOL, quiz, and test should normally remain shared/variant so rigor stays comparable.'),
-    line('A fixed interactive question no longer forces the entire assignment into shared mode.'),
-    '',
-    line('Optional per-question adaptive policy:'),
-    '```json',
-    '"adaptivePolicy": {',
-    '  "enabled": true,',
-    '  "difficultyRange": [2, 4],',
-    '  "dokRange": [2, 3],',
-    '  "preserveStandard": true,',
-    '  "allowFoundationBridge": false',
-    '}',
-    '```',
-    line('For ordinary Practice, adaptation is on by default when the assignment/section is adaptive. Foundation Bridge work stays in My Math Path unless explicitly authorized.'),
-    '',
-    line('Other rules: a range must have min <= max; a coefficient range must not be able'),
-    line('to produce 0; two slopes that must differ need a range wide enough to differ.'),
-  ]));
-
-  parts.push(section('Modeling lab format', [
-    '```json',
-    '{',
-    '  "type": "modelingLab",',
-    '  "dok": 3,',
-    '  "labDefinition": {',
-    '    "scenario": "A city\'s population grows each year.",',
-    '    "parameters": [',
-    '      { "id": "rate", "label": "Growth rate", "min": 0.01, "max": 0.2, "step": 0.01 }',
-    '    ],',
-    '    "targets": [ { "id": "population2030", "prompt": "Predict the 2030 population." } ]',
-    '  }',
-    '}',
-    '```',
-    '',
-    line('`labDefinition.parameters` must have at least one entry, and DOK must be 3 or 4.'),
-  ]));
-
-  parts.push(section('Alignments', [
-    line('`alignments` is the canonical way to say what a question measures. It is a flat'),
-    line('list, and every entry names its own framework:'),
-    '',
-    '```json',
-    '"alignments": [',
-    '  { "framework": "teks", "code": "A.2A", "role": "primary", "evidenceLevel": "assessed" }',
-    ']',
-    '```',
-    '',
-    line(`Valid \`framework\`: ${ALIGNMENT_FRAMEWORK_IDS.join(', ')}.`),
-    line(`Valid \`role\`: ${ALIGNMENT_ROLES.join(', ')}.`),
-    line(`Valid \`evidenceLevel\`: ${EVIDENCE_LEVELS.join(', ')}.`),
-    line(`Valid \`evidenceMode\`: ${EVIDENCE_MODES.join(', ')}.`),
-    '',
-    line('TEKS alignments use `code`. Exam alignments use `domainId`.'),
-    '',
-    line('**Align each question individually. Do not copy one standard onto every'),
-    line('question in the assignment.** A lesson has a topic; a question has a'),
-    line('standard, and they are not the same thing. Evaluating a function from a'),
-    line('table, deciding whether a relation is a function, and graphing a compound'),
-    line('inequality can all belong to one lesson and still assess three different'),
-    line('standards.'),
-    '',
-    line('This matters because `alignments` is what mastery evidence is recorded'),
-    line('against. A question tagged with a standard it does not assess reports'),
-    line('progress the student has not made, and My Math Path will route on it.'),
-    '',
-    line('Where a question genuinely measures a prerequisite — an earlier grade'),
-    line('level, or an earlier standard in the same course — align it to that'),
-    line('prerequisite rather than to the lesson\'s headline standard. Choose from'),
-    line('the standards catalogue; do not invent a code, and do not stretch a'),
-    line('nearby one to fit.'),
-    '',
-    line('**For an ordinary course question, supply the TEKS alignment only.**'),
-    line('MathMaster already maps TEKS to SAT, ACT, TSIA2 and ASVAB domains and will add'),
-    line('those crosswalks itself, marked as informational overlap rather than exam'),
-    line('evidence. Do not pad the list with all five frameworks.'),
-    '',
-    line('Declare an exam framework directly only when the item is genuinely written in'),
-    line('that exam\'s style, and pair it with assessmentContext:'),
-    '',
-    '```json',
-    '"alignments": [',
-    '  { "framework": "teks", "code": "A.2A", "role": "primary", "evidenceLevel": "assessed" },',
-    '  { "framework": "digitalSAT", "domainId": "algebra", "role": "primary", "evidenceMode": "direct" }',
-    '],',
-    '"assessmentContext": { "framework": "digitalSAT", "examStyle": true }',
-    '```',
-  ]));
-
-  parts.push(examSection());
-  parts.push(ccmrCrosswalkSection());
-
-  parts.push(section('Assessment context', [
-    line(`\`assessmentContext.framework\` accepts: ${ASSESSMENT_FRAMEWORKS.join(', ')}.`),
-    line('Use "course" (or omit it) for ordinary coursework. Use an exam value only when'),
-    line('the item was deliberately authored in that exam\'s style — this is what separates'),
-    line('"this skill overlaps SAT Algebra" from "this is an SAT Algebra item", and the two'),
-    line('must not carry the same readiness weight.'),
-  ]));
-
-  parts.push(teksSection());
-
-  parts.push(section('Dates and times', [
-    line('Do not put dates in the JSON. The teacher sets release, due and final late'),
-    line('deadlines in Preflight. If a date is unavoidable, use ISO-8601 with an offset,'),
-    line('for example "2026-09-14T15:30:00-05:00".'),
-  ]));
-
-  parts.push(section('Fields you must never invent', [
-    line('MathMaster owns instructional and system policy. You author the mathematics.'),
-    line('Never emit any of these — they are stripped on import:'),
-    ...PLATFORM_OWNED_FIELDS.map((field) => bullet(`\`${field}\``)),
-    '',
-    line('In particular: do not decide attempts allowed, hint policy, replacement-question'),
-    line('policy, feedback release, mastery policy, a student\'s readiness band, or whether'),
-    line('a student is advanced.'),
-  ]));
-
-  parts.push(section('Honors', [
-    line("Do not emit `honors`, `isHonors`, or `courseLevel`; the teacher's saved class"),
-    line('configuration decides which destination is Honors. But when the teacher asks you'),
-    line('to AUTHOR an Honors assignment, the mathematics must satisfy the Honors contract.'),
-    '',
-    bullet('Keep the same course TEKS. Honors means deeper reasoning, richer representations, modeling/justification, and transfer — not unrelated future content.'),
-    bullet('For a full assignment with independent Practice, include authentic CCMR exam-style practice in Practice. Aim for about 15% over time: normally 1 item in a 5–8 question Practice section, or 1–2 in a 9–12 question section.'),
-    bullet('The CCMR item must assess a TEKS taught or intentionally reviewed in the assignment. Do not insert an unrelated assessment topic to hit a quota.'),
-    bullet('Rotate among legitimate Digital SAT, ACT, TSIA2 and ASVAB mappings. Use only framework/domain pairs in the TEKS → CCMR crosswalk above.'),
-    bullet('A CCMR item counts as authentic only when it has BOTH a matching exam alignment and `assessmentContext: { "framework": "...", "examStyle": true }`. Merely writing SAT/ACT/TSIA2/ASVAB in the prompt or adding a legacy `ccmr` flag does not count.'),
-    bullet('Do not make every Honors question exam-style. The course lesson remains the core; CCMR items are deliberate transfer opportunities.'),
-    bullet('Warm-Ups/DOLs of three or fewer questions may remain narrowly focused on the current TEKS. Honors depth and CCMR are balanced across the recent sequence.'),
-  ]));
-
-  parts.push(section('Output rules', [
-    bullet('Return exactly one JSON object.'),
-    bullet('No markdown fence, no commentary, no trailing text.'),
-    bullet('Use straight quotes and valid JSON — no comments, no trailing commas.'),
-    bullet('No LaTeX anywhere. Write math in Unicode (≤, ≥, ∞, ×, π, √, ∪, ½).'),
-    bullet('Every question needs a type, a prompt and a primary alignment.'),
-    bullet('If you are unsure whether a field exists, leave it out rather than inventing it.'),
-  ]));
-
-  return parts.join('\n');
-};
-
-const COMPACT_RECIPE_TYPES = Object.freeze([
-  'table', 'multiAnswer', 'intervalNumberLine', 'functionGraph', 'graphAnalysis',
-  'relationshipModel', 'graphScenarioMatch', 'graphComparison', 'relationMapping',
-  'sequenceExplorer', 'representationMatch', 'functionInvestigation2',
-]);
-
-const COMPACT_TOOL_EXAMPLES = Object.freeze({
-  sequenceExplorer: {
-    label: 'Sequence explorer',
-    action: 'Analyzes a sequence, finds a term, fills a missing term, compares two sequences, or writes recursive/explicit rules.',
-    required: ['mode', 'sequence'],
-    example: { type: 'sequenceExplorer', prompt: 'Find the common difference and the 8th term.', mode: 'analyze', sequence: { kind: 'arithmetic', first: 7, difference: 4 }, targetN: 8, displayCount: 6 },
-  },
-  representationMatch: {
-    label: 'Connect representations',
-    action: 'Matches equation, table, context, or graph representations of the same relationship.',
-    required: ['mode', 'sets'],
-    example: { type: 'representationMatch', prompt: 'Choose the graph that matches y = 2x + 1.', mode: 'graphMatch', targetId: 'linear', sets: [{ id: 'linear', graphSpec: { type: 'linear', a: 2, h: 0, k: 1 } }, { id: 'quadratic', graphSpec: { type: 'quadratic', a: 1, h: 0, k: -4 } }] },
-  },
-  functionInvestigation2: {
-    label: 'Analyze a function',
-    action: 'Reads family-specific domain/range, intercept, feature, behavior, or comparison information from a graph.',
-    required: ['mode', 'function'],
-    example: { type: 'functionInvestigation2', prompt: 'Determine the domain and range.', mode: 'domainRange', function: { type: 'quadratic', a: -1, h: 2, k: 6 } },
-  },
+export const buildAdvancedAuthoringContract = (options = {}) => buildAuthoringContract({
+  ...options,
+  includeAdvancedNotes: true,
 });
 
-const compactAuthoringExample = (example) => {
-  const clone = example && typeof example === 'object' ? JSON.parse(JSON.stringify(example)) : example;
-  const visit = (node, parentKey = '') => {
-    if (!node || typeof node !== 'object') return;
-    if (Array.isArray(node)) { node.forEach((item) => visit(item, parentKey)); return; }
-    if (Object.prototype.hasOwnProperty.call(node, 'equationLatex') && !Object.prototype.hasOwnProperty.call(node, 'equation')) {
-      node.equation = node.equationLatex; delete node.equationLatex;
-    }
-    if (Object.prototype.hasOwnProperty.call(node, 'equationsLatex') && !Object.prototype.hasOwnProperty.call(node, 'equations')) {
-      node.equations = node.equationsLatex; delete node.equationsLatex;
-    }
-    if (Array.isArray(node.alignments) && !Object.prototype.hasOwnProperty.call(node, 'standard')) {
-      const primary = node.alignments.find((entry) => entry?.framework === 'teks' && entry?.role === 'primary' && entry?.code);
-      if (primary) {
-        node.standard = primary.code;
-        const secondaries = node.alignments.filter((entry) => entry?.framework === 'teks' && entry?.role === 'secondary' && entry?.code).map((entry) => entry.code);
-        const prerequisites = node.alignments.filter((entry) => entry?.framework === 'teks' && entry?.role === 'prerequisite' && entry?.code).map((entry) => entry.code);
-        if (secondaries.length) node.secondaryStandards = secondaries;
-        if (prerequisites.length) node.prerequisiteStandards = prerequisites;
-        delete node.alignments;
-      }
-    }
-    if (parentKey === 'graph') {
-      delete node.xMin; delete node.xMax; delete node.yMin; delete node.yMax; delete node.xStep; delete node.yStep;
-    }
-    Object.entries(node).forEach(([key, value]) => visit(value, key));
-    if (node.graph && typeof node.graph === 'object' && !Array.isArray(node.graph)) {
-      const drawableKeys = ['functions', 'points', 'segments', 'line', 'm', 'b', 'axisDisplay', 'xAxisLabel', 'xAxisUnit', 'yAxisLabel', 'yAxisUnit'];
-      if (!drawableKeys.some((key) => Object.prototype.hasOwnProperty.call(node.graph, key))) delete node.graph;
-    }
-  };
-  visit(clone);
-  return clone;
-};
-
-const compactTeksSection = (courseId = null) => {
-  const requestedCourse = ['algebra1', 'algebra2'].includes(String(courseId || '')) ? String(courseId) : null;
-  const lines = [];
-  TEXAS_MATH_ACTIVE_COURSES
-    .filter((course) => ['algebra1', 'algebra2'].includes(course.id))
-    .filter((course) => !requestedCourse || course.id === requestedCourse)
-    .forEach((course) => {
-      const standards = TEXAS_STANDARDS_BY_COURSE[course.id] || [];
-      lines.push(`### ${course.label || course.id}`);
-      standards.forEach((standard) => lines.push(`- ${standard.code} — ${standard.description}`));
-      lines.push('');
-    });
-  return lines.join('\n');
-};
-
-const compactRecipeSection = () => COMPACT_RECIPE_TYPES.map((type) => {
-  const entry = QUESTION_TYPE_CATALOG[type];
-  const special = COMPACT_TOOL_EXAMPLES[type];
-  const required = entry
-    ? (entry.required || []).map((item) => item.path).filter(Boolean)
-    : (special?.required || []);
-  const label = entry?.label || special?.label || type;
-  const action = entry?.studentAction || entry?.purpose || special?.action || 'Uses the named interactive tool.';
-  const example = entry?.example || special?.example;
-  return [
-    `### ${type} — ${label}`,
-    action,
-    `Needs: ${required.length ? required.join(', ') : 'prompt'}.`,
-    ...(example ? [`Example: ${JSON.stringify(compactAuthoringExample(example))}`] : []),
-  ].join('\n');
-}).join('\n\n');
-
-const compactOtherTypeSection = () => SUPPORTED_QUESTION_TYPES
-  .filter((type) => !COMPACT_RECIPE_TYPES.includes(type))
-  .map((type) => {
-    const entry = QUESTION_TYPE_CATALOG[type];
-    const required = (entry?.required || []).map((item) => item.path).filter(Boolean);
-    return `- ${type}${entry?.label ? ` — ${entry.label}` : ''}; needs ${required.length ? required.join(', ') : 'prompt'}`;
-  })
-  .join('\n');
-
-/**
- * Default AI-facing contract. This is intentionally an AUTHORING API rather
- * than a dump of renderer implementation details. MathMaster owns defaults,
- * viewports, mixed fixed/generated delivery, policy and storage normalization.
- * The long registry-derived contract remains available to developers through
- * buildAdvancedAuthoringContract, but teachers should not need it.
- */
 export const AUTHORING_INTENT_SCHEMA_VERSION = 5;
-export const AUTHORING_INTENT_SCHEMA_NAME = 'MathMaster Authoring Intent V5';
+export const AUTHORING_INTENT_SCHEMA_NAME = 'MathMaster Assignment V5';
 
 /**
  * Default teacher-facing AI contract. V4 remains the internal/runtime schema,
@@ -910,215 +467,110 @@ export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = nu
   `# ${AUTHORING_INTENT_SCHEMA_NAME}`,
   `Generated from MathMaster on ${generatedAt.toISOString().slice(0, 10)}.`,
   '',
-  'Return one JSON object and nothing else. Describe the mathematics and what the student must DO.',
-  'Do not choose MathMaster React components, V4 question types/toolIds, Firestore storage shapes, graph viewport bounds, attempt rules, or internal grading fields. MathMaster compiles this intent into its V4 runtime format.',
-  'If MathMaster later asks for a repair, KEEP schemaVersion 5. Never convert a V5 intent into V4 or add renderer plumbing such as type, toolId, functionSpec, analysisRequests, or graph merely to satisfy an internal error.',
+  'Return exactly one JSON object with schemaVersion 5 and nothing else.',
+  'MathMaster V5 is the assignment contract. It is not converted to V4.',
+  'Describe the mathematics, representations, standards, and what the student must DO. MathMaster chooses internal React renderers and storage plumbing.',
   '',
-  '## Assignment shape',
+  '## Required assignment shape',
   '```json',
   '{',
   '  "schemaVersion": 5,',
   '  "assignment": {',
   '    "title": "Descriptive title",',
   `    "courseId": "${courseId || 'algebra1'}",`,
-  '    "assignmentType": "notesClasswork",',
-  '    "folder": "Algebra I/Module 1/Functions"',
+  '    "folder": "Algebra I/Module 1/Functions",',
+  '    "instructionalPurpose": "lesson",',
+  '    "gradingPurpose": "classwork"',
   '  },',
-  // Optional publishing intent: MathMaster fills safe defaults and live placement.
-  '  "classroom": { "enabled": true, "topic": { "name": "Module 1 • Functions" }, "assignmentPost": { "title": "Lesson 3 — Transformations", "instructions": "Complete this lesson in MathMaster." }, "resourcesPost": { "postingMode": "separateMaterial" }, "gradePassback": { "enabled": true } },',
-  '  "lessonResources": { "notesPdf": { "enabled": true, "targetPages": 2, "learningGoal": "Identify transformations.", "sections": [{ "heading": "Key Ideas", "bullets": ["Vertical shifts use f(x)+k."] }] } },',
-  '  "activities": [',
+  '  "variantPolicy": {',
+  '    "mode": "personalized",',
+  '    "sectionModes": { "warmup": "shared", "classwork": "shared", "practice": "personalized", "dol": "shared" }',
+  '  },',
+  '  "differentiationPolicy": { "mode": "bounded", "allowStandardChange": false, "preserveAssessmentFidelity": true },',
+  '  "supportPolicy": { "mode": "inheritStudentProfile", "modificationsAllowed": false },',
+  '  "toolPolicy": { "calculator": "inherit", "keyboard": "auto" },',
+  '  "deliveryPolicy": { "sectionGating": "rolePolicy" },',
+  '  "gradingPolicy": { "attemptPolicy": "rolePolicy", "scoring": "platformDefault" },',
+  '  "evidencePolicy": { "gradeEligible": true, "masteryEligible": true, "recommendationEligible": true, "analyticsEligible": true },',
+  '  "outputProfiles": {',
+  '    "digital": { "enabled": true },',
+  '    "studentWorksheetPdf": { "enabled": true, "includeWorkspace": true },',
+  '    "teacherWorksheetPdf": { "enabled": false },',
+  '    "answerKeyPdf": { "enabled": false },',
+  '    "lessonNotesPdf": { "enabled": true, "targetPages": 2, "sections": [] }',
+  '  },',
+  '  "classroomIntegration": { "enabled": true },',
+  '  "provenance": { "contentRelease": null, "templateVersion": null, "generatorVersion": null, "graderVersion": null },',
+  '  "preflight": { "required": true },',
+  '  "sections": [',
   '    { "role": "warmup", "title": "Warm-Up", "questions": [] },',
   '    { "role": "classwork", "title": "Classwork", "questions": [] },',
-  '    { "role": "practice", "title": "Practice", "questions": [] }',
+  '    { "role": "practice", "title": "Practice", "questions": [] },',
+  '    { "role": "dol", "title": "DOL", "questions": [] }',
   '  ]',
   '}',
   '```',
   '',
-  'Dates, classes, attempts, hints, feedback release, mastery weights, IDs, and student readiness are set by MathMaster/teacher Preflight. Do not include them.',
+  '## Section rules',
+  '- Valid roles: warmup, classwork, practice, dol, quiz, test.',
+  '- Use sections, never top-level questions or activities.',
+  '- Warm-Up/Classwork/DOL may be shared while Practice is personalized or adaptive.',
+  '- DOK and difficulty are separate: dok is 1–4 cognitive complexity; difficultyBand is 1–5 instructional difficulty.',
   '',
-  '## Classroom + notes',
-  '- For complete lessons, include optional `classroom` metadata and `lessonResources.notesPdf` (1–2 pages). Prefer a separate Notes & Resources material post and finalized grade passback.',
-  '- Author polished topic/title/instructions/resource text and concise student notes. Do not include Google course IDs, class periods, teacher IDs, or dates; Classroom mapping and Preflight own live placement.',
-  '- Notes sections may use headings, content/bullets, worked examples, callouts, and display `equations`. Student notes never include an answer key.',
+  '## Question authoring',
+  '- Every question needs a student-facing prompt, a primary standard/alignment, and studentActions.',
+  '- Do NOT author type, toolId, functionSpec, analysisRequests, viewport bounds, Firestore fields, attempts, mastery weights, readiness, or other runtime plumbing.',
+  '- Preserve source representation fidelity: graph tasks show graphs, table tasks show tables, mapping tasks use mappings, number-line tasks use number lines.',
+  '- Generated expected answers must be derived from the same generator parameters as the prompt.',
+  '- Do not pad accepted answers with equivalent formatting variants already handled by MathMaster equivalence grading.',
+  '- If a response requires justification, comparison, or explanation, author the response part explicitly; do not collapse it to one numeric field.',
   '',
-  '## Question intent',
-  'Every question needs:',
-  '- `prompt`: student-facing wording.',
-  '- `standard`: the primary TEKS for THIS question.',
-  '- `studentActions`: what the student physically does.',
-  '- the mathematical data needed to perform those actions.',
+  '## Common studentActions',
+  AUTHORING_INTENT_V5_ACTIONS.join(', '),
   '',
-  'Optional Guided Notes for Classwork:',
-  '- Add `guidedNotes.steps` only when you can provide question-specific mathematical instruction that teaches the process without giving away a future answer.',
-  '- Keep the task/direction in `prompt`. When students need to repeatedly reference scenario facts, equations, data, or definitions, use optional `referenceInfo` for those reusable facts. If `referenceInfo` is omitted, MathMaster automatically promotes `scenario` into the prominent reference card.',
-  '- Preferred reference format: `referenceInfo: { title: "Information you need", statements: ["Chocolate bars sell for $2 each.", "M(x) represents money collected after selling x bars."] }`.',
-  '- Each step may use `{ "title":"...", "instruction":"...", "stageId":"..." }`. `stageId` is optional; MathMaster automatically derives stage-aware notes for composed workflows when authored notes are absent.',
-  '- Good notes name a mathematical idea, relationship, representation strategy, decision, misconception, or connection to earlier student work.',
-  '- Never author filler such as "Read the question", "Identify what is being asked", "Solve the problem", "Enter your answer", "Think carefully", or "Check your answer". MathMaster suppresses those notes rather than showing an empty-feeling panel.',
-  '- Guided Notes teach the process. Do not reveal a requested value unless the student has already produced/validated that value in an earlier stage.',
-  '',
-  'Guided Notes example: name the mathematical idea and give a short process instruction; never reveal a future answer.',
-  '',
-  'Example — construct a graph:',
-  '```json',
-  '{',
-  '  "standard": "A.3C",',
-  '  "prompt": "Graph f(x) = 2x + 1 for x ≥ 0.",',
-  '  "studentActions": ["constructGraph"],',
-  '  "function": { "family": "linear", "m": 2, "b": 1, "domain": { "min": 0 } }',
-  '}',
-  '```',
-  '',
-  'Connected-model example: use one question with `studentActions` such as identifyQuantities, writeEquation, completeTable, constructGraph, stateDomain, stateRange, and classifyContinuity; supply the scenario/quantities/answerModel data MathMaster needs.',
-  '',
-  'MathMaster carries the STUDENT\'S equation into the table and the STUDENT\'S completed table into the graph. Do not duplicate a hidden correct graph merely to make later stages work.',
-  'When a reasonable domain or range is an infinite discrete set that is awkward to type (for example `{0,1,2,...}`), `answerModel` may also include `domainChoices` and/or `rangeChoices`. MathMaster will present those as student choice cards while preserving the domain/range stage.',
-  '',
-  'A non-context function task may also combine actions in one question. For example, `completeTable + constructGraph + stateRange + classifyContinuity` is one connected student workflow; keep all four actions and include the function/table data. MathMaster composes the table, graph, range response and classification automatically.',
-  'For a graph the student READS, use `readGraph` plus the analysis actions. For a graph the student BUILDS, use `constructGraph`. Do not add `type: graphing` or `type: graphAnalysis` yourself.',
-  '',
-  '## Classwork versus Practice balance',
-  '- Classwork is the teaching section: fewer, richer, scaffolded learning experiences.',
-  '- Practice is the independent-application section: normally more opportunities than Classwork, comparable mathematical rigor, less scaffolding, and coverage of every major Classwork objective.',
-  '- For a typical two-lesson bundle, aim for about 6–8 Classwork questions and 8–12 Practice questions. Treat this as a strong default, not a rigid quota; long composed workflows count as richer opportunities.',
-  '- Do not make Practice easier just because support is removed. Maintain the same lesson-level cognitive demand and vary numbers/contexts/representations for transfer.',
-  '- If Classwork uses rich graph, mapping, table, modeling, sorting, or representation tools, Practice should preserve a meaningful share of those experiences rather than becoming mostly simple multiple-response questions.',
-  '- Guided Notes belong primarily in Classwork. Practice should normally omit authored Guided Notes unless the teacher/source explicitly requires scaffolding.',
-  '- Do not increase Practice rigor by importing later-unit or later-course mathematics. The instructional-scope ceiling always wins.',
-  '',
-  '## Honors + CCMR Practice',
-  "- Do not set `honors`, `isHonors`, or `courseLevel`; MathMaster gets Honors placement from the teacher's destination class. When the teacher asks for an Honors assignment, however, author the required rigor into the mathematics.",
-  '- Keep the same course TEKS and deepen reasoning, representation, modeling, justification, and transfer. Honors is not permission to jump ahead to unrelated future-course content.',
-  '- In a full Honors assignment with an independent Practice section, include authentic exam-style CCMR Practice. Aim for about 15% over the recent sequence: normally 1 item in a 5–8 question Practice section, or 1–2 in a 9–12 question Practice section.',
-  '- The authentic CCMR item must target a TEKS taught or intentionally reviewed in this assignment. Short Warm-Ups/DOLs of three or fewer questions are exempt.',
-  '- A CCMR item is direct exam-format practice only when `assessmentContext` names digitalSAT, act, tsia2, or asvab with `examStyle:true`, AND `alignments` includes both the TEKS and the matching exam `domainId`. Do not satisfy this rule with words such as SAT in the prompt, a `ccmr:true` flag, or an informational TEKS crosswalk alone.',
-  '- Do not make every Honors Practice question exam-style. The course work is still the core; the exam-style item is a deliberate transfer check.',
-  '- Use only the legitimate framework/domain pairs listed below. `[partial]` means the TEKS is broader than that assessment; keep the item inside the listed overlapping aspect.',
-  '',
-  '### V5 metadata example for one authentic Honors Practice item',
-  '```json',
-  '{',
-  '  "standard": "A.2B",',
-  '  "activityRole": "practice",',
-  '  "alignments": [',
-  '    { "framework": "teks", "code": "A.2B", "role": "primary", "evidenceLevel": "assessed" },',
-  '    { "framework": "digitalSAT", "domainId": "algebra", "role": "primary", "evidenceMode": "direct" }',
-  '  ],',
-  '  "assessmentContext": { "framework": "digitalSAT", "examStyle": true }',
-  '}',
-  '```',
-  '',
-  '## TEKS → CCMR exam-style authoring crosswalk',
+  '## CCMR / assessment fidelity',
+  '- Use assessmentContext only for genuine exam-style content.',
+  '- Preserve authentic vocabulary/register and task style for digitalSAT, ACT, TSIA2, and ASVAB.',
+  '- A TEKS label does not by itself authorize an assessment-domain claim; use the approved crosswalk.',
   compactCcmrCrosswalkSection(courseId),
   '',
-  '## Stable studentActions',
-  '- Solving: `solveEquation`, `solveStepByStep`, `fractionAnswer`, `solveLiteral`, `solveSystem`.',
-  '- Number lines: `chooseNumberLine`, `constructInterval`, `writeInterval`.',
-  '- Graphs/functions: `readGraph`, `constructGraph`, `investigateFunction`, `analyzeDomain`, `analyzeRange`, `analyzeIncreasing`, `analyzeDecreasing`, `analyzeConstant`, `analyzePositive`, `analyzeNegative`, `findVertex`, `findXIntercepts`, `findYIntercept`, `findMaximum`, `findMinimum`.',
-  '- Representations: `completeTable`, `stateOrderedPair`, `multipleResponses`, `buildMapping`, `plotRelation`, `classifyFunction`, `matchGraphsToStories`, `compareGraphs`, `writeGraphStory`, `interpretPointInContext`, `connectRepresentations`, `sortIntoOwnGroups`.',
-  '- Context modeling: `identifyQuantities`, `configureAxes`, `writeEquation`, `stateDomain`, `stateRange`, `classifyContinuity`. Use `configureAxes` with `axisRequirements` when students must choose axis quantities/units or a reasonable count-by scale.',
-  '- Open construction: `buildFunctionFromConstraints` lets students create ANY linear/quadratic/exponential/absolute/vertical-line relation satisfying authored characteristics; MathMaster grades the constraints instead of one hidden equation.',
-  '- Sequences: `analyzeSequence`, `findSequenceTerm`, `findMissingTerm`, `writeRecursive`, `writeExplicit`, `compareSequences`, `partialSum`.',
-  '- Specialist workspaces when the lesson genuinely needs them: `analyzeData`, `fitDataModel`, `predictFromModel`, `findInverse`, `composeFunctions`, `analyzeParabolaGeometry`, `factorPolynomial`, `dividePolynomial`, `multiplyPolynomials`, `solveInequality`, `complexOperations`, `analyzeComplex`, `solveExponential`, `solveLogarithmic`, `analyzeTransformations`, `constructLine`.',
-  '',
-  '## Mathematical data shapes',
-  '- Function: `{ "family":"linear", "m":2, "b":1 }` or `{ "family":"quadratic", "a":1, "h":2, "k":-3 }`. Exponential/logarithmic may add `base`.',
-  '- Relation: use Firestore-safe coordinate objects, e.g. `\"relation\": [{\"x\":-2,\"y\":3},{\"x\":1,\"y\":2},{\"x\":3,\"y\":-1}]`. Do not use arrays directly inside arrays.',
-  '- Interval: `"intervals": [{"min":-3,"max":5,"minClosed":true,"maxClosed":false}]`; use null for infinity.',
-  '- Table: include `columns` and `rows`; author each row as an object keyed by its column keys, not as a nested array. If the table is generated from a supplied function, `answers` may be omitted because MathMaster derives the blank-cell key from the function. If you do provide answers, MathMaster verifies/normalizes them rather than treating renderer shape as authoring responsibility. A read-only table omits `answers` and is normally paired with `multipleResponses`.',
-  '- Graph analysis: provide the function and the analysis `studentActions`; do not hand-author internal `analysisRequests`. If the displayed function has a restricted domain, put that restriction inside `function.domain`.',
-  '- Sequence: `{ "kind":"arithmetic", "first":7, "difference":4 }` or `{ "kind":"geometric", "first":3, "ratio":2 }`.',
-  '- Graph/story matching: supply `stories`, `candidateGraphs`, and `matches`. A candidate graph may simply carry a `function` instead of hand-calculated viewport bounds.',
-  '- Point interpretation: with `interpretPointInContext`, use `target: {"kind":"startingPoint","coordinates":[x,y]}`, a `quantities` object with `x` and `y` descriptors (`id`, `label`, `unit`), and `quantityChoices` as an array of `{id,label,unit}` choices when students must choose the quantity roles. Do not use a bare `point:[x,y]` plus an x/y options object; MathMaster needs the target and units to grade the interpretation faithfully.',
-  '- Multipart response: use `responses`, each with `id`, `label`, and `answer`/`acceptedAnswers`; add `options` for finite choices.',
-  '- Open sort: with `sortIntoOwnGroups`, provide `items` (each with a unique `id`; graph cards may include `graphSpec`; discrete graph points should be Firestore-safe `{x,y}` objects) and `validSchemes`. Each scheme has `groups`, and every group lists its `itemIds`. Supply more than one scheme when multiple classifications are mathematically valid. Group names and rationales are required by default; set `requireGroupNames:false` or `requireRationale:false` only when the source does not ask for them.',
-  '- Static graph point rule: author plotted points as Firestore-safe `{"x":2,"y":5}` objects. `{"coordinates":[2,5]}` is also accepted for compatibility. Do NOT author `graph.points` as direct `[x,y]` arrays because that creates an array-inside-array shape Firestore cannot persist. MathMaster normalizes accepted point objects before rendering and rejects malformed points instead of silently drawing a blank graph.',
-  '- Constraint builder: with `buildFunctionFromConstraints`, provide `allowedFamilies` and `constraints`. Supported constraint kinds include `family`, `continuity`, `behavior`, `extremum`, `isFunction`, `straightLine`, `passesThrough`, `vertex`, `xIntercept`, and `yIntercept`. For `passesThrough` or `vertex`, author Firestore-safe points as `{\"x\": 2, \"y\": 3}` rather than nested arrays. Do not provide one answer equation unless the lesson genuinely requires one unique equation.',
-  '',
-  '## Student-experience rules',
-  '- Preserve source representation. If the source shows a graph, table, number line, mapping, or ordered pairs, the student must see that representation.',
-  '- Representation fidelity is checked independently from topic alignment. If the lesson is about analyzing displayed graphs, do not ask students to infer behavior/shape from an equation alone. Supply `graph` or `function` and, when useful, set `assessedConstruct: "graphicalBehavior"`.',
-  '- Preserve source verbs. If students are asked to write, complete, graph, classify, explain, and compare, do not silently delete actions because a simpler response box is easier.',
-  '- Use finite choices for categories such as linear/quadratic/exponential, finite/infinite, discrete/continuous, and yes/no when the source does not require written explanation.',
-  '- Prompts are plain text. Use Unicode math such as ≤, ≥, ∞, ×, π, √, ∪, ½. Ordinary currency such as $6 is fine.',
-  '- For countable contexts, use discrete representations when discreteness matters. Do not invent negative elapsed time.',
-  '- Do not reveal a requested sequence term in the starter terms.',
-  '- Do not invent or replace a TEKS just to make validation pass.',
+  '## PDF / printable output',
+  '- Digital and printable assignments use the same resolved questions. Never author a second PDF question set.',
+  '- studentWorksheetPdf is supported. teacherWorksheetPdf and answerKeyPdf stay disabled until their solution/key renderers are complete.',
+  '- lessonNotesPdf is for the separate 1–2 page notes/resource handout.',
   '',
   '## Course TEKS',
   compactTeksSection(courseId),
   '',
   '## Output',
-  'Return exactly one JSON object with `schemaVersion: 5`. MathMaster will compile V5 intent into its internal V4 tool contracts, auto-fit ordinary graph windows, normalize storage-safe shapes, and run student-experience validation before teacher Preflight. Do not output V4.',
+  'Return exactly one MathMaster Assignment V5 JSON object. Do not output V4, V3, V2, a raw question array, or renderer-specific question JSON.',
 ].join('\n');
 
-/**
- * The paste-back request for a failed import: the offending JSON, the exact
- * validator errors, and only the contract rules that bear on them.
- */
-export const buildFixRequest = ({ rawJson = '', errors = [], warnings = [], sourceSchemaVersion = null } = {}) => {
+export const buildFixRequest = ({ rawJson = '', errors = [], warnings = [] } = {}) => {
   const errorList = (Array.isArray(errors) ? errors : [errors]).filter(Boolean);
   const warningList = (Array.isArray(warnings) ? warnings : [warnings]).filter(Boolean);
   const aiSafeWarnings = warningList.filter((warning) => !/(TEKS|alignment|mastery|standard)/i.test(String(warning)));
-  const isV5 = Number(sourceSchemaVersion) === AUTHORING_INTENT_SCHEMA_VERSION
-    || /"schemaVersion"\s*:\s*5\b/.test(String(rawJson || ''));
-
-  if (isV5) {
-    return [
-      `# Fix this ${AUTHORING_INTENT_SCHEMA_NAME} JSON`,
-      '',
-      'MathMaster could not safely compile the authoring intent below. Fix only the mathematical/content omissions named in the errors.',
-      'KEEP `schemaVersion: 5`. Do not convert this to V4. Do not add `type`, `toolId`, `functionSpec`, `analysisRequests`, renderer-specific `graph` plumbing, Firestore fields, or viewport bounds just to satisfy an internal message.',
-      'Preserve every `studentActions` verb unless the error says the mathematical task itself is contradictory.',
-      '',
-      '## Validation errors that must be fixed',
-      ...errorList.map((error, index) => `${index + 1}. ${error}`),
-      ...(aiSafeWarnings.length ? ['', '## Safe warnings to clean up', ...aiSafeWarnings.map((w) => `- ${w}`)] : []),
-      '',
-      '## V5 repair rules',
-      '- Return exactly one JSON object with `schemaVersion: 5`.',
-      '- Keep the same assignment/activity structure and studentActions.',
-      '- Supply mathematical data that is genuinely missing (for example a function, relation, interval, table data, scenario, or expected non-derivable response).',
-      '- If a student reads a graph, provide `function` or graph/story mathematical data; MathMaster chooses the renderer.',
-      '- If a student completes a table and then constructs a graph, keep both actions in the same question; MathMaster composes the dependency.',
-      '- Do not change TEKS/standards merely to silence a warning.',
-      '- Use Unicode math in student-facing text; ordinary currency such as $6 is fine.',
-      '',
-      '## The V5 JSON to fix',
-      '```json',
-      String(rawJson || '').trim(),
-      '```',
-    ].join('\n');
-  }
 
   return [
-    `# Fix this ${CONTRACT_SCHEMA_NAME} JSON`,
+    `# Fix this ${AUTHORING_INTENT_SCHEMA_NAME} JSON`,
     '',
-    'MathMaster rejected the JSON below. Fix **only** the problems listed, leave every',
-    'other question and field exactly as it is, and return the complete corrected JSON',
-    'object — one JSON object, nothing else, no markdown fence and no commentary.',
+    'MathMaster accepts Assignment V5 only. Fix only the mathematical/content omissions named below.',
+    'KEEP schemaVersion 5 and sections[]. Do not convert to V4 or add renderer plumbing.',
+    'Do not add type, toolId, functionSpec, analysisRequests, viewport bounds, Firestore fields, or platform-owned state.',
+    'Preserve studentActions unless the task itself is contradictory.',
     '',
     '## Validation errors that must be fixed',
     ...errorList.map((error, index) => `${index + 1}. ${error}`),
-    ...(aiSafeWarnings.length ? ['', '## Safe warnings to clean up', ...aiSafeWarnings.map((w) => `- ${w}`)] : []),
+    ...(aiSafeWarnings.length ? ['', '## Safe warnings to clean up', ...aiSafeWarnings.map((warning) => `- ${warning}`)] : []),
     '',
-    '## Rules that apply',
-    `- Schema version is ${CONTRACT_SCHEMA_VERSION}.`,
-    `- Valid question types: ${SUPPORTED_QUESTION_TYPES.join(', ')}.`,
-    `- Valid activity roles: ${Object.values(ACTIVITY_ROLES).join(', ')}.`,
-    '- dok is an integer 1-4; difficultyBand is an integer 1-5.',
-    `- alignments entries use framework ${ALIGNMENT_FRAMEWORK_IDS.join(' | ')}; TEKS uses "code", exams use "domainId".`,
-    `- Valid alignment roles: ${ALIGNMENT_ROLES.join(', ')}.`,
-    '- Generator ranges are inclusive [min, max] with min <= max.',
-    `- Never emit platform-owned fields: ${PLATFORM_OWNED_FIELDS.join(', ')}.`,
-    '- Do not add dates, class periods or Honors designations; the teacher sets those.',
-    '- No LaTeX commands/delimiters in student-facing prompts, labels or context. Ordinary currency such as $6 is fine; write prompt math in Unicode (≤, ≥, ∞, ×, π, √, ∪, ½).',
-    `- analysisRequests kinds: ${NOTATION_ANALYSIS_KINDS.join(', ')}, or "point" WITH a feature (${POINT_FEATURES.join(', ')}).`,
-    '- "positive" and "negative" are kinds in their own right. Never rewrite them as "point".',
-    '- Do not change TEKS/standards merely to silence a warning. MathMaster keeps alignment review in Preflight.',
+    '## V5 repair rules',
+    '- Return exactly one JSON object with schemaVersion 5.',
+    '- Keep the same assignment, sections, alignments, assessmentContext, and studentActions unless an error specifically requires a mathematical correction.',
+    '- Supply missing mathematical data such as a function, relation, intervals, table data, scenario, or non-derivable expected response.',
+    '- Do not change TEKS merely to silence a warning; alignment review belongs in Preflight.',
+    '- Use Unicode math in student-facing text.',
     '',
-    '## The JSON to fix',
+    '## The V5 JSON to fix',
     '```json',
     String(rawJson || '').trim(),
     '```',
