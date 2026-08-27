@@ -3134,7 +3134,9 @@ function App() {
     });
 
     const persistence = canonicalV5PersistencePatch(model.assignmentV5);
-    const persistedQuestions = persistence.questions;
+    // Firestore stores sections[] only. Derive the temporary flat runtime view
+    // from the validated V5 object instead of reading a removed persistence field.
+    const persistedQuestions = flattenV5Sections(model.assignmentV5);
     const authoredRoles = persistedQuestions.map((question) => resolveQuestionActivityRole({
       question,
       assignment: { assignmentType: existing.assignmentType || 'practice' },

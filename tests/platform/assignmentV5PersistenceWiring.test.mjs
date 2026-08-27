@@ -54,3 +54,22 @@ test('duplicate path strips runtime-only question fields before writing', () => 
   assert.match(source, /questions:\s*_runtimeQuestions/);
   assert.match(source, /runtimeProjectionVersion:\s*_legacyRuntimeProjectionVersion/);
 });
+
+
+test('setup editing derives runtime questions from reviewed V5 sections, never persistence.questions', () => {
+  const source = fs.readFileSync('src/App.jsx', 'utf8');
+  assert.doesNotMatch(source, /\bpersistence\.questions\b/);
+  assert.match(source, /const persistedQuestions = flattenV5Sections\(model\.assignmentV5\)/);
+});
+
+test('canonical persistence patch contains sections only and no flat questions projection', async () => {
+  const { canonicalV5PersistencePatch } = await import('../../src/platform/contract/storedAssignmentV5.js');
+  const patch = canonicalV5PersistencePatch({
+    assignment: { title: 'Sections only', courseId: 'algebra1' },
+    sections: [{ id: 'practice', role: 'practice', title: 'Practice', questions: [{ type: 'multiAnswer', prompt: 'Solve.' }] }],
+    variantPolicy: { mode: 'shared', sectionModes: { practice: 'shared' } },
+  });
+  assert.equal(Object.prototype.hasOwnProperty.call(patch, 'questions'), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(patch, 'runtimeProjectionVersion'), false);
+  assert.equal(Array.isArray(patch.sections), true);
+});
