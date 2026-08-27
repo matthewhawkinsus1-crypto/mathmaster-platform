@@ -2,6 +2,10 @@ import { validateInstructionalScopeV5 } from '../curriculum/instructionalScope.j
 import { looksLikeFiniteSetNotation } from '../../../functions/shared/answerEquivalence.mjs';
 import { normalizeStaticGraphPoints } from '../../graphPointUtils.js';
 import { normalizeLessonPublishingIntentV5 } from '../authoring/lessonPublishingIntent.js';
+import {
+  normalizeAssignmentV5,
+  validateAssignmentV5,
+} from './assignmentSchemaV5.js';
 
 const asArray = (value) => Array.isArray(value) ? value : value == null ? [] : [value];
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
@@ -525,16 +529,14 @@ const resolveIntentType = (q, actions) => {
 
 const compileOne = (q, index, repairs) => {
   if (!isObject(q)) throw new Error(`V5 question ${index + 1} must be an object.`);
-  // V5 is an authoring-intent language. Outside AIs are explicitly told not
-  // to choose renderer types, so a stray `type`/`toolId` from a repair loop must
-  // not bypass the compiler. Treat it as a hint only when there are no
-  // studentActions; normal V5 questions are always recompiled from intent.
+  // Assignment V5 is the only authoring contract. Renderer types remain an
+  // internal compiler decision and may never substitute for mathematical intent.
   const actions = normalizeActions(q);
-  if ((q.type || q.toolId) && actions.length) {
+  if (!actions.length) {
+    throw new Error(`V5 question ${index + 1} is missing studentActions. Describe what the student must do instead of supplying a renderer type/toolId.`);
+  }
+  if (q.type || q.toolId) {
     repairs.push(`ignored internal type hint on V5 question ${index + 1}; compiled from studentActions instead`);
-  } else if ((q.type || q.toolId) && !actions.length) {
-    repairs.push(`V5 question ${index + 1} had no studentActions; preserved its internal type for legacy compatibility`);
-    return { ...q };
   }
   const type = resolveIntentType(q, actions);
   if (!type) throw new Error(`V5 question ${index + 1} does not contain enough mathematical intent to choose a student tool. Add studentActions and the needed mathematical data.`);
@@ -745,40 +747,108 @@ const compileOne = (q, index, repairs) => {
 };
 
 export const compileAuthoringIntentV5 = (input = {}) => {
-  if (!isObject(input)) throw new Error('Authoring Intent V5 must be a JSON object.');
-  if (Number(input.schemaVersion) !== 5) return { package: input, repairs: [], decisions: [] };
+  if (!isObject(input)) throw new Error('MathMaster Assignment V5 must be a JSON object.');
+  if (Number(input.schemaVersion) !== 5) {
+    throw new Error('Only schemaVersion 5 is accepted. V4 and earlier assignments are intentionally unsupported.');
+  }
+  if (!Array.isArray(input.sections) || input.sections.length === 0) {
+    throw new Error('Assignment V5 requires a non-empty sections array. Legacy activities/questions containers are not accepted.');
+  }
+
   const scope = validateInstructionalScopeV5(input);
   if (scope.errors.length) {
     throw new Error(`Instructional scope check failed:\n- ${scope.errors.join('\n- ')}`);
   }
+
   const repairs = [];
   const decisions = [];
   const assignment = { ...(input.assignment || {}) };
-  const publishingIntent = normalizeLessonPublishingIntentV5(input, assignment, repairs);
+
+  // The current Classroom/notes services already work. V5 exposes them through
+  // the canonical classroomIntegration/outputProfiles names, then bridges them
+  // into the existing live publishing services until those services are renamed.
+  const publishingInput = {
+    ...input,
+    classroom: input.classroomIntegration,
+    lessonResources: {
+      notesPdf: input.outputProfiles?.lessonNotesPdf,
+    },
+  };
+  const publishingIntent = normalizeLessonPublishingIntentV5(publishingInput, assignment, repairs);
   assignment.classroomPackage = publishingIntent.classroomPackage;
   assignment.lessonResources = publishingIntent.lessonResources;
-  const compileQuestions = (questions = [], role = null) => asArray(questions).map((question, index) => {
-    const source = role && isObject(question) && !question.activityRole ? { ...question, activityRole: role } : question;
+
+  // Existing assignment lifecycle code consumes these two delivery fields.
+  // They are derived from V5 policy rather than authored as legacy assignment
+  // properties.
+  assignment.variantMode = input.variantPolicy?.mode || 'personalized';
+  assignment.sectionVariantModes = input.variantPolicy?.sectionModes || {};
+
+  const compileQuestions = (questions = [], role = null, sectionId = null, sectionTitle = null) => asArray(questions).map((question, index) => {
+    const source = isObject(question)
+      ? {
+          ...question,
+          activityRole: question.activityRole || role || 'classwork',
+          sectionId: question.sectionId || sectionId || undefined,
+          sectionTitle: question.sectionTitle || sectionTitle || undefined,
+        }
+      : question;
     const compiled = compileOne(source, index, repairs);
-    decisions.push({ index, type: compiled.type, actions: normalizeActions(source) });
+    decisions.push({
+      index,
+      sectionId,
+      sectionRole: role,
+      type: compiled.type,
+      actions: normalizeActions(source),
+    });
     return compiled;
   });
-  let packageOut;
-  if (Array.isArray(input.activities)) {
-    const activities = input.activities.map((activity, activityIndex) => ({
-      ...activity,
-      role: activity?.role || 'classwork',
-      questions: compileQuestions(activity?.questions || [], activity?.role || 'classwork')
-    }));
-    packageOut = { ...input, schemaVersion: 4, assignment, activities };
-  } else {
-    packageOut = { ...input, schemaVersion: 4, assignment, questions: compileQuestions(input.questions || []) };
-  }
+
+  const sections = input.sections.map((section, sectionIndex) => {
+    const role = clean(section?.role).toLowerCase() || 'classwork';
+    const id = clean(section?.id) || `section-${sectionIndex + 1}`;
+    const title = clean(section?.title) || ({
+      warmup: 'Warm-Up',
+      classwork: 'Classwork',
+      practice: 'Practice',
+      dol: 'DOL',
+      quiz: 'Quiz',
+      test: 'Test',
+    }[role] || 'Activity');
+    return {
+      ...section,
+      id,
+      role,
+      title,
+      questions: compileQuestions(section?.questions || [], role, id, title),
+    };
+  });
+
+  const packageOut = normalizeAssignmentV5({
+    ...input,
+    schemaVersion: 5,
+    assignment,
+    sections,
+  });
+
   delete packageOut.authoringIntent;
+  delete packageOut.activities;
+  delete packageOut.questions;
   delete packageOut.classroom;
   delete packageOut.lessonResources;
-  repairs.unshift('compiled Authoring Intent V5 into canonical MathMaster V4 runtime questions');
-  return { package: packageOut, repairs, decisions };
+
+  const validation = validateAssignmentV5(packageOut);
+  if (validation.errors.length) {
+    throw new Error(`Assignment V5 validation failed:\n- ${validation.errors.join('\n- ')}`);
+  }
+  repairs.unshift('compiled Assignment V5 mathematical intent into canonical V5 renderer contracts');
+
+  return {
+    package: packageOut,
+    repairs,
+    decisions,
+    warnings: validation.warnings,
+  };
 };
 
 export const AUTHORING_INTENT_V5_ACTIONS = Object.freeze([
