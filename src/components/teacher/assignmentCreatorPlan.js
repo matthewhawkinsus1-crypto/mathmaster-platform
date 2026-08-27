@@ -11,6 +11,21 @@ export const CREATOR_SECTION_DEFAULTS = Object.freeze({
 
 const clean = (value) => String(value ?? '').trim();
 
+export const CREATOR_RIGOR_PRESETS = Object.freeze({
+  balanced: Object.freeze({
+    label: 'Grade-level balanced',
+    summary: 'Keep the lesson at its intended course level with a purposeful mix of recall, application, and reasoning.',
+  }),
+  supportive: Object.freeze({
+    label: 'More support, same standard',
+    summary: 'Use friendlier numbers, clearer chunking, and stronger Classwork scaffolds without lowering the assessed standard.',
+  }),
+  challenge: Object.freeze({
+    label: 'More challenge / transfer',
+    summary: 'Increase reasoning, representation changes, and transfer while staying inside the lesson and course standard.',
+  }),
+});
+
 const clampCount = (value, fallback) => {
   const n = Number(value);
   if (!Number.isFinite(n)) return fallback;
@@ -25,6 +40,9 @@ export const defaultAssignmentCreatorPlan = (courseId = 'algebra1') => ({
   gradingPurpose: 'classwork',
   overallVariantMode: 'personalized',
   adaptivePractice: false,
+  rigorPreset: 'balanced',
+  supportMode: 'inheritStudentProfile',
+  modificationsAllowed: false,
   sections: Object.fromEntries(Object.entries(CREATOR_SECTION_DEFAULTS).map(([role, config]) => [
     role,
     { ...config },
@@ -70,6 +88,14 @@ export const normalizeAssignmentCreatorPlan = (input = {}) => {
       ? clean(input.overallVariantMode)
       : base.overallVariantMode,
     adaptivePractice: input.adaptivePractice === true,
+    rigorPreset: Object.prototype.hasOwnProperty.call(CREATOR_RIGOR_PRESETS, clean(input.rigorPreset))
+      ? clean(input.rigorPreset)
+      : base.rigorPreset,
+    // These are intentionally normalized back to the platform-safe values.
+    // A teacher assignment may describe pedagogy, but it must never embed or
+    // override a student's IEP/504/EB entitlement record.
+    supportMode: 'inheritStudentProfile',
+    modificationsAllowed: false,
     sections,
     outputs: {
       studentWorksheetPdf: input.outputs?.studentWorksheetPdf !== false,
@@ -91,6 +117,7 @@ export const buildAssignmentCreatorRequest = (input = {}, { generatedAt = new Da
   const plan = normalizeAssignmentCreatorPlan(input);
   const contract = buildAuthoringContract({ courseId: plan.courseId, generatedAt });
   const enabledSections = Object.entries(plan.sections).filter(([, section]) => section.enabled);
+  const rigor = CREATOR_RIGOR_PRESETS[plan.rigorPreset] || CREATOR_RIGOR_PRESETS.balanced;
 
   if (!clean(plan.topic)) {
     throw new Error('Describe the lesson/topic before copying the AI build request.');
@@ -116,6 +143,10 @@ export const buildAssignmentCreatorRequest = (input = {}, { generatedAt = new Da
     `Instructional purpose: ${plan.instructionalPurpose}`,
     `Grading purpose: ${plan.gradingPurpose}`,
     `Overall variation: ${plan.overallVariantMode}`,
+    `Rigor emphasis: ${rigor.label}`,
+    `Rigor guidance: ${rigor.summary}`,
+    'Student supports: inherit each student\'s server-resolved plan at delivery; do not embed accommodations in assignment JSON.',
+    'Curriculum modifications: not allowed in this standard assignment creator.',
     '',
     '## Lesson/topic',
     plan.topic,
@@ -131,6 +162,9 @@ export const buildAssignmentCreatorRequest = (input = {}, { generatedAt = new Da
     '- Classwork should support instruction; Practice should preserve lesson rigor with less scaffolding.',
     '- Use the source-appropriate representation (graph/table/mapping/number line/modeling workspace) rather than flattening rich tasks into generic text entry.',
     '- DOK and difficulty are separate. Include a purposeful spread appropriate to the lesson rather than mechanically increasing both together.',
+    `- Apply this teacher-selected rigor emphasis: ${rigor.summary}`,
+    '- Supportive does NOT mean a different standard or modified curriculum. It means access/scaffolding and friendlier complexity while preserving the assigned course target.',
+    '- Challenge does NOT authorize later-unit or later-course mathematics. Increase reasoning/transfer only inside the lesson ceiling.',
     '- If this assignment is later sent to an Honors class, MathMaster will inherit Honors placement in Preflight. Author enough depth/transfer to support that route without changing the course standard.',
     '- For Honors-ready Practice, preserve the MathMaster CCMR policy: authentic exam-style transfer should be roughly 15% over the recent sequence, using only legitimate TEKS-to-assessment overlap.',
     '- Never make a generated expected answer independent of the generator parameters that create its prompt.',
