@@ -74,8 +74,22 @@ export const resolveRequiredAnswerSymbols = ({
   ])];
 };
 
-export const supportedRequiredAnswerSymbols = () => Object.keys(ANSWER_SYMBOL_SPECS);
+export const supportedRequiredAnswerSymbols = () => [
+  ...Object.keys(ANSWER_SYMBOL_SPECS),
+  ...'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'.split(''),
+];
 
-export const answerSymbolSpec = (symbol) => ANSWER_SYMBOL_SPECS[clean(symbol)] || null;
+export const answerSymbolSpec = (symbol) => {
+  const token = clean(symbol);
+  if (ANSWER_SYMBOL_SPECS[token]) return ANSWER_SYMBOL_SPECS[token];
+  if (/^[A-Za-z]$/.test(token)) {
+    return {
+      label: token,
+      command: token,
+      ariaLabel: `Insert ${/[A-Z]/.test(token) ? 'capital ' : ''}${token}`,
+    };
+  }
+  return null;
+};
 
 export const knownAnswerFormats = () => Object.keys(FORMAT_SYMBOLS);
