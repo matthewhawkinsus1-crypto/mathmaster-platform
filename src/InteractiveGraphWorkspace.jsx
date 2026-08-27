@@ -875,7 +875,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
 
       <div style={{ display: 'flex', justifyContent: 'center', gap: '9px', flexWrap: 'wrap', marginBottom: '12px' }}>
         {constructionEnabled && <button type="button" onClick={() => setStage('construct')} style={stageButtonStyle(stage === 'construct')}>{pointOnly ? '1. Plot Points' : '1. Construct Graph'}</button>}
-        {analysisEnabled && <button type="button" disabled={!constructionReadyForAnalysis} onClick={() => constructionReadyForAnalysis && setStage('analysis')} style={stageButtonStyle(stage === 'analysis', !constructionReadyForAnalysis)}>2. Analyze Function</button>}
+        {analysisEnabled && <button type="button" disabled={!constructionReadyForAnalysis} onClick={() => constructionReadyForAnalysis && setStage('analysis')} style={stageButtonStyle(stage === 'analysis', !constructionReadyForAnalysis)}>{inverseReflectionEnabled ? '2. Build Inverse' : '2. Analyze Function'}</button>}
       </div>
       <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '14px' }}>
         <span style={{ padding: '7px 12px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6', fontWeight: 'bold' }}>{pointOnly ? 'Table Points' : (FUNCTION_GRAPH_LABELS[functionSpec.type] || 'Function')}</span>
@@ -937,20 +937,34 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
             </>
           ) : (
             <>
-              <h3 style={{ margin: '0 0 8px', fontSize: '16px', color: '#174ea6' }}>Analysis Parts</h3>
+              <h3 style={{ margin: '0 0 8px', fontSize: '16px', color: '#174ea6' }}>{inverseReflectionEnabled ? 'Build the Inverse' : 'Analysis Parts'}</h3>
+              {inverseReflectionEnabled && <p style={{ margin: '0 0 10px', color: '#5f6368', fontSize: '12px', lineHeight: 1.5 }}>Reflect both validated points across <strong>y=x</strong>. After both reflected points are correct, draw the inverse through them and write <strong>f⁻¹(x)</strong>.</p>}
               {analysisParts.map((part) => {
+                if (inverseReflectionEnabled && part.id === inverseReflection?.equationPartId && !analysis.inverseSnapped) return null;
                 const grade = feedback?.partGrades?.find((item) => item.id === part.id);
                 const selected = analysis.selections[part.id] || [];
                 const noneSelected = Boolean(analysis.noneSelections[part.id]);
                 return <div key={part.id} style={{ marginTop: '9px', padding: '10px', borderRadius: '9px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : activeAnalysisPartId === part.id ? '#1a73e8' : '#d9e2f1'}`, background: grade && !grade.isCorrect ? '#fff8f7' : '#fff' }}>
                   <button type="button" onClick={() => setActiveAnalysisPartId(part.id)} style={{ width: '100%', border: 'none', background: 'transparent', textAlign: 'left', fontWeight: 'bold', color: '#202124' }}><MathText>{part.label}</MathText></button>
-                  {part.kind === 'point' ? <>
+                  {['point', 'inversePoint'].includes(part.kind) ? <>
                     {part.responseMode !== 'input' && <div style={{ marginTop: '5px', fontSize: '12px', color: '#5f6368' }}>{noneSelected ? 'Marked: does not exist' : `${selected.length}/${part.expected.length || 1} selected`}</div>}
                     {part.allowNone && part.responseMode !== 'input' && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, noneSelections: { ...current.noneSelections, [part.id]: !current.noneSelections[part.id] }, selections: { ...current.selections, [part.id]: [] } }))} style={{ marginTop: '7px', padding: '6px 9px', borderRadius: '7px', border: '1px solid #c5d5ef', background: noneSelected ? '#e8f0fe' : '#fff', color: '#174ea6', fontWeight: 'bold' }}>Does not exist</button>}
                     {part.responseMode !== 'click' && <div style={{ marginTop: '8px' }}><MathInput value={analysis.typedPoints[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, typedPoints: { ...current.typedPoints, [part.id]: value } }))} placeholder={part.expected.length > 1 ? '(x₁, y₁), (x₂, y₂)' : '(x, y) or DNE'} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} /></div>}
                   </> : <div style={{ marginTop: '8px' }}>{part.allowsEmptyAnswer && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: 'does not exist' } }))} style={{ marginBottom: '7px', padding: '6px 9px', borderRadius: '7px', border: '1px solid #c5d5ef', background: String(analysis.answers[part.id] || '').toLowerCase().includes('exist') ? '#e8f0fe' : '#fff', color: '#174ea6', fontWeight: 'bold' }}>Does not exist</button>}<MathInput value={analysis.answers[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: value } }))} toolProfile={analysisKeypadProfile(part)} answerFormat={analysisAnswerFormatFor(part)} showToolsInitially placeholder={analysisPlaceholderFor(part)} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} /></div>}
                 </div>;
               })}
+              {inverseReflectionEnabled && !analysis.inversePointsValidated && (
+                <button
+                  type="button"
+                  onClick={checkInversePoints}
+                  disabled={!inversePointsComplete}
+                  style={{ width: '100%', marginTop: '12px', padding: '10px', border: 'none', borderRadius: '8px', background: inversePointsComplete ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 'bold' }}
+                >
+                  Check Reflected Points
+                </button>
+              )}
+              {inverseReflectionEnabled && analysis.inversePointsValidated && !analysis.inverseSnapped && <p style={{ margin: '12px 0 0', color: '#6f2da8', fontSize: '12px', lineHeight: 1.5, fontWeight: 'bold' }}>Both reflected points are correct. Draw f⁻¹ directly on the coordinate plane through both points.</p>}
+              {inverseReflectionEnabled && analysis.inverseSnapped && <p style={{ margin: '12px 0 0', color: '#137333', fontSize: '12px', lineHeight: 1.5, fontWeight: 'bold' }}>Inverse graph complete. Finish the equation field above.</p>}
             </>
           )}
         </aside>
@@ -994,6 +1008,12 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
             {xTicks.map((tick) => { const x = toScreenX(tick); return <g key={`x-${tick}`}><line x1={x} y1={PADDING} x2={x} y2={HEIGHT - PADDING} stroke="#eceff1" /><text x={x} y={axisX + 20} textAnchor="middle" fontSize="12" fill="#5f6368">{tick}</text></g>; })}
             {yTicks.map((tick) => { const y = toScreenY(tick); return <g key={`y-${tick}`}><line x1={PADDING} y1={y} x2={WIDTH - PADDING} y2={y} stroke="#eceff1" />{tick !== 0 && <text x={axisY - 9} y={y + 4} textAnchor="end" fontSize="12" fill="#5f6368">{tick}</text>}</g>; })}
             <line x1={PADDING} y1={axisX} x2={WIDTH - PADDING} y2={axisX} stroke="#5f6368" strokeWidth="2" /><line x1={axisY} y1={PADDING} x2={axisY} y2={HEIGHT - PADDING} stroke="#5f6368" strokeWidth="2" />
+            {stage === 'analysis' && inverseReflectionEnabled && inverseReflection?.showReferenceLine !== false && reflectionLineMax > reflectionLineMin && (
+              <g pointerEvents="none">
+                <line x1={toScreenX(reflectionLineMin)} y1={toScreenY(reflectionLineMin)} x2={toScreenX(reflectionLineMax)} y2={toScreenY(reflectionLineMax)} stroke="#9334e6" strokeWidth="2.5" strokeDasharray="10 8" opacity="0.65" />
+                <text x={toScreenX(reflectionLineMax) - 8} y={toScreenY(reflectionLineMax) + 20} textAnchor="end" fontSize="13" fontWeight="bold" fill="#6f2da8">y = x</text>
+              </g>
+            )}
 
             {/* The keyboard cursor. Visible, because a student navigating by
                 arrow keys still needs to see where they are. */}
@@ -1007,13 +1027,15 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
             )}
 
             {showPredrawnGraph && idealPaths.map((path, index) => <path key={`ideal-${index}`} className={construction.snapped ? 'mathmaster-snap-curve' : ''} d={path} fill="none" stroke="#1a73e8" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />)}
+            {inverseReflectionEnabled && analysis.inverseSnapped && inverseIdealPaths.map((path, index) => <path key={`inverse-ideal-${index}`} d={path} fill="none" stroke="#9334e6" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />)}
             {mode === 'analysis' && endpointRequirements.map((requirement) => { const x = toScreenX(requirement.point[0]); const y = toScreenY(requirement.point[1]); const angle = (Math.atan2(toScreenY(requirement.point[1] + requirement.vector[1]) - y, toScreenX(requirement.point[0] + requirement.vector[0]) - x) * 180) / Math.PI; return <EndpointMarker key={`analysis-${requirement.id}`} type={requirement.marker} x={x} y={y} angle={angle} color="#1a73e8" />; })}
             {!construction.snapped && construction.strokes.map((stroke, strokeIndex) => <polyline key={`stroke-${strokeIndex}`} points={stroke.map((point) => point.join(',')).join(' ')} fill="none" stroke="#7baaf7" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.88" />)}
-            {drawing && drawingRef.current.length > 1 && <polyline points={drawingRef.current.map((point) => point.join(',')).join(' ')} fill="none" stroke="#7baaf7" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.88" />}
+            {stage === 'analysis' && inverseReflectionEnabled && !analysis.inverseSnapped && (analysis.inverseStrokes || []).map((stroke, strokeIndex) => <polyline key={`inverse-stroke-${strokeIndex}`} points={stroke.map((point) => point.join(',')).join(' ')} fill="none" stroke="#b38ae8" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />)}
+            {drawing && drawingRef.current.length > 1 && <polyline points={drawingRef.current.map((point) => point.join(',')).join(' ')} fill="none" stroke={stage === 'analysis' && inverseReflectionEnabled ? '#b38ae8' : '#7baaf7'} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.88" />}
 
             {constructionEnabled && tasks.filter((task) => Array.isArray(construction.placements[task.id])).map((task) => { const point = construction.placements[task.id]; const isCenter = task.role === 'center'; const x = toScreenX(point[0]); const y = toScreenY(point[1]); return <g key={task.id}><circle cx={x} cy={y} r={isCenter ? 10 : 8} fill={isCenter ? '#fff' : POINT_GUIDE_COLOR} stroke={isCenter ? '#9334e6' : '#fff'} strokeWidth="3" />{isCenter && <text x={x - 4} y={y + 5} fontSize="17" fontWeight="bold" fill="#9334e6">×</text>}<rect x={x + 8} y={y - 29} width={Math.max(36, toPlainMath(task.label).length * 7 + 12)} height="21" rx="6" fill="rgba(255,255,255,0.58)" /><text x={x + 14} y={y - 14} fontSize="12" fontWeight="bold" fill="#174ea6">{toPlainMath(task.label)}</text></g>; })}
             {dragGuideActive && <g pointerEvents="none"><line x1={toScreenX(dropCandidate[0])} y1={PADDING} x2={toScreenX(dropCandidate[0])} y2={HEIGHT - PADDING} stroke={POINT_GUIDE_COLOR} strokeWidth={dropMagneticTarget ? 4 : 3} strokeDasharray="8 5" opacity="0.84" /><line x1={PADDING} y1={toScreenY(dropCandidate[1])} x2={WIDTH - PADDING} y2={toScreenY(dropCandidate[1])} stroke={POINT_GUIDE_COLOR} strokeWidth={dropMagneticTarget ? 4 : 3} strokeDasharray="8 5" opacity="0.84" />{dropMagneticTarget && <circle cx={toScreenX(dropCandidate[0])} cy={toScreenY(dropCandidate[1])} r="24" fill="rgba(19,115,51,0.10)" stroke="#137333" strokeWidth="3" strokeDasharray="5 4" />}<circle cx={toScreenX(dropCandidate[0])} cy={toScreenY(dropCandidate[1])} r="15" fill="rgba(0,166,166,0.22)" stroke={dropMagneticTarget ? '#137333' : POINT_GUIDE_COLOR} strokeWidth="4" /><circle cx={toScreenX(dropCandidate[0])} cy={toScreenY(dropCandidate[1])} r="6" fill={dropMagneticTarget ? '#137333' : POINT_GUIDE_COLOR} />{dropMagneticTarget && <text x={toScreenX(dropCandidate[0])} y={toScreenY(dropCandidate[1]) - 31} textAnchor="middle" fontSize="12" fontWeight="bold" fill="#137333">Snap</text>}</g>}
-            {stage === 'analysis' && activePointPart && (analysis.selections[activePointPart.id] || []).map((point, index) => <g key={`analysis-${index}`}><circle cx={toScreenX(point[0])} cy={toScreenY(point[1])} r="8" fill="#d93025" stroke="#fff" strokeWidth="3" /><rect x={toScreenX(point[0]) + 8} y={toScreenY(point[1]) - 29} width="82" height="22" rx="6" fill="rgba(255,255,255,0.62)" /><text x={toScreenX(point[0]) + 13} y={toScreenY(point[1]) - 14} fontSize="12" fontWeight="bold" fill="#3c4043">{pointLabel(point)}</text></g>)}
+            {stage === 'analysis' && analysisParts.filter((part) => ['point', 'inversePoint'].includes(part.kind)).flatMap((part) => (analysis.selections[part.id] || []).map((point, index) => <g key={`analysis-${part.id}-${index}`}><circle cx={toScreenX(point[0])} cy={toScreenY(point[1])} r="8" fill={part.kind === 'inversePoint' ? '#9334e6' : '#d93025'} stroke="#fff" strokeWidth="3" /><rect x={toScreenX(point[0]) + 8} y={toScreenY(point[1]) - 29} width="82" height="22" rx="6" fill="rgba(255,255,255,0.72)" /><text x={toScreenX(point[0]) + 13} y={toScreenY(point[1]) - 14} fontSize="12" fontWeight="bold" fill="#3c4043">{pointLabel(point)}</text></g>))}
 
             {construction.snapped && endpointRequirements.map((requirement) => { const placement = construction.markerPlacements[requirement.id]; const displayPoint = markerPoint(placement) || requirement.point; const x = toScreenX(displayPoint[0]); const y = toScreenY(displayPoint[1]); const correctX = toScreenX(requirement.point[0]); const correctY = toScreenY(requirement.point[1]); const angle = (Math.atan2(toScreenY(requirement.point[1] + requirement.vector[1]) - correctY, toScreenX(requirement.point[0] + requirement.vector[0]) - correctX) * 180) / Math.PI; return <g key={requirement.id}>{!placement && <><circle cx={correctX} cy={correctY} r="25" fill="rgba(251,188,4,0.10)" stroke="#f9ab00" strokeWidth="2" strokeDasharray="6 6" className="mathmaster-endpoint-pulse" /><text x={correctX} y={correctY - 31} textAnchor="middle" fontSize="11" fontWeight="bold" fill="#8a5a00">Graph end {endpointRequirements.indexOf(requirement) + 1}</text></>}{placement && <EndpointMarker type={markerValue(placement)} x={x} y={y} angle={angle} />}</g>; })}
             {markerGhostActive && <EndpointMarker type={draggingMarkerType || activeMarker} x={toScreenX(dropCandidate[0])} y={toScreenY(dropCandidate[1])} opacity={0.55} scale={1.15} />}
