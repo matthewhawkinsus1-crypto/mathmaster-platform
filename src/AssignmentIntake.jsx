@@ -6,6 +6,7 @@ import {
 } from './platform/contract/authoringContract';
 import {
   buildAssignmentCreatorRequest,
+  CREATOR_RIGOR_PRESETS,
   defaultAssignmentCreatorPlan,
 } from './components/teacher/assignmentCreatorPlan.js';
 
@@ -59,10 +60,17 @@ const stepBadge = (number) => (
 const SECTION_ORDER = ['warmup', 'classwork', 'practice', 'dol', 'quiz', 'test'];
 
 const modeLabel = {
-  shared: 'Same version',
-  personalized: 'Personalized',
-  adaptive: 'Adaptive',
+  shared: 'Same problem for everyone',
+  personalized: 'Same task, different numbers',
+  adaptive: 'Adaptive within the standard',
 };
+
+const CREATOR_STEPS = Object.freeze([
+  { number: 1, label: 'Lesson', detail: 'Course, purpose, and what students learn' },
+  { number: 2, label: 'Sections & rigor', detail: 'Warm-Up, Classwork, Practice, DOL, quiz/test' },
+  { number: 3, label: 'Supports & outputs', detail: 'Student plans, Honors, PDFs' },
+  { number: 4, label: 'Build & review', detail: 'AI build request, V5 import, Preflight' },
+]);
 
 const readClipboardText = async () => {
   if (!navigator.clipboard?.readText) {
@@ -244,12 +252,37 @@ export default function AssignmentIntake({
 
   return (
     <section style={{ display: 'grid', gap: 16, marginBottom: 34 }}>
+      <nav
+        aria-label="Assignment creator steps"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))',
+          gap: 8,
+          padding: 10,
+          border: '1px solid #d9e2f1',
+          borderRadius: 14,
+          background: '#f8fafc',
+        }}
+      >
+        {CREATOR_STEPS.map((step) => (
+          <div key={step.number} style={{ display: 'flex', gap: 9, alignItems: 'flex-start', padding: '8px 9px' }}>
+            <span style={{
+              display: 'grid', placeItems: 'center', width: 26, height: 26, borderRadius: 999,
+              background: '#e8f0fe', color: '#174ea6', fontWeight: 900, fontSize: 12, flexShrink: 0,
+            }}>{step.number}</span>
+            <span style={{ minWidth: 0 }}>
+              <strong style={{ display: 'block', color: '#172033', fontSize: 13 }}>{step.label}</strong>
+              <span style={{ display: 'block', color: '#64748b', fontSize: 11.5, lineHeight: 1.35 }}>{step.detail}</span>
+            </span>
+          </div>
+        ))}
+      </nav>
       <div style={{ ...card, background: 'linear-gradient(135deg,#f8fbff,#eef4ff)', borderColor: '#9bb8e8' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
           {stepBadge(1)}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
-              <h3 style={{ margin: 0, fontSize: 19, color: '#172033' }}>Plan the assignment</h3>
+              <h3 style={{ margin: 0, fontSize: 19, color: '#172033' }}>1. Lesson and purpose</h3>
               <span style={{
                 border: '1px solid #9bb8e8', borderRadius: 999, padding: '4px 9px',
                 color: '#174ea6', background: '#fff', fontSize: 11, fontWeight: 900,
@@ -330,7 +363,34 @@ export default function AssignmentIntake({
             </label>
 
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontWeight: 900, color: '#172033', fontSize: 14, marginBottom: 8 }}>Sections and versions</div>
+              <div style={{ fontWeight: 900, color: '#172033', fontSize: 14, marginBottom: 8 }}>2. Sections, student versions, and rigor</div>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'minmax(220px, 340px) 1fr',
+                gap: 10,
+                alignItems: 'end',
+                marginBottom: 10,
+              }}>
+                <label style={fieldLabel}>
+                  Rigor emphasis
+                  <select
+                    value={creatorPlan.rigorPreset}
+                    onChange={(event) => setPlanField('rigorPreset', event.target.value)}
+                    style={inputStyle}
+                  >
+                    {Object.entries(CREATOR_RIGOR_PRESETS).map(([value, preset]) => (
+                      <option key={value} value={value}>{preset.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <div style={{
+                  minHeight: 44, boxSizing: 'border-box', padding: '9px 11px',
+                  border: '1px solid #d9e2f1', borderRadius: 9, background: '#f8fafc',
+                  color: '#5f6b7a', fontSize: 12.5, lineHeight: 1.45,
+                }}>
+                  {CREATOR_RIGOR_PRESETS[creatorPlan.rigorPreset]?.summary}
+                </div>
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(215px,1fr))', gap: 10 }}>
                 {SECTION_ORDER.map((role) => {
                   const section = creatorPlan.sections[role];
@@ -385,11 +445,14 @@ export default function AssignmentIntake({
                 })}
               </div>
               <p style={{ margin: '8px 0 0', color: '#64748b', fontSize: 12, lineHeight: 1.5 }}>
-                Shared means every student sees the same authored version. Personalized varies supported questions.
-                Adaptive may adjust within the lesson&apos;s allowed rigor without changing the standard.
+                Same problem is best when the class needs one common example. Same task, different numbers discourages copying without changing rigor.
+                Adaptive may adjust difficulty/reasoning only inside the assigned standard and role-based limits.
               </p>
             </div>
 
+            <div style={{ fontWeight: 900, color: '#172033', fontSize: 14, margin: '2px 0 8px' }}>
+              3. Supports, Honors, and outputs
+            </div>
             <div style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))',
@@ -432,6 +495,15 @@ export default function AssignmentIntake({
                 </label>
               </div>
 
+              <div style={{ border: '1px solid #c8d8ef', borderRadius: 11, padding: 12, background: '#f7faff' }}>
+                <div style={{ fontWeight: 900, color: '#174ea6', marginBottom: 5 }}>Student support plans · automatic</div>
+                <div style={{ color: '#526274', fontSize: 13, lineHeight: 1.5 }}>
+                  MathMaster applies each student&apos;s authorized IEP/504/EB access supports at delivery.
+                  Accommodations are not stored in this assignment and do not change the assessed standard.
+                  Modified curriculum is handled through its separate reporting path.
+                </div>
+              </div>
+
               <div style={{ border: '1px solid #c9ddc8', borderRadius: 11, padding: 12, background: '#f7fbf6' }}>
                 <div style={{ fontWeight: 900, color: '#245b2a', marginBottom: 5 }}>Honors + CCMR</div>
                 <div style={{ color: '#48624b', fontSize: 13, lineHeight: 1.5 }}>
@@ -471,12 +543,13 @@ export default function AssignmentIntake({
 
       <div style={card}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-          {stepBadge(2)}
+          {stepBadge(4)}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h3 style={{ margin: '0 0 4px', fontSize: 18, color: '#172033' }}>Bring the finished assignment into MathMaster</h3>
+            <h3 style={{ margin: '0 0 4px', fontSize: 18, color: '#172033' }}>4. Build with AI, then review in MathMaster</h3>
             <p style={{ margin: '0 0 14px', color: '#5f6b7a', lineHeight: 1.55, fontSize: 14 }}>
-              Paste the AI&apos;s Assignment V5 JSON, upload a <code>.json</code> file, or drag it here.
-              MathMaster validates the mathematics and interactions, then opens Preflight for classes, dates, folder, section access, and publishing.
+              After the AI returns one Assignment V5 JSON object, paste it here, upload a <code>.json</code> file, or drag it in.
+              MathMaster then checks standards, grading, mobile inputs, supports, adaptive rigor, CCMR fidelity, and PDF renderability before Preflight.
+              Preflight handles classes, dates, folder, section access, student preview, and publishing.
             </p>
 
             <div
