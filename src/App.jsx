@@ -2519,7 +2519,7 @@ function App() {
 
   // The teacher sets classes, dates, folder and publishing here — the JSON never
   // carries them, so there are no manual fallbacks to merge any more.
-  const openAssignmentPreflight = (inspected, sourceName, draftOverrides = {}) => {
+  const openAssignmentPreflight = (inspected, sourceName, draftOverrides = {}, preflightOptions = {}) => {
     try {
       const { metadata } = inspected;
       const assignmentV5 = inspected.bundleSource;
@@ -2584,6 +2584,8 @@ function App() {
         questions: inspected.questions,
         authoringWarnings: inspected.authoringWarnings || [],
         sourceLabel: `${sourceName || 'Pasted JSON'} · Assignment V5`,
+        mode: preflightOptions.mode === 'update' ? 'update' : 'create',
+        existingAssignmentId: preflightOptions.existingAssignmentId || null,
       });
       return true;
     } catch (error) {
@@ -3045,10 +3047,190 @@ function App() {
     }
   };
 
+  const updateExistingAssignmentFromPreflight = async ({ draft, assignmentV5 }) => {
+    const assignmentId = assignmentPreflight?.existingAssignmentId;
+    const existing = assignments.find((item) => item.id === assignmentId);
+    if (!assignmentId || !existing) throw new Error('The assignment being edited could not be found.');
+
+    const model = buildAssignmentV5PreflightModel(assignmentV5);
+    if (!model.isValid) {
+      throw new Error(`This setup cannot be saved until V5 Preflight is clean:\n${model.errors.join('\n')}`);
+    }
+
+    const assignedClassIds = [...(draft.assignedClassIds || [])];
+    const selectedClassRecords = assignedClassIds.length
+      ? classes.filter((entry) => assignedClassIds.includes(entry.classId) && entry?.status !== 'archived')
+      : [];
+    const assignedClassPeriods = selectedClassRecords.length
+      ? [...new Set(selectedClassRecords.map((entry) => entry.period).filter(Boolean))]
+      : [...(draft.assignedClassPeriods || [])];
+
+    // Reusing a library template and updating an existing assignment are
+    // intentionally different actions. Assigning a library source must go
+    // through destination creation so Standard/Honors variants can split.
+    if (isLibraryAssignment(existing) && (assignedClassIds.length || assignedClassPeriods.length)) {
+      throw new Error(
+        'This is a reusable library template. Use Dates & Classes to assign it; MathMaster will open V5 Preflight and create the correct destination copy while keeping the template unchanged.',
+      );
+    }
+
+    const targetGroups = selectedClassRecords.length
+      ? Object.values(selectedClassRecords.reduce((groups, entry) => {
+          const course = entry.course || 'algebra1';
+          const courseLevel = entry.courseLevel || 'standard';
+          const key = `${course}:${courseLevel}`;
+          if (!groups[key]) groups[key] = { course, courseLevel };
+          return groups;
+        }, {}))
+      : buildDestinationGroups({ assignedClassPeriods, courseProfiles });
+    const currentCourse = existing.courseId || existing.courseProfile?.course || null;
+    const currentLevel = existing.rigorVariant || existing.courseProfile?.courseLevel || null;
+    const changesDestination = targetGroups.length > 1
+      || (targetGroups.length === 1 && currentCourse && targetGroups[0].course !== currentCourse)
+      || (targetGroups.length === 1 && currentLevel && targetGroups[0].courseLevel !== currentLevel);
+    if (changesDestination) {
+      throw new Error(
+        'This saved assignment is already a destination-specific Standard/Honors version. Duplicate it to the library, then assign the library copy through Preflight to create a different rigor destination.',
+      );
+    }
+
+    const originalV5 = storedAssignmentToV5(existing);
+    const hasStudentData = allStudents.some(
+      (student) => student.gradesByAssignment?.[existing.id] !== undefined,
+    );
+    if (hasStudentData) {
+      const historicalFields = [
+        'variantPolicy',
+        'differentiationPolicy',
+        'supportPolicy',
+        'toolPolicy',
+        'deliveryPolicy',
+        'gradingPolicy',
+        'evidencePolicy',
+      ];
+      const changed = historicalFields.filter((field) => (
+        JSON.stringify(originalV5[field] || null) !== JSON.stringify(model.assignmentV5[field] || null)
+      ));
+      const audienceChanged = JSON.stringify([...(existing.assignedClassIds || [])].sort())
+          !== JSON.stringify([...assignedClassIds].sort())
+        || JSON.stringify([...(existing.assignedClassPeriods || [])].sort())
+          !== JSON.stringify([...assignedClassPeriods].sort());
+      if (changed.length || audienceChanged) {
+        throw new Error(
+          `Student records already exist. To preserve historical evidence, this setup editor cannot change ${[
+            ...changed,
+            ...(audienceChanged ? ['class audience'] : []),
+          ].join(', ')}. Duplicate the assignment for a new delivery policy instead.`,
+        );
+      }
+    }
+
+    const mode = resolveCreationMode({ assignedClassIds, assignedClassPeriods });
+    const { dueAt, lateDueAt, dueDate, releaseAt } = resolveAssignmentDates({
+      mode,
+      dueValue: draft.dueAt || '',
+      lateDueValue: draft.lateDueAt || '',
+      releaseValue: draft.releaseAt || '',
+    });
+
+    const persistence = canonicalV5PersistencePatch(model.assignmentV5);
+    const persistedQuestions = persistence.questions;
+    const authoredRoles = persistedQuestions.map((question) => resolveQuestionActivityRole({
+      question,
+      assignment: { assignmentType: existing.assignmentType || 'practice' },
+    }));
+    const hasWarmup = authoredRoles.includes('warmup');
+    const dolIndexFromRole = authoredRoles.findIndex((role) => role === 'dol');
+    const hasDOL = dolIndexFromRole >= 0;
+    const dolQuestionIndex = hasDOL
+      ? Math.max(0, Math.min(
+          persistedQuestions.length - 1,
+          Number.isInteger(Number(draft.dolQuestionIndex))
+            ? Number(draft.dolQuestionIndex)
+            : dolIndexFromRole,
+        ))
+      : null;
+
+    const patch = {
+      ...persistence,
+      title: model.assignmentV5.assignment.title,
+      folder: normalizeFolderPath(model.assignmentV5.assignment.folder) || null,
+      dueAt,
+      dueDate,
+      lateDueAt,
+      releaseAt,
+      assignedClassIds,
+      assignedClassPeriods,
+      assignmentType: authoredRoles.some((role) => role === 'warmup' || role === 'classwork')
+        ? 'notesClasswork'
+        : 'practice',
+      sectionAccess: {
+        ...(existing.sectionAccess || {}),
+        classwork: {
+          ...(existing.sectionAccess?.classwork || {}),
+          defaultState: draft.sectionAccessDefaults?.classwork === 'closed' ? 'closed' : 'open',
+        },
+        practice: {
+          ...(existing.sectionAccess?.practice || {}),
+          defaultState: draft.sectionAccessDefaults?.practice === 'closed' ? 'closed' : 'open',
+        },
+      },
+      guidedNotesBySection: {
+        classwork: draft.guidedNotesBySection?.classwork || 'automatic',
+        practice: draft.guidedNotesBySection?.practice || 'off',
+      },
+      warmup: {
+        ...(existing.warmup || {}),
+        enabled: hasWarmup && draft.warmupEnabled !== false,
+        minutesBeforeStart: Math.max(0, Number(draft.warmupMinutesBeforeStart) || 7),
+        instructionDate: draft.warmupInstructionDate || existing.warmup?.instructionDate || null,
+        instructionDatesByClassPeriod: draft.warmupInstructionDatesByClassPeriod || existing.warmup?.instructionDatesByClassPeriod || {},
+      },
+      dol: {
+        ...(existing.dol || {}),
+        enabled: hasDOL && draft.dolEnabled === true,
+        minutesBeforeEnd: Math.max(1, Number(draft.dolMinutesBeforeEnd) || 10),
+        instructionDate: draft.dolInstructionDate || existing.dol?.instructionDate || null,
+        instructionDatesByClassPeriod: draft.dolInstructionDatesByClassPeriod || existing.dol?.instructionDatesByClassPeriod || {},
+        questionIndex: dolQuestionIndex,
+      },
+      publicationSettings: {
+        ...(existing.publicationSettings || {}),
+        strategy: draft.publicationStrategy || existing.publicationSettings?.strategy || 'hybrid',
+        includeWarmupInClassroom: draft.includeWarmupInClassroom === true,
+        homeworkDueAt: draft.homeworkDueAt ? new Date(draft.homeworkDueAt).toISOString() : null,
+      },
+      updatedAt: new Date().toISOString(),
+    };
+
+    assertFirestoreSafeAssignmentPayload({ ...existing, ...patch });
+    await updateDoc(doc(db, 'assignments', existing.id), patch);
+
+    if (!isLibraryAssignment(existing) && shouldAutoPublishClassroomPackage({ ...existing, ...patch })) {
+      try {
+        await updateAssignmentClassroomPublications({ assignmentId: existing.id });
+      } catch (classroomError) {
+        console.warn('Classroom sync after V5 setup edit failed:', classroomError);
+        toastWarning(
+          'Assignment setup saved; Classroom needs attention',
+          'MathMaster saved the V5 changes, but Google Classroom could not confirm the updated due date. Open Google Classroom Manager to review it.',
+        );
+      }
+    }
+
+    setAssignmentPreflight(null);
+    await fetchAssignments();
+    toastSuccess('Assignment setup updated', `“${patch.title}” passed V5 Preflight and the reviewed settings were saved.`);
+  };
+
   const confirmAssignmentPreflight = async ({ draft, assignmentV5 }) => {
     setAssignmentPreflightBusy(true);
     try {
-      await handleCreateAssignment(null, null, draft, assignmentV5);
+      if (assignmentPreflight?.mode === 'update') {
+        await updateExistingAssignmentFromPreflight({ draft, assignmentV5 });
+      } else {
+        await handleCreateAssignment(null, null, draft, assignmentV5);
+      }
     } finally {
       setAssignmentPreflightBusy(false);
     }
@@ -3770,6 +3952,73 @@ function App() {
     );
     if (opened !== true) throw new Error(opened?.error || 'Could not open V5 Preflight for this saved assignment.');
     return canonicalV5;
+  };
+
+  const beginEditAssignmentSetup = (assignment) => {
+    try {
+      const canonicalV5 = storedAssignmentToV5(assignment);
+      const result = readAssignmentJson(JSON.stringify(canonicalV5));
+      if (!result.ok) {
+        throw new Error(`This assignment cannot be opened in V5 setup review:\n${result.errors.join('\n')}`);
+      }
+      const currentDraft = {
+        title: assignment.title || canonicalV5.assignment.title || '',
+        folder: assignment.folder || canonicalV5.assignment.folder || '',
+        dueAt: toDateTimeLocalInputValue(assignment.dueAt || assignment.dueDate || ''),
+        lateDueAt: toDateTimeLocalInputValue(assignment.lateDueAt || assignment.lateDueDate || ''),
+        releaseAt: toDateTimeLocalInputValue(assignment.releaseAt || ''),
+        assignmentType: assignment.assignmentType || 'practice',
+        variantMode: canonicalV5.variantPolicy?.mode || assignment.variantMode || 'personalized',
+        sectionVariantModes: canonicalV5.variantPolicy?.sectionModes || assignment.sectionVariantModes || {},
+        sectionAccessDefaults: {
+          classwork: assignment.sectionAccess?.classwork?.defaultState === 'closed' ? 'closed' : 'open',
+          practice: assignment.sectionAccess?.practice?.defaultState === 'closed' ? 'closed' : 'open',
+        },
+        guidedNotesBySection: {
+          classwork: assignment.guidedNotesBySection?.classwork || 'automatic',
+          practice: assignment.guidedNotesBySection?.practice || 'off',
+        },
+        assignedClassIds: [...(assignment.assignedClassIds || [])],
+        assignedClassPeriods: [...(assignment.assignedClassPeriods || [])],
+        warmupEnabled: assignment.warmup?.enabled !== false,
+        warmupMinutesBeforeStart: assignment.warmup?.minutesBeforeStart ?? 7,
+        warmupInstructionDate: assignment.warmup?.instructionDate || '',
+        warmupInstructionDatesByClassPeriod: assignment.warmup?.instructionDatesByClassPeriod || {},
+        dolEnabled: assignment.dol?.enabled === true,
+        dolMinutesBeforeEnd: assignment.dol?.minutesBeforeEnd ?? 10,
+        dolInstructionDate: assignment.dol?.instructionDate || '',
+        dolInstructionDatesByClassPeriod: assignment.dol?.instructionDatesByClassPeriod || {},
+        dolQuestionIndex: Number.isInteger(assignment.dol?.questionIndex) ? assignment.dol.questionIndex : null,
+        publicationStrategy: assignment.publicationSettings?.strategy || 'hybrid',
+        includeWarmupInClassroom: assignment.publicationSettings?.includeWarmupInClassroom === true,
+        homeworkDueAt: toDateTimeLocalInputValue(assignment.publicationSettings?.homeworkDueAt || ''),
+        classroomPackage: assignment.classroomPackage || null,
+        lessonResources: assignment.lessonResources || null,
+        instructionalPurpose: canonicalV5.assignment.instructionalPurpose || 'lesson',
+        gradingPurpose: canonicalV5.assignment.gradingPurpose || null,
+        variantPolicy: canonicalV5.variantPolicy,
+        differentiationPolicy: canonicalV5.differentiationPolicy,
+        supportPolicy: canonicalV5.supportPolicy,
+        toolPolicy: canonicalV5.toolPolicy,
+        deliveryPolicy: canonicalV5.deliveryPolicy,
+        gradingPolicy: canonicalV5.gradingPolicy,
+        evidencePolicy: canonicalV5.evidencePolicy,
+        outputProfiles: canonicalV5.outputProfiles,
+        classroomIntegration: canonicalV5.classroomIntegration,
+        provenance: canonicalV5.provenance,
+        preflight: canonicalV5.preflight,
+      };
+      setNewAssignmentJSON(result.parsed.normalizedText);
+      const opened = openAssignmentPreflight(
+        { ...result.parsed, authoringWarnings: result.warnings },
+        `Existing · ${assignment.title}`,
+        currentDraft,
+        { mode: 'update', existingAssignmentId: assignment.id },
+      );
+      if (opened !== true) throw new Error(opened?.error || 'Could not open V5 setup review.');
+    } catch (error) {
+      toastError('Could not review assignment setup', error.message);
+    }
   };
 
   const beginEditAssignmentDates = (assignment) => {
@@ -5168,6 +5417,7 @@ function App() {
             onClose={() => setAssignmentPreflight(null)}
             onConfirmPublish={confirmAssignmentPreflight}
             busy={assignmentPreflightBusy}
+            reviewMode={assignmentPreflight.mode || 'create'}
           />
         )}
         {questionEditorAssignment && (
@@ -5501,6 +5751,7 @@ function App() {
                           items={[
                             { key: 'preview', label: 'View as Student', onClick: () => startTeacherPreview(assignment.id) },
                             { key: 'edit-questions', label: 'Edit Questions', onClick: () => openQuestionEditor(assignment) },
+                            { key: 'edit-setup', label: 'Review / Edit Setup', onClick: () => beginEditAssignmentSetup(assignment) },
                             { key: 'export-pdf', label: 'Print / Answer Key', onClick: () => beginTeacherWorksheetExport(assignment) },
                             { key: 'export-json', label: 'Export JSON', onClick: () => { setExportJsonAssignment(assignment); setExportJsonCopied(false); } },
                             { key: 'dates-classes', label: 'Dates & Classes', onClick: () => beginEditAssignmentDates(assignment) },
