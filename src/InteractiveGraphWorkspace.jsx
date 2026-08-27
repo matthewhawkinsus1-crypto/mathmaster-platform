@@ -654,12 +654,17 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
     const point = eventToGraphPoint(event);
     if (!point) return;
     if (stage === 'analysis') {
-      const part = analysisParts.find((item) => item.id === activeAnalysisPartId && item.kind === 'point');
-      if (!part || part.responseMode === 'input') return;
+      const part = analysisParts.find((item) => item.id === activeAnalysisPartId && ['point', 'inversePoint'].includes(item.kind));
+      if (!part || part.responseMode === 'input' || (part.kind === 'inversePoint' && analysis.inversePointsValidated)) return;
       analysisHistory.setValue((current) => {
         const existing = current.selections[part.id] || [];
         const selected = existing.length >= Math.max(1, part.expected.length) ? [point] : [...existing, point];
-        return { ...current, noneSelections: { ...current.noneSelections, [part.id]: false }, selections: { ...current.selections, [part.id]: selected } };
+        return {
+          ...current,
+          noneSelections: { ...current.noneSelections, [part.id]: false },
+          selections: { ...current.selections, [part.id]: selected },
+          ...(part.kind === 'inversePoint' ? { inversePointsValidated: false, inverseStrokes: [], inverseSnapped: false } : {}),
+        };
       });
       return;
     }
@@ -682,8 +687,8 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
     if (!point || !Number.isFinite(point[0]) || !Number.isFinite(point[1])) return false;
     const target = clampToWindow(point);
     if (stage === 'analysis') {
-      const part = analysisParts.find((item) => item.id === activeAnalysisPartId && item.kind === 'point');
-      if (!part || part.responseMode === 'input') {
+      const part = analysisParts.find((item) => item.id === activeAnalysisPartId && ['point', 'inversePoint'].includes(item.kind));
+      if (!part || part.responseMode === 'input' || (part.kind === 'inversePoint' && analysis.inversePointsValidated)) {
         setKeyboardAnnouncement('Choose which part you are answering first.');
         return false;
       }
@@ -694,6 +699,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
           ...current,
           noneSelections: { ...current.noneSelections, [part.id]: false },
           selections: { ...current.selections, [part.id]: selected },
+          ...(part.kind === 'inversePoint' ? { inversePointsValidated: false, inverseStrokes: [], inverseSnapped: false } : {}),
         };
       });
       setKeyboardAnnouncement(`Selected ${pointLabel(target)} for ${part.label}.`);
@@ -768,7 +774,10 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
   };
 
   const beginDrawing = (event) => {
-    if (pointOnly || stage !== 'construct' || !construction.pointsValidated || construction.snapped) return;
+    if (pointOnly) return;
+    const drawingOriginal = stage === 'construct' && construction.pointsValidated && !construction.snapped;
+    const drawingInverse = stage === 'analysis' && inverseReflectionEnabled && analysis.inversePointsValidated && !analysis.inverseSnapped;
+    if (!drawingOriginal && !drawingInverse) return;
     const point = eventToScreenPoint(event);
     if (!point) return;
     drawingRef.current = [point];
@@ -785,7 +794,10 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
       setDropCandidate(taskPlacement.point);
       setDropMagneticTarget(taskPlacement.magnetic);
     }
-    if (pointOnly || !drawing || !construction.pointsValidated || construction.snapped) return;
+    if (pointOnly || !drawing) return;
+    const drawingOriginal = stage === 'construct' && construction.pointsValidated && !construction.snapped;
+    const drawingInverse = stage === 'analysis' && inverseReflectionEnabled && analysis.inversePointsValidated && !analysis.inverseSnapped;
+    if (!drawingOriginal && !drawingInverse) return;
     const point = eventToScreenPoint(event);
     if (!point) return;
     const previous = drawingRef.current[drawingRef.current.length - 1];
@@ -798,6 +810,26 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
     const finished = [...drawingRef.current];
     drawingRef.current = [];
     if (finished.length < 2) return;
+
+    if (stage === 'analysis' && inverseReflectionEnabled) {
+      const completed = [...(analysis.inverseStrokes || []), finished];
+      analysisHistory.setValue((current) => ({ ...current, inverseStrokes: completed }));
+      const matches = roughSketchMatchesGraph({
+        strokes: completed,
+        requiredScreenPoints: inverseRequiredGraphPoints,
+        idealScreenPaths: inverseIdealScreenPointPaths,
+        requiredStrokeCount: 1,
+        tolerance: 68,
+      });
+      if (matches) {
+        analysisHistory.setValue((current) => ({ ...current, inverseStrokes: completed, inverseSnapped: true }));
+        setDrawFeedback('The inverse sketch passed through both reflected points and snapped to the exact inverse. Finish the inverse equation.');
+      } else {
+        setDrawFeedback('The inverse line must pass through both reflected points. Clear the inverse sketch and try again.');
+      }
+      return;
+    }
+
     const completed = [...construction.strokes, finished];
     constructionHistory.setValue((current) => ({ ...current, strokes: completed }));
     if (completed.length < requiredStrokeCount) {
@@ -812,17 +844,19 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
   };
 
   const showPredrawnGraph = !pointOnly && (mode === 'analysis' || construction.snapped);
-  const activePointPart = analysisParts.find((part) => part.id === activeAnalysisPartId && part.kind === 'point');
+  const activePointPart = analysisParts.find((part) => part.id === activeAnalysisPartId && ['point', 'inversePoint'].includes(part.kind));
   const dragGuideActive = Boolean((draggingTaskId || activeTaskId) && dropCandidate && !construction.pointsValidated);
   const markerGhostActive = Boolean((draggingMarkerType || activeMarker) && dropCandidate && construction.snapped);
 
   const workspaceTitle = pointOnly
     ? 'Plot the Points'
-    : question.type === 'functionGraph'
-      ? 'Graph the Function'
-    : mode === 'analysis'
-      ? 'Analyze the Graph'
-      : 'Explore the Function';
+    : inverseReflectionEnabled && stage === 'analysis'
+      ? 'Build the Inverse'
+      : question.type === 'functionGraph'
+        ? 'Graph the Function'
+        : mode === 'analysis'
+          ? 'Analyze the Graph'
+          : 'Explore the Function';
 
   return (
     <div style={{ textAlign: 'left' }}>
