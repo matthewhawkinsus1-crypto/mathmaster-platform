@@ -47,6 +47,7 @@ const preservedLabel = (name) => ({
   settings: 'Schedules and platform settings',
   teacherDirectory: 'Teacher and root-admin access',
   teacherIntegrations: 'Teacher Google integration tokens/configuration',
+  classroomCourseMappings: 'Teacher Classroom-to-MathMaster course mappings',
   adminAuditLog: 'Administrative audit history',
   pathQuestionBank: 'My Math Path question bank',
   pathCoverage: 'Path coverage/index data',
