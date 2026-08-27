@@ -445,7 +445,7 @@ export const LessonPreflightModal = ({
       <div style={{ padding: '13px 15px', marginBottom: 14, border: '1px solid #c5d5ef', borderRadius: 10, background: '#f8fbff' }}>
         <strong style={{ color: '#174ea6' }}>Activity sections control student behavior</strong>
         <p style={{ margin: '6px 0 8px', color: '#3c4043', lineHeight: 1.5 }}>
-          Warm-Up, Classwork, Practice, DOL, Quiz, and Test behavior comes from the activity roles authored in the JSON. You no longer need to choose a second Classwork/Practice designation here.
+          Warm-Up, Classwork, Practice, DOL, Quiz, and Test behavior comes from the sections already built into the assignment. You no longer need to choose a second Classwork/Practice designation here.
         </p>
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
           {activityRoles.map((role) => <span key={role} style={{ padding: '5px 9px', borderRadius: 999, background: '#e8f0fe', color: '#174ea6', fontSize: 11, fontWeight: 900 }}>{humanRole(role)}</span>)}
@@ -458,7 +458,7 @@ export const LessonPreflightModal = ({
       <fieldset style={fieldsetStyle}>
         <legend style={legendStyle}>Question versions by section</legend>
         <p style={{ margin: '0 0 12px', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>
-          Choose independently for each V5 section. <strong>Same questions</strong> gives everyone the
+          Choose independently for each assignment section. <strong>Same questions</strong> gives everyone the
           identical version. <strong>Different versions</strong> keeps the task, the depth and the complexity
           identical and changes only the numbers. <strong>Pitched to the student</strong> keeps the standard you
           assigned and lets MathMaster move complexity and depth by one step, using what each student has
@@ -512,7 +512,7 @@ export const LessonPreflightModal = ({
       <fieldset style={fieldsetStyle}>
         <legend style={legendStyle}>Printable and shareable outputs</legend>
         <p style={{ margin: '0 0 12px', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>
-          These switches update the canonical V5 output profiles and are rechecked immediately for PDF
+          These switches update the assignment’s output settings and are rechecked immediately for PDF
           representation and page-fit safety. Digital delivery continues to use the same resolved questions.
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10 }}>
@@ -548,7 +548,7 @@ export const LessonPreflightModal = ({
         <fieldset style={fieldsetStyle}>
           <legend style={legendStyle}>Guided Notes by section</legend>
           <p style={{ margin: '0 0 12px', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>
-            Guided Notes should teach the mathematics, not narrate the interface. Automatic uses authored notes when present and otherwise builds tool/workflow-aware guidance. Authored only hides the panel unless the JSON includes meaningful notes. Off removes the panel entirely.
+            Guided Notes should teach the mathematics, not narrate the interface. Automatic uses authored notes when present and otherwise builds tool/workflow-aware guidance. Authored only hides the panel unless the assignment includes meaningful notes. Off removes the panel entirely.
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(230px, 1fr))', gap: 12 }}>
             {activityRoles.filter((role) => ['classwork', 'practice'].includes(role)).map((role) => (
