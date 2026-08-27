@@ -13,6 +13,12 @@ import {
 } from './preflightSteps';
 import AdaptivePreview from './AdaptivePreview.jsx';
 import { buildPreflightReviewedAssignmentV5 } from './preflightV5Review.js';
+import { buildQuestionRepairRequest, parseQuestionRepairResponse } from '../../platform/contract/questionRepairRequest.js';
+import {
+  groupQuestionPreflightIssues,
+  newlyIntroducedPreflightErrors,
+  replaceQuestionAtFlatIndex,
+} from '../../platform/preflight/preflightQuestionRepair.js';
 
 // Narrow enough that side-by-side panels stop working. Matches the breakpoint
 // the student-side mobile container already uses, so the two agree about what
@@ -137,13 +143,18 @@ export const LessonPreflightModal = ({
   const [showDemoControls, setShowDemoControls] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [honorsEnrichmentQuestion, setHonorsEnrichmentQuestion] = useState(null);
+  const [workingAssignmentV5, setWorkingAssignmentV5] = useState(() => assignmentV5);
+  const [repairTargetIndex, setRepairTargetIndex] = useState(null);
+  const [repairInstruction, setRepairInstruction] = useState('');
+  const [repairBusy, setRepairBusy] = useState(false);
+  const [repairMessage, setRepairMessage] = useState('');
 
   // Teacher review controls edit canonical Assignment V5, not a parallel
   // legacy projection. The exact reviewed V5 object is revalidated before it
   // powers preview, Classroom planning, and final publishing.
   const reviewedAssignmentV5 = useMemo(
-    () => buildPreflightReviewedAssignmentV5(assignmentV5, draft),
-    [assignmentV5, draft],
+    () => buildPreflightReviewedAssignmentV5(workingAssignmentV5, draft),
+    [workingAssignmentV5, draft],
   );
   const preflightModel = useMemo(
     () => buildAssignmentV5PreflightModel(reviewedAssignmentV5),
@@ -162,6 +173,10 @@ export const LessonPreflightModal = ({
 
   const previewQuestions = preflightModel.questions;
   const validationErrors = preflightModel.errors;
+  const questionRepairIssues = useMemo(
+    () => groupQuestionPreflightIssues(validationErrors, previewQuestions),
+    [validationErrors, previewQuestions],
+  );
 
   const computedPublicationPlan = useMemo(() => planClassroomPublication({
     assignmentV5: effectiveAssignmentV5,
@@ -230,6 +245,86 @@ export const LessonPreflightModal = ({
   if (!assignmentV5) return null;
 
   const setField = (field, value) => setDraft((current) => ({ ...current, [field]: value }));
+  const repairIssueForIndex = (questionIndex) => (
+    questionRepairIssues.find((entry) => entry.questionIndex === questionIndex) || null
+  );
+
+  const beginQuestionRepair = (questionIndex) => {
+    setRepairTargetIndex(questionIndex);
+    setRepairInstruction('');
+    setRepairMessage('');
+    if (isNarrow) setActiveStep('check');
+  };
+
+  const repairInstructionText = () => {
+    const issue = repairIssueForIndex(repairTargetIndex);
+    const lines = [
+      'MathMaster found these blockers for this question:',
+      ...(issue?.errors || []).map((message) => `- ${message}`),
+    ];
+    if (String(repairInstruction || '').trim()) {
+      lines.push('', 'Teacher note:', String(repairInstruction).trim());
+    }
+    return lines.join('\n');
+  };
+
+  const copyQuestionRepairRequest = async () => {
+    const issue = repairIssueForIndex(repairTargetIndex);
+    if (!issue?.question) return;
+    try {
+      if (!navigator.clipboard?.writeText) {
+        throw new Error('Clipboard copy is unavailable in this browser.');
+      }
+      const request = buildQuestionRepairRequest({
+        assignment: effectiveAssignmentV5,
+        question: issue.question,
+        instruction: repairInstructionText(),
+        questionNumber: issue.questionNumber,
+      });
+      await navigator.clipboard.writeText(request);
+      setRepairMessage('Repair request copied. Paste it into your AI, copy the replacement question, then return here.');
+    } catch (error) {
+      setRepairMessage(error.message);
+    }
+  };
+
+  const pasteQuestionRepairReplacement = async () => {
+    const issue = repairIssueForIndex(repairTargetIndex);
+    if (!issue?.question) return;
+    setRepairBusy(true);
+    setRepairMessage('');
+    try {
+      if (!navigator.clipboard?.readText) {
+        throw new Error('Clipboard paste is unavailable in this browser.');
+      }
+      const raw = await navigator.clipboard.readText();
+      const replacement = parseQuestionRepairResponse(raw);
+      const candidate = replaceQuestionAtFlatIndex(
+        effectiveAssignmentV5,
+        repairTargetIndex,
+        replacement,
+      );
+      const candidateModel = buildAssignmentV5PreflightModel(candidate);
+      const afterGroups = groupQuestionPreflightIssues(candidateModel.errors, candidateModel.questions);
+      const afterTarget = afterGroups.find((entry) => entry.questionIndex === repairTargetIndex);
+      if (afterTarget?.errors?.length) {
+        throw new Error(`The replacement still has blockers:\n${afterTarget.errors.join('\n')}`);
+      }
+      const newErrors = newlyIntroducedPreflightErrors(validationErrors, candidateModel.errors);
+      if (newErrors.length) {
+        throw new Error(`The replacement introduced a new assignment blocker:\n${newErrors.join('\n')}`);
+      }
+      setWorkingAssignmentV5(candidateModel.assignmentV5);
+      setRepairTargetIndex(null);
+      setRepairInstruction('');
+      setRepairMessage(`Question ${issue.questionNumber} replacement accepted. MathMaster rechecked the assignment.`);
+    } catch (error) {
+      setRepairMessage(error.message);
+    } finally {
+      setRepairBusy(false);
+    }
+  };
+
   const sectionVariantMode = (role) => (
     draft.sectionVariantModes?.[role]
     || assignmentV5?.variantPolicy?.sectionModes?.[role]
@@ -360,7 +455,7 @@ export const LessonPreflightModal = ({
   const renderDetails = () => (
     <section aria-label="Details">
       {isNarrow && <StepBlockers blockers={blockersForStep(readiness, 'details')} />}
-      <RepresentationAudit questions={sourceQuestions} warnings={authoringWarnings} />
+      <RepresentationAudit questions={previewQuestions} warnings={authoringWarnings} />
       <SectionBalanceRigorAudit assignmentV5={effectiveAssignmentV5} />
 
       <div style={{ padding: '12px 14px', marginBottom: 16, background: '#e8f0fe', color: '#174ea6', border: '1px solid #aecbfa', borderRadius: 9, fontSize: 13, lineHeight: 1.5 }}>
@@ -735,6 +830,69 @@ export const LessonPreflightModal = ({
   const renderCheck = () => (
     <section aria-label="Check">
       {isNarrow && <StepBlockers blockers={blockersForStep(readiness, 'check')} />}
+
+      {questionRepairIssues.length > 0 && (
+        <div style={{ marginBottom: 18, padding: 14, border: '1px solid #f1a5a0', borderRadius: 10, background: '#fff8f7' }}>
+          <strong style={{ color: '#a50e0e' }}>Questions MathMaster can target directly</strong>
+          <p style={{ margin: '5px 0 11px', color: '#5f6368', fontSize: 12.5, lineHeight: 1.5 }}>
+            Each button builds a repair request for only that question. Other assignment blockers stay untouched.
+          </p>
+          <div style={{ display: 'grid', gap: 9 }}>
+            {questionRepairIssues.map((issue) => (
+              <div key={issue.questionIndex} style={{ padding: 11, border: '1px solid #ead1ce', borderRadius: 8, background: '#fff' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                  <div style={{ flex: '1 1 420px', minWidth: 0 }}>
+                    <strong>Question {issue.questionNumber}</strong>
+                    <div style={{ marginTop: 4, color: '#3c4043', fontSize: 12.5, lineHeight: 1.45 }}>
+                      {String(issue.question?.prompt || issue.question?.scenario || issue.question?.title || '').replace(/\s+/g, ' ').slice(0, 180) || 'Question content'}
+                    </div>
+                    <ul style={{ margin: '7px 0 0', paddingLeft: 18, color: '#a50e0e', fontSize: 12, lineHeight: 1.45 }}>
+                      {issue.errors.map((message) => <li key={message}>{message}</li>)}
+                    </ul>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => beginQuestionRepair(issue.questionIndex)}
+                    style={{ minHeight: 40, padding: '8px 12px', border: '1px solid #1a73e8', borderRadius: 7, background: '#fff', color: '#174ea6', fontWeight: 800 }}
+                  >
+                    Repair with AI
+                  </button>
+                </div>
+                {repairTargetIndex === issue.questionIndex && (
+                  <div style={{ marginTop: 11, paddingTop: 11, borderTop: '1px solid #eee' }}>
+                    <label style={{ display: 'block', fontWeight: 800, fontSize: 12.5 }}>
+                      Anything else you want the AI to know? <span style={{ fontWeight: 500, color: '#5f6368' }}>(optional)</span>
+                      <textarea
+                        value={repairInstruction}
+                        onChange={(event) => setRepairInstruction(event.target.value)}
+                        placeholder="Example: Keep the graph and same TEKS. The issue is only that an equivalent answer is being rejected."
+                        style={{ display: 'block', width: '100%', minHeight: 82, boxSizing: 'border-box', marginTop: 6, padding: 10, border: '1px solid #bdc7d6', borderRadius: 7, fontFamily: 'inherit', fontSize: 14 }}
+                      />
+                    </label>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 9, flexWrap: 'wrap' }}>
+                      <button type="button" onClick={copyQuestionRepairRequest} disabled={repairBusy} style={{ minHeight: 40, padding: '8px 12px', border: 0, borderRadius: 7, background: '#1a73e8', color: '#fff', fontWeight: 800 }}>
+                        Copy AI Repair Request
+                      </button>
+                      <button type="button" onClick={pasteQuestionRepairReplacement} disabled={repairBusy} style={{ minHeight: 40, padding: '8px 12px', border: 0, borderRadius: 7, background: '#188038', color: '#fff', fontWeight: 800 }}>
+                        {repairBusy ? 'Checking…' : 'Paste AI Replacement'}
+                      </button>
+                      <button type="button" onClick={() => { setRepairTargetIndex(null); setRepairInstruction(''); setRepairMessage(''); }} disabled={repairBusy} style={{ minHeight: 40, padding: '8px 12px', border: '1px solid #cbd1da', borderRadius: 7, background: '#fff', fontWeight: 800 }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {repairMessage && (
+        <div role="status" style={{ marginBottom: 14, padding: '10px 12px', border: '1px solid #c6d8f1', borderRadius: 8, background: '#f8fbff', color: '#3c4043', fontSize: 12.5, lineHeight: 1.45 }}>
+          {repairMessage}
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10, marginBottom: 18 }}>
         {activities.map((activity) => (
