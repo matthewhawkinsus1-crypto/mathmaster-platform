@@ -21,6 +21,7 @@ on:
       - 'src/components/teacher/SectionBalanceRigorAudit.jsx'
       - 'src/platform/preflight/**'
       - 'src/platform/interaction/**'
+      - 'src/platform/grading/**'
       - 'src/MathInput.jsx'
       - 'src/components/student/PathResponseFields.jsx'
       - 'functions/lib/mathPath.js'
