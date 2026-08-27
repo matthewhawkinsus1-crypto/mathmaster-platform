@@ -4,6 +4,7 @@ import { validateAlignments, auditAlignmentSpecificity } from '../contract/align
 import { toEnforcedActivityPolicy } from '../policies/activityPolicies.js';
 import { validateAssignmentInteractionContracts } from '../interaction/interactionContract.js';
 import { auditAssignmentWorksheetPrintability } from './worksheetPrintPreflight.js';
+import { auditAssignmentSupportDifferentiation } from './supportDifferentiationPreflight.js';
 
 const clean = (value) => String(value ?? '').trim();
 
@@ -43,8 +44,21 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   const semantic = validateQuestionsSemantics(questions);
   const interaction = validateAssignmentInteractionContracts(questions);
   const worksheetPrint = auditAssignmentWorksheetPrintability({ ...source, sections }, questions);
-  const errors = [...structural.errors, ...semantic.errors, ...interaction.errors, ...worksheetPrint.errors];
-  const warnings = [...structural.warnings, ...semantic.warnings, ...interaction.warnings, ...worksheetPrint.warnings];
+  const supportDifferentiation = auditAssignmentSupportDifferentiation({ ...source, sections }, questions);
+  const errors = [
+    ...structural.errors,
+    ...semantic.errors,
+    ...interaction.errors,
+    ...worksheetPrint.errors,
+    ...supportDifferentiation.errors,
+  ];
+  const warnings = [
+    ...structural.warnings,
+    ...semantic.warnings,
+    ...interaction.warnings,
+    ...worksheetPrint.warnings,
+    ...supportDifferentiation.warnings,
+  ];
 
   questions.forEach((question, index) => {
     const alignment = validateAlignments(question, { label: `Question ${index + 1}` });
