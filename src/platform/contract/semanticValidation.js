@@ -3,6 +3,7 @@ import { inequalityMatchesIntervals } from '../../tools/intervalNumberLine/inter
 import { readComposedQuestion, validateGrading, validateWorkflow } from '../workflow/questionWorkflow.js';
 import { auditStaticGraphViewport } from '../../graphSpecUtils.js';
 import { validateQuestionInteractionContracts } from '../interaction/interactionContract.js';
+import { validateQuestionGradingContracts } from '../grading/gradingContract.js';
 
 // Recognising a type name is not validation. `{ type: 'graphAnalysis', prompt:
 // 'A graph falls from left to right until x = 2' }` used to pass because
@@ -284,6 +285,10 @@ export const validateQuestionSemantics = (question = {}, { label = 'Question' } 
   const interactionAudit = validateQuestionInteractionContracts(question, { label });
   errors.push(...interactionAudit.errors);
   warnings.push(...interactionAudit.warnings);
+
+  const gradingAudit = validateQuestionGradingContracts(question, { label });
+  errors.push(...gradingAudit.errors);
+  warnings.push(...gradingAudit.warnings);
 
   // A composed question's workflow. An unknown stage kind would otherwise
   // render as nothing at all, and a stage reading from a later one would grade
