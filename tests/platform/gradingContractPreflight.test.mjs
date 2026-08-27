@@ -80,7 +80,7 @@ test('generic response fields require a grading key instead of pretending autoGr
   const missing = validateQuestionGradingContracts({
     responseFields: [{ id: 'why', label: 'Explain your reasoning', inputProfile: 'text' }],
   });
-  assert.ok(missing.errors.some((message) => /has no grading key/.test(message)));
+  assert.ok(missing.errors.some((message) => /no runtime-usable grading key/.test(message)));
 
   const fakeManual = validateQuestionGradingContracts({
     responseFields: [{
@@ -90,7 +90,7 @@ test('generic response fields require a grading key instead of pretending autoGr
       autoGrade: false,
     }],
   });
-  assert.ok(fakeManual.errors.some((message) => /has no grading key/.test(message)));
+  assert.ok(fakeManual.errors.some((message) => /no runtime-usable grading key/.test(message)));
 });
 
 test('accepted list cannot override expected in secure response fields', () => {
