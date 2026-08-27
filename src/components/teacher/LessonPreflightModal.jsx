@@ -132,6 +132,7 @@ export const LessonPreflightModal = ({
   onConfirmPublish,
   busy = false,
   reviewMode = 'create',
+  allowQuestionRepair = true,
 }) => {
   const isNarrow = useIsNarrow();
   const [draft, setDraft] = useState(() => initialReviewDraft(initialDraft));
@@ -250,6 +251,10 @@ export const LessonPreflightModal = ({
   );
 
   const beginQuestionRepair = (questionIndex) => {
+    if (!allowQuestionRepair) {
+      setRepairMessage('Student records already exist for this assignment. Duplicate the assignment before rewriting question content so historical responses stay attached to what students actually saw.');
+      return;
+    }
     setRepairTargetIndex(questionIndex);
     setRepairInstruction('');
     setRepairMessage('');
@@ -269,6 +274,7 @@ export const LessonPreflightModal = ({
   };
 
   const copyQuestionRepairRequest = async () => {
+    if (!allowQuestionRepair) return;
     const issue = repairIssueForIndex(repairTargetIndex);
     if (!issue?.question) return;
     try {
@@ -289,6 +295,7 @@ export const LessonPreflightModal = ({
   };
 
   const pasteQuestionRepairReplacement = async () => {
+    if (!allowQuestionRepair) return;
     const issue = repairIssueForIndex(repairTargetIndex);
     if (!issue?.question) return;
     setRepairBusy(true);
@@ -837,6 +844,11 @@ export const LessonPreflightModal = ({
           <p style={{ margin: '5px 0 11px', color: '#5f6368', fontSize: 12.5, lineHeight: 1.5 }}>
             Each button builds a repair request for only that question. Other assignment blockers stay untouched.
           </p>
+          {!allowQuestionRepair && (
+            <div style={{ margin: '0 0 11px', padding: '9px 10px', borderRadius: 8, background: '#fef7e0', border: '1px solid #f0d489', color: '#7a4f00', fontSize: 12.5, lineHeight: 1.5 }}>
+              Student records already exist, so question content is locked to preserve historical evidence. Duplicate the assignment to repair or rewrite its questions.
+            </div>
+          )}
           <div style={{ display: 'grid', gap: 9 }}>
             {questionRepairIssues.map((issue) => (
               <div key={issue.questionIndex} style={{ padding: 11, border: '1px solid #ead1ce', borderRadius: 8, background: '#fff' }}>
@@ -853,7 +865,9 @@ export const LessonPreflightModal = ({
                   <button
                     type="button"
                     onClick={() => beginQuestionRepair(issue.questionIndex)}
-                    style={{ minHeight: 40, padding: '8px 12px', border: '1px solid #1a73e8', borderRadius: 7, background: '#fff', color: '#174ea6', fontWeight: 800 }}
+                    disabled={!allowQuestionRepair}
+                    title={!allowQuestionRepair ? 'Duplicate the assignment before rewriting question content because student records already exist.' : 'Build a targeted AI repair request for this question.'}
+                    style={{ minHeight: 40, padding: '8px 12px', border: '1px solid #1a73e8', borderRadius: 7, background: '#fff', color: allowQuestionRepair ? '#174ea6' : '#9aa0a6', fontWeight: 800, cursor: allowQuestionRepair ? 'pointer' : 'not-allowed' }}
                   >
                     Repair with AI
                   </button>
