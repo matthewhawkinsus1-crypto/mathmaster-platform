@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   buildAssignmentWorksheetModel,
   printableQuestionFromResolved,
+  PRINT_OUTPUT_MODES,
   worksheetFileName,
 } from '../../src/platform/resources/assignmentWorksheetPdfModel.js';
 
@@ -74,6 +75,71 @@ test('worksheet model contains only entries the runtime declared printable and n
   assert.deepEqual(model.sections[0].questions.map((q) => q.number), [1]);
   assert.deepEqual(model.sections[1].questions.map((q) => q.number), [1, 2]);
   assert.deepEqual(model.sections[1].questions.map((q) => q.sourceIndex), [2, 3]);
+});
+
+
+test('teacher and answer-key models reveal only resolved answer data when explicitly requested', () => {
+  const entry = {
+    sourceIndex: 0,
+    sectionRole: 'practice',
+    sectionLabel: 'Practice',
+    question: {
+      prompt: 'Solve 2x + 3 = 11.',
+      type: 'algebra',
+      expected: '4',
+      solution: ['Subtract 3 from both sides.', 'Divide both sides by 2.'],
+      generator: { solutionRange: [4, 4] },
+      teacherNotes: 'private planning note',
+    },
+  };
+
+  const studentModel = buildAssignmentWorksheetModel({
+    assignment: { id: 'a', title: 'Modes' },
+    entries: [entry],
+    outputMode: PRINT_OUTPUT_MODES.STUDENT,
+  });
+  const teacherModel = buildAssignmentWorksheetModel({
+    assignment: { id: 'a', title: 'Modes' },
+    entries: [entry],
+    outputMode: PRINT_OUTPUT_MODES.TEACHER,
+  });
+  const keyModel = buildAssignmentWorksheetModel({
+    assignment: { id: 'a', title: 'Modes' },
+    entries: [entry],
+    outputMode: PRINT_OUTPUT_MODES.ANSWER_KEY,
+  });
+
+  const studentQuestion = studentModel.sections[0].questions[0];
+  const teacherQuestion = teacherModel.sections[0].questions[0];
+  const keyQuestion = keyModel.sections[0].questions[0];
+
+  assert.equal('answerLines' in studentQuestion, false);
+  assert.equal('solutionLines' in studentQuestion, false);
+  assert.deepEqual(teacherQuestion.answerLines, ['Answer: 4']);
+  assert.deepEqual(teacherQuestion.solutionLines, ['Subtract 3 from both sides.', 'Divide both sides by 2.']);
+  assert.deepEqual(keyQuestion.answerLines, ['Answer: 4']);
+  assert.equal('solutionLines' in keyQuestion, false);
+  assert.equal(JSON.stringify(teacherModel).includes('private planning note'), false);
+  assert.equal(JSON.stringify(keyModel).includes('solutionRange'), false);
+});
+
+test('teacher and answer-key filenames identify both output type and personalized version', () => {
+  assert.equal(
+    worksheetFileName({
+      assignmentTitle: 'Function Practice',
+      studentName: 'A. Student',
+      outputMode: PRINT_OUTPUT_MODES.TEACHER,
+    }),
+    'Function_Practice-Teacher_Copy-A_Student.pdf',
+  );
+  assert.equal(
+    worksheetFileName({
+      assignmentTitle: 'Function Practice',
+      studentName: 'A. Student',
+      outputMode: PRINT_OUTPUT_MODES.ANSWER_KEY,
+    }),
+    'Function_Practice-Answer_Key-A_Student.pdf',
+  );
 });
 
 test('worksheet file name is safe and student-specific without exposing IDs', () => {
