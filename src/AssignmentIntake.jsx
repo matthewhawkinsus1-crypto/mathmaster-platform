@@ -366,7 +366,7 @@ export default function AssignmentIntake({
               <div style={{ fontWeight: 900, color: '#172033', fontSize: 14, marginBottom: 8 }}>2. Sections, student versions, and rigor</div>
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'minmax(220px, 340px) 1fr',
+                gridTemplateColumns: 'repeat(auto-fit,minmax(230px,1fr))',
                 gap: 10,
                 alignItems: 'end',
                 marginBottom: 10,
