@@ -9,7 +9,7 @@ test('assignment menu exposes one no-code setup editor', () => {
   assert.match(app, /Review \/ Edit Setup/);
   assert.match(app, /beginEditAssignmentSetup\(assignment\)/);
   assert.match(app, /storedAssignmentToV5\(assignment\)/);
-  assert.match(app, /mode: 'update', existingAssignmentId: assignment\.id/);
+  assert.match(app, /mode:\s*'update'[\s\S]{0,220}existingAssignmentId:\s*assignment\.id/);
 });
 
 test('existing setup review reuses the same reviewed Assignment V5 model internally', () => {
@@ -61,7 +61,7 @@ test('existing student evidence blocks historical policy or audience rewrites', 
   assert.match(app, /'gradingPolicy'/);
   assert.match(app, /'evidencePolicy'/);
   assert.match(app, /To preserve historical evidence/);
-  assert.match(app, /Duplicate the assignment for a new delivery policy instead/);
+  assert.match(app, /Duplicate the assignment for a new delivery policy or question rewrite instead/);
 });
 
 test('safe existing updates preserve Classroom due-date synchronization', () => {
