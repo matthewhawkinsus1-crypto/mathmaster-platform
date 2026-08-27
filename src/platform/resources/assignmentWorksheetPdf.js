@@ -2,7 +2,7 @@ import html2canvas from 'html2canvas';
 import { convertLatexToMarkup } from 'mathlive';
 import 'mathlive/static.css';
 import { isMathSegment, splitMathSegments, unwrapMathSegment } from '../../components/common/mathSegments.js';
-import { worksheetFileName } from './assignmentWorksheetPdfModel.js';
+import { PRINT_OUTPUT_MODES, worksheetFileName } from './assignmentWorksheetPdfModel.js';
 
 const PAGE_WIDTH = 816;
 const PAGE_HEIGHT = 1056;
@@ -64,7 +64,8 @@ const linedWorkspace = (height = 118) => {
   return box;
 };
 
-const questionNode = (question) => {
+const questionNode = (question, outputMode = PRINT_OUTPUT_MODES.STUDENT) => {
+  question = { ...question, outputMode };
   const card = el('article', {
     border: '1px solid #d7dce2', borderRadius: '10px', padding: '14px 16px', margin: '0 0 14px',
     breakInside: 'avoid', background: '#fff', color: '#202124', boxSizing: 'border-box',
@@ -101,9 +102,32 @@ const questionNode = (question) => {
     card.appendChild(choices);
   }
 
-  const type = String(question.type || '').toLowerCase();
-  if (type.includes('graph') || type.includes('coordinate') || type.includes('numberline')) card.appendChild(graphWorkspace());
-  else card.appendChild(linedWorkspace(type.includes('step') || type.includes('system') || type.includes('literal') ? 150 : 108));
+  const answerLines = Array.isArray(question.answerLines) ? question.answerLines.filter(Boolean) : [];
+  const solutionLines = Array.isArray(question.solutionLines) ? question.solutionLines.filter(Boolean) : [];
+  if (answerLines.length) {
+    const answerBox = el('div', {
+      marginTop: '12px', padding: '10px 12px', border: '1px solid #81c995', borderRadius: '8px',
+      background: '#e6f4ea', color: '#137333',
+    });
+    answerBox.appendChild(el('div', { fontWeight: '900', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '5px' }, 'Answer'));
+    answerLines.forEach((line) => appendRichText(answerBox, line, { size: 13, weight: 700 }));
+    card.appendChild(answerBox);
+  }
+  if (solutionLines.length) {
+    const solutionBox = el('div', {
+      marginTop: '9px', padding: '10px 12px', border: '1px solid #c5d5ef', borderRadius: '8px',
+      background: '#f8fbff', color: '#3c4043',
+    });
+    solutionBox.appendChild(el('div', { fontWeight: '900', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '5px', color: '#174ea6' }, 'Solution / explanation'));
+    solutionLines.forEach((line, index) => appendRichText(solutionBox, `${index + 1}. ${line}`, { size: 12, weight: 500 }));
+    card.appendChild(solutionBox);
+  }
+
+  if (question.outputMode !== PRINT_OUTPUT_MODES.ANSWER_KEY) {
+    const type = String(question.type || '').toLowerCase();
+    if (type.includes('graph') || type.includes('coordinate') || type.includes('numberline')) card.appendChild(graphWorkspace());
+    else card.appendChild(linedWorkspace(type.includes('step') || type.includes('system') || type.includes('literal') ? 150 : 108));
+  }
   return card;
 };
 
@@ -115,21 +139,28 @@ const pageNode = ({ model, firstPage }) => {
   });
   const content = el('div', { width: `${CONTENT_WIDTH}px` });
   if (firstPage) {
-    content.appendChild(el('div', { fontSize: '11px', fontWeight: '800', color: '#5f6368', letterSpacing: '.09em', textTransform: 'uppercase' }, 'MathMaster Printable Assignment'));
+    content.appendChild(el('div', { fontSize: '11px', fontWeight: '800', color: '#5f6368', letterSpacing: '.09em', textTransform: 'uppercase' }, `MathMaster ${model.documentLabel || 'Printable Assignment'}`));
     content.appendChild(el('h1', { fontSize: '26px', margin: '5px 0 8px', lineHeight: '1.15' }, model.title));
     const meta = el('div', { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 18px', fontSize: '12.5px', color: '#3c4043', paddingBottom: '12px', marginBottom: '14px', borderBottom: '2px solid #1a73e8' });
-    meta.appendChild(el('div', {}, `Student: ${model.studentName || '____________________________'}`));
-    meta.appendChild(el('div', {}, `Class: ${model.classPeriod || '________________'}`));
+    if (model.outputMode === PRINT_OUTPUT_MODES.STUDENT) {
+      meta.appendChild(el('div', {}, `Student: ${model.studentName || '____________________________'}`));
+      meta.appendChild(el('div', {}, `Class: ${model.classPeriod || '________________'}`));
+    } else {
+      meta.appendChild(el('div', {}, `Version: ${model.studentName || 'Shared assignment version'}`));
+      meta.appendChild(el('div', {}, model.outputMode === PRINT_OUTPUT_MODES.ANSWER_KEY ? 'Teacher use only · compact answer key' : 'Teacher use only · answers and available solutions included'));
+    }
     if (model.dueAt) {
       const date = new Date(model.dueAt);
       meta.appendChild(el('div', {}, `Due: ${Number.isNaN(date.getTime()) ? String(model.dueAt) : date.toLocaleString()}`));
     }
-    meta.appendChild(el('div', {}, 'Show your work. Submit answers in MathMaster unless your teacher says otherwise.'));
+    if (model.outputMode === PRINT_OUTPUT_MODES.STUDENT) {
+      meta.appendChild(el('div', {}, 'Show your work. Submit answers in MathMaster unless your teacher says otherwise.'));
+    }
     content.appendChild(meta);
   } else {
     const carry = el('div', { display: 'flex', justifyContent: 'space-between', gap: '12px', fontSize: '11px', color: '#5f6368', paddingBottom: '8px', marginBottom: '12px', borderBottom: '1px solid #d7dce2' });
     carry.appendChild(el('span', {}, model.title));
-    carry.appendChild(el('span', {}, model.studentName || 'Student'));
+    carry.appendChild(el('span', {}, model.outputMode === PRINT_OUTPUT_MODES.STUDENT ? (model.studentName || 'Student') : (model.documentLabel || 'Teacher Copy')));
     content.appendChild(carry);
   }
   page.appendChild(content);
@@ -138,7 +169,7 @@ const pageNode = ({ model, firstPage }) => {
     display: 'flex', justifyContent: 'space-between', color: '#80868b', fontSize: '10px', borderTop: '1px solid #e8eaed', paddingTop: '6px',
   });
   footer.dataset.worksheetFooter = 'true';
-  footer.appendChild(el('span', {}, 'MathMaster • Printable Assignment'));
+  footer.appendChild(el('span', {}, `MathMaster • ${model.documentLabel || 'Printable Assignment'}`));
   footer.appendChild(el('span', {}, 'Page'));
   page.appendChild(footer);
   return { page, content };
@@ -173,7 +204,7 @@ const buildPages = async (model) => {
       }
 
       for (const question of section.questions || []) {
-        const node = questionNode(question);
+        const node = questionNode(question, model.outputMode);
         current.content.appendChild(node);
         await waitForPaint();
         const overflow = current.content.getBoundingClientRect().bottom > current.page.getBoundingClientRect().top + CONTENT_BOTTOM;
@@ -274,7 +305,7 @@ export const downloadAssignmentWorksheetPdf = async ({ model } = {}) => {
   const url = URL.createObjectURL(result.blob);
   const anchor = document.createElement('a');
   anchor.href = url;
-  anchor.download = worksheetFileName({ assignmentTitle: model?.title, studentName: model?.studentName });
+  anchor.download = worksheetFileName({ assignmentTitle: model?.title, studentName: model?.studentName, outputMode: model?.outputMode });
   anchor.style.display = 'none';
   document.body.appendChild(anchor);
   anchor.click();
