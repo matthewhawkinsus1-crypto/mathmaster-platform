@@ -148,7 +148,7 @@ const auditBandProfiles = ({
 
     if (assignmentRanges.difficultyBand && (band < assignmentRanges.difficultyBand[0] || band > assignmentRanges.difficultyBand[1])) {
       errors.push(
-        `${profileLabel} sits outside differentiationPolicy.allowedRange.difficultyBand [${assignmentRanges.difficultyBand.join(', ')}].`,
+        `${profileLabel} (Band ${band}) sits outside differentiationPolicy.allowedRange.difficultyBand [${assignmentRanges.difficultyBand.join(', ')}].`,
       );
     }
     if (assignmentRanges.dok && dok != null && (dok < assignmentRanges.dok[0] || dok > assignmentRanges.dok[1])) {
@@ -160,7 +160,7 @@ const auditBandProfiles = ({
     if (policy.enabled) {
       if (band < policy.difficultyRange[0] || band > policy.difficultyRange[1]) {
         errors.push(
-          `${profileLabel} sits outside the live ${role} adaptation envelope [${policy.difficultyRange.join(', ')}] around assigned Band ${policy.assignedBand}.`,
+          `${profileLabel} (Band ${band}) sits outside the live ${role} adaptation envelope [${policy.difficultyRange.join(', ')}] around assigned Band ${policy.assignedBand}.`,
         );
       }
       if (dok != null && (dok < policy.dokRange[0] || dok > policy.dokRange[1])) {
