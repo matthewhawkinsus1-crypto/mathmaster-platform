@@ -3,6 +3,7 @@ import { convertLatexToMarkup } from 'mathlive';
 import 'mathlive/static.css';
 import { isMathSegment, splitMathSegments, unwrapMathSegment } from '../../components/common/mathSegments.js';
 import { PRINT_OUTPUT_MODES, worksheetFileName } from './assignmentWorksheetPdfModel.js';
+import { renderWorksheetVisual } from './assignmentWorksheetVisuals.js';
 
 const PAGE_WIDTH = 816;
 const PAGE_HEIGHT = 1056;
@@ -86,6 +87,20 @@ const questionNode = (question, outputMode = PRINT_OUTPUT_MODES.STUDENT) => {
   }
   appendRichText(card, question.prompt || 'Complete this question.', { size: 16, weight: 650 });
 
+  const givens = Array.isArray(question.givens) ? question.givens.filter(Boolean) : [];
+  if (givens.length) {
+    const givenBox = el('div', {
+      marginTop: '10px', padding: '9px 11px', border: '1px solid #d7dce2', borderRadius: '8px',
+      background: '#fbfcfe',
+    });
+    givenBox.appendChild(el('div', {
+      fontSize: '10.5px', fontWeight: '900', color: '#5f6368',
+      textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: '4px',
+    }, 'Given'));
+    givens.forEach((line) => appendRichText(givenBox, line, { size: 13, weight: 600 }));
+    card.appendChild(givenBox);
+  }
+
   if (question.choices?.length) {
     const choices = el('div', { display: 'grid', gap: '7px', marginTop: '11px' });
     question.choices.forEach((choice) => {
@@ -101,6 +116,12 @@ const questionNode = (question, outputMode = PRINT_OUTPUT_MODES.STUDENT) => {
     });
     card.appendChild(choices);
   }
+
+  const visuals = Array.isArray(question.visuals) ? question.visuals : [];
+  visuals.forEach((visual) => {
+    const node = renderWorksheetVisual(visual);
+    if (node) card.appendChild(node);
+  });
 
   const answerLines = Array.isArray(question.answerLines) ? question.answerLines.filter(Boolean) : [];
   const solutionLines = Array.isArray(question.solutionLines) ? question.solutionLines.filter(Boolean) : [];
@@ -125,8 +146,17 @@ const questionNode = (question, outputMode = PRINT_OUTPUT_MODES.STUDENT) => {
 
   if (question.outputMode !== PRINT_OUTPUT_MODES.ANSWER_KEY) {
     const type = String(question.type || '').toLowerCase();
-    if (type.includes('graph') || type.includes('coordinate') || type.includes('numberline')) card.appendChild(graphWorkspace());
-    else card.appendChild(linedWorkspace(type.includes('step') || type.includes('system') || type.includes('literal') ? 150 : 108));
+    const visualKinds = new Set(visuals.map((visual) => visual?.kind).filter(Boolean));
+    const hasConstructionWorkspace = ['blankGraph', 'numberLine', 'mapping'].some((kind) => visualKinds.has(kind));
+    const tableCarriesResponseSpace = visualKinds.has('table');
+    if (!hasConstructionWorkspace && !tableCarriesResponseSpace) {
+      const height = type.includes('step') || type.includes('system') || type.includes('literal')
+        ? 150
+        : visualKinds.has('graph') || visualKinds.has('graphChoices') ? 92 : 108;
+      card.appendChild(linedWorkspace(height));
+    } else if (type === 'multianswer' || type === 'relationshipmodel' || type === 'relationmapping') {
+      card.appendChild(linedWorkspace(72));
+    }
   }
   return card;
 };
@@ -214,6 +244,12 @@ const buildPages = async (model) => {
           current.content.appendChild(el('h2', { fontSize: '17px', color: '#174ea6', margin: '10px 0 9px', lineHeight: '1.2' }, `${section.label} · continued`));
           current.content.appendChild(node);
           await waitForPaint();
+          const stillOverflows = current.content.getBoundingClientRect().bottom > current.page.getBoundingClientRect().top + CONTENT_BOTTOM;
+          if (stillOverflows) {
+            throw new Error(
+              `Question ${question.number || '?'} in "${section.label}" is taller than one printable page. Shorten the prompt/solution or reduce the visual/table size before exporting.`,
+            );
+          }
         }
       }
     }
