@@ -112,7 +112,7 @@ import {
   isLibraryAssignment, resolveAssignmentDates, resolveCreationMode,
 } from './assignmentDestinations';
 import LessonPreflightModal from './components/teacher/LessonPreflightModal';
-import { rebuildV5SectionsFromQuestions } from './platform/contract/assignmentSchemaV5.js';
+import { flattenV5Sections, rebuildV5SectionsFromQuestions } from './platform/contract/assignmentSchemaV5.js';
 import { normalizeLabDefinition } from './platform/labs/labDefinitionSchema.js';
 import { normalizeContextualQuestion } from './platform/context/wordProblemLayer';
 import { buildAttemptEvidenceEvent } from './platform/history/evidenceEvent.js';
@@ -2613,13 +2613,22 @@ function App() {
     return null;
   };
 
-  const handleCreateAssignment = async (event, overrideVariantMode, teacherReview = null) => {
+  const handleCreateAssignment = async (event, overrideVariantMode, teacherReview = null, reviewedAssignmentV5 = null) => {
     if (event?.preventDefault) event.preventDefault();
 
     try {
       const parsed = parseAssignmentBlueprintText(newAssignmentJSON);
+      const reviewedV5 = reviewedAssignmentV5 && Number(reviewedAssignmentV5.schemaVersion) === 5
+        ? reviewedAssignmentV5
+        : parsed.bundleSource;
+      if (!reviewedV5 || Number(reviewedV5.schemaVersion) !== 5) {
+        throw new Error('Publishing requires the canonical Assignment V5 object that was reviewed in Preflight.');
+      }
+      // Preflight can change delivery/output policy. Questions and sections must
+      // therefore come from the reviewed V5 object, not from the original paste.
+      const reviewedQuestions = flattenV5Sections(reviewedV5);
       const packageMetadata = parsed.isPackage
-        ? normalizeAssignmentPackageMetadata(parsed.assignment, parsed.questions)
+        ? normalizeAssignmentPackageMetadata(parsed.assignment, reviewedQuestions)
         : null;
 
       const title = String(teacherReview?.title ?? packageMetadata?.title ?? '').trim();
@@ -2660,7 +2669,7 @@ function App() {
       });
 
       const parsedQuestions = normalizeAssignmentQuestions(
-        validateAssignmentQuestions(parsed.questions, { variantMode }),
+        validateAssignmentQuestions(reviewedQuestions, { variantMode }),
       );
       const authoredRoles = parsedQuestions.map((question) => resolveQuestionActivityRole({
         question,
@@ -2744,8 +2753,8 @@ function App() {
       dolEnabled = Boolean(dolEnabled && Number.isInteger(dolQuestionIndex));
 
       const folder = teacherReview
-        ? normalizeFolderPath(teacherReview.folder) || null
-        : normalizeFolderPath(packageMetadata?.folder) || null;
+        ? normalizeFolderPath(teacherReview.folder ?? reviewedV5.assignment?.folder) || null
+        : normalizeFolderPath(reviewedV5.assignment?.folder ?? packageMetadata?.folder) || null;
       const completionRule = packageMetadata?.provided?.completionRule
         ? packageMetadata.completionRule
         : assignmentType === 'notesClasswork'
@@ -2808,24 +2817,23 @@ function App() {
         } : null,
         classroomPackage: teacherReview?.classroomPackage || packageMetadata?.classroomPackage || null,
         lessonResources: teacherReview?.lessonResources || packageMetadata?.lessonResources || null,
-        instructionalPurpose: teacherReview?.instructionalPurpose || packageMetadata?.instructionalPurpose || 'lesson',
-        gradingPurpose: teacherReview?.gradingPurpose || packageMetadata?.gradingPurpose || null,
+        instructionalPurpose: reviewedV5.assignment?.instructionalPurpose || teacherReview?.instructionalPurpose || packageMetadata?.instructionalPurpose || 'lesson',
+        gradingPurpose: reviewedV5.assignment?.gradingPurpose ?? teacherReview?.gradingPurpose ?? packageMetadata?.gradingPurpose ?? null,
         variantPolicy: {
-          ...(packageMetadata?.variantPolicy || {}),
-          ...(teacherReview?.variantPolicy || {}),
+          ...(reviewedV5.variantPolicy || {}),
           mode: variantMode,
           sectionModes: sectionVariantModes,
         },
-        differentiationPolicy: teacherReview?.differentiationPolicy || packageMetadata?.differentiationPolicy || null,
-        supportPolicy: teacherReview?.supportPolicy || packageMetadata?.supportPolicy || null,
-        toolPolicy: teacherReview?.toolPolicy || packageMetadata?.toolPolicy || null,
-        deliveryPolicy: teacherReview?.deliveryPolicy || packageMetadata?.deliveryPolicy || null,
-        gradingPolicy: teacherReview?.gradingPolicy || packageMetadata?.gradingPolicy || null,
-        evidencePolicy: teacherReview?.evidencePolicy || packageMetadata?.evidencePolicy || null,
-        outputProfiles: teacherReview?.outputProfiles || packageMetadata?.outputProfiles || null,
-        classroomIntegration: teacherReview?.classroomIntegration || packageMetadata?.classroomIntegration || null,
-        provenance: teacherReview?.provenance || packageMetadata?.provenance || null,
-        preflight: teacherReview?.preflight || packageMetadata?.preflight || { required: true },
+        differentiationPolicy: reviewedV5.differentiationPolicy || teacherReview?.differentiationPolicy || packageMetadata?.differentiationPolicy || null,
+        supportPolicy: reviewedV5.supportPolicy || teacherReview?.supportPolicy || packageMetadata?.supportPolicy || null,
+        toolPolicy: reviewedV5.toolPolicy || teacherReview?.toolPolicy || packageMetadata?.toolPolicy || null,
+        deliveryPolicy: reviewedV5.deliveryPolicy || teacherReview?.deliveryPolicy || packageMetadata?.deliveryPolicy || null,
+        gradingPolicy: reviewedV5.gradingPolicy || teacherReview?.gradingPolicy || packageMetadata?.gradingPolicy || null,
+        evidencePolicy: reviewedV5.evidencePolicy || teacherReview?.evidencePolicy || packageMetadata?.evidencePolicy || null,
+        outputProfiles: reviewedV5.outputProfiles || teacherReview?.outputProfiles || packageMetadata?.outputProfiles || null,
+        classroomIntegration: reviewedV5.classroomIntegration || teacherReview?.classroomIntegration || packageMetadata?.classroomIntegration || null,
+        provenance: reviewedV5.provenance || teacherReview?.provenance || packageMetadata?.provenance || null,
+        preflight: reviewedV5.preflight || teacherReview?.preflight || packageMetadata?.preflight || { required: true },
         createdAt: new Date(),
       };
 
@@ -2833,8 +2841,8 @@ function App() {
         await saveAssignmentFolderPaths([...assignmentFolderPaths, folder]);
       }
 
-      const bundleLabs = parsed.isBundle
-        ? (parsed.bundleSource?.sections || []).flatMap((section) => (
+      const bundleLabs = reviewedV5
+        ? (reviewedV5.sections || []).flatMap((section) => (
             (section?.questions || [])
               .filter((question) => question?.type === 'modelingLab' && question?.labDefinition)
               .map((question) => ({
@@ -2893,7 +2901,7 @@ function App() {
           ...assignmentPayloadBase,
           assignedClassPeriods: destination.periods,
           assignedClassIds: destination.classIds || [],
-          sections: rebuildV5SectionsFromQuestions(parsed.bundleSource, variantQuestions),
+          sections: rebuildV5SectionsFromQuestions(reviewedV5, variantQuestions),
           // Temporary runtime projection. New authoring and persistence logic
           // treats sections[] as canonical; mature renderers still read questions.
           questions: variantQuestions,
@@ -3030,10 +3038,10 @@ function App() {
     }
   };
 
-  const confirmAssignmentPreflight = async ({ draft }) => {
+  const confirmAssignmentPreflight = async ({ draft, assignmentV5 }) => {
     setAssignmentPreflightBusy(true);
     try {
-      await handleCreateAssignment(null, null, draft);
+      await handleCreateAssignment(null, null, draft, assignmentV5);
     } finally {
       setAssignmentPreflightBusy(false);
     }
