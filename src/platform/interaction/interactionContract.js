@@ -239,7 +239,8 @@ const validateField = (field = {}, label) => {
   });
 
   if (profile && isTextProfile(profile) && semanticProfile && semanticProfile !== 'text') {
-    errors.push(`${label} expects mathematical notation but uses inputProfile "text". Use ${semanticProfile} (or another MathInput profile) so mobile students receive a mathematical keypad.`);
+    const notation = inferredSymbols.length ? ` Required notation: ${inferredSymbols.join(', ')}.` : '';
+    errors.push(`${label} expects mathematical notation but uses inputProfile "text". Use ${semanticProfile} (or another MathInput profile) so mobile students receive a mathematical keypad.${notation}`);
   } else if (profile && profile !== 'text' && !profileCanRepresent(profile, semanticProfile)) {
     errors.push(`${label} uses inputProfile "${profile}" but the response contract is ${semanticProfile}. Align the input profile with the mathematical answer.`);
   }
