@@ -35,6 +35,11 @@ on:
       - 'tests/platform/digitalSatV21AuthoringGate.test.mjs'
       - 'scripts/validate-authoring-v5.mjs'
       - 'scripts/audit-assignment-authoring-boundary.mjs'
+      - 'scripts/audit-legacy-assignment-source.mjs'
+      - 'src/platform/schemas/**'
+      - 'src/platform/validation/**'
+      - 'tests/platform/noLegacyBundleAuthoring.test.mjs'
+      - 'tests/platform/noLegacyQuestionSchema.test.mjs'
       - 'teacher-import-jsons/**'
       - 'content/generated/**'
       - 'SAMPLE_*ASSIGNMENT*.json'
@@ -70,6 +75,9 @@ jobs:
 
       - name: Legacy authoring boundary audit
         run: npm run audit:assignment-authoring-boundary
+
+      - name: Retired assignment source audit
+        run: npm run audit:legacy-assignment-source
 
       - name: PDF and worksheet regressions
         run: >
