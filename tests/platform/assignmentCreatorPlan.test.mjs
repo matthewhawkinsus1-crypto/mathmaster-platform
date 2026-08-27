@@ -14,6 +14,8 @@ assert.equal(defaults.sections.dol.count, 2);
 assert.equal(defaults.sections.quiz.enabled, false);
 assert.equal(defaults.sections.test.enabled, false);
 assert.equal(defaults.sections.practice.mode, 'personalized');
+assert.equal(defaults.outputs.teacherWorksheetPdf, true);
+assert.equal(defaults.outputs.answerKeyPdf, true);
 
 const normalized = normalizeAssignmentCreatorPlan({
   courseId: 'algebra1',
@@ -50,6 +52,8 @@ assert.match(request, /Function Operations/);
 assert.match(request, /Warm-Up: approximately 3 questions/);
 assert.match(request, /Practice: approximately 8 questions; delivery mode personalized/);
 assert.match(request, /Student worksheet PDF: enabled/);
+assert.match(request, /Teacher copy PDF with answers\/available solutions: enabled/);
+assert.match(request, /Compact answer-key PDF: enabled/);
 assert.match(request, /roughly 15%/);
 assert.match(request, /Return exactly one complete MathMaster Assignment V5 JSON object/);
 assert.throws(() => buildAssignmentCreatorRequest({ topic: '' }), /Describe the lesson\/topic/);
