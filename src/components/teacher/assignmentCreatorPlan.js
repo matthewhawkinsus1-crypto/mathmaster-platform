@@ -18,7 +18,7 @@ export const CREATOR_RIGOR_PRESETS = Object.freeze({
   }),
   supportive: Object.freeze({
     label: 'More support, same standard',
-    summary: 'Use friendlier numbers, clearer chunking, and stronger Classwork scaffolds without lowering the assessed standard.',
+    summary: 'Keep the same standard while using friendlier numbers, clearer chunking, and stronger Classwork scaffolds.',
   }),
   challenge: Object.freeze({
     label: 'More challenge / transfer',
