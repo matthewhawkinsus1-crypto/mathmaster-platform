@@ -240,6 +240,123 @@ const graded = (isCorrect, parts = [], detail = '') => ({
 const invalid = (reason) => ({ valid: false, reason });
 const valid = () => ({ valid: true, reason: null });
 
+// --- Inverse reflection experience -------------------------------------------
+//
+// A graph-based inverse question should complete the representation chain:
+// original points -> original graph -> reflection across y=x -> inverse graph
+// -> inverse equation.  The public configuration describes the work but never
+// sends the reflected coordinates or inverse equation.
+//
+// The explicit inverseReflection object is the canonical authoring contract.
+// The inferred branch upgrades the already-live Algebra II family at issue
+// time, so students do not have to wait for a full bank reseed.
+
+const inverseReflectionCue = (part) => {
+  const id = String(part?.id || '').toLowerCase();
+  const language = String((part?.label || '') + ' ' + (part?.prompt || '')).toLowerCase();
+  return id === 'inverse' || /\binverse\s+point\b/.test(language);
+};
+
+const inverseEquationForLinearSpec = (spec = {}) => {
+  const type = String(spec?.type || '');
+  const m = Number(spec?.m ?? spec?.a);
+  const b = Number(spec?.b ?? spec?.k ?? 0);
+  if (!['linear', 'line'].includes(type) || !Number.isFinite(m) || Math.abs(m) <= 1e-12 || !Number.isFinite(b)) return null;
+  return 'f^-1(x)=(x-(' + b + '))/' + m;
+};
+
+const resolveFunctionInvestigationInverseReflection = (question = {}) => {
+  const explicit = isObject(question?.inverseReflection) && question.inverseReflection.enabled !== false
+    ? question.inverseReflection
+    : null;
+  const authoredAnalysis = analysisRequests(question);
+  const cue = authoredAnalysis.find(inverseReflectionCue) || null;
+  const gradablePointTasks = list(question?.pointTasks)
+    .map((task, index) => ({ ...task, id: String(task?.id || ('point-' + (index + 1))) }))
+    .filter((task) => Array.isArray(task?.expected) && task.expected.length === 2);
+
+  const inferred = !explicit
+    && ['linear', 'line'].includes(String(question?.functionSpec?.type || ''))
+    && gradablePointTasks.length >= 2
+    && Boolean(cue);
+
+  if (!explicit && !inferred) return null;
+
+  const requestedIds = list(explicit?.sourceTaskIds).map(String).filter(Boolean);
+  const sourceTasks = (requestedIds.length
+    ? requestedIds.map((id) => gradablePointTasks.find((task) => task.id === id)).filter(Boolean)
+    : gradablePointTasks.slice(0, 2));
+
+  if (sourceTasks.length < 2) return null;
+
+  const requireEquation = explicit?.requireInverseEquation !== false;
+  const expectedEquation = explicit?.expectedEquation
+    ?? (requireEquation ? inverseEquationForLinearSpec(question?.functionSpec) : null);
+  if (requireEquation && !expectedEquation) return null;
+
+  const consumeAnalysisId = String(explicit?.consumeAnalysisId || cue?.id || '').trim() || null;
+  const equationPartId = String(explicit?.equationPartId || 'inverse-equation');
+
+  return {
+    consumeAnalysisId,
+    sourceTasks,
+    expectedEquation,
+    publicConfig: {
+      enabled: true,
+      sourceTaskIds: sourceTasks.map((task) => task.id),
+      showReferenceLine: explicit?.showReferenceLine !== false,
+      requireReflectedPoints: true,
+      requireInverseSketch: explicit?.requireInverseSketch !== false,
+      requireInverseEquation: requireEquation,
+      equationPartId,
+      equationLabel: String(explicit?.equationLabel || 'Write the equation of the inverse function.'),
+      inverseLineLabel: String(explicit?.inverseLineLabel || 'Draw the inverse through both reflected points.'),
+    },
+  };
+};
+
+const expandedFunctionInvestigationAnalysisRequests = (question = {}) => {
+  const inverse = resolveFunctionInvestigationInverseReflection(question);
+  const authored = analysisRequests(question);
+  if (!inverse) return authored;
+
+  const retained = inverse.consumeAnalysisId
+    ? authored.filter((part) => String(part?.id || '') !== inverse.consumeAnalysisId)
+    : authored;
+
+  const reflectedPointParts = inverse.sourceTasks.map((task, index) => ({
+    id: 'inverse-reflect-' + task.id,
+    label: 'Reflect plotted point ' + (index + 1) + ' across $y=x$.',
+    prompt: 'Place the image of plotted point ' + (index + 1) + ' after reflection across $y=x$.',
+    kind: 'inversePoint',
+    sourceTaskId: task.id,
+    responseMode: 'click',
+    expected: [[Number(task.expected[1]), Number(task.expected[0])]],
+  }));
+
+  const equationPart = inverse.publicConfig.requireInverseEquation ? [{
+    id: inverse.publicConfig.equationPartId,
+    label: inverse.publicConfig.equationLabel,
+    kind: 'value',
+    responseMode: 'text',
+    notation: 'equation',
+    expected: [inverse.expectedEquation],
+  }] : [];
+
+  return [...retained, ...reflectedPointParts, ...equationPart];
+};
+
+const enhancedInverseReflectionPrompt = (question = {}, inverse = null) => {
+  const original = String(question?.prompt || '').trim();
+  if (!inverse) return original;
+  if (/reflect\s+both\s+plotted\s+points\s+across/i.test(original)) return original;
+  const replacement = 'Then reflect both plotted points across $y=x$, draw $f^{-1}$ on the same coordinate plane, and write the equation of the inverse.';
+  if (/Then\s+give\s+the\s+inverse\s+point[\s\S]*$/i.test(original)) {
+    return original.replace(/Then\s+give\s+the\s+inverse\s+point[\s\S]*$/i, replacement);
+  }
+  return (original + ' ' + replacement).trim();
+};
+
 // --- The tools ----------------------------------------------------------------
 
 const CONTRACTS = {
@@ -520,41 +637,44 @@ const CONTRACTS = {
   // prevent, so the curve stays a construction aid and the graded parts are the
   // ones with declared expectations.
   functionInvestigation: {
-    serverGradingVersion: 1,
+    serverGradingVersion: 2,
     responseShape: 'graphWork',
-    sanitizePublicQuestion: (question) => ({
-      ...pick(question, [
-        'prompt', 'functionSpec', 'graph', 'studentChoosesX', 'chooseXValues',
-        'includeUndefinedChecks', 'undefinedCount', 'showCoordinates', 'context',
-      ]),
-      // A point task says which x to plot. The y is the answer, and the tool
-      // recomputes it from the function the student can already see.
-      ...(list(question.pointTasks).length ? {
-        pointTasks: list(question.pointTasks).map((task, index) => pick(
-          { id: `point-${index + 1}`, ...task },
+    sanitizePublicQuestion: (question) => {
+      const inverse = resolveFunctionInvestigationInverseReflection(question);
+      const publicQuestion = pick(
+        { ...question, prompt: enhancedInverseReflectionPrompt(question, inverse) },
+        [
+          'prompt', 'functionSpec', 'graph', 'studentChoosesX', 'chooseXValues',
+          'includeUndefinedChecks', 'undefinedCount', 'showCoordinates', 'context',
+        ],
+      );
+
+      if (inverse) publicQuestion.inverseReflection = inverse.publicConfig;
+
+      if (list(question.pointTasks).length) {
+        publicQuestion.pointTasks = list(question.pointTasks).map((task, index) => pick(
+          { id: 'point-' + (index + 1), ...task },
           ['id', 'label', 'prompt', 'x', 'role'],
-        )),
-      } : {}),
-      // Where each end of the graph is, but not which symbol belongs there.
-      ...(list(question.endpointRequirements).length ? {
-        endpointRequirements: list(question.endpointRequirements).map((requirement, index) => pick(
-          { id: `endpoint-${index + 1}`, ...requirement },
+        ));
+      }
+
+      if (list(question.endpointRequirements).length) {
+        publicQuestion.endpointRequirements = list(question.endpointRequirements).map((requirement, index) => pick(
+          { id: 'endpoint-' + (index + 1), ...requirement },
           ['id', 'label', 'point', 'vector'],
-        )),
-      } : {}),
-      // `analysisRequests` is the key the workspace reads, so it is the key the
-      // payload must use. Authors may write either name — the server reads both
-      // — but emitting `analysisParts` here meant the tool silently found no
-      // analysis stage, never showed it to the student, and the server then
-      // marked every analysis part wrong on work the student was never asked
-      // for. The same class of mismatch as the number line's start/min.
-      ...(analysisRequests(question).length ? {
-        analysisRequests: analysisRequests(question).map((part, index) => pick(
-          { id: `analysis-${index + 1}`, ...part },
-          ['id', 'label', 'prompt', 'kind', 'responseMode', 'unit', 'choices', 'notation', 'allowNone'],
-        )),
-      } : {}),
-    }),
+        ));
+      }
+
+      const publicAnalysis = expandedFunctionInvestigationAnalysisRequests(question);
+      if (publicAnalysis.length) {
+        publicQuestion.analysisRequests = publicAnalysis.map((part, index) => pick(
+          { id: 'analysis-' + (index + 1), ...part },
+          ['id', 'label', 'prompt', 'kind', 'responseMode', 'unit', 'choices', 'notation', 'allowNone', 'sourceTaskId'],
+        ));
+      }
+
+      return publicQuestion;
+    },
     buildPrivateGradingDefinition: (question) => ({
       points: list(question.pointTasks)
         .map((task, index) => ({ id: String(task?.id || `point-${index + 1}`), expected: task?.expected ?? null }))
@@ -562,7 +682,7 @@ const CONTRACTS = {
       markers: list(question.endpointRequirements)
         .map((requirement, index) => ({ id: String(requirement?.id || `endpoint-${index + 1}`), marker: requirement?.marker ?? null }))
         .filter((requirement) => requirement.marker != null),
-      analysis: analysisRequests(question)
+      analysis: expandedFunctionInvestigationAnalysisRequests(question)
         .map((part, index) => ({
           id: String(part?.id || `analysis-${index + 1}`),
           kind: String(part?.kind || 'text'),
@@ -595,7 +715,7 @@ const CONTRACTS = {
         parts.push({ id: `${requirement.id}-type`, isCorrect: sameText(chosen, requirement.marker) });
       });
       definition.analysis.forEach((part) => {
-        if (part.kind === 'point' && part.expected.length) {
+        if (['point', 'inversePoint'].includes(part.kind) && part.expected.length) {
           parts.push({ id: part.id, isCorrect: samePairs(list(raw.selections?.[part.id]), part.expected, definition.tolerance) });
           return;
         }
@@ -734,6 +854,7 @@ export const PATH_ANALYSIS_INTERVAL_KINDS = Object.freeze([
  */
 export const analysisKeypadProfile = (part) => {
   const notation = String(part?.notation || '');
+  if (notation === 'equation') return 'equation';
   if (notation === 'inequality') return 'inequality';
   if (notation === 'set') return 'set';
   if (notation === 'interval') return 'interval';
@@ -746,6 +867,7 @@ export const PATH_ANALYSIS_POINT_FEATURES = Object.freeze([
 const analysisKindIsRenderable = (part) => {
   const kind = String(part?.kind || '');
   if (PATH_ANALYSIS_NOTATION_KINDS.includes(kind)) return true;
+  if (kind === 'inversePoint') return Boolean(String(part?.sourceTaskId || '').trim());
   return kind === 'point' && PATH_ANALYSIS_POINT_FEATURES.includes(String(part?.feature || ''));
 };
 
