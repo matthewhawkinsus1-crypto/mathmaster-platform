@@ -1046,60 +1046,119 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
       </div>
       </EnlargeableFigure>
 
-      {stage === 'construct' && <div style={{ maxWidth: '960px', margin: '14px auto 0', textAlign: 'center' }}>
-        {pointFeedback && <p style={{ margin: '8px 0', color: construction.pointsValidated ? '#137333' : '#8a5a00', fontWeight: 'bold' }}>{pointFeedback}</p>}
-        {!pointOnly && construction.pointsValidated && !construction.snapped && <p style={{ margin: '8px 0', color: '#174ea6', fontWeight: 'bold' }}>Draw through all validated points. {requiredStrokeCount === 2 ? 'Draw both rational branches as separate strokes.' : ''}</p>}
-        {drawFeedback && <p style={{ margin: '8px 0', color: construction.snapped ? '#137333' : '#8a5a00', fontWeight: 'bold' }}>{drawFeedback}</p>}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '9px', flexWrap: 'wrap', marginTop: '10px' }}>
-          {/* EXACT ENTRY. The equal-precision alternative to pointing, and the
-              one that matters most: a trackpad on a school Chromebook cannot
-              reliably hit (2, -3.5), and fighting the interface is not part of
-              the mathematics. The student still has to work out the coordinate
-              — nothing here computes one. */}
-          <div style={{ display: 'flex', gap: '7px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-            <label style={{ fontSize: '12px', fontWeight: 700, color: '#3c4043' }}>
-              x
-              <input
-                type="number"
-                inputMode="decimal"
-                value={typedX}
-                onChange={(event) => setTypedX(event.target.value)}
-                onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); document.getElementById('graph-exact-place')?.click(); } }}
-                style={{ display: 'block', width: '84px', minHeight: '40px', marginTop: '3px', padding: '6px 8px', border: '1px solid #c9ced6', borderRadius: '7px' }}
-              />
-            </label>
-            <label style={{ fontSize: '12px', fontWeight: 700, color: '#3c4043' }}>
-              y
-              <input
-                type="number"
-                inputMode="decimal"
-                value={typedY}
-                onChange={(event) => setTypedY(event.target.value)}
-                onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); document.getElementById('graph-exact-place')?.click(); } }}
-                style={{ display: 'block', width: '84px', minHeight: '40px', marginTop: '3px', padding: '6px 8px', border: '1px solid #c9ced6', borderRadius: '7px' }}
-              />
-            </label>
-            <button
-              id="graph-exact-place"
-              type="button"
-              onClick={() => {
-                const point = [Number(typedX), Number(typedY)];
-                if (!Number.isFinite(point[0]) || !Number.isFinite(point[1])) {
-                  setKeyboardAnnouncement('Enter a number for both x and y.');
-                  return;
-                }
-                if (placeAtCoordinate(point)) { setTypedX(''); setTypedY(''); }
-              }}
-              style={{ minHeight: '40px', padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}
-            >
-              Place at this coordinate
-            </button>
-          </div>
+      {(stage === 'construct' || (stage === 'analysis' && inverseReflectionEnabled)) && <div style={{ maxWidth: '960px', margin: '14px auto 0', textAlign: 'center' }}>
+        {stage === 'construct' ? (
+          <>
+            {pointFeedback && <p style={{ margin: '8px 0', color: construction.pointsValidated ? '#137333' : '#8a5a00', fontWeight: 'bold' }}>{pointFeedback}</p>}
+            {!pointOnly && construction.pointsValidated && !construction.snapped && <p style={{ margin: '8px 0', color: '#174ea6', fontWeight: 'bold' }}>Draw through all validated points. {requiredStrokeCount === 2 ? 'Draw both rational branches as separate strokes.' : ''}</p>}
+            {drawFeedback && <p style={{ margin: '8px 0', color: construction.snapped ? '#137333' : '#8a5a00', fontWeight: 'bold' }}>{drawFeedback}</p>}
+          </>
+        ) : (
+          <>
+            <p style={{ margin: '8px 0', color: '#6f2da8', fontWeight: 'bold' }}>
+              {!analysis.inversePointsValidated
+                ? 'Reflect both original points across y=x. Select each reflected-point card, then place its image on the plane.'
+                : !analysis.inverseSnapped
+                  ? 'Both reflected points are correct. Draw the inverse line through both points.'
+                  : 'The inverse graph is complete. Finish the inverse equation.'}
+            </p>
+            {drawFeedback && <p style={{ margin: '8px 0', color: analysis.inverseSnapped ? '#137333' : '#8a5a00', fontWeight: 'bold' }}>{drawFeedback}</p>}
+          </>
+        )}
 
-          {!pointOnly && construction.pointsValidated && !construction.snapped && <button type="button" onClick={() => constructionHistory.setValue((current) => ({ ...current, strokes: [] }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>Clear Sketch</button>}
-          <button type="button" onClick={() => constructionHistory.reset({ placements: {}, chosenXValues: initialChosenX, pointsValidated: false, strokes: [], snapped: false, markerPlacements: {} })} style={{ padding: '9px 14px', border: '1px solid #e0b4b0', borderRadius: '8px', background: '#fff', color: '#a50e0e', fontWeight: 'bold' }}>Reset Graph</button>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '9px', flexWrap: 'wrap', marginTop: '10px' }}>
+          {((stage === 'construct' && !construction.pointsValidated)
+            || (stage === 'analysis' && inverseReflectionEnabled && !analysis.inversePointsValidated)) && (
+            <div style={{ display: 'flex', gap: '7px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              <label style={{ fontSize: '12px', fontWeight: 700, color: '#3c4043' }}>
+                x
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={typedX}
+                  onChange={(event) => setTypedX(event.target.value)}
+                  onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); document.getElementById('graph-exact-place')?.click(); } }}
+                  style={{ display: 'block', width: '84px', minHeight: '40px', marginTop: '3px', padding: '6px 8px', border: '1px solid #c9ced6', borderRadius: '7px' }}
+                />
+              </label>
+              <label style={{ fontSize: '12px', fontWeight: 700, color: '#3c4043' }}>
+                y
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={typedY}
+                  onChange={(event) => setTypedY(event.target.value)}
+                  onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); document.getElementById('graph-exact-place')?.click(); } }}
+                  style={{ display: 'block', width: '84px', minHeight: '40px', marginTop: '3px', padding: '6px 8px', border: '1px solid #c9ced6', borderRadius: '7px' }}
+                />
+              </label>
+              <button
+                id="graph-exact-place"
+                type="button"
+                onClick={() => {
+                  const point = [Number(typedX), Number(typedY)];
+                  if (!Number.isFinite(point[0]) || !Number.isFinite(point[1])) {
+                    setKeyboardAnnouncement('Enter a number for both x and y.');
+                    return;
+                  }
+                  if (placeAtCoordinate(point)) { setTypedX(''); setTypedY(''); }
+                }}
+                style={{ minHeight: '40px', padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}
+              >
+                Place at this coordinate
+              </button>
+            </div>
+          )}
+
+          {stage === 'construct' && !pointOnly && construction.pointsValidated && !construction.snapped && (
+            <button type="button" onClick={() => constructionHistory.setValue((current) => ({ ...current, strokes: [] }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>Clear Sketch</button>
+          )}
+
+          {stage === 'analysis' && inverseReflectionEnabled && analysis.inversePointsValidated && !analysis.inverseSnapped && (
+            <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, inverseStrokes: [], inverseSnapped: false }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', color: '#6f2da8', fontWeight: 'bold' }}>Clear Inverse Sketch</button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => {
+              if (stage === 'analysis' && inverseReflectionEnabled) {
+                analysisHistory.reset({
+                  selections: {},
+                  answers: {},
+                  typedPoints: {},
+                  noneSelections: {},
+                  inversePointsValidated: false,
+                  inverseStrokes: [],
+                  inverseSnapped: false,
+                });
+                setDrawFeedback('');
+                setActiveAnalysisPartId(analysisParts.find((part) => part.kind === 'inversePoint')?.id || analysisParts[0]?.id || null);
+              } else {
+                constructionHistory.reset({
+                  placements: {},
+                  chosenXValues: initialChosenX,
+                  pointsValidated: false,
+                  strokes: [],
+                  snapped: false,
+                  markerPlacements: {},
+                });
+              }
+            }}
+            style={{ padding: '9px 14px', border: '1px solid #e0b4b0', borderRadius: '8px', background: '#fff', color: '#a50e0e', fontWeight: 'bold' }}
+          >
+            {stage === 'analysis' && inverseReflectionEnabled ? 'Reset Inverse' : 'Reset Graph'}
+          </button>
         </div>
-        {!pointOnly && construction.snapped && endpointRequirements.length > 0 && <p style={{ margin: '12px 0 0', color: allMarkersPlaced ? '#137333' : '#6f2da8', fontWeight: 'bold' }}>{allMarkersPlaced ? (analysisEnabled ? `All ${endpointCompletionNoun}${endpointRequirements.length === 1 ? '' : 's'} are entered. Continue to Analyze Function; each placement and symbol will be graded separately.` : `All ${endpointCompletionNoun}${endpointRequirements.length === 1 ? '' : 's'} are entered. You may submit even if a placement or symbol is incorrect; partial credit is calculated by part.`) : `Place one ${endpointCompletionNoun} at each of the ${endpointRequirements.length} graph ends.`}</p>}
+
+        {stage === 'construct' && !pointOnly && construction.snapped && endpointRequirements.length > 0 && (
+          <p style={{ margin: '12px 0 0', color: allMarkersPlaced ? '#137333' : '#6f2da8', fontWeight: 'bold' }}>
+            {allMarkersPlaced
+              ? (analysisEnabled
+                ? 'All ' + endpointCompletionNoun + (endpointRequirements.length === 1 ? '' : 's') + ' are entered. Continue to ' + (inverseReflectionEnabled ? 'Build Inverse' : 'Analyze Function') + '; each placement and symbol will be graded separately.'
+                : 'All ' + endpointCompletionNoun + (endpointRequirements.length === 1 ? '' : 's') + ' are entered. You may submit even if a placement or symbol is incorrect; partial credit is calculated by part.')
+              : 'Place one ' + endpointCompletionNoun + ' at each of the ' + endpointRequirements.length + ' graph ends.'}
+          </p>
+        )}
       </div>}
       {/* Everything the keyboard route does, said out loud. Without this a
           screen-reader student presses Enter and receives silence. */}
@@ -1107,7 +1166,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
         {keyboardAnnouncement}
       </p>
 
-      {stage === 'analysis' && activePointPart && activePointPart.responseMode !== 'input' && <div style={{ textAlign: 'center', marginTop: '12px' }}><p style={{ color: '#174ea6', fontWeight: 'bold' }}>Active part: {activePointPart.label}. Select {activePointPart.expected.length || 1} location(s), or choose “Does not exist.”</p>{(analysis.selections[activePointPart.id] || []).length > 0 && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, selections: { ...current.selections, [activePointPart.id]: [] } }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>Clear This Selection</button>}</div>}
+      {stage === 'analysis' && activePointPart && activePointPart.responseMode !== 'input' && !(inverseReflectionEnabled && analysis.inversePointsValidated) && <div style={{ textAlign: 'center', marginTop: '12px' }}><p style={{ color: '#174ea6', fontWeight: 'bold' }}>Active part: {activePointPart.label}. Select {activePointPart.expected.length || 1} location(s){activePointPart.allowNone ? ', or choose “Does not exist.”' : '.'}</p>{(analysis.selections[activePointPart.id] || []).length > 0 && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, selections: { ...current.selections, [activePointPart.id]: [] }, inversePointsValidated: false, inverseStrokes: [], inverseSnapped: false }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>Clear This Selection</button>}</div>}
     </div>
   );
 }
