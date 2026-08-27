@@ -173,7 +173,10 @@ export const solutionLinesFromResolvedQuestion = (question = {}) => {
   append(question.explanation);
   append(question.solutionSteps);
   append(question.solution?.steps);
-  if (typeof question.solution === 'string') append(question.solution);
+  if (typeof question.solution === 'string' || Array.isArray(question.solution)) append(question.solution);
+  else if (question.solution && typeof question.solution === 'object') {
+    append(question.solution.explanation ?? question.solution.text ?? question.solution.summary);
+  }
   return out.slice(0, 12);
 };
 
