@@ -24,16 +24,28 @@ const PROVIDERS = {
   matchesSmartView,
 };
 
-const practice = (id, overrides = {}) => ({
-  id,
-  title: id,
-  assignedClassPeriods: ['Period 1'],
-  assignmentType: 'practice',
-  dueAt: inHours(4),
-  lateDueAt: inHours(24 * 7),
-  questions: [{ type: 'algebra', prompt: 'Solve', equationLatex: '2x=8' }],
-  ...overrides,
-});
+const practice = (id, overrides = {}) => {
+  const sourceQuestions = Array.isArray(overrides.questions)
+    ? overrides.questions
+    : [{ type: 'algebra', prompt: 'Solve', equationLatex: '2x=8' }];
+  const { questions: _legacyQuestions, ...rest } = overrides;
+  return {
+    id,
+    schemaVersion: 5,
+    title: id,
+    assignedClassPeriods: ['Period 1'],
+    assignmentType: 'practice',
+    dueAt: inHours(4),
+    lateDueAt: inHours(24 * 7),
+    sections: [{
+      id: 'practice',
+      role: 'practice',
+      title: 'Practice',
+      questions: sourceQuestions,
+    }],
+    ...rest,
+  };
+};
 
 const model = (overrides = {}) => buildStudentDashboardModel({
   classPeriod: 'Period 1',
