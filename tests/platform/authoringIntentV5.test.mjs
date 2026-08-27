@@ -5,7 +5,7 @@ import { parseAssignmentBlueprintText, validateAssignmentQuestions } from '../..
 const v5 = {
   schemaVersion: 5,
   assignment: { title: 'V5 smoke', courseId: 'algebra1', assignmentType: 'notesClasswork' },
-  activities: [
+  sections: [
     { role: 'classwork', questions: [
       {
         standard: 'A.3C', prompt: 'Graph f(x) = 2x + 1 for x ≥ 0.',
@@ -44,17 +44,17 @@ const v5 = {
 };
 
 const direct = compileAuthoringIntentV5(v5);
-assert.equal(direct.package.schemaVersion, 4);
-assert.deepEqual(direct.package.activities[0].questions.map((q) => q.type), ['functionGraph','relationMapping','relationshipModel','sequenceExplorer','graphComparison']);
-assert.deepEqual(direct.package.activities[0].questions[2].recipe.ask, ['quantities','equation','table','graph','domain','range','continuity']);
-assert.equal(direct.package.activities[0].questions[3].mode, 'ruleBridge');
+assert.equal(direct.package.schemaVersion, 5);
+assert.deepEqual(direct.package.sections[0].questions.map((q) => q.type), ['functionGraph','relationMapping','relationshipModel','sequenceExplorer','graphComparison']);
+assert.deepEqual(direct.package.sections[0].questions[2].recipe.ask, ['quantities','equation','table','graph','domain','range','continuity']);
+assert.equal(direct.package.sections[0].questions[3].mode, 'ruleBridge');
 
 const parsed = parseAssignmentBlueprintText(JSON.stringify(v5));
-assert.equal(parsed.schemaVersion, 4, 'V5 is compiled before runtime validation');
+assert.equal(parsed.schemaVersion, 5, 'V5 remains canonical through runtime validation');
 assert.equal(parsed.questions.length, 5);
 assert.deepEqual(parsed.questions[1].pairs, [{ x: -2, y: 3 }, { x: 1, y: 2 }, { x: 3, y: -1 }]);
 assert.equal(parsed.questions[0].alignments[0].code, 'A.3C');
 validateAssignmentQuestions(parsed.questions);
-assert.ok(parsed.repairs.some((r) => r.includes('Authoring Intent V5')));
+assert.ok(parsed.repairs.some((r) => r.includes('canonical V5')));
 
 console.log('authoringIntentV5.test.mjs: all assertions passed');
