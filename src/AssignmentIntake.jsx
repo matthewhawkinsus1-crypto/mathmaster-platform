@@ -69,15 +69,15 @@ const CREATOR_STEPS = Object.freeze([
   { number: 1, label: 'Lesson', detail: 'Course, purpose, and what students learn' },
   { number: 2, label: 'Sections & rigor', detail: 'Warm-Up, Classwork, Practice, DOL, quiz/test' },
   { number: 3, label: 'Supports & outputs', detail: 'Student plans, Honors, PDFs' },
-  { number: 4, label: 'Build & review', detail: 'AI build request, V5 import, Preflight' },
+  { number: 4, label: 'Build & review', detail: 'AI result, MathMaster review, then assign' },
 ]);
 
 const readClipboardText = async () => {
   if (!navigator.clipboard?.readText) {
-    throw new Error('This browser will not let a page read the clipboard. Use Upload JSON or drag the file in instead.');
+    throw new Error('This browser will not let a page read the clipboard. Use Upload Assignment File or drag the file in instead.');
   }
   const text = await navigator.clipboard.readText();
-  if (!String(text || '').trim()) throw new Error('The clipboard is empty. Copy the AI\'s JSON first, then try again.');
+  if (!String(text || '').trim()) throw new Error('The clipboard is empty. Copy the AI\'s finished assignment first, then try again.');
   return text;
 };
 
@@ -142,7 +142,7 @@ export default function AssignmentIntake({
       await writeClipboardText(request);
       toastSuccess?.(
         'Assignment build request copied',
-        'Paste it into ChatGPT, Claude, or Gemini. The request already includes your course, sections, delivery choices, PDF choices, Honors/CCMR rules, and the current V5 contract.',
+        'Paste it into ChatGPT, Claude, or Gemini. The request already includes your course, sections, delivery choices, PDF choices, Honors/CCMR rules, and MathMaster’s current authoring requirements.',
       );
     } catch (error) {
       toastError?.('Finish the assignment plan', error.message);
@@ -154,11 +154,11 @@ export default function AssignmentIntake({
       const contract = buildAuthoringContract({ courseId: creatorPlan.courseId });
       await writeClipboardText(contract);
       toastSuccess?.(
-        'Raw V5 contract copied',
+        'Technical authoring contract copied',
         `Copied ${CONTRACT_SCHEMA_NAME} authoring instructions (${Math.round(contract.length / 1000)} KB).`,
       );
     } catch (error) {
-      toastError?.('Could not copy the V5 contract', error.message);
+      toastError?.('Could not copy the authoring contract', error.message);
     }
   };
 
@@ -179,7 +179,7 @@ export default function AssignmentIntake({
         setFailure({
           sourceName,
           rawJson: text,
-          errors: result?.errors?.length ? result.errors : ['MathMaster could not read this JSON.'],
+          errors: result?.errors?.length ? result.errors : ['MathMaster could not read this assignment.'],
           warnings: result?.warnings || [],
           sourceSchemaVersion: result?.sourceSchemaVersion || (/"schemaVersion"\s*:\s*5\b/.test(String(text || '')) ? 5 : null),
           compilerDefect: result?.compilerDefect === true,
@@ -225,15 +225,15 @@ export default function AssignmentIntake({
     try {
       if (failure.compilerDefect) {
         const report = [
-          '# MathMaster V5 compiler defect',
+          '# MathMaster assignment compiler defect',
           '',
-          'The assignment is valid V5 intent, but MathMaster failed while selecting or building its internal renderer/runtime contract.',
+          'The assignment uses the current MathMaster format, but MathMaster failed while selecting or building its internal renderer/runtime contract.',
           'Do not repair this by adding type/toolId/functionSpec/analysisRequests plumbing or by switching to an older assignment format.',
           '',
           '## Compiler errors',
           ...failure.errors.map((error, index) => `${index + 1}. ${error}`),
           '',
-          '## Original V5 intent',
+          '## Original assignment intent',
           failure.rawJson,
         ].join('\n');
         await writeClipboardText(report);
@@ -243,7 +243,7 @@ export default function AssignmentIntake({
       await writeClipboardText(buildFixRequest(failure));
       toastInfo?.(
         'Fix request copied',
-        'Paste it into the same AI conversation, then bring the corrected Assignment V5 JSON back to MathMaster.',
+        'Paste it into the same AI conversation, then bring the corrected assignment back to MathMaster.',
       );
     } catch (error) {
       toastError?.('Could not copy the fix request', error.message);
@@ -286,7 +286,7 @@ export default function AssignmentIntake({
               <span style={{
                 border: '1px solid #9bb8e8', borderRadius: 999, padding: '4px 9px',
                 color: '#174ea6', background: '#fff', fontSize: 11, fontWeight: 900,
-              }}>V5 · NO CODE REQUIRED</span>
+              }}>NO CODE REQUIRED</span>
             </div>
             <p style={{ margin: '0 0 16px', color: '#5f6b7a', lineHeight: 1.55, fontSize: 14 }}>
               Choose the instructional structure here. MathMaster turns these choices into one complete AI build request,
@@ -533,7 +533,7 @@ export default function AssignmentIntake({
                   Advanced
                 </summary>
                 <button type="button" onClick={handleCopyContract} style={{ ...secondaryButton, marginTop: 8, minHeight: 38, fontSize: 13 }}>
-                  Copy raw V5 contract only
+                  Copy technical authoring contract
                 </button>
               </details>
             </div>
@@ -568,10 +568,10 @@ export default function AssignmentIntake({
               }}
             >
               <button type="button" onClick={handlePaste} disabled={busy} style={{ ...primaryButton, opacity: busy ? 0.6 : 1 }}>
-                📥 Paste V5 JSON from Clipboard
+                📥 Paste AI Assignment
               </button>
               <button type="button" onClick={() => fileInputRef.current?.click()} disabled={busy} style={{ ...secondaryButton, opacity: busy ? 0.6 : 1 }}>
-                ⬆ Upload V5 JSON
+                ⬆ Upload Assignment File
               </button>
               <input
                 ref={fileInputRef}
@@ -589,14 +589,14 @@ export default function AssignmentIntake({
       {failure && (
         <div style={{ ...card, borderColor: '#f1a5a0', background: '#fff8f7' }} role="alert">
           <h3 style={{ margin: '0 0 6px', fontSize: 16, color: '#a50e0e' }}>
-            This Assignment V5 JSON needs attention{failure.sourceName ? ` — ${failure.sourceName}` : ''}
+            This assignment needs attention{failure.sourceName ? ` — ${failure.sourceName}` : ''}
           </h3>
           <p style={{ margin: '0 0 10px', color: '#5f6b7a', fontSize: 13, lineHeight: 1.55 }}>
             {failure.compilerDefect
-              ? 'The assignment contains enough mathematical intent, but MathMaster failed while building its renderer/runtime plumbing. This is a platform defect; keep the assignment in V5.'
+              ? 'The assignment contains enough mathematical intent, but MathMaster failed while building its renderer/runtime plumbing. This is a platform defect; do not rewrite the assignment into an older format.'
               : Number(failure.sourceSchemaVersion) === 5
-                ? 'MathMaster owns renderer plumbing. The remaining issue should be a genuine mathematical/content omission or a malformed V5 field.'
-                : 'Only Assignment V5 is supported. Old assignment packages are intentionally not migrated; recreate the assignment with the planner above.'}
+                ? 'MathMaster owns renderer plumbing. The remaining issue should be a genuine mathematical/content omission or a malformed assignment field.'
+                : 'This file uses an older unsupported assignment format. Recreate the assignment with the creator above.'}
           </p>
           <ul style={{ margin: '0 0 14px', paddingLeft: 20, color: '#3c4756', lineHeight: 1.6, fontSize: 13 }}>
             {failure.errors.map((error, index) => <li key={index}>{error}</li>)}
