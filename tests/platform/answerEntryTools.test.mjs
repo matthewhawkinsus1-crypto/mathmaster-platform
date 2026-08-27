@@ -42,7 +42,7 @@ test('symbolic answers infer the keys students actually need on mobile', () => {
 test('interval and set answers infer structural notation without author keyboard plumbing', () => {
   assert.deepEqual(
     inferRequiredAnswerSymbols(['[-4, ∞)']).filter((symbol) => ['[', ']', '(', ')', ',', '∞'].includes(symbol)),
-    ['(', ')', ',', '[', '∞'],
+    [')', ',', '[', '∞'],
   );
   const setSymbols = inferRequiredAnswerSymbols(['{1, 2, 3}']);
   assert.ok(setSymbols.includes('{'));
