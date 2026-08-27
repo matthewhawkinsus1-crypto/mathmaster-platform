@@ -17,13 +17,6 @@ const isPresent = (value) => value !== undefined && value !== null && clean(valu
 
 const gradingMode = (field = {}) => clean(field.gradingMode || field.grading?.mode);
 
-const isManualReview = (field = {}) => (
-  field.autoGrade === false
-  || field.teacherReviewed === true
-  || field.grading?.autoGrade === false
-  || ['manual', 'teacherreview', 'teacher-reviewed', 'rubric'].includes(gradingMode(field).toLowerCase())
-);
-
 const primaryValue = (field = {}, preferredKey) => {
   const candidates = [
     field[preferredKey],
@@ -111,14 +104,17 @@ const validateField = (field, {
   const modeToken = mode.toLowerCase();
   const primary = primaryValue(field, preferredPrimary);
   const accepted = acceptedValues(field, preferredAccepted);
-  const autoGraded = !isManualReview(field);
+  // Generic answer/response fields are runtime auto-graded. Teacher-reviewed
+  // writing belongs in a composed workflow/teacher-review stage, not in a
+  // field that the runtime will inevitably compare to a key.
+  const autoGraded = true;
 
   validateTolerance(field, 'numericTolerance', display, errors);
   validateTolerance(field, 'relativeTolerance', display, errors);
 
-  if (mode && !['equivalentexpression', 'manual', 'teacherreview', 'teacher-reviewed', 'rubric'].includes(modeToken)) {
+  if (mode && modeToken !== 'equivalentexpression') {
     errors.push(
-      `${display} uses unsupported gradingMode "${mode}". MathMaster currently supports the default mathematical grader or "equivalentExpression" for expression fields.`,
+      `${display} uses unsupported gradingMode "${mode}". Generic answer fields support the default mathematical grader or "equivalentExpression" for expression fields. Teacher-reviewed writing must use a teacher-review/composed interaction instead of an auto-graded field.`,
     );
   }
 
