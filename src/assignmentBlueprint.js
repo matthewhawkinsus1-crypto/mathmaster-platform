@@ -47,357 +47,71 @@ export const DEFAULT_ASSIGNMENT_BLUEPRINT = `{
   ]
 }`;
 
-export const MATH_BLUEPRINT_GUIDE = `ASSIGNMENT PACKAGE V2 — RECOMMENDED
+export const MATH_BLUEPRINT_GUIDE = `MATHMASTER ASSIGNMENT V5 — CANONICAL
 
-A complete assignment can now be created from one JSON object. Manual form fields are optional when the package provides them.
+MathMaster accepts one assignment format: schemaVersion 5.
+V4/V3/V2 packages and raw question arrays are intentionally unsupported and may be deleted.
 
+TOP LEVEL
 {
-  "schemaVersion": 2,
+  "schemaVersion": 5,
   "assignment": {
-    "title": "Algebra I M1 T1 L1 - Activity 1.1",
-    "folder": "Algebra I/Module 1/Topic 1/Lesson 1",
-    "template": "guided-notes",
-    "assignmentType": "notesClasswork",
-    "variantMode": "shared",
-    "classes": ["Period 1", "Period 3", "Period 6"],
-    "releaseAt": "2026-08-17T08:00:00-05:00",
-    "dueAt": "2026-08-17T16:00:00-05:00",
-    "lateDueAt": "2026-08-19T23:59:00-05:00",
-    "standards": ["A.1A", "A.1C"],
-    "curriculum": { "provider": "Bluebonnet", "course": "Algebra I", "module": 1, "topic": 1, "lesson": 1 }
+    "title": "Functions — Lesson 1",
+    "courseId": "algebra1",
+    "folder": "Algebra I/Module 1/Functions",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork"
   },
-  "questions": [ ... ]
-}
-
-Supported templates: "practice", "practice-with-dol", and "guided-notes".
-Use "P1" through "P8", numbers 1 through 8, or "Period 1" through "Period 8" in classes.
-There are three delivery modes: "shared" (identical authored instance), "personalized"/"variant" (same TEKS, DOK and difficulty with student-specific generated values),
-and "adaptive" (the assigned TEKS is preserved while family, DOK and difficulty are chosen inside the authored envelope).
-If variantMode is omitted, MathMaster automatically chooses Shared for fixed lesson questions and Personalized for generated/variant questions — never Adaptive, which must be asked for.
-Use "sectionVariantModes" to set the mode per activity role, e.g. { "practice": "adaptive", "classwork": "shared" }.
-If folder is supplied, MathMaster creates the folder path automatically.
-Legacy question-array JSON still works; manual title and dates remain available as fallbacks.
-
-TEXAS STANDARDS + DIFFICULTY METADATA
-
-Every question may carry the following optional metadata. JSON is the source of truth; the Assignment Question Editor can write the same fields without hand-editing JSON.
-
-{
-  "standards": {
-    "primary": [{ "code": "A.2A", "level": "assessed" }],
-    "secondary": [{ "code": "A.1D", "level": "practiced" }],
-    "prerequisite": []
-  },
-  "complexity": { "framework": "DOK", "level": 2 },
-  "difficulty": { "instructionalLevel": "gradeLevel", "generatorBand": 3 },
-  "purpose": "independentPractice",
-  "evidenceWeight": 0.75,
-  "differentiation": { "mode": "recommend" }
-}
-
-TEKS evidence levels: introduced, practiced, assessed, masteryEvidence.
-DOK levels: 1 through 4. DOK measures cognitive complexity; it is not the same as instructional difficulty.
-Generator bands: 1 Prerequisite, 2 Developing, 3 Grade Level, 4 Advanced, 5 Extension.
-Differentiation modes: off, recommend, auto. Auto changes content only when the question includes difficulty-tagged variants or authored differentiation.bandProfiles. Students with insufficient evidence default to Grade Level (Band 3).
-
-TEXAS COURSE + VERTICAL TEKS
-
-Algebra I and Algebra II registries are loaded. Course ID is inferred from the TEKS code, so this is valid:
-
-{
-  "standards": {
-    "primary": [{ "code": "A2.4F", "level": "assessed" }],
-    "secondary": [{ "code": "A2.1D", "level": "practiced" }],
-    "prerequisite": [{ "code": "A.8A", "level": "prerequisite" }]
-  }
-}
-
-The grade-level/course target remains in standards.primary. Earlier-course standards belong in standards.prerequisite. MathMaster can recommend prior-course TEKS from the pathway registry when evidence shows a student needs support; it does not silently replace the current-course target.
-
-Example auto-differentiation profiles:
-
-{
-  "differentiation": {
-    "mode": "auto",
-    "bandProfiles": {
-      "2": { "generator": { "coefficientRange": [1, 4] } },
-      "3": { "generator": { "coefficientRange": [2, 9] } },
-      "4": { "generator": { "coefficientRange": [-12, 12] } }
+  "variantPolicy": {
+    "mode": "personalized",
+    "sectionModes": {
+      "warmup": "shared",
+      "classwork": "shared",
+      "practice": "personalized",
+      "dol": "shared"
     }
-  }
-}
-
-PERSONALIZED QUESTIONS WITHOUT DATABASE BLOAT
-
-The database stores only one compact blueprint. The browser uses the assignment ID,
-student ID, and question number as a stable seed. Each student receives a stable
-variant at the same difficulty, and refreshing the page does not change it.
-
-Every new question must use either a generator or at least two variants.
-
-CENTRAL ACTIVITY POLICY (PHASE 3A)
-
-Attempt rules are not repeated inside question modules. They come from the activity
-role. Warm-Up, Classwork, and Practice allow three attempts and replacement problems.
-DOL, Quiz, and Test allow one attempt, disable hints, and do not allow replacement
-problems. DOL feedback is held until the activity feedback window; Quiz/Test feedback
-waits for teacher release. Calculator access is resolved separately from the activity
-default, question design, assessment context, and documented student support plan.
-
-SUPPORTED PERSONALIZED GENERATORS
-
-Step-by-step balance algebra:
-"type": "stepAlgebra",
-"mode": "rigorous",
-"objective": { "kind": "isolate", "variable": "x", "simplifyRequired": true },
-"generator": {
-  "kind": "stepLinearEquation",
-  "solutionRange": [-9, 9],
-  "coefficientRange": [2, 9],
-  "constantRange": [-12, 12]
-}
-
-Use "workspaceDifficulty": 1-5 to set how much the workspace helps (1 Guided, 5 Open).
-Balanced but inefficient moves are always allowed at every level: adding an unhelpful
-value to both sides is correct algebra by a longer road, and the workspace says so
-rather than rejecting it. At levels 3 and 4 such a move also uses one of the attempts
-permitted by the current activity role. Only a move that breaks equivalence — multiplying
-or dividing by zero — is refused. Operations appear on both sides immediately.
-Students draw a strike-through line over the inverse pair, see a brief cancellation
-animation, and then the other side simplifies. The AST state and compact stepGrades
-array are stored in the shared question record, not inside a separate module schema.
-
-Literal and slope-intercept balance questions use the same engine. Set:
-"objective": { "kind": "isolate", "variable": "h", "simplifyRequired": true }
-or:
-"objective": { "kind": "slopeIntercept", "variable": "y", "simplifyRequired": true }
-
-Literal equation:
-"type": "literal",
-"generator": { "kind": "literalLinear", "coefficientRange": [2, 12], "constantRange": [-15, 15] }
-
-System of equations with a graph and ordered-pair answer:
-"type": "system",
-"showEquations": true,
-"showGraph": true,
-"generator": { "kind": "linearSystem", "xRange": [-10, 10], "yRange": [-10, 10] }
-
-Function table with multiple blanks:
-"type": "table",
-"showRule": true,
-"generator": { "kind": "functionTable", "ruleType": "linear", "rowCount": 5, "blankCount": 3 }
-
-Ordered pair from a graph:
-"type": "orderedPair",
-"generator": { "kind": "orderedPair", "xRange": [-12, 12], "yRange": [-12, 12] }
-
-Line graph:
-"type": "graphing",
-"showEquation": false,
-"showGraph": true,
-"generator": { "kind": "lineGraph", "slopeChoices": [-3, -2, -1, 1, 2, 3], "interceptRange": [-8, 8] }
-
-Multiple-answer line features:
-"type": "multiAnswer",
-"generator": { "kind": "lineFeatures", "slopeRange": [-99, 99], "interceptRange": [-99, 99] }
-
-Unified function investigation tool:
-"type": "functionInvestigation",
-"showEquation": true,
-"generator": {
-  "kind": "parentFunctionGraph",
-  "functionTypes": ["absolute", "quadratic", "squareRoot", "cubic", "cubeRoot", "logarithmic", "exponential", "rational"],
-  "coefficientChoices": [-2, -1, 1, 2],
-  "hRange": [-3, 3],
-  "kRange": [-3, 3],
-  "baseChoices": [2]
-}
-
-The shared interactive graph shell auto-scales around the generated key point and outer
-points. Students drag or select five point cards, and square-root/logarithmic questions
-may include a Not Real / Undefined card. Set "showCoordinates": false to hide the live
-cursor coordinates. After point validation, students freehand the curve; a correct
-trace snaps to the exact mathematical path. Clearly marked graph ends then accept Arrow, Open Circle, or Closed Circle responses. Each marker location and each marker type is graded separately, so students may submit an incomplete-quality end-behavior response for partial credit.
-
-Backward-compatible pre-drawn graph analysis (the same shared tool):
-"type": "graphAnalysis",
-"showEquation": false,
-"showCoordinates": false,
-"generator": {
-  "kind": "graphFeatureAnalysis",
-  "featureChoices": ["vertex", "localMaximum", "localMinimum", "xIntercepts", "yIntercept"]
-}
-
-The recommended new format is "functionInvestigation", which combines point selection, graph construction, end behavior, and analysis in one sequential tool. The older "graphAnalysis" type remains available for existing assignments.
-
-MULTIPLE ANSWERS IN ONE QUESTION
-
-Use type "multiAnswer" and list each required field:
-"answerFields": [
-  { "id": "m", "label": "Slope", "acceptedAnswers": ["2"] },
-  { "id": "b", "label": "Y-intercept", "acceptedAnswers": ["-3"] }
-]
-
-For personalized multi-answer questions, place complete field sets inside "variants".
-
-For categorical fields with a small set of valid answers, use "type": "choice" and provide "options". For ordinary written words or explanations, use "type": "text" so students get a normal text box instead of the math keyboard. Use the default field only for mathematical notation.
-
-
-FORMATTED MATH
-
-Wrap inline prompt math in dollar signs:
-"prompt": "Simplify $sqrt(x^2 + 9)$ and evaluate $log_2(x)$."
-
-ASCII math renders automatically:
-"formula": "A = 1/2 b h"
-
-Exact LaTeX requires doubled JSON backslashes:
-"formulaLatex": "\\\\frac{-b \\\\pm \\\\sqrt{b^2-4ac}}{2a}"
-
-GRAPH OBJECTS
-
-A graph may contain multiple functions, so systems graph naturally:
-"graph": {
-  "functions": [
-    { "type": "line", "m": 2, "b": 1 },
-    { "type": "line", "m": -1, "b": 4 }
+  },
+  "sections": [
+    {
+      "role": "classwork",
+      "title": "Classwork",
+      "questions": []
+    }
   ]
 }
 
-Supported graph functions: line, quadratic, absolute, squareRoot, cubic, cubeRoot,
-logarithmic, exponential, reciprocal, and rational. Structured numeric graph fields
-are used instead of executable code.
+VALID SECTION ROLES
+warmup, classwork, practice, dol, quiz, test
 
-STATIC GRAPH RULES
+AUTHORING RULE
+Questions describe mathematical intent and studentActions. Do not author React component names, toolId, renderer type, viewport bounds, Firestore fields, attempt counters, or other platform-owned runtime state. MathMaster chooses the internal renderer.
 
-For quadratic functions in a read-only graph, choose exactly one parameterization:
-- standard form: { "type": "quadratic", "a": -1, "b": 8, "c": 0 } for y = ax^2 + bx + c
-- vertex form: { "type": "quadratic", "a": -1, "h": 4, "k": 16 } for y = a(x - h)^2 + k
-Do not mix b/c with h/k in the same quadratic.
+CORE POLICY GROUPS
+variantPolicy — shared/personalized/adaptive delivery and per-section modes.
+differentiationPolicy — bounded rigor and adaptation rules.
+supportPolicy — inherit student supports; accommodations do not silently change the standard.
+toolPolicy — calculator/keyboard/tool availability.
+deliveryPolicy — section access and gating.
+gradingPolicy — grading behavior.
+evidencePolicy — whether work contributes to grade/mastery/recommendations/analytics.
+outputProfiles — digital, printable worksheet, notes PDF, future teacher key/answer key.
+classroomIntegration — Google Classroom publishing intent.
+provenance — content/generator/grader release metadata.
+preflight — teacher review requirements.
 
-For graphScenarioMatch and graphComparison, each entry is { "id": "g1", "graph": { ... } };
-functions and bounds belong inside the nested graph object. Before returning JSON, evaluate each
-function at xMin/xMax and verify the intended curve and defining feature fit inside yMin/yMax.
-Real-world elapsed-time graphs should not include negative time unless the context explicitly allows it.
-Countable whole-item situations should use plotted points rather than a continuous line when discreteness matters.
+PDF OUTPUT
+The same resolved questions power digital delivery and printable student worksheets. Do not maintain a separate PDF question bank. studentWorksheetPdf is supported now. teacherWorksheetPdf and answerKeyPdf remain disabled until their dedicated key/solution renderers are finished.
 
-SHARED SCRATCHPAD AND UNDO
+DOK AND DIFFICULTY
+dok is 1–4 and measures cognitive complexity.
+difficultyBand is 1–5 and measures instructional difficulty.
+They are not interchangeable.
 
-Every question automatically includes a full-screen native canvas scratchpad. Student
-work is compressed into a Base64 image string and saved in a separate per-question
-Firestore scratchpad document, keeping the grade tracker compact. The teacher detail
-view can reopen the saved work. A shared Undo control is supplied by each response
-module, while the scratchpad has its own stroke-level Undo and Clear All restoration.
+CCMR
+Use explicit alignments and assessmentContext for digitalSAT, ACT, TSIA2, or ASVAB content. Exam-style items must preserve the assessment's authentic language/register and allowed domain overlap.
 
-ADVANCED GRAPH CONSTRUCTION
-
-Set "studentChoosesX": true when students must choose the four outer x-values. The
-center/key-point task remains fixed in the middle of the five point cards. Point cards
-remain neutral until validation. Coordinate labels are translucent, the plotted point
-is high contrast, and the coordinate plane highlights the active drop location.
-
-MULTIPART GRAPH ANALYSIS
-
-Use several requests in the same graph question:
-"analysisRequests": [
-  { "id": "roots", "kind": "point", "feature": "xIntercepts", "label": "X-intercepts" },
-  { "id": "domain", "kind": "domain", "notation": "interval", "label": "Domain" },
-  { "id": "range", "kind": "range", "notation": "inequality", "label": "Range" }
-]
-
-Set notation inputs receive only the contextual tools needed for brackets,
-inequalities, union, intersection, and positive/negative infinity. Each request,
-point, endpoint marker, table blank, or answer field receives its own partial-credit
-record and incorrect fields are identified after submission.
-
-UNIFIED FUNCTION INVESTIGATION
-
-Use "type": "functionInvestigation". Students may choose four outer x-values, place
-five locations with colored horizontal/vertical drag guides, sketch and snap the
-function, provide an end-behavior symbol at every visible end, and then complete
-several analysis requests on the same graph.
-
-Supported analysis kinds: point features (xIntercepts, yIntercept, vertex,
-localMaximum, localMinimum, center), domain, range, increasing, decreasing, and
-constant. For point features use "responseMode": "click", "input", or "both" and
-"allowNone": true when "Does not exist" should be available.
-
-Restricted domain example:
-"domainChoices": [
-  { "minOffset": -3, "maxOffset": 3, "minInclusive": false, "maxInclusive": true }
-]
-
-A finite restricted end receives an Open Circle or Closed Circle. An unrestricted
-continuing end receives an Arrow. Every end has separate partial-credit parts for
-placement and symbol type.
-
-ALGEBRAIC MICRO-QUESTIONS
-
-Step algebra questions may include algebraic expression prompts, including
-Distribution:
-"algebraPrompts": [
-  {
-    "id": "distribute",
-    "prompt": "Distribute and simplify 3(x+2).",
-    "acceptedExpressions": ["3x+6"]
-  }
-]
-Equivalent algebraic forms are accepted. During balanced operations, cancellation is
-marked only on the side containing a zero pair or identity pair; the other side must
-be simplified in an algebraic response field.
-
-LESSON AND SCENARIO QUESTION TYPES
-
-Independent/dependent quantities, discrete/continuous classification, axis labels,
-reasonable scales, and origin meaning:
-"type": "relationshipModel"
-
-For lessons where students must determine graph labels, units, or scale, hide those
-answers initially and let student responses build the graph:
-"axisSetup": {
-  "required": true,
-  "requireScale": true,
-  "inputMode": "type",
-  "applyToGraph": true,
-  "hideGraphLabels": true,
-  "hideGraphUnits": true,
-  "hideGraphScale": true
-}
-
-Set "inputMode": "drag" to give students quantity/unit cards that can be dragged
-directly to the X- and Y-axis targets. Touch users may tap a card and then tap its
-destination. Typed or dragged answers appear on the graph immediately. When
-"hideGraphScale" is true, numeric tick labels remain hidden until the student enters
-a positive count-by value for that axis.
-
-Any structured graph may also control static visibility with:
-"axisDisplay": {
-  "showXTickLabels": false,
-  "showYTickLabels": false,
-  "showAxisTitles": false,
-  "showAxisSymbols": true
-}
-
-Scenario-to-graph card sort with one-to-one matching and partial credit:
-"type": "graphScenarioMatch"
-
-Side-by-side graph comparison with selected and written responses:
-"type": "graphComparison"
-
-Student-created scenario, labeled axes, freehand coordinate sketch, and explanation:
-"type": "graphStory"
-
-Graph Story is an open-ended completion-credit item. The response and saved work remain
-available in the teacher detail view for instructional review.
-
-ASSIGNMENT QUESTION EDITOR
-
-Published assignments include an Edit Questions action. Before student activity begins,
-questions may be removed and reordered. After student records exist, Throw Out Safely
-marks a question as excluded without changing its stored index, preventing existing
-student grades from being attached to the wrong question. Excluded questions are hidden
-from students and omitted from the assignment grade.
-
+EXPECTED ANSWERS
+Generated questions must derive the expected answer from the same generator parameters that create the prompt. Do not pad accepted answers with formatting variants already handled by semantic/equivalence grading.
 `;
 
 
