@@ -452,6 +452,21 @@ const planningSection = () => section('Plan before you generate', [
  * rather than maintained by hand. Paste the result into any AI assistant and it
  * knows exactly what MathMaster will accept.
  */
+const compactTeksSection = (courseId = null) => {
+  const requested = String(courseId || '').trim();
+  const courses = requested
+    ? TEXAS_MATH_ACTIVE_COURSES.filter((course) => course.id === requested)
+    : TEXAS_MATH_ACTIVE_COURSES;
+  return courses.flatMap((course) => {
+    const lines = [`### ${course.label || course.id}`];
+    (TEXAS_STANDARDS_BY_COURSE[course.id] || []).forEach((standard) => {
+      lines.push(`- ${standard.code} — ${standard.description}`);
+    });
+    lines.push('');
+    return lines;
+  }).join('\n');
+};
+
 export const buildAdvancedAuthoringContract = (options = {}) => buildAuthoringContract({
   ...options,
   includeAdvancedNotes: true,
