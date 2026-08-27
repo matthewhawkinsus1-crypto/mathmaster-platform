@@ -79,7 +79,7 @@ const toolSection = () => {
   rows.push(bullet('Always write a complete student-facing `prompt`. MathMaster shows the authored problem above the tool directions; do not rely on an internal mode name to explain the task.'));
   rows.push(bullet('For `sequenceExplorer` in `analyze` mode, the evidence shown before submission must stop before the requested target term: use `displayCount < targetN`. The runtime also enforces this so the answer cannot be printed in the table/graph by accident.'));
   rows.push(bullet('For sequence compare and finite-sum tasks, do not deliberately reveal the requested comparison/final term unless the item is a worked example.'));
-  rows.push(bullet('Use normal V4 `alignments` for standards. `masteryEvidenceKeys` is platform-owned and must not be authored by the AI.'));
+  rows.push(bullet('Use V5 `alignments` for standards. `masteryEvidenceKeys` is platform-owned and must not be authored by the AI.'));
   rows.push(bullet('For `representationMatch`, supply explicit `sets`; never depend on demo/default representations.'));
   return section('Interactive tool types', rows);
 };
@@ -476,15 +476,15 @@ export const AUTHORING_INTENT_SCHEMA_VERSION = 5;
 export const AUTHORING_INTENT_SCHEMA_NAME = 'MathMaster Assignment V5';
 
 /**
- * Default teacher-facing AI contract. V4 remains the internal/runtime schema,
- * but outside AIs author mathematical intent instead of renderer implementation.
+ * Canonical teacher-facing Assignment V5 contract. Outside AIs author
+ * mathematical intent; MathMaster chooses renderer implementation details.
  */
 export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = null } = {}) => [
   `# ${AUTHORING_INTENT_SCHEMA_NAME}`,
   `Generated from MathMaster on ${generatedAt.toISOString().slice(0, 10)}.`,
   '',
   'Return exactly one JSON object with schemaVersion 5 and nothing else.',
-  'MathMaster V5 is the assignment contract. It is not converted to V4.',
+  'MathMaster V5 is the assignment contract and persistence source of truth.',
   'Describe the mathematics, representations, standards, and what the student must DO. MathMaster chooses internal React renderers and storage plumbing.',
   '',
   '## Required assignment shape',
@@ -567,7 +567,7 @@ export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = nu
   compactTeksSection(courseId),
   '',
   '## Output',
-  'Return exactly one MathMaster Assignment V5 JSON object. Do not output V4, V3, V2, a raw question array, or renderer-specific question JSON.',
+  'Return exactly one MathMaster Assignment V5 JSON object. Older assignment formats and raw question arrays are unsupported.',
 ].join('\n');
 
 export const buildFixRequest = ({ rawJson = '', errors = [], warnings = [] } = {}) => {
@@ -579,7 +579,7 @@ export const buildFixRequest = ({ rawJson = '', errors = [], warnings = [] } = {
     `# Fix this ${AUTHORING_INTENT_SCHEMA_NAME} JSON`,
     '',
     'MathMaster accepts Assignment V5 only. Fix only the mathematical/content omissions named below.',
-    'KEEP schemaVersion 5 and sections[]. Do not convert to V4 or add renderer plumbing.',
+    'KEEP schemaVersion 5 and sections[]. Do not add renderer plumbing or older assignment formats.',
     'Do not add type, toolId, functionSpec, analysisRequests, viewport bounds, Firestore fields, or platform-owned state.',
     'Preserve studentActions unless the task itself is contradictory.',
     '',
