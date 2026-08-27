@@ -61,10 +61,12 @@ test('pass normalization is bounded for level presentation but preserves complet
 test('student Path map receives server-owned pass progress and renders completion/next-level language', () => {
   const app = readFileSync('src/components/student/MyMathPathApp.jsx', 'utf8');
   const path = readFileSync('src/components/student/StudentLearningPath.jsx', 'utf8');
+  const presentation = readFileSync('src/platform/path/pathPassPresentation.js', 'utf8');
 
   assert.match(app, /fetchMyMathPathSkillProgress/);
   assert.match(app, /skillProgressByTEKS=\{skillProgressByTEKS\}/);
-  assert.match(path, /Path Pass/);
+  assert.match(presentation, /Path Pass 1 complete/);
+  assert.match(presentation, /Level 2 · Deeper practice/);
   assert.match(path, /Mastery is tracked separately/);
   assert.match(path, /passSummary\.totalCompletedPasses/);
 });
