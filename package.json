@@ -16,7 +16,8 @@
     "validate:assignments": "node scripts/validate-assignments.mjs",
     "test:live-challenge": "node --test tests/platform/liveChallenge.test.mjs",
     "build:firebase": "node scripts/build-firebase-hosting.mjs",
-    "audit:answer-acceptance": "node scripts/audit-correct-answer-acceptance.mjs --samples 12"
+    "audit:answer-acceptance": "node scripts/audit-correct-answer-acceptance.mjs --samples 12",
+    "audit:assignment-authoring-boundary": "node scripts/audit-assignment-authoring-boundary.mjs"
   },
   "dependencies": {
     "firebase": "^12.17.1",
