@@ -14,10 +14,11 @@ test('assignment creation persists canonical V5 sections and policy metadata', (
   assert.match(source, /outputProfiles:/);
 });
 
-test('question edits and duplication rebuild canonical V5 sections', () => {
+test('question edits and duplication pass through canonical V5 reconstruction', () => {
   const source = fs.readFileSync('src/App.jsx', 'utf8');
-  assert.match(source, /sections:\s*rebuildV5SectionsFromQuestions\(questionEditorAssignment, normalizedQuestions\)/);
-  assert.match(source, /sections:\s*rebuildV5SectionsFromQuestions\(assignment, duplicateQuestions\)/);
+  assert.match(source, /storedAssignmentToV5\(questionEditorAssignment/);
+  assert.match(source, /canonicalV5PersistencePatch\(model\.assignmentV5\)/);
+  assert.match(source, /storedAssignmentToV5\(assignment/);
 });
 
 test('preflight stores and passes the canonical V5 object without a Bundle V3 adapter', () => {
