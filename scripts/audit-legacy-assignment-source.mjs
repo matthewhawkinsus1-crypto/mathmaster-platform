@@ -24,6 +24,7 @@ const rules = [
   ['retired Assignment Preflight bundle adapter', /\bbuildPreflightBundle\b|lessonBundle=\{/],
   ['retired QuestionDefinition schema import/reference', /(?:platform\/schemas\/QuestionDefinition|schemas\/QuestionDefinition\.js|\bnormalizeQuestionDefinition\b|\bQUESTION_DEFINITION_SCHEMA_VERSION\b)/],
   ['retired question validator registry import/reference', /(?:platform\/validation\/validatorRegistry|validation\/validatorRegistry\.js|\bvalidateQuestionDefinition\b|\bLEGACY_QUESTION_TYPES\b)/],
+  ['removed persisted questions projection read', /\bpersistence\.questions\b/],
 ];
 
 const violations = [];
