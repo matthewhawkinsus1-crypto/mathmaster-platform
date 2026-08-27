@@ -1,8 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import path from 'node:path';
 
-const read = (path) => fs.readFileSync(path, 'utf8');
+const read = (filePath) => fs.readFileSync(filePath, 'utf8');
+
+const walkSource = (dir) => {
+  const out = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...walkSource(full));
+    else if (entry.isFile() && /\.(?:js|jsx)$/.test(entry.name)) out.push(full);
+  }
+  return out;
+};
 
 const app = read('src/App.jsx');
 const lifecycle = read('src/assignmentLifecycle.js');
@@ -41,3 +52,23 @@ test('existing assignment setup save never asks persistence patch for removed fl
 });
 
 console.log('assignmentV5RuntimeReaders.test.mjs: all assertions passed');
+
+
+test('live source tree does not read a flat question array from assignment objects', () => {
+  const forbidden = [
+    /\bassignment\??\.questions\b/,
+    /\bactiveAssignmentData\??\.questions\b/,
+    /\blocalAssignment\??\.questions\b/,
+    /\bselectedAssignment\??\.questions\b/,
+    /\bresumeAssignment\??\.questions\b/,
+    /\bsourceAssignment\??\.questions\b/,
+  ];
+  const offenders = [];
+  for (const file of walkSource('src')) {
+    const text = read(file);
+    for (const pattern of forbidden) {
+      if (pattern.test(text)) offenders.push(`${file} matched ${pattern}`);
+    }
+  }
+  assert.deepEqual(offenders, [], offenders.join('\n'));
+});
