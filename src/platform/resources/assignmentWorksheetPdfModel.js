@@ -1,5 +1,6 @@
 const clean = (value) => String(value ?? '').trim();
 const asArray = (value) => Array.isArray(value) ? value : value == null ? [] : [value];
+const isObject = (value) => Boolean(value && typeof value === 'object' && !Array.isArray(value));
 
 const safeChoice = (choice, index) => {
   if (choice == null) return null;
@@ -32,7 +33,6 @@ const scenarioText = (question = {}) => {
 const directionsText = (question = {}) => clean(
   question.directions ?? question.instructions ?? question.taskDirections ?? '',
 );
-
 
 export const PRINT_OUTPUT_MODES = Object.freeze({
   STUDENT: 'student',
@@ -85,6 +85,9 @@ const firstAnswerValue = (source = {}) => {
   if (Array.isArray(source.acceptedAnswers) && source.acceptedAnswers.length) {
     return formatAnswerValue(source.acceptedAnswers[0]);
   }
+  if (Array.isArray(source.accepted) && source.accepted.length) {
+    return formatAnswerValue(source.accepted[0]);
+  }
   return '';
 };
 
@@ -135,6 +138,7 @@ export const answerLinesFromResolvedQuestion = (question = {}) => {
 
   labelledAnswerLines(question.responseFields).forEach(add);
   labelledAnswerLines(question.responses).forEach(add);
+  labelledAnswerLines(question.answerFields).forEach(add);
   labelledAnswerLines(question.analysisRequests).forEach(add);
 
   if (question.tableAnswers && typeof question.tableAnswers === 'object' && !Array.isArray(question.tableAnswers)) {
@@ -180,6 +184,230 @@ export const solutionLinesFromResolvedQuestion = (question = {}) => {
   return out.slice(0, 12);
 };
 
+const signedTerm = (coefficient, variable = '', { leading = false } = {}) => {
+  const n = Number(coefficient);
+  if (!Number.isFinite(n) || Math.abs(n) < 1e-12) return '';
+  const magnitude = Math.abs(n);
+  const coefficientText = variable && magnitude === 1 ? '' : String(magnitude);
+  const body = `${coefficientText}${variable}`;
+  if (leading) return n < 0 ? `-${body}` : body;
+  return n < 0 ? ` - ${body}` : ` + ${body}`;
+};
+
+export const functionSpecToMath = (spec = {}, functionName = 'f') => {
+  if (!isObject(spec)) return '';
+  const type = clean(spec.type || spec.kind || 'line');
+  const name = clean(spec.functionName || functionName) || 'f';
+  if (type === 'line' || type === 'linear') {
+    const m = Number(spec.m ?? spec.a ?? 1);
+    const b = Number(spec.b ?? spec.k ?? 0);
+    return `${name}(x) = ${signedTerm(m, 'x', { leading: true }) || '0'}${signedTerm(b)}`;
+  }
+  if (type === 'quadratic') {
+    const a = Number(spec.a ?? 1);
+    const hasVertex = Object.prototype.hasOwnProperty.call(spec, 'h') || Object.prototype.hasOwnProperty.call(spec, 'k');
+    if (hasVertex) {
+      const h = Number(spec.h ?? 0);
+      const k = Number(spec.k ?? 0);
+      const coefficient = a === 1 ? '' : a === -1 ? '-' : String(a);
+      const inside = h < 0 ? `x + ${Math.abs(h)}` : h > 0 ? `x - ${h}` : 'x';
+      return `${name}(x) = ${coefficient}(${inside})^2${signedTerm(k)}`;
+    }
+    const b = Number(spec.b ?? 0);
+    const c = Number(spec.c ?? 0);
+    return `${name}(x) = ${signedTerm(a, 'x^2', { leading: true }) || '0'}${signedTerm(b, 'x')}${signedTerm(c)}`;
+  }
+  if (type === 'absolute') {
+    const a = Number(spec.a ?? 1);
+    const h = Number(spec.h ?? 0);
+    const k = Number(spec.k ?? 0);
+    const coefficient = a === 1 ? '' : a === -1 ? '-' : String(a);
+    const inside = h < 0 ? `x + ${Math.abs(h)}` : h > 0 ? `x - ${h}` : 'x';
+    return `${name}(x) = ${coefficient}|${inside}|${signedTerm(k)}`;
+  }
+  if (['squareRoot','cubic','cubeRoot'].includes(type)) {
+    const a = Number(spec.a ?? 1);
+    const h = Number(spec.h ?? 0);
+    const k = Number(spec.k ?? 0);
+    const coefficient = a === 1 ? '' : a === -1 ? '-' : String(a);
+    const inside = h < 0 ? `x + ${Math.abs(h)}` : h > 0 ? `x - ${h}` : 'x';
+    const core = type === 'squareRoot' ? `\\sqrt{${inside}}` : type === 'cubeRoot' ? `\\sqrt[3]{${inside}}` : `(${inside})^3`;
+    return `${name}(x) = ${coefficient}${core}${signedTerm(k)}`;
+  }
+  if (type === 'exponential') {
+    const a = Number(spec.a ?? 1);
+    const base = Number(spec.base ?? 2);
+    const h = Number(spec.h ?? 0);
+    const k = Number(spec.k ?? 0);
+    const coefficient = a === 1 ? '' : a === -1 ? '-' : String(a);
+    const exponent = h < 0 ? `x+${Math.abs(h)}` : h > 0 ? `x-${h}` : 'x';
+    return `${name}(x) = ${coefficient}${base}^{${exponent}}${signedTerm(k)}`;
+  }
+  if (type === 'reciprocal' || type === 'rational') {
+    const a = Number(spec.a ?? 1);
+    const h = Number(spec.h ?? 0);
+    const k = Number(spec.k ?? 0);
+    const denominator = h < 0 ? `x + ${Math.abs(h)}` : h > 0 ? `x - ${h}` : 'x';
+    return `${name}(x) = \\frac{${a}}{${denominator}}${signedTerm(k)}`;
+  }
+  return '';
+};
+
+const mathLine = (label, value) => {
+  const text = clean(value);
+  return text ? `${label}: $${text}$` : '';
+};
+
+export const structuredGivenLinesFromResolvedQuestion = (question = {}) => {
+  const lines = [];
+  const add = (line) => {
+    const text = clean(line);
+    if (text && !lines.includes(text)) lines.push(text);
+  };
+  if (question.equation) add(mathLine('Equation', question.equation));
+  if (question.expression && question.expression !== question.equation) add(mathLine('Expression', question.expression));
+  asArray(question.equations).forEach((equation, index) => add(mathLine(`Equation ${index + 1}`, equation)));
+  if (question.inequalityText || question.inequality) add(mathLine('Inequality', question.inequalityText || question.inequality));
+
+  const type = clean(question.type || question.toolId).toLowerCase();
+  const constructionNeedsRule = ['functiongraph','graphing2','functioninvestigation2','constraintfunctionbuilder'].includes(type);
+  if (constructionNeedsRule && isObject(question.functionSpec)) {
+    add(mathLine('Function', functionSpecToMath(question.functionSpec)));
+  }
+
+  if (Array.isArray(question.inequalities) && question.inequalities.length) {
+    question.inequalities.slice(0, 4).forEach((entry, index) => {
+      if (!isObject(entry)) return;
+      const m = Number(entry.m ?? 0);
+      const b = Number(entry.b ?? 0);
+      const relation = clean(entry.relation || entry.operator || '>=').replace('>=', '≥').replace('<=', '≤');
+      const right = `${signedTerm(m, 'x', { leading: true }) || '0'}${signedTerm(b)}`;
+      add(`Inequality ${index + 1}: $y ${relation} ${right}$`);
+    });
+  }
+
+  return lines.slice(0, 8);
+};
+
+const safeTable = (table = {}) => {
+  if (!isObject(table)) return null;
+  const columns = asArray(table.columns).map((column, index) => {
+    if (isObject(column)) {
+      const key = clean(column.key || column.id) || `c${index + 1}`;
+      return { key, label: clean(column.label || column.name) || key };
+    }
+    const label = clean(column) || `Column ${index + 1}`;
+    return { key: `c${index + 1}`, label };
+  });
+  const rows = asArray(table.rows).map((row) => {
+    if (Array.isArray(row)) return row.map((value) => (value == null ? '' : value));
+    if (isObject(row)) {
+      return Object.fromEntries(columns.map((column) => [column.key, row[column.key] == null ? '' : row[column.key]]));
+    }
+    return row;
+  });
+  if (!columns.length || !rows.length) return null;
+  return { columns, rows };
+};
+
+const graphWithFunctionSpec = (question = {}) => {
+  if (isObject(question.graph)) {
+    const graph = { ...question.graph };
+    if (!Array.isArray(graph.functions) && isObject(question.functionSpec)) {
+      graph.functions = [{ ...question.functionSpec, type: question.functionSpec.type === 'linear' ? 'line' : question.functionSpec.type }];
+    }
+    return graph;
+  }
+  if (isObject(question.functionSpec)) {
+    return {
+      xMin: -10, xMax: 10, yMin: -10, yMax: 10,
+      functions: [{ ...question.functionSpec, type: question.functionSpec.type === 'linear' ? 'line' : question.functionSpec.type }],
+    };
+  }
+  return null;
+};
+
+const graphHasDrawing = (graph = {}) => (
+  isObject(graph)
+  && (
+    asArray(graph.functions).length > 0
+    || asArray(graph.points).length > 0
+    || asArray(graph.segments).length > 0
+    || isObject(graph.line)
+    || Number.isFinite(Number(graph.m))
+    || Number.isFinite(Number(graph.b))
+  )
+);
+
+const graphBounds = (question = {}) => {
+  const graph = isObject(question.graph) ? question.graph : {};
+  return {
+    xMin: Number.isFinite(Number(graph.xMin)) ? Number(graph.xMin) : -10,
+    xMax: Number.isFinite(Number(graph.xMax)) ? Number(graph.xMax) : 10,
+    yMin: Number.isFinite(Number(graph.yMin)) ? Number(graph.yMin) : -10,
+    yMax: Number.isFinite(Number(graph.yMax)) ? Number(graph.yMax) : 10,
+    xStep: Number.isFinite(Number(graph.xStep)) ? Number(graph.xStep) : undefined,
+    yStep: Number.isFinite(Number(graph.yStep)) ? Number(graph.yStep) : undefined,
+  };
+};
+
+const mappingVisual = (question = {}, includeAnswers = false) => {
+  const pairs = asArray(question.pairs).filter((pair) => Array.isArray(pair) && pair.length >= 2).map((pair) => [pair[0], pair[1]]);
+  if (!pairs.length) return null;
+  return {
+    kind: 'mapping',
+    pairs: question.showGivenRelation === false && !includeAnswers ? [] : pairs,
+    expectedPairs: includeAnswers ? pairs : [],
+    domainLabel: clean(question.domainLabel) || 'Domain',
+    rangeLabel: clean(question.rangeLabel) || 'Range',
+  };
+};
+
+export const printableVisualsFromResolvedQuestion = (question = {}, { includeAnswers = false } = {}) => {
+  const visuals = [];
+  const type = clean(question.type || question.toolId).toLowerCase();
+
+  const table = safeTable(question.table);
+  if (table) visuals.push({ kind: 'table', table });
+
+  if (['graphscenariomatch','graphcomparison'].includes(type) && Array.isArray(question.graphs)) {
+    const graphs = question.graphs
+      .map((entry, index) => ({
+        label: clean(entry?.label || entry?.title) || String.fromCharCode(65 + index),
+        graph: isObject(entry?.graph) ? entry.graph : null,
+      }))
+      .filter((entry) => graphHasDrawing(entry.graph));
+    if (graphs.length) visuals.push({ kind: 'graphChoices', graphs });
+  } else if (['functiongraph','graphing2','constraintfunctionbuilder'].includes(type)) {
+    const solved = graphWithFunctionSpec(question);
+    visuals.push(includeAnswers && graphHasDrawing(solved)
+      ? { kind: 'graph', graph: solved, label: 'Solved graph' }
+      : { kind: 'blankGraph', bounds: graphBounds(question), label: 'Graphing workspace' });
+  } else if (['relationshipmodel','modelinglab'].includes(type)) {
+    visuals.push({ kind: 'blankGraph', bounds: graphBounds(question), label: 'Model graph workspace' });
+  } else if (type === 'relationmapping') {
+    const mapping = mappingVisual(question, includeAnswers);
+    if (mapping) visuals.push(mapping);
+    if (asArray(question.ask).includes('plot')) {
+      visuals.push({ kind: 'blankGraph', bounds: graphBounds(question), label: 'Coordinate plot workspace' });
+    }
+  } else if (type.includes('numberline') || type === 'intervalnumberline') {
+    visuals.push({
+      kind: 'numberLine',
+      min: Number.isFinite(Number(question.min)) ? Number(question.min) : -10,
+      max: Number.isFinite(Number(question.max)) ? Number(question.max) : 10,
+      step: Number.isFinite(Number(question.step)) ? Number(question.step) : 1,
+      intervals: includeAnswers ? asArray(question.intervals) : [],
+      showAnswer: includeAnswers,
+    });
+  } else {
+    const graph = graphWithFunctionSpec(question);
+    if (graphHasDrawing(graph)) visuals.push({ kind: 'graph', graph, label: 'Graph' });
+  }
+
+  return visuals;
+};
+
 export const printableQuestionFromResolved = (question = {}, {
   sourceIndex = 0,
   number = 1,
@@ -192,11 +420,13 @@ export const printableQuestionFromResolved = (question = {}, {
   number,
   sectionRole: clean(sectionRole) || 'practice',
   sectionLabel: clean(sectionLabel) || 'Practice',
-  type: clean(question.type) || 'question',
+  type: clean(question.type || question.toolId) || 'question',
   prompt: clean(question.prompt ?? question.question ?? question.stem),
   directions: directionsText(question),
   scenario: scenarioText(question),
+  givens: structuredGivenLinesFromResolvedQuestion(question),
   choices: visibleChoices(question),
+  visuals: printableVisualsFromResolvedQuestion(question, { includeAnswers }),
   workspace: clean(question.printWorkspace ?? question.workspaceHint ?? ''),
   ...(includeAnswers ? { answerLines: answerLinesFromResolvedQuestion(question) } : {}),
   ...(includeSolutions ? { solutionLines: solutionLinesFromResolvedQuestion(question) } : {}),
