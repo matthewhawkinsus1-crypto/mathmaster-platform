@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { MathMasterToolWrapper } from '../../platform/ToolWrapper';
 import { getEffectiveActivityPolicy } from '../../platform/policies/activityPolicies';
 import { PUBLICATION_STRATEGIES, planClassroomPublication } from '../../platform/publishing/publicationPlanner';
-import { validateLessonBundle } from '../../platform/validation/bundleValidator';
+import { buildAssignmentV5PreflightModel } from '../../platform/preflight/assignmentV5PreflightModel.js';
 import InteractiveModelingLabPlayer from '../labs/InteractiveModelingLabPlayer.jsx';
 import { buildHonorsEnrichmentQuestion, inspectHonorsRigor, splitClassPeriodsByRigor } from '../../platform/rigor/courseRigor.js';
 import RepresentationAudit from './RepresentationAudit';
@@ -112,7 +112,7 @@ const StepBlockers = ({ blockers }) => {
 };
 
 export const LessonPreflightModal = ({
-  lessonBundle,
+  assignmentV5,
   publicationPlan: suppliedPublicationPlan = null,
   initialDraft = {},
   classPeriods = [],
@@ -125,15 +125,6 @@ export const LessonPreflightModal = ({
   onConfirmPublish,
   busy = false,
 }) => {
-  const activities = Array.isArray(lessonBundle?.activities) ? lessonBundle.activities : [];
-  const activityRoles = useMemo(() => [...new Set(activities.map((activity) => activity?.role).filter(Boolean))], [activities]);
-  const hasAuthoredWarmup = activityRoles.includes('warmup');
-  const hasAuthoredDOL = activityRoles.includes('dol');
-  // Activity sections are the source of truth. `assignmentType` remains in the
-  // saved document only for backwards compatibility with older runtime code.
-  const derivedAssignmentType = activityRoles.some((role) => role === 'warmup' || role === 'classwork')
-    ? 'notesClasswork'
-    : 'practice';
   const isNarrow = useIsNarrow();
   const [draft, setDraft] = useState(() => initialReviewDraft(initialDraft));
   const [activeStep, setActiveStep] = useState('details');
@@ -145,38 +136,33 @@ export const LessonPreflightModal = ({
   const [previewOpen, setPreviewOpen] = useState(false);
   const [honorsEnrichmentQuestion, setHonorsEnrichmentQuestion] = useState(null);
 
-  const effectiveBundle = useMemo(() => ({
-    ...lessonBundle,
-    lessonMetadata: {
-      ...lessonBundle?.lessonMetadata,
-      title: draft.title || lessonBundle?.lessonMetadata?.title || 'Untitled Lesson',
-    },
-  }), [lessonBundle, draft.title]);
+  // Assignment V5 is the Preflight source of truth. The model validates V5
+  // directly and attaches the effective role policy used by the preview.
+  const preflightModel = useMemo(
+    () => buildAssignmentV5PreflightModel(assignmentV5, { titleOverride: draft.title }),
+    [assignmentV5, draft.title],
+  );
+  const effectiveAssignmentV5 = preflightModel.assignmentV5;
+  const activities = preflightModel.sections;
+  const activityRoles = useMemo(() => [...new Set(activities.map((section) => section?.role).filter(Boolean))], [activities]);
+  const hasAuthoredWarmup = activityRoles.includes('warmup');
+  const hasAuthoredDOL = activityRoles.includes('dol');
+  // Existing runtime readers still consume this projection; V5 section roles
+  // are the actual authoring source of truth.
+  const derivedAssignmentType = activityRoles.some((role) => role === 'warmup' || role === 'classwork')
+    ? 'notesClasswork'
+    : 'practice';
 
-  // The bundle stores questions per activity; the preview wants them flat, each
-  // still carrying the activity role that decides its delivery mode.
-  const previewQuestions = useMemo(() => activities.flatMap((activity) => (
-    (Array.isArray(activity?.questions) ? activity.questions : []).map((question) => ({
-      ...question,
-      activityRole: question?.activityRole || activity?.role || 'practice',
-    }))
-  )), [activities]);
-
-  const validationReport = useMemo(() => validateLessonBundle(effectiveBundle), [effectiveBundle]);
-  const validationErrors = useMemo(() => [
-    ...(validationReport.criticalErrors || []),
-    ...(validationReport.activityReports || []).flatMap((activity) => (
-      (activity.errors || []).map((error) => `${activity.title || activity.role || 'Activity'}: ${error}`)
-    )),
-  ], [validationReport]);
+  const previewQuestions = preflightModel.questions;
+  const validationErrors = preflightModel.errors;
 
   const computedPublicationPlan = useMemo(() => planClassroomPublication({
-    lessonBundle: effectiveBundle,
+    assignmentV5: effectiveAssignmentV5,
     strategy: draft.publicationStrategy || PUBLICATION_STRATEGIES.HYBRID,
     mainDueDate: draft.dueAt || null,
     homeworkDueDate: draft.homeworkDueAt || null,
     includeWarmupInClassroom: draft.includeWarmupInClassroom === true,
-  }), [effectiveBundle, draft.publicationStrategy, draft.dueAt, draft.homeworkDueAt, draft.includeWarmupInClassroom]);
+  }), [effectiveAssignmentV5, draft.publicationStrategy, draft.dueAt, draft.homeworkDueAt, draft.includeWarmupInClassroom]);
 
   const publicationPlan = suppliedPublicationPlan && !initialDraft.publicationStrategy
     ? suppliedPublicationPlan
@@ -223,8 +209,8 @@ export const LessonPreflightModal = ({
   const readiness = useMemo(() => summarizePreflightReadiness({
     blockers: collectReviewBlockers({ draft, classPeriods, honorsSelected, honorsReport }),
     validationErrors,
-    bundleIsValid: validationReport.isValid,
-  }), [draft, classPeriods, honorsSelected, honorsReport, validationErrors, validationReport.isValid]);
+    bundleIsValid: preflightModel.isValid,
+  }), [draft, classPeriods, honorsSelected, honorsReport, validationErrors, preflightModel.isValid]);
 
   useEffect(() => {
     if (demoActivityIndex >= activities.length) setDemoActivityIndex(Math.max(0, activities.length - 1));
@@ -234,7 +220,7 @@ export const LessonPreflightModal = ({
     if (demoQuestionIndex >= questions.length) setDemoQuestionIndex(Math.max(0, questions.length - 1));
   }, [questions.length, demoQuestionIndex]);
 
-  if (!lessonBundle) return null;
+  if (!assignmentV5) return null;
 
   const setField = (field, value) => setDraft((current) => ({ ...current, [field]: value }));
   const sectionVariantMode = (role) => draft.sectionVariantModes?.[role] || draft.variantMode || 'shared';
@@ -347,7 +333,7 @@ export const LessonPreflightModal = ({
     <section aria-label="Details">
       {isNarrow && <StepBlockers blockers={blockersForStep(readiness, 'details')} />}
       <RepresentationAudit questions={sourceQuestions} warnings={authoringWarnings} />
-      <SectionBalanceRigorAudit lessonBundle={effectiveBundle} />
+      <SectionBalanceRigorAudit assignmentV5={effectiveAssignmentV5} />
 
       <div style={{ padding: '12px 14px', marginBottom: 16, background: '#e8f0fe', color: '#174ea6', border: '1px solid #aecbfa', borderRadius: 9, fontSize: 13, lineHeight: 1.5 }}>
         <strong>AI-prepared Classroom and notes package.</strong> MathMaster carries the AI-written topic, post text, grade-passback settings, and 1–2 page student-notes plan into the saved lesson. The teacher still chooses classes and dates here before anything is published.
@@ -860,7 +846,7 @@ export const LessonPreflightModal = ({
                   // teacher can tap it at all it always does something: create,
                   // or jump to the step that is blocking creation.
                   if (!canCreate) { if (readiness.firstBlockedStep) goToStep(readiness.firstBlockedStep); return; }
-                  onConfirmPublish?.({ draft: { ...draft, assignmentType: derivedAssignmentType, variantMode: legacyVariantMode, sectionVariantModes: resolvedSectionVariantModes, warmupEnabled: hasAuthoredWarmup && draft.warmupEnabled !== false, warmupInstructionDate: resolvedWarmupInstructionDate, warmupInstructionDatesByClassPeriod: resolvedWarmupInstructionDatesByClassPeriod, dolEnabled: hasAuthoredDOL && draft.dolEnabled === true, dolInstructionDate: resolvedDOLInstructionDate, dolInstructionDatesByClassPeriod: resolvedDOLInstructionDatesByClassPeriod, honorsEnrichmentQuestion }, publicationPlan, lessonBundle: effectiveBundle, honorsReport });
+                  onConfirmPublish?.({ draft: { ...draft, assignmentType: derivedAssignmentType, variantMode: legacyVariantMode, sectionVariantModes: resolvedSectionVariantModes, warmupEnabled: hasAuthoredWarmup && draft.warmupEnabled !== false, warmupInstructionDate: resolvedWarmupInstructionDate, warmupInstructionDatesByClassPeriod: resolvedWarmupInstructionDatesByClassPeriod, dolEnabled: hasAuthoredDOL && draft.dolEnabled === true, dolInstructionDate: resolvedDOLInstructionDate, dolInstructionDatesByClassPeriod: resolvedDOLInstructionDatesByClassPeriod, honorsEnrichmentQuestion }, publicationPlan, assignmentV5: effectiveAssignmentV5, honorsReport });
                 }}
                 style={{ flex: isNarrow ? 2 : undefined, minHeight: isNarrow ? 48 : 44, padding: '10px 20px', border: 'none', borderRadius: 8, background: canCreate ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 800 }}
               >
