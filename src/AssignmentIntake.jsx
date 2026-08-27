@@ -56,7 +56,7 @@ const stepBadge = (number) => (
   }}>{number}</span>
 );
 
-const SECTION_ORDER = ['warmup', 'classwork', 'practice', 'dol'];
+const SECTION_ORDER = ['warmup', 'classwork', 'practice', 'dol', 'quiz', 'test'];
 
 const modeLabel = {
   shared: 'Same version',
