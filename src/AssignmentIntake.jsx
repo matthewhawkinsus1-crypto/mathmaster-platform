@@ -156,8 +156,8 @@ export default function AssignmentIntake({
         const report = [
           '# MathMaster V5 compiler defect',
           '',
-          'The outside AI supplied Authoring Intent V5, but MathMaster failed while converting that intent into its internal renderer/runtime contract.',
-          'Do not repair this by converting the assignment to V4 or adding type/toolId/functionSpec/analysisRequests plumbing to the AI JSON.',
+          'The assignment is valid V5 intent, but MathMaster failed while selecting or building its internal renderer/runtime contract.',
+          'Do not repair this by adding type/toolId/functionSpec/analysisRequests plumbing or by switching to an older assignment format.',
           '',
           '## Compiler errors',
           ...failure.errors.map((error, index) => `${index + 1}. ${error}`),
@@ -265,9 +265,9 @@ export default function AssignmentIntake({
           </h3>
           <p style={{ margin: '0 0 10px', color: '#5f6b7a', fontSize: 13, lineHeight: 1.55 }}>
             {failure.compilerDefect
-              ? 'The V5 intent contains enough student-facing information, but MathMaster failed while compiling its own renderer/runtime plumbing. This is a platform defect — do not send the assignment back to the AI as V4.'
+              ? 'The V5 intent contains enough student-facing information, but MathMaster failed while compiling its own renderer/runtime plumbing. This is a platform defect — keep the assignment in V5 and fix the platform compiler.'
               : Number(failure.sourceSchemaVersion) === 5
-                ? 'MathMaster repairs V5 renderer plumbing automatically. Any remaining item below should describe a genuine mathematical/content omission. The copied repair request keeps schemaVersion 5.'
+                ? 'MathMaster owns V5 renderer plumbing automatically. Any remaining item below should describe a genuine mathematical/content omission. The copied repair request keeps schemaVersion 5.'
                 : 'MathMaster already repairs formatting, aliases, mixed fixed/generated delivery, and ordinary graph viewport issues. Anything still listed below could not be repaired safely without changing meaning.'}
           </p>
           <ul style={{ margin: '0 0 14px', paddingLeft: 20, color: '#3c4756', lineHeight: 1.6, fontSize: 13 }}>
