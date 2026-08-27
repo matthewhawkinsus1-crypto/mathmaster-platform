@@ -48,9 +48,13 @@ export const buildMobileMathTools = ({
 } = {}) => {
   let profile = [...(profileKeys || [])];
 
+  // Parentheses are foundational math-entry keys and must never disappear on
+  // touch devices merely because a renderer chose "expression" instead of
+  // "equation". Dedupe removes them when a specialized profile already has them.
+  profile = [OPEN_PAREN, CLOSE_PAREN, ...profile];
+
   if (String(toolProfile) === 'equation') {
     profile = profile.filter((tool) => !isNthRoot(tool) || isRequiredTool(tool, requiredTools));
-    profile = [OPEN_PAREN, CLOSE_PAREN, ...profile];
   }
 
   const requiredKeys = new Set(requiredTools.map(semanticKey));
