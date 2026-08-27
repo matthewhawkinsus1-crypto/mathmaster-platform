@@ -88,13 +88,13 @@ export const normalizeAssignmentV5 = (input = {}) => {
       mode: 'bounded',
       allowStandardChange: false,
       preserveAssessmentFidelity: true,
+      ...(isObject(input.differentiationPolicy) ? input.differentiationPolicy : {}),
       honors: {
         mode: 'inheritDestinationClass',
         ccmrPracticeTargetShare: 0.15,
         shortSectionExemptionMaxQuestions: 3,
         ...(isObject(input.differentiationPolicy?.honors) ? input.differentiationPolicy.honors : {}),
       },
-      ...(isObject(input.differentiationPolicy) ? input.differentiationPolicy : {}),
     },
     supportPolicy: {
       mode: 'inheritStudentProfile',
@@ -216,3 +216,49 @@ export const flattenV5Sections = (input = {}) => (
     }))
   ))
 );
+
+
+export const rebuildV5SectionsFromQuestions = (source = {}, questions = []) => {
+  const sourceSections = Array.isArray(source?.sections) ? source.sections : [];
+  const remaining = [...(Array.isArray(questions) ? questions : [])];
+  const takeMatching = (section) => {
+    const matches = [];
+    for (let index = remaining.length - 1; index >= 0; index -= 1) {
+      const question = remaining[index];
+      const sameId = clean(question?.sectionId) && clean(question.sectionId) === clean(section.id);
+      const sameRole = !clean(question?.sectionId)
+        && clean(question?.activityRole).toLowerCase() === clean(section.role).toLowerCase();
+      if (sameId || sameRole) {
+        matches.unshift(question);
+        remaining.splice(index, 1);
+      }
+    }
+    return matches;
+  };
+
+  const sections = sourceSections.map((section, index) => {
+    const normalized = normalizeSection(section, index);
+    return { ...normalized, questions: takeMatching(normalized) };
+  });
+
+  remaining.forEach((question) => {
+    const role = V5_SECTION_ROLES.includes(clean(question?.activityRole).toLowerCase())
+      ? clean(question.activityRole).toLowerCase()
+      : 'practice';
+    let section = sections.find((entry) => entry.role === role);
+    if (!section) {
+      section = normalizeSection({ role, title: {
+        warmup: 'Warm-Up',
+        classwork: 'Classwork',
+        practice: 'Practice',
+        dol: 'DOL',
+        quiz: 'Quiz',
+        test: 'Test',
+      }[role], questions: [] }, sections.length);
+      sections.push(section);
+    }
+    section.questions.push(question);
+  });
+
+  return sections;
+};
