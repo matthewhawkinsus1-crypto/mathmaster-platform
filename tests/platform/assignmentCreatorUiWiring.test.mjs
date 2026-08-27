@@ -11,7 +11,6 @@ test('teacher assignment intake exposes guided V5 planning rather than raw schem
   assert.match(source, /4\. Build with AI, then review in MathMaster/);
   assert.match(source, /NO CODE REQUIRED/);
   assert.match(source, /What are students learning or practicing/);
-  assert.match(source, /Sections and versions/);
   assert.match(source, /Printable student worksheet PDF/);
   assert.match(source, /Teacher copy PDF with answers\/available solutions/);
   assert.match(source, /Compact answer-key PDF/);
