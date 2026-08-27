@@ -88,6 +88,12 @@ export const normalizeAssignmentV5 = (input = {}) => {
       mode: 'bounded',
       allowStandardChange: false,
       preserveAssessmentFidelity: true,
+      honors: {
+        mode: 'inheritDestinationClass',
+        ccmrPracticeTargetShare: 0.15,
+        shortSectionExemptionMaxQuestions: 3,
+        ...(isObject(input.differentiationPolicy?.honors) ? input.differentiationPolicy.honors : {}),
+      },
       ...(isObject(input.differentiationPolicy) ? input.differentiationPolicy : {}),
     },
     supportPolicy: {
