@@ -2524,7 +2524,7 @@ function App() {
       const { metadata } = inspected;
       const assignmentV5 = inspected.bundleSource;
       if (!assignmentV5 || Number(assignmentV5.schemaVersion) !== 5) {
-        throw new Error('Preflight requires one canonical MathMaster Assignment V5 object.');
+        throw new Error('Assignment Review requires a current MathMaster assignment.');
       }
       const sections = Array.isArray(assignmentV5.sections) ? assignmentV5.sections : [];
       const dolQuestionFromRole = inspected.questions.findIndex((question) => (
@@ -2598,7 +2598,7 @@ function App() {
     setNewAssignmentJSON(result.parsed.normalizedText);
     const opened = openAssignmentPreflight({ ...result.parsed, authoringWarnings: result.warnings }, sourceName);
     if (opened !== true) {
-      return { ok: false, errors: [opened?.error || 'Could not build the preflight review from this JSON.'], warnings: result.warnings, sourceSchemaVersion: result.sourceSchemaVersion, compilerDefect: false };
+      return { ok: false, errors: [opened?.error || 'Could not build Assignment Review from this assignment.'], warnings: result.warnings, sourceSchemaVersion: result.sourceSchemaVersion, compilerDefect: false };
     }
     return { ok: true, warnings: result.warnings, repairs: result.parsed.repairs || [] };
   };
@@ -2628,7 +2628,7 @@ function App() {
         ? reviewedAssignmentV5
         : parsed.bundleSource;
       if (!reviewedV5 || Number(reviewedV5.schemaVersion) !== 5) {
-        throw new Error('Publishing requires the canonical Assignment V5 object that was reviewed in Preflight.');
+        throw new Error('Publishing requires the MathMaster assignment that was reviewed before creation.');
       }
       // Preflight can change delivery/output policy. Questions and sections must
       // therefore come from the reviewed V5 object, not from the original paste.
@@ -2948,7 +2948,7 @@ function App() {
           let enrichmentQuestion = null;
           if (!sourceHonorsReport.isHonorsReady) {
             if (!sourceHonorsReport.checks.ccmrEnrichment) {
-              throw new Error('This Honors destination needs an authentic CCMR-style Practice question in the source assignment. Regenerate or edit the assignment JSON so Practice includes a directly authored Digital SAT, ACT, TSIA2, or ASVAB item aligned to the lesson TEKS.');
+              throw new Error('This Honors destination needs an authentic CCMR-style Practice question in the source assignment. Regenerate or edit the assignment so Practice includes a directly authored Digital SAT, ACT, TSIA2, or ASVAB item aligned to the lesson TEKS.');
             }
             if (!teacherReview?.honorsEnrichmentQuestion) {
               throw new Error('This Honors destination still needs additional Honors depth. Return to preflight and choose Build Honors Depth Extension.');
@@ -3678,7 +3678,7 @@ function App() {
       await fetchAssignments();
       toastSuccess(
         `Duplicated “${assignment.title}”`,
-        'The copy passed V5 Preflight and was saved as an unassigned library item with no student records.',
+        'The copy passed MathMaster’s assignment checks and was saved as an unassigned library item with no student records.',
       );
     } catch (error) {
       toastError('Could not duplicate assignment', error.message);
