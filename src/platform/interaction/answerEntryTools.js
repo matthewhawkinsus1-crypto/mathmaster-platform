@@ -155,6 +155,8 @@ export const requiredAnswerToolForSymbol = (symbol) => {
   return null;
 };
 
+export const answerSymbolSpec = requiredAnswerToolForSymbol;
+
 export const canServeRequiredAnswerSymbol = (symbol) => Boolean(requiredAnswerToolForSymbol(symbol));
 
 export const unsupportedRequiredAnswerSymbols = (symbols = []) => (
