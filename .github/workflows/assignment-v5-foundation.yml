@@ -10,6 +10,10 @@ on:
     paths:
       - 'src/assignmentBlueprint.js'
       - 'src/App.jsx'
+      - 'tests/platform/preproductionReset.test.mjs'
+      - 'src/components/admin/PreproductionReset.jsx'
+      - 'src/auth/authService.js'
+      - 'functions/lib/admin.js'
       - 'src/AssignmentIntake.jsx'
       - 'src/components/teacher/assignmentCreatorPlan.js'
       - 'src/platform/contract/**'
@@ -83,6 +87,9 @@ jobs:
 
       - name: Retired assignment source audit
         run: npm run audit:legacy-assignment-source
+
+      - name: Pre-production reset safety
+        run: node --test tests/platform/preproductionReset.test.mjs
 
       - name: PDF and worksheet regressions
         run: >
