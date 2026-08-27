@@ -14,15 +14,30 @@ export const resolveAdaptiveTargetBand = (question, studentProfile) => {
   return clampBand(adaptive.generatorBand || normalizeQuestionDifficulty(question).generatorBand);
 };
 
-const nearestProfileKey = (profiles, targetBand) => {
-  const keys = Object.keys(profiles || {}).map(Number).filter((value) => Number.isInteger(value) && value >= 1 && value <= 5);
-  if (!keys.length) return null;
-  return keys.sort((a, b) => Math.abs(a - targetBand) - Math.abs(b - targetBand) || a - b)[0];
+const exactProfileKey = (profiles, targetBand) => {
+  if (!profiles || typeof profiles !== 'object' || Array.isArray(profiles)) return null;
+  const band = clampBand(targetBand);
+  return Object.prototype.hasOwnProperty.call(profiles, String(band))
+    || Object.prototype.hasOwnProperty.call(profiles, band)
+    ? band
+    : null;
 };
+
+// These fields define WHAT is being assessed or WHO is allowed to receive a
+// support. A difficulty-band profile may vary numbers, context, scaffolding,
+// generator parameters and permitted rigor, but it may never rewrite these.
+const PROTECTED_ADAPTIVE_FIELDS = Object.freeze([
+  'type', 'toolId', 'studentActions', 'activityRole', 'sectionId', 'sectionTitle',
+  'assessedConstruct', 'assessmentContext',
+  'alignments', 'alignmentKeys', 'standard', 'standards', 'primaryStandard',
+  'primaryTEKS', 'teks', 'secondaryStandards', 'prerequisiteStandards',
+  'supportPolicy', 'accommodations', 'supports', 'studentProfile',
+  'supportProfile', 'modification', 'calculator',
+]);
 
 const mergeQuestionOverride = (question, override) => {
   if (!override || typeof override !== 'object' || Array.isArray(override)) return question;
-  return {
+  const merged = {
     ...question,
     ...override,
     generator: override.generator ? { ...(question.generator || {}), ...override.generator } : question.generator,
@@ -30,6 +45,12 @@ const mergeQuestionOverride = (question, override) => {
     difficulty: override.difficulty ? { ...(question.difficulty || {}), ...override.difficulty } : question.difficulty,
     differentiation: question.differentiation,
   };
+
+  PROTECTED_ADAPTIVE_FIELDS.forEach((field) => {
+    if (Object.prototype.hasOwnProperty.call(question, field)) merged[field] = question[field];
+    else delete merged[field];
+  });
+  return merged;
 };
 
 /**
@@ -70,7 +91,10 @@ export const applyAdaptiveDifferentiation = (question, studentProfile, { targetB
   }
 
   const profiles = question?.differentiation?.bandProfiles;
-  const profileKey = nearestProfileKey(profiles, targetBand);
+  // Apply only the exact band the adaptation engine decided to deliver. Using a
+  // nearby profile while recording targetBand would make evidence claim a rigor
+  // level the student never actually saw.
+  const profileKey = exactProfileKey(profiles, targetBand);
   const profile = profileKey == null ? null : profiles[String(profileKey)] || profiles[profileKey];
   const merged = mergeQuestionOverride(question, profile);
 
