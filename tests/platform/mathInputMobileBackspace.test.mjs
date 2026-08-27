@@ -51,6 +51,6 @@ test('parentheses remain directly reachable on every controlled mobile math prof
 
 test('MathInput resolves required keys from the shared interaction symbol registry', () => {
   const source = fs.readFileSync(new URL('../../src/MathInput.jsx', import.meta.url), 'utf8');
-  assert.match(source, /answerSymbolSpec/);
+  assert.match(source, /requiredAnswerToolForSymbol/);
   assert.doesNotMatch(source, /const ANSWER_SYMBOL_KEYS/);
 });
