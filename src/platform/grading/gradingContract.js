@@ -49,7 +49,7 @@ const comparableScalar = (value) => ['string', 'number', 'boolean'].includes(typ
 
 const comparatorForField = (field = {}) => {
   const mode = gradingMode(field);
-  if (mode === 'equivalentExpression') {
+  if (modeToken === 'equivalentexpression') {
     return (left, right) => sameEquivalentExpression(left, right);
   }
   return (left, right) => sameValue(left, right);
@@ -108,6 +108,7 @@ const validateField = (field, {
 
   const display = `${label} · ${collection}[${index}] · ${fieldName(field, index)}`;
   const mode = gradingMode(field);
+  const modeToken = mode.toLowerCase();
   const primary = primaryValue(field, preferredPrimary);
   const accepted = acceptedValues(field, preferredAccepted);
   const autoGraded = !isManualReview(field);
@@ -115,7 +116,7 @@ const validateField = (field, {
   validateTolerance(field, 'numericTolerance', display, errors);
   validateTolerance(field, 'relativeTolerance', display, errors);
 
-  if (mode && !['equivalentExpression', 'manual', 'teacherReview', 'teacher-reviewed', 'rubric'].includes(mode)) {
+  if (mode && !['equivalentexpression', 'manual', 'teacherreview', 'teacher-reviewed', 'rubric'].includes(modeToken)) {
     errors.push(
       `${display} uses unsupported gradingMode "${mode}". MathMaster currently supports the default mathematical grader or "equivalentExpression" for expression fields.`,
     );
@@ -127,7 +128,7 @@ const validateField = (field, {
     );
   }
 
-  if (mode === 'equivalentExpression') {
+  if (modeToken === 'equivalentexpression') {
     const allKeys = [primary, ...accepted].filter(isPresent).map((value) => clean(value));
     if (allKeys.some((value) => value.includes('='))) {
       errors.push(
