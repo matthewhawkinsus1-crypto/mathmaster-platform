@@ -162,7 +162,7 @@ import {
   blobToBase64,
   generateLessonNotesPdfBlob,
 } from './platform/resources/lessonNotesPdf.js';
-import { buildAssignmentWorksheetModel } from './platform/resources/assignmentWorksheetPdfModel.js';
+import { buildAssignmentWorksheetModel, PRINT_OUTPUT_MODES } from './platform/resources/assignmentWorksheetPdfModel.js';
 import { downloadAssignmentWorksheetPdf } from './platform/resources/assignmentWorksheetPdf.js';
 import {
   assignmentNeedsStudentForWorksheet,
@@ -1875,7 +1875,7 @@ function App() {
       .sort(compareStudentsByName)
   );
 
-  const exportTeacherAssignmentWorksheetPdf = async (assignment, student = null) => {
+  const exportTeacherAssignmentWorksheetPdf = async (assignment, student = null, outputMode = PRINT_OUTPUT_MODES.STUDENT) => {
     if (user?.role !== 'teacher' || !assignment?.questions?.length) return;
     setTeacherWorksheetBusy(true);
     try {
@@ -1896,13 +1896,17 @@ function App() {
         student: selectedStudent,
         learningProfile: selectedStudent ? teacherLearningProfiles?.[selectedStudent.id] || null : null,
         studentProfile: selectedStudentProfile,
+        outputMode,
       });
       const result = await downloadAssignmentWorksheetPdf({ model });
+      const outputLabel = outputMode === PRINT_OUTPUT_MODES.TEACHER
+        ? 'Teacher copy'
+        : outputMode === PRINT_OUTPUT_MODES.ANSWER_KEY ? 'Answer key' : 'Student worksheet';
       toastSuccess(
-        'PDF ready',
+        `${outputLabel} ready`,
         selectedStudent
-          ? `${formatStudentName(selectedStudent)} · ${result.pageCount} printable page${result.pageCount === 1 ? '' : 's'} exported.`
-          : `${result.pageCount} printable page${result.pageCount === 1 ? '' : 's'} exported with blank student fields.`,
+          ? `${formatStudentName(selectedStudent)} · ${result.pageCount} page${result.pageCount === 1 ? '' : 's'} exported.`
+          : `${result.pageCount} page${result.pageCount === 1 ? '' : 's'} exported from the shared assignment version.`,
       );
       setTeacherWorksheetDialog(null);
     } catch (error) {
@@ -1918,19 +1922,16 @@ function App() {
       toastInfo('Nothing to export', 'This assignment does not currently contain printable questions.');
       return;
     }
-    if (!assignmentNeedsStudentForWorksheet(assignment)) {
-      await exportTeacherAssignmentWorksheetPdf(assignment, null);
-      return;
-    }
+    const requiresStudent = assignmentNeedsStudentForWorksheet(assignment);
     const students = teacherWorksheetStudentsFor(assignment);
-    if (!students.length) {
+    if (requiresStudent && !students.length) {
       toastInfo(
         'Student version needed',
-        'This assignment uses personalized versions, but no roster student is available for its current audience. Assign it to a class or add a student first.',
+        'This assignment uses personalized or adaptive sections, but no roster student is available for its current audience. Assign it to a class or add a student first.',
       );
       return;
     }
-    setTeacherWorksheetDialog({ assignmentId: assignment.id });
+    setTeacherWorksheetDialog({ assignmentId: assignment.id, requiresStudent });
   };
 
   const startAssignment = (assignmentId, requestedQuestionIndex = 0) => {
@@ -5070,9 +5071,10 @@ function App() {
               key={assignment.id}
               assignment={assignment}
               students={students}
+              requiresStudent={teacherWorksheetDialog.requiresStudent === true}
               busy={teacherWorksheetBusy}
               onCancel={() => { if (!teacherWorksheetBusy) setTeacherWorksheetDialog(null); }}
-              onExport={(student) => exportTeacherAssignmentWorksheetPdf(assignment, student)}
+              onExport={(student, outputMode) => exportTeacherAssignmentWorksheetPdf(assignment, student, outputMode)}
             />
           );
         })()}
