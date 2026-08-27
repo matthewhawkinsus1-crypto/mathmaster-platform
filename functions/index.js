@@ -2524,6 +2524,83 @@ async function recursiveDeleteQuery(db, query, deleted, label) {
   return snapshot.docs;
 }
 
+
+async function preproductionStudentAuthUsers(db) {
+  const teacherSnapshot = await db.collection(authLib.TEACHER_COLLECTION).get();
+  const protectedEmails = new Set([
+    authLib.ROOT_ADMIN_EMAIL,
+    ...authLib.bootstrapTeacherEmails(),
+    ...teacherSnapshot.docs.map((entry) => entry.id),
+  ].filter(Boolean).map((email) => String(email).trim().toLowerCase()));
+  const protectedUids = new Set(
+    teacherSnapshot.docs.map((entry) => entry.data()?.uid).filter(Boolean).map(String),
+  );
+
+  const students = [];
+  let pageToken;
+  do {
+    // eslint-disable-next-line no-await-in-loop
+    const page = await getAuth().listUsers(1000, pageToken);
+    for (const userRecord of page.users) {
+      const email = String(userRecord.email || "").trim().toLowerCase();
+      const uid = String(userRecord.uid || "");
+      const protectedTeacher = protectedUids.has(uid)
+        || (email && protectedEmails.has(email))
+        || (email && authLib.isRootAdminEmail(email));
+      if (protectedTeacher) continue;
+      const role = String(userRecord.customClaims?.role || "").trim().toLowerCase();
+      if (role === "student" || uid.startsWith("student:")) {
+        students.push({ uid, email: email || null });
+      }
+    }
+    pageToken = page.pageToken;
+  } while (pageToken);
+  return students;
+}
+
+async function preproductionResetControl(db) {
+  const snapshot = await db.doc(adminPolicy.PREPRODUCTION_CONTROL_DOCUMENT).get();
+  const data = snapshot.exists ? snapshot.data() || {} : {};
+  return {
+    locked: data.locked === true,
+    lockedAt: serializableDate(data.lockedAt),
+  };
+}
+
+async function preproductionResetPreview(db) {
+  const [gradesSnapshot, authStudents, ...collectionSnapshots] = await Promise.all([
+    db.collection("grades").get(),
+    preproductionStudentAuthUsers(db),
+    ...adminPolicy.PREPRODUCTION_RESET_COLLECTIONS.map((collectionName) => (
+      db.collection(collectionName).get()
+    )),
+  ]);
+  const collections = {};
+  adminPolicy.PREPRODUCTION_RESET_COLLECTIONS.forEach((collectionName, index) => {
+    collections[collectionName] = collectionSnapshots[index].size;
+  });
+  const control = await preproductionResetControl(db);
+  return {
+    studentRosterRecords: gradesSnapshot.docs.filter((entry) => entry.id !== "test_connection").length,
+    studentAuthUsers: authStudents.length,
+    assignments: collections.assignments || 0,
+    collections,
+    preservedCollections: [...adminPolicy.PREPRODUCTION_PRESERVED_COLLECTIONS],
+    resetLocked: control.locked,
+    resetLockedAt: control.lockedAt,
+    lockConfirmationRequired: adminPolicy.preproductionLockConfirmation(),
+  };
+}
+
+async function clearPreproductionCollection(db, collectionName, deleted) {
+  const ref = db.collection(collectionName);
+  const snapshot = await ref.get();
+  if (snapshot.empty) return 0;
+  await db.recursiveDelete(ref);
+  deleted[collectionName] = snapshot.size;
+  return snapshot.size;
+}
+
 /** Root-admin view of recent privileged account-management actions. */
 exports.listAdminAuditLog = onCall(async (request) => {
   await requireRootAdmin(request);
@@ -2546,6 +2623,138 @@ exports.listAdminAuditLog = onCall(async (request) => {
       };
     }),
   };
+});
+
+/**
+ * Root-admin-only pre-production reset.
+ *
+ * This deliberately preserves platform configuration and curriculum while
+ * removing every test learner, assignment, response/evidence/session, and
+ * assignment-publication record. Preview mode is read-only. The destructive
+ * mode requires an exact typed phrase even though only the root administrator
+ * can call it.
+ */
+exports.resetPreproductionTestData = onCall(async (request) => {
+  const actor = await requireRootAdmin(request);
+  const db = getFirestore();
+  const dryRun = request.data?.dryRun === true;
+
+  const preview = await preproductionResetPreview(db);
+  if (dryRun) {
+    return {
+      success: true,
+      dryRun: true,
+      confirmationRequired: adminPolicy.preproductionResetConfirmation(),
+      ...preview,
+    };
+  }
+
+  if (preview.resetLocked) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Pre-production reset has been permanently locked for live-student production use.",
+    );
+  }
+
+  if (!adminPolicy.isPreproductionResetConfirmed(request.data?.confirmation)) {
+    throw new HttpsError(
+      "failed-precondition",
+      `Pre-production reset requires the exact confirmation ${adminPolicy.preproductionResetConfirmation()}.`,
+    );
+  }
+
+  // Delete student Firebase Auth identities first. Teacher/root identities are
+  // protected independently by both UID and email.
+  const authStudents = await preproductionStudentAuthUsers(db);
+  let deletedAuthUsers = 0;
+  for (const account of authStudents) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await getAuth().revokeRefreshTokens(account.uid).catch(() => {});
+      // eslint-disable-next-line no-await-in-loop
+      await getAuth().deleteUser(account.uid);
+      deletedAuthUsers += 1;
+    } catch (error) {
+      if (error?.code !== "auth/user-not-found") throw error;
+    }
+  }
+
+  const deleted = {};
+
+  // grades is both the student roster and the parent of scratchpads/evidence.
+  // Preserve only the deliberate connection-test sentinel.
+  const gradesSnapshot = await db.collection("grades").get();
+  for (const gradeDoc of gradesSnapshot.docs) {
+    if (gradeDoc.id === "test_connection") continue;
+    // eslint-disable-next-line no-await-in-loop
+    await db.recursiveDelete(gradeDoc.ref);
+    deleted.gradesWithSubcollections = Number(deleted.gradesWithSubcollections || 0) + 1;
+  }
+
+  // Clear each whole runtime/test collection recursively so orphaned test
+  // documents are removed even when they no longer have a matching roster row.
+  for (const collectionName of adminPolicy.PREPRODUCTION_RESET_COLLECTIONS) {
+    // eslint-disable-next-line no-await-in-loop
+    await clearPreproductionCollection(db, collectionName, deleted);
+  }
+
+  // The audit survives intentionally. It contains aggregate counts only, never
+  // the deleted student IDs/emails.
+  await writeAdminAudit(db, actor, "preproduction_test_data_reset", "preproduction-test-data", {
+    deletedAuthUsers,
+    deletedRecords: deleted,
+    preservedCollections: [...adminPolicy.PREPRODUCTION_PRESERVED_COLLECTIONS],
+  });
+
+  return {
+    success: true,
+    dryRun: false,
+    deletedAuthUsers,
+    deletedRecords: deleted,
+    preservedCollections: [...adminPolicy.PREPRODUCTION_PRESERVED_COLLECTIONS],
+  };
+});
+
+/**
+ * One-way root-admin production lock for the bulk test reset.
+ *
+ * There is deliberately no unlock callable. Re-enabling the reset after this
+ * point requires an explicit backend change outside the application.
+ */
+exports.lockPreproductionResetForProduction = onCall(async (request) => {
+  const actor = await requireRootAdmin(request);
+  const db = getFirestore();
+
+  if (!adminPolicy.isPreproductionLockConfirmed(request.data?.confirmation)) {
+    throw new HttpsError(
+      "failed-precondition",
+      `Production lock requires the exact confirmation ${adminPolicy.preproductionLockConfirmation()}.`,
+    );
+  }
+
+  const ref = db.doc(adminPolicy.PREPRODUCTION_CONTROL_DOCUMENT);
+  const existing = await ref.get();
+  if (existing.data()?.locked === true) {
+    return {
+      success: true,
+      alreadyLocked: true,
+      locked: true,
+      lockedAt: serializableDate(existing.data()?.lockedAt),
+    };
+  }
+
+  await ref.set({
+    locked: true,
+    lockedAt: FieldValue.serverTimestamp(),
+    lockedByUid: actor.uid,
+    lockedByEmail: actor.email || null,
+  });
+
+  await writeAdminAudit(db, actor, "preproduction_reset_locked_for_production", "preproduction-test-data", {
+    irreversibleInApp: true,
+  });
+
+  return { success: true, alreadyLocked: false, locked: true };
 });
 
 /**
