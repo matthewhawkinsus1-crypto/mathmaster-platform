@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import 'mathlive';
-import { answerSymbolSpec, resolveRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
+import { requiredAnswerToolForSymbol, resolveRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
 import { buildMobileMathTools } from './platform/interaction/mobileKeypadPolicy.js';
 import { scheduleHorizontalViewportStabilization } from './platform/mobile/mobileFocusViewport.js';
 
@@ -172,11 +172,11 @@ export default function MathInput({
     [answerFormat, toolProfile, requiredSymbols],
   );
   const requiredTools = useMemo(
-    () => requiredAnswerSymbols.map((symbol) => answerSymbolSpec(symbol)).filter(Boolean),
+    () => requiredAnswerSymbols.map((symbol) => requiredAnswerToolForSymbol(symbol)).filter(Boolean),
     [requiredAnswerSymbols],
   );
   const unservedRequiredSymbols = useMemo(
-    () => requiredAnswerSymbols.filter((symbol) => !answerSymbolSpec(symbol)),
+    () => requiredAnswerSymbols.filter((symbol) => !requiredAnswerToolForSymbol(symbol)),
     [requiredAnswerSymbols],
   );
   const shouldSuppressNativeKeyboard = isMobile && toolProfile !== 'function' && unservedRequiredSymbols.length === 0;
