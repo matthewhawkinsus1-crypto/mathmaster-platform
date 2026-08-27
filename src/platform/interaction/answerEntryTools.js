@@ -2,6 +2,32 @@ const clean = (value) => String(value ?? '').trim();
 
 const normalizeName = (value) => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, '');
 
+export const ANSWER_SYMBOL_SPECS = Object.freeze({
+  '(': { label: '(', command: '(', ariaLabel: 'Insert open parenthesis' },
+  ')': { label: ')', command: ')', ariaLabel: 'Insert close parenthesis' },
+  ',': { label: ',', command: ',', ariaLabel: 'Insert comma' },
+  '[': { label: '[', command: '[', ariaLabel: 'Insert open bracket' },
+  ']': { label: ']', command: ']', ariaLabel: 'Insert close bracket' },
+  '{': { label: '{', command: '\\lbrace', ariaLabel: 'Insert opening set brace' },
+  '}': { label: '}', command: '\\rbrace', ariaLabel: 'Insert closing set brace' },
+  '∞': { label: '∞', command: '\\infty', ariaLabel: 'Insert positive infinity' },
+  '∪': { label: '∪', command: '\\cup', ariaLabel: 'Insert union' },
+  '<': { label: '<', command: '<', ariaLabel: 'Insert less than' },
+  '≤': { label: '≤', command: '\\le', ariaLabel: 'Insert less than or equal to' },
+  '>': { label: '>', command: '>', ariaLabel: 'Insert greater than' },
+  '≥': { label: '≥', command: '\\ge', ariaLabel: 'Insert greater than or equal to' },
+  '≠': { label: '≠', command: '\\ne', ariaLabel: 'Insert not equal to' },
+  '=': { label: '=', command: '=', ariaLabel: 'Insert equals sign' },
+  '−': { label: '−', command: '-', ariaLabel: 'Insert negative sign' },
+  '-': { label: '−', command: '-', ariaLabel: 'Insert negative sign' },
+  x: { label: 'x', command: 'x', ariaLabel: 'Insert x' },
+  y: { label: 'y', command: 'y', ariaLabel: 'Insert y' },
+  '√': { label: '√', command: '\\sqrt{#0}', ariaLabel: 'Insert square root' },
+  'ⁿ√': { label: 'ⁿ√', command: '\\sqrt[#?]{#0}', ariaLabel: 'Insert nth root' },
+  'xⁿ': { label: 'xⁿ', command: '#@^{#?}', ariaLabel: 'Insert exponent' },
+  'a⁄b': { label: 'a⁄b', command: '\\frac{#0}{#?}', ariaLabel: 'Insert stacked fraction' },
+});
+
 const FORMAT_SYMBOLS = Object.freeze({
   orderedpair: ['(', ',', ')'],
   coordinate: ['(', ',', ')'],
@@ -31,13 +57,8 @@ const normalizeExplicitSymbols = (symbols) => {
 };
 
 /**
- * Resolve the keys that must be directly reachable for an answer format.
- *
- * `answerFormat` is the semantic contract (orderedPair, interval, set, ...).
- * `toolProfile` is the legacy UI profile and remains a useful fallback.
- * `requiredSymbols` lets authored content add a symbol without creating a new
- * global format. MathInput will fail open to the device keyboard if it cannot
- * render one of these explicit requirements.
+ * Resolve keys that must be directly reachable for an answer format.
+ * These are semantic requirements, not hints to the grader.
  */
 export const resolveRequiredAnswerSymbols = ({
   answerFormat = '',
@@ -52,5 +73,9 @@ export const resolveRequiredAnswerSymbols = ({
     ...normalizeExplicitSymbols(requiredSymbols),
   ])];
 };
+
+export const supportedRequiredAnswerSymbols = () => Object.keys(ANSWER_SYMBOL_SPECS);
+
+export const answerSymbolSpec = (symbol) => ANSWER_SYMBOL_SPECS[clean(symbol)] || null;
 
 export const knownAnswerFormats = () => Object.keys(FORMAT_SYMBOLS);
