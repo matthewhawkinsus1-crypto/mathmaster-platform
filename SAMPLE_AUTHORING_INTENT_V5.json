@@ -3,10 +3,11 @@
   "assignment": {
     "title": "Functions — Connected Representations",
     "courseId": "algebra1",
-    "assignmentType": "notesClasswork",
-    "folder": "Algebra I/Module 1/Functions"
+    "folder": "Algebra I/Module 1/Functions",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork"
   },
-  "activities": [
+  "sections": [
     {
       "role": "warmup",
       "title": "Warm-Up",
@@ -14,10 +15,29 @@
         {
           "standard": "A.12A",
           "prompt": "Build the mapping, state the domain and range, and decide whether the relation is a function.",
-          "studentActions": ["buildMapping", "stateDomain", "stateRange", "classifyFunction"],
-          "relation": [[-2, 3], [1, 2], [3, -1]]
+          "studentActions": [
+            "buildMapping",
+            "stateDomain",
+            "stateRange",
+            "classifyFunction"
+          ],
+          "relation": [
+            [
+              -2,
+              3
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              3,
+              -1
+            ]
+          ]
         }
-      ]
+      ],
+      "id": "warmup-1"
     },
     {
       "role": "classwork",
@@ -27,16 +47,38 @@
           "standard": "A.3C",
           "prompt": "Build a model for the situation from quantities through the graph.",
           "scenario": "A refill station adds 5 liters of water per minute to an empty container.",
-          "studentActions": ["identifyQuantities", "writeEquation", "completeTable", "constructGraph", "stateDomain", "stateRange", "classifyContinuity"],
+          "studentActions": [
+            "identifyQuantities",
+            "writeEquation",
+            "completeTable",
+            "constructGraph",
+            "stateDomain",
+            "stateRange",
+            "classifyContinuity"
+          ],
           "quantities": [
-            { "id": "time", "label": "Time", "unit": "minutes" },
-            { "id": "water", "label": "Water", "unit": "liters" }
+            {
+              "id": "time",
+              "label": "Time",
+              "unit": "minutes"
+            },
+            {
+              "id": "water",
+              "label": "Water",
+              "unit": "liters"
+            }
           ],
           "correctIndependentId": "time",
           "correctDependentId": "water",
           "answerModel": {
             "equation": "W(t)=5t",
-            "tableXValues": [0, 1, 2, 3, 4],
+            "tableXValues": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
             "domain": "t>=0",
             "range": "W>=0",
             "continuity": "continuous"
@@ -45,10 +87,27 @@
         {
           "standard": "A.3C",
           "prompt": "Graph f(x) = 2x + 1 for x ≥ 0.",
-          "studentActions": ["constructGraph"],
-          "function": { "family": "linear", "m": 2, "b": 1, "domain": { "min": 0 } }
+          "studentActions": [
+            "constructGraph"
+          ],
+          "function": {
+            "family": "linear",
+            "m": 2,
+            "b": 1,
+            "domain": {
+              "min": 0
+            }
+          }
         }
-      ]
+      ],
+      "id": "classwork-2"
     }
-  ]
+  ],
+  "variantPolicy": {
+    "mode": "personalized",
+    "sectionModes": {
+      "warmup": "shared",
+      "classwork": "shared"
+    }
+  }
 }
