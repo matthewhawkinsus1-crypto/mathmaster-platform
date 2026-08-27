@@ -256,8 +256,9 @@ const filePart = (value, fallback) => {
 };
 
 export const worksheetFileName = ({ assignmentTitle = '', studentName = '', outputMode = PRINT_OUTPUT_MODES.STUDENT } = {}) => {
+  const studentPart = clean(studentName) ? `-${filePart(studentName, 'Student')}` : '';
   const modePart = outputMode === PRINT_OUTPUT_MODES.TEACHER
-    ? 'Teacher_Copy'
-    : outputMode === PRINT_OUTPUT_MODES.ANSWER_KEY ? 'Answer_Key' : filePart(studentName, 'Printable');
+    ? `Teacher_Copy${studentPart}`
+    : outputMode === PRINT_OUTPUT_MODES.ANSWER_KEY ? `Answer_Key${studentPart}` : filePart(studentName, 'Printable');
   return `${filePart(assignmentTitle, 'MathMaster_Assignment')}-${modePart}.pdf`;
 };
