@@ -2524,7 +2524,7 @@ function App() {
       const { metadata } = inspected;
       const assignmentV5 = inspected.bundleSource;
       if (!assignmentV5 || Number(assignmentV5.schemaVersion) !== 5) {
-        throw new Error('Preflight requires one canonical MathMaster Assignment V5 object.');
+        throw new Error('Assignment Review requires a current MathMaster assignment.');
       }
       const sections = Array.isArray(assignmentV5.sections) ? assignmentV5.sections : [];
       const dolQuestionFromRole = inspected.questions.findIndex((question) => (
@@ -2583,7 +2583,7 @@ function App() {
         initialDraft,
         questions: inspected.questions,
         authoringWarnings: inspected.authoringWarnings || [],
-        sourceLabel: `${sourceName || 'Pasted JSON'} · Assignment V5`,
+        sourceLabel: `${sourceName || 'Imported assignment'}`,
       });
       return true;
     } catch (error) {
@@ -2598,7 +2598,7 @@ function App() {
     setNewAssignmentJSON(result.parsed.normalizedText);
     const opened = openAssignmentPreflight({ ...result.parsed, authoringWarnings: result.warnings }, sourceName);
     if (opened !== true) {
-      return { ok: false, errors: [opened?.error || 'Could not build the preflight review from this JSON.'], warnings: result.warnings, sourceSchemaVersion: result.sourceSchemaVersion, compilerDefect: false };
+      return { ok: false, errors: [opened?.error || 'Could not build Assignment Review from this assignment.'], warnings: result.warnings, sourceSchemaVersion: result.sourceSchemaVersion, compilerDefect: false };
     }
     return { ok: true, warnings: result.warnings, repairs: result.parsed.repairs || [] };
   };
@@ -2628,7 +2628,7 @@ function App() {
         ? reviewedAssignmentV5
         : parsed.bundleSource;
       if (!reviewedV5 || Number(reviewedV5.schemaVersion) !== 5) {
-        throw new Error('Publishing requires the canonical Assignment V5 object that was reviewed in Preflight.');
+        throw new Error('Publishing requires the MathMaster assignment that was reviewed before creation.');
       }
       // Preflight can change delivery/output policy. Questions and sections must
       // therefore come from the reviewed V5 object, not from the original paste.
@@ -2948,7 +2948,7 @@ function App() {
           let enrichmentQuestion = null;
           if (!sourceHonorsReport.isHonorsReady) {
             if (!sourceHonorsReport.checks.ccmrEnrichment) {
-              throw new Error('This Honors destination needs an authentic CCMR-style Practice question in the source assignment. Regenerate or edit the assignment JSON so Practice includes a directly authored Digital SAT, ACT, TSIA2, or ASVAB item aligned to the lesson TEKS.');
+              throw new Error('This Honors destination needs an authentic CCMR-style Practice question in the source assignment. Regenerate or edit the assignment so Practice includes a directly authored Digital SAT, ACT, TSIA2, or ASVAB item aligned to the lesson TEKS.');
             }
             if (!teacherReview?.honorsEnrichmentQuestion) {
               throw new Error('This Honors destination still needs additional Honors depth. Return to preflight and choose Build Honors Depth Extension.');
@@ -3032,7 +3032,7 @@ function App() {
       const repairMessage = parsed.repairs.length
         ? `\n\nPaste formatting repaired automatically: ${parsed.repairs.join('; ')}.`
         : '';
-      const sourceMessage = 'Created from MathMaster Assignment V5 after teacher Preflight review.';
+      const sourceMessage = 'Created with MathMaster Assignment Creator after teacher review.';
       toastSuccess(
         creationMode === 'library' ? `Saved “${title}” to the library` : `Published “${title}”`,
         creationMode === 'library'
@@ -3070,7 +3070,7 @@ function App() {
     });
     const model = buildAssignmentV5PreflightModel(candidateV5);
     if (!model.isValid) {
-      throw new Error(`These question edits cannot be saved until V5 Preflight is clean:\n${model.errors.join('\n')}`);
+      throw new Error(`These question edits cannot be saved until MathMaster’s assignment checks are clean:\n${model.errors.join('\n')}`);
     }
     const persistence = canonicalV5PersistencePatch(model.assignmentV5);
     const persistedQuestions = persistence.questions;
@@ -3651,7 +3651,7 @@ function App() {
       });
       const model = buildAssignmentV5PreflightModel(candidateV5);
       if (!model.isValid) {
-        throw new Error(`The copy cannot be created until V5 Preflight is clean:\n${model.errors.join('\n')}`);
+        throw new Error(`The copy cannot be created until MathMaster’s assignment checks are clean:\n${model.errors.join('\n')}`);
       }
       const persistence = canonicalV5PersistencePatch(model.assignmentV5);
       const { id: _id, archived: _archived, ...rest } = assignment;
@@ -3678,7 +3678,7 @@ function App() {
       await fetchAssignments();
       toastSuccess(
         `Duplicated “${assignment.title}”`,
-        'The copy passed V5 Preflight and was saved as an unassigned library item with no student records.',
+        'The copy passed MathMaster’s assignment checks and was saved as an unassigned library item with no student records.',
       );
     } catch (error) {
       toastError('Could not duplicate assignment', error.message);
@@ -3760,7 +3760,7 @@ function App() {
     const canonicalV5 = storedAssignmentToV5(assignment, { resetAssignmentKey: true });
     const result = readAssignmentJson(JSON.stringify(canonicalV5));
     if (!result.ok) {
-      throw new Error(`This saved assignment cannot be reopened in V5 Preflight:\n${result.errors.join('\n')}`);
+      throw new Error(`This saved assignment cannot be reopened in Assignment Review:\n${result.errors.join('\n')}`);
     }
     setNewAssignmentJSON(result.parsed.normalizedText);
     const opened = openAssignmentPreflight(
@@ -3768,7 +3768,7 @@ function App() {
       `Library · ${assignment.title}`,
       draftOverrides,
     );
-    if (opened !== true) throw new Error(opened?.error || 'Could not open V5 Preflight for this saved assignment.');
+    if (opened !== true) throw new Error(opened?.error || 'Could not open Assignment Review for this saved assignment.');
     return canonicalV5;
   };
 
@@ -3877,7 +3877,7 @@ function App() {
       || (targetGroups.length === 1 && currentLevel && targetGroups[0].courseLevel !== currentLevel);
     if (changesDestination) {
       toastError(
-        'Use a V5 destination copy',
+        'Use a destination copy',
         'This assignment is already a destination-specific Standard/Honors version. Duplicate it to the library, then assign that library copy through Preflight so MathMaster can create the correct rigor variant.',
       );
       return;
@@ -4394,10 +4394,10 @@ function App() {
         >
           <div style={{ padding: '24px 28px', borderBottom: '1px solid #e8eaed' }}>
             <h2 id="export-json-title" style={{ margin: 0, color: '#202124' }}>
-              Export JSON &middot; {exportJsonAssignment.title}
+              Export Assignment &middot; {exportJsonAssignment.title}
             </h2>
             <p style={{ margin: '8px 0 0', color: '#5f6368', fontSize: '13px' }}>
-              This is canonical MathMaster Assignment V5 JSON and can be brought directly back through the V5 creator. Student/class dates and Firestore-only publication state are intentionally not embedded in the authoring object.
+              This is a portable MathMaster assignment. You can copy it into another MathMaster authoring workflow and bring it back through Assignment Creator. Student/class dates and publication records stay out of the portable assignment.
             </p>
           </div>
           <div style={{ padding: '20px 28px' }}>
@@ -5502,7 +5502,7 @@ function App() {
                             { key: 'preview', label: 'View as Student', onClick: () => startTeacherPreview(assignment.id) },
                             { key: 'edit-questions', label: 'Edit Questions', onClick: () => openQuestionEditor(assignment) },
                             { key: 'export-pdf', label: 'Print / Answer Key', onClick: () => beginTeacherWorksheetExport(assignment) },
-                            { key: 'export-json', label: 'Export JSON', onClick: () => { setExportJsonAssignment(assignment); setExportJsonCopied(false); } },
+                            { key: 'export-json', label: 'Export Assignment', onClick: () => { setExportJsonAssignment(assignment); setExportJsonCopied(false); } },
                             { key: 'dates-classes', label: 'Dates & Classes', onClick: () => beginEditAssignmentDates(assignment) },
                             { key: 'move-folder', label: 'Move to Folder', onClick: () => { setMovingFolderAssignmentId(assignment.id); setMovingFolderValue(assignment.folder || ''); } },
                             { key: 'duplicate', label: 'Duplicate', onClick: () => handleDuplicateAssignment(assignment) },
