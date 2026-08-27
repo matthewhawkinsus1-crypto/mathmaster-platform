@@ -50,18 +50,6 @@ const stored = (overrides = {}) => ({
       alignments: [{ framework: 'teks', code: 'A.5A', role: 'primary', evidenceLevel: 'assessed' }],
     }],
   }],
-  questions: [{
-    questionId: 'q1',
-    type: 'multiAnswer',
-    activityRole: 'practice',
-    sectionId: 'practice',
-    sectionTitle: 'Practice',
-    prompt: 'Solve 2x + 1 = 9.',
-    dok: 2,
-    difficultyBand: 3,
-    answerFields: [{ id: 'x', label: 'x', answer: '4' }],
-    alignments: [{ framework: 'teks', code: 'A.5A', role: 'primary', evidenceLevel: 'assessed' }],
-  }],
   ...overrides,
 });
 
@@ -76,21 +64,27 @@ test('stored assignment reconstructs as canonical V5 with preserved policies', (
   assert.equal(buildAssignmentV5PreflightModel(v5).isValid, true);
 });
 
-test('stored course is inferred from Algebra II TEKS when older records lack courseId', () => {
+test('stored course is inferred from Algebra II TEKS in canonical sections', () => {
   const old = stored({
     courseId: null,
     courseProfile: { course: null, courseLevel: null },
-    questions: [{
-      questionId: 'q1',
-      type: 'multiAnswer',
-      prompt: 'Solve.',
-      dok: 2,
-      difficultyBand: 3,
-      answerFields: [{ id: 'x', label: 'x', answer: '4' }],
-      alignments: [{ framework: 'teks', code: 'A2.4F', role: 'primary', evidenceLevel: 'assessed' }],
+    sections: [{
+      id: 'practice',
+      role: 'practice',
+      title: 'Practice',
+      questions: [{
+        questionId: 'q1',
+        type: 'multiAnswer',
+        prompt: 'Solve.',
+        dok: 2,
+        difficultyBand: 3,
+        answerFields: [{ id: 'x', label: 'x', answer: '4' }],
+        alignments: [{ framework: 'teks', code: 'A2.4F', role: 'primary', evidenceLevel: 'assessed' }],
+      }],
     }],
   });
-  assert.equal(inferStoredAssignmentCourseId(old, old.questions), 'algebra2');
+  const sectionQuestions = old.sections[0].questions;
+  assert.equal(inferStoredAssignmentCourseId(old, sectionQuestions), 'algebra2');
   assert.equal(storedAssignmentToV5(old).assignment.courseId, 'algebra2');
 });
 
@@ -99,14 +93,19 @@ test('course reconstruction fails closed rather than guessing the wrong course',
     courseId: null,
     courseProfile: { course: null, courseLevel: null },
     standards: [],
-    questions: [{
-      questionId: 'q1',
-      type: 'multiAnswer',
-      prompt: 'Solve.',
-      dok: 2,
-      difficultyBand: 3,
-      answerFields: [{ id: 'x', label: 'x', answer: '4' }],
-      alignments: [],
+    sections: [{
+      id: 'practice',
+      role: 'practice',
+      title: 'Practice',
+      questions: [{
+        questionId: 'q1',
+        type: 'multiAnswer',
+        prompt: 'Solve.',
+        dok: 2,
+        difficultyBand: 3,
+        answerFields: [{ id: 'x', label: 'x', answer: '4' }],
+        alignments: [],
+      }],
     }],
   });
   assert.throws(() => storedAssignmentToV5(old), /does not contain enough course\/TEKS information/);
@@ -126,8 +125,9 @@ test('canonical persistence patch keeps courseId and V5 policy fields', () => {
   const patch = canonicalV5PersistencePatch(v5);
   assert.equal(patch.schemaVersion, 5);
   assert.equal(patch.courseId, 'algebra1');
-  assert.equal(patch.runtimeProjectionVersion, 1);
-  assert.equal(patch.questions.length, 1);
+  assert.equal('runtimeProjectionVersion' in patch, false);
+  assert.equal('questions' in patch, false);
+  assert.equal(patch.sections[0].questions.length, 1);
   assert.equal(patch.variantPolicy.mode, 'personalized');
   assert.equal(patch.outputProfiles.studentWorksheetPdf.enabled, true);
 });
@@ -135,9 +135,24 @@ test('canonical persistence patch keeps courseId and V5 policy fields', () => {
 console.log('storedAssignmentV5.test.mjs: all assertions passed');
 
 
-test('section-only stored V5 records can reconstruct when flat runtime questions are empty', () => {
-  const record = stored({ questions: [] });
+test('section-only stored V5 records reconstruct without any persisted flat question array', () => {
+  const record = stored();
   const v5 = storedAssignmentToV5(record);
   assert.equal(v5.sections[0].questions.length, 1);
+  assert.equal(v5.sections[0].questions[0].prompt, 'Solve 2x + 1 = 9.');
+});
+
+
+test('stale top-level runtime questions are ignored when canonical sections exist', () => {
+  const record = stored({
+    questions: [{
+      questionId: 'stale',
+      type: 'multiAnswer',
+      prompt: 'STALE RUNTIME COPY',
+      answerFields: [{ id: 'x', answer: '999' }],
+    }],
+  });
+  const v5 = storedAssignmentToV5(record);
+  assert.equal(v5.sections[0].questions[0].questionId, 'q1');
   assert.equal(v5.sections[0].questions[0].prompt, 'Solve 2x + 1 = 9.');
 });
