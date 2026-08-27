@@ -37,7 +37,7 @@ test('duplication cannot create a content copy outside native V5 Preflight', () 
 test('library assignment routes back through V5 Preflight instead of direct publication mutation', () => {
   assert.match(app, /openStoredAssignmentForPreflight/);
   assert.match(app, /Preflight will create the correct destination version/);
-  assert.match(app, /Use a V5 destination copy/);
+  assert.match(app, /Use a destination copy/);
 });
 
 test('platform self-export is V5 and cannot resurrect the retired portable V2 package', () => {
@@ -49,7 +49,8 @@ test('normal teacher creator does not expose raw JSON editing or schema jargon',
   assert.doesNotMatch(intake, /Edit raw JSON|textarea[^>]+rawJson/i);
   assert.match(intake, /NO CODE REQUIRED/);
   assert.match(intake, /Paste AI Assignment/);
-  assert.doesNotMatch(intake, /Paste V5 JSON from Clipboard|Upload V5 JSON|V5 · NO CODE REQUIRED/);
+  assert.doesNotMatch(intake, /Paste V5 JSON from Clipboard|Upload V5 JSON|V5 · NO CODE REQUIRED|Assignment V5 JSON object/);
+  assert.doesNotMatch(modal, /Choose independently for each V5 section|canonical V5 output profiles|authored in the JSON/);
   assert.match(modal, /Back to Creator/);
   assert.doesNotMatch(modal, />Back to JSON</);
 });
