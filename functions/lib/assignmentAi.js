@@ -27,6 +27,18 @@ function cleanPrompt(value) {
   return prompt;
 }
 
+function questionResponseSchema() {
+  return {
+    type: "object",
+    properties: {
+      type: { type: "string", minLength: 1 },
+      questionId: { type: ["string", "null"] },
+    },
+    required: ["type"],
+    additionalProperties: true,
+  };
+}
+
 function assignmentResponseSchema() {
   return {
     type: "object",
@@ -91,6 +103,47 @@ function buildOpenAiAssignmentRequest({ prompt, model = DEFAULT_ASSIGNMENT_MODEL
       },
     },
     max_output_tokens: MAX_OUTPUT_TOKENS,
+    store: false,
+  };
+}
+
+function buildOpenAiQuestionRepairRequest({ prompt, model = DEFAULT_ASSIGNMENT_MODEL } = {}) {
+  const clean = cleanPrompt(prompt);
+  const selectedModel = String(model || DEFAULT_ASSIGNMENT_MODEL).trim() || DEFAULT_ASSIGNMENT_MODEL;
+  return {
+    model: selectedModel,
+    input: [
+      {
+        role: "system",
+        content: [
+          {
+            type: "input_text",
+            text: [
+              "You are MathMaster's internal question-repair model.",
+              "Follow the supplied repair request exactly.",
+              "Return only one complete replacement question JSON object.",
+              "Do not include Markdown fences, commentary, or multiple options.",
+              "Preserve the question's instructional identity unless the teacher explicitly asks to change it.",
+              "MathMaster will independently validate the replacement in the full assignment before accepting it.",
+            ].join(" "),
+          },
+        ],
+      },
+      {
+        role: "user",
+        content: [{ type: "input_text", text: clean }],
+      },
+    ],
+    text: {
+      format: {
+        type: "json_schema",
+        name: "mathmaster_question_repair",
+        description: "One complete MathMaster replacement question object.",
+        strict: false,
+        schema: questionResponseSchema(),
+      },
+    },
+    max_output_tokens: 12000,
     store: false,
   };
 }
@@ -198,13 +251,102 @@ async function callOpenAiAssignmentAuthor({
   };
 }
 
+async function callOpenAiQuestionRepair({
+  apiKey,
+  prompt,
+  model = DEFAULT_ASSIGNMENT_MODEL,
+  fetchImpl = globalThis.fetch,
+  timeoutMs = 180000,
+} = {}) {
+  if (!String(apiKey || "").trim()) {
+    throw new AssignmentAiError("failed-precondition", "MathMaster AI repair is not configured yet.");
+  }
+  if (typeof fetchImpl !== "function") {
+    throw new AssignmentAiError("internal", "This server runtime cannot reach the AI provider.");
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), Math.max(1000, Number(timeoutMs) || 180000));
+  let response;
+  let payload;
+  try {
+    response = await fetchImpl(OPENAI_RESPONSES_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${String(apiKey).trim()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(buildOpenAiQuestionRepairRequest({ prompt, model })),
+      signal: controller.signal,
+    });
+    const text = await response.text();
+    try {
+      payload = text ? JSON.parse(text) : {};
+    } catch {
+      payload = { raw: text };
+    }
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new AssignmentAiError("deadline-exceeded", "The AI took too long to repair this question. Try again or use the copy/paste repair workflow.");
+    }
+    throw new AssignmentAiError("unavailable", "MathMaster could not reach the AI service. Try again or use the copy/paste repair workflow.");
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (!response.ok) {
+    const message = providerMessage(payload, "The AI service rejected the repair request.");
+    if (response.status === 401 || response.status === 403) {
+      throw new AssignmentAiError("failed-precondition", "MathMaster's AI service credential needs administrator attention.", { status: response.status });
+    }
+    if (response.status === 429) {
+      throw new AssignmentAiError("resource-exhausted", "The AI service is busy or the usage limit was reached. Try again shortly.", { status: response.status });
+    }
+    if (response.status >= 500) {
+      throw new AssignmentAiError("unavailable", "The AI service is temporarily unavailable. Try again shortly.", { status: response.status });
+    }
+    throw new AssignmentAiError("failed-precondition", message.slice(0, 500), { status: response.status });
+  }
+
+  const questionJson = extractResponseText(payload);
+  if (!questionJson) {
+    throw new AssignmentAiError("internal", "The AI returned no replacement question.");
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(questionJson);
+  } catch {
+    throw new AssignmentAiError("internal", "The AI returned malformed question JSON. MathMaster did not accept it.");
+  }
+  if (!parsed || Array.isArray(parsed) || typeof parsed.type !== "string" || !parsed.type.trim()) {
+    throw new AssignmentAiError("failed-precondition", "The AI response was not one complete MathMaster question. MathMaster did not accept it.");
+  }
+
+  return {
+    questionJson: JSON.stringify(parsed),
+    model: String(payload.model || model || DEFAULT_ASSIGNMENT_MODEL),
+    responseId: payload.id || null,
+    usage: payload.usage && typeof payload.usage === "object"
+      ? {
+          inputTokens: Number(payload.usage.input_tokens) || 0,
+          outputTokens: Number(payload.usage.output_tokens) || 0,
+          totalTokens: Number(payload.usage.total_tokens) || 0,
+        }
+      : null,
+  };
+}
+
 module.exports = {
   AssignmentAiError,
   DEFAULT_ASSIGNMENT_MODEL,
   MAX_PROMPT_CHARS,
   MAX_OUTPUT_TOKENS,
   assignmentResponseSchema,
+  questionResponseSchema,
   buildOpenAiAssignmentRequest,
+  buildOpenAiQuestionRepairRequest,
   extractResponseText,
   callOpenAiAssignmentAuthor,
+  callOpenAiQuestionRepair,
 };
