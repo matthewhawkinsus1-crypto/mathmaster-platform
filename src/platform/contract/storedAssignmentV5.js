@@ -8,6 +8,45 @@ const clean = (value) => String(value ?? '').trim();
 const asArray = (value) => Array.isArray(value) ? value : value == null ? [] : [value];
 const isObject = (value) => Boolean(value && typeof value === 'object' && !Array.isArray(value));
 
+export const getStoredAssignmentQuestions = (assignment = {}) => {
+  const sectionQuestions = flattenV5Sections(assignment);
+  if (sectionQuestions.length) return sectionQuestions;
+  return Array.isArray(assignment?.questions) ? assignment.questions : [];
+};
+
+export const getStoredVariantPolicy = (assignment = {}) => (
+  isObject(assignment?.variantPolicy) ? assignment.variantPolicy : {}
+);
+
+export const getStoredAssignmentVariantMode = (assignment = {}) => {
+  const policy = getStoredVariantPolicy(assignment);
+  return clean(policy.mode || assignment?.variantMode || 'personalized').toLowerCase() || 'personalized';
+};
+
+export const getStoredSectionVariantModes = (assignment = {}) => {
+  const policy = getStoredVariantPolicy(assignment);
+  if (isObject(policy.sectionModes)) return policy.sectionModes;
+  return isObject(assignment?.sectionVariantModes) ? assignment.sectionVariantModes : {};
+};
+
+export const getStoredSectionVariantMode = (assignment = {}, activityRole = '') => {
+  const role = clean(activityRole).toLowerCase();
+  const modes = getStoredSectionVariantModes(assignment);
+  return clean(modes?.[role] || getStoredAssignmentVariantMode(assignment)).toLowerCase() || 'personalized';
+};
+
+export const getStoredAssignmentTypeProjection = (assignment = {}) => {
+  const sectionRoles = Array.isArray(assignment?.sections)
+    ? assignment.sections.map((section) => clean(section?.role).toLowerCase()).filter(Boolean)
+    : [];
+  if (sectionRoles.length) {
+    return sectionRoles.some((role) => role === 'warmup' || role === 'classwork')
+      ? 'notesClasswork'
+      : 'practice';
+  }
+  return clean(assignment?.assignmentType || 'practice') || 'practice';
+};
+
 const alignmentCodes = (question = {}) => {
   const codes = [];
   asArray(question.alignments).forEach((alignment) => {
@@ -27,7 +66,7 @@ const alignmentCodes = (question = {}) => {
   return codes.filter(Boolean);
 };
 
-export const inferStoredAssignmentCourseId = (assignment = {}, questions = assignment?.questions || []) => {
+export const inferStoredAssignmentCourseId = (assignment = {}, questions = getStoredAssignmentQuestions(assignment)) => {
   const direct = clean(
     assignment.courseId
     || assignment.assignment?.courseId
@@ -54,11 +93,12 @@ export const storedAssignmentToV5 = (assignment = {}, {
   if (!assignment || typeof assignment !== 'object' || Array.isArray(assignment)) {
     throw new Error('A stored assignment object is required.');
   }
+  // Canonical V5 sections win over the derived flat runtime mirror. An explicit
+  // questions override is used only for controlled editing flows before the
+  // replacement sections are rebuilt.
   const sourceQuestions = Array.isArray(questions)
     ? questions
-    : Array.isArray(assignment.questions) && assignment.questions.length
-      ? assignment.questions
-      : flattenV5Sections(assignment);
+    : getStoredAssignmentQuestions(assignment);
   const courseId = inferStoredAssignmentCourseId(assignment, sourceQuestions);
   if (!courseId) {
     throw new Error(
@@ -67,10 +107,8 @@ export const storedAssignmentToV5 = (assignment = {}, {
   }
 
   const title = clean(titleOverride ?? assignment.title ?? assignment.assignment?.title);
-  const sourceVariantPolicy = isObject(assignment.variantPolicy) ? assignment.variantPolicy : {};
-  const sectionModes = isObject(sourceVariantPolicy.sectionModes)
-    ? sourceVariantPolicy.sectionModes
-    : isObject(assignment.sectionVariantModes) ? assignment.sectionVariantModes : {};
+  const sourceVariantPolicy = getStoredVariantPolicy(assignment);
+  const sectionModes = getStoredSectionVariantModes(assignment);
 
   return normalizeAssignmentV5({
     schemaVersion: 5,
@@ -87,7 +125,7 @@ export const storedAssignmentToV5 = (assignment = {}, {
     sections: rebuildV5SectionsFromQuestions(assignment, sourceQuestions),
     variantPolicy: {
       ...sourceVariantPolicy,
-      mode: sourceVariantPolicy.mode || assignment.variantMode || 'personalized',
+      mode: getStoredAssignmentVariantMode(assignment),
       sectionModes,
     },
     differentiationPolicy: assignment.differentiationPolicy,
