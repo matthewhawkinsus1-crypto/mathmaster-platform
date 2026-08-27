@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const modal = fs.readFileSync('src/components/teacher/LessonPreflightModal.jsx', 'utf8');
+const app = fs.readFileSync('src/App.jsx', 'utf8');
 
 test('Assignment Review groups validation blockers by exact question', () => {
   assert.match(modal, /groupQuestionPreflightIssues\(validationErrors, previewQuestions\)/);
@@ -40,6 +41,22 @@ test('reviewed assignment is rebuilt from repaired working content', () => {
 
 test('representation audit follows repaired live questions instead of stale imported questions', () => {
   assert.match(modal, /<RepresentationAudit questions=\{previewQuestions\}/);
+});
+
+test('existing assignments with student evidence disable targeted question rewriting in review', () => {
+  assert.match(app, /allowQuestionRepair:\s*!allStudents\.some/);
+  assert.match(app, /allowQuestionRepair=\{assignmentPreflight\.allowQuestionRepair !== false\}/);
+  assert.match(modal, /allowQuestionRepair = true/);
+  assert.match(modal, /disabled=\{!allowQuestionRepair\}/);
+  assert.match(modal, /Student records already exist, so question content is locked/);
+});
+
+test('save handler independently blocks reviewed question-content changes after student evidence exists', () => {
+  assert.match(app, /const originalQuestionState = canonicalV5PersistencePatch\(originalV5\)\.questions/);
+  assert.match(app, /const reviewedQuestionState = canonicalV5PersistencePatch\(model\.assignmentV5\)\.questions/);
+  assert.match(app, /const questionContentChanged = JSON\.stringify\(originalQuestionState\) !== JSON\.stringify\(reviewedQuestionState\)/);
+  assert.match(app, /questionContentChanged \? \['question content'\] : \[\]/);
+  assert.match(app, /Duplicate the assignment for a new delivery policy or question rewrite instead/);
 });
 
 console.log('assignmentReviewTargetedRepair.test.mjs: all assertions passed');
