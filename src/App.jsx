@@ -2586,6 +2586,7 @@ function App() {
         sourceLabel: `${sourceName || 'Imported assignment'}`,
         mode: reviewOptions.mode === 'update' ? 'update' : 'create',
         existingAssignmentId: reviewOptions.existingAssignmentId || null,
+        allowQuestionRepair: reviewOptions.allowQuestionRepair !== false,
       });
       return true;
     } catch (error) {
@@ -3096,6 +3097,9 @@ function App() {
       (student) => student.gradesByAssignment?.[existing.id] !== undefined,
     );
     if (hasStudentData) {
+      const originalQuestionState = canonicalV5PersistencePatch(originalV5).questions;
+      const reviewedQuestionState = canonicalV5PersistencePatch(model.assignmentV5).questions;
+      const questionContentChanged = JSON.stringify(originalQuestionState) !== JSON.stringify(reviewedQuestionState);
       const historicalFields = [
         'variantPolicy',
         'differentiationPolicy',
@@ -3112,12 +3116,13 @@ function App() {
           !== JSON.stringify([...assignedClassIds].sort())
         || JSON.stringify([...(existing.assignedClassPeriods || [])].sort())
           !== JSON.stringify([...assignedClassPeriods].sort());
-      if (changed.length || audienceChanged) {
+      if (changed.length || audienceChanged || questionContentChanged) {
         throw new Error(
           `Student records already exist. To preserve historical evidence, this setup editor cannot change ${[
             ...changed,
             ...(audienceChanged ? ['class audience'] : []),
-          ].join(', ')}. Duplicate the assignment for a new delivery policy instead.`,
+            ...(questionContentChanged ? ['question content'] : []),
+          ].join(', ')}. Duplicate the assignment for a new delivery policy or question rewrite instead.`,
         );
       }
     }
@@ -4010,7 +4015,13 @@ function App() {
         { ...result.parsed, authoringWarnings: result.warnings },
         `Existing · ${assignment.title}`,
         currentDraft,
-        { mode: 'update', existingAssignmentId: assignment.id },
+        {
+          mode: 'update',
+          existingAssignmentId: assignment.id,
+          allowQuestionRepair: !allStudents.some(
+            (student) => student.gradesByAssignment?.[assignment.id] !== undefined,
+          ),
+        },
       );
       if (opened !== true) throw new Error(opened?.error || 'Could not open Assignment Review.');
     } catch (error) {
@@ -5415,6 +5426,7 @@ function App() {
             onConfirmPublish={confirmAssignmentPreflight}
             busy={assignmentPreflightBusy}
             reviewMode={assignmentPreflight.mode || 'create'}
+            allowQuestionRepair={assignmentPreflight.allowQuestionRepair !== false}
           />
         )}
         {questionEditorAssignment && (
