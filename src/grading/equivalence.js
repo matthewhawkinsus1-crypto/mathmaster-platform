@@ -1,5 +1,6 @@
 import { parse, simplify } from 'mathjs';
 import { compareMathAnswer, normalizeMathAnswer } from '../answerUtils.js';
+import { sameValue as sharedAnswerEquivalent } from '../../functions/shared/answerEquivalence.mjs';
 
 const MAX_EXPRESSION_LENGTH = 300;
 
@@ -10,6 +11,10 @@ const safeExpression = (value) => {
 };
 
 export const isAlgebraicallyEquivalent = (studentExpression, expectedExpression, tolerance = 1e-9) => {
+  // Use the same conservative equivalence rules as secure My Math Path first.
+  // This prevents assignment grading and Path grading from disagreeing about
+  // the same student-written equation.
+  if (sharedAnswerEquivalent(studentExpression, expectedExpression, tolerance)) return true;
   if (compareMathAnswer(studentExpression, expectedExpression, tolerance)) return true;
   const student = safeExpression(studentExpression);
   const expected = safeExpression(expectedExpression);

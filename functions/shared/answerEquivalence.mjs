@@ -188,6 +188,173 @@ export const sameInverseFunctionEquation = (left, right, tolerance = 1e-6) => {
   return samePolynomial(one, two, tolerance);
 };
 
+
+/**
+ * Compare two equations that are BOTH written in expanded polynomial form.
+ *
+ * This is intentionally narrower than "algebraically equivalent polynomial".
+ * A question that asks for standard form should accept:
+ *
+ *   y = 1*x^2 + (-6)*x + (1)
+ *   y = x^2 - 6x + 1
+ *
+ * because those are merely machine-vs-human spellings of the SAME expanded
+ * form. But it should NOT silently accept vertex/factored form:
+ *
+ *   y = (x - 3)^2 - 8
+ *
+ * even though that expands to the same polynomial. Form is part of the skill
+ * in many Algebra I/II questions.
+ */
+const hasVariableGrouping = (value) => {
+  const text = normalizeStructuralMathLive(value).replace(/\s+/g, '');
+  // Parentheses/brackets containing a variable AND an addition/subtraction
+  // are structural algebra groups (vertex/factored form), not harmless
+  // parentheses around a generated numeric coefficient such as (-6).
+  return /[\(\[][^)\]]*[A-Za-z][^)\]]*[+\-][^)\]]*[\)\]]/.test(text);
+};
+
+
+/**
+ * Normalize cosmetic machine-vs-human differences WITHOUT changing algebraic
+ * form or term order.
+ *
+ * Examples that should become identical:
+ *   f(x)=2*(x-(4))^2+(-3)
+ *   f(x)=2(x-4)^2-3
+ *
+ *   y=1*x^2+(-6)*x+(1)
+ *   y=x^2-6x+1
+ *
+ * This is intentionally NOT an expander or simplifier. It does not transform
+ * vertex form into standard form, factor, distribute, reorder terms, or move
+ * anything across the equals sign.
+ */
+const normalizeFormPreservingSide = (value) => {
+  // Remove generator bookkeeping around SINGLE numeric parameters BEFORE
+  // structural MathLive normalization. This ordering matters for radicals:
+  //
+  //   sqrt(x-(1))  -> sqrt(x-1) -> \\sqrt{x-1}
+  //
+  // If the parentheses are removed only AFTER `normalizeStructuralMathLive`,
+  // the first spelling is still ASCII `sqrt(...)` while the student spelling
+  // has already become LaTeX `\\sqrt{...}`, and a correct answer is rejected.
+  //
+  // Settling signs here is equally important:
+  //   x-(-5) -> x+5
+  //   x+(-5) -> x-5
+  let radicalReady = String(value ?? '')
+    .replace(/\((-?\d+(?:\.\d+)?)\)/g, '$1');
+
+  for (let guard = 0; guard < 4; guard += 1) {
+    const next = radicalReady
+      .replace(/\+\+/g, '+')
+      .replace(/\+-/g, '-')
+      .replace(/-\+/g, '-')
+      .replace(/--/g, '+');
+    if (next === radicalReady) break;
+    radicalReady = next;
+  }
+
+  // A student commonly writes 8sqrt(x) while a generator stores 8*sqrt(x).
+  // Insert only the missing multiplication marker before the named radical
+  // call BEFORE MathLive/ASCII radical normalization.
+  radicalReady = radicalReady
+    .replace(/([0-9A-Za-z)\]])sqrt\s*\(/g, '$1*sqrt(');
+
+  let text = canonicalizeDivisions(normalizeStructuralMathLive(radicalReady))
+    .replace(/\\cdot|\\times/g, '*')
+    .replace(/\s+/g, '')
+    .replace(/\^\{(-?\d+)\}/g, '^$1');
+
+  // Parentheses around generated numeric parameters are bookkeeping:
+  //   x-(4) -> x-4
+  //   x-(-2) -> x--2 -> x+2
+  //   +(-3) -> +-3 -> -3
+  // They are not algebraic grouping around a variable expression.
+  text = text.replace(/\((-?\d+(?:\.\d+)?)\)/g, '$1');
+
+  // Settle adjacent signs created by removing numeric bookkeeping parentheses.
+  for (let guard = 0; guard < 4; guard += 1) {
+    const next = text
+      .replace(/\+\+/g, '+')
+      .replace(/\+-/g, '-')
+      .replace(/-\+/g, '-')
+      .replace(/--/g, '+');
+    if (next === text) break;
+    text = next;
+  }
+
+  // An explicit multiplication mark next to a variable/group is just a typing
+  // style. Do NOT remove 2*3, because turning it into 23 would change value.
+  text = text
+    .replace(/([0-9A-Za-z)\]])\*(?=[A-Za-z(])/g, '$1')
+    .replace(/([0-9A-Za-z)\]])\*(?=\\sqrt\{)/g, '$1')
+    .replace(/([A-Za-z)\]])\*(?=\()/g, '$1');
+
+  // Suppress a coefficient of one only where algebra convention suppresses it.
+  // 1x -> x, 1(x+2) -> (x+2), -1x -> -x.
+  text = text
+    .replace(/^1(?=[A-Za-z(])/g, '')
+    .replace(/^\-1(?=[A-Za-z(])/g, '-')
+    .replace(/([+\-])1(?=[A-Za-z(])/g, '$1');
+
+  return text;
+};
+
+export const sameFormPreservingEquation = (left, right) => {
+  const a = splitEquationSides(left);
+  const b = splitEquationSides(right);
+  if (!a || !b) return false;
+
+  return normalizeFormPreservingSide(a.left) === normalizeFormPreservingSide(b.left)
+    && normalizeFormPreservingSide(a.right) === normalizeFormPreservingSide(b.right);
+};
+
+
+/**
+ * The same form-preserving comparison for answer FIELDS that are expressions
+ * rather than equations.
+ *
+ * This is the category the mass audit just exposed:
+ *
+ *   (x-11)*(x^2+11*x+121)
+ *   (x-11)(x^{2}+11x+121)
+ *
+ * Those are the same factored difference-of-cubes form. The only differences
+ * are explicit multiplication signs and MathLive's braces around an exponent.
+ *
+ * This comparator deliberately refuses anything containing "=" and uses the
+ * same cosmetic-only normalizer as the equation comparator. It never expands,
+ * factors, distributes, reorders factors, or simplifies a different form.
+ */
+export const sameFormPreservingExpression = (left, right) => {
+  const a = String(left ?? '').trim();
+  const b = String(right ?? '').trim();
+  if (!a || !b) return false;
+  if (a.includes('=') || b.includes('=')) return false;
+  return normalizeFormPreservingSide(a) === normalizeFormPreservingSide(b);
+};
+
+export const sameExpandedPolynomialEquation = (left, right, tolerance = 1e-6) => {
+  const a = splitEquationSides(left);
+  const b = splitEquationSides(right);
+  if (!a || !b) return false;
+
+  // Preserve which quantity/function is being defined.
+  if (!sameText(a.left, b.left)) return false;
+
+  // Do not turn a form-specific question into a generic "same graph" grader.
+  if (hasVariableGrouping(a.right) || hasVariableGrouping(b.right)) return false;
+
+  const one = parsePolynomial(a.right);
+  const two = parsePolynomial(b.right);
+  if (!one || !two) return false;
+  if (polynomialDegree(one) > 8 || polynomialDegree(two) > 8) return false;
+
+  return samePolynomial(one, two, tolerance);
+};
+
 const dedupeEquivalent = (values, tolerance) => {
   const unique = [];
   values.forEach((value) => {
@@ -226,7 +393,10 @@ export const sameValue = (left, right, tolerance = 1e-6) => {
     return leftSet !== null && rightSet !== null && sameFiniteSetNotation(left, right, tolerance);
   }
   if (sameAtomicValue(left, right, tolerance)) return true;
+  if (sameFormPreservingEquation(left, right)) return true;
+  if (sameFormPreservingExpression(left, right)) return true;
   if (sameInverseFunctionEquation(left, right, tolerance)) return true;
+  if (sameExpandedPolynomialEquation(left, right, tolerance)) return true;
   // LAST RESORT, and only for equations. Text equality already handled every
   // spelling the author thought to list; this catches the ones they did not —
   // an unreduced slope, a decimal for a fraction, a `\frac` from the keypad.
