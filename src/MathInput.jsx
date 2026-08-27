@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import 'mathlive';
 import { resolveRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
+import { scheduleHorizontalViewportStabilization } from './platform/mobile/mobileFocusViewport.js';
 
 const BASIC_KEYS = [
   { label: 'π', command: '\\pi', ariaLabel: 'Insert pi' },
@@ -181,6 +182,14 @@ export default function MathInput({
   const onChangeRef = useRef(onChange);
   const [showTools, setShowTools] = useState(showToolsInitially);
   const [isMobile, setIsMobile] = useState(detectMobileInput);
+
+  const stabilizeMobileViewport = useCallback(() => {
+    if (!isMobile) return;
+    const root = mfRef.current?.closest?.('.mathmaster-question-container')
+      || mfRef.current?.closest?.('.mathmaster-question-stage')
+      || null;
+    scheduleHorizontalViewportStabilization({ root });
+  }, [isMobile]);
   const requiredAnswerSymbols = useMemo(
     () => resolveRequiredAnswerSymbols({ answerFormat, toolProfile, requiredSymbols }),
     [answerFormat, toolProfile, requiredSymbols],
@@ -238,7 +247,10 @@ export default function MathInput({
     mathField.placeholder = placeholder ? `\\text{${placeholder}}` : '';
     window.mathVirtualKeyboard?.hide?.();
 
-    const handleInput = () => onChangeRef.current(mathField.value);
+    const handleInput = () => {
+      onChangeRef.current(mathField.value);
+      stabilizeMobileViewport();
+    };
 
     // Climb out of every open fraction, power or root. Stops when the cursor
     // stops moving, which is how a top-level position announces itself.
@@ -262,6 +274,7 @@ export default function MathInput({
         event.stopPropagation();
         mathField.executeCommand?.('moveAfterParent');
         onChangeRef.current(mathField.value);
+        stabilizeMobileViewport();
         return;
       }
       if (event.key === 'Escape') event.preventDefault();
@@ -290,11 +303,14 @@ export default function MathInput({
       mathField.removeEventListener('keydown', preventUnusedModes, { capture: true });
       mathField.removeEventListener('contextmenu', preventContextMenu);
     };
-  }, [placeholder, isMobile, toolProfile, onSubmit, shouldSuppressNativeKeyboard]);
+  }, [placeholder, isMobile, toolProfile, onSubmit, shouldSuppressNativeKeyboard, stabilizeMobileViewport]);
 
   useEffect(() => {
-    if (mfRef.current && mfRef.current.value !== value) mfRef.current.value = value || '';
-  }, [value]);
+    if (mfRef.current && mfRef.current.value !== value) {
+      mfRef.current.value = value || '';
+      stabilizeMobileViewport();
+    }
+  }, [value, stabilizeMobileViewport]);
 
   // Some tools intentionally move the student's attention into a math field
   // immediately after they choose an action. A numeric signal avoids making
@@ -316,7 +332,8 @@ export default function MathInput({
     mathField.focus({ preventScroll: true });
     mathField.executeCommand?.('undo');
     onChangeRef.current(mathField.value);
-  }, []);
+    stabilizeMobileViewport();
+  }, [stabilizeMobileViewport]);
 
   useEffect(() => {
     onUndoStateChange?.({
@@ -334,6 +351,7 @@ export default function MathInput({
     if (action) {
       mathField.executeCommand?.(action);
       onChangeRef.current(mathField.value);
+      stabilizeMobileViewport();
       return;
     }
     mathField.insert(command, {
@@ -341,7 +359,8 @@ export default function MathInput({
       selectionMode: /#0|#\?/.test(command) ? 'placeholder' : 'after',
     });
     onChangeRef.current(mathField.value);
-  }, []);
+    stabilizeMobileViewport();
+  }, [stabilizeMobileViewport]);
 
   const borderColor = inputStatus === 'incorrect'
     ? '#d93025'
@@ -366,7 +385,12 @@ export default function MathInput({
         aria-label={ariaLabel || placeholder || 'Math answer'}
         math-virtual-keyboard-policy="manual"
         inputmode={shouldSuppressNativeKeyboard ? 'none' : undefined}
-        onFocus={() => { if (isMobile) setShowTools(true); }}
+        onFocus={() => {
+          if (isMobile) {
+            setShowTools(true);
+            stabilizeMobileViewport();
+          }
+        }}
         style={{
           display: 'block',
           width: '100%',

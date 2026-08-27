@@ -2,6 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import QuestionPrompt from '../../QuestionPrompt';
 import './MathToolMobileLayout.css';
 import '../../platform/mobile/MobileInteractionFoundation.css';
+import {
+  scheduleHorizontalViewportStabilization,
+  scrollFocusedControlVertically,
+  stabilizeHorizontalViewport,
+} from '../../platform/mobile/mobileFocusViewport.js';
 
 const NUMERIC_SELECTOR = 'input[type="number"], input[inputmode="numeric"], input[inputmode="decimal"], input[data-mathmaster-mobile-keypad="true"]';
 const KEYS = ['7', '8', '9', '4', '5', '6', '1', '2', '3', '±', '0', '.'];
@@ -26,6 +31,7 @@ export const MobileViewportContainer = ({
   responseFields = null,
 }) => {
   const rootRef = useRef(null);
+  const focusedScrollerLockRef = useRef({ element: null, left: 0 });
   const [isPromptCollapsed, setIsPromptCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(detectMobile);
   const [isLandscape, setIsLandscape] = useState(detectLandscape);
@@ -34,6 +40,7 @@ export const MobileViewportContainer = ({
     width: typeof window !== 'undefined' ? Number(window.visualViewport?.width || window.innerWidth || 0) : 0,
     height: typeof window !== 'undefined' ? Number(window.visualViewport?.height || window.innerHeight || 0) : 0,
     offsetTop: typeof window !== 'undefined' ? Number(window.visualViewport?.offsetTop || 0) : 0,
+    offsetLeft: typeof window !== 'undefined' ? Number(window.visualViewport?.offsetLeft || 0) : 0,
   }));
 
   useEffect(() => {
@@ -45,18 +52,56 @@ export const MobileViewportContainer = ({
         width: Number(window.visualViewport?.width || window.innerWidth || 0),
         height: Number(window.visualViewport?.height || window.innerHeight || 0),
         offsetTop: Number(window.visualViewport?.offsetTop || 0),
+        offsetLeft: Number(window.visualViewport?.offsetLeft || 0),
       });
     };
     updateViewportMode();
     window.addEventListener('resize', updateViewportMode);
     window.addEventListener('orientationchange', updateViewportMode);
     window.visualViewport?.addEventListener('resize', updateViewportMode);
+    window.visualViewport?.addEventListener('scroll', updateViewportMode);
     return () => {
       window.removeEventListener('resize', updateViewportMode);
       window.removeEventListener('orientationchange', updateViewportMode);
       window.visualViewport?.removeEventListener('resize', updateViewportMode);
+      window.visualViewport?.removeEventListener('scroll', updateViewportMode);
     };
   }, []);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || !isMobile) return undefined;
+
+    const promptPanel = root.querySelector('.question-prompt-panel');
+    const assignmentStage = root.closest('.mathmaster-question-stage');
+    const assignmentShell = root.closest('.mathmaster-assignment-shell');
+    const assignmentScreen = root.closest('.mathmaster-assignment-screen');
+    const locked = [root, promptPanel, assignmentStage, assignmentShell, assignmentScreen].filter(Boolean);
+
+    const forceZero = () => stabilizeHorizontalViewport({ root });
+    const onLockedScroll = (event) => {
+      if (Math.abs(Number(event.currentTarget?.scrollLeft || 0)) > 0.5) {
+        event.currentTarget.scrollLeft = 0;
+      }
+    };
+    const onWindowScroll = () => {
+      if (Math.abs(Number(window.scrollX || 0)) > 0.5 || Math.abs(Number(window.visualViewport?.offsetLeft || 0)) > 0.5) {
+        forceZero();
+      }
+    };
+
+    locked.forEach((element) => element.addEventListener('scroll', onLockedScroll, { passive: true }));
+    window.addEventListener('scroll', onWindowScroll, { passive: true });
+    window.visualViewport?.addEventListener('scroll', onWindowScroll, { passive: true });
+
+    forceZero();
+
+    return () => {
+      locked.forEach((element) => element.removeEventListener('scroll', onLockedScroll));
+      window.removeEventListener('scroll', onWindowScroll);
+      window.visualViewport?.removeEventListener('scroll', onWindowScroll);
+    };
+  }, [isMobile]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -93,12 +138,57 @@ export const MobileViewportContainer = ({
     if (!isMobile) return;
     const target = event.target;
     if (target?.matches?.(NUMERIC_SELECTOR)) setNumericTarget(target);
-    // iOS can resize the visual viewport without moving the focused control
-    // into view. Keep the active field inside the tool-local scroll region
-    // rather than allowing the page itself to pan sideways or behind chrome.
+
+    // Remember the local horizontal position at focus time. Some MathLive and
+    // browser caret routines scroll the nearest overflow:auto ancestor after
+    // EVERY keystroke. If that ancestor is the tool workspace, page-level
+    // scroll locks alone cannot stop the visible sideways jump.
+    const localScroller = target?.closest?.('.question-prompt-panel, .math-tool-workspace, .mathmaster-mobile-local-scroll');
+    focusedScrollerLockRef.current = {
+      element: localScroller || null,
+      left: Number(localScroller?.scrollLeft || 0),
+    };
+
+    // NEVER use scrollIntoView() for mobile answer controls. Even with
+    // inline:'nearest', Safari/Chrome may programmatically change scrollLeft on
+    // overflow:hidden ancestors. The result looks like the entire question
+    // jumps sideways while the student types. Move only the nearest local
+    // scroll container vertically and then restore page-level x position.
     window.requestAnimationFrame(() => {
-      target?.scrollIntoView?.({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+      scrollFocusedControlVertically(target, { root: rootRef.current });
+      scheduleHorizontalViewportStabilization({ root: rootRef.current });
     });
+  };
+
+  const restoreFocusedHorizontalPosition = () => {
+    if (!isMobile) return;
+    const lock = focusedScrollerLockRef.current;
+    const restore = () => {
+      if (lock.element?.isConnected && Math.abs(Number(lock.element.scrollLeft || 0) - Number(lock.left || 0)) > 0.5) {
+        lock.element.scrollLeft = Number(lock.left || 0);
+      }
+      stabilizeHorizontalViewport({ root: rootRef.current });
+    };
+    if (typeof queueMicrotask === 'function') queueMicrotask(restore);
+    window.requestAnimationFrame(restore);
+  };
+
+  const handleInputCapture = () => {
+    restoreFocusedHorizontalPosition();
+  };
+
+  const handleKeyDownCapture = (event) => {
+    if (!isMobile) return;
+    if (event.key?.length === 1 || ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+      restoreFocusedHorizontalPosition();
+    }
+  };
+
+  const handleBlurCapture = (event) => {
+    if (!isMobile) return;
+    if (rootRef.current?.contains?.(event.relatedTarget)) return;
+    focusedScrollerLockRef.current = { element: null, left: 0 };
+    scheduleHorizontalViewportStabilization({ root: rootRef.current });
   };
 
   const applyKey = (key) => {
@@ -138,11 +228,15 @@ export const MobileViewportContainer = ({
     <div
       ref={rootRef}
       onFocusCapture={handleFocusCapture}
+      onInputCapture={handleInputCapture}
+      onKeyDownCapture={handleKeyDownCapture}
+      onBlurCapture={handleBlurCapture}
       className={`mathmaster-question-container mathmaster-mobile-interaction-root ${isLandscape ? 'mode-landscape' : 'mode-portrait'} ${numericTarget ? 'numeric-keypad-open' : ''}`}
       style={{
         '--mm-visual-viewport-width': `${visualViewport.width}px`,
         '--mm-visual-viewport-height': `${visualViewport.height}px`,
         '--mm-visual-viewport-offset-top': `${visualViewport.offsetTop}px`,
+        '--mm-visual-viewport-offset-left': `${visualViewport.offsetLeft}px`,
       }}
     >
       <section className="question-prompt-panel" aria-label="Question prompt and response controls">
