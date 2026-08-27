@@ -52,8 +52,8 @@ test('existing assignments with student evidence disable targeted question rewri
 });
 
 test('save handler independently blocks reviewed question-content changes after student evidence exists', () => {
-  assert.match(app, /const originalQuestionState = canonicalV5PersistencePatch\(originalV5\)\.questions/);
-  assert.match(app, /const reviewedQuestionState = canonicalV5PersistencePatch\(model\.assignmentV5\)\.questions/);
+  assert.match(app, /const originalQuestionState = flattenV5Sections\(originalV5\)/);
+  assert.match(app, /const reviewedQuestionState = flattenV5Sections\(model\.assignmentV5\)/);
   assert.match(app, /const questionContentChanged = JSON\.stringify\(originalQuestionState\) !== JSON\.stringify\(reviewedQuestionState\)/);
   assert.match(app, /questionContentChanged \? \['question content'\] : \[\]/);
   assert.match(app, /Duplicate the assignment for a new delivery policy or question rewrite instead/);
