@@ -1,7 +1,7 @@
 import { normalizeAssignmentV5, validateAssignmentV5, flattenV5Sections } from '../contract/assignmentSchemaV5.js';
 import { validateQuestionsSemantics } from '../contract/semanticValidation.js';
 import { validateAlignments, auditAlignmentSpecificity } from '../contract/alignments.js';
-import { getEffectiveActivityPolicy } from '../policies/activityPolicies.js';
+import { toEnforcedActivityPolicy } from '../policies/activityPolicies.js';
 
 const clean = (value) => String(value ?? '').trim();
 
@@ -29,7 +29,7 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     id: clean(section.id) || `section-${index + 1}`,
     sectionId: clean(section.id) || `section-${index + 1}`,
     title: clean(section.title) || titleForRole(section.role),
-    policy: getEffectiveActivityPolicy(section.role),
+    policy: toEnforcedActivityPolicy(section.role),
     questions: (section.questions || []).map((question) => ({
       ...question,
       sectionId: question.sectionId || section.id || `section-${index + 1}`,
