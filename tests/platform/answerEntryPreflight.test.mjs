@@ -54,7 +54,7 @@ test('plain text response fields cannot silently carry mathematical notation', (
       },
     ],
   }, { label: 'Domain question' });
-  assert.ok(result.errors.some((message) => /plain text response/.test(message)));
+  assert.ok(result.errors.some((message) => /inputProfile "text"/.test(message)));
   assert.ok(result.errors.some((message) => /≥/.test(message)));
 });
 
@@ -78,7 +78,7 @@ test('explicit unsupported requiredSymbols are blocking even when the expected a
       },
     ],
   });
-  assert.ok(result.errors.some((message) => /unsupported mobile answer symbol/.test(message)));
+  assert.ok(result.errors.some((message) => /unsupported answer symbol/.test(message)));
 });
 
 test('native Assignment V5 Preflight carries answer-entry failures into publish blockers', () => {
