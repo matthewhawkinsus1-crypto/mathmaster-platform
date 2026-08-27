@@ -7,7 +7,10 @@ import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
 import QuestionPrompt from './QuestionPrompt';
 import { FUNCTION_GRAPH_LABELS, evaluateGraphFunction } from './functionGraphUtils';
 import { POINT_FEATURES } from './analysisRequestCatalog';
-import { analysisKeypadProfile } from '../functions/shared/pathToolContracts.mjs';
+import {
+  analysisKeypadProfile,
+  pathAnalysisTextMatches,
+} from '../functions/shared/pathToolContracts.mjs';
 import useUndoHistory from './useUndoHistory';
 import useLocalDraftState from './useLocalDraftState';
 import useMobileInteractionMode from './platform/mobile/useMobileInteractionMode.js';
@@ -35,7 +38,6 @@ import {
   resolveTaskExpected,
   roughSketchMatchesGraph,
   sampleVisibleFunctionPaths,
-  setAnswerMatches,
   getSignAcceptedAnswers,
 } from './interactiveGraphEngine';
 
@@ -474,7 +476,17 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
       return { id: part.id, label: part.label, isComplete: clickComplete && inputComplete, isCorrect: clickCorrect && inputCorrect, response: `${noneSelected ? 'Does not exist' : selected.map(pointLabel).join(', ')}${typed ? `; typed: ${typed}` : ''}` };
     }
     const response = String(analysis.answers[part.id] || '');
-    return { id: part.id, label: part.label, isComplete: response.trim() !== '', isCorrect: response.trim() !== '' && setAnswerMatches(response, part.acceptedAnswers), response };
+    return {
+      id: part.id,
+      label: part.label,
+      isComplete: response.trim() !== '',
+      isCorrect: response.trim() !== '' && pathAnalysisTextMatches(
+        response,
+        part.acceptedAnswers,
+        { kind: part.kind, notation: part.notation, tolerance: Math.max(0.28, snapStep * 0.58) },
+      ),
+      response,
+    };
   }), [analysisParts, analysis, snapStep]);
 
   const inversePointParts = useMemo(() => analysisParts.filter((part) => part.kind === 'inversePoint'), [analysisParts]);
