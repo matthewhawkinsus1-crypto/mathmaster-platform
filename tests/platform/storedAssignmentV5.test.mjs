@@ -117,6 +117,7 @@ test('portable reconstruction can reset assignmentKey without changing content',
     resetAssignmentKey: true,
   });
   assert.equal(v5.assignment.assignmentKey, null);
+  assert.equal(v5.assignment.id, null);
   assert.equal(v5.sections[0].questions[0].prompt, 'Solve 2x + 1 = 9.');
 });
 
@@ -132,3 +133,11 @@ test('canonical persistence patch keeps courseId and V5 policy fields', () => {
 });
 
 console.log('storedAssignmentV5.test.mjs: all assertions passed');
+
+
+test('section-only stored V5 records can reconstruct when flat runtime questions are empty', () => {
+  const record = stored({ questions: [] });
+  const v5 = storedAssignmentToV5(record);
+  assert.equal(v5.sections[0].questions.length, 1);
+  assert.equal(v5.sections[0].questions[0].prompt, 'Solve 2x + 1 = 9.');
+});

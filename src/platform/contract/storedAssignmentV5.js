@@ -56,7 +56,7 @@ export const storedAssignmentToV5 = (assignment = {}, {
   }
   const sourceQuestions = Array.isArray(questions)
     ? questions
-    : Array.isArray(assignment.questions)
+    : Array.isArray(assignment.questions) && assignment.questions.length
       ? assignment.questions
       : flattenV5Sections(assignment);
   const courseId = inferStoredAssignmentCourseId(assignment, sourceQuestions);
@@ -76,7 +76,7 @@ export const storedAssignmentToV5 = (assignment = {}, {
     schemaVersion: 5,
     assignment: {
       ...(isObject(assignment.assignment) ? assignment.assignment : {}),
-      id: clean(assignment.id) || null,
+      id: resetAssignmentKey ? null : (clean(assignment.id) || null),
       assignmentKey: resetAssignmentKey ? null : (assignment.assignmentKey ?? assignment.assignment?.assignmentKey ?? null),
       title,
       courseId,
