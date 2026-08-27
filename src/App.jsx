@@ -3756,6 +3756,22 @@ function App() {
     );
   };
 
+  const openStoredAssignmentForPreflight = (assignment, draftOverrides = {}) => {
+    const canonicalV5 = storedAssignmentToV5(assignment, { resetAssignmentKey: true });
+    const result = readAssignmentJson(JSON.stringify(canonicalV5));
+    if (!result.ok) {
+      throw new Error(`This saved assignment cannot be reopened in V5 Preflight:\n${result.errors.join('\n')}`);
+    }
+    setNewAssignmentJSON(result.parsed.normalizedText);
+    const opened = openAssignmentPreflight(
+      { ...result.parsed, authoringWarnings: result.warnings },
+      `Library · ${assignment.title}`,
+      draftOverrides,
+    );
+    if (opened !== true) throw new Error(opened?.error || 'Could not open V5 Preflight for this saved assignment.');
+    return canonicalV5;
+  };
+
   const beginEditAssignmentDates = (assignment) => {
     const toLocalInput = (value) => {
       const date = value ? new Date(value) : null;
@@ -3791,26 +3807,89 @@ function App() {
 
   const handleSaveAssignmentDates = async (assignmentId) => {
     const dueAt = new Date(editingAssignmentDates.dueAt);
-    const lateDueAt = new Date(editingAssignmentDates.lateDueAt);
-    if (Number.isNaN(dueAt.getTime()) || Number.isNaN(lateDueAt.getTime()) || lateDueAt <= dueAt) {
-      toastError('Check the dates', 'The final late due date must be later than the regular due date.');
+    const hasLateDue = Boolean(String(editingAssignmentDates.lateDueAt || '').trim());
+    const lateDueAt = hasLateDue ? new Date(editingAssignmentDates.lateDueAt) : null;
+    if (
+      Number.isNaN(dueAt.getTime())
+      || (lateDueAt && (Number.isNaN(lateDueAt.getTime()) || lateDueAt <= dueAt))
+    ) {
+      toastError('Check the dates', 'Set a valid due date. If you use a final late due date, it must be later than the regular due date.');
       return;
     }
+
     const assignment = assignments.find((item) => item.id === assignmentId);
-    const hasDOL = Boolean(assignment?.dol?.enabled || assignment?.questions?.some((question) => (
-      resolveQuestionActivityRole({ question, assignment }) === 'dol'
-    )));
-    const editedClassIds = Array.isArray(editingAssignmentDates.assignedClassIds) ? editingAssignmentDates.assignedClassIds : [];
+    if (!assignment) {
+      toastError('Assignment not found', 'Refresh the assignment list and try again.');
+      return;
+    }
+
+    const editedClassIds = Array.isArray(editingAssignmentDates.assignedClassIds)
+      ? editingAssignmentDates.assignedClassIds
+      : [];
     const editedClassRecords = editedClassIds.length
       ? classes.filter((entry) => editedClassIds.includes(entry.classId) && entry?.status !== 'archived')
       : [];
     const editedPeriods = editedClassRecords.length
       ? [...new Set(editedClassRecords.map((entry) => entry.period).filter(Boolean))]
       : (editingAssignmentDates.assignedClassPeriods || []);
+
+    // A library item is a reusable source, not a half-published assignment.
+    // Selecting classes launches the same Preflight/new-destination path used by
+    // fresh V5 authoring. The library template remains untouched and reusable.
+    if (isLibraryAssignment(assignment) && (editedClassIds.length || editedPeriods.length)) {
+      try {
+        openStoredAssignmentForPreflight(assignment, {
+          title: assignment.title,
+          folder: assignment.folder || '',
+          dueAt: editingAssignmentDates.dueAt,
+          lateDueAt: editingAssignmentDates.lateDueAt || '',
+          assignedClassIds: editedClassIds,
+          assignedClassPeriods: editedPeriods,
+          dolInstructionDate: editingAssignmentDates.dolInstructionDate || '',
+        });
+        setEditingAssignmentId(null);
+        toastInfo(
+          'Review before assigning',
+          'The library template is staying unchanged. Preflight will create the correct destination version(s) for the classes you selected.',
+        );
+      } catch (error) {
+        toastError('Could not open assignment Preflight', error.message);
+      }
+      return;
+    }
+
+    // Existing assigned variants may move among classes with the same
+    // course/rigor destination, but cannot silently change Standard/Honors
+    // identity or fan out into mixed rigor without going through a fresh split.
+    const targetGroups = editedClassRecords.length
+      ? Object.values(editedClassRecords.reduce((groups, entry) => {
+          const course = entry.course || 'algebra1';
+          const courseLevel = entry.courseLevel || 'standard';
+          const key = `${course}:${courseLevel}`;
+          if (!groups[key]) groups[key] = { course, courseLevel };
+          return groups;
+        }, {}))
+      : buildDestinationGroups({ assignedClassPeriods: editedPeriods, courseProfiles });
+    const currentCourse = assignment.courseId || assignment.courseProfile?.course || null;
+    const currentLevel = assignment.rigorVariant || assignment.courseProfile?.courseLevel || null;
+    const changesDestination = targetGroups.length > 1
+      || (targetGroups.length === 1 && currentCourse && targetGroups[0].course !== currentCourse)
+      || (targetGroups.length === 1 && currentLevel && targetGroups[0].courseLevel !== currentLevel);
+    if (changesDestination) {
+      toastError(
+        'Use a V5 destination copy',
+        'This assignment is already a destination-specific Standard/Honors version. Duplicate it to the library, then assign that library copy through Preflight so MathMaster can create the correct rigor variant.',
+      );
+      return;
+    }
+
+    const hasDOL = Boolean(assignment?.dol?.enabled || assignment?.questions?.some((question) => (
+      resolveQuestionActivityRole({ question, assignment }) === 'dol'
+    )));
     const patch = {
       dueAt: dueAt.toISOString(),
       dueDate: dueAt.toISOString(),
-      lateDueAt: lateDueAt.toISOString(),
+      lateDueAt: lateDueAt ? lateDueAt.toISOString() : null,
       assignedClassIds: editedClassIds,
       assignedClassPeriods: editedPeriods,
     };
@@ -3828,39 +3907,8 @@ function App() {
       ...patch,
       dol: patch.dol || assignment?.dol,
     };
-    const wasAssigned = !isLibraryAssignment(assignment);
-    const isNowAssigned = !isLibraryAssignment(nextAssignment);
 
-    // Assigning a previously-library-only V5 package should post it to the
-    // mapped Classroom automatically. Existing Classroom posts only need their
-    // due-date synchronization updated.
-    if (!wasAssigned && isNowAssigned && shouldAutoPublishClassroomPackage(nextAssignment)) {
-      try {
-        const classroomResult = await autoPublishAssignmentPackageToClassroom(nextAssignment);
-        if (classroomResult.status === 'published') {
-          toastSuccess(
-            'Google Classroom published',
-            `${nextAssignment.title} was posted to ${classroomResult.published} mapped Classroom destination${classroomResult.published === 1 ? '' : 's'}.`,
-          );
-        } else if (classroomResult.status === 'needs-mapping') {
-          toastWarning(
-            'Assignment saved; Classroom needs a mapping',
-            'The MathMaster assignment is assigned, but its class period is not mapped to a Google Classroom course yet.',
-          );
-        } else if (classroomResult.status === 'failed' || classroomResult.status === 'partial') {
-          toastWarning(
-            'Assignment saved; Classroom needs attention',
-            `Google Classroom published ${classroomResult.published || 0} destination(s) and failed ${classroomResult.failed || 0}.`,
-          );
-        }
-      } catch (classroomError) {
-        console.error('Automatic Classroom publication after assignment failed:', classroomError);
-        toastWarning(
-          'Assignment saved; Classroom did not post',
-          classroomError.message,
-        );
-      }
-    } else if (wasAssigned && isNowAssigned && shouldAutoPublishClassroomPackage(nextAssignment)) {
+    if (shouldAutoPublishClassroomPackage(nextAssignment)) {
       try {
         await updateAssignmentClassroomPublications({ assignmentId });
       } catch (classroomError) {
