@@ -1,5 +1,7 @@
 "use strict";
 
+const { runtimeQuestionsFromAssignment } = require("./assignmentRuntime");
+
 const TEACHER_RELEASE_ROLES = new Set(["quiz", "test"]);
 
 function normalizedRole(value) {
@@ -9,7 +11,7 @@ function normalizedRole(value) {
 function assignmentUsesTeacherReleasePolicy(assignment = {}) {
   if (TEACHER_RELEASE_ROLES.has(normalizedRole(assignment.activityRole))) return true;
   if (TEACHER_RELEASE_ROLES.has(normalizedRole(assignment.assignmentType))) return true;
-  const questions = Array.isArray(assignment.questions) ? assignment.questions : [];
+  const questions = runtimeQuestionsFromAssignment(assignment);
   return questions.some((question) => TEACHER_RELEASE_ROLES.has(normalizedRole(question?.activityRole || question?.role)));
 }
 
