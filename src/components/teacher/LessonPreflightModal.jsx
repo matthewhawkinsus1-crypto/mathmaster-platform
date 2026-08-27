@@ -815,7 +815,7 @@ export const LessonPreflightModal = ({
       >
         <header style={{ padding: isNarrow ? '12px 14px' : '15px 20px', background: '#1a73e8', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14 }}>
           <div style={{ textAlign: 'left', minWidth: 0 }}>
-            <h3 style={{ margin: 0, fontSize: isNarrow ? 17 : 20 }}>Review before posting</h3>
+            <h3 style={{ margin: 0, fontSize: isNarrow ? 17 : 20 }}>Review assignment</h3>
             <span style={{ fontSize: 12, opacity: 0.92, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {draft.title || 'Untitled assignment'}{sourceLabel ? ` · ${sourceLabel}` : ''}
             </span>
@@ -881,7 +881,7 @@ export const LessonPreflightModal = ({
         <footer style={{ padding: isNarrow ? '10px 14px calc(10px + env(safe-area-inset-bottom))' : '13px 18px', borderTop: '1px solid #ccc', background: '#f8f9fa', display: 'flex', flexDirection: isNarrow ? 'column' : 'row', justifyContent: 'space-between', alignItems: isNarrow ? 'stretch' : 'center', gap: 10 }}>
           <span style={{ fontSize: 12, color: readiness.total === 0 ? '#5f6368' : '#a50e0e', textAlign: isNarrow ? 'center' : 'left' }}>
             {readiness.total === 0
-              ? 'Ready to create. Your review overrides the JSON metadata.'
+              ? 'Ready to create. These reviewed choices are what MathMaster will publish.'
               : `${readiness.total} thing${readiness.total === 1 ? '' : 's'} still to fix${readiness.firstBlockedStep && readiness.firstBlockedStep !== activeStep ? ` — see step ${stepIndex(readiness.firstBlockedStep) + 1}` : ''}.`}
           </span>
 
@@ -893,7 +893,7 @@ export const LessonPreflightModal = ({
               <button type="button" onClick={onClose} disabled={busy} style={{ flex: 1, minHeight: 48, padding: '10px 16px', fontWeight: 700 }}>Cancel</button>
             )}
             {!isNarrow && (
-              <button type="button" onClick={onClose} disabled={busy} style={{ minHeight: 44, padding: '9px 16px' }}>Back to JSON</button>
+              <button type="button" onClick={onClose} disabled={busy} style={{ minHeight: 44, padding: '9px 16px' }}>Back to Creator</button>
             )}
 
             {isNarrow && !isLastStep ? (
