@@ -40,7 +40,7 @@ const intents = [
   q('Use the interactive algebra workspace.', ['interactiveAlgebra'], { equationModel: { a: 3, b: 6, c: 21 } }),
 ];
 
-const payload = { schemaVersion: 5, assignment: { title: 'Destination coverage', courseId: 'algebra1' }, questions: intents };
+const payload = { schemaVersion: 5, assignment: { title: 'Destination coverage', courseId: 'algebra1' }, sections: [{ role: 'practice', title: 'Practice', questions: intents }] };
 const parsed = parseAssignmentBlueprintText(JSON.stringify(payload));
 const types = parsed.questions.map((question) => question.type || question.toolId);
 assert.equal(types.length, 34);

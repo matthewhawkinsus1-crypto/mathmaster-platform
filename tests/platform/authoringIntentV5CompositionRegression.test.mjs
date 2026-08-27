@@ -11,7 +11,7 @@ const payload = {
     assignmentType: 'notesClasswork',
     folder: 'Algebra I/Module 1/Functions',
   },
-  activities: [
+  sections: [
     {
       role: 'warmup',
       title: 'Warm-Up',
@@ -86,7 +86,7 @@ const payload = {
           answerModel: { range: '{0, 1, 2, 3}', continuity: 'discrete' },
         },
         {
-          // A repair AI adding a V4 type must not bypass V5 compilation.
+          // A repair AI adding an internal renderer type must not bypass V5 compilation.
           type: 'graphing',
           standard: 'A.2A',
           prompt: 'Graph the function f(x) = 0.5x + 1 for the domain x ≥ -3. Complete the table, graph the continuous ray, state the range in interval notation, and classify the function continuity.',
@@ -144,7 +144,7 @@ const payload = {
 
 const parsed = parseAssignmentBlueprintText(JSON.stringify(payload));
 assert.equal(parsed.sourceSchemaVersion, 5);
-assert.equal(parsed.schemaVersion, 4);
+assert.equal(parsed.schemaVersion, 5);
 assert.equal(parsed.questions.length, 9);
 validateAssignmentQuestions(parsed.questions);
 
@@ -158,7 +158,7 @@ assert.equal(unboundedInterval.type, 'intervalNumberLine');
 assert.equal(graphDomainRange.type, 'graphAnalysis');
 assert.equal(graphDomainRange.functionSpec.type, 'quadratic');
 assert.equal(graphDomainRange.functionSpec.domain.min, -2, 'structured V5 domain intent should restrict the compiled function');
-assert.ok(!graphDomainRange.graph, 'V4 renderer graph plumbing should not survive V5 graph-analysis compilation');
+assert.ok(!graphDomainRange.graph, 'renderer graph plumbing should not survive V5 graph-analysis compilation');
 assert.deepEqual(graphDomainRange.analysisRequests.map((request) => request.kind), ['domain', 'range']);
 assert.equal(graphBehavior.type, 'graphAnalysis');
 assert.deepEqual(graphBehavior.analysisRequests.map((request) => request.kind), ['increasing', 'decreasing', 'positive', 'negative']);
@@ -173,7 +173,7 @@ assert.equal(discrete.grading.table.values['3:y'], 3);
 assert.equal(discrete.tableAnswers['0:y'], 0, 'runtime table key must use the function-derived answer, not an AI-authored conflicting key');
 assert.equal(discrete.grading.range, '{0, 1, 2, 3}');
 
-assert.equal(continuous.type, 'functionGraph', 'stray V4 type hint must be ignored in V5');
+assert.equal(continuous.type, 'functionGraph', 'stray renderer type hint must be ignored in V5');
 assert.deepEqual(continuous.workflow.map((stage) => stage.kind), ['tableInput', 'functionGraph', 'rangeInput', 'classification']);
 assert.equal(continuous.grading.table.values['0:y'], -0.5, 'table key should be derived from the supplied function');
 assert.equal(continuous.functionSpec.domain.min, -3);
@@ -185,9 +185,9 @@ assert.equal(shower.type, 'relationshipModel');
 assert.equal(shower.notation, 'interval');
 
 const fix = buildFixRequest({ rawJson: JSON.stringify(payload), errors: ['A genuine content field is missing.'], sourceSchemaVersion: 5 });
-assert.match(fix, /Authoring Intent V5/);
-assert.match(fix, /KEEP `schemaVersion: 5`/);
+assert.match(fix, /MathMaster Assignment V5/);
+assert.match(fix, /KEEP schemaVersion 5/);
 assert.doesNotMatch(fix, /Valid question types:/);
-assert.doesNotMatch(fix, /Schema version is 4/);
+assert.doesNotMatch(fix, /schemaVersion 4|Schema version is 4/);
 
 console.log('authoringIntentV5CompositionRegression.test.mjs: all assertions passed');

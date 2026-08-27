@@ -170,13 +170,13 @@ const demandsForQuestion = (question = {}) => {
 };
 
 const sectionQuestions = (input = {}) => {
-  if (Array.isArray(input.activities)) {
-    return input.activities.flatMap((activity) => asArray(activity?.questions).map((question, index) => ({
+  if (Array.isArray(input.sections)) {
+    return input.sections.flatMap((section) => asArray(section?.questions).map((question, index) => ({
       question,
-      label: `${clean(activity?.title || activity?.role || 'Activity')} Question ${index + 1}`,
+      label: `${clean(section?.title || section?.role || 'Section')} Question ${index + 1}`,
     })));
   }
-  return asArray(input.questions).map((question, index) => ({ question, label: `Question ${index + 1}` }));
+  return [];
 };
 
 export const validateInstructionalScopeV5 = (input = {}) => {
