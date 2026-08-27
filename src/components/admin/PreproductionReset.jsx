@@ -62,6 +62,9 @@ export default function PreproductionReset({ onResetComplete }) {
   const [acknowledged, setAcknowledged] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
+  const [lockConfirmation, setLockConfirmation] = useState('');
+  const [lockAcknowledged, setLockAcknowledged] = useState(false);
+  const [locking, setLocking] = useState(false);
 
   const loadPreview = async () => {
     setLoading(true);
@@ -83,8 +86,15 @@ export default function PreproductionReset({ onResetComplete }) {
   const confirmationRequired = preview?.confirmationRequired || 'RESET TEST DATA';
   const canReset = !loading
     && !resetting
+    && preview?.resetLocked !== true
     && acknowledged
     && confirmation.trim() === confirmationRequired;
+  const lockConfirmationRequired = preview?.lockConfirmationRequired || 'LOCK FOR PRODUCTION';
+  const canLock = !loading
+    && !locking
+    && preview?.resetLocked !== true
+    && lockAcknowledged
+    && lockConfirmation.trim() === lockConfirmationRequired;
 
   const collectionRows = useMemo(
     () => Object.entries(preview?.collections || {})
@@ -112,6 +122,22 @@ export default function PreproductionReset({ onResetComplete }) {
     }
   };
 
+  const lockForProduction = async () => {
+    if (!canLock) return;
+    setLocking(true);
+    setError('');
+    try {
+      await teacherAdmin.lockPreproductionResetForProduction(lockConfirmation);
+      setLockConfirmation('');
+      setLockAcknowledged(false);
+      await loadPreview();
+    } catch (caught) {
+      setError(describeAuthError(caught));
+    } finally {
+      setLocking(false);
+    }
+  };
+
   return (
     <div>
       <h2 style={{ marginTop: 0 }}>Pre-production Reset</h2>
@@ -120,6 +146,16 @@ export default function PreproductionReset({ onResetComplete }) {
         removing test students, assignments, responses, evidence, Path/exam sessions, live-game state, and MathMaster
         publication links. It deliberately keeps the platform configuration and instructional content listed below.
       </p>
+
+      {preview?.resetLocked === true && (
+        <section role="status" style={{ ...panel, borderColor: '#137333', background: '#e6f4ea', color: '#0d652d' }}>
+          <h3 style={{ margin: '0 0 6px' }}>Production Lock Active</h3>
+          <p style={{ margin: 0, lineHeight: 1.55 }}>
+            Bulk pre-production reset is disabled by the server. This app has no unlock action.
+            {preview.resetLockedAt ? ` Locked ${new Date(preview.resetLockedAt).toLocaleString()}.` : ''}
+          </p>
+        </section>
+      )}
 
       <section style={{ ...panel, borderColor: '#aecbfa', background: '#f8fbff' }}>
         <h3 style={{ margin: '0 0 8px', color: '#174ea6' }}>What stays</h3>
@@ -187,8 +223,10 @@ export default function PreproductionReset({ onResetComplete }) {
         </div>
       )}
 
-      <section style={{ ...panel, borderColor: '#d93025' }}>
-        <h3 style={{ margin: '0 0 8px', color: '#a50e0e' }}>Confirm permanent reset</h3>
+      <section style={{ ...panel, borderColor: preview?.resetLocked ? '#dadce0' : '#d93025', opacity: preview?.resetLocked ? 0.72 : 1 }}>
+        <h3 style={{ margin: '0 0 8px', color: preview?.resetLocked ? '#5f6368' : '#a50e0e' }}>
+          {preview?.resetLocked ? 'Bulk reset is locked' : 'Confirm permanent reset'}
+        </h3>
         <p style={{ margin: '0 0 12px', color: '#5f6368', lineHeight: 1.55 }}>
           This cannot be undone. To enable the button, acknowledge the deletion and type the exact phrase shown below.
         </p>
@@ -197,6 +235,7 @@ export default function PreproductionReset({ onResetComplete }) {
           <input
             type="checkbox"
             checked={acknowledged}
+            disabled={preview?.resetLocked === true}
             onChange={(event) => setAcknowledged(event.target.checked)}
             style={{ marginTop: 3 }}
           />
@@ -207,6 +246,7 @@ export default function PreproductionReset({ onResetComplete }) {
           Type <code style={{ fontSize: 13 }}>{confirmationRequired}</code>
           <input
             value={confirmation}
+            disabled={preview?.resetLocked === true}
             onChange={(event) => setConfirmation(event.target.value)}
             autoComplete="off"
             spellCheck="false"
@@ -254,6 +294,74 @@ export default function PreproductionReset({ onResetComplete }) {
             {loading ? 'Checking…' : 'Refresh Preview'}
           </button>
         </div>
+      </section>
+
+      <section style={{ ...panel, borderColor: preview?.resetLocked ? '#137333' : '#7b45a6', background: preview?.resetLocked ? '#f4fbf5' : '#fbf8ff' }}>
+        <h3 style={{ margin: '0 0 8px', color: preview?.resetLocked ? '#0d652d' : '#6f2da8' }}>
+          {preview?.resetLocked ? 'Reset locked for live production' : 'When real students go live'}
+        </h3>
+        {preview?.resetLocked ? (
+          <p style={{ margin: 0, color: '#3c4043', lineHeight: 1.55 }}>
+            The bulk reset has been permanently disabled inside MathMaster. There is deliberately no unlock button or callable.
+          </p>
+        ) : (
+          <>
+            <p style={{ margin: '0 0 12px', color: '#5f6368', lineHeight: 1.55 }}>
+              Before the first real student uses MathMaster, permanently disable this bulk reset. This does not delete anything;
+              it changes the server lifecycle state so future reset attempts are refused.
+            </p>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginBottom: 12, color: '#3c4043', fontWeight: 700 }}>
+              <input
+                type="checkbox"
+                checked={lockAcknowledged}
+                onChange={(event) => setLockAcknowledged(event.target.checked)}
+                style={{ marginTop: 3 }}
+              />
+              <span>I understand that MathMaster provides no in-app way to unlock the bulk reset after this action.</span>
+            </label>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 900, color: '#3c4043' }}>
+              Type <code style={{ fontSize: 13 }}>{lockConfirmationRequired}</code>
+              <input
+                value={lockConfirmation}
+                onChange={(event) => setLockConfirmation(event.target.value)}
+                autoComplete="off"
+                spellCheck="false"
+                placeholder={lockConfirmationRequired}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  maxWidth: 430,
+                  boxSizing: 'border-box',
+                  minHeight: 44,
+                  marginTop: 6,
+                  padding: '0 12px',
+                  border: '1px solid #c7cdd6',
+                  borderRadius: 8,
+                  fontSize: 15,
+                  fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={lockForProduction}
+              disabled={!canLock}
+              style={{
+                minHeight: 44,
+                marginTop: 14,
+                padding: '0 16px',
+                border: 0,
+                borderRadius: 9,
+                background: canLock ? '#6f2da8' : '#dadce0',
+                color: canLock ? '#fff' : '#80868b',
+                fontWeight: 900,
+                cursor: canLock ? 'pointer' : 'not-allowed',
+              }}
+            >
+              {locking ? 'Locking…' : 'Lock Bulk Reset for Production'}
+            </button>
+          </>
+        )}
       </section>
     </div>
   );
