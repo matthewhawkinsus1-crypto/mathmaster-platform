@@ -28,6 +28,11 @@ import {
   buildStudentAssessmentContext, readCcmrGoals, writeCcmrGoals,
 } from '../../platform/ccmr/studentAssessmentContext.js';
 import { FRAMEWORK_LABELS, getSkillCrosswalk } from '../../platform/ccmr/assessmentCrosswalk.js';
+import {
+  mathPathRouteKey,
+  readMathPathRouteState,
+  writeMathPathRouteState,
+} from '../../platform/student/browserHistory.js';
 
 // The mastery-status priority list this used to be was a second, competing
 // idea of what to recommend, sitting beside the path engine and able to
@@ -122,6 +127,62 @@ export const MyMathPathExperience = ({
   // choose Mastery Overview first, but the same component stays the source of truth.
   const [activeTab, setActiveTab] = useState(() => initialTab);
   const [sessionConfig, setSessionConfig] = useState(null);
+
+  // Keep My Math Path's own tabs/session in the browser history too. App.jsx
+  // owns the outer student surface (Assignments, My Math Path, Exams); this
+  // component owns the levels INSIDE My Math Path. Together they make the
+  // browser Back button behave like the in-platform Back controls instead of
+  // jumping to the site that opened MathMaster.
+  const mathPathBrowserHistoryReadyRef = useRef(false);
+  const mathPathBrowserRoute = useMemo(() => ({
+    tab: activeTab,
+    sessionConfig: activeTab === 'session' ? sessionConfig : null,
+  }), [activeTab, sessionConfig]);
+
+  useEffect(() => {
+    if (readOnly) return;
+
+    const current = readMathPathRouteState(window.history.state);
+    const currentKey = current ? mathPathRouteKey(current) : null;
+    const targetKey = mathPathRouteKey(mathPathBrowserRoute);
+
+    if (!mathPathBrowserHistoryReadyRef.current) {
+      mathPathBrowserHistoryReadyRef.current = true;
+      if (currentKey !== targetKey) {
+        // The outer App has already created (or is about to create) the My Math
+        // Path entry. Augment that entry rather than adding a visually
+        // identical extra Back step on initial mount.
+        writeMathPathRouteState(mathPathBrowserRoute, { replace: true });
+      }
+      return;
+    }
+
+    if (currentKey !== targetKey) {
+      writeMathPathRouteState(mathPathBrowserRoute);
+    }
+  }, [mathPathBrowserRoute, readOnly]);
+
+  useEffect(() => {
+    if (readOnly) return undefined;
+
+    const restoreMathPathHistory = (event) => {
+      const route = readMathPathRouteState(event.state);
+      if (!route) return;
+
+      if (route.tab === 'session' && route.sessionConfig) {
+        setSessionConfig(route.sessionConfig);
+        setActiveTab('session');
+        return;
+      }
+
+      setSessionConfig(null);
+      setActiveTab(route.tab || 'path');
+    };
+
+    window.addEventListener('popstate', restoreMathPathHistory);
+    return () => window.removeEventListener('popstate', restoreMathPathHistory);
+  }, [readOnly]);
+
   const teacherReadOnlyNotice = 'Teacher view is read-only. Use Path Simulator to test questions or routing without changing this student.';
   // Teachers inspecting a real student now get the same CCMR evidence and
   // official-standard explorer the student sees. The hub itself is read-only,
