@@ -3054,7 +3054,7 @@ function App() {
       const repairMessage = parsed.repairs.length
         ? `\n\nPaste formatting repaired automatically: ${parsed.repairs.join('; ')}.`
         : '';
-      const sourceMessage = parsed.isBundle ? 'Created from Lesson Bundle V3 JSON after teacher pre-flight review.' : parsed.isPackage ? 'Created from Assignment Package JSON.' : 'Created from legacy question-array JSON.';
+      const sourceMessage = 'Created from MathMaster Assignment V5 after teacher Preflight review.';
       toastSuccess(
         creationMode === 'library' ? `Saved “${title}” to the library` : `Published “${title}”`,
         creationMode === 'library'
@@ -3095,7 +3095,9 @@ function App() {
     });
     await updateDoc(doc(db, 'assignments', questionEditorAssignment.id), {
       title,
+      sections: rebuildV5SectionsFromQuestions(questionEditorAssignment, normalizedQuestions),
       questions: normalizedQuestions,
+      runtimeProjectionVersion: 1,
       'dol.questionIndex': dolIndex >= 0 ? dolIndex : null,
       updatedAt: new Date().toISOString(),
     });
@@ -3659,8 +3661,11 @@ function App() {
     const duplicateQuestions = (assignment.questions || []).map((question) => ({ ...question, questionId: createQuestionId() }));
     await addDoc(collection(db, 'assignments'), {
       ...rest,
+      schemaVersion: 5,
+      runtimeProjectionVersion: 1,
       assignmentKey: null,
       title: `${assignment.title} (Copy)`,
+      sections: rebuildV5SectionsFromQuestions(assignment, duplicateQuestions),
       questions: duplicateQuestions,
       createdAt: new Date(),
     });
