@@ -5130,6 +5130,77 @@ function ccmrSessionPasses(summary = {}, requiredQuestions = 5) {
   return accuracy >= 0.8 && independentRate >= 0.6;
 }
 
+// Course Path progress is separate from mastery.
+//
+// "I finished this Path" means a student completed a full server-owned practice
+// session. "Mastered" is a stronger evidence claim that also requires breadth,
+// independent success and DOK 3+ evidence. The UI needs BOTH facts or a student
+// can finish five questions and return to a card that looks untouched.
+//
+// This helper reads only session summaries/targets and never question payloads.
+const COURSE_PATH_MAX_LEVEL = 3;
+
+async function loadCoursePathPassProgress(db, studentId, { limit = 400 } = {}) {
+  const snapshot = await db.collection("pathSessions")
+    .where("studentId", "==", studentId)
+    .limit(Math.max(20, Math.min(800, Number(limit) || 400)))
+    .get();
+
+  const byTeksCode = {};
+  snapshot.docs.forEach((sessionDoc) => {
+    const session = sessionDoc.data() || {};
+    if (session.status !== "completed") return;
+    if (session.sessionKind === "retentionProbe") return;
+    if (session.assessmentFramework) return;
+
+    const alignmentKey = mathPath.canonicalAlignmentKey(session.target?.alignmentKey);
+    const code = mathPath.displayAlignmentKey(alignmentKey);
+    if (!alignmentKey || !code) return;
+
+    const current = byTeksCode[code] || {
+      teksCode: code,
+      passesCompleted: 0,
+      lastCompletedAt: 0,
+      lastSummary: null,
+      highestRecordedLevel: 0,
+    };
+    current.passesCompleted += 1;
+    const completedAt = Number(session.completedAt || session.updatedAt || 0);
+    if (completedAt >= Number(current.lastCompletedAt || 0)) {
+      current.lastCompletedAt = completedAt;
+      current.lastSummary = {
+        completedQuestions: Number(session.summary?.completedQuestions || 0),
+        correctQuestions: Number(session.summary?.correctQuestions || 0),
+        independentSuccesses: Number(session.summary?.independentSuccesses || 0),
+      };
+    }
+    current.highestRecordedLevel = Math.max(
+      Number(current.highestRecordedLevel || 0),
+      Number(session.coursePassLevel || 1),
+    );
+    byTeksCode[code] = current;
+  });
+
+  Object.values(byTeksCode).forEach((entry) => {
+    entry.nextLevel = Math.min(COURSE_PATH_MAX_LEVEL, Number(entry.passesCompleted || 0) + 1);
+    entry.advancedLoop = Number(entry.passesCompleted || 0) >= COURSE_PATH_MAX_LEVEL;
+  });
+
+  return {
+    byTeksCode,
+    skillsWithCompletedPasses: Object.keys(byTeksCode).length,
+    totalCompletedPasses: Object.values(byTeksCode).reduce((sum, entry) => sum + Number(entry.passesCompleted || 0), 0),
+  };
+}
+
+/** Student-safe completion/pass summary for the Path cards. */
+exports.getMyMathPathSkillProgress = onCall((request) => withPathCallableDiagnostics("getMyMathPathSkillProgress", async () => {
+  const { studentId } = requireStudent(request);
+  const db = getFirestore();
+  const progress = await loadCoursePathPassProgress(db, studentId);
+  return { success: true, ...progress };
+}));
+
 const WEEKLY_PATH_GOAL_SNAPSHOTS = "weeklyPathGoalSnapshots";
 
 function sanitizeWeeklyPathGoalProposal(goal = {}, { studentId, classRecord }) {
@@ -5401,6 +5472,18 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
     if (ccmrChallengeTier >= 2 && sessionKind !== "retentionProbe") requiredQuestions = 3;
   }
 
+  // Ordinary course practice has visible passes too. Pass 1 is the foundation
+  // session; later passes deliberately ask the selector for more demanding
+  // work. This is NOT mastery — mastery remains evidence-driven.
+  let priorCoursePasses = 0;
+  let coursePassLevel = null;
+  if (!assessmentFramework && sessionKind !== "retentionProbe") {
+    const passProgress = await loadCoursePathPassProgress(db, studentId);
+    const targetCode = mathPath.displayAlignmentKey(targetAlignmentKey);
+    priorCoursePasses = Number(passProgress.byTeksCode?.[targetCode]?.passesCompleted || 0);
+    coursePassLevel = Math.min(COURSE_PATH_MAX_LEVEL, priorCoursePasses + 1);
+  }
+
   // Refuse a standard the secure bank cannot issue a question for, and refuse
   // it HERE — at the start, with an explanation — rather than letting the
   // student open a session that dies on its first question. The wheel already
@@ -5515,6 +5598,8 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
       assessmentFramework,
       assessmentContentRelease: assessmentReleaseState.tracked ? assessmentReleaseState.release : null,
       ccmrChallengeTier: assessmentFramework ? ccmrChallengeTier : null,
+      coursePassLevel: assessmentFramework || sessionKind === "retentionProbe" ? null : coursePassLevel,
+      priorCoursePasses: assessmentFramework || sessionKind === "retentionProbe" ? null : priorCoursePasses,
       ccmrProgressAtStart: assessmentFramework ? {
         directItemsAttempted: Number(ccmrProgress?.directItemsAttempted || 0),
         directItemsCorrect: Number(ccmrProgress?.directItemsCorrect || 0),
@@ -5772,6 +5857,17 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
     preferredDifficultyBand = Number(session.ccmrChallengeTier) >= 3 ? 5 : Math.max(4, Number(preferredDifficultyBand || 3));
     preferredDok = Number(session.ccmrChallengeTier) >= 3 ? Math.max(3, Number(preferredDok || 2)) : Math.max(2, Number(preferredDok || 2));
   }
+  if (!session.assessmentFramework && session.sessionKind !== "retentionProbe") {
+    const coursePassLevel = Math.max(1, Math.min(COURSE_PATH_MAX_LEVEL, Number(session.coursePassLevel || 1)));
+    if (coursePassLevel >= 2) {
+      preferredDifficultyBand = Math.max(4, Number(preferredDifficultyBand || 3));
+      preferredDok = Math.max(2, Number(preferredDok || 2));
+    }
+    if (coursePassLevel >= 3) {
+      preferredDifficultyBand = Math.max(5, Number(preferredDifficultyBand || 4));
+      preferredDok = Math.max(3, Number(preferredDok || 2));
+    }
+  }
   // Selection prefers an UNUSED family, widening to the closest adjacent band
   // before it repeats anything. Narrowing to the nearest band first and cycling
   // inside it — which is what this used to do — trapped a five-question session
@@ -5783,50 +5879,96 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
   // questions about one thing.
   const usedRepresentations = Array.isArray(session.usedRepresentations) ? session.usedRepresentations : [];
   const usedTaskTypes = Array.isArray(session.usedTaskTypes) ? session.usedTaskTypes : [];
-  const choice = selection.selectNextFamily(candidates, {
+  const selectionOptions = {
     preferredBand: preferredDifficultyBand,
     // Cognitive demand, decided server-side from the same evidence the band is.
-    // Selection ignored it entirely until now, so the DOK the platform reported
-    // was never the DOK it delivered.
     preferredDok,
     usage: familyUsage,
     usedRepresentations,
     usedTaskTypes,
-  });
-  const authored = choice.question;
+  };
+
+  // Do not let one bad generated draw/family strand the whole skill. The bank
+  // validator proves a TEMPLATE can issue, but a runtime draw or tool-support
+  // builder can still encounter an edge case. Try the ranked alternatives
+  // before showing the student an error.
+  let remainingCandidates = [...candidates];
+  let choice = null;
+  let authored = null;
+  let instantiated = null;
+  let issued = null;
+  let issuePlan = null;
+  let preparedApplicableSupports = null;
+  let preparedPrivateSupport = null;
+  const preparationFailures = [];
   const questionInstanceId = mathPath.runtimeId("qi");
 
-  // THE QUESTION THE STUDENT ACTUALLY GETS.
-  //
-  // A bank record may be a template — parameters plus the document that uses
-  // them — and this is where it becomes one concrete question. It happens on
-  // the server because the parameters that produced the answer must never
-  // reach the browser, and because a browser generating its own numbers while
-  // the server graded a stored key would mark every correct answer wrong.
-  //
-  // Deterministic in the session and the instance id, so the question survives
-  // a reload; the generated question is stored on the session either way, so
-  // the two agree by construction. A record with no generator passes through untouched.
-  const instantiated = await mathPath.instantiateQuestion(authored, `${sessionId}|${questionInstanceId}`);
-  if (!instantiated.question) {
-    logger.error("A Path template could not generate a question", {
-      sessionId, bankQuestionId: authored.id, reason: instantiated.reason,
-    });
-    throw new HttpsError("failed-precondition", `A question for ${activeDisplayCode} could not be prepared. Your teacher can see this in the Path audit.`, { reason: "generator-failed" });
-  }
-  const issued = instantiated.question;
+  while (remainingCandidates.length) {
+    const tentative = selection.selectNextFamily(remainingCandidates, selectionOptions);
+    if (!tentative?.question) break;
+    const tentativeQuestion = tentative.question;
 
-  // Re-planned from the INSTANCE, not the template: the grading definition is
-  // built from this question's own answer, and a template's answer is a
-  // placeholder. For a record with no generator these are the same object and
-  // the stored plan is reused.
-  const issuePlan = await mathPath.buildIssuePlan(issued);
-  if (!issuePlan?.issuable) {
-    logger.error("A generated Path question was not issuable", {
-      sessionId, bankQuestionId: authored.id, reason: issuePlan?.reason,
-    });
-    throw new HttpsError("failed-precondition", `A question for ${activeDisplayCode} could not be prepared. Your teacher can see this in the Path audit.`, { reason: "generated-not-issuable" });
+    try {
+      const draw = await mathPath.instantiateQuestion(tentativeQuestion, `${sessionId}|${questionInstanceId}|${tentativeQuestion.id}`);
+      if (!draw?.question) {
+        preparationFailures.push({ questionId: tentativeQuestion.id, reason: draw?.reason || "generator_failed" });
+        remainingCandidates = remainingCandidates.filter((candidate) => candidate.id !== tentativeQuestion.id);
+        continue;
+      }
+
+      const planned = await mathPath.buildIssuePlan(draw.question);
+      if (!planned?.issuable) {
+        preparationFailures.push({ questionId: tentativeQuestion.id, reason: planned?.reason || "generated_not_issuable" });
+        remainingCandidates = remainingCandidates.filter((candidate) => candidate.id !== tentativeQuestion.id);
+        continue;
+      }
+
+      const [applicableSupports, privateSupport] = await Promise.all([
+        mathPath.applicableSupportsFor(entitlements, draw.question, {}),
+        mathPath.buildPrivateSupport(draw.question),
+      ]);
+
+      choice = tentative;
+      authored = tentativeQuestion;
+      instantiated = draw;
+      issued = draw.question;
+      issuePlan = planned;
+      preparedApplicableSupports = applicableSupports;
+      preparedPrivateSupport = privateSupport;
+      break;
+    } catch (error) {
+      preparationFailures.push({
+        questionId: tentativeQuestion.id,
+        reason: "runtime_preparation_exception",
+        detail: error?.message || String(error),
+      });
+      logger.warn("Skipping Path family after runtime preparation failure", {
+        sessionId,
+        activeDisplayCode,
+        bankQuestionId: tentativeQuestion.id,
+        message: error?.message || String(error),
+      });
+      remainingCandidates = remainingCandidates.filter((candidate) => candidate.id !== tentativeQuestion.id);
+    }
   }
+
+  if (!choice || !authored || !instantiated?.question || !issuePlan?.issuable) {
+    logger.error("All Path candidates failed runtime preparation", {
+      sessionId,
+      activeDisplayCode,
+      targetDisplayCode,
+      failures: preparationFailures,
+    });
+    throw new HttpsError(
+      "failed-precondition",
+      `Published practice for ${activeDisplayCode} needs repair before another question can be prepared. Your completed work is safe; return to My Math Path and choose another open skill.`,
+      {
+        reason: "all-candidate-preparations-failed",
+        failedFamilies: preparationFailures.slice(0, 12).map((entry) => ({ questionId: entry.questionId, reason: entry.reason })),
+      },
+    );
+  }
+
   // A diagnostic is ONE question with ONE attempt: it is asked to find out
   // whether a prerequisite is the obstacle, and three tries at it would measure
   // persistence rather than answer the question.
@@ -5850,6 +5992,7 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
     generatorParameters: instantiated.parameters,
     skillCode: activeDisplayCode,
     pathRole,
+    coursePassLevel: session.assessmentFramework ? null : Math.max(1, Math.min(COURSE_PATH_MAX_LEVEL, Number(session.coursePassLevel || 1))),
     assessmentBridgeFramework: usingCourseBridge ? session.assessmentFramework : null,
     ccmrChallengeTier: session.assessmentFramework ? Math.max(1, Math.min(3, Number(session.ccmrChallengeTier || 1))) : null,
     ccmrFamilyRole: authored.ccmrFamilyRole || (Number(authored.ccmrChallengeTier || 1) >= 2 ? "challenge" : "direct"),
@@ -5861,7 +6004,7 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
     // not the same as applicable: a calculator accommodation does not apply to
     // an item whose assessed construct is the computation, and reduced choices
     // do not apply where there is nothing to reduce.
-    applicableSupports: await mathPath.applicableSupportsFor(entitlements, issued, {}),
+    applicableSupports: preparedApplicableSupports,
     authorizedSupports: entitlements.authorized,
     supportEntitlements: {
       extraAttempts: entitlements.extraAttempts,
@@ -5883,7 +6026,7 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
     // document, and are released one piece at a time by submitPathResponse.
     // Nothing in this bundle is ever part of the sanitized question, so a
     // student cannot read the review out of the payload before answering.
-    privateSupport: await mathPath.buildPrivateSupport(issued),
+    privateSupport: preparedPrivateSupport,
   };
 
   const issuedQuestion = await db.runTransaction(async (transaction) => {
