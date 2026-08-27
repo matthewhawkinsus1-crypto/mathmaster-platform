@@ -2583,7 +2583,7 @@ function App() {
         initialDraft,
         questions: inspected.questions,
         authoringWarnings: inspected.authoringWarnings || [],
-        sourceLabel: `${sourceName || 'Pasted JSON'} · Assignment V5`,
+        sourceLabel: `${sourceName || 'Imported assignment'}`,
       });
       return true;
     } catch (error) {
@@ -3032,7 +3032,7 @@ function App() {
       const repairMessage = parsed.repairs.length
         ? `\n\nPaste formatting repaired automatically: ${parsed.repairs.join('; ')}.`
         : '';
-      const sourceMessage = 'Created from MathMaster Assignment V5 after teacher Preflight review.';
+      const sourceMessage = 'Created with MathMaster Assignment Creator after teacher review.';
       toastSuccess(
         creationMode === 'library' ? `Saved “${title}” to the library` : `Published “${title}”`,
         creationMode === 'library'
@@ -3070,7 +3070,7 @@ function App() {
     });
     const model = buildAssignmentV5PreflightModel(candidateV5);
     if (!model.isValid) {
-      throw new Error(`These question edits cannot be saved until V5 Preflight is clean:\n${model.errors.join('\n')}`);
+      throw new Error(`These question edits cannot be saved until MathMaster’s assignment checks are clean:\n${model.errors.join('\n')}`);
     }
     const persistence = canonicalV5PersistencePatch(model.assignmentV5);
     const persistedQuestions = persistence.questions;
@@ -3651,7 +3651,7 @@ function App() {
       });
       const model = buildAssignmentV5PreflightModel(candidateV5);
       if (!model.isValid) {
-        throw new Error(`The copy cannot be created until V5 Preflight is clean:\n${model.errors.join('\n')}`);
+        throw new Error(`The copy cannot be created until MathMaster’s assignment checks are clean:\n${model.errors.join('\n')}`);
       }
       const persistence = canonicalV5PersistencePatch(model.assignmentV5);
       const { id: _id, archived: _archived, ...rest } = assignment;
@@ -3760,7 +3760,7 @@ function App() {
     const canonicalV5 = storedAssignmentToV5(assignment, { resetAssignmentKey: true });
     const result = readAssignmentJson(JSON.stringify(canonicalV5));
     if (!result.ok) {
-      throw new Error(`This saved assignment cannot be reopened in V5 Preflight:\n${result.errors.join('\n')}`);
+      throw new Error(`This saved assignment cannot be reopened in Assignment Review:\n${result.errors.join('\n')}`);
     }
     setNewAssignmentJSON(result.parsed.normalizedText);
     const opened = openAssignmentPreflight(
@@ -3768,7 +3768,7 @@ function App() {
       `Library · ${assignment.title}`,
       draftOverrides,
     );
-    if (opened !== true) throw new Error(opened?.error || 'Could not open V5 Preflight for this saved assignment.');
+    if (opened !== true) throw new Error(opened?.error || 'Could not open Assignment Review for this saved assignment.');
     return canonicalV5;
   };
 
@@ -3877,7 +3877,7 @@ function App() {
       || (targetGroups.length === 1 && currentLevel && targetGroups[0].courseLevel !== currentLevel);
     if (changesDestination) {
       toastError(
-        'Use a V5 destination copy',
+        'Use a destination copy',
         'This assignment is already a destination-specific Standard/Honors version. Duplicate it to the library, then assign that library copy through Preflight so MathMaster can create the correct rigor variant.',
       );
       return;
