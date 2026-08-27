@@ -5,9 +5,11 @@ import fs from 'node:fs';
 test('assignment creation persists canonical V5 sections and policy metadata', () => {
   const source = fs.readFileSync('src/App.jsx', 'utf8');
   assert.match(source, /schemaVersion:\s*5/);
-  assert.match(source, /runtimeProjectionVersion:\s*1/);
+  assert.doesNotMatch(source, /runtimeProjectionVersion:\s*1/);
   assert.match(source, /const reviewedQuestions = flattenV5Sections\(reviewedV5\)/);
   assert.match(source, /sections:\s*rebuildV5SectionsFromQuestions\(reviewedV5, variantQuestions\)/);
+  assert.doesNotMatch(source, /questions:\s*variantQuestions/);
+  assert.match(source, /hydrateAssignmentRuntime\(\{ id: assignmentRef\.id, \.\.\.payload \}\)/);
   assert.match(source, /variantPolicy:/);
   assert.match(source, /differentiationPolicy:/);
   assert.match(source, /supportPolicy:/);
@@ -38,4 +40,17 @@ test('teacher-reviewed canonical policy values are persisted from reviewedV5', (
   assert.match(source, /supportPolicy:\s*reviewedV5\.supportPolicy/);
   assert.match(source, /outputProfiles:\s*reviewedV5\.outputProfiles/);
   assert.match(source, /preflight:\s*reviewedV5\.preflight/);
+});
+
+
+test('Firestore assignment reads hydrate the runtime question projection from canonical sections', () => {
+  const source = fs.readFileSync('src/App.jsx', 'utf8');
+  assert.match(source, /hydrateAssignmentRuntime\(\{ id: assignmentDoc\.id, \.\.\.assignmentDoc\.data\(\) \}\)/);
+  assert.match(source, /hydrateAssignmentRuntime\(\{ id: assignmentSnapshot\.id, \.\.\.assignmentSnapshot\.data\(\) \}\)/);
+});
+
+test('duplicate path strips runtime-only question fields before writing', () => {
+  const source = fs.readFileSync('src/App.jsx', 'utf8');
+  assert.match(source, /questions:\s*_runtimeQuestions/);
+  assert.match(source, /runtimeProjectionVersion:\s*_legacyRuntimeProjectionVersion/);
 });
