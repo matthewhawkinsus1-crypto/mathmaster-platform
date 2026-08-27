@@ -103,5 +103,6 @@ test('MathInput delegates mobile layout to the tested policy', () => {
   assert.match(source, /toolProfile,/);
   assert.match(source, /profileKeys: getToolKeys\(toolProfile/);
   assert.match(source, /backspaceKey: MOBILE_BACKSPACE_KEY/);
-  assert.match(source, /'ⁿ√': \{ label: 'ⁿ√'/);
+  assert.match(source, /label: 'ⁿ√'/);
+  assert.match(source, /requiredAnswerToolForSymbol/);
 });
