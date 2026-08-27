@@ -22,8 +22,8 @@ const clean = (value) => String(value ?? '').trim();
 const defaultOutputProfiles = () => ({
   digital: { enabled: true },
   studentWorksheetPdf: { enabled: true, includeAnswers: false, includeWorkspace: true },
-  teacherWorksheetPdf: { enabled: false, includeAnswers: true, includeSolutions: true },
-  answerKeyPdf: { enabled: false },
+  teacherWorksheetPdf: { enabled: true, includeAnswers: true, includeSolutions: true, includeWorkspace: true },
+  answerKeyPdf: { enabled: true, includeAnswers: true, includeSolutions: false, includeWorkspace: false },
   lessonNotesPdf: { enabled: true, targetPages: 2 },
 });
 
@@ -196,13 +196,6 @@ export const validateAssignmentV5 = (input = {}, { requireQuestions = true } = {
   if (input.supportPolicy?.modificationsAllowed === true) {
     warnings.push('supportPolicy.modificationsAllowed is true. Preflight should make the instructional-target change explicit to the teacher.');
   }
-  if (input.outputProfiles?.teacherWorksheetPdf?.enabled === true) {
-    warnings.push('teacherWorksheetPdf is declared but the current renderer does not yet print worked solutions; keep this disabled until the teacher-key renderer is completed.');
-  }
-  if (input.outputProfiles?.answerKeyPdf?.enabled === true) {
-    warnings.push('answerKeyPdf is declared but the dedicated answer-key renderer is not yet completed.');
-  }
-
   return { errors, warnings };
 };
 

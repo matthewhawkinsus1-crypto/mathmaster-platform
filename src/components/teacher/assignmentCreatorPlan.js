@@ -31,6 +31,8 @@ export const defaultAssignmentCreatorPlan = (courseId = 'algebra1') => ({
   ])),
   outputs: {
     studentWorksheetPdf: true,
+    teacherWorksheetPdf: true,
+    answerKeyPdf: true,
     lessonNotesPdf: true,
   },
   teacherNotes: '',
@@ -71,6 +73,8 @@ export const normalizeAssignmentCreatorPlan = (input = {}) => {
     sections,
     outputs: {
       studentWorksheetPdf: input.outputs?.studentWorksheetPdf !== false,
+      teacherWorksheetPdf: input.outputs?.teacherWorksheetPdf !== false,
+      answerKeyPdf: input.outputs?.answerKeyPdf !== false,
       lessonNotesPdf: input.outputs?.lessonNotesPdf !== false,
     },
     teacherNotes: clean(input.teacherNotes),
@@ -97,6 +101,8 @@ export const buildAssignmentCreatorRequest = (input = {}, { generatedAt = new Da
 
   const outputNotes = [
     `- Student worksheet PDF: ${plan.outputs.studentWorksheetPdf ? 'enabled' : 'disabled'}.`,
+    `- Teacher copy PDF with answers/available solutions: ${plan.outputs.teacherWorksheetPdf ? 'enabled' : 'disabled'}.`,
+    `- Compact answer-key PDF: ${plan.outputs.answerKeyPdf ? 'enabled' : 'disabled'}.`,
     `- Separate lesson-notes PDF: ${plan.outputs.lessonNotesPdf ? 'enabled' : 'disabled'}.`,
   ];
 

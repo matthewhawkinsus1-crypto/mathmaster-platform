@@ -16,8 +16,9 @@ const metricBox = (label, value, note = '') => (
   </div>
 );
 
-export default function SectionBalanceRigorAudit({ lessonBundle }) {
-  const report = useMemo(() => analyzeSectionBalanceRigor(lessonBundle), [lessonBundle]);
+export default function SectionBalanceRigorAudit({ assignmentV5, lessonBundle = null }) {
+  const source = assignmentV5 || lessonBundle || {};
+  const report = useMemo(() => analyzeSectionBalanceRigor(source), [source]);
   const tone = statusTone[report.status] || statusTone['not-applicable'];
   const warnings = report.issues.filter((entry) => entry.severity === 'warning');
   const suggestions = report.issues.filter((entry) => entry.severity !== 'warning');

@@ -57,9 +57,12 @@ const richnessWeight = (question = {}) => {
   return Number(weight.toFixed(2));
 };
 
-const sectionQuestions = (bundle = {}, role) => asArray(bundle.activities)
-  .filter((activity) => lower(activity?.role) === role)
-  .flatMap((activity) => asArray(activity?.questions));
+const sectionQuestions = (source = {}, role) => {
+  const sections = Array.isArray(source.sections) ? source.sections : asArray(source.activities);
+  return sections
+    .filter((section) => lower(section?.role) === role)
+    .flatMap((section) => asArray(section?.questions));
+};
 
 const mean = (values) => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
 const percent = (numerator, denominator) => denominator > 0 ? numerator / denominator : 1;
@@ -91,7 +94,10 @@ const overlapShare = (wanted = [], actual = []) => {
 };
 
 const targetCountsForBundle = (bundle = {}) => {
-  const lessonCount = Math.max(1, asArray(bundle?.lessonMetadata?.lessons).length || 1);
+  const authoredLessons = bundle?.assignment?.curriculum?.lessons
+    ?? bundle?.assignment?.lessonMetadata?.lessons
+    ?? bundle?.lessonMetadata?.lessons;
+  const lessonCount = Math.max(1, asArray(authoredLessons).length || 1);
   if (lessonCount >= 2) return { classwork: [6, 8], practice: [8, 12] };
   return { classwork: [4, 6], practice: [5, 8] };
 };

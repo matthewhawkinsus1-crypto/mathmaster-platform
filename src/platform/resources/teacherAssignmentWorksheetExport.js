@@ -9,7 +9,7 @@ import {
 import { resolveQuestionActivityRole } from '../policies/activityPolicies.js';
 import { resolveDeliveredQuestionMetadata } from '../assignments/assignmentAdaptation.js';
 import { normalizeContextualQuestion } from '../context/wordProblemLayer.js';
-import { buildAssignmentWorksheetModel } from './assignmentWorksheetPdfModel.js';
+import { buildAssignmentWorksheetModel, PRINT_OUTPUT_MODES } from './assignmentWorksheetPdfModel.js';
 
 const activityTitleForRole = (role) => ({
   warmup: 'Warm-Up',
@@ -56,6 +56,7 @@ export const buildTeacherAssignmentWorksheetModel = ({
   student = null,
   learningProfile = null,
   studentProfile = null,
+  outputMode = PRINT_OUTPUT_MODES.STUDENT,
 } = {}) => {
   if (!assignment?.questions?.length) throw new Error('This assignment does not contain printable questions.');
 
@@ -116,5 +117,6 @@ export const buildTeacherAssignmentWorksheetModel = ({
       ? { displayName: displayNameFor(student), classPeriod: student.classPeriod || '' }
       : { displayName: '', classPeriod: '' },
     entries: printableEntries,
+    outputMode,
   });
 };

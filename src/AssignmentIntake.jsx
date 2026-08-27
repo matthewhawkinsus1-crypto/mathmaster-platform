@@ -397,7 +397,7 @@ export default function AssignmentIntake({
               marginBottom: 14,
             }}>
               <div style={{ border: '1px solid #d9e2f1', borderRadius: 11, padding: 12 }}>
-                <div style={{ fontWeight: 900, color: '#172033', marginBottom: 8 }}>Student outputs</div>
+                <div style={{ fontWeight: 900, color: '#172033', marginBottom: 8 }}>Assignment outputs</div>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#334155', fontSize: 13, marginBottom: 8 }}>
                   <input
                     type="checkbox"
@@ -405,6 +405,22 @@ export default function AssignmentIntake({
                     onChange={(event) => setOutputField('studentWorksheetPdf', event.target.checked)}
                   />
                   Printable student worksheet PDF
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#334155', fontSize: 13, marginBottom: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={creatorPlan.outputs.teacherWorksheetPdf}
+                    onChange={(event) => setOutputField('teacherWorksheetPdf', event.target.checked)}
+                  />
+                  Teacher copy PDF with answers/available solutions
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#334155', fontSize: 13, marginBottom: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={creatorPlan.outputs.answerKeyPdf}
+                    onChange={(event) => setOutputField('answerKeyPdf', event.target.checked)}
+                  />
+                  Compact answer-key PDF
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#334155', fontSize: 13 }}>
                   <input

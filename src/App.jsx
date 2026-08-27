@@ -112,7 +112,6 @@ import {
   isLibraryAssignment, resolveAssignmentDates, resolveCreationMode,
 } from './assignmentDestinations';
 import LessonPreflightModal from './components/teacher/LessonPreflightModal';
-import { normalizeLessonBundle } from './platform/schemas/BundleDefinition';
 import { rebuildV5SectionsFromQuestions } from './platform/contract/assignmentSchemaV5.js';
 import { normalizeLabDefinition } from './platform/labs/labDefinitionSchema.js';
 import { normalizeContextualQuestion } from './platform/context/wordProblemLayer';
@@ -163,7 +162,7 @@ import {
   blobToBase64,
   generateLessonNotesPdfBlob,
 } from './platform/resources/lessonNotesPdf.js';
-import { buildAssignmentWorksheetModel } from './platform/resources/assignmentWorksheetPdfModel.js';
+import { buildAssignmentWorksheetModel, PRINT_OUTPUT_MODES } from './platform/resources/assignmentWorksheetPdfModel.js';
 import { downloadAssignmentWorksheetPdf } from './platform/resources/assignmentWorksheetPdf.js';
 import {
   assignmentNeedsStudentForWorksheet,
@@ -1876,7 +1875,7 @@ function App() {
       .sort(compareStudentsByName)
   );
 
-  const exportTeacherAssignmentWorksheetPdf = async (assignment, student = null) => {
+  const exportTeacherAssignmentWorksheetPdf = async (assignment, student = null, outputMode = PRINT_OUTPUT_MODES.STUDENT) => {
     if (user?.role !== 'teacher' || !assignment?.questions?.length) return;
     setTeacherWorksheetBusy(true);
     try {
@@ -1897,13 +1896,17 @@ function App() {
         student: selectedStudent,
         learningProfile: selectedStudent ? teacherLearningProfiles?.[selectedStudent.id] || null : null,
         studentProfile: selectedStudentProfile,
+        outputMode,
       });
       const result = await downloadAssignmentWorksheetPdf({ model });
+      const outputLabel = outputMode === PRINT_OUTPUT_MODES.TEACHER
+        ? 'Teacher copy'
+        : outputMode === PRINT_OUTPUT_MODES.ANSWER_KEY ? 'Answer key' : 'Student worksheet';
       toastSuccess(
-        'PDF ready',
+        `${outputLabel} ready`,
         selectedStudent
-          ? `${formatStudentName(selectedStudent)} · ${result.pageCount} printable page${result.pageCount === 1 ? '' : 's'} exported.`
-          : `${result.pageCount} printable page${result.pageCount === 1 ? '' : 's'} exported with blank student fields.`,
+          ? `${formatStudentName(selectedStudent)} · ${result.pageCount} page${result.pageCount === 1 ? '' : 's'} exported.`
+          : `${result.pageCount} page${result.pageCount === 1 ? '' : 's'} exported from the shared assignment version.`,
       );
       setTeacherWorksheetDialog(null);
     } catch (error) {
@@ -1919,19 +1922,16 @@ function App() {
       toastInfo('Nothing to export', 'This assignment does not currently contain printable questions.');
       return;
     }
-    if (!assignmentNeedsStudentForWorksheet(assignment)) {
-      await exportTeacherAssignmentWorksheetPdf(assignment, null);
-      return;
-    }
+    const requiresStudent = assignmentNeedsStudentForWorksheet(assignment);
     const students = teacherWorksheetStudentsFor(assignment);
-    if (!students.length) {
+    if (requiresStudent && !students.length) {
       toastInfo(
         'Student version needed',
-        'This assignment uses personalized versions, but no roster student is available for its current audience. Assign it to a class or add a student first.',
+        'This assignment uses personalized or adaptive sections, but no roster student is available for its current audience. Assign it to a class or add a student first.',
       );
       return;
     }
-    setTeacherWorksheetDialog({ assignmentId: assignment.id });
+    setTeacherWorksheetDialog({ assignmentId: assignment.id, requiresStudent });
   };
 
   const startAssignment = (assignmentId, requestedQuestionIndex = 0) => {
@@ -2511,57 +2511,22 @@ function App() {
     return { ok: true, errors, warnings, parsed: { ...parsed, metadata }, sourceSchemaVersion: parsed.sourceSchemaVersion || null, compilerDefect: false };
   };
 
-  const buildPreflightBundle = (parsed, metadata) => {
-    if (parsed.isBundle && parsed.bundleSource?.schemaVersion === 5) {
-      return normalizeLessonBundle({
-        lessonMetadata: {
-          title: metadata?.title || parsed.bundleSource?.assignment?.title || 'Untitled Lesson',
-          course: metadata?.curriculum?.course || parsed.bundleSource?.assignment?.courseId || 'Unknown Course',
-          topic: metadata?.curriculum?.topic || null,
-        },
-        activities: parsed.bundleSource.sections || [],
-      });
-    }
-
-    const activityGroups = new Map();
-    parsed.questions.forEach((question, questionIndex) => {
-      const isDOL = Boolean(metadata?.dol?.enabled && Number(metadata?.dol?.questionIndex) === questionIndex);
-      const role = resolveQuestionActivityRole({
-        question,
-        assignment: { assignmentType: metadata?.assignmentType || 'practice' },
-        isDOL,
-      });
-      if (!activityGroups.has(role)) {
-        activityGroups.set(role, {
-          role,
-          title: activityTitleForRole(role),
-          questions: [],
-        });
-      }
-      activityGroups.get(role).questions.push(question);
-    });
-
-    return normalizeLessonBundle({
-      lessonMetadata: {
-        title: metadata?.title || 'Untitled Lesson',
-        course: metadata?.curriculum?.course || 'Unknown Course',
-        topic: metadata?.curriculum?.topic || null,
-      },
-      activities: [...activityGroups.values()],
-    });
-  };
 
   // The teacher sets classes, dates, folder and publishing here — the JSON never
   // carries them, so there are no manual fallbacks to merge any more.
   const openAssignmentPreflight = (inspected, sourceName) => {
     try {
       const { metadata } = inspected;
-      const lessonBundle = buildPreflightBundle(inspected, metadata);
+      const assignmentV5 = inspected.bundleSource;
+      if (!assignmentV5 || Number(assignmentV5.schemaVersion) !== 5) {
+        throw new Error('Preflight requires one canonical MathMaster Assignment V5 object.');
+      }
+      const sections = Array.isArray(assignmentV5.sections) ? assignmentV5.sections : [];
       const dolQuestionFromRole = inspected.questions.findIndex((question) => (
         resolveQuestionActivityRole({ question, assignment: { assignmentType: metadata?.assignmentType || 'practice' } }) === 'dol'
       ));
       const initialDraft = {
-        title: metadata?.title || lessonBundle.lessonMetadata?.title || '',
+        title: metadata?.title || assignmentV5.assignment?.title || '',
         folder: metadata?.folder || '',
         dueAt: toDateTimeLocalInputValue(metadata?.dueAt || ''),
         lateDueAt: toDateTimeLocalInputValue(metadata?.lateDueAt || ''),
@@ -2573,12 +2538,12 @@ function App() {
         guidedNotesBySection: { classwork: 'automatic', practice: 'off', ...(metadata?.guidedNotesBySection || {}) },
         assignedClassPeriods: [...(metadata?.assignedClassPeriods || [])],
         assignedClassIds: [...(metadata?.assignedClassIds || [])],
-        warmupEnabled: lessonBundle.activities.some((activity) => activity.role === 'warmup')
+        warmupEnabled: sections.some((section) => section.role === 'warmup')
           && (metadata?.provided?.warmup ? metadata.warmup.enabled !== false : true),
         warmupMinutesBeforeStart: metadata?.warmup?.minutesBeforeStart ?? 7,
         warmupInstructionDate: metadata?.warmup?.instructionDate || '',
         warmupInstructionDatesByClassPeriod: metadata?.warmup?.instructionDatesByClassPeriod || {},
-        dolEnabled: lessonBundle.activities.some((activity) => activity.role === 'dol')
+        dolEnabled: sections.some((section) => section.role === 'dol')
           && (metadata?.provided?.dol ? metadata.dol.enabled === true : true),
         dolMinutesBeforeEnd: metadata?.dol?.minutesBeforeEnd ?? 10,
         dolInstructionDate: metadata?.dol?.instructionDate || '',
@@ -2608,7 +2573,7 @@ function App() {
         preflight: metadata?.preflight || null,
       };
       setAssignmentPreflight({
-        lessonBundle,
+        assignmentV5,
         initialDraft,
         questions: inspected.questions,
         authoringWarnings: inspected.authoringWarnings || [],
@@ -2833,11 +2798,9 @@ function App() {
           earlyUnlocks: {},
         },
         folder,
-        assignmentPackageSchemaVersion: parsed.isPackage ? parsed.schemaVersion : 1,
         assignmentTemplate: packageMetadata?.template || null,
         standards: packageMetadata?.standards || [],
         curriculum: packageMetadata?.curriculum || null,
-        lessonBundleId: parsed.isBundle ? parsed.bundleSource?.bundleId || null : null,
         publicationSettings: teacherReview ? {
           strategy: teacherReview.publicationStrategy || 'hybrid',
           includeWarmupInClassroom: teacherReview.includeWarmupInClassroom === true,
@@ -5106,16 +5069,17 @@ function App() {
               key={assignment.id}
               assignment={assignment}
               students={students}
+              requiresStudent={teacherWorksheetDialog.requiresStudent === true}
               busy={teacherWorksheetBusy}
               onCancel={() => { if (!teacherWorksheetBusy) setTeacherWorksheetDialog(null); }}
-              onExport={(student) => exportTeacherAssignmentWorksheetPdf(assignment, student)}
+              onExport={(student, outputMode) => exportTeacherAssignmentWorksheetPdf(assignment, student, outputMode)}
             />
           );
         })()}
         {assignmentPreflight && (
           <LessonPreflightModal
-            key={`${assignmentPreflight.lessonBundle.bundleId}-${assignmentPreflight.sourceLabel}`}
-            lessonBundle={assignmentPreflight.lessonBundle}
+            key={`${assignmentPreflight.assignmentV5.assignment?.title || 'assignment-v5'}-${assignmentPreflight.sourceLabel}`}
+            assignmentV5={assignmentPreflight.assignmentV5}
             initialDraft={assignmentPreflight.initialDraft}
             classPeriods={CLASS_PERIODS}
             classes={classes}
@@ -5459,7 +5423,7 @@ function App() {
                           items={[
                             { key: 'preview', label: 'View as Student', onClick: () => startTeacherPreview(assignment.id) },
                             { key: 'edit-questions', label: 'Edit Questions', onClick: () => openQuestionEditor(assignment) },
-                            { key: 'export-pdf', label: 'Export Printable PDF', onClick: () => beginTeacherWorksheetExport(assignment) },
+                            { key: 'export-pdf', label: 'Print / Answer Key', onClick: () => beginTeacherWorksheetExport(assignment) },
                             { key: 'export-json', label: 'Export JSON', onClick: () => { setExportJsonAssignment(assignment); setExportJsonCopied(false); } },
                             { key: 'dates-classes', label: 'Dates & Classes', onClick: () => beginEditAssignmentDates(assignment) },
                             { key: 'move-folder', label: 'Move to Folder', onClick: () => { setMovingFolderAssignmentId(assignment.id); setMovingFolderValue(assignment.folder || ''); } },

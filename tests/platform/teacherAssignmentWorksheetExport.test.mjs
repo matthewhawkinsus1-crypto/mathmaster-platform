@@ -5,7 +5,7 @@ import {
   buildTeacherAssignmentWorksheetModel,
   eligibleStudentsForTeacherWorksheet,
 } from '../../src/platform/resources/teacherAssignmentWorksheetExport.js';
-import { worksheetFileName } from '../../src/platform/resources/assignmentWorksheetPdfModel.js';
+import { PRINT_OUTPUT_MODES, worksheetFileName } from '../../src/platform/resources/assignmentWorksheetPdfModel.js';
 
 const question = (overrides = {}) => ({
   type: 'algebra',
@@ -18,7 +18,7 @@ const question = (overrides = {}) => ({
   ...overrides,
 });
 
-test('shared teacher worksheet exports directly without a student and never leaks answers', () => {
+test('shared student worksheet exports directly without a student and never leaks answers', () => {
   const assignment = {
     id: 'shared-1',
     title: 'Shared Functions Practice',
@@ -31,6 +31,35 @@ test('shared teacher worksheet exports directly without a student and never leak
   assert.equal(model.sections.length, 1);
   assert.equal(JSON.stringify(model).includes('Subtract 3'), false);
   assert.equal(JSON.stringify(model).includes('"expected"'), false);
+});
+
+
+test('teacher copy and answer key use the same resolved shared question while exposing only requested key data', () => {
+  const assignment = {
+    id: 'shared-key-1',
+    title: 'Shared Key Practice',
+    variantMode: 'shared',
+    questions: [question()],
+  };
+
+  const teacherModel = buildTeacherAssignmentWorksheetModel({
+    assignment,
+    outputMode: PRINT_OUTPUT_MODES.TEACHER,
+  });
+  const keyModel = buildTeacherAssignmentWorksheetModel({
+    assignment,
+    outputMode: PRINT_OUTPUT_MODES.ANSWER_KEY,
+  });
+
+  assert.equal(teacherModel.outputMode, PRINT_OUTPUT_MODES.TEACHER);
+  assert.equal(keyModel.outputMode, PRINT_OUTPUT_MODES.ANSWER_KEY);
+  assert.ok(teacherModel.sections[0].questions[0].answerLines.some((line) => /4/.test(line)));
+  assert.deepEqual(
+    teacherModel.sections[0].questions[0].solutionLines,
+    ['Subtract 3', 'Divide by 2'],
+  );
+  assert.ok(keyModel.sections[0].questions[0].answerLines.some((line) => /4/.test(line)));
+  assert.equal('solutionLines' in keyModel.sections[0].questions[0], false);
 });
 
 test('personalized teacher worksheet requires a student and carries that student name', () => {
@@ -83,5 +112,16 @@ test('teacher blank worksheet file names say Printable instead of Student', () =
   assert.equal(
     worksheetFileName({ assignmentTitle: 'Lesson 2 Functions', studentName: '' }),
     'Lesson_2_Functions-Printable.pdf',
+  );
+});
+
+test('personalized teacher key retains the selected student version in its filename', () => {
+  assert.equal(
+    worksheetFileName({
+      assignmentTitle: 'Lesson 2 Functions',
+      studentName: 'Student Seventeen',
+      outputMode: PRINT_OUTPUT_MODES.ANSWER_KEY,
+    }),
+    'Lesson_2_Functions-Answer_Key-Student_Seventeen.pdf',
   );
 });
