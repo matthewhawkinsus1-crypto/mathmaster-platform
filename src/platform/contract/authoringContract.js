@@ -9,6 +9,7 @@ import { EXAM_DOMAIN_REGISTRY } from '../assessment/examDomainRegistry.js';
 import { getSkillCrosswalk } from '../ccmr/assessmentCrosswalk.js';
 import { QUESTION_TYPE_CATALOG, REPRESENTATIONS } from './questionTypeCatalog.js';
 import { TYPES_THAT_RENDER_A_TABLE } from './semanticValidation.js';
+import { AUTHORING_INTENT_V5_ACTIONS } from './authoringIntentV5.js';
 import { ANALYSIS_NOTATIONS, NOTATION_ANALYSIS_KINDS, POINT_FEATURES } from '../../analysisRequestCatalog.js';
 import {
   ALIGNMENT_FRAMEWORK_IDS,
