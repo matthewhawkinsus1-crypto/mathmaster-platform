@@ -272,6 +272,12 @@ async function rolePolicy() {
   return rolePolicyModule;
 }
 
+let assignmentV5HealthModule = null;
+async function assignmentV5HealthPolicy() {
+  if (!assignmentV5HealthModule) assignmentV5HealthModule = await import("./shared/assignmentV5Health.mjs");
+  return assignmentV5HealthModule;
+}
+
 async function requireRootAdmin(request) {
   const email = callerEmail(request);
   // `callerEmail` reads the verified token; the predicate re-reads it from the
@@ -1229,6 +1235,99 @@ exports.listClasses = onCall(async (request) => {
   return {
     classes: classes.sort((a, b) => String(a.period || "").localeCompare(String(b.period || ""))
       || String(a.name || "").localeCompare(String(b.name || ""))),
+  };
+});
+
+/**
+ * Root-admin Assignment Creator rollout check.
+ *
+ * dryRun=true is the default and writes nothing. The apply path only accepts
+ * metadata-only safe patches produced by the shared planner: courseId when it
+ * can be proven and runtimeProjectionVersion for an already-V5 assignment.
+ * It never rewrites questions, sections, standards, answers, or policy groups.
+ */
+exports.auditAssignmentV5Health = onCall(async (request) => {
+  const actor = await requireRootAdmin(request);
+  const dryRun = request.data?.dryRun !== false;
+  const requestedLimit = Number(request.data?.limit);
+  const limit = Number.isInteger(requestedLimit)
+    ? Math.max(1, Math.min(2000, requestedLimit))
+    : 1000;
+  const db = getFirestore();
+  const health = await assignmentV5HealthPolicy();
+
+  const snapshot = await db.collection("assignments").limit(limit + 1).get();
+  const scannedDocs = snapshot.docs.slice(0, limit);
+  const truncated = snapshot.docs.length > limit;
+  const items = scannedDocs.map((assignmentDoc) => health.inspectAssignmentV5Health(
+    assignmentDoc.data() || {},
+    { id: assignmentDoc.id },
+  ));
+  const summary = health.summarizeAssignmentV5Health(items.map((item) => ({ health: item })));
+  const safeItems = items.filter((item) => Object.keys(item.safePatch || {}).length > 0);
+
+  let applied = 0;
+  if (!dryRun && safeItems.length) {
+    for (let offset = 0; offset < safeItems.length; offset += 400) {
+      const batch = db.batch();
+      const group = safeItems.slice(offset, offset + 400);
+      group.forEach((item) => {
+        batch.set(
+          db.collection("assignments").doc(item.id),
+          item.safePatch,
+          { merge: true },
+        );
+      });
+      // eslint-disable-next-line no-await-in-loop
+      await batch.commit();
+      applied += group.length;
+    }
+  }
+
+  await writeAdminAudit(
+    db,
+    actor,
+    dryRun ? "assignment_v5_health_checked" : "assignment_v5_safe_backfill_applied",
+    "assignments",
+    {
+      scanned: summary.total,
+      healthy: summary.healthy,
+      safeFix: summary.safeFix,
+      needsReview: summary.needsReview,
+      safePatchCount: summary.safePatchCount,
+      applied,
+      truncated,
+      limit,
+    },
+  );
+
+  const attention = items
+    .filter((item) => item.status !== "healthy")
+    .slice(0, 150)
+    .map((item) => ({
+      id: item.id,
+      title: item.title,
+      schemaVersion: item.schemaVersion,
+      courseId: item.courseId,
+      courseSource: item.courseSource,
+      status: item.status,
+      counts: item.counts,
+      safeFixes: item.safeFixes,
+      reviewReasons: item.reviewReasons,
+    }));
+
+  return {
+    dryRun,
+    scanned: summary.total,
+    healthy: summary.healthy,
+    safeFix: summary.safeFix,
+    needsReview: summary.needsReview,
+    safePatchCount: summary.safePatchCount,
+    applied,
+    truncated,
+    limit,
+    attention,
+    attentionTruncated: items.filter((item) => item.status !== "healthy").length > attention.length,
   };
 });
 
