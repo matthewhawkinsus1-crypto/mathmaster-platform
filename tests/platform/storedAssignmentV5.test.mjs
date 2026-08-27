@@ -80,6 +80,7 @@ test('stored course is inferred from Algebra II TEKS when older records lack cou
   const old = stored({
     courseId: null,
     courseProfile: { course: null, courseLevel: null },
+    sections: [],
     questions: [{
       questionId: 'q1',
       type: 'multiAnswer',
@@ -99,6 +100,7 @@ test('course reconstruction fails closed rather than guessing the wrong course',
     courseId: null,
     courseProfile: { course: null, courseLevel: null },
     standards: [],
+    sections: [],
     questions: [{
       questionId: 'q1',
       type: 'multiAnswer',
