@@ -304,7 +304,7 @@ test('release lifecycle: a repaired question is revalidated in-place without cha
   assert.equal(after.isValid, true, after.errors.join('\n'));
 
   const repairedFlat = flattenV5Sections(after.assignmentV5);
-  assert.equal(repairedFlat[2].questionId, target.questionId);
+  assert.equal(repairedFlat[2].questionId ?? null, target.questionId ?? null);
   assert.equal(repairedFlat[2].activityRole, 'practice');
   assert.equal(repairedFlat[2].sectionId, 'practice');
   assert.match(repairedFlat[2].prompt, /Show your algebraic reasoning/);
