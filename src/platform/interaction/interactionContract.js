@@ -1,5 +1,6 @@
 import {
   answerSymbolSpec,
+  inferRequiredAnswerSymbols,
   resolveRequiredAnswerSymbols,
 } from './answerEntryTools.js';
 
@@ -118,43 +119,9 @@ export const inferAnswerFormatFromExpected = (value) => {
   return '';
 };
 
-const stripLatexCommands = (text) => text
-  .replace(/\\(?:frac|sqrt|infty|cup|left|right|lbrace|rbrace|leq?|geq?|neq?|pi|cdot|times|text)\b/g, ' ')
-  .replace(/\\[A-Za-z]+/g, ' ');
-
-export const inferRequiredSymbolsFromExpected = (value) => {
-  const text = normalizedMathText(value);
-  if (!text) return [];
-  const symbols = [];
-  const add = (symbol) => { if (symbol && !symbols.includes(symbol)) symbols.push(symbol); };
-
-  if (text.includes('(')) add('(');
-  if (text.includes(')')) add(')');
-  if (text.includes(',')) add(',');
-  if (text.includes('[')) add('[');
-  if (text.includes(']')) add(']');
-  if (text.includes('{') || /\\lbrace/.test(text)) add('{');
-  if (text.includes('}') || /\\rbrace/.test(text)) add('}');
-  if (/∞|\\infty/.test(text)) add('∞');
-  if (/∪|\\cup/.test(text)) add('∪');
-  if (/≤|<=|\\le\b|\\leq\b/.test(text)) add('≤');
-  else if (text.includes('<')) add('<');
-  if (/≥|>=|\\ge\b|\\geq\b/.test(text)) add('≥');
-  else if (text.includes('>')) add('>');
-  if (/≠|!=|\\ne\b|\\neq\b/.test(text)) add('≠');
-  if (/=/.test(text) && !/(?:<=|>=|!=)/.test(text)) add('=');
-  if (/\\sqrt\s*\[/.test(text)) add('ⁿ√');
-  else if (/√|\\sqrt/.test(text)) add('√');
-  if (/\^/.test(text)) add('xⁿ');
-  if (/\\frac|\d\s*\/\s*\d|[A-Za-z]\s*\/\s*[A-Za-z0-9]/.test(text)) add('a⁄b');
-
-  const variableText = stripLatexCommands(text)
-    .replace(/\b(?:sin|cos|tan|log|ln)\b/gi, ' ');
-  const variables = variableText.match(/[A-Za-z]/g) || [];
-  variables.forEach(add);
-
-  return symbols;
-};
+export const inferRequiredSymbolsFromExpected = (value) => (
+  inferRequiredAnswerSymbols(value)
+);
 
 const inferredProfileForExpected = (value) => {
   const format = inferAnswerFormatFromExpected(value);
@@ -179,7 +146,7 @@ export const normalizeResponseFieldInteractionContract = (field = {}) => {
   if (!isObject(field)) return field;
   const expected = valueCandidate(field);
   const inferredProfile = inferredProfileForExpected(expected);
-  const authoredProfile = normalizeInteractionInputProfile(field.inputProfile);
+  const authoredProfile = normalizeInteractionInputProfile(field.inputProfile || field.inputMode || field.type);
   const authoredFormat = clean(
     field.answerFormat
     ?? field.inputContract?.format
@@ -226,10 +193,16 @@ export const normalizeQuestionInteractionContracts = (question = {}) => {
         field.inputProfile
         || field.inputContract
         || field.answerFormat
+        || field.type
         || valueCandidate(field) != null
       )
         ? normalizeResponseFieldInteractionContract(field)
         : field
+    ));
+  }
+  if (Array.isArray(question.answerFields)) {
+    out.answerFields = question.answerFields.map((field) => (
+      isObject(field) ? normalizeResponseFieldInteractionContract(field) : field
     ));
   }
   return out;
@@ -249,7 +222,7 @@ const validateField = (field = {}, label) => {
   const warnings = [];
   if (!isObject(field)) return { errors, warnings };
 
-  const profile = normalizeInteractionInputProfile(field.inputProfile);
+  const profile = normalizeInteractionInputProfile(field.inputProfile || field.inputMode || field.type);
   if (isChoiceProfile(profile)) return { errors, warnings };
   const expected = valueCandidate(field);
   const inferredProfile = inferredProfileForExpected(expected);
@@ -287,14 +260,19 @@ const validateField = (field = {}, label) => {
 export const validateQuestionInteractionContracts = (question = {}, { label = 'Question' } = {}) => {
   const errors = [];
   const warnings = [];
-  const fields = Array.isArray(question.responseFields)
-    ? question.responseFields
-    : Array.isArray(question.responses) ? question.responses.filter(isObject) : [];
+  const groups = [
+    ['responseFields', Array.isArray(question.responseFields) ? question.responseFields : []],
+    ['responses', Array.isArray(question.responses) ? question.responses.filter(isObject) : []],
+    ['answerFields', Array.isArray(question.answerFields) ? question.answerFields : []],
+  ];
 
-  fields.forEach((field, index) => {
-    const result = validateField(field, `${label} · ${clean(field.label || field.id) || `response ${index + 1}`}`);
-    errors.push(...result.errors);
-    warnings.push(...result.warnings);
+  groups.forEach(([collection, fields]) => {
+    fields.forEach((field, index) => {
+      const fieldName = clean(field?.label || field?.id) || `response ${index + 1}`;
+      const result = validateField(field, `${label} · ${collection}[${index}] · ${fieldName}`);
+      errors.push(...result.errors);
+      warnings.push(...result.warnings);
+    });
   });
   return { errors: [...new Set(errors)], warnings: [...new Set(warnings)] };
 };
