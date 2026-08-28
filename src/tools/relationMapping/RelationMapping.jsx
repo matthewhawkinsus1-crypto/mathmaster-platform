@@ -2,6 +2,8 @@ import React, { useMemo, useState } from 'react';
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import MathDisplay from '../../MathDisplay';
+import { matchesFieldAnswer } from '../../answerUtils';
+import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../../platform/interaction/choiceOptions.js';
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
 const secondaryButton = { ...primaryButton, background: '#fff', color: '#174ea6', border: '1px solid #9bb8e8' };
