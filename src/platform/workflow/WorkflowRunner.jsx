@@ -6,6 +6,7 @@ import TableGrader from '../../TableGrader';
 import InteractiveGraphWorkspace from '../../InteractiveGraphWorkspace';
 import StepByStepAlgebra from '../../StepByStepAlgebra';
 import IntervalNumberLine from '../../tools/intervalNumberLine/IntervalNumberLine';
+import AxisSetupStage from './AxisSetupStage';
 import RelationMapping from '../../tools/relationMapping/RelationMapping';
 import { getStage } from './interactionStages';
 import { hasStageResponse, readComposedQuestion, resolveStageInput, summarizeWorkflowProgress } from './questionWorkflow';
@@ -35,6 +36,7 @@ const panel = {
 };
 const stageHeading = { margin: '0 0 8px', fontSize: 13, fontWeight: 900, color: '#174ea6' };
 const waitingPanel = { ...panel, background: '#f8f9fa', borderStyle: 'dashed', color: '#5f6368' };
+
 
 const niceGridStep = (range, fallback = 1) => {
   const safeRange = Math.abs(Number(range));
@@ -515,6 +517,15 @@ function StageBody({ stage, input, content, value, onChange, disabled, draftKey 
   if (delegate) return delegate({ stage, input, content, onChange, draftKey, disabled });
 
   switch (stage.kind) {
+    case 'axisSetup':
+      return (
+        <AxisSetupStage
+          stage={stage}
+          value={value}
+          onChange={onChange}
+          disabled={disabled}
+        />
+      );
     case 'equationInput':
       return (
         <MathInput
@@ -587,6 +598,7 @@ export default function WorkflowRunner({
   onProgressChange,
   disabled = false,
   draftKey = null,
+  showPrompt = true,
 }) {
   const { content, workflow, grading } = useMemo(() => readComposedQuestion(question), [question]);
   const [responses, setResponses] = useState({});
@@ -736,12 +748,12 @@ export default function WorkflowRunner({
 
   const promptAndScenario = (
     <>
-      {content?.prompt && (
+      {showPrompt && content?.prompt && (
         <div style={{ ...panel, background: '#f8fbff', borderColor: '#c5d5ef' }}>
           <QuestionPrompt>{content.prompt}</QuestionPrompt>
         </div>
       )}
-      {content?.scenario && !question?.suppressScenarioDisplay && content.scenario !== content?.prompt && (
+      {showPrompt && content?.scenario && !question?.suppressScenarioDisplay && content.scenario !== content?.prompt && (
         <div style={{ ...panel, background: '#f8f9fa' }}>
           <QuestionPrompt variant="plain">{content.scenario}</QuestionPrompt>
         </div>

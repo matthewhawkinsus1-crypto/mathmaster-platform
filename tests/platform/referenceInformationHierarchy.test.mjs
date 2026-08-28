@@ -15,6 +15,29 @@ test('scenario automatically becomes prominent reference information', () => {
   assert.match(info.statements[0].text, /\$2 each/);
 });
 
+test('scenario fallback stays hidden when it only repeats the task', () => {
+  const info = resolveReferenceInfo({
+    prompt: 'Andrew is at an amusement park. The roller coaster ride lasts 3 minutes and reaches a maximum speed of 75 miles per hour. Identify the domain and range.',
+    scenario: 'A roller coaster ride lasts 3 minutes and reaches a maximum speed of 75 miles per hour.',
+  });
+  assert.equal(info, null);
+});
+
+test('mostly repeated authored referenceInfo stays hidden', () => {
+  const info = resolveReferenceInfo({
+    prompt: 'Natalia fills a tub at 12 gallons per minute. Let t be time in minutes and V be water added in gallons. Use the first 4 minutes.',
+    referenceInfo: {
+      statements: [
+        'The tub fills at 12 gallons per minute.',
+        't represents time in minutes.',
+        'V represents the amount of water added in gallons.',
+        'Use the interval 0 ≤ t ≤ 4.',
+      ],
+    },
+  });
+  assert.equal(info, null);
+});
+
 test('authored referenceInfo overrides scenario fallback', () => {
   const info = resolveReferenceInfo({
     scenario: 'Long scenario fallback.',

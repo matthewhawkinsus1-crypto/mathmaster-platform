@@ -27,6 +27,7 @@ export const STAGE_OUTPUT = Object.freeze({
   CHOICE: 'choice',
   TEXT: 'text',
   ROLES: 'roles',
+  AXES: 'axes',
 });
 
 const stage = (id, definition) => [id, Object.freeze({ id, ...definition })];
@@ -38,6 +39,19 @@ export const INTERACTION_STAGES = Object.freeze(Object.fromEntries([
     produces: STAGE_OUTPUT.ROLES,
     consumes: [],
     fields: { prompt: 'string', quantities: 'array', correctIndependentId: 'string', correctDependentId: 'string' },
+  }),
+  stage('axisSetup', {
+    label: 'Label the graph',
+    studentAction: 'Labels the x- and y-axes, assigns units, and chooses a reasonable scale on a physical coordinate graph.',
+    produces: STAGE_OUTPUT.AXES,
+    consumes: [STAGE_OUTPUT.ROLES],
+    fields: {
+      prompt: 'string',
+      quantities: 'array',
+      graph: 'object',
+      requireUnits: 'boolean',
+      requireScale: 'boolean',
+    },
   }),
   stage('equationInput', {
     label: 'Write the equation',

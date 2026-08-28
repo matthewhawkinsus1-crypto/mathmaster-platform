@@ -1,6 +1,44 @@
 const cleanText = (value) => String(value ?? '').trim();
 const asArray = (value) => Array.isArray(value) ? value : value == null ? [] : [value];
 
+const comparisonText = (value) => cleanText(value)
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, ' ')
+  .replace(/\b(?:a|an|the)\b/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+const substantiallyRepeatsPrompt = (promptValue, statementValue) => {
+  const prompt = comparisonText(promptValue);
+  const statement = comparisonText(statementValue);
+  if (!prompt || !statement) return false;
+  if (prompt.includes(statement) || statement.includes(prompt)) return true;
+
+  const stem = (token) => {
+    if (token.length <= 4) return token;
+    return token
+      .replace(/ing$/, '')
+      .replace(/ed$/, '')
+      .replace(/es$/, '')
+      .replace(/s$/, '');
+  };
+  const statementTokens = statement.split(' ').filter((token) => token.length > 2).map(stem);
+  if (statementTokens.length < 3) return false;
+  const promptTokens = prompt.split(' ').filter((token) => token.length > 2).map(stem);
+  const tokenMatchesPrompt = (token) => promptTokens.some((candidate) => (
+    candidate === token
+    || (token.length >= 3 && candidate.length >= 3 && (candidate.includes(token) || token.includes(candidate)))
+  ));
+  const overlap = statementTokens.filter(tokenMatchesPrompt).length / statementTokens.length;
+  return overlap >= 0.72;
+};
+
+const authoredInfoMostlyRepeatsPrompt = (prompt, statements = []) => {
+  if (!prompt || !statements.length) return false;
+  const repeats = statements.filter((entry) => substantiallyRepeatsPrompt(prompt, entry?.text)).length;
+  return repeats >= Math.max(1, Math.ceil(statements.length * 0.6));
+};
+
 const normalizeStatement = (entry) => {
   if (typeof entry === 'string' || typeof entry === 'number') {
     const text = cleanText(entry);
@@ -17,6 +55,10 @@ const normalizeStatement = (entry) => {
 };
 
 export const resolveReferenceInfo = (question = {}) => {
+  // Authors may explicitly opt out when the task itself is the reference.
+  if (question?.referenceInfo === false) return null;
+
+  const prompt = cleanText(question?.prompt);
   const authored = question?.referenceInfo;
   if (authored) {
     if (typeof authored === 'string') {
@@ -30,6 +72,11 @@ export const resolveReferenceInfo = (question = {}) => {
       const summary = cleanText(authored.summary);
       if (summary && !statements.some((entry) => entry.text === summary)) statements.unshift({ text: summary, emphasis: true });
       if (statements.length) {
+        // "Information you need" is a reference card, not a second copy of the
+        // question and not a place to pre-solve the student's first step.
+        // If most authored lines simply restate the task, the sticky task card
+        // is the better reference and this card stays out of the way.
+        if (authoredInfoMostlyRepeatsPrompt(prompt, statements)) return null;
         return {
           title: cleanText(authored.title) || 'Information you need',
           statements,
@@ -39,9 +86,8 @@ export const resolveReferenceInfo = (question = {}) => {
     }
   }
 
-  const prompt = cleanText(question?.prompt);
   const scenario = cleanText(question?.scenario || question?.context?.scenario);
-  if (scenario && scenario !== prompt) {
+  if (scenario && !substantiallyRepeatsPrompt(prompt, scenario)) {
     return {
       title: 'Information you need',
       statements: [{ text: scenario, emphasis: true }],

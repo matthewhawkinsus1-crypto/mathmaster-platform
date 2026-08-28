@@ -1,6 +1,11 @@
 import { validateInstructionalScopeV5 } from '../curriculum/instructionalScope.js';
 import { looksLikeFiniteSetNotation } from '../../../functions/shared/answerEquivalence.mjs';
 import { normalizeStaticGraphPoints } from '../../graphPointUtils.js';
+import {
+  axisExpectedOptions,
+  axisQuantityChoicesFromIntent,
+  blankAxisGraphFromIntent,
+} from './axisSetupIntent.js';
 import { normalizeQuestionInteractionContracts } from '../interaction/interactionContract.js';
 import {
   normalizeAssignmentV5,
@@ -335,10 +340,60 @@ const compileFunctionWorkflow = (q, actions) => {
     ? functionSpecFromIntentQuestion(q)
     : null;
   const tableInfo = normalizeIntentTable(q.table);
+  const axis = isObject(q.axisRequirements) ? q.axisRequirements : {};
   const continuity = expectedContinuity(q);
   const graphMode = clean(q.graphMode || q.answerModel?.graphMode || continuity) || 'continuous';
   const workflow = [];
   const grading = {};
+
+  if (actions.includes('identifyQuantities')) {
+    workflow.push({
+      id: 'quantities',
+      kind: 'quantityRoles',
+      prompt: q.quantitiesPrompt || 'Which quantity is the input, and which is the output?',
+      quantities: asArray(q.quantities),
+    });
+    if (q.correctIndependentId && q.correctDependentId) {
+      grading.quantities = {
+        independent: q.correctIndependentId,
+        dependent: q.correctDependentId,
+      };
+    }
+  }
+
+  if (actions.includes('configureAxes')) {
+    const xAxis = isObject(axis.x) ? axis.x : {};
+    const yAxis = isObject(axis.y) ? axis.y : {};
+    const quantities = axisQuantityChoicesFromIntent(q, axis);
+    const requireUnits = Boolean(clean(xAxis.unit) && clean(yAxis.unit));
+    const requireScale = axis.requireScale !== false;
+
+    workflow.push({
+      id: 'axes',
+      kind: 'axisSetup',
+      prompt: q.axisPrompt || 'Label the x- and y-axes with the correct quantities and units, then choose a reasonable scale.',
+      quantities,
+      graph: blankAxisGraphFromIntent({
+        question: q,
+        functionSpec: publicFunctionSpec,
+        tableInfo,
+        evaluateFunction: evaluateIntentFunction,
+      }),
+      requireUnits,
+      requireScale,
+    });
+
+    grading.axes = {
+      xLabel: axisExpectedOptions(xAxis.label || quantities.find((item) => item?.id === q.correctIndependentId)?.label, axis.acceptedXLabels || xAxis.acceptedLabels),
+      yLabel: axisExpectedOptions(yAxis.label || quantities.find((item) => item?.id === q.correctDependentId)?.label, axis.acceptedYLabels || yAxis.acceptedLabels),
+      xUnit: axisExpectedOptions(xAxis.unit, axis.acceptedXUnits || xAxis.acceptedUnits),
+      yUnit: axisExpectedOptions(yAxis.unit, axis.acceptedYUnits || yAxis.acceptedUnits),
+      xStep: axisExpectedOptions(xAxis.countBy, axis.acceptedXSteps || xAxis.acceptedSteps),
+      yStep: axisExpectedOptions(yAxis.countBy, axis.acceptedYSteps || yAxis.acceptedSteps),
+      requireUnits,
+      requireScale,
+    };
+  }
 
   if (actions.includes('writeEquation')) {
     workflow.push({ id: 'equation', kind: 'equationInput', prompt: q.equationPrompt || 'Write the equation or function rule.' });
@@ -464,10 +519,13 @@ const compileRelationshipModel = (q, actions) => {
   out.notation = q.notation || answerModel.notation || (out.continuity === 'discrete' ? 'set' : 'interval');
   if (actions.includes('configureAxes')) {
     const axis = q.axisRequirements || relationship.axisRequirements || {};
+    const xAxis = isObject(axis.x) ? axis.x : {};
+    const yAxis = isObject(axis.y) ? axis.y : {};
+    out.quantities = axisQuantityChoicesFromIntent({ ...q, quantities, correctIndependentId: out.correctIndependentId, correctDependentId: out.correctDependentId }, axis);
     out.axisSetup = {
       required: true,
       requireScale: axis.requireScale !== false,
-      inputMode: axis.inputMode === 'drag' ? 'drag' : 'type',
+      inputMode: axis.inputMode === 'type' ? 'type' : 'drag',
       applyToGraph: axis.applyToGraph !== false,
       hideGraphLabels: axis.hideGraphLabels !== false,
       hideGraphUnits: axis.hideGraphUnits !== false,
@@ -476,11 +534,22 @@ const compileRelationshipModel = (q, actions) => {
       ...(Array.isArray(axis.acceptedYLabels) ? { acceptedYLabels: axis.acceptedYLabels } : {}),
       ...(Array.isArray(axis.acceptedXUnits) ? { acceptedXUnits: axis.acceptedXUnits } : {}),
       ...(Array.isArray(axis.acceptedYUnits) ? { acceptedYUnits: axis.acceptedYUnits } : {}),
-      ...(Array.isArray(axis.acceptedXSteps) ? { acceptedXSteps: axis.acceptedXSteps } : {}),
-      ...(Array.isArray(axis.acceptedYSteps) ? { acceptedYSteps: axis.acceptedYSteps } : {}),
+      ...((Array.isArray(axis.acceptedXSteps) || xAxis.countBy != null) ? { acceptedXSteps: axisExpectedOptions(xAxis.countBy, axis.acceptedXSteps || xAxis.acceptedSteps) } : {}),
+      ...((Array.isArray(axis.acceptedYSteps) || yAxis.countBy != null) ? { acceptedYSteps: axisExpectedOptions(yAxis.countBy, axis.acceptedYSteps || yAxis.acceptedSteps) } : {}),
     };
   }
   out.graph = q.graph || relationship.graph;
+  if (actions.includes('configureAxes') && !out.graph) {
+    const functionSpec = isObject(q.function) || isObject(q.functionSpec)
+      ? functionSpecFromIntentQuestion(q)
+      : null;
+    out.graph = blankAxisGraphFromIntent({
+      question: q,
+      functionSpec,
+      tableInfo: normalizeIntentTable(q.table),
+      evaluateFunction: evaluateIntentFunction,
+    });
+  }
   if (!actions.includes('writeEquation') && (isObject(q.function) || isObject(q.functionSpec))) {
     out.functionSpec = coreFunctionSpec(q.function || q.functionSpec);
   }
@@ -511,6 +580,10 @@ const resolveIntentType = (q, actions) => {
   if (actions.includes('compareGraphs') || (q.graphs && q.comparisonFields)) return 'graphComparison';
   if (actions.includes('writeGraphStory')) return 'graphStory';
   if (actions.includes('interpretPointInContext')) return 'contextInterpretation';
+  // A rich model that includes axis labeling must stay a composed workflow.
+  // Routing it to the flat relationshipModel renderer drops equation/table/
+  // graph/domain/range actions after the axis step.
+  if (actions.includes('configureAxes') && shouldCompileFunctionWorkflow(q, actions)) return 'functionWorkflow';
   if (actions.some((a) => ['identifyQuantities','configureAxes','writeEquation','classifyContinuity'].includes(a)) && (q.quantities || q.relationship || q.scenario)) return 'relationshipModel';
   if (actions.includes('solveInequalitySystem') || actions.includes('graphSystem') || actions.includes('rowReduce')) return 'systemsWorkspace';
   if (actions.includes('solveSystem') || q.equations) return 'system';
