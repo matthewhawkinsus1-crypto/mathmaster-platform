@@ -89,12 +89,38 @@ const FUNCTION_MODELING = {
       ...(Array.isArray(question.domainChoices) && question.domainChoices.length ? { choices: question.domainChoices } : {}),
       ...(latestModelSource(asked) ? { source: { fromStage: latestModelSource(asked) } } : {}),
     }),
+    domainWords: (question, asked) => ({
+      id: 'domainWords',
+      kind: 'shortResponse',
+      prompt: question.domainWordsPrompt || 'State the domain in words.',
+      ...(latestModelSource(asked) ? { source: { fromStage: latestModelSource(asked) } } : {}),
+    }),
+    domainInequality: (question, asked) => ({
+      id: 'domainInequality',
+      kind: 'domainInput',
+      prompt: question.domainInequalityPrompt || 'Write the domain using inequalities.',
+      notation: 'inequality',
+      ...(latestModelSource(asked) ? { source: { fromStage: latestModelSource(asked) } } : {}),
+    }),
     range: (question, asked) => ({
       id: 'range',
       kind: 'rangeInput',
       prompt: question.rangePrompt || 'State the range that goes with it.',
       notation: question.notation || 'interval',
       ...(Array.isArray(question.rangeChoices) && question.rangeChoices.length ? { choices: question.rangeChoices } : {}),
+      ...(latestModelSource(asked) ? { source: { fromStage: latestModelSource(asked) } } : {}),
+    }),
+    rangeWords: (question, asked) => ({
+      id: 'rangeWords',
+      kind: 'shortResponse',
+      prompt: question.rangeWordsPrompt || 'State the range in words.',
+      ...(latestModelSource(asked) ? { source: { fromStage: latestModelSource(asked) } } : {}),
+    }),
+    rangeInequality: (question, asked) => ({
+      id: 'rangeInequality',
+      kind: 'rangeInput',
+      prompt: question.rangeInequalityPrompt || 'Write the range using inequalities.',
+      notation: 'inequality',
       ...(latestModelSource(asked) ? { source: { fromStage: latestModelSource(asked) } } : {}),
     }),
     continuity: (question, asked) => ({
@@ -131,7 +157,11 @@ const FUNCTION_MODELING = {
     }
     if (asked.has('continuity') && question.continuity) rules.continuity = question.continuity;
     if (asked.has('domain') && question.correctDomain) rules.domain = question.correctDomain;
+    if (asked.has('domainWords') && question.correctDomainWords) rules.domainWords = question.correctDomainWords;
+    if (asked.has('domainInequality') && question.correctDomainInequality) rules.domainInequality = question.correctDomainInequality;
     if (asked.has('range') && question.correctRange) rules.range = question.correctRange;
+    if (asked.has('rangeWords') && question.correctRangeWords) rules.rangeWords = question.correctRangeWords;
+    if (asked.has('rangeInequality') && question.correctRangeInequality) rules.rangeInequality = question.correctRangeInequality;
     return rules;
   },
 };

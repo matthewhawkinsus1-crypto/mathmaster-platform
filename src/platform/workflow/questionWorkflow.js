@@ -224,7 +224,8 @@ export const validateGrading = (workflow = [], grading = null, { label = 'Questi
 // this module passes along.
 const ANSWER_FIELDS = [
   'grading', 'correctEquation', 'correctIndependentId', 'correctDependentId',
-  'correctDomain', 'correctRange', 'tableAnswers', 'answers', 'continuity',
+  'correctDomain', 'correctRange', 'correctDomainWords', 'correctDomainInequality',
+  'correctRangeWords', 'correctRangeInequality', 'tableAnswers', 'answers', 'continuity',
 ];
 
 const contentWithoutAnswers = (source) => {

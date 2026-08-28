@@ -95,13 +95,27 @@ const xIntercepts = (model) => {
 };
 
 const constraintLabel = (constraint = {}) => constraint.label || ({
-  family: 'Function family', continuity: 'Continuous or discrete', behavior: 'Overall behavior', extremum: 'Maximum/minimum', isFunction: 'Function test', straightLine: 'Straight-line shape', passesThrough: 'Required point', vertex: 'Vertex', yIntercept: 'y-intercept', xIntercept: 'x-intercept',
+  family: 'Function family', continuity: 'Continuous or discrete', behavior: 'Overall behavior', extremum: 'Maximum/minimum', isFunction: 'Function test', straightLine: 'Straight-line shape', passesThrough: 'Required point', vertex: 'Vertex', vertexQuadrant: 'Vertex quadrant', yIntercept: 'y-intercept', xIntercept: 'x-intercept',
 }[constraint.kind] || constraint.kind || 'Constraint');
 
 const normalizePoint = (value) => {
   if (Array.isArray(value) && value.length === 2) return [Number(value[0]), Number(value[1])];
   if (value && typeof value === 'object' && Number.isFinite(Number(value.x)) && Number.isFinite(Number(value.y))) return [Number(value.x), Number(value.y)];
   return null;
+};
+
+const pointQuadrant = (x, y) => {
+  if (!(Number.isFinite(x) && Number.isFinite(y)) || x === 0 || y === 0) return null;
+  if (x > 0 && y > 0) return 'I';
+  if (x < 0 && y > 0) return 'II';
+  if (x < 0 && y < 0) return 'III';
+  if (x > 0 && y < 0) return 'IV';
+  return null;
+};
+
+const normalizeQuadrant = (value) => {
+  const text = String(value ?? '').trim().toUpperCase();
+  return ({ '1': 'I', '2': 'II', '3': 'III', '4': 'IV', I: 'I', II: 'II', III: 'III', IV: 'IV' })[text] || null;
 };
 
 export const evaluateConstraint = (rawModel, constraint = {}, tolerance = 0.05) => {
@@ -126,6 +140,11 @@ export const evaluateConstraint = (rawModel, constraint = {}, tolerance = 0.05) 
     ok = ['quadratic', 'absolute'].includes(model.family) && Boolean(point)
       && Math.abs(model.h - point[0]) <= Number(constraint.tolerance ?? tolerance)
       && Math.abs(model.k - point[1]) <= Number(constraint.tolerance ?? tolerance);
+  } else if (kind === 'vertexQuadrant') {
+    const expectedQuadrant = normalizeQuadrant(constraint.value || constraint.quadrant);
+    ok = ['quadratic', 'absolute'].includes(model.family)
+      && Boolean(expectedQuadrant)
+      && pointQuadrant(model.h, model.k) === expectedQuadrant;
   } else if (kind === 'yIntercept') {
     ok = model.family !== 'verticalLine' && Math.abs(evaluateBuilderModel(model, 0) - Number(constraint.value)) <= Number(constraint.tolerance ?? tolerance);
   } else if (kind === 'xIntercept') {
@@ -146,7 +165,7 @@ export const validateConstraintBuilderQuestion = (question = {}) => {
   const errors = [];
   const constraints = Array.isArray(question.constraints) ? question.constraints : [];
   if (!constraints.length) errors.push('constraintFunctionBuilder requires a non-empty constraints array.');
-  const supported = new Set(['family','continuity','domainMode','behavior','extremum','isFunction','straightLine','passesThrough','vertex','yIntercept','xIntercept']);
+  const supported = new Set(['family','continuity','domainMode','behavior','extremum','isFunction','straightLine','passesThrough','vertex','vertexQuadrant','yIntercept','xIntercept']);
   constraints.forEach((constraint, index) => {
     if (!supported.has(constraint?.kind)) errors.push(`constraints[${index}] uses unsupported kind ${constraint?.kind || '(missing)'}.`);
     if (constraint?.kind === 'family' && !BUILDER_FAMILIES.includes(constraint.value)) errors.push(`constraints[${index}] family must be one of ${BUILDER_FAMILIES.join(', ')}.`);

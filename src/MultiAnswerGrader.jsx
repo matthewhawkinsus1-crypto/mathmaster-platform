@@ -3,6 +3,7 @@ import MathInput from './MathInput';
 import MathDisplay from './MathDisplay';
 import QuestionPrompt from './QuestionPrompt';
 import QuestionVisual from './QuestionVisual';
+import GraphDisplay from './GraphDisplay';
 import { looksLikeFiniteSetNotation, matchesFieldAnswer } from './answerUtils';
 import { resolveLabelFormat } from './labelFormat';
 import { inferRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
@@ -54,6 +55,12 @@ const shouldUseSetInput = (field) => {
   return acceptedAnswersForField(field).some((value) => looksLikeFiniteSetNotation(value));
 };
 
+const shouldUseInequalityInput = (field) => {
+  if (field?.type === 'inequality' || field?.notation === 'inequality' || field?.inputMode === 'inequality') return true;
+  if (/inequalit/i.test(String(field?.label || field?.prompt || ''))) return true;
+  return acceptedAnswersForField(field).some((value) => /[<>≤≥]/.test(String(value)));
+};
+
 
 const inferredBinaryOptions = (field) => {
   const label = String(field?.label || field?.prompt || '').toLowerCase();
@@ -86,6 +93,13 @@ const shouldUsePlainTextInput = (field) => {
 export default function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
   const { prompt, answerFields = [] } = question;
   const safeFields = useMemo(() => (Array.isArray(answerFields) ? answerFields.filter((field) => field?.id) : []), [answerFields]);
+  const candidateGraphs = useMemo(
+    () => stableShuffleChoices(
+      Array.isArray(question.candidateGraphs) ? question.candidateGraphs : [],
+      choiceSeed(question.questionId || question.prompt, 'candidate-graphs'),
+    ),
+    [question.candidateGraphs, question.questionId, question.prompt],
+  );
   const history = useUndoHistory({}, 60, draftKey ? `${draftKey}:multi-answer` : null);
   const answers = history.value;
   const parts = safeFields.map((field) => {
@@ -125,6 +139,40 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
       <h2 style={{ color: '#202124', marginTop: 0 }}>{question.heading || 'Complete Each Part'}</h2>
       <QuestionPrompt>{prompt || 'Enter an answer for every part.'}</QuestionPrompt>
       <QuestionVisual question={question} />
+      {candidateGraphs.length > 0 && (
+        <div
+          aria-label="Candidate graphs"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gap: 16,
+            margin: '18px 0 4px',
+          }}
+        >
+          {candidateGraphs.map((candidate, index) => (
+            <div
+              key={candidate?.id || index}
+              style={{
+                border: '2px solid #dfe3e7',
+                borderRadius: 12,
+                background: '#fff',
+                padding: 12,
+              }}
+            >
+              <div style={{ marginBottom: 8, fontWeight: 900, color: '#174ea6', textAlign: 'center' }}>
+                {candidate?.label || `Graph ${candidate?.id || String.fromCharCode(65 + index)}`}
+              </div>
+              {candidate?.graph ? (
+                <GraphDisplay graph={candidate.graph} title={candidate?.label || `Graph ${candidate?.id || String.fromCharCode(65 + index)}`} />
+              ) : (
+                <div style={{ padding: 24, textAlign: 'center', color: '#5f6368' }}>
+                  Graph unavailable
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '24px' }}>
         {safeFields.map((field) => {
           const grade = feedback?.partGrades?.find((part) => part.id === field.id);
@@ -199,7 +247,17 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                   }}
                 />
               ) : (
-                <MathInput value={answers[field.id] || ''} onChange={(value) => history.setValue((current) => ({ ...current, [field.id]: value }))} placeholder={field.placeholder || (shouldUseSetInput(field) ? '{…}' : 'answer')} ariaLabel={field.label || field.id} toolProfile={field.toolProfile || (shouldUseSetInput(field) ? 'set' : 'basic')} answerFormat={field.answerFormat || field.inputContract?.format || field.notation || field.inputMode || ''} requiredSymbols={requiredSymbols} showToolsInitially={shouldUseSetInput(field) || inferredRequiredSymbols.length > 0} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
+                <MathInput
+                  value={answers[field.id] || ''}
+                  onChange={(value) => history.setValue((current) => ({ ...current, [field.id]: value }))}
+                  placeholder={field.placeholder || (shouldUseSetInput(field) ? '{…}' : shouldUseInequalityInput(field) ? 'e.g. 0 ≤ x ≤ 4' : 'answer')}
+                  ariaLabel={field.label || field.id}
+                  toolProfile={field.toolProfile || (shouldUseSetInput(field) ? 'set' : shouldUseInequalityInput(field) ? 'inequality' : 'basic')}
+                  answerFormat={field.answerFormat || field.inputContract?.format || field.notation || field.inputMode || (shouldUseInequalityInput(field) ? 'inequality' : '')}
+                  requiredSymbols={requiredSymbols}
+                  showToolsInitially={shouldUseSetInput(field) || shouldUseInequalityInput(field) || inferredRequiredSymbols.length > 0}
+                  inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'}
+                />
               )}
             </div>
           );

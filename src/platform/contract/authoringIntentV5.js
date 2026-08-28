@@ -206,6 +206,34 @@ const fieldFromIntent = (field, index) => {
   return out;
 };
 
+const promptQuadrant = (prompt = '') => {
+  const match = String(prompt).match(/\bquadrant\s*(iv|iii|ii|i|4|3|2|1)\b/i);
+  if (!match) return null;
+  return ({ '1': 'I', i: 'I', '2': 'II', ii: 'II', '3': 'III', iii: 'III', '4': 'IV', iv: 'IV' })[match[1].toLowerCase()] || null;
+};
+
+const promptContainsCoordinatePair = (prompt = '') => /\(\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*\)/.test(String(prompt));
+
+const normalizeConstraintBuilderConstraints = (q = {}, raw = []) => {
+  const quadrant = promptQuadrant(q.prompt);
+  const namesExactPoint = promptContainsCoordinatePair(q.prompt);
+  return asArray(raw).map((constraint) => {
+    if (!isObject(constraint)) return constraint;
+    // If the task only says "the minimum is in Quadrant IV", an exact hidden
+    // vertex such as (4,-3) over-constrains the student. Preserve an exact
+    // vertex only when the prompt itself actually names a coordinate.
+    if (constraint.kind === 'vertex' && quadrant && !namesExactPoint) {
+      return {
+        ...constraint,
+        kind: 'vertexQuadrant',
+        value: quadrant,
+        label: constraint.label || `Vertex in Quadrant ${quadrant}`,
+      };
+    }
+    return constraint;
+  });
+};
+
 const normalizeGraphChoices = (choices = []) => asArray(choices).map((item, index) => {
   if (!isObject(item)) return item;
   const id = item.id || `g${index + 1}`;
@@ -318,6 +346,23 @@ const expectedContinuity = (q = {}) => clean(
 const expectedDomain = (q = {}) => q.correctDomain ?? q.answerModel?.domain ?? responseExpected(q, 'domain');
 const expectedRange = (q = {}) => q.correctRange ?? q.answerModel?.range ?? responseExpected(q, 'range');
 const expectedEquation = (q = {}) => q.correctEquation ?? q.answerModel?.equation ?? responseExpected(q, 'equation');
+
+const responseExpectedByIds = (q = {}, ids = []) => {
+  for (const id of ids) {
+    const expected = responseExpected(q, id);
+    if (expected !== undefined) return expected;
+  }
+  return undefined;
+};
+
+const defaultDomainRangeNotation = (q = {}, continuity = '') => {
+  if (clean(q.notation)) return clean(q.notation);
+  if (clean(continuity).toLowerCase() === 'discrete') return 'set';
+  // Algebra I TEKS introduce reasonable domain/range with inequalities. Interval
+  // notation is intentionally deferred until later coursework unless the
+  // author explicitly requests it.
+  return clean(q.courseId).toLowerCase() === 'algebra1' ? 'inequality' : 'interval';
+};
 
 const functionWorkflowActions = new Set([
   'writeEquation','completeTable','constructGraph','stateDomain','analyzeDomain','stateRange','analyzeRange','classifyContinuity',
@@ -454,10 +499,10 @@ const compileFunctionWorkflow = (q, actions) => {
   };
 
   if (actions.some((action) => ['stateDomain','analyzeDomain'].includes(action))) {
-    addSetStage('domain', 'domainInput', q.domainPrompt || 'State the domain.', expectedDomain(q), q.notation || (continuity === 'discrete' ? 'set' : 'interval'), q.domainChoices || q.answerModel?.domainChoices);
+    addSetStage('domain', 'domainInput', q.domainPrompt || 'State the domain.', expectedDomain(q), defaultDomainRangeNotation(q, continuity), q.domainChoices || q.answerModel?.domainChoices);
   }
   if (actions.some((action) => ['stateRange','analyzeRange'].includes(action))) {
-    addSetStage('range', 'rangeInput', q.rangePrompt || 'State the range.', expectedRange(q), q.notation || (continuity === 'discrete' ? 'set' : 'interval'), q.rangeChoices || q.answerModel?.rangeChoices);
+    addSetStage('range', 'rangeInput', q.rangePrompt || 'State the range.', expectedRange(q), defaultDomainRangeNotation(q, continuity), q.rangeChoices || q.answerModel?.rangeChoices);
   }
   if (actions.includes('classifyContinuity')) {
     const stage = { id: 'continuity', kind: 'classification', prompt: q.continuityPrompt || 'Is the relationship discrete or continuous?', choices: ['discrete','continuous'] };
@@ -495,8 +540,20 @@ const compileRelationshipModel = (q, actions) => {
   if (actions.includes('writeEquation')) ask.push('equation');
   if (actions.includes('completeTable')) ask.push('table');
   if (actions.includes('constructGraph')) ask.push('graph');
-  if (actions.some((a) => ['stateDomain','analyzeDomain'].includes(a))) ask.push('domain');
-  if (actions.some((a) => ['stateRange','analyzeRange'].includes(a))) ask.push('range');
+  if (actions.some((a) => ['stateDomain','analyzeDomain'].includes(a))) {
+    const hasWords = responseById(q, 'domainWords');
+    const hasInequality = responseById(q, 'domainInequalities') || responseById(q, 'domainInequality');
+    if (hasWords) ask.push('domainWords');
+    if (hasInequality) ask.push('domainInequality');
+    if (!hasWords && !hasInequality) ask.push('domain');
+  }
+  if (actions.some((a) => ['stateRange','analyzeRange'].includes(a))) {
+    const hasWords = responseById(q, 'rangeWords');
+    const hasInequality = responseById(q, 'rangeInequalities') || responseById(q, 'rangeInequality');
+    if (hasWords) ask.push('rangeWords');
+    if (hasInequality) ask.push('rangeInequality');
+    if (!hasWords && !hasInequality) ask.push('range');
+  }
   if (actions.includes('classifyContinuity')) ask.push('continuity');
   // Axis labeling/scale is a distinct mathematical act handled by the
   // relationshipModel component itself. Do not route that question through the
@@ -512,6 +569,10 @@ const compileRelationshipModel = (q, actions) => {
   out.continuity = q.continuity || answerModel.continuity || relationship.continuity || q.relationshipType;
   out.correctDomain = q.correctDomain || answerModel.domain || relationship.domain;
   out.correctRange = q.correctRange || answerModel.range || relationship.range;
+  out.correctDomainWords = responseExpectedByIds(q, ['domainWords']);
+  out.correctDomainInequality = responseExpectedByIds(q, ['domainInequalities', 'domainInequality']);
+  out.correctRangeWords = responseExpectedByIds(q, ['rangeWords']);
+  out.correctRangeInequality = responseExpectedByIds(q, ['rangeInequalities', 'rangeInequality']);
   out.quantitiesPrompt = q.quantitiesPrompt || relationship.quantitiesPrompt;
   out.equationPrompt = q.equationPrompt || relationship.equationPrompt;
   out.tablePrompt = q.tablePrompt || relationship.tablePrompt;
@@ -521,7 +582,7 @@ const compileRelationshipModel = (q, actions) => {
   out.continuityPrompt = q.continuityPrompt || relationship.continuityPrompt;
   out.domainChoices = q.domainChoices || answerModel.domainChoices || relationship.domainChoices;
   out.rangeChoices = q.rangeChoices || answerModel.rangeChoices || relationship.rangeChoices;
-  out.notation = q.notation || answerModel.notation || (out.continuity === 'discrete' ? 'set' : 'interval');
+  out.notation = q.notation || answerModel.notation || defaultDomainRangeNotation(q, out.continuity);
   if (actions.includes('configureAxes')) {
     const axis = q.axisRequirements || relationship.axisRequirements || {};
     const xAxis = isObject(axis.x) ? axis.x : {};
@@ -702,7 +763,16 @@ const compileOne = (q, index, repairs) => {
       break;
     case 'multiAnswer': {
       const fields = q.answerFields || q.responses || q.response?.fields || [];
-      out = copyCommon(q, { type, answerFields: fields.map(fieldFromIntent), table: q.table, graph: graphFromIntent(q), visual: q.visual, mathDisplay: q.mathDisplay });
+      const candidateGraphs = normalizeGraphChoices(q.candidateGraphs || q.graphs);
+      out = copyCommon(q, {
+        type,
+        answerFields: fields.map(fieldFromIntent),
+        table: q.table,
+        graph: graphFromIntent(q),
+        candidateGraphs: candidateGraphs.length ? candidateGraphs : undefined,
+        visual: q.visual,
+        mathDisplay: q.mathDisplay,
+      });
       break;
     }
     case 'relationshipModel':
@@ -840,7 +910,7 @@ const compileOne = (q, index, repairs) => {
       const builder = q.builder || {};
       out = copyCommon(q, {
         type,
-        constraints: q.constraints || builder.constraints,
+        constraints: normalizeConstraintBuilderConstraints(q, q.constraints || builder.constraints),
         allowedFamilies: q.allowedFamilies || builder.allowedFamilies,
         initialModel: q.initialModel || builder.initialModel,
         graph: normalizeStaticGraphPoints(q.graph || builder.graph),
@@ -891,6 +961,7 @@ export const compileAuthoringIntentV5 = (input = {}) => {
           activityRole: question.activityRole || role || 'classwork',
           sectionId: question.sectionId || sectionId || undefined,
           sectionTitle: question.sectionTitle || sectionTitle || undefined,
+          courseId: question.courseId || assignment.courseId || undefined,
         }
       : question;
     const compiled = compileOne(source, index, repairs);

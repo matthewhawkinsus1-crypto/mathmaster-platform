@@ -2,6 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
+import { readComposedQuestion } from '../../src/platform/workflow/questionWorkflow.js';
+import resolveReferenceInfo from '../../src/referenceInfo.js';
+import {
+  normalizeBuilderModel,
+  scoreConstraintModel,
+} from '../../src/tools/constraintFunctionBuilder/constraintFunctionMath.js';
 import {
   choiceSeed,
   stableShuffleChoices,
@@ -18,6 +24,154 @@ test('finite choices are strengthened and keep a stable shuffled order', () => {
   const second = stableShuffleChoices(strengthened, choiceSeed('question-1', 'continuity'));
   assert.deepEqual(first, second);
   assert.notDeepEqual(first, strengthened, 'runtime should not preserve authored answer order');
+});
+
+test('three authored choices become four so three attempts cannot guarantee a correct guess', () => {
+  const strengthened = strengthenTwoChoiceSet(['A', 'B', 'C']);
+  assert.equal(strengthened.length, 4);
+  assert.ok(strengthened.includes('None of these'));
+});
+
+test('Algebra I contextual domain and range preserve words plus inequality notation', () => {
+  const compiled = compileAuthoringIntentV5({
+    schemaVersion: 5,
+    assignment: {
+      title: 'Algebra I domain range',
+      courseId: 'algebra1',
+      instructionalPurpose: 'lesson',
+      gradingPurpose: 'practice',
+    },
+    sections: [{
+      role: 'practice',
+      title: 'Practice',
+      questions: [{
+        standard: 'A.2A',
+        prompt: 'A ride lasts 3 minutes and reaches 75 miles per hour. Identify the domain and range in words and using inequalities.',
+        scenario: 'A ride lasts 3 minutes and reaches 75 miles per hour.',
+        studentActions: ['identifyQuantities', 'stateDomain', 'stateRange'],
+        quantities: [
+          { id: 'time', label: 'Time (minutes)' },
+          { id: 'speed', label: 'Speed (miles per hour)' },
+        ],
+        correctIndependentId: 'time',
+        correctDependentId: 'speed',
+        responses: [
+          { id: 'domainWords', label: 'Domain in words', acceptedAnswers: ['time from 0 through 3 minutes'] },
+          { id: 'domainInequalities', label: 'Domain using inequalities', acceptedAnswers: ['0 ≤ x ≤ 3'] },
+          { id: 'rangeWords', label: 'Range in words', acceptedAnswers: ['speed from 0 through 75 miles per hour'] },
+          { id: 'rangeInequalities', label: 'Range using inequalities', acceptedAnswers: ['0 ≤ y ≤ 75'] },
+        ],
+      }],
+    }],
+  });
+
+  const question = compiled.package.sections[0].questions[0];
+  assert.equal(question.type, 'relationshipModel');
+  assert.equal(question.notation, 'inequality');
+  assert.deepEqual(question.recipe.ask, [
+    'quantities',
+    'domainWords',
+    'domainInequality',
+    'rangeWords',
+    'rangeInequality',
+  ]);
+
+  const composed = readComposedQuestion(question);
+  assert.deepEqual(composed.workflow.map((stage) => stage.kind), [
+    'quantityRoles',
+    'shortResponse',
+    'domainInput',
+    'shortResponse',
+    'rangeInput',
+  ]);
+  assert.equal(composed.workflow.find((stage) => stage.id === 'domainInequality').notation, 'inequality');
+  assert.equal(composed.workflow.find((stage) => stage.id === 'rangeInequality').notation, 'inequality');
+  assert.deepEqual(composed.grading.domainInequality, ['0 ≤ x ≤ 3']);
+  assert.deepEqual(composed.grading.rangeInequality, ['0 ≤ y ≤ 75']);
+});
+
+test('candidate graph questions retain the actual graph choices', () => {
+  const compiled = compileAuthoringIntentV5({
+    schemaVersion: 5,
+    assignment: {
+      title: 'Graph choice',
+      courseId: 'algebra1',
+      instructionalPurpose: 'lesson',
+      gradingPurpose: 'practice',
+    },
+    sections: [{
+      role: 'practice',
+      title: 'Practice',
+      questions: [{
+        standard: 'A.7A',
+        prompt: 'Choose the candidate representation that matches f(x) = −x² + 3x.',
+        studentActions: ['multipleResponses'],
+        candidateGraphs: [
+          { id: 'A', function: { family: 'linear', m: 2, b: -1 } },
+          { id: 'B', function: { family: 'exponential', base: 2 } },
+          { id: 'C', function: { family: 'quadratic', a: -1, h: 1.5, k: 2.25 } },
+        ],
+        responses: [{
+          id: 'selectedGraph',
+          label: 'Which candidate matches f(x) = −x² + 3x?',
+          options: ['A', 'B', 'C'],
+          answer: 'C',
+        }],
+      }],
+    }],
+  });
+
+  const question = compiled.package.sections[0].questions[0];
+  assert.equal(question.type, 'multiAnswer');
+  assert.equal(question.candidateGraphs.length, 3);
+  assert.deepEqual(question.candidateGraphs.map((candidate) => candidate.id), ['A', 'B', 'C']);
+  assert.ok(question.candidateGraphs.every((candidate) => candidate.graph));
+});
+
+test('quadrant-only builder prompts do not hide one exact vertex', () => {
+  const compiled = compileAuthoringIntentV5({
+    schemaVersion: 5,
+    assignment: {
+      title: 'Builder quadrant',
+      courseId: 'algebra1',
+      instructionalPurpose: 'lesson',
+      gradingPurpose: 'practice',
+    },
+    sections: [{
+      role: 'practice',
+      title: 'Practice',
+      questions: [{
+        standard: 'A.7A',
+        prompt: 'Create a continuous linear absolute value function with a minimum in Quadrant IV.',
+        studentActions: ['buildFunctionFromConstraints'],
+        allowedFamilies: ['absolute'],
+        constraints: [
+          { kind: 'family', value: 'absolute' },
+          { kind: 'continuity', value: 'continuous' },
+          { kind: 'extremum', value: 'minimum' },
+          { kind: 'vertex', value: { x: 4, y: -3 } },
+          { kind: 'isFunction', value: true },
+        ],
+      }],
+    }],
+  });
+
+  const question = compiled.package.sections[0].questions[0];
+  const quadrant = question.constraints.find((constraint) => constraint.kind === 'vertexQuadrant');
+  assert.ok(quadrant);
+  assert.equal(quadrant.value, 'IV');
+  assert.equal(question.constraints.some((constraint) => constraint.kind === 'vertex'), false);
+
+  const untouchedDefault = normalizeBuilderModel({ family: 'absolute', a: 0, h: 0, k: 0 });
+  assert.equal(scoreConstraintModel(untouchedDefault, question.constraints).isCorrect, false);
+});
+
+test('a repeated string reference card is suppressed when the sticky task already contains it', () => {
+  const info = resolveReferenceInfo({
+    prompt: 'A roller coaster ride lasts 3 minutes and reaches a maximum speed of 75 miles per hour. Identify the domain and range.',
+    referenceInfo: 'A roller coaster ride lasts 3 minutes and reaches a maximum speed of 75 miles per hour.',
+  });
+  assert.equal(info, null);
 });
 
 test('V5 uses the balance solver, faithful graph reading, and complete relation analysis', () => {
