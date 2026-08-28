@@ -5,7 +5,7 @@ import { PUBLICATION_STRATEGIES, planClassroomPublication } from '../../platform
 import { normalizeLessonPublishingIntentV5 } from '../../platform/authoring/lessonPublishingIntent.js';
 import { buildAssignmentV5PreflightModel } from '../../platform/preflight/assignmentV5PreflightModel.js';
 import InteractiveModelingLabPlayer from '../labs/InteractiveModelingLabPlayer.jsx';
-import { buildHonorsEnrichmentQuestion, inspectHonorsRigor, splitClassPeriodsByRigor } from '../../platform/rigor/courseRigor.js';
+import { buildHonorsEnrichmentQuestion, inspectHonorsRigor } from '../../platform/rigor/courseRigor.js';
 import RepresentationAudit from './RepresentationAudit';
 import SectionBalanceRigorAudit from './SectionBalanceRigorAudit.jsx';
 import {
@@ -194,15 +194,14 @@ export const LessonPreflightModal = ({
   const currentPolicy = currentActivity ? getEffectiveActivityPolicy(currentActivity.role) : null;
 
   const activeClassChoices = useMemo(() => (Array.isArray(classes) ? classes : []).filter((entry) => entry?.status !== 'archived' && entry?.classId), [classes]);
-  const usesClassEntities = activeClassChoices.length > 0;
-  const rigorDestinations = useMemo(() => {
-    if (!usesClassEntities || !(draft.assignedClassIds || []).length) return splitClassPeriodsByRigor(draft.assignedClassPeriods, courseProfiles);
-    const selected = activeClassChoices.filter((entry) => draft.assignedClassIds.includes(entry.classId));
-    return {
-      standard: selected.filter((entry) => entry.courseLevel !== 'honors').map((entry) => entry.name || entry.period),
-      honors: selected.filter((entry) => entry.courseLevel === 'honors').map((entry) => entry.name || entry.period),
-    };
-  }, [draft.assignedClassIds, draft.assignedClassPeriods, activeClassChoices, usesClassEntities, courseProfiles]);
+  const selectedClassChoices = useMemo(
+    () => activeClassChoices.filter((entry) => (draft.assignedClassIds || []).includes(entry.classId)),
+    [activeClassChoices, draft.assignedClassIds],
+  );
+  const rigorDestinations = useMemo(() => ({
+    standard: selectedClassChoices.filter((entry) => entry.courseLevel !== 'honors').map((entry) => entry.name || entry.period),
+    honors: selectedClassChoices.filter((entry) => entry.courseLevel === 'honors').map((entry) => entry.name || entry.period),
+  }), [selectedClassChoices]);
   const sourceRigorQuestions = useMemo(() => activities.flatMap((activity) => [
     ...(Array.isArray(activity.questions) ? activity.questions.map((question) => ({
       ...question,
@@ -408,16 +407,6 @@ export const LessonPreflightModal = ({
     };
   });
   const toggleClassChoice = (classRecord) => {
-    if (!usesClassEntities) {
-      const period = classRecord.period;
-      setDraft((current) => ({
-        ...current,
-        assignedClassPeriods: current.assignedClassPeriods.includes(period)
-          ? current.assignedClassPeriods.filter((item) => item !== period)
-          : [...current.assignedClassPeriods, period],
-      }));
-      return;
-    }
     const currentIds = draft.assignedClassIds || [];
     setSelectedClassIds(currentIds.includes(classRecord.classId)
       ? currentIds.filter((item) => item !== classRecord.classId)
@@ -483,17 +472,18 @@ export const LessonPreflightModal = ({
       <fieldset style={{ ...fieldsetStyle, marginTop: 0 }}>
         <legend style={legendStyle}>Assign to MathMaster classes</legend>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 11 }}>
-          <button type="button" onClick={() => usesClassEntities
-            ? setSelectedClassIds(activeClassChoices.map((entry) => entry.classId))
-            : setField('assignedClassPeriods', [...classPeriods])} style={{ minHeight: 44, padding: '7px 13px' }}>Select all</button>
-          <button type="button" onClick={() => usesClassEntities ? setSelectedClassIds([]) : setField('assignedClassPeriods', [])} style={{ minHeight: 44, padding: '7px 13px' }}>Clear</button>
-          <span style={{ alignSelf: 'center', color: '#5f6368', fontSize: 12 }}>{usesClassEntities ? (draft.assignedClassIds || []).length : draft.assignedClassPeriods.length} selected</span>
+          <button type="button" onClick={() => setSelectedClassIds(activeClassChoices.map((entry) => entry.classId))} disabled={!activeClassChoices.length} style={{ minHeight: 44, padding: '7px 13px' }}>Select all</button>
+          <button type="button" onClick={() => setSelectedClassIds([])} style={{ minHeight: 44, padding: '7px 13px' }}>Clear</button>
+          <span style={{ alignSelf: 'center', color: '#5f6368', fontSize: 12 }}>{(draft.assignedClassIds || []).length} selected</span>
         </div>
+        {!activeClassChoices.length && (
+          <div style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 8, background: '#fff4ce', color: '#7a4f00', fontSize: 12 }}>
+            No active MathMaster classes are available. Save this assignment to the Library, then create or restore a class before assigning it.
+          </div>
+        )}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-          {(usesClassEntities ? activeClassChoices : classPeriods.map((period) => ({ classId: null, name: period, period }))).map((classRecord) => {
-            const selected = usesClassEntities
-              ? (draft.assignedClassIds || []).includes(classRecord.classId)
-              : draft.assignedClassPeriods.includes(classRecord.period);
+          {activeClassChoices.map((classRecord) => {
+            const selected = (draft.assignedClassIds || []).includes(classRecord.classId);
             return (
               <label key={classRecord.classId || classRecord.period} style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 14px', background: selected ? '#e8f0fe' : '#fff', border: '1px solid #c5d5ef', borderRadius: 999, fontWeight: 800, cursor: 'pointer' }}>
                 <input type="checkbox" style={checkboxStyle} checked={selected} onChange={() => toggleClassChoice(classRecord)} />
@@ -502,7 +492,7 @@ export const LessonPreflightModal = ({
             );
           })}
         </div>
-        {usesClassEntities && <div style={{ marginTop: 9, color: '#5f6368', fontSize: 12 }}>Assignments are targeted by class ID. Period is kept only for bell-schedule timing and legacy compatibility.</div>}
+        <div style={{ marginTop: 9, color: '#5f6368', fontSize: 12 }}>Assignments are targeted by MathMaster class ID. Period is derived from the selected class only for bell-schedule timing.</div>
       </fieldset>
 
       <fieldset style={{ ...fieldsetStyle, border: `1px solid ${honorsSelected ? '#c7a9ea' : '#d8dde6'}`, background: honorsSelected ? '#fcf9ff' : '#fff' }}>
@@ -522,8 +512,8 @@ export const LessonPreflightModal = ({
           </div>
         )}
         {honorsSelected && !honorsReport.isNarrowCheckpoint && !honorsReport.isHonorsReady && honorsReport.missing.some((key) => key !== 'ccmrEnrichment') && <button type="button" onClick={() => {
-          const firstHonorsPeriod = rigorDestinations.honors[0];
-          setHonorsEnrichmentQuestion(buildHonorsEnrichmentQuestion({ questions: sourceRigorQuestions, course: courseProfiles?.[firstHonorsPeriod]?.course || 'algebra1' }));
+          const firstHonorsClass = selectedClassChoices.find((entry) => entry.courseLevel === 'honors');
+          setHonorsEnrichmentQuestion(buildHonorsEnrichmentQuestion({ questions: sourceRigorQuestions, course: firstHonorsClass?.course || 'algebra1' }));
         }} style={{ marginTop: 12, minHeight: 44, padding: '9px 15px', border: 0, borderRadius: 8, background: '#6f2da8', color: '#fff', fontWeight: 900 }}>Build Honors Depth Extension</button>}
         {honorsEnrichmentQuestion && <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: '#e6f4ea', color: '#137333', fontSize: 12 }}><strong>MathMaster depth extension prepared.</strong> It strengthens modeling/justification for the Honors destination, but it does not substitute for an authentic CCMR-style Practice item.</div>}
         {honorsSelected && honorsReport.isHonorsReady && !honorsReport.isNarrowCheckpoint && !honorsEnrichmentQuestion && <div style={{ marginTop: 10, color: '#137333', fontWeight: 800, fontSize: 12 }}>✓ Source assignment already satisfies the Honors contract; MathMaster will not rewrite it.</div>}
