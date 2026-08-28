@@ -134,16 +134,13 @@ function safePdfFileName(value, fallback = "MathMaster_Student_Notes.pdf") {
 }
 
 const assignmentAudience = (assignment = {}) => ({
-  classIds: [...new Set((Array.isArray(assignment.assignedClassIds) ? assignment.assignedClassIds : []).map(String).map((value) => value.trim()).filter(Boolean))],
-  classPeriods: [...new Set((Array.isArray(assignment.assignedClassPeriods) ? assignment.assignedClassPeriods : []).map(String).map((value) => value.trim()).filter(Boolean))],
+  classIds: [...new Set((Array.isArray(assignment.assignedClassIds) ? assignment.assignedClassIds : [])
+    .map(String).map((value) => value.trim()).filter(Boolean))],
 });
 
-const studentMatchesAssignmentAudience = ({ assignment = {}, classId = null, classPeriod = null } = {}) => {
+const studentMatchesAssignmentAudience = ({ assignment = {}, classId = null } = {}) => {
   const audience = assignmentAudience(assignment);
-  // Modern assignments are class-ID authoritative. A matching period must not
-  // widen the audience when two real classes share the same schedule label.
-  if (audience.classIds.length) return Boolean(classId && audience.classIds.includes(String(classId)));
-  return Boolean(classPeriod && audience.classPeriods.includes(String(classPeriod)));
+  return Boolean(classId && audience.classIds.includes(String(classId)));
 };
 
 async function assertTeacherMayManageAssignment(request, assignmentSnap) {
@@ -156,7 +153,7 @@ async function assertTeacherMayManageAssignment(request, assignmentSnap) {
 
   const assignment = assignmentSnap.data() || {};
   const audience = assignmentAudience(assignment);
-  if (!audience.classIds.length && !audience.classPeriods.length) {
+  if (!audience.classIds.length) {
     throw new HttpsError(
       "failed-precondition",
       "Assign this lesson to a MathMaster class before publishing its Classroom resource package."
@@ -164,24 +161,10 @@ async function assertTeacherMayManageAssignment(request, assignmentSnap) {
   }
 
   const db = getFirestore();
-  if (audience.classIds.length) {
-    const snapshots = await Promise.all(audience.classIds.map((classId) => db.collection("classes").doc(classId).get()));
-    const ownsEveryClass = snapshots.every((snapshot) => snapshot.exists
-      && String(snapshot.data()?.teacherOfRecord || "").trim().toLowerCase() === teacherEmail);
-    if (!ownsEveryClass) {
-      throw new HttpsError(
-        "permission-denied",
-        "Only the teacher of record for every assigned class may publish this lesson's generated resources."
-      );
-    }
-    return { teacherUid, teacherEmail };
-  }
-
-  // Legacy assignments predate class IDs. Their period audience is kept only
-  // as a compatibility path until the teacher edits/saves the assignment.
-  const classes = await db.collection("classes").where("teacherOfRecord", "==", teacherEmail).get();
-  const ownedPeriods = new Set(classes.docs.map((doc) => String(doc.data()?.period || "")).filter(Boolean));
-  if (!audience.classPeriods.every((period) => ownedPeriods.has(period))) {
+  const snapshots = await Promise.all(audience.classIds.map((classId) => db.collection("classes").doc(classId).get()));
+  const ownsEveryClass = snapshots.every((snapshot) => snapshot.exists
+    && String(snapshot.data()?.teacherOfRecord || "").trim().toLowerCase() === teacherEmail);
+  if (!ownsEveryClass) {
     throw new HttpsError(
       "permission-denied",
       "Only the teacher of record for every assigned class may publish this lesson's generated resources."
