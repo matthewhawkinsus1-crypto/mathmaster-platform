@@ -97,19 +97,14 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
   };
 
   const checkPlotTransform = () => {
-    const remaining = [...expectedTransformedPoints];
-    let matched = 0;
-    plottedPoints.forEach((point) => {
-      const index = remaining.findIndex((expected) => (
-        Math.abs(Number(point?.[0]) - Number(expected?.[0])) <= 0.01
-        && Math.abs(Number(point?.[1]) - Number(expected?.[1])) <= 0.01
-      ));
-      if (index >= 0) {
-        matched += 1;
-        remaining.splice(index, 1);
-      }
-    });
     const expectedCount = expectedTransformedPoints.length;
+    const matched = plottedPoints.reduce((count, point, index) => {
+      const expected = expectedTransformedPoints[index];
+      const correct = expected
+        && Math.abs(Number(point?.[0]) - Number(expected?.[0])) <= 0.01
+        && Math.abs(Number(point?.[1]) - Number(expected?.[1])) <= 0.01;
+      return count + (correct ? 1 : 0);
+    }, 0);
     const isCorrect = expectedCount > 0 && plottedPoints.length === expectedCount && matched === expectedCount;
     submit(
       { isCorrect, score: expectedCount ? matched / expectedCount : 0 },
@@ -198,7 +193,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
         </> : null}
 
         {mode === 'plotTransform' ? <>
-          <p style={{ marginTop: 0 }}>Plot the transformed location of each defining point. The source graph stays visible while you work.</p>
+          <p style={{ marginTop: 0 }}>Map <strong>S1 → P1, S2 → P2</strong>, and so on. Plot the transformed defining points in source order; the source graph stays visible while you work.</p>
           <CoordinatePlane
             {...graphBounds}
             snapStep={questionData.snapStep || 1}
@@ -212,7 +207,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
               { points: plottedPoints, stroke: '#1a73e8', strokeWidth: 3 },
             ]}
             points={[
-              ...sourcePoints.map((point, index) => ({ x: point[0], y: point[1], label: index === 0 ? 'source' : undefined, fill: '#5f6b7a' })),
+              ...sourcePoints.map((point, index) => ({ x: point[0], y: point[1], label: `S${index + 1}`, fill: '#5f6b7a' })),
               ...plottedPoints.map((point, index) => ({ x: point[0], y: point[1], label: `P${index + 1}` })),
             ]}
             cursorLabel="Transformed point"
