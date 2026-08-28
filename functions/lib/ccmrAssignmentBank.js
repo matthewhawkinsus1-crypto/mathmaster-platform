@@ -38,7 +38,14 @@ function questionTeksCodes(question = {}) {
   const fromStandard = [question.standard, question.primaryStandard]
     .map(normalizeTeks)
     .filter(Boolean);
-  return [...new Set([...fromAlignments, ...fromStandard])];
+  const rawPrimary = question?.standards?.primary;
+  const fromStandards = (Array.isArray(rawPrimary) ? rawPrimary : rawPrimary ? [rawPrimary] : [])
+    .map((entry) => normalizeTeks(typeof entry === "string" ? entry : entry?.code || entry?.teks))
+    .filter(Boolean);
+  const fromTeks = (Array.isArray(question?.teks) ? question.teks : question?.teks ? [question.teks] : [])
+    .map((entry) => normalizeTeks(typeof entry === "string" ? entry : entry?.code || entry?.teks))
+    .filter(Boolean);
+  return [...new Set([...fromAlignments, ...fromStandard, ...fromStandards, ...fromTeks])];
 }
 
 function examDomain(document = {}, framework = "") {
@@ -85,11 +92,14 @@ function chooseAuditedBankDocument({
   dok = null,
   difficultyBand = null,
   seed = "",
+  excludeDocumentIds = [],
 } = {}) {
   const normalizedCodes = new Set((teksCodes || []).map(normalizeTeks).filter(Boolean));
   if (!SUPPORTED_FRAMEWORKS.has(framework) || !normalizedCodes.size) return null;
 
+  const excluded = new Set((excludeDocumentIds || []).map(clean).filter(Boolean));
   const candidates = loadFrameworkBank(framework).filter((document) => {
+    if (excluded.has(clean(document?.id))) return false;
     if (domainId && examDomain(document, framework) !== domainId) return false;
     return documentTeksCodes(document).some((code) => normalizedCodes.has(code));
   });
@@ -113,6 +123,36 @@ function chooseAuditedBankDocument({
   const bestScore = ranked[0].score;
   const best = ranked.filter((entry) => entry.score === bestScore);
   return best[stableHash(seed) % best.length]?.document || best[0]?.document || null;
+}
+
+function chooseAuditedBankDocumentAnyFramework({
+  teksCodes = [],
+  dok = null,
+  difficultyBand = null,
+  seed = "",
+  excludeDocumentIds = [],
+} = {}) {
+  const frameworks = Object.keys(FRAMEWORK_FILES);
+  if (!frameworks.length) return null;
+  const start = stableHash(seed) % frameworks.length;
+  const ordered = frameworks.map((unused, index) => frameworks[(start + index) % frameworks.length]);
+  for (const framework of ordered) {
+    const document = chooseAuditedBankDocument({
+      framework,
+      teksCodes,
+      dok,
+      difficultyBand,
+      seed: `${seed}|${framework}`,
+      excludeDocumentIds,
+    });
+    if (document) return document;
+  }
+  return null;
+}
+
+function isAuditedBankQuestion(question = {}) {
+  return question?.ccmrSource?.source === "auditedBank"
+    && clean(question?.ccmrSource?.releaseTarget) === RELEASE_TARGET;
 }
 
 function choiceAnswerField(field = {}, choices = []) {
@@ -212,8 +252,110 @@ function directCcmrClaim(question = {}) {
   };
 }
 
+function ensureAuditedCcmrPractice(assignment = {}, audit = null) {
+  const resultAudit = audit || {
+    releaseTarget: RELEASE_TARGET,
+    replaced: 0,
+    autoSourced: 0,
+    targetCount: 0,
+    misses: [],
+  };
+  if (!assignment || typeof assignment !== "object" || !Array.isArray(assignment.sections)) {
+    return { assignment, audit: resultAudit };
+  }
+
+  const positions = [];
+  assignment.sections.forEach((section, sectionIndex) => {
+    const role = clean(section?.role).toLowerCase();
+    if (role !== "practice" || !Array.isArray(section?.questions)) return;
+    section.questions.forEach((question, questionIndex) => {
+      positions.push({ sectionIndex, questionIndex, question });
+    });
+  });
+
+  // Short checkpoints should not be forced to carry CCMR. On a full Practice
+  // section, source roughly 15% from the audited V2.1 bank while keeping the
+  // teacher's question count unchanged.
+  if (positions.length < 5) {
+    resultAudit.targetCount = 0;
+    return { assignment, audit: resultAudit };
+  }
+
+  const targetCount = Math.max(1, Math.round(positions.length * 0.15));
+  resultAudit.targetCount = targetCount;
+  const existing = positions.filter(({ question }) => isAuditedBankQuestion(question));
+  if (existing.length >= targetCount) {
+    return { assignment, audit: resultAudit };
+  }
+
+  const usedDocumentIds = new Set(
+    existing.map(({ question }) => clean(question?.ccmrSource?.documentId)).filter(Boolean),
+  );
+  let needed = targetCount - existing.length;
+  const mutableSections = assignment.sections.map((section) => ({
+    ...section,
+    questions: Array.isArray(section?.questions) ? [...section.questions] : section?.questions,
+  }));
+
+  // Work from the end of Practice first so the lesson's opening independent
+  // questions stay close to the authored instructional sequence. A replacement
+  // is only allowed when the audited item assesses the SAME TEKS as the item it
+  // replaces; MathMaster never trades course coverage for a CCMR label.
+  const candidates = [...positions].reverse();
+  for (const position of candidates) {
+    if (needed <= 0) break;
+    const sourceQuestion = mutableSections[position.sectionIndex]?.questions?.[position.questionIndex];
+    if (!sourceQuestion || isAuditedBankQuestion(sourceQuestion)) continue;
+    const teksCodes = questionTeksCodes(sourceQuestion);
+    if (!teksCodes.length) continue;
+
+    const bankDocument = chooseAuditedBankDocumentAnyFramework({
+      teksCodes,
+      dok: sourceQuestion.dok,
+      difficultyBand: sourceQuestion.difficultyBand,
+      seed: [
+        assignment?.assignment?.title,
+        mutableSections[position.sectionIndex]?.id || position.sectionIndex,
+        sourceQuestion?.questionId || sourceQuestion?.familyId || sourceQuestion?.prompt || position.questionIndex,
+        teksCodes.join(","),
+      ].join("|"),
+      excludeDocumentIds: [...usedDocumentIds],
+    });
+    if (!bankDocument) continue;
+
+    const replacementCodes = new Set(documentTeksCodes(bankDocument));
+    if (!teksCodes.some((code) => replacementCodes.has(code))) continue;
+
+    mutableSections[position.sectionIndex].questions[position.questionIndex] = bankDocumentToV5Intent(bankDocument, {
+      activityRole: clean(sourceQuestion.activityRole) || "practice",
+    });
+    usedDocumentIds.add(clean(bankDocument.id));
+    resultAudit.autoSourced = Number(resultAudit.autoSourced || 0) + 1;
+    needed -= 1;
+  }
+
+  if (needed > 0) {
+    resultAudit.misses.push({
+      reason: "insufficient_same_teks_audited_families",
+      requested: targetCount,
+      sourced: targetCount - needed,
+    });
+  }
+
+  return {
+    assignment: { ...assignment, sections: mutableSections },
+    audit: resultAudit,
+  };
+}
+
 function replaceDirectCcmrQuestionsWithAuditedBank(assignment = {}) {
-  const audit = { releaseTarget: RELEASE_TARGET, replaced: 0, misses: [] };
+  const audit = {
+    releaseTarget: RELEASE_TARGET,
+    replaced: 0,
+    autoSourced: 0,
+    targetCount: 0,
+    misses: [],
+  };
   if (!assignment || typeof assignment !== "object" || !Array.isArray(assignment.sections)) {
     return { assignment, audit };
   }
@@ -223,7 +365,7 @@ function replaceDirectCcmrQuestionsWithAuditedBank(assignment = {}) {
     if (role !== "practice" || !Array.isArray(section?.questions)) return section;
     const questions = section.questions.map((question, questionIndex) => {
       const claim = directCcmrClaim(question);
-      if (!claim) return question;
+      if (!claim || isAuditedBankQuestion(question)) return question;
       const bankDocument = chooseAuditedBankDocument({
         ...claim,
         seed: [
@@ -253,10 +395,7 @@ function replaceDirectCcmrQuestionsWithAuditedBank(assignment = {}) {
     return { ...section, questions };
   });
 
-  return {
-    assignment: { ...assignment, sections },
-    audit,
-  };
+  return ensureAuditedCcmrPractice({ ...assignment, sections }, audit);
 }
 
 module.exports = {
@@ -265,6 +404,9 @@ module.exports = {
   documentTeksCodes,
   questionTeksCodes,
   chooseAuditedBankDocument,
+  chooseAuditedBankDocumentAnyFramework,
   bankDocumentToV5Intent,
+  isAuditedBankQuestion,
+  ensureAuditedCcmrPractice,
   replaceDirectCcmrQuestionsWithAuditedBank,
 };
