@@ -946,12 +946,24 @@ export default function WorkflowRunner({
       <section className="workflow-focus__summary" aria-label="Model so far">
         <p className="workflow-focus__summary-title">Model so far</p>
         <div className="workflow-focus__summary-items">
-          {summaryItems.length ? summaryItems.map((item, index) => (
-            <div className="workflow-focus__summary-item" key={`${item.label}-${index}`}>
-              <strong>{item.label}:</strong>
-              {item.kind === 'math' ? <MathDisplay value={item.text} inline /> : <span>{item.text}</span>}
-            </div>
-          )) : (
+          {summaryItems.length ? summaryItems.map((item, index) => {
+            const stageIndex = workflow.findIndex((stage) => stage.id === item.stageId);
+            return (
+              <button
+                type="button"
+                className="workflow-focus__summary-item workflow-focus__summary-link"
+                key={`${item.stageId || item.label}-${index}`}
+                disabled={stageIndex < 0}
+                onClick={() => {
+                  if (stageIndex >= 0) setActiveStageIndex(stageIndex);
+                }}
+                aria-label={stageIndex >= 0 ? `Return to ${item.label}` : undefined}
+              >
+                <strong>{item.label}:</strong>
+                {item.kind === 'math' ? <MathDisplay value={item.text} inline /> : <span>{item.text}</span>}
+              </button>
+            );
+          }) : (
             <div className="workflow-focus__summary-item">
               <span>Your completed work will collect here as you build the model.</span>
             </div>
