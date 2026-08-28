@@ -104,6 +104,39 @@ const toPathData = (points) =>
     .map(([x, y], index) => `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`)
     .join(' ');
 
+const restrictedFunctionEndpoints = (functions = []) => functions.flatMap((spec, functionIndex) => {
+  const domain = spec?.domain || spec?.restrictedDomain;
+  if (!domain || typeof domain !== 'object') return [];
+
+  const unrestricted = { ...spec };
+  delete unrestricted.domain;
+  delete unrestricted.restrictedDomain;
+
+  const boundaries = [
+    {
+      side: 'min',
+      value: Number(domain.min),
+      closed: domain.minClosed !== false && domain.minInclusive !== false,
+    },
+    {
+      side: 'max',
+      value: Number(domain.max),
+      closed: domain.maxClosed !== false && domain.maxInclusive !== false,
+    },
+  ];
+
+  return boundaries.flatMap((boundary) => {
+    if (!Number.isFinite(boundary.value)) return [];
+    const y = evaluateFunction(unrestricted, boundary.value);
+    if (!Number.isFinite(y)) return [];
+    return [{
+      id: `function-${functionIndex}-${boundary.side}-boundary`,
+      point: [boundary.value, y],
+      marker: boundary.closed ? 'closed' : 'open',
+    }];
+  });
+});
+
 const axisTitle = (label, unit) => {
   const cleanLabel = String(label || '').trim();
   const cleanUnit = String(unit || '').trim();
@@ -143,7 +176,10 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph' }) {
   const functions = normalizeFunctionList(displayGraph);
   const points = Array.isArray(displayGraph.points) ? displayGraph.points : [];
   const segments = Array.isArray(displayGraph.segments) ? displayGraph.segments : [];
-  const endpointRequirements = Array.isArray(displayGraph.endpointRequirements) ? displayGraph.endpointRequirements : [];
+  const authoredEndpointRequirements = Array.isArray(displayGraph.endpointRequirements) ? displayGraph.endpointRequirements : [];
+  const endpointRequirements = authoredEndpointRequirements.length
+    ? authoredEndpointRequirements
+    : restrictedFunctionEndpoints(functions);
   const axisDisplay = displayGraph.axisDisplay && typeof displayGraph.axisDisplay === 'object' ? displayGraph.axisDisplay : {};
   const showXTickLabels = axisDisplay.showXTickLabels !== false;
   const showYTickLabels = axisDisplay.showYTickLabels !== false;
