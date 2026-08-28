@@ -274,11 +274,18 @@ export const validateQuestionSemantics = (question = {}, { label = 'Question' } 
 
   if (String(type) === 'multiAnswer' && Array.isArray(question.answerFields)) {
     question.answerFields.forEach((field, index) => {
-      if (!looksLikeFiniteCategoryField(field)) return;
-      warnings.push(
-        `${label} answerFields[${index}] ("${field.label || field.id || 'field'}") looks categorical but would use a free-response box. `
-        + 'Use `type: "choice"` with explicit `options` when there are a small number of valid categories, or `type: "text"` for intentional written language. This avoids math-keyboard entry for ordinary words.',
-      );
+      if (looksLikeFiniteCategoryField(field)) {
+        warnings.push(
+          `${label} answerFields[${index}] ("${field.label || field.id || 'field'}") looks categorical but would use a free-response box. `
+          + 'Use `type: "choice"` with explicit `options` when there are a small number of valid categories, or `type: "text"` for intentional written language. This avoids math-keyboard entry for ordinary words.',
+        );
+      }
+      if (field?.type === 'choice' && Array.isArray(field.options) && field.options.length === 2) {
+        warnings.push(
+          `${label} answerFields[${index}] ("${field.label || field.id || 'field'}") has only two answer choices. `
+          + 'Three-attempt assignments should not reduce to switch-after-one-miss guessing; author at least one additional meaningful distractor. MathMaster will strengthen and shuffle this field at runtime, but the source should be improved.',
+        );
+      }
     });
   }
 
