@@ -123,11 +123,18 @@ const EXIT_GROUP_KEY = {
 
 const withExit = (keys) => [...keys, EXIT_GROUP_KEY];
 
-const getToolKeys = (profile, { isMobile = false, contextSymbols = [] } = {}) => {
+const getToolKeys = (profile, { isMobile = false, contextSymbols = [], functionNotationKeys = [] } = {}) => {
+  const authoredFunctionKeys = (Array.isArray(functionNotationKeys) ? functionNotationKeys : [])
+    .filter((entry) => entry?.label && entry?.command)
+    .map((entry) => ({
+      label: String(entry.label),
+      command: String(entry.command),
+      ariaLabel: entry.ariaLabel || `Insert ${entry.label}`,
+    }));
   if (profile === 'interval') return withExit(INTERVAL_KEYS);
   if (profile === 'inequality') return withExit(INEQUALITY_KEYS);
   if (profile === 'set') return withExit([...SET_KEYS, ...INEQUALITY_KEYS, ...INTERVAL_KEYS.filter((item) => ['(', ')', '[', ']'].includes(item.label))]);
-  if (profile === 'function') return withExit([...FUNCTION_KEYS, ...BASIC_KEYS]);
+  if (profile === 'function') return withExit([...authoredFunctionKeys, ...FUNCTION_KEYS, ...BASIC_KEYS]);
   if (profile === 'algebra-operation') return withExit(isMobile ? algebraOperationKeysForContext(contextSymbols) : [...ALGEBRA_OPERATION_KEYS, ...BASIC_KEYS]);
   if (profile === 'basic+set') return withExit([...BASIC_KEYS, ...SET_KEYS, ...INEQUALITY_KEYS]);
   if (profile === 'equation') return withExit([...EQUATION_ENTRY_KEYS, ...BASIC_KEYS]);
@@ -150,6 +157,7 @@ export default function MathInput({
   compact = false,
   maxWidth = 540,
   contextSymbols = [],
+  functionNotationKeys = [],
   answerFormat = '',
   requiredSymbols = [],
   collapseSignal = 0,
@@ -181,7 +189,7 @@ export default function MathInput({
   );
   const shouldSuppressNativeKeyboard = isMobile && toolProfile !== 'function' && unservedRequiredSymbols.length === 0;
   const tools = useMemo(() => {
-    if (!isMobile) return getToolKeys(toolProfile, { contextSymbols });
+    if (!isMobile) return getToolKeys(toolProfile, { contextSymbols, functionNotationKeys });
 
     // Mobile equation pads are intentionally opinionated:
     // - parentheses are ALWAYS directly reachable;
@@ -192,11 +200,11 @@ export default function MathInput({
     return buildMobileMathTools({
       toolProfile,
       entryKeys: MOBILE_ENTRY_KEYS,
-      profileKeys: getToolKeys(toolProfile, { isMobile: true, contextSymbols }),
+      profileKeys: getToolKeys(toolProfile, { isMobile: true, contextSymbols, functionNotationKeys }),
       requiredTools,
       backspaceKey: MOBILE_BACKSPACE_KEY,
     });
-  }, [toolProfile, isMobile, contextSymbols, requiredTools]);
+  }, [toolProfile, isMobile, contextSymbols, functionNotationKeys, requiredTools]);
 
   useEffect(() => {
     const update = () => setIsMobile(detectMobileInput());
