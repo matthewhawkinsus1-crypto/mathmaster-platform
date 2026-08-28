@@ -588,8 +588,8 @@ export const LessonPreflightModal = ({
       <fieldset style={fieldsetStyle}>
         <legend style={legendStyle}>Printable and shareable outputs</legend>
         <p style={{ margin: '0 0 12px', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>
-          These switches update the assignment’s output settings and are rechecked immediately for PDF
-          representation and page-fit safety. Digital delivery continues to use the same resolved questions.
+          PDFs are optional and can be enabled or disabled at any time. Enabling one immediately adds its
+          representation and page-fit safety checks; leaving PDFs off never blocks the digital Library copy.
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10 }}>
           {[
