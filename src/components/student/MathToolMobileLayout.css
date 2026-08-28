@@ -5,26 +5,6 @@
   display: none;
 }
 
-/* On desktop the ONE canonical task stays available while the student works
-   down a long graph/mapping/algebra surface. It is the original prompt, not a
-   duplicated clone, so there is only one source of truth. */
-.mathmaster-desktop-question-content .mathmaster-desktop-question-anchor {
-  position: sticky;
-  top: 8px;
-  z-index: 28;
-  max-width: 900px;
-  margin: 0 auto 10px;
-  padding-top: 2px;
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(6px);
-}
-
-/* A tool's remaining "what to do" steps stay in-flow below the sticky task and
-   do not compete with it for vertical space. */
-.mathmaster-question-engine-has-anchor .mathmaster-tool-task-card:has(.mathmaster-tool-task-prompt:first-child) {
-  margin-top: 0;
-}
-
 .mathmaster-question-container {
   width: 100%;
   height: var(--mm-visual-viewport-height, 100dvh);
