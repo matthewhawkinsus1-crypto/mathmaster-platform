@@ -44,6 +44,7 @@ test('model-so-far summarizes quantities, equations, tables and classification w
   assert.match(items[0].text, /Input: Time elapsed/);
   assert.match(items[0].text, /Output: Water in pool/);
   assert.equal(items[1].kind, 'math');
+  assert.equal(items[1].stageId, 'equation');
   assert.match(items[2].text, /\(3, 54\)/);
   assert.equal(items[3].text, 'continuous');
 });
@@ -75,6 +76,8 @@ test('WorkflowRunner uses one active workspace while keeping every stage mounted
   assert.match(source, /shouldUseWorkflowFocusMode\(workflow\)/);
   assert.match(source, /workflow-focus__navigator/);
   assert.match(source, /workflow-focus__summary/);
+  assert.match(source, /workflow-focus__summary-link/);
+  assert.match(source, /Return to \$\{item\.label\}/);
   assert.match(source, /workflow-focus__workspace/);
   assert.match(source, /workflow\.map\(\(stage, index\) => renderStage\(stage, index, \{ focused: index === safeActiveIndex \}\)\)/);
   assert.match(source, /workflow-focus__stage-shell--active/);
