@@ -15,6 +15,6 @@ test('focused deploy refuses stale or dirty source and checks the live surfaces'
   assert.match(script, /git rev-parse origin\/main/);
   assert.match(script, /functions:secrets:access OPENAI_API_KEY/);
   assert.match(script, /test:assignment-v5-followup/);
-  assert.match(script, /https:\/\/$PROJECT\.web\.app/);
+  assert.ok(script.includes('"https://$PROJECT.web.app"'));
   assert.match(script, /authorAssignmentWithAI/);
 });
