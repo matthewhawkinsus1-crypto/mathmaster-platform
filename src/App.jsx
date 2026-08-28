@@ -191,7 +191,6 @@ import {
   defaultCourseProfiles,
   inspectHonorsRigor,
   normalizeCourseProfiles,
-  splitClassPeriodsByRigor,
 } from './platform/rigor/courseRigor.js';
 import LoginScreen from './LoginScreen.jsx';
 import { useAuth } from './auth/AuthProvider.jsx';
@@ -2633,10 +2632,12 @@ function App() {
       const lateDueValue = teacherReview.lateDueAt || '';
       const releaseValue = teacherReview.releaseAt || '';
       const variantMode = getStoredAssignmentVariantMode(reviewedV5);
-      const assignedClassIds = [...(teacherReview.assignedClassIds || [])];
-      const assignedClassPeriods = [...(teacherReview.assignedClassPeriods || [])];
-
-      const creationMode = resolveCreationMode({ assignedClassIds, assignedClassPeriods });
+      const assignedClassIds = [...new Set((teacherReview.assignedClassIds || []).filter(Boolean))];
+      const selectedClassRecords = assignedClassIds.length
+        ? classes.filter((entry) => assignedClassIds.includes(entry.classId) && entry?.status !== 'archived')
+        : [];
+      const assignedClassPeriods = [...new Set(selectedClassRecords.map((entry) => entry.period).filter(Boolean))];
+      const creationMode = resolveCreationMode({ assignedClassIds });
       if (!title) {
         throw new Error('Assignment title is missing. Add a title in Assignment Review before publishing.');
       }
@@ -2797,24 +2798,7 @@ function App() {
       // Extracted so assigning a library item later runs the same split rather
       // than a second copy of it. A library save returns [] here, which is the
       // correct answer: nobody has been given it, so there is nothing to split.
-      const selectedClassRecords = assignedClassIds.length
-        ? classes.filter((entry) => assignedClassIds.includes(entry.classId) && entry?.status !== 'archived')
-        : [];
-      const destinationGroups = selectedClassRecords.length
-        ? Object.values(selectedClassRecords.reduce((groups, entry) => {
-          const course = entry.course || 'algebra1';
-          const courseLevel = entry.courseLevel || 'standard';
-          const key = `${course}:${courseLevel}`;
-          if (!groups[key]) groups[key] = { course, courseLevel, periods: [], classIds: [] };
-          groups[key].periods.push(entry.period);
-          groups[key].classIds.push(entry.classId);
-          return groups;
-        }, {})).map((group) => ({
-          ...group,
-          periods: [...new Set(group.periods.filter(Boolean))],
-          classIds: [...new Set(group.classIds.filter(Boolean))],
-        }))
-        : buildDestinationGroups({ assignedClassPeriods, courseProfiles }).map((group) => ({ ...group, classIds: [] }));
+      const destinationGroups = buildDestinationGroups({ assignedClassIds, classes });
       const sourceHonorsReport = inspectHonorsRigor(parsedQuestions, { allowNarrowCheckpoint: true });
       const splitVariantGroupId = destinationGroups.length > 1 ? `rigor_${createQuestionId()}` : null;
 
@@ -2880,7 +2864,8 @@ function App() {
             if (!teacherReview?.honorsEnrichmentQuestion) {
               throw new Error('This Honors destination still needs additional Honors depth. Return to preflight and choose Build Honors Depth Extension.');
             }
-            enrichmentQuestion = destination.course === courseProfiles?.[splitClassPeriodsByRigor(assignedClassPeriods, courseProfiles).honors[0]]?.course
+            const firstHonorsDestination = destinationGroups.find((entry) => entry.courseLevel === 'honors');
+            enrichmentQuestion = destination.course === firstHonorsDestination?.course
               ? teacherReview.honorsEnrichmentQuestion
               : buildHonorsEnrichmentQuestion({ questions: parsedQuestions, course: destination.course });
           }
@@ -2981,29 +2966,19 @@ function App() {
       throw new Error(`This setup cannot be saved until MathMaster’s assignment checks are clean:\n${model.errors.join('\n')}`);
     }
 
-    const assignedClassIds = [...(draft.assignedClassIds || [])];
+    const assignedClassIds = [...new Set((draft.assignedClassIds || []).filter(Boolean))];
     const selectedClassRecords = assignedClassIds.length
       ? classes.filter((entry) => assignedClassIds.includes(entry.classId) && entry?.status !== 'archived')
       : [];
-    const assignedClassPeriods = selectedClassRecords.length
-      ? [...new Set(selectedClassRecords.map((entry) => entry.period).filter(Boolean))]
-      : [...(draft.assignedClassPeriods || [])];
+    const assignedClassPeriods = [...new Set(selectedClassRecords.map((entry) => entry.period).filter(Boolean))];
 
-    if (isLibraryAssignment(existing) && (assignedClassIds.length || assignedClassPeriods.length)) {
+    if (isLibraryAssignment(existing) && assignedClassIds.length) {
       throw new Error(
         'This is a reusable library template. Use Dates & Classes to assign it; MathMaster will open Assignment Review and create the correct destination copy while keeping the template unchanged.',
       );
     }
 
-    const targetGroups = selectedClassRecords.length
-      ? Object.values(selectedClassRecords.reduce((groups, entry) => {
-          const course = entry.course || 'algebra1';
-          const courseLevel = entry.courseLevel || 'standard';
-          const key = `${course}:${courseLevel}`;
-          if (!groups[key]) groups[key] = { course, courseLevel };
-          return groups;
-        }, {}))
-      : buildDestinationGroups({ assignedClassPeriods, courseProfiles });
+    const targetGroups = buildDestinationGroups({ assignedClassIds, classes });
     const currentCourse = existing.courseId || existing.courseProfile?.course || null;
     const currentLevel = existing.rigorVariant || existing.courseProfile?.courseLevel || null;
     const changesDestination = targetGroups.length > 1
@@ -3036,9 +3011,7 @@ function App() {
         JSON.stringify(originalV5[field] || null) !== JSON.stringify(model.assignmentV5[field] || null)
       ));
       const audienceChanged = JSON.stringify([...(existing.assignedClassIds || [])].sort())
-          !== JSON.stringify([...assignedClassIds].sort())
-        || JSON.stringify([...(existing.assignedClassPeriods || [])].sort())
-          !== JSON.stringify([...assignedClassPeriods].sort());
+        !== JSON.stringify([...assignedClassIds].sort());
       if (changed.length || audienceChanged || questionContentChanged) {
         throw new Error(
           `Student records already exist. To preserve historical evidence, this setup editor cannot change ${[
@@ -3050,7 +3023,7 @@ function App() {
       }
     }
 
-    const mode = resolveCreationMode({ assignedClassIds, assignedClassPeriods });
+    const mode = resolveCreationMode({ assignedClassIds });
     const { dueAt, lateDueAt, dueDate, releaseAt } = resolveAssignmentDates({
       mode,
       dueValue: draft.dueAt || '',
@@ -3421,25 +3394,21 @@ function App() {
   };
 
   const resolveTeacherClassContext = (value) => {
-    const supplied = value && typeof value === 'object' ? value : { classPeriod: value };
-    const requestedClassId = String(supplied?.classId || '').trim();
-    const requestedPeriod = String(supplied?.classPeriod || '').trim();
-    const classRecord = classes.find((entry) => entry.classId === requestedClassId)
-      || (!requestedClassId ? classes.find((entry) => entry.period === requestedPeriod) : null)
-      || null;
-    const classId = requestedClassId || classRecord?.classId || null;
-    const classPeriod = requestedPeriod || classRecord?.period || null;
+    const supplied = value && typeof value === 'object' ? value : {};
+    const classId = String(supplied?.classId || '').trim() || null;
+    const classRecord = classId ? classes.find((entry) => entry.classId === classId) || null : null;
+    const classPeriod = classRecord?.period || String(supplied?.classPeriod || '').trim() || null;
     return {
       classId,
       classPeriod,
       label: classRecord?.name || classPeriod || 'this class',
-      key: classId || classPeriod || '',
+      key: classId || '',
     };
   };
 
   const handleUnlockDOLForClass = async (assignment, classContext) => {
     const { classId, classPeriod, label: classLabel, key: classKey } = resolveTeacherClassContext(classContext);
-    if (!assignment?.id || !classPeriod || !classKey) return;
+    if (!assignment?.id || !classId || !classPeriod || !classKey) return;
     const state = getDOLState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue: Date.now() });
     if (!state.enabled) {
       toastWarning('No timed DOL', 'This assignment does not have an enabled DOL section.');
@@ -3482,11 +3451,7 @@ function App() {
         unlockedAt,
         unlockedBy: user?.email || user?.id || 'teacher',
       };
-      if (classId) {
-        dol.earlyUnlocksByClassId = { ...(assignment.dol?.earlyUnlocksByClassId || {}), [classId]: entry };
-      } else {
-        dol.earlyUnlocks = { ...(assignment.dol?.earlyUnlocks || {}), [classPeriod]: entry };
-      }
+      dol.earlyUnlocksByClassId = { ...(assignment.dol?.earlyUnlocksByClassId || {}), [classId]: entry };
       await updateDoc(doc(db, 'assignments', assignment.id), { dol, updatedAt: unlockedAt });
       toastSuccess('DOL unlocked', `${assignment.title} is released early for ${classLabel} only. Its timer starts when the unlock takes effect.`);
     } catch (error) {
@@ -3499,7 +3464,7 @@ function App() {
 
   const handleToggleWarmupForClass = async (assignment, classContext) => {
     const { classId, classPeriod, label: classLabel, key: classKey } = resolveTeacherClassContext(classContext);
-    if (!assignment?.id || !classPeriod || !classKey) return;
+    if (!assignment?.id || !classId || !classPeriod || !classKey) return;
     const state = getWarmupState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue: Date.now() });
     if (!state.enabled) {
       toastWarning('No Warm-Up section', 'This assignment does not have an authored Warm-Up section.');
@@ -3541,17 +3506,10 @@ function App() {
         enabled: true,
         minutesBeforeStart: Math.max(0, Number(assignment?.warmup?.minutesBeforeStart ?? 7)),
       };
-      if (classId) {
-        const closedByClassId = { ...(assignment.warmup?.closedByClassId || {}) };
-        if (closing) closedByClassId[classId] = { dateKey: localDateKey(Date.now()), closedAt: changedAt, closedBy: user?.email || user?.id || 'teacher' };
-        else delete closedByClassId[classId];
-        warmup.closedByClassId = closedByClassId;
-      } else {
-        const closedByClassPeriod = { ...(assignment.warmup?.closedByClassPeriod || {}) };
-        if (closing) closedByClassPeriod[classPeriod] = { dateKey: localDateKey(Date.now()), closedAt: changedAt, closedBy: user?.email || user?.id || 'teacher' };
-        else delete closedByClassPeriod[classPeriod];
-        warmup.closedByClassPeriod = closedByClassPeriod;
-      }
+      const closedByClassId = { ...(assignment.warmup?.closedByClassId || {}) };
+      if (closing) closedByClassId[classId] = { dateKey: localDateKey(Date.now()), closedAt: changedAt, closedBy: user?.email || user?.id || 'teacher' };
+      else delete closedByClassId[classId];
+      warmup.closedByClassId = closedByClassId;
       await updateDoc(doc(db, 'assignments', assignment.id), { warmup, updatedAt: changedAt });
       toastSuccess(closing ? 'Warm-Up closed' : 'Warm-Up reopened', `${assignment.title} · ${classLabel}`);
     } catch (error) {
@@ -3564,7 +3522,7 @@ function App() {
 
   const handleToggleSectionAccessForClass = async (assignment, classContext, activityRole) => {
     const { classId, classPeriod, label: classLabel, key: classKey } = resolveTeacherClassContext(classContext);
-    if (!assignment?.id || !classPeriod || !classKey || !['classwork', 'practice'].includes(activityRole)) return;
+    if (!assignment?.id || !classId || !classPeriod || !classKey || !['classwork', 'practice'].includes(activityRole)) return;
     const state = getSectionAccessState({ assignment, activityRole, classId, classPeriod, nowValue: Date.now() });
     if (!state.enabled) {
       toastWarning('Section not found', `This assignment does not have an authored ${activityRole} section.`);
@@ -3601,8 +3559,7 @@ function App() {
       const sectionAccess = { ...(assignment.sectionAccess || {}) };
       const config = { ...(sectionAccess[activityRole] || {}) };
       const entry = { state: nextState, changedAt, changedBy: user?.email || user?.id || 'teacher' };
-      if (classId) config.overridesByClassId = { ...(config.overridesByClassId || {}), [classId]: entry };
-      else config.overridesByClassPeriod = { ...(config.overridesByClassPeriod || {}), [classPeriod]: entry };
+      config.overridesByClassId = { ...(config.overridesByClassId || {}), [classId]: entry };
       sectionAccess[activityRole] = { ...config, defaultState: config.defaultState === 'closed' ? 'closed' : 'open' };
       await updateDoc(doc(db, 'assignments', assignment.id), { sectionAccess, updatedAt: changedAt });
       toastSuccess(`${label} ${nextState}`, `${assignment.title} · ${classLabel}`);
@@ -3963,21 +3920,13 @@ function App() {
       const offset = date.getTimezoneOffset() * 60000;
       return new Date(date.getTime() - offset).toISOString().slice(0, 16);
     };
-    const existingPeriods = Array.isArray(assignment.assignedClassPeriods) ? assignment.assignedClassPeriods : [...CLASS_PERIODS];
-    const explicitIds = Array.isArray(assignment.assignedClassIds) ? assignment.assignedClassIds.filter(Boolean) : [];
-    // A legacy period audience may be ambiguous when two real classes share the
-    // same bell period. Only infer a modern classId when every selected legacy
-    // period maps to exactly one active class; otherwise preserve the legacy
-    // audience until the teacher explicitly chooses a class.
-    const matchesByPeriod = Object.fromEntries(existingPeriods.map((period) => [
-      period,
-      classes.filter((entry) => entry?.status !== 'archived' && entry.period === period),
-    ]));
-    const canSafelyInferIds = existingPeriods.length > 0
-      && existingPeriods.every((period) => (matchesByPeriod[period] || []).length === 1);
-    const existingIds = explicitIds.length
-      ? explicitIds
-      : (canSafelyInferIds ? existingPeriods.map((period) => matchesByPeriod[period][0].classId) : []);
+    const existingIds = Array.isArray(assignment.assignedClassIds)
+      ? assignment.assignedClassIds.filter(Boolean)
+      : [];
+    const existingPeriods = [...new Set(classes
+      .filter((entry) => existingIds.includes(entry.classId) && entry?.status !== 'archived')
+      .map((entry) => entry.period)
+      .filter(Boolean))];
     setEditingAssignmentId(assignment.id);
     setEditingAssignmentDates({
       dueAt: toLocalInput(assignment.dueAt || assignment.dueDate),
@@ -4013,14 +3962,12 @@ function App() {
     const editedClassRecords = editedClassIds.length
       ? classes.filter((entry) => editedClassIds.includes(entry.classId) && entry?.status !== 'archived')
       : [];
-    const editedPeriods = editedClassRecords.length
-      ? [...new Set(editedClassRecords.map((entry) => entry.period).filter(Boolean))]
-      : (editingAssignmentDates.assignedClassPeriods || []);
+    const editedPeriods = [...new Set(editedClassRecords.map((entry) => entry.period).filter(Boolean))];
 
     // A library item is a reusable source, not a half-published assignment.
     // Selecting classes launches the same Preflight/new-destination path used by
     // fresh V5 authoring. The library template remains untouched and reusable.
-    if (isLibraryAssignment(assignment) && (editedClassIds.length || editedPeriods.length)) {
+    if (isLibraryAssignment(assignment) && editedClassIds.length) {
       try {
         openStoredAssignmentForPreflight(assignment, {
           title: assignment.title,
@@ -4045,15 +3992,7 @@ function App() {
     // Existing assigned variants may move among classes with the same
     // course/rigor destination, but cannot silently change Standard/Honors
     // identity or fan out into mixed rigor without going through a fresh split.
-    const targetGroups = editedClassRecords.length
-      ? Object.values(editedClassRecords.reduce((groups, entry) => {
-          const course = entry.course || 'algebra1';
-          const courseLevel = entry.courseLevel || 'standard';
-          const key = `${course}:${courseLevel}`;
-          if (!groups[key]) groups[key] = { course, courseLevel };
-          return groups;
-        }, {}))
-      : buildDestinationGroups({ assignedClassPeriods: editedPeriods, courseProfiles });
+    const targetGroups = buildDestinationGroups({ assignedClassIds: editedClassIds, classes });
     const currentCourse = assignment.courseId || assignment.courseProfile?.course || null;
     const currentLevel = assignment.rigorVariant || assignment.courseProfile?.courseLevel || null;
     const changesDestination = targetGroups.length > 1
@@ -5740,26 +5679,16 @@ function App() {
                           <label style={{ fontWeight: 'bold' }}>Final late due <input type="datetime-local" value={editingAssignmentDates.lateDueAt} onChange={(event) => setEditingAssignmentDates((current) => ({ ...current, lateDueAt: event.target.value }))} style={{ display: 'block', padding: '8px', marginTop: '5px' }} /></label>
                           {hasDOL && <label style={{ fontWeight: 'bold' }}>DOL instructional date <input type="date" value={editingAssignmentDates.dolInstructionDate || ''} onChange={(event) => setEditingAssignmentDates((current) => ({ ...current, dolInstructionDate: event.target.value }))} style={{ display: 'block', padding: '8px', marginTop: '5px' }} /></label>}
                           <div style={{ flex: '1 1 100%', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                            {(classes.filter((entry) => entry?.status !== 'archived').length
-                              ? classes.filter((entry) => entry?.status !== 'archived')
-                              : CLASS_PERIODS.map((period) => ({ classId: null, name: period, period }))).map((classRecord) => {
-                              const selected = classRecord.classId
-                                ? editingAssignmentDates.assignedClassIds?.includes(classRecord.classId)
-                                : editingAssignmentDates.assignedClassPeriods?.includes(classRecord.period);
+                            {classes.filter((entry) => entry?.status !== 'archived' && entry?.classId).map((classRecord) => {
+                              const selected = editingAssignmentDates.assignedClassIds?.includes(classRecord.classId);
                               return (
                                 <label key={classRecord.classId || classRecord.period} style={{ padding: '5px 8px', borderRadius: '999px', background: selected ? '#e8f0fe' : '#fff', border: '1px solid #c5d5ef', fontWeight: 'bold', fontSize: '12px' }}>
                                   <input type="checkbox" checked={Boolean(selected)} onChange={() => setEditingAssignmentDates((current) => {
-                                    if (classRecord.classId) {
-                                      const ids = current.assignedClassIds?.includes(classRecord.classId)
-                                        ? current.assignedClassIds.filter((item) => item !== classRecord.classId)
-                                        : [...(current.assignedClassIds || []), classRecord.classId];
-                                      const periods = [...new Set(classes.filter((entry) => ids.includes(entry.classId)).map((entry) => entry.period).filter(Boolean))];
-                                      return { ...current, assignedClassIds: ids, assignedClassPeriods: periods };
-                                    }
-                                    const periods = current.assignedClassPeriods?.includes(classRecord.period)
-                                      ? current.assignedClassPeriods.filter((item) => item !== classRecord.period)
-                                      : [...(current.assignedClassPeriods || []), classRecord.period];
-                                    return { ...current, assignedClassPeriods: periods };
+                                    const ids = current.assignedClassIds?.includes(classRecord.classId)
+                                      ? current.assignedClassIds.filter((item) => item !== classRecord.classId)
+                                      : [...(current.assignedClassIds || []), classRecord.classId];
+                                    const periods = [...new Set(classes.filter((entry) => ids.includes(entry.classId)).map((entry) => entry.period).filter(Boolean))];
+                                    return { ...current, assignedClassIds: ids, assignedClassPeriods: periods };
                                   })} /> {classRecord.name || classRecord.period}{classRecord.name && classRecord.name !== classRecord.period ? ` · ${classRecord.period}` : ''}
                                 </label>
                               );

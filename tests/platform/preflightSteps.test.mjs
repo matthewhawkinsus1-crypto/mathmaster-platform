@@ -9,6 +9,7 @@ const validDraft = {
   title: 'Lesson 1',
   dueAt: '2026-09-01T16:00',
   lateDueAt: '2026-09-03T23:59',
+  assignedClassIds: ['class-1'],
   assignedClassPeriods: ['Period 1'],
 };
 
@@ -30,7 +31,7 @@ test('every blocker names the step that can fix it', () => {
 
   // An assigning draft still has to satisfy several steps at once.
   const assigning = collectReviewBlockers({
-    draft: { assignedClassPeriods: ['Period 1'], dolEnabled: true, dolMinutesBeforeEnd: 90 },
+    draft: { assignedClassIds: ['class-1'], assignedClassPeriods: ['Period 1'], dolEnabled: true, dolMinutesBeforeEnd: 90 },
     classPeriods: ['Period 1'],
     honorsSelected: true,
     honorsReport: { isHonorsReady: false },
@@ -114,7 +115,7 @@ test('bundle validation errors land on the Check step', () => {
 test('readiness counts per step so a phone can badge the right one', () => {
   const readiness = summarizePreflightReadiness({
     blockers: collectReviewBlockers({
-      draft: { assignedClassPeriods: ['Period 1'], dolEnabled: true, dolMinutesBeforeEnd: 90 },
+      draft: { assignedClassIds: ['class-1'], assignedClassPeriods: ['Period 1'], dolEnabled: true, dolMinutesBeforeEnd: 90 },
       classPeriods: ['Period 1'],
       honorsSelected: true,
       honorsReport: { isHonorsReady: false },

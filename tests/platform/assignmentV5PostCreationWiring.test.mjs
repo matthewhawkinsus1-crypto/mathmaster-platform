@@ -25,7 +25,7 @@ test('duplicate is validated and becomes a true unassigned library copy', () => 
 
 test('library assignment launches canonical V5 Preflight instead of mutating template in place', () => {
   assert.match(app, /openStoredAssignmentForPreflight/);
-  assert.match(app, /if \(isLibraryAssignment\(assignment\) && \(editedClassIds\.length \|\| editedPeriods\.length\)\)/);
+  assert.match(app, /if \(isLibraryAssignment\(assignment\) && editedClassIds\.length\)/);
   assert.match(app, /The library template is staying unchanged/);
 });
 
