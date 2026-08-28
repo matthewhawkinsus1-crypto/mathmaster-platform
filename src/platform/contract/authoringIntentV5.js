@@ -716,7 +716,7 @@ const resolveIntentType = (q, actions) => {
   if (actions.some((a) => ['identifyQuantities','configureAxes','writeEquation','classifyContinuity'].includes(a)) && (q.quantities || q.relationship || q.scenario)) return 'relationshipModel';
   if (actions.includes('solveInequalitySystem') || actions.includes('graphSystem') || actions.includes('rowReduce')) return 'systemsWorkspace';
   if (actions.includes('solveSystem') || q.equations) return 'system';
-  if (actions.includes('solveLiteral') || q.solveFor) return 'literal';
+  if (actions.includes('solveLiteral') || (q.solveFor && !actions.includes('solveEquation') && !actions.includes('solveStepByStep'))) return 'literal';
   if (actions.includes('solveStepByStep')) return 'stepAlgebra';
   if (actions.includes('stepAlgebra2')) return 'stepAlgebra2';
   if (actions.includes('constructLine') || q.lineIntent) return 'graphing2';
