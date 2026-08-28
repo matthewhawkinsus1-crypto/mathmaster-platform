@@ -653,6 +653,12 @@ const sampleModelSegments = (model, graphWindow, domain) => {
   return segments;
 };
 
+const normalizeWorkflowPoint = (point) => {
+  const x = Array.isArray(point) ? Number(point[0]) : Number(point?.x);
+  const y = Array.isArray(point) ? Number(point[1]) : Number(point?.y);
+  return Number.isFinite(x) && Number.isFinite(y) ? [x, y] : null;
+};
+
 const checkedGraphReference = ({ workflow, responses, content, grading, activeStageIndex }) => {
   if (!Array.isArray(workflow) || activeStageIndex <= 0) return null;
   let graphIndex = -1;
@@ -671,9 +677,10 @@ const checkedGraphReference = ({ workflow, responses, content, grading, activeSt
   const input = resolveStageInput({ stage: graphStage, responses, content });
   const source = input?.from === 'student' ? input.value : null;
   const sourceIsTable = source?.[WORKFLOW_ARTIFACT] === 'table';
-  const points = sourceIsTable && Array.isArray(source.points)
+  const rawPoints = sourceIsTable && Array.isArray(source.points)
     ? source.points
     : (Array.isArray(graphStage.pairs) ? graphStage.pairs : (Array.isArray(content?.pairs) ? content.pairs : []));
+  const points = rawPoints.map(normalizeWorkflowPoint).filter(Boolean);
   const graphWindow = expandGraphWindowToPoints(
     graphStage.graph || content?.graph || { xMin: -10, xMax: 10, yMin: -10, yMax: 10 },
     points,
