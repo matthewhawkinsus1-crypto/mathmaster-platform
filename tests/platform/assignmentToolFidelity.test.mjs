@@ -345,6 +345,9 @@ test('V5 uses the balance solver, faithful graph reading, and complete relation 
 
   assert.equal(graphRead.type, 'multiAnswer');
   assert.equal(graphRead.answerFields.length, 4);
+  assert.deepEqual(graphRead.answerFields.map((field) => field.id), [
+    'domainInequality', 'domainWords', 'rangeInequality', 'rangeWords',
+  ]);
   assert.equal(graphRead.graph.functions[0].type, 'quadratic');
   assert.deepEqual(graphRead.graph.functions[0].domain, {
     min: 0,
