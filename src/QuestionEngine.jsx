@@ -714,21 +714,18 @@ export default function QuestionEngine({
     ? 'Your response is recorded. Your teacher will release correctness feedback.'
     : 'Your response is recorded. Correctness feedback is held until the activity feedback window opens.';
 
+  const questionAlignmentPanel = showStandardBadge && questionStandardCode ? (
+    <StandardBadge
+      code={questionStandardCode}
+      framework={questionAssessment.framework}
+      domainId={questionAssessment.domainId}
+      examStyle={questionAssessment.examStyle}
+      style={{ margin: '8px 0 0', maxWidth: '860px' }}
+    />
+  ) : null;
+
   const questionContextPanel = (
     <div className="mathmaster-question-context-panel">
-      {/* Which standard this is, and whether it counts toward a college,
-          career or military assessment. The task itself is rendered by
-          MobileViewportContainer so its sticky containing block spans the
-          entire question, including tall graph/mapping tools. */}
-      {showStandardBadge && questionStandardCode && (
-        <StandardBadge
-          code={questionStandardCode}
-          framework={questionAssessment.framework}
-          domainId={questionAssessment.domainId}
-          examStyle={questionAssessment.examStyle}
-          style={{ margin: '0 auto 14px', maxWidth: '860px' }}
-        />
-      )}
       <ReferenceInfoCard referenceInfo={referenceInfo} />
       {!supportPresentation.declutter && (
         <div
@@ -822,6 +819,7 @@ export default function QuestionEngine({
     >
       <MobileViewportContainer
         promptText={processedQuestion?.prompt || processedQuestion?.scenario || 'Complete the math task.'}
+        taskMeta={questionAlignmentPanel}
         contextPanel={questionContextPanel}
         toolWorkspace={(
       <div className="mathmaster-question-tool-workspace" style={{ position: 'relative' }}>

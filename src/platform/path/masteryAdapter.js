@@ -72,6 +72,7 @@ export const buildMasteryBySkillForStudent = ({ student, assignments = [] }) => 
 export const collectAssignmentSkillIds = (assignments = [], { normalizeStandards } = {}) => {
   const ids = new Set();
   (Array.isArray(assignments) ? assignments : []).forEach((assignment) => {
+    if (assignment?.evidencePolicy?.recommendationEligible === false) return;
     (Array.isArray(assignment?.questions) ? assignment.questions : []).forEach((question) => {
       const codes = typeof normalizeStandards === 'function'
         ? normalizeStandards(question)

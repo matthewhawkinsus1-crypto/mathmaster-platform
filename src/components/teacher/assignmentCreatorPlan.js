@@ -169,6 +169,7 @@ export const buildAssignmentCreatorRequest = (input = {}, { generatedAt = new Da
     '- Supportive does NOT mean a different standard or modified curriculum. It means access/scaffolding and friendlier complexity while preserving the assigned course target.',
     '- Challenge does NOT authorize later-unit or later-course mathematics. Increase reasoning/transfer only inside the lesson ceiling.',
     '- If this assignment is later sent to an Honors class, MathMaster will inherit Honors placement in Preflight. Author enough depth/transfer to support that route without changing the course standard.',
+    '- For a full Practice section of 5 or more questions, include one legitimate direct CCMR transfer candidate aligned to a TEKS taught elsewhere in this assignment whenever the approved crosswalk allows it. MathMaster\'s server will replace that candidate with an audited CCMR Fidelity V2.1 family before Preflight, so do not fabricate an exam-style label as a substitute.',
     '- For Honors-ready Practice, preserve the MathMaster CCMR policy: authentic exam-style transfer should be roughly 15% over the recent sequence, using only legitimate TEKS-to-assessment overlap.',
     '- Never make a generated expected answer independent of the generator parameters that create its prompt.',
     '- Make every required symbol/notation enterable by the declared interaction; MathMaster owns the keyboard/renderer implementation.',

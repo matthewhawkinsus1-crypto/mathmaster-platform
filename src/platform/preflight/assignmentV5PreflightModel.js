@@ -64,6 +64,13 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     const alignment = validateAlignments(question, { label: `Question ${index + 1}` });
     errors.push(...alignment.errors);
     warnings.push(...alignment.warnings);
+
+    const assessmentContext = question?.assessmentContext;
+    const directExamStyle = assessmentContext?.examStyle === true
+      && ['digitalSAT', 'act', 'tsia2', 'asvab'].includes(String(assessmentContext?.framework || ''));
+    if (directExamStyle && question?.ccmrSource?.source !== 'auditedBank') {
+      warnings.push(`Question ${index + 1} is direct ${assessmentContext.framework} practice but is not sourced from the audited CCMR V2.1 assignment bank. Its alignment can still validate, but MathMaster cannot label its provenance as bank-backed.`);
+    }
   });
   warnings.push(...auditAlignmentSpecificity(questions).warnings);
 

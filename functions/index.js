@@ -7387,6 +7387,7 @@ exports.authorAssignmentWithAI = onCall({
       model: result.model,
       responseId: result.responseId,
       usage: result.usage || null,
+      ccmrBank: result.ccmrBank || null,
       promptCharacters: prompt.length,
       createdAt: FieldValue.serverTimestamp(),
     });
