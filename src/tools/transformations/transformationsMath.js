@@ -88,6 +88,28 @@ export const transformedAnchor = (spec = {}) => {
   };
 };
 
+export const transformationGraphScore = (student = {}, target = {}, {
+  xMin = -7,
+  xMax = 7,
+  samples = 81,
+  tolerance = 0.02,
+} = {}) => {
+  let compared = 0;
+  let matched = 0;
+  for (let index = 0; index <= samples; index += 1) {
+    const x = Number(xMin) + ((Number(xMax) - Number(xMin)) * index) / samples;
+    const studentY = evaluateTransformedFunction(student, x);
+    const targetY = evaluateTransformedFunction(target, x);
+    const studentFinite = Number.isFinite(studentY);
+    const targetFinite = Number.isFinite(targetY);
+    if (!studentFinite && !targetFinite) continue;
+    compared += 1;
+    if (studentFinite && targetFinite && Math.abs(studentY - targetY) <= tolerance) matched += 1;
+  }
+  const score = compared ? matched / compared : 0;
+  return { compared, matched, score, isCorrect: compared > 0 && score >= 0.999 };
+};
+
 export const transformationParameterScore = (student = {}, target = {}, tolerance = 1e-6) => {
   const checks = ['a', 'b', 'h', 'k'].map((key) => nearlyEqual(Number(student[key] ?? (key === 'b' ? 1 : undefined)), Number(target[key] ?? (key === 'b' ? 1 : undefined)), tolerance));
   return { checks, score: checks.filter(Boolean).length / checks.length, isCorrect: checks.every(Boolean) };
