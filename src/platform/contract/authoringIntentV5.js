@@ -361,6 +361,40 @@ const compileFunctionWorkflow = (q, actions) => {
     }
   }
 
+  if (actions.includes('configureAxes')) {
+    const xAxis = isObject(axis.x) ? axis.x : {};
+    const yAxis = isObject(axis.y) ? axis.y : {};
+    const quantities = axisQuantityChoicesFromIntent(q, axis);
+    const requireUnits = Boolean(clean(xAxis.unit) && clean(yAxis.unit));
+    const requireScale = axis.requireScale !== false;
+
+    workflow.push({
+      id: 'axes',
+      kind: 'axisSetup',
+      prompt: q.axisPrompt || 'Label the x- and y-axes with the correct quantities and units, then choose a reasonable scale.',
+      quantities,
+      graph: blankAxisGraphFromIntent({
+        question: q,
+        functionSpec: publicFunctionSpec,
+        tableInfo,
+        evaluateFunction: evaluateIntentFunction,
+      }),
+      requireUnits,
+      requireScale,
+    });
+
+    grading.axes = {
+      xLabel: axisExpectedOptions(xAxis.label || quantities.find((item) => item?.id === q.correctIndependentId)?.label, axis.acceptedXLabels || xAxis.acceptedLabels),
+      yLabel: axisExpectedOptions(yAxis.label || quantities.find((item) => item?.id === q.correctDependentId)?.label, axis.acceptedYLabels || yAxis.acceptedLabels),
+      xUnit: axisExpectedOptions(xAxis.unit, axis.acceptedXUnits || xAxis.acceptedUnits),
+      yUnit: axisExpectedOptions(yAxis.unit, axis.acceptedYUnits || yAxis.acceptedUnits),
+      xStep: axisExpectedOptions(xAxis.countBy, axis.acceptedXSteps || xAxis.acceptedSteps),
+      yStep: axisExpectedOptions(yAxis.countBy, axis.acceptedYSteps || yAxis.acceptedSteps),
+      requireUnits,
+      requireScale,
+    };
+  }
+
   if (actions.includes('writeEquation')) {
     workflow.push({ id: 'equation', kind: 'equationInput', prompt: q.equationPrompt || 'Write the equation or function rule.' });
     const expected = expectedEquation(q);
