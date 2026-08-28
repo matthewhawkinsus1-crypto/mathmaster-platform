@@ -123,7 +123,7 @@ const toolFunctionSpec = (raw = {}) => {
 
 const staticFunctionSpec = (raw = {}) => {
   const core = coreFunctionSpec(raw);
-  if (core.type === 'linear') return { type: 'line', m: core.m, b: core.b };
+  if (core.type === 'linear') return { type: 'line', m: core.m, b: core.b, ...(core.domain ? { domain: core.domain } : {}) };
   return core;
 };
 
