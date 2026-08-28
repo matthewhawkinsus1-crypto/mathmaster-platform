@@ -319,6 +319,23 @@ const expectedDomain = (q = {}) => q.correctDomain ?? q.answerModel?.domain ?? r
 const expectedRange = (q = {}) => q.correctRange ?? q.answerModel?.range ?? responseExpected(q, 'range');
 const expectedEquation = (q = {}) => q.correctEquation ?? q.answerModel?.equation ?? responseExpected(q, 'equation');
 
+const responseExpectedByIds = (q = {}, ids = []) => {
+  for (const id of ids) {
+    const expected = responseExpected(q, id);
+    if (expected !== undefined) return expected;
+  }
+  return undefined;
+};
+
+const defaultDomainRangeNotation = (q = {}, continuity = '') => {
+  if (clean(q.notation)) return clean(q.notation);
+  if (clean(continuity).toLowerCase() === 'discrete') return 'set';
+  // Algebra I TEKS introduce reasonable domain/range with inequalities. Interval
+  // notation is intentionally deferred until later coursework unless the
+  // author explicitly requests it.
+  return clean(q.courseId).toLowerCase() === 'algebra1' ? 'inequality' : 'interval';
+};
+
 const functionWorkflowActions = new Set([
   'writeEquation','completeTable','constructGraph','stateDomain','analyzeDomain','stateRange','analyzeRange','classifyContinuity',
 ]);
