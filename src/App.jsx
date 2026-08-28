@@ -3394,25 +3394,21 @@ function App() {
   };
 
   const resolveTeacherClassContext = (value) => {
-    const supplied = value && typeof value === 'object' ? value : { classPeriod: value };
-    const requestedClassId = String(supplied?.classId || '').trim();
-    const requestedPeriod = String(supplied?.classPeriod || '').trim();
-    const classRecord = classes.find((entry) => entry.classId === requestedClassId)
-      || (!requestedClassId ? classes.find((entry) => entry.period === requestedPeriod) : null)
-      || null;
-    const classId = requestedClassId || classRecord?.classId || null;
-    const classPeriod = requestedPeriod || classRecord?.period || null;
+    const supplied = value && typeof value === 'object' ? value : {};
+    const classId = String(supplied?.classId || '').trim() || null;
+    const classRecord = classId ? classes.find((entry) => entry.classId === classId) || null : null;
+    const classPeriod = classRecord?.period || String(supplied?.classPeriod || '').trim() || null;
     return {
       classId,
       classPeriod,
       label: classRecord?.name || classPeriod || 'this class',
-      key: classId || classPeriod || '',
+      key: classId || '',
     };
   };
 
   const handleUnlockDOLForClass = async (assignment, classContext) => {
     const { classId, classPeriod, label: classLabel, key: classKey } = resolveTeacherClassContext(classContext);
-    if (!assignment?.id || !classPeriod || !classKey) return;
+    if (!assignment?.id || !classId || !classPeriod || !classKey) return;
     const state = getDOLState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue: Date.now() });
     if (!state.enabled) {
       toastWarning('No timed DOL', 'This assignment does not have an enabled DOL section.');
@@ -3455,11 +3451,7 @@ function App() {
         unlockedAt,
         unlockedBy: user?.email || user?.id || 'teacher',
       };
-      if (classId) {
-        dol.earlyUnlocksByClassId = { ...(assignment.dol?.earlyUnlocksByClassId || {}), [classId]: entry };
-      } else {
-        dol.earlyUnlocks = { ...(assignment.dol?.earlyUnlocks || {}), [classPeriod]: entry };
-      }
+      dol.earlyUnlocksByClassId = { ...(assignment.dol?.earlyUnlocksByClassId || {}), [classId]: entry };
       await updateDoc(doc(db, 'assignments', assignment.id), { dol, updatedAt: unlockedAt });
       toastSuccess('DOL unlocked', `${assignment.title} is released early for ${classLabel} only. Its timer starts when the unlock takes effect.`);
     } catch (error) {
@@ -3472,7 +3464,7 @@ function App() {
 
   const handleToggleWarmupForClass = async (assignment, classContext) => {
     const { classId, classPeriod, label: classLabel, key: classKey } = resolveTeacherClassContext(classContext);
-    if (!assignment?.id || !classPeriod || !classKey) return;
+    if (!assignment?.id || !classId || !classPeriod || !classKey) return;
     const state = getWarmupState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue: Date.now() });
     if (!state.enabled) {
       toastWarning('No Warm-Up section', 'This assignment does not have an authored Warm-Up section.');
@@ -3514,17 +3506,10 @@ function App() {
         enabled: true,
         minutesBeforeStart: Math.max(0, Number(assignment?.warmup?.minutesBeforeStart ?? 7)),
       };
-      if (classId) {
-        const closedByClassId = { ...(assignment.warmup?.closedByClassId || {}) };
-        if (closing) closedByClassId[classId] = { dateKey: localDateKey(Date.now()), closedAt: changedAt, closedBy: user?.email || user?.id || 'teacher' };
-        else delete closedByClassId[classId];
-        warmup.closedByClassId = closedByClassId;
-      } else {
-        const closedByClassPeriod = { ...(assignment.warmup?.closedByClassPeriod || {}) };
-        if (closing) closedByClassPeriod[classPeriod] = { dateKey: localDateKey(Date.now()), closedAt: changedAt, closedBy: user?.email || user?.id || 'teacher' };
-        else delete closedByClassPeriod[classPeriod];
-        warmup.closedByClassPeriod = closedByClassPeriod;
-      }
+      const closedByClassId = { ...(assignment.warmup?.closedByClassId || {}) };
+      if (closing) closedByClassId[classId] = { dateKey: localDateKey(Date.now()), closedAt: changedAt, closedBy: user?.email || user?.id || 'teacher' };
+      else delete closedByClassId[classId];
+      warmup.closedByClassId = closedByClassId;
       await updateDoc(doc(db, 'assignments', assignment.id), { warmup, updatedAt: changedAt });
       toastSuccess(closing ? 'Warm-Up closed' : 'Warm-Up reopened', `${assignment.title} · ${classLabel}`);
     } catch (error) {
@@ -3537,7 +3522,7 @@ function App() {
 
   const handleToggleSectionAccessForClass = async (assignment, classContext, activityRole) => {
     const { classId, classPeriod, label: classLabel, key: classKey } = resolveTeacherClassContext(classContext);
-    if (!assignment?.id || !classPeriod || !classKey || !['classwork', 'practice'].includes(activityRole)) return;
+    if (!assignment?.id || !classId || !classPeriod || !classKey || !['classwork', 'practice'].includes(activityRole)) return;
     const state = getSectionAccessState({ assignment, activityRole, classId, classPeriod, nowValue: Date.now() });
     if (!state.enabled) {
       toastWarning('Section not found', `This assignment does not have an authored ${activityRole} section.`);
@@ -3574,8 +3559,7 @@ function App() {
       const sectionAccess = { ...(assignment.sectionAccess || {}) };
       const config = { ...(sectionAccess[activityRole] || {}) };
       const entry = { state: nextState, changedAt, changedBy: user?.email || user?.id || 'teacher' };
-      if (classId) config.overridesByClassId = { ...(config.overridesByClassId || {}), [classId]: entry };
-      else config.overridesByClassPeriod = { ...(config.overridesByClassPeriod || {}), [classPeriod]: entry };
+      config.overridesByClassId = { ...(config.overridesByClassId || {}), [classId]: entry };
       sectionAccess[activityRole] = { ...config, defaultState: config.defaultState === 'closed' ? 'closed' : 'open' };
       await updateDoc(doc(db, 'assignments', assignment.id), { sectionAccess, updatedAt: changedAt });
       toastSuccess(`${label} ${nextState}`, `${assignment.title} · ${classLabel}`);
