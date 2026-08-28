@@ -78,13 +78,10 @@ assert.throws(() => buildAssignmentCreatorRequest({ topic: '' }), /Describe the 
 console.log('assignmentCreatorPlan.test.mjs: all assertions passed');
 
 
-test('AI build request prevents representation invention and answer-leaking classifications', () => {
-  const request = buildAssignmentCreatorRequest({
-    topic: 'Functions and relations',
-    courseId: 'algebra1',
-  }, { generatedAt: new Date('2026-08-28T12:00:00Z') });
-
-  assert.match(request, /Do not add a mapping diagram unless/i);
-  assert.match(request, /Never state a family or discrete\/continuous classification/i);
-  assert.match(request, /domain\/range.*mathematical representation first/i);
-});
+const guardedRequest = buildAssignmentCreatorRequest({
+  topic: 'Functions and relations',
+  courseId: 'algebra1',
+}, { generatedAt: new Date('2026-08-28T12:00:00Z') });
+assert.match(guardedRequest, /Do not add a mapping diagram unless/i);
+assert.match(guardedRequest, /Never state a family or discrete\/continuous classification/i);
+assert.match(guardedRequest, /domain\/range.*mathematical representation first/i);
