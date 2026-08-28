@@ -3,6 +3,11 @@ import assert from 'node:assert/strict';
 
 import {
   canonicalV5PersistencePatch,
+  getStoredAssignmentQuestions,
+  getStoredAssignmentTypeProjection,
+  getStoredAssignmentVariantMode,
+  getStoredSectionVariantMode,
+  getStoredSectionVariantModes,
   inferStoredAssignmentCourseId,
   storedAssignmentToV5,
 } from '../../src/platform/contract/storedAssignmentV5.js';
@@ -16,8 +21,6 @@ const stored = (overrides = {}) => ({
   folder: 'Unit 1',
   instructionalPurpose: 'lesson',
   gradingPurpose: 'classwork',
-  variantMode: 'personalized',
-  sectionVariantModes: { practice: 'personalized' },
   variantPolicy: {
     mode: 'personalized',
     sectionModes: { practice: 'personalized' },
@@ -127,6 +130,8 @@ test('canonical persistence patch keeps courseId and V5 policy fields', () => {
   assert.equal(patch.courseId, 'algebra1');
   assert.equal('runtimeProjectionVersion' in patch, false);
   assert.equal('questions' in patch, false);
+  assert.equal('variantMode' in patch, false);
+  assert.equal('sectionVariantModes' in patch, false);
   assert.equal(patch.sections[0].questions.length, 1);
   assert.equal(patch.variantPolicy.mode, 'personalized');
   assert.equal(patch.outputProfiles.studentWorksheetPdf.enabled, true);
@@ -155,4 +160,43 @@ test('stale top-level runtime questions are ignored when canonical sections exis
   const v5 = storedAssignmentToV5(record);
   assert.equal(v5.sections[0].questions[0].questionId, 'q1');
   assert.equal(v5.sections[0].questions[0].prompt, 'Solve 2x + 1 = 9.');
+});
+
+
+test('retired flat and variant mirrors cannot override canonical V5 state', () => {
+  const record = stored({
+    assignmentType: 'test',
+    variantMode: 'shared',
+    sectionVariantModes: { practice: 'shared', test: 'adaptive' },
+    questions: [{
+      questionId: 'stale',
+      type: 'multiAnswer',
+      prompt: 'STALE MIRROR',
+      answerFields: [{ id: 'x', answer: '999' }],
+    }],
+  });
+  assert.deepEqual(getStoredAssignmentQuestions(record).map((question) => question.questionId), ['q1']);
+  assert.equal(getStoredAssignmentVariantMode(record), 'personalized');
+  assert.deepEqual(getStoredSectionVariantModes(record), { practice: 'personalized' });
+  assert.equal(getStoredSectionVariantMode(record, 'practice'), 'personalized');
+  assert.equal(getStoredAssignmentTypeProjection(record), 'practice');
+});
+
+test('flat-only and non-V5 records are not revived by canonical runtime readers', () => {
+  const flatOnly = {
+    schemaVersion: 5,
+    courseId: 'algebra1',
+    questions: [{ questionId: 'legacy', type: 'multiAnswer', prompt: 'Legacy' }],
+    variantMode: 'shared',
+    sectionVariantModes: { practice: 'shared' },
+    assignmentType: 'test',
+  };
+  assert.deepEqual(getStoredAssignmentQuestions(flatOnly), []);
+  assert.equal(getStoredAssignmentVariantMode(flatOnly), 'personalized');
+  assert.deepEqual(getStoredSectionVariantModes(flatOnly), {});
+  assert.equal(getStoredAssignmentTypeProjection(flatOnly), 'practice');
+  assert.throws(
+    () => storedAssignmentToV5({ ...flatOnly, schemaVersion: 4 }),
+    /Only Assignment V5 records can be reconstructed/,
+  );
 });

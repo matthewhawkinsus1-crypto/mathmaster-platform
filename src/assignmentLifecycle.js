@@ -1,4 +1,10 @@
 import { ACTIVITY_ROLES, resolveQuestionActivityRole } from './platform/policies/activityPolicies.js';
+import {
+  getStoredAssignmentQuestions,
+  getStoredAssignmentVariantMode,
+  getStoredSectionVariantMode,
+  getStoredSectionVariantModes,
+} from './platform/contract/storedAssignmentV5.js';
 
 export const CLASS_PERIODS = Array.from({ length: 8 }, (_, index) => `Period ${index + 1}`);
 
@@ -8,9 +14,7 @@ export const questionIsIncluded = (question) => question?.teacherExcluded !== tr
 export const getIncludedQuestionIndices = (assignmentOrQuestions) => {
   const questions = Array.isArray(assignmentOrQuestions)
     ? assignmentOrQuestions
-    : Array.isArray(assignmentOrQuestions?.questions)
-      ? assignmentOrQuestions.questions
-      : [];
+    : getStoredAssignmentQuestions(assignmentOrQuestions);
   return questions.reduce((indices, question, index) => {
     if (questionIsIncluded(question)) indices.push(index);
     return indices;
@@ -153,25 +157,20 @@ const scopedOverride = ({ byClassId, byClassPeriod, classId, classPeriod }) => {
     : null;
 };
 
-// Three modes now, not two. 'adaptive' was silently falling through this gate
-// to 'personalized', so an assignment authored as adaptive delivered a variant
-// and nobody was told. The canonical vocabulary and the legacy mapping live in
-// `platform/assignments/assignmentAdaptation.js`; this set only decides whether
-// a stored value is one the platform recognises at all.
+// Delivery modes are read only from Assignment V5 variantPolicy. Retired
+// top-level mirrors are intentionally ignored.
 const VERSION_MODES = new Set(['shared', 'personalized', 'variant', 'adaptive']);
 
-// Bundled assignments can mix delivery modes by activity section. The old
-// assignment-level variantMode remains the fallback so every assignment saved
-// before this feature behaves exactly as it did before.
 export const getSectionVariantMode = (assignment, activityRole) => {
-  const role = String(activityRole || '').trim().toLowerCase();
-  const sectionMode = assignment?.sectionVariantModes?.[role];
+  const sectionMode = getStoredSectionVariantMode(assignment, activityRole);
   if (VERSION_MODES.has(sectionMode)) return sectionMode;
-  return VERSION_MODES.has(assignment?.variantMode) ? assignment.variantMode : 'personalized';
+  const assignmentMode = getStoredAssignmentVariantMode(assignment);
+  return VERSION_MODES.has(assignmentMode) ? assignmentMode : 'personalized';
 };
 
 export const hasMixedSectionVariantModes = (assignment) => {
-  const modes = Object.values(assignment?.sectionVariantModes || {}).filter((mode) => VERSION_MODES.has(mode));
+  const modes = Object.values(getStoredSectionVariantModes(assignment))
+    .filter((mode) => VERSION_MODES.has(mode));
   return new Set(modes).size > 1;
 };
 
@@ -190,7 +189,7 @@ const SECTION_ACCESS_STATES = new Set(['open', 'closed']);
 // students may revisit everything, but none of it writes grades/evidence.
 export const getSectionAccessState = ({ assignment, activityRole, classId = null, classPeriod, nowValue = Date.now() }) => {
   const role = String(activityRole || '').trim().toLowerCase();
-  const questions = Array.isArray(assignment?.questions) ? assignment.questions : [];
+  const questions = getStoredAssignmentQuestions(assignment);
   const exists = questions.some((question) => questionIsIncluded(question)
     && resolveQuestionActivityRole({ question, assignment }) === role);
   const lifecycle = getAssignmentLifecycle(assignment, nowValue);
@@ -351,7 +350,7 @@ export const getPeriodWindow = (scheduleValue, classPeriod, nowValue = Date.now(
 };
 
 export const getWarmupState = ({ assignment, schedule, classId = null, classPeriod, nowValue = Date.now() }) => {
-  const questions = Array.isArray(assignment?.questions) ? assignment.questions : [];
+  const questions = getStoredAssignmentQuestions(assignment);
   const includedQuestions = questions.filter(questionIsIncluded);
   const enabled = assignment?.warmup?.enabled ?? includedQuestions.some((question) => (
     resolveQuestionActivityRole({ question, assignment }) === ACTIVITY_ROLES.WARMUP
@@ -408,7 +407,7 @@ export const getWarmupState = ({ assignment, schedule, classId = null, classPeri
 };
 
 export const resolveDOLQuestionIndices = (assignment) => {
-  const questions = Array.isArray(assignment?.questions) ? assignment.questions : [];
+  const questions = getStoredAssignmentQuestions(assignment);
   const included = getIncludedQuestionIndices(questions);
   if (!included.length) return [];
 
@@ -431,21 +430,15 @@ export const resolveDOLQuestionIndices = (assignment) => {
 export const resolveDOLQuestionIndex = (assignment) => resolveDOLQuestionIndices(assignment)[0] ?? -1;
 
 export const getDOLState = ({ assignment, schedule, classId = null, classPeriod, nowValue = Date.now() }) => {
-  const questions = Array.isArray(assignment?.questions) ? assignment.questions : [];
+  const questions = getStoredAssignmentQuestions(assignment);
   const includedQuestions = questions.filter(questionIsIncluded);
   const hasAuthoredDOL = includedQuestions.some((question) => (
     resolveQuestionActivityRole({ question, assignment }) === ACTIVITY_ROLES.DOL
   ));
-  const hasExplicitActivityRoles = includedQuestions.some((question) => (
-    typeof question?.activityRole === 'string' || typeof question?.role === 'string'
-  ));
   // `dol.enabled` is an explicit teacher/runtime setting. When it is absent,
-  // an authored DOL section is enough to enable the window. Only truly legacy
-  // practice assignments with no per-question roles retain the old implicit
-  // DOL behavior; a modern Practice section must not turn an arbitrary middle
-  // question into a DOL.
-  const legacyImplicitPracticeDOL = !hasExplicitActivityRoles && assignment?.assignmentType === 'practice';
-  const enabled = assignment?.dol?.enabled ?? (hasAuthoredDOL || legacyImplicitPracticeDOL);
+  // an authored V5 DOL section is enough to enable the window. Practice-only
+  // assignments never invent an implicit DOL from retired assignmentType state.
+  const enabled = assignment?.dol?.enabled ?? hasAuthoredDOL;
   const questionIndices = resolveDOLQuestionIndices(assignment);
   const questionIndex = questionIndices[0] ?? -1;
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
@@ -555,7 +548,7 @@ export const recordAssignmentActivity = ({ activity, assignment, seconds = 0, no
 };
 
 export const evaluateClassworkCompletion = ({ assignment, assignmentTracker, activity }) => {
-  const questions = Array.isArray(assignment?.questions) ? assignment.questions : [];
+  const questions = getStoredAssignmentQuestions(assignment);
   const included = getIncludedQuestionIndices(questions);
   const classworkIndices = included.filter((index) => (
     resolveQuestionActivityRole({ question: questions[index], assignment }) === ACTIVITY_ROLES.CLASSWORK

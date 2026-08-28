@@ -3,7 +3,7 @@ import QuestionStandardsEditor from './QuestionStandardsEditor';
 import { getQuestionMetadataSummary } from './questionMetadata.js';
 import { useToast } from './ui/Toast';
 import { buildQuestionRepairRequest, parseQuestionRepairResponse } from './platform/contract/questionRepairRequest.js';
-import { storedAssignmentToV5 } from './platform/contract/storedAssignmentV5.js';
+import { getStoredAssignmentQuestions, storedAssignmentToV5 } from './platform/contract/storedAssignmentV5.js';
 import { buildAssignmentV5PreflightModel } from './platform/preflight/assignmentV5PreflightModel.js';
 
 const newQuestionId = () => {
@@ -24,7 +24,7 @@ const promptSummary = (question) => String(
 export default function AssignmentQuestionEditor({ assignment, hasStudentData, onSave, onClose }) {
   const { confirm: confirmAction, toastSuccess } = useToast();
   const [title, setTitle] = useState(assignment.title || '');
-  const [questions, setQuestions] = useState(() => ensureQuestionIds(assignment.questions || []));
+  const [questions, setQuestions] = useState(() => ensureQuestionIds(getStoredAssignmentQuestions(assignment)));
   const [repairIndex, setRepairIndex] = useState(null);
   const [metadataEditingIndex, setMetadataEditingIndex] = useState(null);
   const [repairInstruction, setRepairInstruction] = useState('');

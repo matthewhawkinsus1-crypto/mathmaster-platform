@@ -14,6 +14,10 @@ test('assignment creation persists canonical V5 sections and policy metadata', (
   assert.match(source, /differentiationPolicy:/);
   assert.match(source, /supportPolicy:/);
   assert.match(source, /outputProfiles:/);
+  const payloadBlock = source.match(/const assignmentPayloadBase = \{([\s\S]*?)\n      \};/)?.[1] || '';
+  assert.doesNotMatch(payloadBlock, /^\s*assignmentType,\s*$/m);
+  assert.doesNotMatch(payloadBlock, /^\s*variantMode,\s*$/m);
+  assert.doesNotMatch(payloadBlock, /^\s*sectionVariantModes,\s*$/m);
 });
 
 test('question edits and duplication pass through canonical V5 reconstruction', () => {
@@ -71,5 +75,7 @@ test('canonical persistence patch contains sections only and no flat questions p
   });
   assert.equal(Object.prototype.hasOwnProperty.call(patch, 'questions'), false);
   assert.equal(Object.prototype.hasOwnProperty.call(patch, 'runtimeProjectionVersion'), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(patch, 'variantMode'), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(patch, 'sectionVariantModes'), false);
   assert.equal(Array.isArray(patch.sections), true);
 });

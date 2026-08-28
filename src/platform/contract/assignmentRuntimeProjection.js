@@ -8,9 +8,10 @@ export const runtimeQuestionsFromAssignment = (assignment = {}) => {
 
 export const hydrateAssignmentRuntime = (assignment = {}) => ({
   ...assignment,
-  // Runtime-only projection. Firestore persists sections[] as the sole content
-  // source of truth; student/teacher components may keep using assignment.questions
-  // while the remaining readers are migrated incrementally.
+  // Renderer-only projection. Firestore persists sections[] as the sole content
+  // source of truth; core lifecycle, policy, and dashboard decisions must read
+  // canonical V5 sections/policies directly. Mature renderers may temporarily
+  // consume assignment.questions until their UI loops are migrated.
   questions: runtimeQuestionsFromAssignment(assignment),
 });
 

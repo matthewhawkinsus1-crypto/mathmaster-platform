@@ -18,13 +18,34 @@ const question = (overrides = {}) => ({
   ...overrides,
 });
 
+const v5Assignment = ({
+  id,
+  title,
+  mode = 'shared',
+  sectionModes = {},
+  questions = [question()],
+} = {}) => ({
+  id,
+  schemaVersion: 5,
+  title,
+  variantPolicy: {
+    mode,
+    sectionModes,
+  },
+  sections: [{
+    id: 'practice',
+    role: 'practice',
+    title: 'Practice',
+    questions,
+  }],
+});
+
 test('shared student worksheet exports directly without a student and never leaks answers', () => {
-  const assignment = {
+  const assignment = v5Assignment({
     id: 'shared-1',
     title: 'Shared Functions Practice',
-    variantMode: 'shared',
-    questions: [question()],
-  };
+    mode: 'shared',
+  });
   assert.equal(assignmentNeedsStudentForWorksheet(assignment), false);
   const model = buildTeacherAssignmentWorksheetModel({ assignment });
   assert.equal(model.studentName, '');
@@ -35,12 +56,11 @@ test('shared student worksheet exports directly without a student and never leak
 
 
 test('teacher copy and answer key use the same resolved shared question while exposing only requested key data', () => {
-  const assignment = {
+  const assignment = v5Assignment({
     id: 'shared-key-1',
     title: 'Shared Key Practice',
-    variantMode: 'shared',
-    questions: [question()],
-  };
+    mode: 'shared',
+  });
 
   const teacherModel = buildTeacherAssignmentWorksheetModel({
     assignment,
@@ -63,12 +83,11 @@ test('teacher copy and answer key use the same resolved shared question while ex
 });
 
 test('personalized teacher worksheet requires a student and carries that student name', () => {
-  const assignment = {
+  const assignment = v5Assignment({
     id: 'personal-1',
     title: 'Personalized Practice',
-    variantMode: 'personalized',
-    questions: [question()],
-  };
+    mode: 'personalized',
+  });
   assert.equal(assignmentNeedsStudentForWorksheet(assignment), true);
   assert.throws(
     () => buildTeacherAssignmentWorksheetModel({ assignment }),
@@ -88,13 +107,13 @@ test('personalized teacher worksheet requires a student and carries that student
 });
 
 test('section-specific personalized mode is enough to require a student', () => {
-  const assignment = {
+  const assignment = v5Assignment({
     id: 'section-1',
     title: 'Mixed Sections',
-    variantMode: 'shared',
-    sectionVariantModes: { practice: 'personalized' },
+    mode: 'shared',
+    sectionModes: { practice: 'personalized' },
     questions: [question({ activityRole: 'practice' })],
-  };
+  });
   assert.equal(assignmentNeedsStudentForWorksheet(assignment), true);
 });
 
