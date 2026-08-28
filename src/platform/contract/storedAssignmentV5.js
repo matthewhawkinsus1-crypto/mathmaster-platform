@@ -8,6 +8,69 @@ const clean = (value) => String(value ?? '').trim();
 const asArray = (value) => Array.isArray(value) ? value : value == null ? [] : [value];
 const isObject = (value) => Boolean(value && typeof value === 'object' && !Array.isArray(value));
 
+/**
+ * Canonical runtime readers.
+ *
+ * Assignment V5 is now the only assignment contract. These helpers deliberately
+ * do not fall back to retired flat runtime/persistence mirrors. If a record is
+ * not V5 or does not contain sections/policies, it is treated as incomplete
+ * rather than silently reviving legacy state.
+ */
+export const getStoredAssignmentQuestions = (assignment = {}) => {
+  if (!isObject(assignment) || Number(assignment.schemaVersion) !== 5) return [];
+  return flattenV5Sections(assignment);
+};
+
+export const getStoredVariantPolicy = (assignment = {}) => (
+  Number(assignment?.schemaVersion) === 5 && isObject(assignment?.variantPolicy)
+    ? assignment.variantPolicy
+    : {}
+);
+
+export const getStoredAssignmentVariantMode = (assignment = {}) => {
+  const policy = getStoredVariantPolicy(assignment);
+  return clean(policy.mode).toLowerCase() || 'personalized';
+};
+
+export const getStoredSectionVariantModes = (assignment = {}) => {
+  const policy = getStoredVariantPolicy(assignment);
+  return isObject(policy.sectionModes) ? policy.sectionModes : {};
+};
+
+export const getStoredSectionVariantMode = (assignment = {}, activityRole = '') => {
+  const role = clean(activityRole).toLowerCase();
+  const sectionModes = getStoredSectionVariantModes(assignment);
+  return clean(sectionModes?.[role]).toLowerCase()
+    || getStoredAssignmentVariantMode(assignment);
+};
+
+export const getStoredAssignmentTypeProjection = (assignment = {}) => {
+  if (Number(assignment?.schemaVersion) !== 5) return 'practice';
+  const roles = (Array.isArray(assignment?.sections) ? assignment.sections : [])
+    .map((section) => clean(section?.role).toLowerCase())
+    .filter(Boolean);
+
+  if (!roles.length) return 'practice';
+  const unique = new Set(roles);
+
+  if (unique.size === 1) {
+    const [onlyRole] = [...unique];
+    if (onlyRole === 'test') return 'test';
+    if (onlyRole === 'quiz') return 'quiz';
+    if (onlyRole === 'warmup') return 'warmup';
+    if (onlyRole === 'classwork') return 'notesClasswork';
+    return 'practice';
+  }
+
+  // Quiz/Test are designed as separate assignments. Preserve their identity if
+  // they are the dominant summative role, but a lesson bundle with classwork or
+  // warm-up remains a notes/classwork assignment.
+  if (unique.has('classwork') || unique.has('warmup')) return 'notesClasswork';
+  if (unique.has('test')) return 'test';
+  if (unique.has('quiz')) return 'quiz';
+  return 'practice';
+};
+
 const alignmentCodes = (question = {}) => {
   const codes = [];
   asArray(question.alignments).forEach((alignment) => {
@@ -27,7 +90,10 @@ const alignmentCodes = (question = {}) => {
   return codes.filter(Boolean);
 };
 
-export const inferStoredAssignmentCourseId = (assignment = {}, questions = assignment?.questions || []) => {
+export const inferStoredAssignmentCourseId = (
+  assignment = {},
+  questions = getStoredAssignmentQuestions(assignment),
+) => {
   const direct = clean(
     assignment.courseId
     || assignment.assignment?.courseId
@@ -54,9 +120,16 @@ export const storedAssignmentToV5 = (assignment = {}, {
   if (!assignment || typeof assignment !== 'object' || Array.isArray(assignment)) {
     throw new Error('A stored assignment object is required.');
   }
+  if (Number(assignment.schemaVersion) !== 5) {
+    throw new Error('Only Assignment V5 records can be reconstructed.');
+  }
+
+  // An explicit questions override is used only by controlled edit/repair flows.
+  // Ordinary reads always derive question order and section identity from sections[].
   const sourceQuestions = Array.isArray(questions)
     ? questions
-    : flattenV5Sections(assignment);
+    : getStoredAssignmentQuestions(assignment);
+
   const courseId = inferStoredAssignmentCourseId(assignment, sourceQuestions);
   if (!courseId) {
     throw new Error(
@@ -65,10 +138,8 @@ export const storedAssignmentToV5 = (assignment = {}, {
   }
 
   const title = clean(titleOverride ?? assignment.title ?? assignment.assignment?.title);
-  const sourceVariantPolicy = isObject(assignment.variantPolicy) ? assignment.variantPolicy : {};
-  const sectionModes = isObject(sourceVariantPolicy.sectionModes)
-    ? sourceVariantPolicy.sectionModes
-    : isObject(assignment.sectionVariantModes) ? assignment.sectionVariantModes : {};
+  const sourceVariantPolicy = getStoredVariantPolicy(assignment);
+  const sectionModes = getStoredSectionVariantModes(assignment);
 
   return normalizeAssignmentV5({
     schemaVersion: 5,
@@ -85,7 +156,7 @@ export const storedAssignmentToV5 = (assignment = {}, {
     sections: rebuildV5SectionsFromQuestions(assignment, sourceQuestions),
     variantPolicy: {
       ...sourceVariantPolicy,
-      mode: sourceVariantPolicy.mode || assignment.variantMode || 'personalized',
+      mode: getStoredAssignmentVariantMode(assignment),
       sectionModes,
     },
     differentiationPolicy: assignment.differentiationPolicy,
@@ -110,8 +181,6 @@ export const canonicalV5PersistencePatch = (assignmentV5 = {}) => ({
   gradingPurpose: assignmentV5.assignment?.gradingPurpose ?? null,
   sections: assignmentV5.sections || [],
   variantPolicy: assignmentV5.variantPolicy || {},
-  variantMode: assignmentV5.variantPolicy?.mode || 'personalized',
-  sectionVariantModes: assignmentV5.variantPolicy?.sectionModes || {},
   differentiationPolicy: assignmentV5.differentiationPolicy || null,
   supportPolicy: assignmentV5.supportPolicy || null,
   toolPolicy: assignmentV5.toolPolicy || null,
