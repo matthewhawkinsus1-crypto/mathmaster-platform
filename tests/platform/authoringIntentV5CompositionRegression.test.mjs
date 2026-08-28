@@ -182,7 +182,7 @@ assert.equal(chocolate.type, 'relationshipModel');
 assert.equal(chocolate.recipe.name, 'functionModeling');
 assert.equal(chocolate.notation, 'set');
 assert.equal(shower.type, 'relationshipModel');
-assert.equal(shower.notation, 'interval');
+assert.equal(shower.notation, 'inequality', 'Algebra I contextual domain/range should use inequalities by default');
 
 const axisPayload = {
   schemaVersion: 5,
