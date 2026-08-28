@@ -87,7 +87,13 @@ export const collectReviewBlockers = ({
   // Selecting no class is no longer a blocker — it is the library path, and the
   // Check step says so rather than the Classes step complaining about it.
   if (honorsSelected && honorsReport && !honorsReport.isHonorsReady) {
-    blockers.push(blocker('classes', 'An Honors class is selected, so the missing rigor and CCMR elements have to be resolved first.'));
+    const unresolved = (honorsReport.missing || []).filter((key) => key !== 'ccmrEnrichment');
+    if (unresolved.length) {
+      blockers.push(blocker('classes', 'An Honors class is selected, so the missing Honors depth elements have to be resolved first.'));
+    }
+    // CCMR alone is not a blocker here. The destination is now known, so final
+    // creation can source the audited V2.1 Practice family without contaminating
+    // Standard destinations or forcing the teacher to pre-author an exam item.
   }
 
   if (draft.dolEnabled === true) {
