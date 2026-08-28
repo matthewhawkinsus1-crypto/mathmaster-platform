@@ -169,12 +169,16 @@ export default function MathInput({
   const [isMobile, setIsMobile] = useState(detectMobileInput);
 
   const stabilizeMobileViewport = useCallback(() => {
-    if (!isMobile) return;
     const root = mfRef.current?.closest?.('.mathmaster-question-container')
       || mfRef.current?.closest?.('.mathmaster-question-stage')
       || null;
+    // Horizontal caret panning is not actually a "mobile-only" browser
+    // behavior. Touch Chromebooks and desktop Chrome can pan an overflow:auto
+    // question workspace to keep a MathLive caret visible too. The safe rule is
+    // platform-wide: math entry may move vertically, never the question's x
+    // position.
     scheduleHorizontalViewportStabilization({ root });
-  }, [isMobile]);
+  }, []);
   const requiredAnswerSymbols = useMemo(
     () => resolveRequiredAnswerSymbols({ answerFormat, toolProfile, requiredSymbols }),
     [answerFormat, toolProfile, requiredSymbols],
@@ -284,13 +288,16 @@ export default function MathInput({
       }
     };
     const preventContextMenu = (event) => event.preventDefault();
+    const handleFocus = () => stabilizeMobileViewport();
 
     mathField.addEventListener('input', handleInput);
+    mathField.addEventListener('focus', handleFocus);
     mathField.addEventListener('keydown', preventUnusedModes, { capture: true });
     mathField.addEventListener('contextmenu', preventContextMenu);
 
     return () => {
       mathField.removeEventListener('input', handleInput);
+      mathField.removeEventListener('focus', handleFocus);
       mathField.removeEventListener('keydown', preventUnusedModes, { capture: true });
       mathField.removeEventListener('contextmenu', preventContextMenu);
     };
