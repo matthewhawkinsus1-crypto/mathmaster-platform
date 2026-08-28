@@ -48,6 +48,28 @@ test('model-so-far summarizes quantities, equations, tables and classification w
   assert.equal(items[3].text, 'continuous');
 });
 
+test('model-so-far keeps graph labels after the axis stage', () => {
+  const items = buildWorkflowSummaryItems(
+    [{ id: 'axes', kind: 'axisSetup', label: 'Label the graph' }],
+    {
+      axes: {
+        __mathmasterWorkflowArtifact: 'axes',
+        isComplete: true,
+        xLabel: 'Time',
+        xUnit: 'minutes',
+        yLabel: 'Water',
+        yUnit: 'gallons',
+        xStep: '1',
+        yStep: '12',
+      },
+    },
+  );
+  assert.equal(items.length, 1);
+  assert.match(items[0].text, /x: Time/);
+  assert.match(items[0].text, /y: Water/);
+  assert.match(items[0].text, /y by 12/);
+});
+
 test('WorkflowRunner uses one active workspace while keeping every stage mounted', async () => {
   const source = await readFile(new URL('../../src/platform/workflow/WorkflowRunner.jsx', import.meta.url), 'utf8');
   assert.match(source, /shouldUseWorkflowFocusMode\(workflow\)/);
