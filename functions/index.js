@@ -7377,7 +7377,9 @@ exports.hydrateAssignmentCcmr = onCall({
   }
 
   try {
-    const result = ccmrAssignmentBank.replaceDirectCcmrQuestionsWithAuditedBank(assignment);
+    const result = ccmrAssignmentBank.replaceDirectCcmrQuestionsWithAuditedBank(assignment, {
+      ensurePracticeTarget: request.data?.ensurePracticeTarget === true,
+    });
     await getFirestore().collection("assignmentCcmrHydrationAudit").add({
       teacherUid,
       teacherEmail: callerEmail(request),
