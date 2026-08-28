@@ -512,8 +512,20 @@ const compileRelationshipModel = (q, actions) => {
   if (actions.includes('writeEquation')) ask.push('equation');
   if (actions.includes('completeTable')) ask.push('table');
   if (actions.includes('constructGraph')) ask.push('graph');
-  if (actions.some((a) => ['stateDomain','analyzeDomain'].includes(a))) ask.push('domain');
-  if (actions.some((a) => ['stateRange','analyzeRange'].includes(a))) ask.push('range');
+  if (actions.some((a) => ['stateDomain','analyzeDomain'].includes(a))) {
+    const hasWords = responseById(q, 'domainWords');
+    const hasInequality = responseById(q, 'domainInequalities') || responseById(q, 'domainInequality');
+    if (hasWords) ask.push('domainWords');
+    if (hasInequality) ask.push('domainInequality');
+    if (!hasWords && !hasInequality) ask.push('domain');
+  }
+  if (actions.some((a) => ['stateRange','analyzeRange'].includes(a))) {
+    const hasWords = responseById(q, 'rangeWords');
+    const hasInequality = responseById(q, 'rangeInequalities') || responseById(q, 'rangeInequality');
+    if (hasWords) ask.push('rangeWords');
+    if (hasInequality) ask.push('rangeInequality');
+    if (!hasWords && !hasInequality) ask.push('range');
+  }
   if (actions.includes('classifyContinuity')) ask.push('continuity');
   // Axis labeling/scale is a distinct mathematical act handled by the
   // relationshipModel component itself. Do not route that question through the
@@ -529,6 +541,10 @@ const compileRelationshipModel = (q, actions) => {
   out.continuity = q.continuity || answerModel.continuity || relationship.continuity || q.relationshipType;
   out.correctDomain = q.correctDomain || answerModel.domain || relationship.domain;
   out.correctRange = q.correctRange || answerModel.range || relationship.range;
+  out.correctDomainWords = responseExpectedByIds(q, ['domainWords']);
+  out.correctDomainInequality = responseExpectedByIds(q, ['domainInequalities', 'domainInequality']);
+  out.correctRangeWords = responseExpectedByIds(q, ['rangeWords']);
+  out.correctRangeInequality = responseExpectedByIds(q, ['rangeInequalities', 'rangeInequality']);
   out.quantitiesPrompt = q.quantitiesPrompt || relationship.quantitiesPrompt;
   out.equationPrompt = q.equationPrompt || relationship.equationPrompt;
   out.tablePrompt = q.tablePrompt || relationship.tablePrompt;
@@ -538,7 +554,7 @@ const compileRelationshipModel = (q, actions) => {
   out.continuityPrompt = q.continuityPrompt || relationship.continuityPrompt;
   out.domainChoices = q.domainChoices || answerModel.domainChoices || relationship.domainChoices;
   out.rangeChoices = q.rangeChoices || answerModel.rangeChoices || relationship.rangeChoices;
-  out.notation = q.notation || answerModel.notation || (out.continuity === 'discrete' ? 'set' : 'interval');
+  out.notation = q.notation || answerModel.notation || defaultDomainRangeNotation(q, out.continuity);
   if (actions.includes('configureAxes')) {
     const axis = q.axisRequirements || relationship.axisRequirements || {};
     const xAxis = isObject(axis.x) ? axis.x : {};
