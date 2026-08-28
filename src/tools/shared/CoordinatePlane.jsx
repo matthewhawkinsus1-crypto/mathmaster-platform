@@ -50,7 +50,7 @@ const formatCoordinate = (point) => { const [x, y] = pointXY(point); return `(${
 export default function CoordinatePlane({
   xMin = -10, xMax = 10, yMin = -10, yMax = 10,
   width = 560, height = 380,
-  points = [], lines = [], functions = [], verticalLines = [], horizontalLines = [],
+  points = [], lines = [], functions = [], polylines = [], verticalLines = [], horizontalLines = [],
   onPlot = null,
   // Whole numbers by default: an Algebra I student asked to plot (3, -2) should
   // never be able to land on (3, -1.5). Tools pass 0.5/0.25 only when the
@@ -263,6 +263,27 @@ export default function CoordinatePlane({
           const y1 = Number(line.m) * xMin + Number(line.b);
           const y2 = Number(line.m) * xMax + Number(line.b);
           return <line key={`l${index}`} x1={sx(xMin)} y1={sy(y1)} x2={sx(xMax)} y2={sy(y2)} stroke={line.stroke || (index === 0 ? '#1a73e8' : '#d93025')} strokeWidth="3" strokeDasharray={line.dash || undefined} />;
+        })}
+        {polylines.map((entry, index) => {
+          const rawPoints = Array.isArray(entry) ? entry : entry?.points;
+          const svgPoints = (Array.isArray(rawPoints) ? rawPoints : [])
+            .map((point) => pointXY(point))
+            .filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y))
+            .map(([x, y]) => `${sx(x)},${sy(y)}`)
+            .join(' ');
+          if (!svgPoints) return null;
+          return (
+            <polyline
+              key={`poly${index}`}
+              points={svgPoints}
+              fill="none"
+              stroke={entry?.stroke || (index === 0 ? '#5f6b7a' : '#1a73e8')}
+              strokeWidth={entry?.strokeWidth || 3}
+              strokeDasharray={entry?.dash || undefined}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+          );
         })}
 
         {/* Preview crosshair: the student sees exactly where the click lands
