@@ -44,6 +44,7 @@ import {
   assertFirestoreSafeAssignmentPayload,
 } from './assignmentBlueprint';
 import AssignmentIntake from './AssignmentIntake';
+import { hydrateAssignmentCcmr } from './services/assignmentCcmrService.js';
 import { auditAlignmentSpecificity, validateAlignments } from './platform/contract/alignments';
 import { validateQuestionsSemantics } from './platform/contract/semanticValidation';
 import {
@@ -2602,13 +2603,39 @@ function App() {
 
   // Single entry point for pasted, uploaded and dropped JSON.
   const handleAssignmentJsonReady = async ({ text, sourceName }) => {
-    const result = readAssignmentJson(text);
-    if (!result.ok) return result;
-    const opened = openAssignmentPreflight({ ...result.parsed, authoringWarnings: result.warnings }, sourceName);
-    if (opened !== true) {
-      return { ok: false, errors: [opened?.error || 'Could not build Assignment Review from this assignment.'], warnings: result.warnings, sourceSchemaVersion: result.sourceSchemaVersion, compilerDefect: false };
+    let sourceText = text;
+    let ccmrAudit = null;
+
+    // Every authoring route gets the same CCMR treatment. Built-in AI is
+    // already bank-backed, while ChatGPT/Claude/Gemini JSON is hydrated here
+    // before local V5 compilation and Preflight. If the network is temporarily
+    // unavailable, import still works; Preflight will visibly flag any direct
+    // exam-style item that lacks audited-bank provenance.
+    try {
+      const raw = JSON.parse(String(text || ''));
+      if (raw && !Array.isArray(raw) && Number(raw.schemaVersion) === 5 && Array.isArray(raw.sections)) {
+        const hydrated = await hydrateAssignmentCcmr(raw);
+        sourceText = JSON.stringify(hydrated.assignment);
+        ccmrAudit = hydrated.audit;
+      }
+    } catch (error) {
+      console.warn('CCMR assignment hydration was skipped', error);
     }
-    return { ok: true, warnings: result.warnings, repairs: result.parsed.repairs || [] };
+
+    const result = readAssignmentJson(sourceText);
+    if (!result.ok) return result;
+    const bankWarnings = [];
+    if (ccmrAudit?.autoSourced > 0 || ccmrAudit?.replaced > 0) {
+      bankWarnings.push(
+        `MathMaster sourced ${Number(ccmrAudit.autoSourced || 0) + Number(ccmrAudit.replaced || 0)} Practice item${Number(ccmrAudit.autoSourced || 0) + Number(ccmrAudit.replaced || 0) === 1 ? '' : 's'} from the audited CCMR Fidelity V2.1 bank.`,
+      );
+    }
+    const warnings = [...(result.warnings || []), ...bankWarnings];
+    const opened = openAssignmentPreflight({ ...result.parsed, authoringWarnings: warnings }, sourceName);
+    if (opened !== true) {
+      return { ok: false, errors: [opened?.error || 'Could not build Assignment Review from this assignment.'], warnings, sourceSchemaVersion: result.sourceSchemaVersion, compilerDefect: false };
+    }
+    return { ok: true, warnings, repairs: result.parsed.repairs || [], ccmrAudit };
   };
 
 
