@@ -143,6 +143,60 @@ export const parseFiniteSetNotation = (value) => {
 
 export const looksLikeFiniteSetNotation = (value) => parseFiniteSetNotation(value) !== null;
 
+const invertInequalityOperator = (operator) => ({
+  '<': '>',
+  '<=': '>=',
+  '>': '<',
+  '>=': '<=',
+}[operator] || operator);
+
+const canonicalSimpleInequality = (value) => {
+  const text = normalizeAnswer(value);
+  if (!text || text.includes('!=')) return null;
+
+  const constraint = (variable, operator, bound) => {
+    const numeric = asNumber(bound);
+    if (!/^[a-z]$/.test(variable) || numeric === null) return null;
+    const side = operator === '>' || operator === '>=' ? 'lower' : 'upper';
+    return { variable, side, operator, bound: numeric };
+  };
+
+  const direct = text.match(/^([a-z])(<=|>=|<|>)(-?\d+(?:\.\d+)?)$/);
+  if (direct) {
+    const item = constraint(direct[1], direct[2], direct[3]);
+    return item ? { variable: item.variable, constraints: [item] } : null;
+  }
+
+  const reversed = text.match(/^(-?\d+(?:\.\d+)?)(<=|>=|<|>)([a-z])$/);
+  if (reversed) {
+    const item = constraint(reversed[3], invertInequalityOperator(reversed[2]), reversed[1]);
+    return item ? { variable: item.variable, constraints: [item] } : null;
+  }
+
+  const chained = text.match(/^(-?\d+(?:\.\d+)?)(<=|>=|<|>)([a-z])(<=|>=|<|>)(-?\d+(?:\.\d+)?)$/);
+  if (!chained) return null;
+
+  const first = constraint(chained[3], invertInequalityOperator(chained[2]), chained[1]);
+  const second = constraint(chained[3], chained[4], chained[5]);
+  if (!first || !second) return null;
+  return {
+    variable: chained[3],
+    constraints: [first, second].sort((a, b) => a.side.localeCompare(b.side)),
+  };
+};
+
+export const sameSimpleInequality = (left, right, tolerance = 1e-6) => {
+  const a = canonicalSimpleInequality(left);
+  const b = canonicalSimpleInequality(right);
+  if (!a || !b || a.variable !== b.variable || a.constraints.length !== b.constraints.length) return false;
+  return a.constraints.every((constraint, index) => {
+    const other = b.constraints[index];
+    return constraint.side === other.side
+      && constraint.operator === other.operator
+      && Math.abs(constraint.bound - other.bound) <= tolerance;
+  });
+};
+
 const sameAtomicValue = (left, right, tolerance = 1e-6) => (
   sameNumber(left, right, tolerance) || sameText(left, right)
 );
@@ -393,6 +447,7 @@ export const sameValue = (left, right, tolerance = 1e-6) => {
     return leftSet !== null && rightSet !== null && sameFiniteSetNotation(left, right, tolerance);
   }
   if (sameAtomicValue(left, right, tolerance)) return true;
+  if (sameSimpleInequality(left, right, tolerance)) return true;
   if (sameFormPreservingEquation(left, right)) return true;
   if (sameFormPreservingExpression(left, right)) return true;
   if (sameInverseFunctionEquation(left, right, tolerance)) return true;
