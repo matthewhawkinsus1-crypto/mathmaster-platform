@@ -199,6 +199,13 @@ test('axis setup grades labels, units, and scale on one graph stage', () => {
     gradeStage({ stage, rule, responses: { axes: { ...response, yStep: '10' } } }).isCorrect,
     false,
   );
+
+  const openScaleRule = { ...rule, xStep: [], yStep: [] };
+  assert.equal(
+    gradeStage({ stage, rule: openScaleRule, responses: { axes: { ...response, xStep: '2', yStep: '15' } } }).isCorrect,
+    true,
+    'when no exact scale is prescribed, any positive reasonable count-by values are accepted',
+  );
 });
 
 test('several accepted answers are allowed', () => {
