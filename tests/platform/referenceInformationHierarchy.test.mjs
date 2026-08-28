@@ -83,6 +83,15 @@ test('QuestionEngine places reference before work and Guided Notes inside the wo
   assert.match(engine, /suppressScenarioDisplay/);
 });
 
+test('desktop assignments keep Your Task as the persistent prompt instead of duplicating it in workflows', async () => {
+  const engine = await read('src/QuestionEngine.jsx');
+  const css = await read('src/App.css');
+  assert.match(engine, /<WorkflowRunner[\s\S]*showPrompt=\{false\}/);
+  assert.match(engine, /overflow: 'visible'/);
+  assert.match(css, /\.mathmaster-desktop-question-content \.mathmaster-desktop-question-anchor\s*\{[\s\S]*position:\s*sticky/);
+  assert.match(css, /top:\s*var\(--mm-sticky-task-top\)/);
+});
+
 test('Guided Notes are collapsed by default and offered as optional help', async () => {
   const coach = await read('src/GuidedClassworkCoach.jsx');
   assert.match(coach, /guided-collapsed` : null, true/);
