@@ -471,10 +471,10 @@ const compileFunctionWorkflow = (q, actions) => {
   };
 
   if (actions.some((action) => ['stateDomain','analyzeDomain'].includes(action))) {
-    addSetStage('domain', 'domainInput', q.domainPrompt || 'State the domain.', expectedDomain(q), q.notation || (continuity === 'discrete' ? 'set' : 'interval'), q.domainChoices || q.answerModel?.domainChoices);
+    addSetStage('domain', 'domainInput', q.domainPrompt || 'State the domain.', expectedDomain(q), defaultDomainRangeNotation(q, continuity), q.domainChoices || q.answerModel?.domainChoices);
   }
   if (actions.some((action) => ['stateRange','analyzeRange'].includes(action))) {
-    addSetStage('range', 'rangeInput', q.rangePrompt || 'State the range.', expectedRange(q), q.notation || (continuity === 'discrete' ? 'set' : 'interval'), q.rangeChoices || q.answerModel?.rangeChoices);
+    addSetStage('range', 'rangeInput', q.rangePrompt || 'State the range.', expectedRange(q), defaultDomainRangeNotation(q, continuity), q.rangeChoices || q.answerModel?.rangeChoices);
   }
   if (actions.includes('classifyContinuity')) {
     const stage = { id: 'continuity', kind: 'classification', prompt: q.continuityPrompt || 'Is the relationship discrete or continuous?', choices: ['discrete','continuous'] };
