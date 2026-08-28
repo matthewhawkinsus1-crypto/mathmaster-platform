@@ -40,7 +40,6 @@ import { ToolRuntimeProvider } from './tools/shared/ToolRuntimeContext';
 import InteractiveModelingLabPlayer from './components/labs/InteractiveModelingLabPlayer.jsx';
 import { useToast } from './ui/Toast';
 import QuestionModuleBoundary from './QuestionModuleBoundary';
-import QuestionPrompt from './QuestionPrompt';
 import StandardBadge from './components/common/StandardBadge.jsx';
 import { questionAssessmentFramework } from './platform/student/questionAlignmentInfo.js';
 import { normalizeQuestionStandards } from './questionMetadata';
