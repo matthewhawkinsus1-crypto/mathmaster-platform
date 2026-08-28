@@ -397,7 +397,7 @@ export default function StepByStepAlgebra({
     }
   };
 
-  const commitMove = async (move, { resolution = 'normal' } = {}) => {
+  const commitMove = async (move, { resolution = 'normal', crossedSidesOverride = null } = {}) => {
     setCancelAnimating(true);
     setCollapsingSides(move.requiredCancellationSides || []);
     window.setTimeout(async () => {
@@ -405,11 +405,12 @@ export default function StepByStepAlgebra({
       const normalizedSimplificationAnswers = Object.fromEntries(
         Object.entries(simplificationAnswers || {}).map(([side, value]) => [side, latexToExpression(value)]),
       );
+      const resolvedCrossedSides = Array.isArray(crossedSidesOverride) ? crossedSidesOverride : crossedSides;
       const nextEquation = resolution === 'simplified'
-        ? resolveEquationAfterStudentSimplification(move, normalizedSimplificationAnswers, crossedSides)
+        ? resolveEquationAfterStudentSimplification(move, normalizedSimplificationAnswers, resolvedCrossedSides)
         : resolution === 'keep'
-          ? resolveEquationAfterKeepingMove(move, crossedSides)
-          : resolveEquationAfterMove(move, supportLevel, crossedSides);
+          ? resolveEquationAfterKeepingMove(move, resolvedCrossedSides)
+          : resolveEquationAfterMove(move, supportLevel, resolvedCrossedSides);
       const nextSolved = isSolvedEquation(nextEquation);
       const earned = verdict.efficient ? 2 : verdict.valid ? 1 : 0;
 
@@ -897,7 +898,7 @@ export default function StepByStepAlgebra({
     const allRequired = pendingMove.requiredCancellationSides.every((requiredSide) => next.includes(requiredSide));
     if (allRequired) {
       if (pendingMove.simplificationTargets?.length) setMessage({ tone: 'success', text: 'The cancellation is complete. Simplify the remaining side(s), or keep them as written and continue.' });
-      else await commitMove(pendingMove);
+      else await commitMove(pendingMove, { crossedSidesOverride: next });
     }
   };
 
@@ -1503,6 +1504,7 @@ export default function StepByStepAlgebra({
                       maxWidth={520}
                       focusSignal={side === primarySide ? rewriteFocusSignal : 0}
                       collapseSignal={mathToolsCollapseSignal}
+                      onSubmit={checkStudentRewrite}
                     />
                   </div>
                 );
