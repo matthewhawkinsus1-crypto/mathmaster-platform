@@ -508,7 +508,7 @@ export const LessonPreflightModal = ({
         ].map(([key, label]) => <div key={key} style={{ padding: '8px 10px', borderRadius: 8, background: honorsReport.checks[key] ? '#e6f4ea' : '#fff4ce', color: honorsReport.checks[key] ? '#137333' : '#7a4f00', fontWeight: 800, fontSize: 12 }}>{honorsReport.checks[key] ? '✓' : '!'} {label}</div>)}</div>}
         {honorsSelected && !honorsReport.isNarrowCheckpoint && !honorsReport.checks.ccmrEnrichment && (
           <div style={{ marginTop: 11, padding: '11px 13px', borderRadius: 9, background: '#fff4ce', border: '1px solid #f0d489', color: '#7a4f00', fontSize: 12.5, lineHeight: 1.55 }}>
-            <strong>Audited CCMR Practice is still needed.</strong> For a full Honors assignment, MathMaster requires at least one independent Practice question sourced from the CCMR Fidelity V2.1 bank and aligned to mathematics actually taught in this lesson. Exam-looking wording by itself does not count. Integrated AI authoring sources matching bank items automatically when the lesson has legitimate overlap.
+            <strong>Audited CCMR Practice will be sourced at publish.</strong> Because an Honors destination is selected, MathMaster will replace matching Practice work with an audited CCMR Fidelity V2.1 family on the same lesson TEKS. Standard destinations keep the regular course Practice. Exam-looking wording by itself never counts as authentic CCMR.
           </div>
         )}
         {honorsSelected && !honorsReport.isNarrowCheckpoint && !honorsReport.isHonorsReady && honorsReport.missing.some((key) => key !== 'ccmrEnrichment') && <button type="button" onClick={() => {

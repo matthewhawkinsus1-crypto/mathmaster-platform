@@ -8,7 +8,7 @@ cd "$REPO_ROOT"
 
 echo "=== MathMaster Assignment V5 focused deploy ==="
 echo "Project: $PROJECT"
-echo "Surfaces: Hosting + authorAssignmentWithAI"
+echo "Surfaces: Hosting + authorAssignmentWithAI + hydrateAssignmentCcmr"
 echo
 
 for cmd in git npm firebase curl; do
@@ -56,7 +56,7 @@ npm run test:assignment-v5-followup
 echo
 echo "5/6 Deploying only the surfaces changed by this upgrade..."
 echo "Firebase will run the normal Hosting and Functions predeploy hooks."
-firebase deploy --only hosting,functions:authorAssignmentWithAI --project "$PROJECT"
+firebase deploy --only hosting,functions:authorAssignmentWithAI,functions:hydrateAssignmentCcmr --project "$PROJECT"
 
 echo
 echo "6/6 Verifying live Hosting and callable registration..."
@@ -67,9 +67,14 @@ if [ "$HTTP_STATUS" != "200" ]; then
   exit 4
 fi
 
-firebase functions:list --project "$PROJECT" | grep -F "authorAssignmentWithAI" || {
+FUNCTION_LIST="$(firebase functions:list --project "$PROJECT")"
+echo "$FUNCTION_LIST" | grep -F "authorAssignmentWithAI" >/dev/null || {
   echo "authorAssignmentWithAI was not found in the deployed function list." >&2
   exit 5
+}
+echo "$FUNCTION_LIST" | grep -F "hydrateAssignmentCcmr" >/dev/null || {
+  echo "hydrateAssignmentCcmr was not found in the deployed function list." >&2
+  exit 6
 }
 
 echo

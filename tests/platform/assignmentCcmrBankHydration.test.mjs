@@ -90,6 +90,35 @@ test('integrated assignment authoring replaces a direct CCMR draft with the audi
 });
 
 
+test('ordinary Practice is not auto-sourced until an Honors destination requests the target', () => {
+  const sourceQuestions = Array.from({ length: 8 }, (unused, index) => ({
+    questionId: `standard-${index + 1}`,
+    prompt: `Solve the linear equation, version ${index + 1}.`,
+    studentActions: ['solveEquation'],
+    equation: `${index + 2}x+4=${(index + 2) * 6 + 4}`,
+    answer: '6',
+    standard: 'A.5A',
+    dok: 2,
+    difficultyBand: 3,
+    alignments: [
+      { framework: 'teks', code: 'A.5A', role: 'primary', evidenceLevel: 'assessed' },
+    ],
+  }));
+  const source = {
+    schemaVersion: 5,
+    assignment: { title: 'Standard stays standard', courseId: 'algebra1' },
+    sections: [{ role: 'practice', title: 'Practice', questions: sourceQuestions }],
+  };
+
+  const standard = replaceDirectCcmrQuestionsWithAuditedBank(source);
+  assert.equal(standard.audit.autoSourced, 0);
+  assert.equal(standard.assignment.sections[0].questions.some((question) => question.ccmrSource?.source === 'auditedBank'), false);
+
+  const honors = replaceDirectCcmrQuestionsWithAuditedBank(source, { ensurePracticeTarget: true });
+  assert.equal(honors.audit.autoSourced, 1);
+  assert.equal(honors.assignment.sections[0].questions.filter((question) => question.ccmrSource?.source === 'auditedBank').length, 1);
+});
+
 test('a full ordinary Practice section is automatically bank-sourced to the 15% CCMR target without changing its size', () => {
   const sourceQuestions = Array.from({ length: 8 }, (unused, index) => ({
     questionId: `ordinary-${index + 1}`,
