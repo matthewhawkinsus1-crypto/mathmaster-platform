@@ -6,7 +6,7 @@ import TableGrader from '../../TableGrader';
 import InteractiveGraphWorkspace from '../../InteractiveGraphWorkspace';
 import StepByStepAlgebra from '../../StepByStepAlgebra';
 import IntervalNumberLine from '../../tools/intervalNumberLine/IntervalNumberLine';
-import GraphAxisEditor from '../../GraphAxisEditor';
+import AxisSetupStage from './AxisSetupStage';
 import RelationMapping from '../../tools/relationMapping/RelationMapping';
 import { getStage } from './interactionStages';
 import { hasStageResponse, readComposedQuestion, resolveStageInput, summarizeWorkflowProgress } from './questionWorkflow';
@@ -37,10 +37,6 @@ const panel = {
 const stageHeading = { margin: '0 0 8px', fontSize: 13, fontWeight: 900, color: '#174ea6' };
 const waitingPanel = { ...panel, background: '#f8f9fa', borderStyle: 'dashed', color: '#5f6368' };
 
-const positiveNumberOr = (value, fallback) => {
-  const number = Number(value);
-  return Number.isFinite(number) && number > 0 ? number : fallback;
-};
 
 const niceGridStep = (range, fallback = 1) => {
   const safeRange = Math.abs(Number(range));
@@ -521,6 +517,15 @@ function StageBody({ stage, input, content, value, onChange, disabled, draftKey 
   if (delegate) return delegate({ stage, input, content, onChange, draftKey, disabled });
 
   switch (stage.kind) {
+    case 'axisSetup':
+      return (
+        <AxisSetupStage
+          stage={stage}
+          value={value}
+          onChange={onChange}
+          disabled={disabled}
+        />
+      );
     case 'equationInput':
       return (
         <MathInput
