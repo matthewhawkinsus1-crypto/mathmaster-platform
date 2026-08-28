@@ -748,12 +748,12 @@ export default function WorkflowRunner({
 
   const promptAndScenario = (
     <>
-      {content?.prompt && (
+      {showPrompt && content?.prompt && (
         <div style={{ ...panel, background: '#f8fbff', borderColor: '#c5d5ef' }}>
           <QuestionPrompt>{content.prompt}</QuestionPrompt>
         </div>
       )}
-      {content?.scenario && !question?.suppressScenarioDisplay && content.scenario !== content?.prompt && (
+      {showPrompt && content?.scenario && !question?.suppressScenarioDisplay && content.scenario !== content?.prompt && (
         <div style={{ ...panel, background: '#f8f9fa' }}>
           <QuestionPrompt variant="plain">{content.scenario}</QuestionPrompt>
         </div>
