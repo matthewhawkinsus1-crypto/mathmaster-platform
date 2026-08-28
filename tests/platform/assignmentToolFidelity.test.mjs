@@ -136,6 +136,49 @@ test('modeling equations accept V(t) and V as equivalent dependent-variable nota
   }]);
 });
 
+test('continuity is decided before a student is asked to connect a graph', () => {
+  const compiled = compileAuthoringIntentV5({
+    schemaVersion: 5,
+    assignment: {
+      title: 'Continuity before connection',
+      courseId: 'algebra1',
+      instructionalPurpose: 'lesson',
+      gradingPurpose: 'classwork',
+    },
+    sections: [{
+      role: 'classwork',
+      title: 'Classwork',
+      questions: [{
+        standard: 'A.3C',
+        prompt: 'Model water added over the first four minutes, graph it, and classify the relationship as discrete or continuous.',
+        studentActions: ['writeEquation', 'completeTable', 'constructGraph', 'classifyContinuity', 'stateDomain', 'stateRange'],
+        function: { family: 'linear', m: 12, b: 0, domain: { min: 0, max: 4, minClosed: true, maxClosed: true } },
+        table: {
+          columns: [{ key: 't', label: 't' }, { key: 'V', label: 'V(t)' }],
+          rows: [{ t: 0 }, { t: 1 }, { t: 2 }, { t: 3 }, { t: 4 }],
+        },
+        answerModel: {
+          equation: 'V = 12t',
+          domain: '0 ≤ t ≤ 4',
+          range: '0 ≤ V ≤ 48',
+          continuity: 'continuous',
+        },
+      }],
+    }],
+  });
+
+  const question = compiled.package.sections[0].questions[0];
+  const composed = readComposedQuestion(question);
+  assert.deepEqual(composed.workflow.map((stage) => stage.id), [
+    'equation', 'table', 'continuity', 'graph', 'domain', 'range',
+  ]);
+  const graphStage = composed.workflow.find((stage) => stage.id === 'graph');
+  assert.equal(graphStage.kind, 'functionGraph');
+  assert.equal(graphStage.graphMode, 'studentSelected');
+  assert.equal(graphStage.continuityStageId, 'continuity');
+  assert.equal(composed.grading.continuity, 'continuous');
+});
+
 test('candidate graph questions retain the actual graph choices', () => {
   const compiled = compileAuthoringIntentV5({
     schemaVersion: 5,
