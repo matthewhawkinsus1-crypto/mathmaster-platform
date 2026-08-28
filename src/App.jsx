@@ -2614,7 +2614,7 @@ function App() {
     try {
       const raw = JSON.parse(String(text || ''));
       if (raw && !Array.isArray(raw) && Number(raw.schemaVersion) === 5 && Array.isArray(raw.sections)) {
-        const hydrated = await hydrateAssignmentCcmr(raw);
+        const hydrated = await hydrateAssignmentCcmr(raw, { ensurePracticeTarget: false });
         sourceText = JSON.stringify(hydrated.assignment);
         ccmrAudit = hydrated.audit;
       }
@@ -2826,7 +2826,25 @@ function App() {
       // than a second copy of it. A library save returns [] here, which is the
       // correct answer: nobody has been given it, so there is nothing to split.
       const destinationGroups = buildDestinationGroups({ assignedClassIds, classes });
-      const sourceHonorsReport = inspectHonorsRigor(parsedQuestions, { allowNarrowCheckpoint: true });
+      const hasHonorsDestination = destinationGroups.some((entry) => entry.courseLevel === 'honors');
+      let honorsParsedQuestions = parsedQuestions;
+
+      // CCMR is destination-aware. Standard destinations keep the authored
+      // Practice. When an Honors destination is actually selected, MathMaster
+      // asks the server to source the audited V2.1 target on the same TEKS,
+      // then compiles that Honors-only V5 variant through the normal pipeline.
+      if (hasHonorsDestination) {
+        const hydratedHonors = await hydrateAssignmentCcmr(reviewedV5, { ensurePracticeTarget: true });
+        const honorsRead = readAssignmentJson(JSON.stringify(hydratedHonors.assignment));
+        if (!honorsRead.ok) {
+          throw new Error(`MathMaster could not prepare the Honors CCMR variant: ${honorsRead.errors.join(' ')}`);
+        }
+        honorsParsedQuestions = normalizeAssignmentQuestions(
+          validateAssignmentQuestions(honorsRead.parsed.questions, { variantMode }),
+        );
+      }
+
+      const sourceHonorsReport = inspectHonorsRigor(honorsParsedQuestions, { allowNarrowCheckpoint: true });
       const splitVariantGroupId = destinationGroups.length > 1 ? `rigor_${createQuestionId()}` : null;
 
       const writeAssignmentVariant = async ({ destination, questions }) => {
@@ -2883,10 +2901,11 @@ function App() {
       const destinationVariants = destinationGroups.map((destination) => {
         let destinationQuestions = parsedQuestions;
         if (destination.courseLevel === 'honors') {
+          destinationQuestions = honorsParsedQuestions;
           let enrichmentQuestion = null;
           if (!sourceHonorsReport.isHonorsReady) {
             if (!sourceHonorsReport.checks.ccmrEnrichment) {
-              throw new Error('This Honors destination needs an authentic CCMR-style Practice question in the source assignment. Regenerate or edit the assignment so Practice includes a directly authored Digital SAT, ACT, TSIA2, or ASVAB item aligned to the lesson TEKS.');
+              throw new Error('MathMaster could not find an audited CCMR Fidelity V2.1 Practice family on the same lesson TEKS for this Honors destination. Review the Practice TEKS or use a short checkpoint that is exempt from the CCMR target.');
             }
             if (!teacherReview?.honorsEnrichmentQuestion) {
               throw new Error('This Honors destination still needs additional Honors depth. Return to preflight and choose Build Honors Depth Extension.');
@@ -2894,7 +2913,7 @@ function App() {
             const firstHonorsDestination = destinationGroups.find((entry) => entry.courseLevel === 'honors');
             enrichmentQuestion = destination.course === firstHonorsDestination?.course
               ? teacherReview.honorsEnrichmentQuestion
-              : buildHonorsEnrichmentQuestion({ questions: parsedQuestions, course: destination.course });
+              : buildHonorsEnrichmentQuestion({ questions: honorsParsedQuestions, course: destination.course });
           }
           destinationQuestions = normalizeAssignmentQuestions([
             ...parsedQuestions,
