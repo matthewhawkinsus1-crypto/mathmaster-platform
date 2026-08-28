@@ -42,6 +42,7 @@ export const relationIsFunction = (pairs = []) => {
 // --- Function modelling (the public type `relationshipModel`) ----------------
 
 const latestModelSource = (asked) => asked.has('graph') ? 'graph' : asked.has('table') ? 'table' : asked.has('equation') ? 'equation' : null;
+const latestPreGraphModelSource = (asked) => asked.has('table') ? 'table' : asked.has('equation') ? 'equation' : null;
 
 const FUNCTION_MODELING = {
   label: 'Model a relationship',
@@ -71,7 +72,13 @@ const FUNCTION_MODELING = {
     graph: (question, asked) => ({
       id: 'graph',
       kind: 'graphConstruction',
-      graphMode: question.graphMode || (question.continuity === 'discrete' ? 'discrete' : 'continuous'),
+      // If continuity is one of the student's tasks, do not use the answer key
+      // to decide whether a curve appears. Their own classification controls
+      // whether this stage is point-only or connected.
+      graphMode: asked.has('continuity')
+        ? 'studentSelected'
+        : (question.graphMode || (question.continuity === 'discrete' ? 'discrete' : 'continuous')),
+      ...(asked.has('continuity') ? { continuityStageId: 'continuity' } : {}),
       prompt: question.graphPrompt || 'Build the graph of the relationship.',
       ...(isObject(question.graph) ? { graph: question.graph } : {}),
       // Prefer the table because it contains the student's plotted values AND
@@ -126,9 +133,9 @@ const FUNCTION_MODELING = {
     continuity: (question, asked) => ({
       id: 'continuity',
       kind: 'classification',
-      prompt: question.continuityPrompt || 'Is the relationship discrete or continuous?',
+      prompt: question.continuityPrompt || 'Should this relationship be represented as discrete points or as a continuous graph?',
       choices: ['discrete', 'continuous'],
-      ...(latestModelSource(asked) ? { source: { fromStage: latestModelSource(asked) } } : {}),
+      ...(latestPreGraphModelSource(asked) ? { source: { fromStage: latestPreGraphModelSource(asked) } } : {}),
     }),
     interpretation: (question) => ({
       id: 'interpretation',
