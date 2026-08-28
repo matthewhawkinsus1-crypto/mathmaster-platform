@@ -73,8 +73,6 @@ const initialReviewDraft = (draft = {}) => {
     dueAt: '',
     lateDueAt: '',
     releaseAt: '',
-    assignmentType: 'practice',
-    variantMode: 'shared',
     sectionVariantModes: {},
     sectionAccessDefaults: { classwork: 'open', practice: 'open' },
     guidedNotesBySection: { classwork: 'automatic', practice: 'off' },
@@ -151,8 +149,8 @@ export const LessonPreflightModal = ({
   const [repairBusy, setRepairBusy] = useState(false);
   const [repairMessage, setRepairMessage] = useState('');
 
-  // Teacher review controls edit canonical Assignment V5, not a parallel
-  // legacy projection. The exact reviewed V5 object is revalidated before it
+  // Teacher review controls edit canonical Assignment V5 directly. The exact
+  // reviewed V5 object is revalidated before it
   // powers preview, Classroom planning, and final publishing.
   const reviewedAssignmentV5 = useMemo(
     () => buildPreflightReviewedAssignmentV5(workingAssignmentV5, draft),
@@ -171,12 +169,6 @@ export const LessonPreflightModal = ({
   const activityRoles = useMemo(() => [...new Set(activities.map((section) => section?.role).filter(Boolean))], [activities]);
   const hasAuthoredWarmup = activityRoles.includes('warmup');
   const hasAuthoredDOL = activityRoles.includes('dol');
-  // Existing runtime readers still consume this projection; V5 section roles
-  // are the actual authoring source of truth.
-  const derivedAssignmentType = activityRoles.some((role) => role === 'warmup' || role === 'classwork')
-    ? 'notesClasswork'
-    : 'practice';
-
   const previewQuestions = preflightModel.questions;
   const validationErrors = preflightModel.errors;
   const questionRepairIssues = useMemo(
@@ -340,7 +332,6 @@ export const LessonPreflightModal = ({
   const sectionVariantMode = (role) => (
     draft.sectionVariantModes?.[role]
     || assignmentV5?.variantPolicy?.sectionModes?.[role]
-    || draft.variantMode
     || assignmentV5?.variantPolicy?.mode
     || 'shared'
   );
@@ -375,13 +366,6 @@ export const LessonPreflightModal = ({
       },
     },
   }));
-  const resolvedSectionVariantModes = Object.fromEntries(activityRoles.map((role) => [role, sectionVariantMode(role)]));
-  // Temporary assignment-level runtime projection for readers that have not
-  // moved to V5 per-section modes yet. V5 variantPolicy remains canonical.
-  const sectionModeValues = Object.values(resolvedSectionVariantModes);
-  const runtimeVariantMode = sectionModeValues.every((mode) => mode === 'shared')
-    ? 'shared'
-    : sectionModeValues.some((mode) => mode === 'adaptive') ? 'adaptive' : 'personalized';
   const localToday = (() => {
     const date = new Date();
     const year = date.getFullYear();
@@ -559,9 +543,6 @@ export const LessonPreflightModal = ({
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
           {activityRoles.map((role) => <span key={role} style={{ padding: '5px 9px', borderRadius: 999, background: '#e8f0fe', color: '#174ea6', fontSize: 11, fontWeight: 900 }}>{humanRole(role)}</span>)}
         </div>
-        <p style={{ margin: '8px 0 0', color: '#5f6368', fontSize: 11 }}>
-          Runtime delivery summary: {derivedAssignmentType === 'notesClasswork' ? 'notesClasswork' : 'practice'}.
-        </p>
       </div>
 
       <fieldset style={fieldsetStyle}>
@@ -606,11 +587,7 @@ export const LessonPreflightModal = ({
         */}
         <div style={{ marginTop: 16 }}>
           <AdaptivePreview
-            assignment={{
-              ...draft,
-              variantMode: runtimeVariantMode,
-              sectionVariantModes: resolvedSectionVariantModes,
-            }}
+            assignment={effectiveAssignmentV5}
             questions={previewQuestions}
             courseId={draft?.courseId || 'algebra1'}
             honors={String(draft?.courseLevel || '').toLowerCase() === 'honors'}
@@ -1089,9 +1066,6 @@ export const LessonPreflightModal = ({
                   onConfirmPublish?.({
                     draft: {
                       ...draft,
-                      assignmentType: derivedAssignmentType,
-                      variantMode: runtimeVariantMode,
-                      sectionVariantModes: resolvedSectionVariantModes,
                       variantPolicy: effectiveAssignmentV5.variantPolicy,
                       differentiationPolicy: effectiveAssignmentV5.differentiationPolicy,
                       supportPolicy: effectiveAssignmentV5.supportPolicy,
