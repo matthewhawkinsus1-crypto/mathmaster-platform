@@ -110,3 +110,21 @@ test('mobile CSS locks only page/question shells while preserving tool-local scr
   assert.match(source, /overflow-x: clip !important/);
   assert.doesNotMatch(source, /\.math-tool-workspace[^\{]*\{[^}]*overflow-x:\s*clip/s);
 });
+
+
+test('desktop question wrapper also restores tool-local horizontal position while typing', () => {
+  const source = readFileSync('src/components/student/MobileViewportContainer.jsx', 'utf8');
+  assert.match(source, /mathmaster-desktop-question-content/);
+  assert.match(source, /onInputCapture=\{handleInputCapture\}/);
+  assert.match(source, /onKeyDownCapture=\{handleKeyDownCapture\}/);
+  assert.doesNotMatch(source, /const restoreFocusedHorizontalPosition = \(\) => \{\s*if \(!isMobile\) return;/);
+});
+
+test('MathInput horizontal stabilization is no longer gated to mobile only', () => {
+  const source = readFileSync('src/MathInput.jsx', 'utf8');
+  const start = source.indexOf('const stabilizeMobileViewport');
+  const end = source.indexOf('const requiredAnswerSymbols', start);
+  const block = source.slice(start, end);
+  assert.doesNotMatch(block, /if \(!isMobile\) return/);
+  assert.match(source, /mathField\.addEventListener\('focus', handleFocus\)/);
+});
