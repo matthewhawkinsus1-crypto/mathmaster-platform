@@ -536,6 +536,7 @@ function StageBody({ stage, input, content, value, onChange, disabled, draftKey 
           value={value || ''}
           onChange={onChange}
           toolProfile="function"
+          functionNotationKeys={stage.functionNotationKeys || []}
           showToolsInitially
           placeholder={stage.placeholder || 'f(x) = …'}
           ariaLabel={stage.prompt || 'Function equation'}
