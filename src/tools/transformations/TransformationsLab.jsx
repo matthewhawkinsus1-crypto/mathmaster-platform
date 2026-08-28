@@ -62,7 +62,9 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
   const expectedMappedPoint = mapParentPoint(parentPoint, investigationSpec);
   const sourcePoints = Array.isArray(questionData.sourcePoints) ? questionData.sourcePoints : [];
   const expectedTransformedPoints = sourcePoints.map((point) => mapParentPoint(point, investigationSpec)).filter(Boolean);
-  const familyLabel = TRANSFORMATION_FAMILY_LABELS[family] || family;
+  const familyLabel = mode === 'plotTransform'
+    ? (questionData.sourceLabel || 'General graph')
+    : (TRANSFORMATION_FAMILY_LABELS[family] || family);
   const graphBounds = questionData.graphBounds || { xMin: -7, xMax: 7, yMin: -7, yMax: 9 };
 
   const checkParameters = (expected) => {
