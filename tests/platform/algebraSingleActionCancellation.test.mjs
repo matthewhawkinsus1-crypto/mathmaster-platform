@@ -32,3 +32,11 @@ test('Step Algebra applies complete cancellation immediately without a second Fi
   assert.ok(!source.includes('Finish {cancellationModel.pairs.length} cancellations'));
   assert.match(source, /MathMaster crosses out the matching term with it/);
 });
+
+
+test('Step Algebra commits the cancellation side from the same action instead of stale React state', () => {
+  const source = fs.readFileSync(new URL('../../src/StepByStepAlgebra.jsx', import.meta.url), 'utf8');
+  assert.match(source, /crossedSidesOverride/);
+  assert.match(source, /commitMove\(pendingMove, \{ crossedSidesOverride: next \}\)/);
+  assert.match(source, /onSubmit=\{checkStudentRewrite\}/);
+});
