@@ -192,7 +192,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
 
         {mode === 'pointMap' ? <>
           <p>Map the parent-function point <strong>({parentPoint[0]}, {parentPoint[1]})</strong> through the transformation.</p>
-          {graph([x => evaluateParentFunction(family, x, investigationSpec.base), x => evaluateTransformedFunction(investigationSpec, x)], [{ 0: parentPoint[0], 1: parentPoint[1], label: 'parent' }])}
+          {graph([x => evaluateParentFunction(family, x, investigationSpec.base), x => evaluateTransformedFunction(investigationSpec, x)], [{ x: parentPoint[0], y: parentPoint[1], label: 'parent' }])}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12 }}><label>Transformed x<input type="number" value={mappedX} onChange={(event) => { setMappedX(event.target.value); resetFeedback(); }} style={inputStyle} /></label><label>Transformed y<input type="number" value={mappedY} onChange={(event) => { setMappedY(event.target.value); resetFeedback(); }} style={inputStyle} /></label></div>
           <button type="button" onClick={checkPointMap} style={{ ...buttonStyle, marginTop: 12 }}>Check mapped point</button>
         </> : null}
@@ -212,8 +212,8 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
               { points: plottedPoints, stroke: '#1a73e8', strokeWidth: 3 },
             ]}
             points={[
-              ...sourcePoints.map((point, index) => ({ 0: point[0], 1: point[1], label: index === 0 ? 'source' : undefined, fill: '#5f6b7a' })),
-              ...plottedPoints.map((point, index) => ({ 0: point[0], 1: point[1], label: `P${index + 1}` })),
+              ...sourcePoints.map((point, index) => ({ x: point[0], y: point[1], label: index === 0 ? 'source' : undefined, fill: '#5f6b7a' })),
+              ...plottedPoints.map((point, index) => ({ x: point[0], y: point[1], label: `P${index + 1}` })),
             ]}
             cursorLabel="Transformed point"
             ariaLabel="Source graph and transformed-point plotting grid"
