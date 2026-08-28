@@ -891,6 +891,7 @@ export const compileAuthoringIntentV5 = (input = {}) => {
           activityRole: question.activityRole || role || 'classwork',
           sectionId: question.sectionId || sectionId || undefined,
           sectionTitle: question.sectionTitle || sectionTitle || undefined,
+          courseId: question.courseId || assignment.courseId || undefined,
         }
       : question;
     const compiled = compileOne(source, index, repairs);
