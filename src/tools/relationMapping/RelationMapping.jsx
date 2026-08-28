@@ -239,13 +239,16 @@ export default function RelationMapping({ questionData = {}, onAction }) {
     }
     if (ask.includes('domain')) checks.domain = sameSet(parseList(domainAnswer), domainValues);
     if (ask.includes('range')) checks.range = sameSet(parseList(rangeAnswer), rangeValues);
-    if (ask.includes('isFunction')) checks.isFunction = (functionAnswer === 'yes') === relationIsFunction(pairs);
+    if (ask.includes('isFunction')) checks.isFunction = functionAnswer === correctFunctionChoice;
+    analysisFields.forEach((field) => {
+      checks[`field:${field.id}`] = matchesFieldAnswer(String(fieldAnswers[field.id] ?? ''), field);
+    });
 
     const values = Object.values(checks);
     const score = values.length ? values.filter(Boolean).length / values.length : 0;
     submit(
       { isCorrect: values.every(Boolean), score },
-      { plottedPoints, arrows, domain: parseList(domainAnswer), range: parseList(rangeAnswer), isFunction: functionAnswer },
+      { plottedPoints, arrows, domain: parseList(domainAnswer), range: parseList(rangeAnswer), isFunction: functionAnswer, fields: fieldAnswers },
       { checks },
     );
   };
@@ -259,8 +262,10 @@ export default function RelationMapping({ questionData = {}, onAction }) {
     if (checks.mapping === false) return 'The arrows do not match the relation. Work through the ordered pairs one at a time — each pair is one arrow.';
     if (checks.domain === false) return 'The domain is not right. It is the set of every x-value that appears, listed once each.';
     if (checks.range === false) return 'The range is not right. It is the set of every y-value that appears, listed once each.';
-    if (checks.isFunction === false) return 'Look again at the arrows. A relation fails to be a function only when one left-hand value has two arrows going to different right-hand values.';
-    return 'Not quite — compare each ordered pair against your diagram.';
+    if (checks.isFunction === false) return 'Look again at the arrows. A relation fails to be a function only when one input points to more than one output.';
+    const wrongField = analysisFields.find((field) => checks[`field:${field.id}`] === false);
+    if (wrongField) return `Review “${wrongField.label || wrongField.id}” and use the plotted relation, not the order of the answer choices.`;
+    return 'Not quite — compare each ordered pair against your diagram and then answer every requested part.';
   };
 
   if (!pairs.length) {
