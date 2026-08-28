@@ -230,7 +230,7 @@ assert.deepEqual(axisSemantic.errors, [], axisSemantic.errors.join('\n'));
 const axisQuestion = axisParsed.questions[0];
 assert.deepEqual(axisQuestion.workflow.map((stage) => stage.kind), [
   'quantityRoles', 'axisSetup', 'equationInput', 'tableInput',
-  'functionGraph', 'domainInput', 'rangeInput', 'classification',
+  'classification', 'functionGraph', 'domainInput', 'rangeInput',
 ]);
 const axisStage = axisQuestion.workflow.find((stage) => stage.kind === 'axisSetup');
 assert.ok(axisStage.graph, 'axis labeling must render a physical graph');
