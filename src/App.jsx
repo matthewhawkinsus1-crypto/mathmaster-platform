@@ -115,6 +115,10 @@ import LessonPreflightModal from './components/teacher/LessonPreflightModal';
 import { flattenV5Sections, rebuildV5SectionsFromQuestions } from './platform/contract/assignmentSchemaV5.js';
 import {
   canonicalV5PersistencePatch,
+  getStoredAssignmentQuestions,
+  getStoredAssignmentTypeProjection,
+  getStoredAssignmentVariantMode,
+  getStoredSectionVariantModes,
   storedAssignmentToV5,
 } from './platform/contract/storedAssignmentV5.js';
 import { hydrateAssignmentRuntime } from './platform/contract/assignmentRuntimeProjection.js';
@@ -2530,7 +2534,7 @@ function App() {
       }
       const sections = Array.isArray(assignmentV5.sections) ? assignmentV5.sections : [];
       const dolQuestionFromRole = inspected.questions.findIndex((question) => (
-        resolveQuestionActivityRole({ question, assignment: { assignmentType: metadata?.assignmentType || 'practice' } }) === 'dol'
+        resolveQuestionActivityRole({ question, assignment: assignmentV5 }) === 'dol'
       ));
       const initialDraft = {
         title: metadata?.title || assignmentV5.assignment?.title || '',
@@ -2538,9 +2542,9 @@ function App() {
         dueAt: toDateTimeLocalInputValue(metadata?.dueAt || ''),
         lateDueAt: toDateTimeLocalInputValue(metadata?.lateDueAt || ''),
         releaseAt: toDateTimeLocalInputValue(metadata?.releaseAt || ''),
-        assignmentType: metadata?.assignmentType || 'practice',
-        variantMode: metadata?.variantMode || 'personalized',
-        sectionVariantModes: metadata?.sectionVariantModes || {},
+        assignmentType: getStoredAssignmentTypeProjection(assignmentV5),
+        variantMode: getStoredAssignmentVariantMode(assignmentV5),
+        sectionVariantModes: getStoredSectionVariantModes(assignmentV5),
         sectionAccessDefaults: { classwork: 'open', practice: 'open', ...(metadata?.sectionAccessDefaults || {}) },
         guidedNotesBySection: { classwork: 'automatic', practice: 'off', ...(metadata?.guidedNotesBySection || {}) },
         assignedClassPeriods: [...(metadata?.assignedClassPeriods || [])],
@@ -2646,11 +2650,7 @@ function App() {
       const dueValue = teacherReview ? teacherReview.dueAt : packageMetadata?.dueAt || '';
       const lateDueValue = teacherReview ? teacherReview.lateDueAt : packageMetadata?.lateDueAt || '';
       const releaseValue = teacherReview ? teacherReview.releaseAt : packageMetadata?.releaseAt || '';
-      // assignmentType is a runtime projection for existing activity-policy code.
-      // V5 sections/activityRole remain the authoring source of truth.
-      const sourceAssignmentType = teacherReview?.assignmentType || packageMetadata?.assignmentType || 'practice';
-      const requestedVariantMode = teacherReview?.variantMode || packageMetadata?.variantMode || 'personalized';
-      const variantMode = overrideVariantMode || requestedVariantMode;
+      const variantMode = overrideVariantMode || getStoredAssignmentVariantMode(reviewedV5);
       const assignedClassIds = teacherReview
         ? [...(teacherReview.assignedClassIds || [])]
         : [...(packageMetadata?.assignedClassIds || [])];
@@ -2684,13 +2684,12 @@ function App() {
       );
       const authoredRoles = parsedQuestions.map((question) => resolveQuestionActivityRole({
         question,
-        assignment: { assignmentType: sourceAssignmentType },
+        assignment: reviewedV5,
       }));
-      const hasClassworkSection = authoredRoles.includes('classwork');
       const hasWarmupSection = authoredRoles.includes('warmup');
       const hasDOLSection = authoredRoles.includes('dol');
-      const assignmentType = hasClassworkSection || hasWarmupSection ? 'notesClasswork' : 'practice';
-      const requestedSectionVariantModes = teacherReview?.sectionVariantModes || packageMetadata?.sectionVariantModes || {};
+      const assignmentType = getStoredAssignmentTypeProjection(reviewedV5);
+      const requestedSectionVariantModes = getStoredSectionVariantModes(reviewedV5);
       const sectionVariantModes = Object.fromEntries([...new Set(authoredRoles)].map((role) => [
         role,
         ['shared', 'personalized', 'variant', 'adaptive'].includes(requestedSectionVariantModes?.[role])
@@ -3136,7 +3135,7 @@ function App() {
     const persistedQuestions = flattenV5Sections(model.assignmentV5);
     const authoredRoles = persistedQuestions.map((question) => resolveQuestionActivityRole({
       question,
-      assignment: { assignmentType: existing.assignmentType || 'practice' },
+      assignment: model.assignmentV5,
     }));
     const hasWarmup = authoredRoles.includes('warmup');
     const dolIndexFromRole = authoredRoles.findIndex((role) => role === 'dol');
@@ -3160,9 +3159,6 @@ function App() {
       releaseAt,
       assignedClassIds,
       assignedClassPeriods,
-      assignmentType: authoredRoles.some((role) => role === 'warmup' || role === 'classwork')
-        ? 'notesClasswork'
-        : 'practice',
       sectionAccess: {
         ...(existing.sectionAccess || {}),
         classwork: {
@@ -3972,9 +3968,9 @@ function App() {
         dueAt: toDateTimeLocalInputValue(assignment.dueAt || assignment.dueDate || ''),
         lateDueAt: toDateTimeLocalInputValue(assignment.lateDueAt || assignment.lateDueDate || ''),
         releaseAt: toDateTimeLocalInputValue(assignment.releaseAt || ''),
-        assignmentType: assignment.assignmentType || 'practice',
-        variantMode: canonicalV5.variantPolicy?.mode || assignment.variantMode || 'personalized',
-        sectionVariantModes: canonicalV5.variantPolicy?.sectionModes || assignment.sectionVariantModes || {},
+        assignmentType: getStoredAssignmentTypeProjection(canonicalV5),
+        variantMode: getStoredAssignmentVariantMode(canonicalV5),
+        sectionVariantModes: getStoredSectionVariantModes(canonicalV5),
         sectionAccessDefaults: {
           classwork: assignment.sectionAccess?.classwork?.defaultState === 'closed' ? 'closed' : 'open',
           practice: assignment.sectionAccess?.practice?.defaultState === 'closed' ? 'closed' : 'open',
@@ -5753,8 +5749,12 @@ function App() {
                   const lifecycle = getAssignmentLifecycle(assignment, now);
                   const affectedStudents = allStudents.filter((student) => student.gradesByAssignment?.[assignment.id] !== undefined).length;
                   const isSelected = selectedAssignmentIds.has(assignment.id);
-                  const hasDOL = Boolean(assignment?.dol?.enabled || assignment?.questions?.some((question) => resolveQuestionActivityRole({ question, assignment }) === 'dol'));
-                  const hasSectionVersions = Object.keys(assignment.sectionVariantModes || {}).length > 0;
+                  const canonicalQuestions = getStoredAssignmentQuestions(assignment);
+                  const includedQuestionIndices = getIncludedQuestionIndices(assignment);
+                  const hasDOL = Boolean(assignment?.dol?.enabled || canonicalQuestions.some((question) => resolveQuestionActivityRole({ question, assignment }) === 'dol'));
+                  const assignmentType = getStoredAssignmentTypeProjection(assignment);
+                  const assignmentVariantMode = getStoredAssignmentVariantMode(assignment);
+                  const hasSectionVersions = Object.keys(getStoredSectionVariantModes(assignment)).length > 0;
                   return (
                     <article key={assignment.id} style={{ background: '#f8f9fa', padding: '18px', marginBottom: '12px', borderRadius: '10px', border: `1px solid ${isSelected ? 'var(--mm-primary)' : lifecycle.isLate ? '#f9ab00' : lifecycle.isPracticeOnly ? '#5f6368' : '#e0e3e7'}`, boxShadow: isSelected ? '0 0 0 2px var(--mm-primary-soft)' : 'none' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '18px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -5769,14 +5769,14 @@ function App() {
                           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                             <strong style={{ fontSize: '18px' }}>{assignment.title}</strong>
                             <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: lifecycle.isPracticeOnly ? '#f1f3f4' : lifecycle.isLate ? '#fff4ce' : '#e6f4ea', color: lifecycle.isPracticeOnly ? '#3c4043' : lifecycle.isLate ? '#7a4f00' : '#137333' }}>{lifecycle.isPracticeOnly ? 'PRACTICE ONLY' : lifecycle.status.toUpperCase()}</span>
-                            <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#e8f0fe', color: '#174ea6' }}>{assignment.assignmentType === 'notesClasswork' ? 'NOTES / CLASSWORK' : 'PRACTICE'}</span>
-                            {hasSectionVersions ? <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#f3e8fd', color: '#681da8' }}>SECTION VERSIONS</span> : assignment.variantMode === 'shared' && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#e6f4ea', color: '#137333' }}>SHARED VERSION</span>}
+                            <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#e8f0fe', color: '#174ea6' }}>{assignmentType === 'notesClasswork' ? 'NOTES / CLASSWORK' : assignmentType.toUpperCase()}</span>
+                            {hasSectionVersions ? <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#f3e8fd', color: '#681da8' }}>SECTION VERSIONS</span> : assignmentVariantMode === 'shared' && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#e6f4ea', color: '#137333' }}>SHARED VERSION</span>}
                             {assignment.archived && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#f1f3f4', color: '#5f6368' }}>ARCHIVED</span>}
                             {/* A library item has no audience and no due date. Saying so
                                 plainly is the whole point of allowing it to exist. */}
                             {isLibraryAssignment(assignment) && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#fef7e0', color: '#7a4f00' }}>NOT ASSIGNED</span>}
                           </div>
-                          <div style={{ marginTop: '7px', color: '#5f6368', fontSize: '13px', lineHeight: 1.55 }}>{getIncludedQuestionIndices(assignment).length} included question{getIncludedQuestionIndices(assignment).length === 1 ? '' : 's'}{(assignment.questions?.length || 0) !== getIncludedQuestionIndices(assignment).length ? ` · ${assignment.questions.length - getIncludedQuestionIndices(assignment).length} excluded` : ''} · {isLibraryAssignment(assignment) ? 'Not assigned to a class' : `Classes: ${(assignment.assignedClassPeriods || []).join(', ')}`}<br />{isLibraryAssignment(assignment) ? 'No due date yet' : `Due ${formatDueDate(assignment)} · Late close ${formatLateDueDate(assignment)}`} · {affectedStudents} student record{affectedStudents === 1 ? '' : 's'}</div>
+                          <div style={{ marginTop: '7px', color: '#5f6368', fontSize: '13px', lineHeight: 1.55 }}>{includedQuestionIndices.length} included question{includedQuestionIndices.length === 1 ? '' : 's'}{canonicalQuestions.length !== includedQuestionIndices.length ? ` · ${canonicalQuestions.length - includedQuestionIndices.length} excluded` : ''} · {isLibraryAssignment(assignment) ? 'Not assigned to a class' : `Classes: ${(assignment.assignedClassPeriods || []).join(', ')}`}<br />{isLibraryAssignment(assignment) ? 'No due date yet' : `Due ${formatDueDate(assignment)} · Late close ${formatLateDueDate(assignment)}`} · {affectedStudents} student record{affectedStudents === 1 ? '' : 's'}</div>
                         </div>
                         <AssignmentCardMenu
                           ariaLabel={`More actions for ${assignment.title}`}
