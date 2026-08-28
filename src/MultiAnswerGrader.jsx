@@ -3,6 +3,7 @@ import MathInput from './MathInput';
 import MathDisplay from './MathDisplay';
 import QuestionPrompt from './QuestionPrompt';
 import QuestionVisual from './QuestionVisual';
+import GraphDisplay from './GraphDisplay';
 import { looksLikeFiniteSetNotation, matchesFieldAnswer } from './answerUtils';
 import { resolveLabelFormat } from './labelFormat';
 import { inferRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
@@ -125,6 +126,40 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
       <h2 style={{ color: '#202124', marginTop: 0 }}>{question.heading || 'Complete Each Part'}</h2>
       <QuestionPrompt>{prompt || 'Enter an answer for every part.'}</QuestionPrompt>
       <QuestionVisual question={question} />
+      {Array.isArray(question.candidateGraphs) && question.candidateGraphs.length > 0 && (
+        <div
+          aria-label="Candidate graphs"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gap: 16,
+            margin: '18px 0 4px',
+          }}
+        >
+          {question.candidateGraphs.map((candidate, index) => (
+            <div
+              key={candidate?.id || index}
+              style={{
+                border: '2px solid #dfe3e7',
+                borderRadius: 12,
+                background: '#fff',
+                padding: 12,
+              }}
+            >
+              <div style={{ marginBottom: 8, fontWeight: 900, color: '#174ea6', textAlign: 'center' }}>
+                {candidate?.label || `Graph ${candidate?.id || String.fromCharCode(65 + index)}`}
+              </div>
+              {candidate?.graph ? (
+                <GraphDisplay graph={candidate.graph} title={candidate?.label || `Graph ${candidate?.id || String.fromCharCode(65 + index)}`} />
+              ) : (
+                <div style={{ padding: 24, textAlign: 'center', color: '#5f6368' }}>
+                  Graph unavailable
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '24px' }}>
         {safeFields.map((field) => {
           const grade = feedback?.partGrades?.find((part) => part.id === field.id);
