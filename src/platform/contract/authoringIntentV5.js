@@ -530,13 +530,34 @@ const compileFunctionWorkflow = (q, actions) => {
     }
   }
 
+  // Continuity determines whether plotted points should remain discrete or be
+  // connected. Ask that mathematical decision BEFORE graph construction so the
+  // graph itself does not give away the answer.
+  const continuityBeforeGraph = actions.includes('constructGraph') && actions.includes('classifyContinuity');
+
+  if (continuityBeforeGraph) {
+    const stage = {
+      id: 'continuity',
+      kind: 'classification',
+      prompt: q.continuityPrompt || 'Should this relationship be represented as discrete points or as a continuous graph?',
+      choices: ['discrete', 'continuous'],
+    };
+    const source = latestStageSource(workflow, ['tableInput','equationInput']);
+    if (source) stage.source = { fromStage: source };
+    workflow.push(stage);
+    if (continuity) grading.continuity = continuity;
+  }
+
   if (actions.includes('constructGraph')) {
-    const discrete = graphMode === 'discrete';
+    const discrete = !continuityBeforeGraph && graphMode === 'discrete';
     const stage = {
       id: 'graph',
-      kind: discrete ? 'coordinatePlot' : 'functionGraph',
-      prompt: q.graphPrompt || (discrete ? 'Plot the points for the relation.' : 'Construct the graph of the function.'),
-      graphMode: discrete ? 'discrete' : 'continuous',
+      kind: continuityBeforeGraph ? 'functionGraph' : (discrete ? 'coordinatePlot' : 'functionGraph'),
+      prompt: q.graphPrompt || (continuityBeforeGraph
+        ? 'Build the graph that matches your discrete-or-continuous decision.'
+        : (discrete ? 'Plot the points for the relation.' : 'Construct the graph of the function.')),
+      graphMode: continuityBeforeGraph ? 'studentSelected' : (discrete ? 'discrete' : 'continuous'),
+      ...(continuityBeforeGraph ? { continuityStageId: 'continuity' } : {}),
       ...(isObject(q.graph) ? { graph: q.graph } : {}),
     };
     const source = latestStageSource(workflow, ['tableInput','equationInput']);
@@ -560,9 +581,9 @@ const compileFunctionWorkflow = (q, actions) => {
   if (actions.some((action) => ['stateRange','analyzeRange'].includes(action))) {
     addSetStage('range', 'rangeInput', q.rangePrompt || 'State the range.', expectedRange(q), defaultDomainRangeNotation(q, continuity), q.rangeChoices || q.answerModel?.rangeChoices);
   }
-  if (actions.includes('classifyContinuity')) {
+  if (actions.includes('classifyContinuity') && !continuityBeforeGraph) {
     const stage = { id: 'continuity', kind: 'classification', prompt: q.continuityPrompt || 'Is the relationship discrete or continuous?', choices: ['discrete','continuous'] };
-    const source = latestStageSource(workflow, ['functionGraph','coordinatePlot','tableInput']);
+    const source = latestStageSource(workflow, ['functionGraph','coordinatePlot','tableInput','equationInput']);
     if (source) stage.source = { fromStage: source };
     workflow.push(stage);
     if (continuity) grading.continuity = continuity;
@@ -595,6 +616,8 @@ const compileRelationshipModel = (q, actions) => {
   if (actions.includes('identifyQuantities')) ask.push('quantities');
   if (actions.includes('writeEquation')) ask.push('equation');
   if (actions.includes('completeTable')) ask.push('table');
+  const continuityBeforeGraph = actions.includes('constructGraph') && actions.includes('classifyContinuity');
+  if (continuityBeforeGraph) ask.push('continuity');
   if (actions.includes('constructGraph')) ask.push('graph');
   if (actions.some((a) => ['stateDomain','analyzeDomain'].includes(a))) {
     const hasWords = responseById(q, 'domainWords');
@@ -613,7 +636,7 @@ const compileRelationshipModel = (q, actions) => {
     if (hasWords) ask.push('rangeWords');
     if (!hasWords && !hasInequality) ask.push('range');
   }
-  if (actions.includes('classifyContinuity')) ask.push('continuity');
+  if (actions.includes('classifyContinuity') && !continuityBeforeGraph) ask.push('continuity');
   // Axis labeling/scale is a distinct mathematical act handled by the
   // relationshipModel component itself. Do not route that question through the
   // generic function-modeling workflow, which intentionally has no axis-setup
