@@ -288,7 +288,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
         question={questionData}
         task={questionData.prompt || `Build the mapping diagram for {${pairs.map(([x, y]) => `(${x}, ${y})`).join(', ')}}.`}
         steps={[
-          ...(ask.includes('plot') ? ['Plot every ordered pair on the coordinate plane. You can click a grid point or type its coordinates.'] : []),
+          ...(ask.includes('plot') ? ['Plot every ordered pair manually on the coordinate plane. Use the coordinate guide to line up x and y before you click.'] : []),
           ...(ask.includes('mapping') ? ['Click a value in the left column, then click the value on the right it maps to.', 'Click an arrow again to remove it.'] : []),
           'Then answer the questions about the relation.',
         ]}
@@ -313,15 +313,18 @@ export default function RelationMapping({ questionData = {}, onAction }) {
             bounds={plotBounds}
             points={plottedPoints}
             onTogglePoint={togglePlottedPoint}
+            snapStep={questionData.plotSnapStep || 1}
           />
           <p style={{ margin: '10px 0 8px', fontSize: 13, color: '#5f6b7a' }}>
-            Click an integer grid point to plot/remove it, or type coordinates below for any decimal point.
+            Move across the coordinate plane to see x- and y-guides. Click the intersection to plot or remove a point.
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'end' }}>
-            <label style={{ fontSize: 13, fontWeight: 700, color: '#3c4756' }}>x-coordinate<input inputMode="decimal" value={plotX} onChange={(event) => setPlotX(event.target.value)} style={inputStyle} /></label>
-            <label style={{ fontSize: 13, fontWeight: 700, color: '#3c4756' }}>y-coordinate<input inputMode="decimal" value={plotY} onChange={(event) => setPlotY(event.target.value)} style={inputStyle} /></label>
-            <button type="button" onClick={addTypedPoint} style={primaryButton}>Plot point</button>
-          </div>
+          {allowTypedPlot ? (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'end' }}>
+              <label style={{ fontSize: 13, fontWeight: 700, color: '#3c4756' }}>x-coordinate<input inputMode="decimal" value={plotX} onChange={(event) => setPlotX(event.target.value)} style={inputStyle} /></label>
+              <label style={{ fontSize: 13, fontWeight: 700, color: '#3c4756' }}>y-coordinate<input inputMode="decimal" value={plotY} onChange={(event) => setPlotY(event.target.value)} style={inputStyle} /></label>
+              <button type="button" onClick={addTypedPoint} style={primaryButton}>Plot point</button>
+            </div>
+          ) : null}
           {plottedPoints.length ? (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 10 }}>
               {plottedPoints.map(([x, y]) => (
