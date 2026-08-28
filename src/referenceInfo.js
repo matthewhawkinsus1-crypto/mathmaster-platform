@@ -14,11 +14,23 @@ const substantiallyRepeatsPrompt = (promptValue, statementValue) => {
   if (!prompt || !statement) return false;
   if (prompt.includes(statement) || statement.includes(prompt)) return true;
 
-  const statementTokens = statement.split(' ').filter((token) => token.length > 2);
-  if (statementTokens.length < 5) return false;
-  const promptTokens = new Set(prompt.split(' '));
-  const overlap = statementTokens.filter((token) => promptTokens.has(token)).length / statementTokens.length;
-  return overlap >= 0.82;
+  const stem = (token) => {
+    if (token.length <= 4) return token;
+    return token
+      .replace(/ing$/, '')
+      .replace(/ed$/, '')
+      .replace(/es$/, '')
+      .replace(/s$/, '');
+  };
+  const statementTokens = statement.split(' ').filter((token) => token.length > 2).map(stem);
+  if (statementTokens.length < 3) return false;
+  const promptTokens = prompt.split(' ').filter((token) => token.length > 2).map(stem);
+  const tokenMatchesPrompt = (token) => promptTokens.some((candidate) => (
+    candidate === token
+    || (token.length >= 3 && candidate.length >= 3 && (candidate.includes(token) || token.includes(candidate)))
+  ));
+  const overlap = statementTokens.filter(tokenMatchesPrompt).length / statementTokens.length;
+  return overlap >= 0.72;
 };
 
 const authoredInfoMostlyRepeatsPrompt = (prompt, statements = []) => {
