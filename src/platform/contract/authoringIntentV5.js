@@ -988,7 +988,18 @@ const compileOne = (q, index, repairs) => {
       const transformationFunction = q.function
         ? { ...q.function, type: q.function.type || q.function.family }
         : t.function;
-      out = copyCommon(q, { type, mode: q.mode || t.mode || 'identify', family: q.family || t.family || q.function?.family || q.function?.type, function: transformationFunction, target: q.target || t.target, parentPoint: q.parentPoint || t.parentPoint });
+      out = copyCommon(q, {
+        type,
+        mode: q.mode || t.mode || 'identify',
+        family: q.family || t.family || q.function?.family || q.function?.type,
+        function: transformationFunction,
+        target: q.target || t.target,
+        parentPoint: q.parentPoint || t.parentPoint,
+        sourcePoints: q.sourcePoints || t.sourcePoints,
+        graphBounds: q.graphBounds || t.graphBounds,
+        snapStep: q.snapStep ?? t.snapStep,
+        initial: q.initial || t.initial,
+      });
       break;
     }
     case 'representationMatch': {
