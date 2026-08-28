@@ -611,6 +611,8 @@ const compileRelationshipModel = (q, actions) => {
   if (actions.includes('identifyQuantities')) ask.push('quantities');
   if (actions.includes('writeEquation')) ask.push('equation');
   if (actions.includes('completeTable')) ask.push('table');
+  const continuityBeforeGraph = actions.includes('constructGraph') && actions.includes('classifyContinuity');
+  if (continuityBeforeGraph) ask.push('continuity');
   if (actions.includes('constructGraph')) ask.push('graph');
   if (actions.some((a) => ['stateDomain','analyzeDomain'].includes(a))) {
     const hasWords = responseById(q, 'domainWords');
@@ -626,7 +628,7 @@ const compileRelationshipModel = (q, actions) => {
     if (hasInequality) ask.push('rangeInequality');
     if (!hasWords && !hasInequality) ask.push('range');
   }
-  if (actions.includes('classifyContinuity')) ask.push('continuity');
+  if (actions.includes('classifyContinuity') && !continuityBeforeGraph) ask.push('continuity');
   // Axis labeling/scale is a distinct mathematical act handled by the
   // relationshipModel component itself. Do not route that question through the
   // generic function-modeling workflow, which intentionally has no axis-setup
