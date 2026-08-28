@@ -839,7 +839,7 @@ function App() {
     const unsubscribe = onSnapshot(
       collection(db, 'assignments'),
       (snapshot) => {
-        const liveAssignments = snapshot.docs.map((assignmentDoc) => ({
+        const liveAssignments = snapshot.docs.map((assignmentDoc) => hydrateAssignmentRuntime({
           id: assignmentDoc.id,
           ...assignmentDoc.data(),
         }));
