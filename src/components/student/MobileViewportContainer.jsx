@@ -240,7 +240,12 @@ export const MobileViewportContainer = ({
       onInputCapture={handleInputCapture}
       onKeyDownCapture={handleKeyDownCapture}
       onBlurCapture={handleBlurCapture}
-    >{contextPanel}{responseFields}{toolWorkspace}{actionButtons}</div>;
+    >
+      <div className="mathmaster-desktop-question-anchor">
+        <QuestionPrompt variant="task">{promptText || 'Complete the math task.'}</QuestionPrompt>
+      </div>
+      {contextPanel}{responseFields}{toolWorkspace}{actionButtons}
+    </div>;
   }
 
   return (
