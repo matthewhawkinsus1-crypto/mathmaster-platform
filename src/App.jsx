@@ -244,7 +244,7 @@ const normalizeAssignmentQuestions = (questions = []) => questions.map((question
 const assignmentFeedbackWasReleased = (assignment) => assignment?.feedbackReleased === true || Boolean(assignment?.feedbackReleasedAt);
 
 const assignmentUsesTeacherReleasePolicy = (assignment) => (
-  (assignment?.questions || []).some((question) => {
+  getStoredAssignmentQuestions(assignment).some((question) => {
     const role = resolveQuestionActivityRole({ question, assignment });
     return getEffectiveActivityPolicy(role).feedback === 'teacherRelease';
   })
@@ -1887,7 +1887,7 @@ function App() {
   );
 
   const exportTeacherAssignmentWorksheetPdf = async (assignment, student = null, outputMode = PRINT_OUTPUT_MODES.STUDENT) => {
-    if (user?.role !== 'teacher' || !assignment?.questions?.length) return;
+    if (user?.role !== 'teacher' || !getStoredAssignmentQuestions(assignment).length) return;
     setTeacherWorksheetBusy(true);
     try {
       const masteryProfile = student ? teacherMasteryProfilesByStudentId?.[student.id] || null : null;
@@ -1929,7 +1929,7 @@ function App() {
   };
 
   const beginTeacherWorksheetExport = async (assignment) => {
-    if (!assignment?.questions?.length) {
+    if (!getStoredAssignmentQuestions(assignment).length) {
       toastInfo('Nothing to export', 'This assignment does not currently contain printable questions.');
       return;
     }
@@ -3817,7 +3817,7 @@ function App() {
 
   const handleDuplicateAssignment = async (assignment) => {
     try {
-      const duplicateQuestions = (assignment.questions || []).map((question) => ({
+      const duplicateQuestions = getStoredAssignmentQuestions(assignment).map((question) => ({
         ...question,
         questionId: createQuestionId(),
       }));
@@ -4139,7 +4139,7 @@ function App() {
       return;
     }
 
-    const hasDOL = Boolean(assignment?.dol?.enabled || assignment?.questions?.some((question) => (
+    const hasDOL = Boolean(assignment?.dol?.enabled || getStoredAssignmentQuestions(assignment).some((question) => (
       resolveQuestionActivityRole({ question, assignment }) === 'dol'
     )));
     const patch = {
