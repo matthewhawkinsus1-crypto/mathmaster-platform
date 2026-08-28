@@ -584,15 +584,18 @@ const compileRelationshipModel = (q, actions) => {
   if (actions.some((a) => ['stateDomain','analyzeDomain'].includes(a))) {
     const hasWords = responseById(q, 'domainWords');
     const hasInequality = responseById(q, 'domainInequalities') || responseById(q, 'domainInequality');
-    if (hasWords) ask.push('domainWords');
+    // Establish the mathematics first, then translate it into language. Showing
+    // a sentence choice before the inequality can hand the boundary information
+    // to the student instead of asking them to determine it.
     if (hasInequality) ask.push('domainInequality');
+    if (hasWords) ask.push('domainWords');
     if (!hasWords && !hasInequality) ask.push('domain');
   }
   if (actions.some((a) => ['stateRange','analyzeRange'].includes(a))) {
     const hasWords = responseById(q, 'rangeWords');
     const hasInequality = responseById(q, 'rangeInequalities') || responseById(q, 'rangeInequality');
-    if (hasWords) ask.push('rangeWords');
     if (hasInequality) ask.push('rangeInequality');
+    if (hasWords) ask.push('rangeWords');
     if (!hasWords && !hasInequality) ask.push('range');
   }
   if (actions.includes('classifyContinuity')) ask.push('continuity');
