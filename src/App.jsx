@@ -2573,8 +2573,6 @@ function App() {
         publicationStrategy: 'hybrid',
         includeWarmupInClassroom: false,
         homeworkDueAt: '',
-        classroomPackage: publishingIntent.classroomPackage,
-        lessonResources: publishingIntent.lessonResources,
         instructionalPurpose: assignmentV5.assignment?.instructionalPurpose || 'lesson',
         gradingPurpose: assignmentV5.assignment?.gradingPurpose || null,
         variantPolicy: assignmentV5.variantPolicy,
@@ -3085,6 +3083,11 @@ function App() {
         ))
       : null;
 
+    const publishingIntent = normalizeLessonPublishingIntentV5({
+      classroom: model.assignmentV5.classroomIntegration,
+      lessonResources: { notesPdf: model.assignmentV5.outputProfiles?.lessonNotesPdf },
+    }, model.assignmentV5.assignment, []);
+
     const patch = {
       ...persistence,
       title: model.assignmentV5.assignment.title,
@@ -3131,6 +3134,8 @@ function App() {
         includeWarmupInClassroom: draft.includeWarmupInClassroom === true,
         homeworkDueAt: draft.homeworkDueAt ? new Date(draft.homeworkDueAt).toISOString() : null,
       },
+      classroomPackage: publishingIntent.classroomPackage,
+      lessonResources: publishingIntent.lessonResources,
       updatedAt: new Date().toISOString(),
     };
 
@@ -3927,8 +3932,6 @@ function App() {
         publicationStrategy: assignment.publicationSettings?.strategy || 'hybrid',
         includeWarmupInClassroom: assignment.publicationSettings?.includeWarmupInClassroom === true,
         homeworkDueAt: toDateTimeLocalInputValue(assignment.publicationSettings?.homeworkDueAt || ''),
-        classroomPackage: assignment.classroomPackage || null,
-        lessonResources: assignment.lessonResources || null,
         instructionalPurpose: canonicalV5.assignment.instructionalPurpose || 'lesson',
         gradingPurpose: canonicalV5.assignment.gradingPurpose || null,
         variantPolicy: canonicalV5.variantPolicy,
