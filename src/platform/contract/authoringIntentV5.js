@@ -996,6 +996,7 @@ const compileOne = (q, index, repairs) => {
         target: q.target || t.target,
         parentPoint: q.parentPoint || t.parentPoint,
         sourcePoints: q.sourcePoints || t.sourcePoints,
+        sourceLabel: q.sourceLabel || t.sourceLabel,
         graphBounds: q.graphBounds || t.graphBounds,
         snapStep: q.snapStep ?? t.snapStep,
         initial: q.initial || t.initial,
