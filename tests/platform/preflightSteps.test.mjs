@@ -88,6 +88,33 @@ test('Honors destinations block until the rigor report is satisfied', () => {
   }), []);
 });
 
+test('a CCMR-only Honors gap does not block because audited Practice is sourced at publish', () => {
+  const blockers = collectReviewBlockers({
+    draft: validDraft,
+    classPeriods: ['Period 1'],
+    honorsSelected: true,
+    honorsReport: {
+      isHonorsReady: false,
+      missing: ['ccmrEnrichment'],
+    },
+  });
+  assert.deepEqual(blockers, []);
+});
+
+test('non-CCMR Honors depth still blocks before publish', () => {
+  const blockers = collectReviewBlockers({
+    draft: validDraft,
+    classPeriods: ['Period 1'],
+    honorsSelected: true,
+    honorsReport: {
+      isHonorsReady: false,
+      missing: ['higherOrderReasoning', 'ccmrEnrichment'],
+    },
+  });
+  assert.equal(blockers.length, 1);
+  assert.equal(blockers[0].stepId, 'classes');
+});
+
 test('the DOL window is range checked only when the DOL is on', () => {
   const off = collectReviewBlockers({ draft: { ...validDraft, dolMinutesBeforeEnd: 999 }, classPeriods: ['Period 1'] });
   assert.deepEqual(off, [], 'a stale value on a disabled DOL is not a blocker');
