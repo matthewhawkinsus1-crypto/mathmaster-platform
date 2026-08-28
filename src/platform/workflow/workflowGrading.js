@@ -194,8 +194,15 @@ const matchesAxisText = (response, expected) => {
 
 const matchesAxisScale = (response, expected) => {
   const actual = Number(response);
-  const options = Array.isArray(expected) ? expected : [expected];
-  return Number.isFinite(actual) && options.some((value) => {
+  if (!Number.isFinite(actual) || actual <= 0) return false;
+  const options = (Array.isArray(expected) ? expected : [expected])
+    .filter((value) => value !== undefined && value !== null && String(value).trim() !== '');
+  // If the author asks the student to choose a reasonable scale but does not
+  // prescribe one exact count-by value, any positive scale is a valid
+  // completion. This preserves the old relationshipModel behavior and avoids
+  // turning an open design choice into a hidden answer.
+  if (!options.length) return true;
+  return options.some((value) => {
     const target = Number(value);
     return Number.isFinite(target) && Math.abs(actual - target) <= 1e-9;
   });
