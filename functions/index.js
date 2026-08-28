@@ -49,6 +49,7 @@ const rigorPolicy = require("./lib/rigorPolicy");
 const pathRouting = require("./lib/pathRouting");
 const pathContentRelease = require("./lib/pathContentRelease");
 const assignmentAi = require("./lib/assignmentAi");
+const ccmrAssignmentBank = require("./lib/ccmrAssignmentBank");
 
 // HTTPS/callable transport must be reachable by the Firebase client SDK.
 // MathMaster authorization still happens INSIDE each callable through
@@ -7361,6 +7362,41 @@ function translateAssignmentAiError(error) {
     "MathMaster could not build this assignment with AI. Use the copy/paste AI workflow while the service is checked.",
   );
 }
+
+exports.hydrateAssignmentCcmr = onCall({
+  timeoutSeconds: 60,
+  memory: "1GiB",
+}, async (request) => {
+  const teacherUid = await requireTeacher(request);
+  const assignment = request.data?.assignment;
+  if (!assignment || typeof assignment !== "object" || Array.isArray(assignment)) {
+    throw new HttpsError("invalid-argument", "Provide one Assignment V5 object to prepare CCMR Practice.");
+  }
+  if (Number(assignment.schemaVersion) !== 5 || !Array.isArray(assignment.sections)) {
+    throw new HttpsError("failed-precondition", "CCMR bank hydration requires Assignment V5 sections.");
+  }
+
+  try {
+    const result = ccmrAssignmentBank.replaceDirectCcmrQuestionsWithAuditedBank(assignment);
+    await getFirestore().collection("assignmentCcmrHydrationAudit").add({
+      teacherUid,
+      teacherEmail: callerEmail(request),
+      releaseTarget: result.audit?.releaseTarget || null,
+      replaced: Number(result.audit?.replaced || 0),
+      autoSourced: Number(result.audit?.autoSourced || 0),
+      targetCount: Number(result.audit?.targetCount || 0),
+      missCount: Array.isArray(result.audit?.misses) ? result.audit.misses.length : 0,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return result;
+  } catch (error) {
+    logger.error("Assignment CCMR bank hydration failed", {
+      teacherUid,
+      message: error?.message || String(error),
+    });
+    throw new HttpsError("internal", "MathMaster could not prepare audited CCMR Practice for this assignment.");
+  }
+});
 
 exports.authorAssignmentWithAI = onCall({
   secrets: ASSIGNMENT_AI_SECRETS,
