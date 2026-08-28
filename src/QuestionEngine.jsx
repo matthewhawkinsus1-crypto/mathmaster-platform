@@ -814,7 +814,7 @@ export default function QuestionEngine({
         event.stopPropagation();
         handleSubmit();
       }}
-      style={{ position: 'relative', padding: '10px', textAlign: 'center', fontFamily: 'sans-serif', overflow: 'hidden' }}
+      style={{ position: 'relative', padding: '10px', textAlign: 'center', fontFamily: 'sans-serif', overflow: 'visible' }}
     >
       <MobileViewportContainer
         promptText={processedQuestion?.prompt || processedQuestion?.scenario || 'Complete the math task.'}
