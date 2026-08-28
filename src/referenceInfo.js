@@ -70,7 +70,10 @@ export const resolveReferenceInfo = (question = {}) => {
   if (authored) {
     if (typeof authored === 'string') {
       const text = cleanText(authored);
-      if (text) return { title: 'Information you need', statements: [{ text }], source: 'authored' };
+      if (text && !substantiallyRepeatsPrompt(prompt, text)) {
+        return { title: 'Information you need', statements: [{ text }], source: 'authored' };
+      }
+      if (text) return null;
     }
     if (typeof authored === 'object') {
       const statements = asArray(authored.statements || authored.items || authored.lines || authored.text)
