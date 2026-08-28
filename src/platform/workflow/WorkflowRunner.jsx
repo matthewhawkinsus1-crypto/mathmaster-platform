@@ -852,13 +852,15 @@ export default function WorkflowRunner({
         }
       : baseEffectiveStage;
     const input = resolveStageInput({ stage, responses, content });
-    const waiting = Boolean(stage.sourceStageId) && !input.ready;
+    const continuityReady = !stage.continuityStageId || hasStageResponse(responses?.[stage.continuityStageId]);
+    const waiting = (Boolean(stage.sourceStageId) && !input.ready) || !continuityReady;
+    const waitingStageId = !continuityReady ? stage.continuityStageId : stage.sourceStageId;
     const shellClass = focusMode
       ? `workflow-focus__stage-shell${focused ? ' workflow-focus__stage-shell--active' : ''}`
       : '';
 
     if (waiting) {
-      const upstream = workflow.find((entry) => entry.id === stage.sourceStageId);
+      const upstream = workflow.find((entry) => entry.id === waitingStageId);
       return (
         <section key={stage.id} className={shellClass} style={focusMode ? undefined : waitingPanel}>
           <div style={focusMode ? waitingPanel : undefined}>
@@ -866,7 +868,7 @@ export default function WorkflowRunner({
               Step {index + 1}. {definition?.label || stage.kind}
             </h4>
             <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55 }}>
-              Finish <strong>{getStage(upstream?.kind)?.label || stage.sourceStageId}</strong> first — this step is built
+              Finish <strong>{getStage(upstream?.kind)?.label || waitingStageId}</strong> first — this step is built
               from what you write there.
             </p>
           </div>
