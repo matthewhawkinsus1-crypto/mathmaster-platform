@@ -184,6 +184,58 @@ assert.equal(chocolate.notation, 'set');
 assert.equal(shower.type, 'relationshipModel');
 assert.equal(shower.notation, 'interval');
 
+const axisPayload = {
+  schemaVersion: 5,
+  assignment: { title: 'Axis Workflow', courseId: 'algebra1', assignmentType: 'notesClasswork' },
+  sections: [{
+    role: 'classwork',
+    title: 'Classwork',
+    questions: [{
+      standard: 'A.3C',
+      prompt: 'Natalia fills a tub at 12 gallons per minute. Identify the quantities, label a physical graph, write the equation, complete the table, graph the relationship, state the domain and range, and classify continuity.',
+      studentActions: ['identifyQuantities', 'configureAxes', 'writeEquation', 'completeTable', 'constructGraph', 'stateDomain', 'stateRange', 'classifyContinuity'],
+      quantities: [
+        { id: 'time', label: 'Time (minutes)' },
+        { id: 'waterAdded', label: 'Amount of water added (gallons)' },
+      ],
+      correctIndependentId: 'time',
+      correctDependentId: 'waterAdded',
+      axisRequirements: {
+        x: { label: 'Time', unit: 'minutes', countBy: 1 },
+        y: { label: 'Amount of water added', unit: 'gallons', countBy: 12 },
+      },
+      function: { family: 'linear', m: 12, b: 0, domain: { min: 0, max: 4 } },
+      table: {
+        columns: [{ key: 't', label: 't' }, { key: 'V', label: 'V(t)' }],
+        rows: [{ t: 0 }, { t: 1 }, { t: 2 }, { t: 3 }, { t: 4 }],
+      },
+      answerModel: {
+        equation: 'f(x)=12x',
+        domain: '[0,4]',
+        range: '[0,48]',
+        continuity: 'continuous',
+      },
+    }],
+  }],
+};
+const axisParsed = parseAssignmentBlueprintText(JSON.stringify(axisPayload));
+validateAssignmentQuestions(axisParsed.questions);
+const axisSemantic = validateQuestionsSemantics(axisParsed.questions);
+assert.deepEqual(axisSemantic.errors, [], axisSemantic.errors.join('\n'));
+const axisQuestion = axisParsed.questions[0];
+assert.deepEqual(axisQuestion.workflow.map((stage) => stage.kind), [
+  'quantityRoles', 'axisSetup', 'equationInput', 'tableInput',
+  'functionGraph', 'domainInput', 'rangeInput', 'classification',
+]);
+const axisStage = axisQuestion.workflow.find((stage) => stage.kind === 'axisSetup');
+assert.ok(axisStage.graph, 'axis labeling must render a physical graph');
+assert.equal(axisStage.graph.xMin, 0);
+assert.equal(axisStage.graph.xMax, 4);
+assert.equal(axisStage.graph.yMin, 0);
+assert.equal(axisStage.graph.yMax, 48);
+assert.deepEqual(axisQuestion.grading.axes.xLabel, ['Time']);
+assert.deepEqual(axisQuestion.grading.axes.yUnit, ['gallons']);
+
 const fix = buildFixRequest({ rawJson: JSON.stringify(payload), errors: ['A genuine content field is missing.'], sourceSchemaVersion: 5 });
 assert.match(fix, /MathMaster Assignment V5/);
 assert.match(fix, /KEEP schemaVersion 5/);
