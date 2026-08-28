@@ -8,6 +8,7 @@ import {
   mapParentPoint,
   unmapTransformedPoint,
   transformationDescriptor,
+  transformationGraphScore,
   transformationParameterScore,
 } from '../../src/tools/transformations/transformationsMath.js';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
@@ -45,6 +46,13 @@ test('horizontal compression y=f(2x) is evaluated with factor one-half on x', ()
   assert.deepEqual(mapParentPoint([2, 2], spec), [1, 2]);
   assert.equal(evaluateTransformedFunction(spec, 1), 2);
   assert.equal(transformationDescriptor(spec).horizontalScale, 0.5);
+});
+
+test('graph matching accepts equivalent absolute-value parameterizations', () => {
+  const writtenAsHorizontalCompression = { type: 'absolute', a: 1, b: 2, h: 0, k: -4 };
+  const equivalentVerticalStretch = { type: 'absolute', a: 2, b: 1, h: 0, k: -4 };
+  const score = transformationGraphScore(equivalentVerticalStretch, writtenAsHorizontalCompression);
+  assert.equal(score.isCorrect, true);
 });
 
 test('parameter grading includes b so an x-scale error cannot pass', () => {
