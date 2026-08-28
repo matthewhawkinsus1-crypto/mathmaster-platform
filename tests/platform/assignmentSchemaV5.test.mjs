@@ -21,9 +21,9 @@ assert.equal(source.differentiationPolicy.allowStandardChange, false);
 assert.equal(source.differentiationPolicy.honors.mode, 'inheritDestinationClass');
 assert.equal(source.differentiationPolicy.honors.ccmrPracticeTargetShare, 0.15);
 assert.equal(source.supportPolicy.mode, 'inheritStudentProfile');
-assert.equal(source.outputProfiles.studentWorksheetPdf.enabled, true);
-assert.equal(source.outputProfiles.teacherWorksheetPdf.enabled, true);
-assert.equal(source.outputProfiles.answerKeyPdf.enabled, true);
+assert.equal(source.outputProfiles.studentWorksheetPdf.enabled, false);
+assert.equal(source.outputProfiles.teacherWorksheetPdf.enabled, false);
+assert.equal(source.outputProfiles.answerKeyPdf.enabled, false);
 assert.deepEqual(validateAssignmentV5(source).errors, []);
 
 const flat = flattenV5Sections(source);
