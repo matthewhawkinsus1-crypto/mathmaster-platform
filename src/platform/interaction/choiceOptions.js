@@ -25,6 +25,31 @@ const optionIdentity = (option) => {
   return clean(option);
 };
 
+export const strengthenTwoChoiceSet = (options = []) => {
+  if (!Array.isArray(options) || options.length !== 2) return Array.isArray(options) ? [...options] : [];
+  const [first, second] = options.map((value) => (
+    value && typeof value === 'object'
+      ? clean(value.label ?? value.value ?? value.id)
+      : clean(value)
+  ));
+  const normalized = [first, second].map((value) => value.trim().toLowerCase());
+
+  if (normalized.includes('yes') && normalized.includes('no')) {
+    return [...options, 'both yes and no', 'cannot be determined'];
+  }
+  if (normalized.includes('true') && normalized.includes('false')) {
+    return [...options, 'both true and false', 'cannot be determined'];
+  }
+  if (normalized.includes('discrete') && normalized.includes('continuous')) {
+    return [...options, 'both discrete and continuous', 'neither discrete nor continuous'];
+  }
+  if (normalized.includes('finite') && normalized.includes('infinite')) {
+    return [...options, 'both finite and infinite', 'cannot be determined'];
+  }
+
+  return [...options, `both ${first} and ${second}`, `neither ${first} nor ${second}`];
+};
+
 /**
  * Deterministically shuffles finite answer choices.
  *
