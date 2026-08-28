@@ -519,10 +519,13 @@ const compileRelationshipModel = (q, actions) => {
   out.notation = q.notation || answerModel.notation || (out.continuity === 'discrete' ? 'set' : 'interval');
   if (actions.includes('configureAxes')) {
     const axis = q.axisRequirements || relationship.axisRequirements || {};
+    const xAxis = isObject(axis.x) ? axis.x : {};
+    const yAxis = isObject(axis.y) ? axis.y : {};
+    out.quantities = axisQuantityChoicesFromIntent({ ...q, quantities, correctIndependentId: out.correctIndependentId, correctDependentId: out.correctDependentId }, axis);
     out.axisSetup = {
       required: true,
       requireScale: axis.requireScale !== false,
-      inputMode: axis.inputMode === 'drag' ? 'drag' : 'type',
+      inputMode: axis.inputMode === 'type' ? 'type' : 'drag',
       applyToGraph: axis.applyToGraph !== false,
       hideGraphLabels: axis.hideGraphLabels !== false,
       hideGraphUnits: axis.hideGraphUnits !== false,
@@ -531,11 +534,22 @@ const compileRelationshipModel = (q, actions) => {
       ...(Array.isArray(axis.acceptedYLabels) ? { acceptedYLabels: axis.acceptedYLabels } : {}),
       ...(Array.isArray(axis.acceptedXUnits) ? { acceptedXUnits: axis.acceptedXUnits } : {}),
       ...(Array.isArray(axis.acceptedYUnits) ? { acceptedYUnits: axis.acceptedYUnits } : {}),
-      ...(Array.isArray(axis.acceptedXSteps) ? { acceptedXSteps: axis.acceptedXSteps } : {}),
-      ...(Array.isArray(axis.acceptedYSteps) ? { acceptedYSteps: axis.acceptedYSteps } : {}),
+      ...((Array.isArray(axis.acceptedXSteps) || xAxis.countBy != null) ? { acceptedXSteps: axisExpectedOptions(xAxis.countBy, axis.acceptedXSteps || xAxis.acceptedSteps) } : {}),
+      ...((Array.isArray(axis.acceptedYSteps) || yAxis.countBy != null) ? { acceptedYSteps: axisExpectedOptions(yAxis.countBy, axis.acceptedYSteps || yAxis.acceptedSteps) } : {}),
     };
   }
   out.graph = q.graph || relationship.graph;
+  if (actions.includes('configureAxes') && !out.graph) {
+    const functionSpec = isObject(q.function) || isObject(q.functionSpec)
+      ? functionSpecFromIntentQuestion(q)
+      : null;
+    out.graph = blankAxisGraphFromIntent({
+      question: q,
+      functionSpec,
+      tableInfo: normalizeIntentTable(q.table),
+      evaluateFunction: evaluateIntentFunction,
+    });
+  }
   if (!actions.includes('writeEquation') && (isObject(q.function) || isObject(q.functionSpec))) {
     out.functionSpec = coreFunctionSpec(q.function || q.functionSpec);
   }
