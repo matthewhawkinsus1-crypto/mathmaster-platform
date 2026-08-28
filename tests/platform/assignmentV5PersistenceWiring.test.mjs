@@ -9,7 +9,8 @@ test('assignment creation persists canonical V5 sections and policy metadata', (
   assert.match(source, /const reviewedQuestions = flattenV5Sections\(reviewedV5\)/);
   assert.match(source, /sections:\s*rebuildV5SectionsFromQuestions\(reviewedV5, variantQuestions\)/);
   assert.doesNotMatch(source, /questions:\s*variantQuestions/);
-  assert.match(source, /hydrateAssignmentRuntime\(\{ id: assignmentRef\.id, \.\.\.payload \}\)/);
+  assert.match(source, /return \{ id: assignmentRef\.id, \.\.\.payload \};/);
+  assert.doesNotMatch(source, /hydrateAssignmentRuntime|assignmentRuntimeProjection/);
   assert.match(source, /variantPolicy:/);
   assert.match(source, /differentiationPolicy:/);
   assert.match(source, /supportPolicy:/);
@@ -47,16 +48,17 @@ test('teacher-reviewed canonical policy values are persisted from reviewedV5', (
 });
 
 
-test('Firestore assignment reads hydrate the runtime question projection from canonical sections', () => {
+test('Firestore assignment reads keep canonical V5 records without a client hydration mirror', () => {
   const source = fs.readFileSync('src/App.jsx', 'utf8');
-  assert.match(source, /hydrateAssignmentRuntime\(\{ id: assignmentDoc\.id, \.\.\.assignmentDoc\.data\(\) \}\)/);
-  assert.match(source, /hydrateAssignmentRuntime\(\{ id: assignmentSnapshot\.id, \.\.\.assignmentSnapshot\.data\(\) \}\)/);
+  assert.doesNotMatch(source, /hydrateAssignmentRuntime|assignmentRuntimeProjection/);
+  assert.match(source, /fetchedAssignments\.push\(\{ id: assignmentDoc\.id, \.\.\.assignmentDoc\.data\(\) \}\)/);
+  assert.match(source, /return \{ id: assignmentSnapshot\.id, \.\.\.assignmentSnapshot\.data\(\) \};/);
 });
 
-test('duplicate path strips runtime-only question fields before writing', () => {
+test('duplicate path no longer carries runtime-only question projection cleanup', () => {
   const source = fs.readFileSync('src/App.jsx', 'utf8');
-  assert.match(source, /questions:\s*_runtimeQuestions/);
-  assert.match(source, /runtimeProjectionVersion:\s*_legacyRuntimeProjectionVersion/);
+  assert.doesNotMatch(source, /questions:\s*_runtimeQuestions/);
+  assert.doesNotMatch(source, /runtimeProjectionVersion:\s*_legacyRuntimeProjectionVersion/);
 });
 
 
