@@ -4677,6 +4677,7 @@ function App() {
         ? practiceTracker[activeAssignmentId] || createPracticeAssignmentTracker(questions, recordedTracker)
         : recordedTracker;
     const recordedGrade = calculateGrade(recordedTracker, assignment);
+    const gradeSplit = splitGrade({ tracker: recordedTracker, assignment });
     const progress = calculatePracticeProgress(workingTracker, assignment);
     const dolState = getDOLState({ assignment, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now });
     const warmupState = getWarmupState({ assignment, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now });
@@ -4980,6 +4981,18 @@ function App() {
                       : `${currentSectionCompletedCount} of ${currentSectionQuestionCount} complete · ${currentSectionRemainingCount} remaining`}
                   </span>
                   <small>Question {currentSectionQuestionNumber} of {currentSectionQuestionCount} · {lifecycleBadge.label}</small>
+                  <small style={{ marginTop: 2, fontWeight: 850, color: assignmentFeedbackHeld ? '#174ea6' : '#3c4043' }}>
+                    {preview
+                      ? `Preview progress · ${progress.correct}/${progress.total} correct`
+                      : assignmentFeedbackHeld
+                        ? 'Score available after teacher release'
+                        : lifecycle.isPracticeOnly
+                          ? `Recorded grade ${recordedGrade}% · frozen`
+                          : `Current grade ${recordedGrade}% if submitted now`}
+                    {!preview && !assignmentFeedbackHeld && gradeSplit.attempted > 0
+                      ? ` · ${gradeSplit.attempted}/${gradeSplit.total} answered · ${gradeSplit.creditOnAttempted}% on attempted work`
+                      : ''}
+                  </small>
                 </div>
                 <div className="mathmaster-question-number-strip" aria-label={`${currentSectionMeta.label} questions`}>
                   {(currentNavigationSection?.entries || []).map((entry) => {
