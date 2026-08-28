@@ -2481,7 +2481,7 @@ function App() {
 
   const V5_COMPILER_PLUMBING_ERROR = /missing a type\/toolId|refers to a table in its prompt, but the question contains none|refers to a graph in its prompt, but the question contains none|needs `functionSpec\.type`|needs `analysisRequests`|needs a `graph` object with functions, points or segments|cannot yet build that interactive graph from an upstream response/i;
 
-  // Reads authored JSON of any accepted vintage and reports what is wrong in
+  // Reads the one supported Assignment V5 object and reports what is wrong in
   // terms an AI can act on, rather than throwing a single opaque message.
   const readAssignmentJson = (rawText) => {
     const errors = [];
@@ -2554,8 +2554,6 @@ function App() {
         dueAt: '',
         lateDueAt: '',
         releaseAt: '',
-        assignmentType: getStoredAssignmentTypeProjection(assignmentV5),
-        variantMode: getStoredAssignmentVariantMode(assignmentV5),
         sectionVariantModes: getStoredSectionVariantModes(assignmentV5),
         sectionAccessDefaults: { classwork: 'open', practice: 'open' },
         guidedNotesBySection: { classwork: 'automatic', practice: 'off' },
@@ -3907,8 +3905,6 @@ function App() {
         dueAt: toDateTimeLocalInputValue(assignment.dueAt || assignment.dueDate || ''),
         lateDueAt: toDateTimeLocalInputValue(assignment.lateDueAt || assignment.lateDueDate || ''),
         releaseAt: toDateTimeLocalInputValue(assignment.releaseAt || ''),
-        assignmentType: getStoredAssignmentTypeProjection(canonicalV5),
-        variantMode: getStoredAssignmentVariantMode(canonicalV5),
         sectionVariantModes: getStoredSectionVariantModes(canonicalV5),
         sectionAccessDefaults: {
           classwork: assignment.sectionAccess?.classwork?.defaultState === 'closed' ? 'closed' : 'open',
