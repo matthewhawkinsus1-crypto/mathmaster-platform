@@ -1,3 +1,8 @@
+import {
+  getStoredAssignmentQuestions,
+  getStoredAssignmentTypeProjection,
+} from './platform/contract/storedAssignmentV5.js';
+
 // What a student's assignment dashboard actually contains, computed once.
 //
 // This was inline in App.jsx, which meant the only way to see a student's
@@ -123,13 +128,14 @@ export const buildStudentDashboardModel = ({
     if (!canResume(assignment)) return false;
     const assignmentTracker = tracker[assignment.id];
     if (!assignmentTracker) return false;
-    return assignment.questions?.some((question, index) => questionIsIncluded(question)
+    return getStoredAssignmentQuestions(assignment).some((question, index) => questionIsIncluded(question)
       && !['correct', 'expired'].includes(normalizeQuestionRecord(assignmentTracker[index]).status));
   });
   const resumeAssignment = savedResume || fallbackResume || null;
 
-  const fallbackQuestionIndex = resumeAssignment?.questions?.findIndex((question, index) => questionIsIncluded(question)
-    && !['correct', 'expired'].includes(normalizeQuestionRecord(tracker[resumeAssignment.id]?.[index]).status)) ?? -1;
+  const fallbackQuestionIndex = getStoredAssignmentQuestions(resumeAssignment)
+    .findIndex((question, index) => questionIsIncluded(question)
+      && !['correct', 'expired'].includes(normalizeQuestionRecord(tracker[resumeAssignment?.id]?.[index]).status));
   const savedResumeIncluded = savedResume ? getIncludedQuestionIndices(savedResume) : [];
   const requestedResumeIndex = Number(resumeAction?.questionIndex) || 0;
   const resumeQuestionIndex = savedResume
@@ -153,7 +159,7 @@ export const buildStudentDashboardModel = ({
   const activeDolIds = new Set(activeDols.map(({ assignment }) => assignment.id));
 
   const isDone = (assignment, assignmentTracker, lifecycle) => {
-    if (assignment.assignmentType === 'notesClasswork') {
+    if (getStoredAssignmentTypeProjection(assignment) === 'notesClasswork') {
       return classworkGradesByAssignment[assignment.id]?.score === 100 || lifecycle.isClosed;
     }
     const included = getIncludedQuestionIndices(assignment);
