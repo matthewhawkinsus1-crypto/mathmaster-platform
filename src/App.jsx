@@ -41,7 +41,6 @@ import {
 import {
   parseAssignmentBlueprintText,
   validateAssignmentQuestions,
-  normalizeAssignmentPackageMetadata,
   assertFirestoreSafeAssignmentPayload,
 } from './assignmentBlueprint';
 import AssignmentIntake from './AssignmentIntake';
@@ -122,6 +121,7 @@ import {
   storedAssignmentToV5,
 } from './platform/contract/storedAssignmentV5.js';
 import { buildAssignmentV5PreflightModel } from './platform/preflight/assignmentV5PreflightModel.js';
+import { normalizeLessonPublishingIntentV5 } from './platform/authoring/lessonPublishingIntent.js';
 import { normalizeLabDefinition } from './platform/labs/labDefinitionSchema.js';
 import { normalizeContextualQuestion } from './platform/context/wordProblemLayer';
 import { buildAttemptEvidenceEvent } from './platform/history/evidenceEvent.js';
@@ -2494,7 +2494,7 @@ function App() {
     }
 
     try {
-      validateAssignmentQuestions(parsed.questions, { variantMode: parsed.assignment?.variantMode });
+      validateAssignmentQuestions(parsed.questions, { variantMode: parsed.assignment?.variantPolicy?.mode });
     } catch (error) {
       errors.push(error.message);
     }
@@ -2521,10 +2521,14 @@ function App() {
       return { ok: false, errors, warnings, parsed, sourceSchemaVersion, compilerDefect };
     }
 
-    const metadata = parsed.isPackage
-      ? normalizeAssignmentPackageMetadata(parsed.assignment, parsed.questions)
-      : null;
-    return { ok: true, errors, warnings, parsed: { ...parsed, metadata }, sourceSchemaVersion: parsed.sourceSchemaVersion || null, compilerDefect: false };
+    return {
+      ok: true,
+      errors,
+      warnings,
+      parsed: { ...parsed, metadata: parsed.assignment || null },
+      sourceSchemaVersion: parsed.sourceSchemaVersion || null,
+      compilerDefect: false,
+    };
   };
 
 
