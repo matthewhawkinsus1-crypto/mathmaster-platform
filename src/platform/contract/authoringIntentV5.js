@@ -234,6 +234,21 @@ const normalizeConstraintBuilderConstraints = (q = {}, raw = []) => {
   });
 };
 
+const orderDomainRangeResponseFields = (fields = []) => {
+  const ordered = [...fields];
+  const moveInequalityBeforeWords = (inequalityIds, wordsId) => {
+    const wordsIndex = ordered.findIndex((field) => clean(field?.id) === wordsId);
+    const inequalityIndex = ordered.findIndex((field) => inequalityIds.includes(clean(field?.id)));
+    if (wordsIndex >= 0 && inequalityIndex >= 0 && inequalityIndex > wordsIndex) {
+      const [inequality] = ordered.splice(inequalityIndex, 1);
+      ordered.splice(wordsIndex, 0, inequality);
+    }
+  };
+  moveInequalityBeforeWords(['domainInequalities', 'domainInequality'], 'domainWords');
+  moveInequalityBeforeWords(['rangeInequalities', 'rangeInequality'], 'rangeWords');
+  return ordered;
+};
+
 const normalizeGraphChoices = (choices = []) => asArray(choices).map((item, index) => {
   if (!isObject(item)) return item;
   const id = item.id || `g${index + 1}`;
@@ -829,7 +844,7 @@ const compileOne = (q, index, repairs) => {
       const candidateGraphs = normalizeGraphChoices(q.candidateGraphs || q.graphs);
       out = copyCommon(q, {
         type,
-        answerFields: fields.map(fieldFromIntent),
+        answerFields: orderDomainRangeResponseFields(fields.map(fieldFromIntent)),
         table: q.table,
         graph: graphFromIntent(q),
         candidateGraphs: candidateGraphs.length ? candidateGraphs : undefined,
