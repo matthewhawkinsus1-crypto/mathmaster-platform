@@ -3817,7 +3817,7 @@ async function publishAssignmentBatch(request) {
   }
   const assignment = assignmentSnap.data();
   const audience = assignmentAudience(assignment);
-  if (!audience.classIds.length && !audience.classPeriods.length) {
+  if (!audience.classIds.length) {
     throw new HttpsError(
       "failed-precondition",
       "This MathMaster assignment is still in the library. Assign it to a class before publishing it to Google Classroom."
@@ -3858,10 +3858,7 @@ async function publishAssignmentBatch(request) {
       continue;
     }
     const mappedClassId = String(mapping.classId || "").trim();
-    const mappedPeriod = String(mapping.classPeriod || "").trim();
-    const mappingMatchesAudience = audience.classIds.length
-      ? Boolean(mappedClassId && audience.classIds.includes(mappedClassId))
-      : Boolean(mappedPeriod && audience.classPeriods.includes(mappedPeriod));
+    const mappingMatchesAudience = Boolean(mappedClassId && audience.classIds.includes(mappedClassId));
     if (!mappingMatchesAudience) {
       results.push({
         courseId,
