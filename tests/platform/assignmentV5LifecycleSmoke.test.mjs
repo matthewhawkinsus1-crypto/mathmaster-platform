@@ -232,11 +232,11 @@ test('release lifecycle: library persistence stays canonical and carries no inve
 
 test('release lifecycle: mixed Standard/Honors assignment creates distinct destination identities and real dates', () => {
   const destinations = buildDestinationGroups({
-    assignedClassPeriods: ['Period 1', 'Period 2'],
-    courseProfiles: {
-      'Period 1': { course: 'algebra1', courseLevel: 'standard' },
-      'Period 2': { course: 'algebra1', courseLevel: 'honors' },
-    },
+    assignedClassIds: ['class-standard', 'class-honors'],
+    classes: [
+      { classId: 'class-standard', name: 'Algebra I', period: 'Period 1', course: 'algebra1', courseLevel: 'standard' },
+      { classId: 'class-honors', name: 'Algebra I Honors', period: 'Period 2', course: 'algebra1', courseLevel: 'honors' },
+    ],
   });
 
   assert.deepEqual(destinations.map((entry) => entry.courseLevel).sort(), ['honors', 'standard']);
