@@ -55,6 +55,12 @@ const shouldUseSetInput = (field) => {
   return acceptedAnswersForField(field).some((value) => looksLikeFiniteSetNotation(value));
 };
 
+const shouldUseInequalityInput = (field) => {
+  if (field?.type === 'inequality' || field?.notation === 'inequality' || field?.inputMode === 'inequality') return true;
+  if (/inequalit/i.test(String(field?.label || field?.prompt || ''))) return true;
+  return acceptedAnswersForField(field).some((value) => /[<>≤≥]/.test(String(value)));
+};
+
 
 const inferredBinaryOptions = (field) => {
   const label = String(field?.label || field?.prompt || '').toLowerCase();
@@ -241,7 +247,17 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                   }}
                 />
               ) : (
-                <MathInput value={answers[field.id] || ''} onChange={(value) => history.setValue((current) => ({ ...current, [field.id]: value }))} placeholder={field.placeholder || (shouldUseSetInput(field) ? '{…}' : 'answer')} ariaLabel={field.label || field.id} toolProfile={field.toolProfile || (shouldUseSetInput(field) ? 'set' : 'basic')} answerFormat={field.answerFormat || field.inputContract?.format || field.notation || field.inputMode || ''} requiredSymbols={requiredSymbols} showToolsInitially={shouldUseSetInput(field) || inferredRequiredSymbols.length > 0} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
+                <MathInput
+                  value={answers[field.id] || ''}
+                  onChange={(value) => history.setValue((current) => ({ ...current, [field.id]: value }))}
+                  placeholder={field.placeholder || (shouldUseSetInput(field) ? '{…}' : shouldUseInequalityInput(field) ? 'e.g. 0 ≤ x ≤ 4' : 'answer')}
+                  ariaLabel={field.label || field.id}
+                  toolProfile={field.toolProfile || (shouldUseSetInput(field) ? 'set' : shouldUseInequalityInput(field) ? 'inequality' : 'basic')}
+                  answerFormat={field.answerFormat || field.inputContract?.format || field.notation || field.inputMode || (shouldUseInequalityInput(field) ? 'inequality' : '')}
+                  requiredSymbols={requiredSymbols}
+                  showToolsInitially={shouldUseSetInput(field) || shouldUseInequalityInput(field) || inferredRequiredSymbols.length > 0}
+                  inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'}
+                />
               )}
             </div>
           );
