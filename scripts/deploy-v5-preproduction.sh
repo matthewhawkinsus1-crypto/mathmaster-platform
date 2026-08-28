@@ -42,6 +42,8 @@ fi
 echo
 echo "3/7 Installing exact dependencies..."
 npm ci
+echo "--- installing Cloud Functions dependencies ---"
+npm ci --prefix functions
 
 echo
 echo "4/7 Running Assignment V5 release gates..."
@@ -63,6 +65,11 @@ firebase deploy --only firestore:rules,hosting --project "$PROJECT"
 
 echo
 echo "Deploying Cloud Functions in quota-safe groups..."
+if [ ! -d "$REPO_ROOT/functions/node_modules/firebase-functions" ]; then
+  echo "Cloud Functions dependencies are missing after npm ci --prefix functions." >&2
+  echo "Refusing to start grouped function deployment." >&2
+  exit 4
+fi
 FIREBASE_PROJECT="$PROJECT" bash scripts/deploy-functions-in-groups.sh
 
 echo
