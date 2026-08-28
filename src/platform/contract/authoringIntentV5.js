@@ -745,7 +745,7 @@ const compileOne = (q, index, repairs) => {
     case 'relationMapping': {
       const rawFields = q.answerFields || q.responses || q.response?.fields || [];
       const answerFields = asArray(rawFields).map(fieldFromIntent);
-      const ask = q.ask || [
+      const ask = q.ask || [...new Set([
         actions.includes('buildMapping') && 'mapping',
         // When a relation is plotted from supplied ordered pairs, keep the
         // mapping-diagram spiral unless the author explicitly opts out.
@@ -754,7 +754,7 @@ const compileOne = (q, index, repairs) => {
         actions.some((action) => ['stateDomain','analyzeDomain'].includes(action)) && 'domain',
         actions.some((action) => ['stateRange','analyzeRange'].includes(action)) && 'range',
         actions.includes('classifyFunction') && !answerFields.length && 'isFunction',
-      ].filter(Boolean);
+      ].filter(Boolean))];
       out = copyCommon(q, {
         type,
         pairs: q.pairs || q.relation,
