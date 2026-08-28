@@ -50,7 +50,7 @@ assert.deepEqual(direct.package.sections[0].questions[2].recipe.ask, ['quantitie
 assert.equal(direct.package.sections[0].questions[3].mode, 'ruleBridge');
 
 const parsed = parseAssignmentBlueprintText(JSON.stringify(v5));
-assert.equal(parsed.schemaVersion, 5, 'V5 remains canonical through runtime validation');
+assert.equal(parsed.assignmentV5.schemaVersion, 5, 'V5 remains canonical through runtime validation');
 assert.equal(parsed.questions.length, 5);
 assert.deepEqual(parsed.questions[1].pairs, [{ x: -2, y: 3 }, { x: 1, y: 2 }, { x: 3, y: -1 }]);
 assert.equal(parsed.questions[0].alignments[0].code, 'A.3C');
