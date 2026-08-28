@@ -2786,9 +2786,6 @@ function App() {
         dueAt,
         lateDueAt,
         dueDate,
-        assignmentType,
-        variantMode,
-        sectionVariantModes,
         sectionAccess: {
           classwork: { defaultState: teacherReview?.sectionAccessDefaults?.classwork === 'closed' ? 'closed' : 'open', overridesByClassId: {}, overridesByClassPeriod: {} },
           practice: { defaultState: teacherReview?.sectionAccessDefaults?.practice === 'closed' ? 'closed' : 'open', overridesByClassId: {}, overridesByClassPeriod: {} },
