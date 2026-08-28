@@ -87,7 +87,10 @@ export const collectReviewBlockers = ({
   // Selecting no class is no longer a blocker — it is the library path, and the
   // Check step says so rather than the Classes step complaining about it.
   if (honorsSelected && honorsReport && !honorsReport.isHonorsReady) {
-    const unresolved = (honorsReport.missing || []).filter((key) => key !== 'ccmrEnrichment');
+    const reportedMissing = Array.isArray(honorsReport.missing)
+      ? honorsReport.missing
+      : ['unknownHonorsRequirement'];
+    const unresolved = reportedMissing.filter((key) => key !== 'ccmrEnrichment');
     if (unresolved.length) {
       blockers.push(blocker('classes', 'An Honors class is selected, so the missing Honors depth elements have to be resolved first.'));
     }
