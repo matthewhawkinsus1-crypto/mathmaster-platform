@@ -1,6 +1,11 @@
 import { validateInstructionalScopeV5 } from '../curriculum/instructionalScope.js';
 import { looksLikeFiniteSetNotation } from '../../../functions/shared/answerEquivalence.mjs';
 import { normalizeStaticGraphPoints } from '../../graphPointUtils.js';
+import {
+  axisExpectedOptions,
+  axisQuantityChoicesFromIntent,
+  blankAxisGraphFromIntent,
+} from './axisSetupIntent.js';
 import { normalizeQuestionInteractionContracts } from '../interaction/interactionContract.js';
 import {
   normalizeAssignmentV5,
