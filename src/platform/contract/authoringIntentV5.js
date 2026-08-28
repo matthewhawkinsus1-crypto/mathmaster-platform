@@ -238,7 +238,13 @@ const normalizeGraphChoices = (choices = []) => asArray(choices).map((item, inde
   if (!isObject(item)) return item;
   const id = item.id || `g${index + 1}`;
   if (item.graph) return { ...item, id, graph: normalizeStaticGraphPoints(item.graph) };
-  if (item.function || item.functionSpec) return { id, label: item.label, graph: { functions: [staticFunctionSpec(item.function || item.functionSpec)] } };
+  if (item.function || item.functionSpec) {
+    return {
+      id,
+      ...(clean(item.label) ? { label: item.label } : {}),
+      graph: { functions: [staticFunctionSpec(item.function || item.functionSpec)] },
+    };
+  }
   return { ...item, id };
 });
 
@@ -347,6 +353,30 @@ const expectedDomain = (q = {}) => q.correctDomain ?? q.answerModel?.domain ?? r
 const expectedRange = (q = {}) => q.correctRange ?? q.answerModel?.range ?? responseExpected(q, 'range');
 const expectedEquation = (q = {}) => q.correctEquation ?? q.answerModel?.equation ?? responseExpected(q, 'equation');
 
+const functionNotationKeysFromPrompt = (prompt = '') => {
+  const text = String(prompt || '');
+  const direct = text.match(/\bequation\s+for\s+([A-Za-z])\s+in\s+terms\s+of\s+([A-Za-z])\b/i);
+  const letPair = text.match(/\bLet\s+([A-Za-z])\s+represent\b[\s\S]{0,220}?\band\s+([A-Za-z])\s+represent\b/i);
+  const explicit = text.match(/\b([A-Za-z])\(([A-Za-z])\)\b/);
+
+  let output = null;
+  let input = null;
+  if (direct) {
+    output = direct[1];
+    input = direct[2];
+  } else if (letPair) {
+    input = letPair[1];
+    output = letPair[2];
+  } else if (explicit) {
+    output = explicit[1];
+    input = explicit[2];
+  }
+
+  if (!output || !input) return [];
+  const label = `${output}(${input})`;
+  return [{ label, command: label, ariaLabel: `Insert ${output} of ${input}` }];
+};
+
 const responseExpectedByIds = (q = {}, ids = []) => {
   for (const id of ids) {
     const expected = responseExpected(q, id);
@@ -446,7 +476,12 @@ const compileFunctionWorkflow = (q, actions) => {
   }
 
   if (actions.includes('writeEquation')) {
-    workflow.push({ id: 'equation', kind: 'equationInput', prompt: q.equationPrompt || 'Write the equation or function rule.' });
+    workflow.push({
+      id: 'equation',
+      kind: 'equationInput',
+      prompt: q.equationPrompt || 'Write the equation or function rule.',
+      functionNotationKeys: functionNotationKeysFromPrompt(q.prompt),
+    });
     const expected = expectedEquation(q);
     if (expected !== undefined) grading.equation = expected;
   }

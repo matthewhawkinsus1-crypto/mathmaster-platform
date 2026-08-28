@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
 import { readComposedQuestion } from '../../src/platform/workflow/questionWorkflow.js';
+import { canonicalizeFunctionExpression } from '../../src/platform/workflow/modelExpression.js';
 import resolveReferenceInfo from '../../src/referenceInfo.js';
 import {
   normalizeBuilderModel,
@@ -90,6 +91,51 @@ test('Algebra I contextual domain and range preserve words plus inequality notat
   assert.deepEqual(composed.grading.rangeInequality, ['0 ≤ y ≤ 75']);
 });
 
+test('modeling equations accept V(t) and V as equivalent dependent-variable notation', () => {
+  assert.equal(
+    canonicalizeFunctionExpression('V = 12t'),
+    canonicalizeFunctionExpression('V(t) = 12t'),
+  );
+
+  const compiled = compileAuthoringIntentV5({
+    schemaVersion: 5,
+    assignment: {
+      title: 'Function notation keypad',
+      courseId: 'algebra1',
+      instructionalPurpose: 'lesson',
+      gradingPurpose: 'classwork',
+    },
+    sections: [{
+      role: 'classwork',
+      title: 'Classwork',
+      questions: [{
+        standard: 'A.3C',
+        prompt: 'Natalia fills a tub at 12 gallons per minute. Let t represent time in minutes and V represent the amount of water added in gallons. Write an equation for V in terms of t, complete the table, graph the relationship, and state the domain and range.',
+        studentActions: ['writeEquation', 'completeTable', 'constructGraph', 'stateDomain', 'stateRange'],
+        function: { family: 'linear', m: 12, b: 0, domain: { min: 0, max: 4, minClosed: true, maxClosed: true } },
+        table: {
+          columns: [{ key: 't', label: 't' }, { key: 'V', label: 'V(t)' }],
+          rows: [{ t: 0 }, { t: 1 }, { t: 2 }, { t: 3 }, { t: 4 }],
+        },
+        answerModel: {
+          equation: 'V = 12t',
+          domain: '0 ≤ t ≤ 4',
+          range: '0 ≤ V ≤ 48',
+        },
+      }],
+    }],
+  });
+
+  const question = compiled.package.sections[0].questions[0];
+  const composed = readComposedQuestion(question);
+  const equationStage = composed.workflow.find((stage) => stage.kind === 'equationInput');
+  assert.deepEqual(equationStage.functionNotationKeys, [{
+    label: 'V(t)',
+    command: 'V(t)',
+    ariaLabel: 'Insert V of t',
+  }]);
+});
+
 test('candidate graph questions retain the actual graph choices', () => {
   const compiled = compileAuthoringIntentV5({
     schemaVersion: 5,
@@ -126,6 +172,7 @@ test('candidate graph questions retain the actual graph choices', () => {
   assert.equal(question.candidateGraphs.length, 3);
   assert.deepEqual(question.candidateGraphs.map((candidate) => candidate.id), ['A', 'B', 'C']);
   assert.ok(question.candidateGraphs.every((candidate) => candidate.graph));
+  assert.ok(question.candidateGraphs.every((candidate) => !Object.hasOwn(candidate, 'label')), 'missing optional labels must not become Firestore-unsafe undefined fields');
 });
 
 test('quadrant-only builder prompts do not hide one exact vertex', () => {
@@ -257,10 +304,12 @@ test('V5 uses the balance solver, faithful graph reading, and complete relation 
 });
 
 test('student-facing renderers contain the fidelity safeguards', async () => {
-  const [engine, graph, relation] = await Promise.all([
+  const [engine, graph, relation, workflow, mathInput] = await Promise.all([
     readFile(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8'),
     readFile(new URL('../../src/GraphDisplay.jsx', import.meta.url), 'utf8'),
     readFile(new URL('../../src/tools/relationMapping/RelationMapping.jsx', import.meta.url), 'utf8'),
+    readFile(new URL('../../src/platform/workflow/WorkflowRunner.jsx', import.meta.url), 'utf8'),
+    readFile(new URL('../../src/MathInput.jsx', import.meta.url), 'utf8'),
   ]);
 
   assert.doesNotMatch(engine, /import EquationGrader/);
@@ -271,4 +320,7 @@ test('student-facing renderers contain the fidelity safeguards', async () => {
   assert.match(relation, /allowTypedPlot \?/);
   assert.match(relation, /analysisFields\.map/);
   assert.match(relation, /every input has exactly one output/);
+  assert.match(workflow, /Your checked graph/);
+  assert.match(workflow, /checkedGraphReference/);
+  assert.match(mathInput, /functionNotationKeys/);
 });

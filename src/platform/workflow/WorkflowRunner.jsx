@@ -4,6 +4,7 @@ import MathDisplay from '../../MathDisplay';
 import QuestionPrompt from '../../QuestionPrompt';
 import TableGrader from '../../TableGrader';
 import InteractiveGraphWorkspace from '../../InteractiveGraphWorkspace';
+import GraphDisplay from '../../GraphDisplay';
 import StepByStepAlgebra from '../../StepByStepAlgebra';
 import IntervalNumberLine from '../../tools/intervalNumberLine/IntervalNumberLine';
 import AxisSetupStage from './AxisSetupStage';
@@ -536,6 +537,7 @@ function StageBody({ stage, input, content, value, onChange, disabled, draftKey 
           value={value || ''}
           onChange={onChange}
           toolProfile="function"
+          functionNotationKeys={stage.functionNotationKeys || []}
           showToolsInitially
           placeholder={stage.placeholder || 'f(x) = …'}
           ariaLabel={stage.prompt || 'Function equation'}
@@ -594,6 +596,129 @@ const dependencyFingerprint = (value) => {
     hash = Math.imul(hash, 16777619);
   }
   return (hash >>> 0).toString(36);
+};
+
+const staticGraphSpec = (spec = {}) => {
+  if (!spec || typeof spec !== 'object') return null;
+  if (spec.type === 'linear') {
+    return {
+      type: 'line',
+      m: Number(spec.m ?? spec.a ?? 1),
+      b: Number(spec.b ?? spec.k ?? 0),
+      ...(spec.domain ? { domain: spec.domain } : {}),
+    };
+  }
+  return spec.type === 'expression' ? null : spec;
+};
+
+const endpointRequirementsForModel = (model, domain) => {
+  if (!model || !domain) return [];
+  return [
+    { side: 'min', x: Number(domain.min), inclusive: domain.minInclusive !== false },
+    { side: 'max', x: Number(domain.max), inclusive: domain.maxInclusive !== false },
+  ].flatMap((entry) => {
+    if (!Number.isFinite(entry.x)) return [];
+    const y = evaluateModelAt(model, entry.x);
+    if (!Number.isFinite(Number(y))) return [];
+    return [{
+      id: `checked-${entry.side}`,
+      point: [entry.x, Number(y)],
+      marker: entry.inclusive ? 'closed' : 'open',
+    }];
+  });
+};
+
+const sampleModelSegments = (model, graphWindow, domain) => {
+  const authoredMin = Number(graphWindow?.xMin);
+  const authoredMax = Number(graphWindow?.xMax);
+  let xMin = Number.isFinite(authoredMin) ? authoredMin : -10;
+  let xMax = Number.isFinite(authoredMax) ? authoredMax : 10;
+  if (domain && Number.isFinite(Number(domain.min))) xMin = Math.max(xMin, Number(domain.min));
+  if (domain && Number.isFinite(Number(domain.max))) xMax = Math.min(xMax, Number(domain.max));
+  if (!(xMax > xMin)) return [];
+
+  const samples = Array.from({ length: 65 }, (_, index) => {
+    const x = xMin + ((xMax - xMin) * index) / 64;
+    const y = evaluateModelAt(model, x);
+    return Number.isFinite(Number(y)) ? [Number(x.toFixed(6)), Number(y)] : null;
+  });
+
+  const segments = [];
+  for (let index = 1; index < samples.length; index += 1) {
+    const previous = samples[index - 1];
+    const current = samples[index];
+    if (!previous || !current) continue;
+    segments.push({ from: previous, to: current, stroke: '#1a73e8', strokeWidth: 3 });
+  }
+  return segments;
+};
+
+const normalizeWorkflowPoint = (point) => {
+  const x = Array.isArray(point) ? Number(point[0]) : Number(point?.x);
+  const y = Array.isArray(point) ? Number(point[1]) : Number(point?.y);
+  return Number.isFinite(x) && Number.isFinite(y) ? [x, y] : null;
+};
+
+const checkedGraphReference = ({ workflow, responses, content, grading, activeStageIndex }) => {
+  if (!Array.isArray(workflow) || activeStageIndex <= 0) return null;
+  let graphIndex = -1;
+  for (let index = Math.min(activeStageIndex - 1, workflow.length - 1); index >= 0; index -= 1) {
+    if (['functionGraph', 'coordinatePlot'].includes(workflow[index]?.kind)) {
+      graphIndex = index;
+      break;
+    }
+  }
+  if (graphIndex < 0) return null;
+
+  const graphStage = workflow[graphIndex];
+  const graphResponse = responses?.[graphStage.id];
+  if (graphResponse?.[WORKFLOW_ARTIFACT] !== 'graph' || graphResponse.isComplete !== true || graphResponse.isCorrect !== true) return null;
+
+  const input = resolveStageInput({ stage: graphStage, responses, content });
+  const source = input?.from === 'student' ? input.value : null;
+  const sourceIsTable = source?.[WORKFLOW_ARTIFACT] === 'table';
+  const rawPoints = sourceIsTable && Array.isArray(source.points)
+    ? source.points
+    : (Array.isArray(graphStage.pairs) ? graphStage.pairs : (Array.isArray(content?.pairs) ? content.pairs : []));
+  const points = rawPoints.map(normalizeWorkflowPoint).filter(Boolean);
+  const graphWindow = expandGraphWindowToPoints(
+    graphStage.graph || content?.graph || { xMin: -10, xMax: 10, yMin: -10, yMax: 10 },
+    points,
+  );
+
+  if (graphStage.kind === 'coordinatePlot') {
+    if (!points.length) return null;
+    return {
+      ...graphWindow,
+      points: points.map(([x, y]) => ({ x: Number(x), y: Number(y) })),
+      ariaLabel: 'Your checked graph',
+    };
+  }
+
+  const sourceModel = sourceIsTable ? source.sourceModel : (typeof source === 'string' ? source : null);
+  const sourceFunctionSpec = sourceIsTable ? source.sourceFunctionSpec : null;
+  const domain = graphStage.domainRestriction || parseIntervalDomainRestriction(grading?.domain);
+
+  if (sourceModel) {
+    const segments = sampleModelSegments(sourceModel, graphWindow, domain);
+    if (!segments.length) return null;
+    return {
+      ...graphWindow,
+      segments,
+      points: points.map(([x, y]) => ({ x: Number(x), y: Number(y) })),
+      endpointRequirements: endpointRequirementsForModel(sourceModel, domain),
+      ariaLabel: 'Your checked graph',
+    };
+  }
+
+  const spec = staticGraphSpec(sourceFunctionSpec || content?.functionSpec);
+  if (!spec) return null;
+  return {
+    ...graphWindow,
+    functions: [{ ...spec, ...(domain ? { domain } : {}) }],
+    points: points.map(([x, y]) => ({ x: Number(x), y: Number(y) })),
+    ariaLabel: 'Your checked graph',
+  };
 };
 
 export default function WorkflowRunner({
@@ -696,6 +821,13 @@ export default function WorkflowRunner({
     label: getStage(stage.kind)?.label || stage.kind,
   }));
   const summaryItems = buildWorkflowSummaryItems(summaryStages, responses);
+  const graphReference = checkedGraphReference({
+    workflow,
+    responses,
+    content,
+    grading,
+    activeStageIndex: safeActiveIndex,
+  });
 
   const renderStage = (stage, index, { focused = false } = {}) => {
     const definition = getStage(stage.kind);
@@ -832,7 +964,18 @@ export default function WorkflowRunner({
           <h4>Step {safeActiveIndex + 1}. {activeDefinition?.label || activeStage?.kind}</h4>
           <span className="workflow-focus__counter">{safeActiveIndex + 1} of {workflow.length}</span>
         </div>
-        {workflow.map((stage, index) => renderStage(stage, index, { focused: index === safeActiveIndex }))}
+        <div className={graphReference ? 'workflow-focus__workspace-body workflow-focus__workspace-body--with-graph' : 'workflow-focus__workspace-body'}>
+          <div className="workflow-focus__active-stage">
+            {workflow.map((stage, index) => renderStage(stage, index, { focused: index === safeActiveIndex }))}
+          </div>
+          {graphReference && (
+            <aside className="workflow-focus__graph-reference" aria-label="Your checked graph">
+              <div className="workflow-focus__graph-reference-title">Your checked graph</div>
+              <p>Use the graph you just completed while answering the remaining analysis steps.</p>
+              <GraphDisplay graph={graphReference} title="Your checked graph" />
+            </aside>
+          )}
+        </div>
       </main>
 
       <footer className="workflow-focus__footer">
