@@ -7,7 +7,7 @@ import { looksLikeFiniteSetNotation, matchesFieldAnswer } from './answerUtils';
 import { resolveLabelFormat } from './labelFormat';
 import { inferRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
 import useUndoHistory from './useUndoHistory';
-import { choiceSeed, stableShuffleChoices } from './platform/interaction/choiceOptions.js';
+import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from './platform/interaction/choiceOptions.js';
 
 const TEXTUAL_MATH_SIGNAL = /[=<>≤≥≠+*/^()[\]{}\\∞π√∪∩]/;
 
@@ -66,26 +66,6 @@ const inferredBinaryOptions = (field) => {
   ];
   const match = patterns.find((entry) => entry.pattern.test(label) && entry.options.includes(answer));
   return match?.options || null;
-};
-
-const strengthenTwoChoiceSet = (options = []) => {
-  if (!Array.isArray(options) || options.length !== 2) return options;
-  const [first, second] = options.map((value) => String(value));
-  const normalized = options.map((value) => String(value).trim().toLowerCase());
-
-  if (normalized.includes('yes') && normalized.includes('no')) {
-    return [...options, 'both yes and no', 'cannot be determined'];
-  }
-  if (normalized.includes('true') && normalized.includes('false')) {
-    return [...options, 'both true and false', 'cannot be determined'];
-  }
-  if (normalized.includes('discrete') && normalized.includes('continuous')) {
-    return [...options, 'both discrete and continuous', 'neither discrete nor continuous'];
-  }
-  if (normalized.includes('finite') && normalized.includes('infinite')) {
-    return [...options, 'both finite and infinite', 'cannot be determined'];
-  }
-  return [...options, `both ${first} and ${second}`, `neither ${first} nor ${second}`];
 };
 
 const choiceOptionsForField = (field, seed = '') => {
