@@ -425,15 +425,81 @@ export default function RelationMapping({ questionData = {}, onAction }) {
             </label>
           )}
           {ask.includes('isFunction') && (
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#3c4756', marginBottom: 12 }}>
-              Is this relation a function?
-              <select value={functionAnswer} onChange={(event) => { setFunctionAnswer(event.target.value); clearFeedback(); }} style={inputStyle}>
-                <option value="">Choose…</option>
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-              </select>
-            </label>
+            <fieldset style={{ border: 0, padding: 0, margin: '0 0 14px' }}>
+              <legend style={{ fontSize: 13, fontWeight: 700, color: '#3c4756', marginBottom: 8 }}>
+                Is this relation a function?
+              </legend>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {functionChoiceOptions.map((choice) => {
+                  const selected = functionAnswer === choice.value;
+                  return (
+                    <button
+                      key={choice.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => { setFunctionAnswer(choice.value); clearFeedback(); }}
+                      style={{
+                        ...secondaryButton,
+                        width: '100%',
+                        textAlign: 'left',
+                        border: `2px solid ${selected ? '#1a73e8' : '#cdd6e4'}`,
+                        background: selected ? '#e8f0fe' : '#fff',
+                        color: '#202124',
+                      }}
+                    >
+                      {choice.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
           )}
+
+          {analysisFields.map((field) => {
+            const options = optionsForField(field);
+            const current = String(fieldAnswers[field.id] ?? '');
+            return (
+              <fieldset key={field.id} style={{ border: 0, padding: 0, margin: '0 0 14px' }}>
+                <legend style={{ fontSize: 13, fontWeight: 700, color: '#3c4756', marginBottom: 8 }}>
+                  {field.label || field.id}
+                </legend>
+                {options.length ? (
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    {options.map((option) => {
+                      const raw = String(option);
+                      const selected = current === raw;
+                      return (
+                        <button
+                          key={raw}
+                          type="button"
+                          role="radio"
+                          aria-checked={selected}
+                          onClick={() => { setFieldAnswers((answers) => ({ ...answers, [field.id]: raw })); clearFeedback(); }}
+                          style={{
+                            ...secondaryButton,
+                            width: '100%',
+                            textAlign: 'left',
+                            border: `2px solid ${selected ? '#1a73e8' : '#cdd6e4'}`,
+                            background: selected ? '#e8f0fe' : '#fff',
+                            color: '#202124',
+                          }}
+                        >
+                          {raw}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <input
+                    value={current}
+                    onChange={(event) => { setFieldAnswers((answers) => ({ ...answers, [field.id]: event.target.value })); clearFeedback(); }}
+                    style={inputStyle}
+                  />
+                )}
+              </fieldset>
+            );
+          })}
 
           <button type="button" onClick={check} style={{ ...primaryButton, width: '100%' }}>Check</button>
 
