@@ -340,6 +340,7 @@ const compileFunctionWorkflow = (q, actions) => {
     ? functionSpecFromIntentQuestion(q)
     : null;
   const tableInfo = normalizeIntentTable(q.table);
+  const axis = isObject(q.axisRequirements) ? q.axisRequirements : {};
   const continuity = expectedContinuity(q);
   const graphMode = clean(q.graphMode || q.answerModel?.graphMode || continuity) || 'continuous';
   const workflow = [];
