@@ -144,7 +144,7 @@ const payload = {
 
 const parsed = parseAssignmentBlueprintText(JSON.stringify(payload));
 assert.equal(parsed.sourceSchemaVersion, 5);
-assert.equal(parsed.schemaVersion, 5);
+assert.equal(parsed.assignmentV5.schemaVersion, 5);
 assert.equal(parsed.questions.length, 9);
 validateAssignmentQuestions(parsed.questions);
 

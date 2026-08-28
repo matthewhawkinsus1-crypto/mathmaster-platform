@@ -327,10 +327,10 @@ test('release lifecycle: duplicate/export reconstruction resets identity and rou
   assert.equal(Object.prototype.hasOwnProperty.call(portable, 'questions'), false);
 
   const reimported = parseAssignmentBlueprintText(JSON.stringify(portable));
-  assert.equal(reimported.schemaVersion, 5);
-  assert.equal(reimported.bundleSource.schemaVersion, 5);
+  assert.equal(reimported.assignmentV5.schemaVersion, 5);
+  assert.equal(reimported.assignmentV5.schemaVersion, 5);
   assert.equal(reimported.questions.length, 5);
-  assert.equal(buildAssignmentV5PreflightModel(reimported.bundleSource).isValid, true);
+  assert.equal(buildAssignmentV5PreflightModel(reimported.assignmentV5).isValid, true);
 });
 
 console.log('assignmentV5LifecycleSmoke.test.mjs: full creator lifecycle passed');

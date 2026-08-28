@@ -47,7 +47,7 @@ const sample = {
 };
 
 const parsed = parseAssignmentBlueprintText(JSON.stringify(sample));
-if (parsed.schemaVersion !== 5 || parsed.bundleSource?.schemaVersion !== 5) {
+if (parsed.assignmentV5?.schemaVersion !== 5) {
   throw new Error('Assignment V5 was downgraded or lost during intake.');
 }
 validateAssignmentQuestions(parsed.questions);

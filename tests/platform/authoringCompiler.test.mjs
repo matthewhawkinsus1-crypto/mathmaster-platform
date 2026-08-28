@@ -42,14 +42,17 @@ assignment = {
 \`\`\``;
 
 const parsed = parseAssignmentBlueprintText(rawV5);
-assert.equal(parsed.schemaVersion, 5);
 assert.equal(parsed.sourceSchemaVersion, 5);
-assert.equal(parsed.bundleSource.schemaVersion, 5);
-assert.equal(parsed.bundleSource.sections.length, 1);
+assert.equal(parsed.assignmentV5.schemaVersion, 5);
+assert.equal(parsed.assignmentV5.sections.length, 1);
 assert.equal(parsed.questions.length, 1);
 assert.equal(parsed.questions[0].type, 'functionGraph');
-assert.equal(parsed.assignment.variantPolicy.mode, 'personalized');
-assert.equal(parsed.assignment.outputProfiles.studentWorksheetPdf.enabled, true);
+assert.equal(parsed.assignmentV5.variantPolicy.mode, 'personalized');
+assert.equal(parsed.assignmentV5.outputProfiles.studentWorksheetPdf.enabled, true);
+assert.equal(Object.prototype.hasOwnProperty.call(parsed, 'bundleSource'), false);
+assert.equal(Object.prototype.hasOwnProperty.call(parsed, 'isBundle'), false);
+assert.equal(Object.prototype.hasOwnProperty.call(parsed, 'isPackage'), false);
+assert.equal(Object.prototype.hasOwnProperty.call(parsed, 'assignment'), false);
 assert.equal(validateAssignmentQuestions(parsed.questions).length, 1);
 assert.ok(parsed.repairs.some((repair) => /canonical V5/.test(repair)));
 
@@ -77,7 +80,7 @@ assert.match(contract, /assessment fidelity/i);
 assert.doesNotMatch(contract, /compile V5 intent into its internal V4|Return.*V4/i);
 
 const fixRequest = buildFixRequest({
-  rawJson: JSON.stringify(parsed.bundleSource),
+  rawJson: JSON.stringify(parsed.assignmentV5),
   errors: ['Question 1 is missing required mathematical data.'],
   warnings: ['Question 1 alignment needs teacher review.'],
 });

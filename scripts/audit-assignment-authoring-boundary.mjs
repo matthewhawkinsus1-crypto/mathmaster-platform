@@ -75,7 +75,7 @@ for (const file of files) {
 
   try {
     const parsed = parseAssignmentBlueprintText(text);
-    if (Number(parsed.schemaVersion) !== 5 || Number(parsed.bundleSource?.schemaVersion) !== 5) {
+    if (Number(parsed.assignmentV5?.schemaVersion) !== 5) {
       errors.push(`${file}: live compiler did not preserve Assignment V5.`);
     }
   } catch (error) {

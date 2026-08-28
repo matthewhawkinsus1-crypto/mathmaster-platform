@@ -30,7 +30,7 @@ test('question edits and duplication pass through canonical V5 reconstruction', 
 
 test('preflight stores and passes the canonical V5 object without a Bundle V3 adapter', () => {
   const source = fs.readFileSync('src/App.jsx', 'utf8');
-  assert.match(source, /const assignmentV5 = inspected\.bundleSource/);
+  assert.match(source, /const assignmentV5 = inspected\.assignmentV5/);
   assert.match(source, /Number\(assignmentV5\.schemaVersion\) !== 5/);
   assert.match(source, /assignmentV5=\{assignmentPreflight\.assignmentV5\}/);
   assert.doesNotMatch(source, /buildPreflightBundle|normalizeLessonBundle/);
