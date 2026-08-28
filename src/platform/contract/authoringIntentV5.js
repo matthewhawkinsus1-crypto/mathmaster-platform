@@ -596,13 +596,28 @@ const resolveIntentType = (q, actions) => {
   if (actions.includes('chooseNumberLine') || q.numberLineChoices) return 'numberLine';
   if (actions.includes('constructGraph')) return 'functionGraph';
   if (actions.includes('investigateFunction')) return 'functionInvestigation2';
-  if (actions.some((a) => a.startsWith('analyze') || ['findVertex','findXIntercepts','findYIntercept','findMaximum','findMinimum'].includes(a)) && (q.function || q.functionSpec)) return 'graphAnalysis';
-  if (actions.includes('readGraph') && (q.graph || q.function)) return 'graphing';
+  // When a displayed graph has authored response parts, preserve those exact
+  // questions instead of sending the item to the old line-only slope/intercept
+  // renderer. MultiAnswerGrader can show the graph and ask the authored
+  // domain/range/classification fields without exposing an equation.
+  if (
+    actions.includes('readGraph')
+    && (q.responses || q.answerFields || q.response?.fields)
+    && (q.graph || q.function || q.functionSpec || q.visual?.graph)
+  ) return 'multiAnswer';
+  if (
+    (actions.includes('readGraph')
+      || actions.some((a) => a.startsWith('analyze') || ['findVertex','findXIntercepts','findYIntercept','findMaximum','findMinimum'].includes(a)))
+    && (q.function || q.functionSpec)
+  ) return 'graphAnalysis';
+  if (actions.includes('readGraph') && (q.graph || q.visual?.graph)) return 'multiAnswer';
   if (actions.includes('completeTable') || q.table?.answers) return 'table';
   if (actions.includes('stateOrderedPair')) return 'orderedPair';
   if (actions.includes('multipleResponses') || q.responses || q.answerFields) return 'multiAnswer';
   if (actions.includes('fractionAnswer')) return 'fraction';
-  if (actions.includes('solveEquation') || q.equation) return 'algebra';
+  // The legacy one-box Algebra renderer is retired. All ordinary equation
+  // solving now uses the balance workspace so the student must actually solve.
+  if (actions.includes('solveEquation') || q.equation) return 'stepAlgebra';
   return null;
 };
 
