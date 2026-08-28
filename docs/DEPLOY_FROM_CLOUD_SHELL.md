@@ -1,5 +1,23 @@
 # Deploying MathMaster from Google Cloud Shell
 
+## Assignment V5 pre-production release
+
+Assignment V5 now includes built-in AI assignment authoring. Before the first deploy of this release, create the Firebase server secret once:
+
+```
+firebase functions:secrets:set OPENAI_API_KEY --project mathmaster-aleks
+```
+
+When Firebase prompts for the value, paste the OpenAI key created for **MathMaster Assignment AI**. The key stays in Firebase Secret Manager and is not placed in browser code or the repository.
+
+For this release, the preferred deployment is the guarded one-command helper:
+
+```
+cd ~ && { [ -d mathmaster-platform ] || git clone https://github.com/matthewhawkinsus1-crypto/mathmaster-platform.git; } && cd mathmaster-platform && git checkout main && git pull origin main && bash scripts/deploy-v5-preproduction.sh
+```
+
+The helper updates `main`, verifies `OPENAI_API_KEY`, installs exact dependencies, runs the permanent Assignment V5 gates, builds Firebase Hosting in production mode, deploys Firestore rules/Hosting, deploys Functions in quota-safe groups, and verifies the live site returns HTTP 200. If any gate fails, deployment stops.
+
 - **Project:** `mathmaster-aleks`
 - **Repository:** `matthewhawkinsus1-crypto/mathmaster-platform`, branch `main`
 - **Everything lives in Firebase.** Hosting, Cloud Functions and Firestore

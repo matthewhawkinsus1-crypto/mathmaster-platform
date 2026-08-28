@@ -50,6 +50,8 @@ on:
       - 'scripts/validate-authoring-v5.mjs'
       - 'scripts/audit-assignment-authoring-boundary.mjs'
       - 'scripts/audit-legacy-assignment-source.mjs'
+      - 'scripts/deploy-v5-preproduction.sh'
+      - 'tests/platform/v5PreproductionDeployHelper.test.mjs'
       - 'src/platform/schemas/**'
       - 'src/platform/validation/**'
       - 'tests/platform/noLegacyBundleAuthoring.test.mjs'
