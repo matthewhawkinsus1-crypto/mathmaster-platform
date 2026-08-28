@@ -2833,7 +2833,7 @@ function App() {
           const originalLabId = question.labDefinition.labId;
           const privateSource = privateLabsById.get(originalLabId);
           if (!privateSource) {
-            if (bundleLabs.length) throw new Error(`Modeling lab ${originalLabId} could not be matched to its private Bundle V3 definition.`);
+            if (bundleLabs.length) throw new Error(`Modeling lab ${originalLabId} could not be matched to its private assignment definition.`);
             return question;
           }
           const nextLabId = `${originalLabId}-${labSuffix}`;
@@ -2849,7 +2849,7 @@ function App() {
           rigorVariant: destination.courseLevel,
           rigorVariantGroupId: splitVariantGroupId,
           assignmentKey: destinationAssignmentKey({
-            assignmentKey: packageMetadata?.assignmentKey,
+            assignmentKey: sourceAssignmentKey,
             destination,
             destinationCount: destinationGroups.length,
           }),
@@ -3160,7 +3160,7 @@ function App() {
       if (assignmentPreflight?.mode === 'update') {
         await updateExistingAssignmentFromReview({ draft, assignmentV5 });
       } else {
-        await handleCreateAssignment(null, null, draft, assignmentV5);
+        await handleCreateAssignment(draft, assignmentV5);
       }
     } finally {
       setAssignmentPreflightBusy(false);
