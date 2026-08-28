@@ -26,6 +26,8 @@ const rules = [
   ['retired question validator registry import/reference', /(?:platform\/validation\/validatorRegistry|validation\/validatorRegistry\.js|\bvalidateQuestionDefinition\b|\bLEGACY_QUESTION_TYPES\b)/],
   ['removed persisted questions projection read', /\bpersistence\.questions\b/],
   ['retired client Assignment V5 runtime projection', /\bhydrateAssignmentRuntime\b|assignmentRuntimeProjection/],
+  ['retired assignment package metadata normalizer', /\bnormalizeAssignmentPackageMetadata\b|\bASSIGNMENT_TEMPLATE_DEFAULTS\b/],
+  ['retired assignment package aliases', /\bproblemVersions\b|\bversionMode\b/],
 ];
 
 const violations = [];

@@ -81,3 +81,19 @@ test('canonical persistence patch contains sections only and no flat questions p
   assert.equal(Object.prototype.hasOwnProperty.call(patch, 'sectionVariantModes'), false);
   assert.equal(Array.isArray(patch.sections), true);
 });
+
+test('Classroom and notes runtime packages are regenerated from canonical V5 intent', () => {
+  const source = fs.readFileSync('src/App.jsx', 'utf8');
+  assert.match(source, /normalizeLessonPublishingIntentV5\(\{[\s\S]{0,220}classroom:\s*reviewedV5\.classroomIntegration[\s\S]{0,220}reviewedV5\.outputProfiles\?\.lessonNotesPdf/);
+  assert.match(source, /classroomPackage:\s*publishingIntent\.classroomPackage/);
+  assert.match(source, /lessonResources:\s*publishingIntent\.lessonResources/);
+  assert.match(source, /classroom:\s*model\.assignmentV5\.classroomIntegration/);
+  assert.match(source, /model\.assignmentV5\.outputProfiles\?\.lessonNotesPdf/);
+});
+
+test('retired package metadata aliases cannot re-enter assignment creation', () => {
+  const source = fs.readFileSync('src/assignmentBlueprint.js', 'utf8');
+  const appSource = fs.readFileSync('src/App.jsx', 'utf8');
+  assert.doesNotMatch(source, /normalizeAssignmentPackageMetadata|ASSIGNMENT_TEMPLATE_DEFAULTS|problemVersions|versionMode/);
+  assert.doesNotMatch(appSource, /packageMetadata|normalizeAssignmentPackageMetadata/);
+});

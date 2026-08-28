@@ -41,7 +41,6 @@ import {
 import {
   parseAssignmentBlueprintText,
   validateAssignmentQuestions,
-  normalizeAssignmentPackageMetadata,
   assertFirestoreSafeAssignmentPayload,
 } from './assignmentBlueprint';
 import AssignmentIntake from './AssignmentIntake';
@@ -122,6 +121,7 @@ import {
   storedAssignmentToV5,
 } from './platform/contract/storedAssignmentV5.js';
 import { buildAssignmentV5PreflightModel } from './platform/preflight/assignmentV5PreflightModel.js';
+import { normalizeLessonPublishingIntentV5 } from './platform/authoring/lessonPublishingIntent.js';
 import { normalizeLabDefinition } from './platform/labs/labDefinitionSchema.js';
 import { normalizeContextualQuestion } from './platform/context/wordProblemLayer';
 import { buildAttemptEvidenceEvent } from './platform/history/evidenceEvent.js';
@@ -2481,7 +2481,7 @@ function App() {
 
   const V5_COMPILER_PLUMBING_ERROR = /missing a type\/toolId|refers to a table in its prompt, but the question contains none|refers to a graph in its prompt, but the question contains none|needs `functionSpec\.type`|needs `analysisRequests`|needs a `graph` object with functions, points or segments|cannot yet build that interactive graph from an upstream response/i;
 
-  // Reads authored JSON of any accepted vintage and reports what is wrong in
+  // Reads the one supported Assignment V5 object and reports what is wrong in
   // terms an AI can act on, rather than throwing a single opaque message.
   const readAssignmentJson = (rawText) => {
     const errors = [];
@@ -2494,7 +2494,7 @@ function App() {
     }
 
     try {
-      validateAssignmentQuestions(parsed.questions, { variantMode: parsed.assignment?.variantMode });
+      validateAssignmentQuestions(parsed.questions, { variantMode: parsed.assignment?.variantPolicy?.mode });
     } catch (error) {
       errors.push(error.message);
     }
@@ -2521,10 +2521,14 @@ function App() {
       return { ok: false, errors, warnings, parsed, sourceSchemaVersion, compilerDefect };
     }
 
-    const metadata = parsed.isPackage
-      ? normalizeAssignmentPackageMetadata(parsed.assignment, parsed.questions)
-      : null;
-    return { ok: true, errors, warnings, parsed: { ...parsed, metadata }, sourceSchemaVersion: parsed.sourceSchemaVersion || null, compilerDefect: false };
+    return {
+      ok: true,
+      errors,
+      warnings,
+      parsed: { ...parsed, metadata: parsed.assignment || null },
+      sourceSchemaVersion: parsed.sourceSchemaVersion || null,
+      compilerDefect: false,
+    };
   };
 
 
@@ -2532,7 +2536,6 @@ function App() {
   // carries them, so there are no manual fallbacks to merge any more.
   const openAssignmentPreflight = (inspected, sourceName, draftOverrides = {}, reviewOptions = {}) => {
     try {
-      const { metadata } = inspected;
       const assignmentV5 = inspected.bundleSource;
       if (!assignmentV5 || Number(assignmentV5.schemaVersion) !== 5) {
         throw new Error('Assignment Review requires a current MathMaster assignment.');
@@ -2541,52 +2544,46 @@ function App() {
       const dolQuestionFromRole = inspected.questions.findIndex((question) => (
         resolveQuestionActivityRole({ question, assignment: assignmentV5 }) === 'dol'
       ));
+      const publishingIntent = normalizeLessonPublishingIntentV5({
+        classroom: assignmentV5.classroomIntegration,
+        lessonResources: { notesPdf: assignmentV5.outputProfiles?.lessonNotesPdf },
+      }, assignmentV5.assignment, []);
       const initialDraft = {
-        title: metadata?.title || assignmentV5.assignment?.title || '',
-        folder: metadata?.folder || '',
-        dueAt: toDateTimeLocalInputValue(metadata?.dueAt || ''),
-        lateDueAt: toDateTimeLocalInputValue(metadata?.lateDueAt || ''),
-        releaseAt: toDateTimeLocalInputValue(metadata?.releaseAt || ''),
-        assignmentType: getStoredAssignmentTypeProjection(assignmentV5),
-        variantMode: getStoredAssignmentVariantMode(assignmentV5),
+        title: assignmentV5.assignment?.title || '',
+        folder: assignmentV5.assignment?.folder || '',
+        dueAt: '',
+        lateDueAt: '',
+        releaseAt: '',
         sectionVariantModes: getStoredSectionVariantModes(assignmentV5),
-        sectionAccessDefaults: { classwork: 'open', practice: 'open', ...(metadata?.sectionAccessDefaults || {}) },
-        guidedNotesBySection: { classwork: 'automatic', practice: 'off', ...(metadata?.guidedNotesBySection || {}) },
-        assignedClassPeriods: [...(metadata?.assignedClassPeriods || [])],
-        assignedClassIds: [...(metadata?.assignedClassIds || [])],
-        warmupEnabled: sections.some((section) => section.role === 'warmup')
-          && (metadata?.provided?.warmup ? metadata.warmup.enabled !== false : true),
-        warmupMinutesBeforeStart: metadata?.warmup?.minutesBeforeStart ?? 7,
-        warmupInstructionDate: metadata?.warmup?.instructionDate || '',
-        warmupInstructionDatesByClassPeriod: metadata?.warmup?.instructionDatesByClassPeriod || {},
-        dolEnabled: sections.some((section) => section.role === 'dol')
-          && (metadata?.provided?.dol ? metadata.dol.enabled === true : true),
-        dolMinutesBeforeEnd: metadata?.dol?.minutesBeforeEnd ?? 10,
-        dolInstructionDate: metadata?.dol?.instructionDate || '',
-        dolInstructionDatesByClassPeriod: metadata?.dol?.instructionDatesByClassPeriod || {},
-        dolQuestionIndex: Number.isInteger(metadata?.dol?.questionIndex)
-          ? metadata.dol.questionIndex
-          : dolQuestionFromRole >= 0 ? dolQuestionFromRole : null,
+        sectionAccessDefaults: { classwork: 'open', practice: 'open' },
+        guidedNotesBySection: { classwork: 'automatic', practice: 'off' },
+        assignedClassPeriods: [],
+        assignedClassIds: [],
+        warmupEnabled: sections.some((section) => section.role === 'warmup'),
+        warmupMinutesBeforeStart: 7,
+        warmupInstructionDate: '',
+        warmupInstructionDatesByClassPeriod: {},
+        dolEnabled: sections.some((section) => section.role === 'dol'),
+        dolMinutesBeforeEnd: 10,
+        dolInstructionDate: '',
+        dolInstructionDatesByClassPeriod: {},
+        dolQuestionIndex: dolQuestionFromRole >= 0 ? dolQuestionFromRole : null,
         publicationStrategy: 'hybrid',
         includeWarmupInClassroom: false,
         homeworkDueAt: '',
-        // Authoring Intent V5 may carry the complete Classroom/resource plan.
-        // Preflight shows it for review but does not need the teacher to retype it.
-        classroomPackage: metadata?.classroomPackage || null,
-        lessonResources: metadata?.lessonResources || null,
-        instructionalPurpose: metadata?.instructionalPurpose || 'lesson',
-        gradingPurpose: metadata?.gradingPurpose || null,
-        variantPolicy: metadata?.variantPolicy || null,
-        differentiationPolicy: metadata?.differentiationPolicy || null,
-        supportPolicy: metadata?.supportPolicy || null,
-        toolPolicy: metadata?.toolPolicy || null,
-        deliveryPolicy: metadata?.deliveryPolicy || null,
-        gradingPolicy: metadata?.gradingPolicy || null,
-        evidencePolicy: metadata?.evidencePolicy || null,
-        outputProfiles: metadata?.outputProfiles || null,
-        classroomIntegration: metadata?.classroomIntegration || null,
-        provenance: metadata?.provenance || null,
-        preflight: metadata?.preflight || null,
+        instructionalPurpose: assignmentV5.assignment?.instructionalPurpose || 'lesson',
+        gradingPurpose: assignmentV5.assignment?.gradingPurpose || null,
+        variantPolicy: assignmentV5.variantPolicy,
+        differentiationPolicy: assignmentV5.differentiationPolicy,
+        supportPolicy: assignmentV5.supportPolicy,
+        toolPolicy: assignmentV5.toolPolicy,
+        deliveryPolicy: assignmentV5.deliveryPolicy,
+        gradingPolicy: assignmentV5.gradingPolicy,
+        evidencePolicy: assignmentV5.evidencePolicy,
+        outputProfiles: assignmentV5.outputProfiles,
+        classroomIntegration: assignmentV5.classroomIntegration,
+        provenance: assignmentV5.provenance,
+        preflight: assignmentV5.preflight,
         ...draftOverrides,
       };
       setAssignmentPreflight({
@@ -2618,65 +2615,34 @@ function App() {
   };
 
 
-  const resolvePackagePrerequisiteId = (metadata) => {
-    if (!metadata) return null;
-    if (metadata.prerequisiteAssignmentId) return metadata.prerequisiteAssignmentId;
-    if (metadata.prerequisiteTitle) {
-      const match = assignments.find(
-        (assignment) => String(assignment.title || '').trim().toLowerCase() === metadata.prerequisiteTitle.toLowerCase(),
-      );
-      if (!match) {
-        throw new Error(`Prerequisite assignment "${metadata.prerequisiteTitle}" was not found. Create it first, use its prerequisiteAssignmentId, or remove the prerequisite from the package.`);
-      }
-      return match.id;
-    }
-    return null;
-  };
-
-  const handleCreateAssignment = async (event, overrideVariantMode, teacherReview = null, reviewedAssignmentV5 = null) => {
-    if (event?.preventDefault) event.preventDefault();
-
+  const handleCreateAssignment = async (teacherReview, reviewedAssignmentV5) => {
     try {
-      const parsed = parseAssignmentBlueprintText(newAssignmentJSON);
+      if (!teacherReview || typeof teacherReview !== 'object') {
+        throw new Error('Publishing requires the completed Assignment Review settings.');
+      }
       const reviewedV5 = reviewedAssignmentV5 && Number(reviewedAssignmentV5.schemaVersion) === 5
         ? reviewedAssignmentV5
-        : parsed.bundleSource;
-      if (!reviewedV5 || Number(reviewedV5.schemaVersion) !== 5) {
+        : null;
+      if (!reviewedV5) {
         throw new Error('Publishing requires the MathMaster assignment that was reviewed before creation.');
       }
-      // Preflight can change delivery/output policy. Questions and sections must
-      // therefore come from the reviewed V5 object, not from the original paste.
+
+      // Final publishing consumes the exact reviewed canonical object. The
+      // original pasted/uploaded JSON is intentionally not reparsed here.
       const reviewedQuestions = flattenV5Sections(reviewedV5);
-      const packageMetadata = parsed.isPackage
-        ? normalizeAssignmentPackageMetadata(parsed.assignment, reviewedQuestions)
-        : null;
+      const title = String(reviewedV5.assignment?.title || '').trim();
+      const dueValue = teacherReview.dueAt || '';
+      const lateDueValue = teacherReview.lateDueAt || '';
+      const releaseValue = teacherReview.releaseAt || '';
+      const variantMode = getStoredAssignmentVariantMode(reviewedV5);
+      const assignedClassIds = [...(teacherReview.assignedClassIds || [])];
+      const assignedClassPeriods = [...(teacherReview.assignedClassPeriods || [])];
 
-      const title = String(teacherReview?.title ?? packageMetadata?.title ?? '').trim();
-      const dueValue = teacherReview ? teacherReview.dueAt : packageMetadata?.dueAt || '';
-      const lateDueValue = teacherReview ? teacherReview.lateDueAt : packageMetadata?.lateDueAt || '';
-      const releaseValue = teacherReview ? teacherReview.releaseAt : packageMetadata?.releaseAt || '';
-      const variantMode = overrideVariantMode || getStoredAssignmentVariantMode(reviewedV5);
-      const assignedClassIds = teacherReview
-        ? [...(teacherReview.assignedClassIds || [])]
-        : [...(packageMetadata?.assignedClassIds || [])];
-      const assignedClassPeriods = teacherReview
-        ? [...(teacherReview.assignedClassPeriods || [])]
-        : [...(packageMetadata?.assignedClassPeriods || CLASS_PERIODS)];
-      // A teacher-reviewed creation says exactly which classes it goes to,
-      // including none. Only the no-review path falls back to every period.
-
-      // Two paths from here, decided by one predicate: no classes means Save to
-      // Library, which needs a title and nothing else. Selecting a class turns
-      // it into Create & Assign, and the due date becomes required.
       const creationMode = resolveCreationMode({ assignedClassIds, assignedClassPeriods });
-
       if (!title) {
-        throw new Error('Assignment title is missing. Add a title in the preflight review before publishing.');
+        throw new Error('Assignment title is missing. Add a title in Assignment Review before publishing.');
       }
 
-      // Throws with the teacher-facing message when an assigned creation is
-      // missing its date, and returns nulls for a library save rather than
-      // inventing a due date nobody chose.
       const { dueAt, lateDueAt, dueDate, releaseAt } = resolveAssignmentDates({
         mode: creationMode,
         dueValue,
@@ -2694,94 +2660,62 @@ function App() {
       const hasWarmupSection = authoredRoles.includes('warmup');
       const hasDOLSection = authoredRoles.includes('dol');
       const assignmentType = getStoredAssignmentTypeProjection(reviewedV5);
-      const requestedSectionVariantModes = getStoredSectionVariantModes(reviewedV5);
-      const sectionVariantModes = Object.fromEntries([...new Set(authoredRoles)].map((role) => [
-        role,
-        ['shared', 'personalized', 'variant', 'adaptive'].includes(requestedSectionVariantModes?.[role])
-          ? (requestedSectionVariantModes[role] === 'variant' ? 'personalized' : requestedSectionVariantModes[role])
-          : variantMode,
-      ]));
 
-      const prerequisiteAssignmentId = resolvePackagePrerequisiteId(packageMetadata);
-      const warmupEnabled = hasWarmupSection && (teacherReview
-        ? teacherReview.warmupEnabled !== false
-        : packageMetadata?.provided?.warmup
-          ? packageMetadata.warmup.enabled !== false
-          : true);
-      const requestedWarmupLeadMinutes = Number(
-        teacherReview ? teacherReview.warmupMinutesBeforeStart : packageMetadata?.warmup?.minutesBeforeStart,
+      const warmupEnabled = hasWarmupSection && teacherReview.warmupEnabled !== false;
+      const requestedWarmupLeadMinutes = Number(teacherReview.warmupMinutesBeforeStart);
+      const warmupMinutesBeforeStart = Math.max(
+        0,
+        Number.isFinite(requestedWarmupLeadMinutes) ? requestedWarmupLeadMinutes : 7,
       );
-      const warmupMinutesBeforeStart = Math.max(0, Number.isFinite(requestedWarmupLeadMinutes) ? requestedWarmupLeadMinutes : 7);
       const warmupInstructionDate = String(
-        teacherReview?.warmupInstructionDate
-        || packageMetadata?.warmup?.instructionDate
+        teacherReview.warmupInstructionDate
         || (releaseAt ? localDateKey(new Date(releaseAt)) : '')
         || localDateKey(Date.now()),
       ).trim() || null;
-      const warmupInstructionDatesByClassPeriod = teacherReview?.warmupInstructionDatesByClassPeriod
-        || packageMetadata?.warmup?.instructionDatesByClassPeriod
-        || {};
+      const warmupInstructionDatesByClassPeriod = teacherReview.warmupInstructionDatesByClassPeriod || {};
 
-      let dolQuestionIndex = null;
-      let dolEnabled = teacherReview
-        ? teacherReview.dolEnabled === true && hasDOLSection
-        : packageMetadata?.provided?.dol
-          ? packageMetadata.dol.enabled === true
-          : hasDOLSection;
-      let dolMinutesBeforeEnd = Math.max(1, Number(teacherReview ? teacherReview.dolMinutesBeforeEnd : packageMetadata?.dol?.minutesBeforeEnd) || 10);
-      const dolInstructionDate = String(
-        teacherReview?.dolInstructionDate
-        || packageMetadata?.dol?.instructionDate
-        || (releaseAt ? localDateKey(new Date(releaseAt)) : '')
-        || localDateKey(Date.now()),
-      ).trim() || null;
-
-      if (teacherReview) {
-        dolQuestionIndex = Number.isInteger(Number(teacherReview.dolQuestionIndex))
-          ? Number(teacherReview.dolQuestionIndex)
-          : null;
-      } else if (packageMetadata?.provided?.dol) {
-        dolEnabled = packageMetadata.dol.enabled;
-        dolMinutesBeforeEnd = packageMetadata.dol.minutesBeforeEnd;
-        dolQuestionIndex = packageMetadata.dol.questionIndex;
-        if (packageMetadata.dol.questionId) {
-          const matchedIndex = parsedQuestions.findIndex(
-            (question) => question.questionId === packageMetadata.dol.questionId || question.id === packageMetadata.dol.questionId,
-          );
-          if (matchedIndex < 0) throw new Error(`DOL questionId "${packageMetadata.dol.questionId}" was not found in the package questions.`);
-          dolQuestionIndex = matchedIndex;
-        }
-      } else {
-        dolQuestionIndex = Number.isInteger(packageMetadata?.dol?.questionIndex)
-          ? packageMetadata.dol.questionIndex
-          : null;
-      }
-
+      let dolQuestionIndex = Number.isInteger(Number(teacherReview.dolQuestionIndex))
+        ? Number(teacherReview.dolQuestionIndex)
+        : null;
       if (Number.isInteger(dolQuestionIndex)) {
         dolQuestionIndex = Math.max(0, Math.min(parsedQuestions.length - 1, dolQuestionIndex));
       } else {
         const authoredDOLIndex = authoredRoles.findIndex((role) => role === 'dol');
         dolQuestionIndex = authoredDOLIndex >= 0 ? authoredDOLIndex : null;
       }
-      // The authored V5 DOL role is the source of truth; the numeric index is
-      // derived only for the current runtime access policy.
-      dolEnabled = Boolean(dolEnabled && Number.isInteger(dolQuestionIndex));
+      const dolEnabled = Boolean(
+        teacherReview.dolEnabled === true
+        && hasDOLSection
+        && Number.isInteger(dolQuestionIndex),
+      );
+      const dolMinutesBeforeEnd = Math.max(1, Number(teacherReview.dolMinutesBeforeEnd) || 10);
+      const dolInstructionDate = String(
+        teacherReview.dolInstructionDate
+        || (releaseAt ? localDateKey(new Date(releaseAt)) : '')
+        || localDateKey(Date.now()),
+      ).trim() || null;
 
-      const folder = teacherReview
-        ? normalizeFolderPath(teacherReview.folder ?? reviewedV5.assignment?.folder) || null
-        : normalizeFolderPath(reviewedV5.assignment?.folder ?? packageMetadata?.folder) || null;
-      const completionRule = packageMetadata?.provided?.completionRule
-        ? packageMetadata.completionRule
-        : assignmentType === 'notesClasswork'
-          ? { minEngagementMinutes: 10, minimumQuestionCompletionPercent: 80 }
-          : null;
+      const folder = normalizeFolderPath(reviewedV5.assignment?.folder) || null;
+      const completionRule = assignmentType === 'notesClasswork'
+        ? { minEngagementMinutes: 10, minimumQuestionCompletionPercent: 80 }
+        : null;
+      const sourceAssignmentKey = String(reviewedV5.assignment?.assignmentKey || '').trim() || null;
 
-      if (packageMetadata?.assignmentKey && assignments.some((assignment) => (
-        assignment.assignmentKey === packageMetadata.assignmentKey
-        || String(assignment.assignmentKey || '').startsWith(`${packageMetadata.assignmentKey}:`)
+      if (sourceAssignmentKey && assignments.some((assignment) => (
+        assignment.assignmentKey === sourceAssignmentKey
+        || String(assignment.assignmentKey || '').startsWith(`${sourceAssignmentKey}:`)
       ))) {
-        throw new Error(`An assignment with assignmentKey "${packageMetadata.assignmentKey}" already exists. Change or remove assignment.assignmentKey if you intend to create a separate copy.`);
+        throw new Error(`An assignment with assignmentKey "${sourceAssignmentKey}" already exists. Clear or change assignment.assignmentKey if you intend to create a separate copy.`);
       }
+
+      const publishingIntent = normalizeLessonPublishingIntentV5({
+        classroom: reviewedV5.classroomIntegration,
+        lessonResources: { notesPdf: reviewedV5.outputProfiles?.lessonNotesPdf },
+      }, {
+        ...(reviewedV5.assignment || {}),
+        title,
+        folder,
+      }, []);
 
       const assignmentPayloadBase = {
         schemaVersion: 5,
@@ -2791,15 +2725,15 @@ function App() {
         lateDueAt,
         dueDate,
         sectionAccess: {
-          classwork: { defaultState: teacherReview?.sectionAccessDefaults?.classwork === 'closed' ? 'closed' : 'open', overridesByClassId: {}, overridesByClassPeriod: {} },
-          practice: { defaultState: teacherReview?.sectionAccessDefaults?.practice === 'closed' ? 'closed' : 'open', overridesByClassId: {}, overridesByClassPeriod: {} },
+          classwork: { defaultState: teacherReview.sectionAccessDefaults?.classwork === 'closed' ? 'closed' : 'open', overridesByClassId: {}, overridesByClassPeriod: {} },
+          practice: { defaultState: teacherReview.sectionAccessDefaults?.practice === 'closed' ? 'closed' : 'open', overridesByClassId: {}, overridesByClassPeriod: {} },
         },
         guidedNotesBySection: {
-          classwork: teacherReview?.guidedNotesBySection?.classwork || 'automatic',
-          practice: teacherReview?.guidedNotesBySection?.practice || 'off',
+          classwork: teacherReview.guidedNotesBySection?.classwork || 'automatic',
+          practice: teacherReview.guidedNotesBySection?.practice || 'off',
         },
         releaseAt,
-        prerequisiteAssignmentId,
+        prerequisiteAssignmentId: null,
         completionRule,
         warmup: {
           enabled: warmupEnabled,
@@ -2813,39 +2747,32 @@ function App() {
           enabled: dolEnabled,
           minutesBeforeEnd: dolMinutesBeforeEnd,
           instructionDate: dolInstructionDate,
-          instructionDatesByClassPeriod: teacherReview?.dolInstructionDatesByClassPeriod || packageMetadata?.dol?.instructionDatesByClassPeriod || {},
+          instructionDatesByClassPeriod: teacherReview.dolInstructionDatesByClassPeriod || {},
           questionIndex: dolQuestionIndex,
           earlyUnlocksByClassId: {},
           earlyUnlocks: {},
         },
         folder,
-        assignmentTemplate: packageMetadata?.template || null,
-        standards: packageMetadata?.standards || [],
-        curriculum: packageMetadata?.curriculum || null,
-        publicationSettings: teacherReview ? {
+        publicationSettings: {
           strategy: teacherReview.publicationStrategy || 'hybrid',
           includeWarmupInClassroom: teacherReview.includeWarmupInClassroom === true,
           homeworkDueAt: teacherReview.homeworkDueAt ? new Date(teacherReview.homeworkDueAt).toISOString() : null,
-        } : null,
-        classroomPackage: teacherReview?.classroomPackage || packageMetadata?.classroomPackage || null,
-        lessonResources: teacherReview?.lessonResources || packageMetadata?.lessonResources || null,
-        instructionalPurpose: reviewedV5.assignment?.instructionalPurpose || teacherReview?.instructionalPurpose || packageMetadata?.instructionalPurpose || 'lesson',
-        gradingPurpose: reviewedV5.assignment?.gradingPurpose ?? teacherReview?.gradingPurpose ?? packageMetadata?.gradingPurpose ?? null,
-        variantPolicy: {
-          ...(reviewedV5.variantPolicy || {}),
-          mode: variantMode,
-          sectionModes: sectionVariantModes,
         },
-        differentiationPolicy: reviewedV5.differentiationPolicy || teacherReview?.differentiationPolicy || packageMetadata?.differentiationPolicy || null,
-        supportPolicy: reviewedV5.supportPolicy || teacherReview?.supportPolicy || packageMetadata?.supportPolicy || null,
-        toolPolicy: reviewedV5.toolPolicy || teacherReview?.toolPolicy || packageMetadata?.toolPolicy || null,
-        deliveryPolicy: reviewedV5.deliveryPolicy || teacherReview?.deliveryPolicy || packageMetadata?.deliveryPolicy || null,
-        gradingPolicy: reviewedV5.gradingPolicy || teacherReview?.gradingPolicy || packageMetadata?.gradingPolicy || null,
-        evidencePolicy: reviewedV5.evidencePolicy || teacherReview?.evidencePolicy || packageMetadata?.evidencePolicy || null,
-        outputProfiles: reviewedV5.outputProfiles || teacherReview?.outputProfiles || packageMetadata?.outputProfiles || null,
-        classroomIntegration: reviewedV5.classroomIntegration || teacherReview?.classroomIntegration || packageMetadata?.classroomIntegration || null,
-        provenance: reviewedV5.provenance || teacherReview?.provenance || packageMetadata?.provenance || null,
-        preflight: reviewedV5.preflight || teacherReview?.preflight || packageMetadata?.preflight || { required: true },
+        classroomPackage: publishingIntent.classroomPackage,
+        lessonResources: publishingIntent.lessonResources,
+        instructionalPurpose: reviewedV5.assignment?.instructionalPurpose || 'lesson',
+        gradingPurpose: reviewedV5.assignment?.gradingPurpose ?? null,
+        variantPolicy: reviewedV5.variantPolicy || {},
+        differentiationPolicy: reviewedV5.differentiationPolicy || null,
+        supportPolicy: reviewedV5.supportPolicy || null,
+        toolPolicy: reviewedV5.toolPolicy || null,
+        deliveryPolicy: reviewedV5.deliveryPolicy || null,
+        gradingPolicy: reviewedV5.gradingPolicy || null,
+        evidencePolicy: reviewedV5.evidencePolicy || null,
+        outputProfiles: reviewedV5.outputProfiles || null,
+        classroomIntegration: reviewedV5.classroomIntegration || null,
+        provenance: reviewedV5.provenance || null,
+        preflight: reviewedV5.preflight || { required: true },
         createdAt: new Date(),
       };
 
@@ -2902,7 +2829,7 @@ function App() {
           const originalLabId = question.labDefinition.labId;
           const privateSource = privateLabsById.get(originalLabId);
           if (!privateSource) {
-            if (bundleLabs.length) throw new Error(`Modeling lab ${originalLabId} could not be matched to its private Bundle V3 definition.`);
+            if (bundleLabs.length) throw new Error(`Modeling lab ${originalLabId} could not be matched to its private assignment definition.`);
             return question;
           }
           const nextLabId = `${originalLabId}-${labSuffix}`;
@@ -2918,7 +2845,7 @@ function App() {
           rigorVariant: destination.courseLevel,
           rigorVariantGroupId: splitVariantGroupId,
           assignmentKey: destinationAssignmentKey({
-            assignmentKey: packageMetadata?.assignmentKey,
+            assignmentKey: sourceAssignmentKey,
             destination,
             destinationCount: destinationGroups.length,
           }),
@@ -3154,6 +3081,11 @@ function App() {
         ))
       : null;
 
+    const publishingIntent = normalizeLessonPublishingIntentV5({
+      classroom: model.assignmentV5.classroomIntegration,
+      lessonResources: { notesPdf: model.assignmentV5.outputProfiles?.lessonNotesPdf },
+    }, model.assignmentV5.assignment, []);
+
     const patch = {
       ...persistence,
       title: model.assignmentV5.assignment.title,
@@ -3200,6 +3132,8 @@ function App() {
         includeWarmupInClassroom: draft.includeWarmupInClassroom === true,
         homeworkDueAt: draft.homeworkDueAt ? new Date(draft.homeworkDueAt).toISOString() : null,
       },
+      classroomPackage: publishingIntent.classroomPackage,
+      lessonResources: publishingIntent.lessonResources,
       updatedAt: new Date().toISOString(),
     };
 
@@ -3229,7 +3163,7 @@ function App() {
       if (assignmentPreflight?.mode === 'update') {
         await updateExistingAssignmentFromReview({ draft, assignmentV5 });
       } else {
-        await handleCreateAssignment(null, null, draft, assignmentV5);
+        await handleCreateAssignment(draft, assignmentV5);
       }
     } finally {
       setAssignmentPreflightBusy(false);
@@ -3971,8 +3905,6 @@ function App() {
         dueAt: toDateTimeLocalInputValue(assignment.dueAt || assignment.dueDate || ''),
         lateDueAt: toDateTimeLocalInputValue(assignment.lateDueAt || assignment.lateDueDate || ''),
         releaseAt: toDateTimeLocalInputValue(assignment.releaseAt || ''),
-        assignmentType: getStoredAssignmentTypeProjection(canonicalV5),
-        variantMode: getStoredAssignmentVariantMode(canonicalV5),
         sectionVariantModes: getStoredSectionVariantModes(canonicalV5),
         sectionAccessDefaults: {
           classwork: assignment.sectionAccess?.classwork?.defaultState === 'closed' ? 'closed' : 'open',
@@ -3996,8 +3928,6 @@ function App() {
         publicationStrategy: assignment.publicationSettings?.strategy || 'hybrid',
         includeWarmupInClassroom: assignment.publicationSettings?.includeWarmupInClassroom === true,
         homeworkDueAt: toDateTimeLocalInputValue(assignment.publicationSettings?.homeworkDueAt || ''),
-        classroomPackage: assignment.classroomPackage || null,
-        lessonResources: assignment.lessonResources || null,
         instructionalPurpose: canonicalV5.assignment.instructionalPurpose || 'lesson',
         gradingPurpose: canonicalV5.assignment.gradingPurpose || null,
         variantPolicy: canonicalV5.variantPolicy,
