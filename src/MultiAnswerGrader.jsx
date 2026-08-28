@@ -87,6 +87,13 @@ const shouldUsePlainTextInput = (field) => {
 export default function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
   const { prompt, answerFields = [] } = question;
   const safeFields = useMemo(() => (Array.isArray(answerFields) ? answerFields.filter((field) => field?.id) : []), [answerFields]);
+  const candidateGraphs = useMemo(
+    () => stableShuffleChoices(
+      Array.isArray(question.candidateGraphs) ? question.candidateGraphs : [],
+      choiceSeed(question.questionId || question.prompt, 'candidate-graphs'),
+    ),
+    [question.candidateGraphs, question.questionId, question.prompt],
+  );
   const history = useUndoHistory({}, 60, draftKey ? `${draftKey}:multi-answer` : null);
   const answers = history.value;
   const parts = safeFields.map((field) => {
@@ -126,7 +133,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
       <h2 style={{ color: '#202124', marginTop: 0 }}>{question.heading || 'Complete Each Part'}</h2>
       <QuestionPrompt>{prompt || 'Enter an answer for every part.'}</QuestionPrompt>
       <QuestionVisual question={question} />
-      {Array.isArray(question.candidateGraphs) && question.candidateGraphs.length > 0 && (
+      {candidateGraphs.length > 0 && (
         <div
           aria-label="Candidate graphs"
           style={{
@@ -136,7 +143,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
             margin: '18px 0 4px',
           }}
         >
-          {question.candidateGraphs.map((candidate, index) => (
+          {candidateGraphs.map((candidate, index) => (
             <div
               key={candidate?.id || index}
               style={{
