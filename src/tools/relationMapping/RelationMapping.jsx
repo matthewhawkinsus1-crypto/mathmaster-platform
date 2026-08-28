@@ -212,6 +212,23 @@ export default function RelationMapping({ questionData = {}, onAction }) {
     setPlotY('');
   };
 
+  const functionChoiceOptions = useMemo(() => stableShuffleChoices([
+    { value: 'yes-definition', label: 'Yes — every input has exactly one output.' },
+    { value: 'yes-output-rule', label: 'Yes — every output value is used only once.' },
+    { value: 'no-input-repeat', label: 'No — at least one input has more than one output.' },
+    { value: 'no-output-repeat', label: 'No — at least one output value repeats.' },
+  ], choiceSeed(questionData.questionId || questionData.prompt, 'relation-function-status')), [questionData.questionId, questionData.prompt]);
+
+  const correctFunctionChoice = relationIsFunction(pairs) ? 'yes-definition' : 'no-input-repeat';
+
+  const optionsForField = (field) => {
+    const authored = Array.isArray(field?.options) ? field.options : [];
+    return stableShuffleChoices(
+      strengthenTwoChoiceSet(authored),
+      choiceSeed(questionData.questionId || questionData.prompt, field.id),
+    );
+  };
+
   const check = () => {
     const checks = {};
     if (ask.includes('plot')) checks.plot = samePairSet(plottedPoints, pairs);
