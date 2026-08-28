@@ -97,7 +97,7 @@ const coreFunctionSpec = (raw = {}) => {
     return { type: 'linear', m, b, ...(f.domain ? { domain: f.domain } : {}) };
   }
   const out = { type };
-  ['a','h','k','base','p','orientation'].forEach((key) => { if (f[key] != null) out[key] = f[key]; });
+  ['a','b','h','k','base','p','orientation'].forEach((key) => { if (f[key] != null) out[key] = f[key]; });
   if (f.domain) out.domain = f.domain;
   return out;
 };
@@ -985,7 +985,10 @@ const compileOne = (q, index, repairs) => {
     }
     case 'transformationsLab': {
       const t = q.transformation || {};
-      out = copyCommon(q, { type, mode: q.mode || t.mode || 'identify', family: q.family || t.family || q.function?.family || q.function?.type, function: q.function ? toolFunctionSpec(q.function) : t.function, target: q.target || t.target, parentPoint: q.parentPoint || t.parentPoint });
+      const transformationFunction = q.function
+        ? { ...q.function, type: q.function.type || q.function.family }
+        : t.function;
+      out = copyCommon(q, { type, mode: q.mode || t.mode || 'identify', family: q.family || t.family || q.function?.family || q.function?.type, function: transformationFunction, target: q.target || t.target, parentPoint: q.parentPoint || t.parentPoint });
       break;
     }
     case 'representationMatch': {
