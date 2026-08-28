@@ -95,10 +95,14 @@ const SET_KEYS = [
 
 const INEQUALITY_KEYS = [
   { label: '<', command: '<', ariaLabel: 'Insert less than' },
-  { label: '≤', command: '\\le', ariaLabel: 'Insert less than or equal to' },
+  // Insert the complete Unicode relation character, not a bare LaTeX command
+  // prefix such as "\\le". If the next character is a variable (especially t),
+  // MathLive can otherwise serialize "\\le" + "t" as the command-like token
+  // "\\let". A keypad press must be an atomic mathematical symbol.
+  { label: '≤', command: '≤', ariaLabel: 'Insert less than or equal to' },
   { label: '>', command: '>', ariaLabel: 'Insert greater than' },
-  { label: '≥', command: '\\ge', ariaLabel: 'Insert greater than or equal to' },
-  { label: '≠', command: '\\ne', ariaLabel: 'Insert not equal to' },
+  { label: '≥', command: '≥', ariaLabel: 'Insert greater than or equal to' },
+  { label: '≠', command: '≠', ariaLabel: 'Insert not equal to' },
   { label: '−∞', command: '-\\infty', ariaLabel: 'Insert negative infinity' },
   { label: '∞', command: '\\infty', ariaLabel: 'Insert positive infinity' },
   { label: '∪', command: '\\cup', ariaLabel: 'Insert union' },
