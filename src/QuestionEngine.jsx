@@ -581,6 +581,7 @@ export default function QuestionEngine({
           onProgressChange={setWorkflowGuidanceState}
           disabled={commonModuleProps.disabled}
           draftKey={draftKey}
+          showPrompt={false}
         />
       );
     }
