@@ -566,6 +566,10 @@ const resolveIntentType = (q, actions) => {
   if (actions.includes('compareGraphs') || (q.graphs && q.comparisonFields)) return 'graphComparison';
   if (actions.includes('writeGraphStory')) return 'graphStory';
   if (actions.includes('interpretPointInContext')) return 'contextInterpretation';
+  // A rich model that includes axis labeling must stay a composed workflow.
+  // Routing it to the flat relationshipModel renderer drops equation/table/
+  // graph/domain/range actions after the axis step.
+  if (actions.includes('configureAxes') && shouldCompileFunctionWorkflow(q, actions)) return 'functionWorkflow';
   if (actions.some((a) => ['identifyQuantities','configureAxes','writeEquation','classifyContinuity'].includes(a)) && (q.quantities || q.relationship || q.scenario)) return 'relationshipModel';
   if (actions.includes('solveInequalitySystem') || actions.includes('graphSystem') || actions.includes('rowReduce')) return 'systemsWorkspace';
   if (actions.includes('solveSystem') || q.equations) return 'system';
