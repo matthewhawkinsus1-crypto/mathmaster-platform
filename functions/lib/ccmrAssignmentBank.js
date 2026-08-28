@@ -53,7 +53,12 @@ function loadFrameworkBank(framework) {
   const filename = FRAMEWORK_FILES[framework];
   const file = path.join(__dirname, "..", "seeds", "pathQuestionBank", filename);
   const payload = JSON.parse(fs.readFileSync(file, "utf8"));
-  const documents = (Array.isArray(payload?.documents) ? payload.documents : []).filter((document) => (
+  const sourceItems = Array.isArray(payload?.items)
+    ? payload.items
+    : Array.isArray(payload?.documents)
+      ? payload.documents
+      : [];
+  const documents = sourceItems.filter((document) => (
     document?.active !== false
     && document?.assessmentContext?.examStyle === true
     && clean(document?.assessmentContext?.framework) === framework
