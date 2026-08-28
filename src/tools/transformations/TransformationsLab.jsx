@@ -12,6 +12,7 @@ import {
   mappedPointIsCorrect,
   normalizeTransformationSpec,
   transformationDescriptor,
+  transformationGraphScore,
   transformationParameterScore,
   transformedAnchor,
 } from './transformationsMath';
@@ -23,9 +24,9 @@ const MODE_TASKS = {'match': 'Change a, b, h and k until your graph sits exactly
 const MODE_STEPS = {'match': ['Change one parameter at a time and watch what moves.', 'Use h and k for position, then a and b for reflections/scales.', 'Press Check when the two graphs overlap.'], 'identify': ['Find the defining feature of the graph — that gives you h and k.', 'Use one or more additional points to recover a and b.', 'Enter all four, then check.'], 'pointMap': ['For x, undo the inside multiplier b, then apply h.', 'For y, apply a and then k exactly as written.', 'Enter the transformed coordinates.'], 'plotTransform': ['Map each corner/end point using x/b + h and ay + k.', 'Plot the transformed defining points on the grid.', 'Connect them in the same order as the source graph, then check.'], 'describe': ['Read the inside changes for x using opposite/reciprocal behavior.', 'Read the outside changes for y exactly as written.', 'Then account for h and k translations.'], 'anchor': ['Identify which feature defines this family.', 'Find it on the transformed graph.', 'Count gridlines across, then up or down.']};
 const HINTS = {'match': ['Start with h and k to put the graph in the right place, then fix reflections/scales with a and b.', 'Use y = a·f(b(x − h)) + k. Inside changes control x; outside changes control y.', 'Remember the class rule: x\'s lie, y\'s tell the truth. For x, signs reverse and scale factors become reciprocals.'], 'identify': ['Find the defining feature first — the vertex, the corner, the endpoint. Its coordinates are (h, k).', 'Then compare another point. Outside a acts directly on y; inside b acts reciprocally on x.', 'Negative a reflects across the x-axis. Negative b reflects across the y-axis.'], 'pointMap': ['x and y are transformed by different parameters, so handle them separately.', 'For x, divide the parent x-coordinate by b, then add h.', 'For y, multiply by a first and then add k — y tells the truth.'], 'plotTransform': ['Move one defining point at a time instead of trying to redraw the whole graph at once.', 'For x, use opposite/reciprocal behavior; for y, use the outside transformation exactly as written.', 'The transformed graph keeps the same connections between corresponding defining points.'], 'describe': ['Compare the graph with the parent shape one feature at a time.', 'Outside a is direct: sign gives x-axis reflection and |a| is the vertical scale.', 'Inside b is opposite/reciprocal: sign gives y-axis reflection and the horizontal scale is 1/|b|.'], 'anchor': ['Every family is organized around one feature: a vertex, a corner, an endpoint, or an asymptote intersection.', 'On the parent function that feature sits at the origin. The transformation moves it to (h, k).', 'Count the gridlines rather than estimating — go across for x first, then up or down for y.']};
 
-const parameterFields = (values, setters) => (
+const parameterFields = (values, setters, keys) => (
   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(92px, 1fr))', gap: 10 }}>
-    {['a', 'b', 'h', 'k'].map((key, index) => <label key={key}><strong>{key}</strong><input type="number" step="0.5" value={values[index]} onChange={(event) => setters[index](event.target.value)} style={inputStyle} /></label>)}
+    {keys.map((key, index) => <label key={key}><strong>{key}</strong><input type="number" step="0.5" value={values[index]} onChange={(event) => setters[index](event.target.value)} style={inputStyle} /></label>)}
   </div>
 );
 
@@ -66,10 +67,20 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
     ? (questionData.sourceLabel || 'General graph')
     : (TRANSFORMATION_FAMILY_LABELS[family] || family);
   const graphBounds = questionData.graphBounds || { xMin: -7, xMax: 7, yMin: -7, yMax: 9 };
+  const showB = questionData.includeHorizontalScale === true
+    || questionData.target?.b != null
+    || questionData.function?.b != null
+    || questionData.initial?.b != null;
+  const parameterKeys = showB ? ['a', 'b', 'h', 'k'] : ['a', 'h', 'k'];
+  const parameterValues = showB ? [a, b, h, k] : [a, h, k];
+  const parameterSetters = showB ? [setA, setB, setH, setK] : [setA, setH, setK];
 
   const checkParameters = (expected) => {
-    const result = transformationParameterScore({ a: Number(a), b: Number(b), h: Number(h), k: Number(k) }, expected, 0.01);
-    submit({ isCorrect: result.isCorrect, score: result.score }, { a: Number(a), b: Number(b), h: Number(h), k: Number(k) }, { mode, family });
+    const student = { a: Number(a), b: Number(b), h: Number(h), k: Number(k) };
+    const result = mode === 'match'
+      ? transformationGraphScore(student, expected, { xMin: graphBounds.xMin, xMax: graphBounds.xMax, tolerance: 0.02 })
+      : transformationParameterScore(student, expected, 0.01);
+    submit({ isCorrect: result.isCorrect, score: result.score }, student, { mode, family, graphEquivalent: mode === 'match' });
   };
 
   const checkPointMap = () => {
@@ -162,8 +173,8 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
     <ToolSplit>
       <Panel title={familyLabel + ' transformation'}>
         {mode === 'match' ? <>
-          <p style={{ marginTop: 0 }}>Adjust <strong>a</strong>, <strong>b</strong>, <strong>h</strong> and <strong>k</strong> until your solid blue graph lands exactly on the dashed red target.</p>
-          {parameterFields([a, b, h, k], [setA, setB, setH, setK])}
+          <p style={{ marginTop: 0 }}>Adjust <strong>{parameterKeys.join(', ')}</strong> until your solid blue graph lands exactly on the dashed red target.</p>
+          {parameterFields(parameterValues, parameterSetters, parameterKeys)}
           <div style={{ marginTop: 14 }}>{graph([x => evaluateTransformedFunction(studentSpec, x), x => evaluateTransformedFunction(targetSpec, x)])}</div>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8, fontSize: 13, color: '#3c4756' }}>
             <span><svg width="26" height="8" style={{ verticalAlign: 'middle', marginRight: 5 }} aria-hidden="true"><line x1="0" y1="4" x2="26" y2="4" stroke="#1a73e8" strokeWidth="3" /></svg><strong>Your graph</strong> — solid blue</span>
@@ -173,9 +184,9 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
         </> : null}
 
         {mode === 'identify' ? <>
-          <p>Read the transformed graph and recover its <strong>a, b, h, k</strong> parameters.</p>
+          <p>Read the transformed graph and recover its <strong>{parameterKeys.join(', ')}</strong> parameters.</p>
           {graph([x => evaluateTransformedFunction(investigationSpec, x)])}
-          <div style={{ marginTop: 14 }}>{parameterFields([a, b, h, k], [setA, setB, setH, setK])}</div>
+          <div style={{ marginTop: 14 }}>{parameterFields(parameterValues, parameterSetters, parameterKeys)}</div>
           <button type="button" onClick={() => checkParameters(investigationSpec)} style={{ ...buttonStyle, marginTop: 12 }}>Check parameters</button>
         </> : null}
 
