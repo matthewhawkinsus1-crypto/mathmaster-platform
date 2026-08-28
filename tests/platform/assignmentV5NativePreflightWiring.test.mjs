@@ -8,7 +8,7 @@ const modal = fs.readFileSync('src/components/teacher/LessonPreflightModal.jsx',
 test('assignment intake opens Preflight with canonical V5 rather than a Lesson Bundle adapter', () => {
   assert.doesNotMatch(app, /buildPreflightBundle/);
   assert.doesNotMatch(app, /normalizeLessonBundle/);
-  assert.match(app, /const assignmentV5 = inspected\.bundleSource/);
+  assert.match(app, /const assignmentV5 = inspected\.assignmentV5/);
   assert.match(app, /assignmentV5=\{assignmentPreflight\.assignmentV5\}/);
 });
 
@@ -44,5 +44,5 @@ test('App publishes from reviewed V5 sections instead of reparsing original past
   const publishStart = app.indexOf('const handleCreateAssignment');
   const publishEnd = app.indexOf('const updateExistingAssignmentFromReview', publishStart);
   const publishBlock = app.slice(publishStart, publishEnd);
-  assert.doesNotMatch(publishBlock, /parseAssignmentBlueprintText\(newAssignmentJSON\)|packageMetadata|normalizeAssignmentPackageMetadata/);
+  assert.doesNotMatch(publishBlock, /parseAssignmentBlueprintText|packageMetadata|normalizeAssignmentPackageMetadata/);
 });
