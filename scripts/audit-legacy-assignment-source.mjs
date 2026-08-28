@@ -25,6 +25,7 @@ const rules = [
   ['retired QuestionDefinition schema import/reference', /(?:platform\/schemas\/QuestionDefinition|schemas\/QuestionDefinition\.js|\bnormalizeQuestionDefinition\b|\bQUESTION_DEFINITION_SCHEMA_VERSION\b)/],
   ['retired question validator registry import/reference', /(?:platform\/validation\/validatorRegistry|validation\/validatorRegistry\.js|\bvalidateQuestionDefinition\b|\bLEGACY_QUESTION_TYPES\b)/],
   ['removed persisted questions projection read', /\bpersistence\.questions\b/],
+  ['retired client Assignment V5 runtime projection', /\bhydrateAssignmentRuntime\b|assignmentRuntimeProjection/],
 ];
 
 const violations = [];
@@ -40,6 +41,7 @@ for (const retired of [
   'src/platform/validation/bundleValidator.js',
   'src/platform/schemas/QuestionDefinition.js',
   'src/platform/validation/validatorRegistry.js',
+  'src/platform/contract/assignmentRuntimeProjection.js',
 ]) {
   if (fs.existsSync(path.join(ROOT, retired))) {
     violations.push(`${retired}: retired assignment-authoring file must not exist`);
@@ -53,5 +55,5 @@ if (violations.length) {
 }
 
 console.log(
-  `Legacy assignment source audit: PASS (${files.length} live source files scanned; retired Bundle/Question schema paths absent)`,
+  `Legacy assignment source audit: PASS (${files.length} live source files scanned; retired Bundle/Question schema and client assignment-projection paths absent)`,
 );
