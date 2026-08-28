@@ -20,13 +20,25 @@ export default function AssignmentCardMenu({ items, ariaLabel = 'More actions' }
     const updateLayout = () => {
       const visual = window.visualViewport;
       const anchorRect = containerRef.current?.getBoundingClientRect?.() || null;
-      setLayout(getViewportSafePopoverLayout({
+      const viewportHeight = Number(visual?.height || window.innerHeight || 1);
+      const preferredHeight = Math.min(420, 54 + items.length * 48);
+      const next = getViewportSafePopoverLayout({
         viewportWidth: Number(visual?.width || window.innerWidth || 1),
-        viewportHeight: Number(visual?.height || window.innerHeight || 1),
+        viewportHeight,
         anchorRect,
         preferredWidth: 220,
-        preferredHeight: Math.min(420, 54 + items.length * 48),
-      }));
+        preferredHeight,
+      });
+      const roomBelow = anchorRect ? viewportHeight - Number(anchorRect.bottom || 0) : viewportHeight;
+      const roomAbove = anchorRect ? Number(anchorRect.top || 0) : 0;
+      setLayout({
+        ...next,
+        // Desktop popovers stay in the same local coordinate system as their
+        // three-dot button. Portaling a fixed-position popover to <body> can be
+        // displaced by browser zoom / visualViewport panning, which is exactly
+        // how a menu beside a card ended up hundreds of pixels away from it.
+        openUp: next.mode === 'popover' && roomBelow < Math.min(preferredHeight, 260) && roomAbove > roomBelow,
+      });
     };
 
     const handleClickOutside = (event) => {
@@ -61,9 +73,11 @@ export default function AssignmentCardMenu({ items, ariaLabel = 'More actions' }
       aria-label={ariaLabel}
       className={layout?.mode === 'sheet' ? 'mathmaster-mobile-action-sheet' : 'mathmaster-viewport-safe-popover'}
       style={layout?.mode === 'popover' ? {
+        position: 'absolute',
         width: `${layout.width}px`,
-        left: `${layout.left}px`,
-        top: `${layout.top}px`,
+        right: 0,
+        top: layout.openUp ? 'auto' : 'calc(100% + 4px)',
+        bottom: layout.openUp ? 'calc(100% + 4px)' : 'auto',
         maxHeight: `${layout.maxHeight}px`,
         padding: '6px',
       } : undefined}
@@ -127,9 +141,10 @@ export default function AssignmentCardMenu({ items, ariaLabel = 'More actions' }
       >
         &#8942;
       </button>
-      {open && typeof document !== 'undefined' && createPortal(
+      {open && layout?.mode === 'popover' ? menuItems : null}
+      {open && layout?.mode === 'sheet' && typeof document !== 'undefined' && createPortal(
         <>
-          {layout?.mode === 'sheet' && <div className="mathmaster-mobile-action-sheet-backdrop" aria-hidden="true" onClick={() => setOpen(false)} />}
+          <div className="mathmaster-mobile-action-sheet-backdrop" aria-hidden="true" onClick={() => setOpen(false)} />
           {menuItems}
         </>,
         document.body,
