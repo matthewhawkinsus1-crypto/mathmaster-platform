@@ -80,10 +80,10 @@ test('Algebra I contextual domain and range preserve words plus inequality notat
   const composed = readComposedQuestion(question);
   assert.deepEqual(composed.workflow.map((stage) => stage.kind), [
     'quantityRoles',
-    'shortResponse',
     'domainInput',
     'shortResponse',
     'rangeInput',
+    'shortResponse',
   ]);
   assert.equal(composed.workflow.find((stage) => stage.id === 'domainInequality').notation, 'inequality');
   assert.equal(composed.workflow.find((stage) => stage.id === 'rangeInequality').notation, 'inequality');
