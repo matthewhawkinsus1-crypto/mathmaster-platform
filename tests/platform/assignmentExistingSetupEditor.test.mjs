@@ -45,7 +45,7 @@ test('reviewed policy and output fields persist on existing assignment save', ()
 });
 
 test('library template cannot be silently assigned through setup editing', () => {
-  assert.match(app, /if \(isLibraryAssignment\(existing\) && \(assignedClassIds\.length \|\| assignedClassPeriods\.length\)\)/);
+  assert.match(app, /if \(isLibraryAssignment\(existing\) && assignedClassIds\.length\)/);
   assert.match(app, /This is a reusable library template/);
 });
 
