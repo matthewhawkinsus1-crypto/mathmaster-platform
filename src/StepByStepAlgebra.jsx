@@ -1756,7 +1756,7 @@ export default function StepByStepAlgebra({
 
       {pendingMove && pendingMove.simplificationTargets?.length > 0
         && pendingMove.requiredCancellationSides.every((side) => crossedSides.includes(side)) && (
-        <div className="algebra-optional-simplification">
+        <div className={`algebra-optional-simplification${pendingMove.simplificationTargets.length === 1 ? ` algebra-optional-simplification--${pendingMove.simplificationTargets[0].side}` : ''}`}>
           <h3>{equation.objective?.requireSimplifiedFinalForm ? 'Finish the required simplification' : 'Optional simplification'}</h3>
           <p>{equation.objective?.requireSimplifiedFinalForm
             ? 'This question specifically assesses simplified final form, so finish the remaining simplification before continuing.'
@@ -1765,7 +1765,13 @@ export default function StepByStepAlgebra({
             {pendingMove.simplificationTargets.map((target) => (
               <div key={target.side} className="algebra-simplification-card">
                 <strong>{target.label}: enter your simplification</strong>
-                <MathInput value={simplificationAnswers[target.side] || ''} onChange={(value) => setSimplificationAnswers((current) => ({ ...current, [target.side]: value }))} placeholder="Simplified expression" />
+                <MathInput
+                  value={simplificationAnswers[target.side] || ''}
+                  onChange={(value) => setSimplificationAnswers((current) => ({ ...current, [target.side]: value }))}
+                  onSubmit={checkSimplifications}
+                  placeholder="Simplified expression"
+                  ariaLabel={`${target.label}: enter your simplification`}
+                />
               </div>
             ))}
           </div>
