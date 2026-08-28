@@ -51,7 +51,7 @@ const relationIsFunction = (pairs) => {
 const PLOT_SIZE = 430;
 const PLOT_PAD = 34;
 
-function RelationCoordinatePlot({ bounds, points, onTogglePoint }) {
+function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 }) {
   const { xMin, xMax, yMin, yMax } = bounds;
   const width = PLOT_SIZE - PLOT_PAD * 2;
   const height = PLOT_SIZE - PLOT_PAD * 2;
@@ -59,29 +59,67 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint }) {
   const yToPx = (y) => PLOT_PAD + ((yMax - y) / (yMax - yMin)) * height;
   const xTicks = Array.from({ length: Math.max(0, Math.floor(xMax) - Math.ceil(xMin) + 1) }, (_, i) => Math.ceil(xMin) + i);
   const yTicks = Array.from({ length: Math.max(0, Math.floor(yMax) - Math.ceil(yMin) + 1) }, (_, i) => Math.ceil(yMin) + i);
+  const [hoverPoint, setHoverPoint] = useState(null);
+  const step = Number.isFinite(Number(snapStep)) && Number(snapStep) > 0 ? Number(snapStep) : 1;
+  const snap = (value) => Number((Math.round(value / step) * step).toFixed(8));
 
-  const handleClick = (event) => {
+  const pointFromEvent = (event) => {
     const rect = event.currentTarget.getBoundingClientRect();
     const svgX = ((event.clientX - rect.left) / rect.width) * PLOT_SIZE;
     const svgY = ((event.clientY - rect.top) / rect.height) * PLOT_SIZE;
-    const x = Math.round(xMin + ((svgX - PLOT_PAD) / width) * (xMax - xMin));
-    const y = Math.round(yMax - ((svgY - PLOT_PAD) / height) * (yMax - yMin));
-    if (x < xMin || x > xMax || y < yMin || y > yMax) return;
-    onTogglePoint?.(x, y);
+    const rawX = xMin + ((svgX - PLOT_PAD) / width) * (xMax - xMin);
+    const rawY = yMax - ((svgY - PLOT_PAD) / height) * (yMax - yMin);
+    const x = snap(rawX);
+    const y = snap(rawY);
+    if (x < xMin || x > xMax || y < yMin || y > yMax) return null;
+    return [x, y];
+  };
+
+  const handleClick = (event) => {
+    const point = pointFromEvent(event);
+    if (point) onTogglePoint?.(point[0], point[1]);
+  };
+
+  const handleMove = (event) => {
+    setHoverPoint(pointFromEvent(event));
   };
 
   return (
-    <svg viewBox={`0 0 ${PLOT_SIZE} ${PLOT_SIZE}`} onClick={handleClick} role="application" aria-label="Coordinate plane for plotting the relation" style={{ width: '100%', maxWidth: 520, display: 'block', margin: '0 auto', background: '#fff', border: '1px solid #d9e2f1', borderRadius: 12, cursor: 'crosshair' }}>
-      {xTicks.map((x) => <line key={`gx${x}`} x1={xToPx(x)} x2={xToPx(x)} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} stroke="#e5e9f0" strokeWidth="1" />)}
-      {yTicks.map((y) => <line key={`gy${y}`} x1={PLOT_PAD} x2={PLOT_SIZE - PLOT_PAD} y1={yToPx(y)} y2={yToPx(y)} stroke="#e5e9f0" strokeWidth="1" />)}
-      {xMin <= 0 && xMax >= 0 ? <line x1={xToPx(0)} x2={xToPx(0)} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} stroke="#445" strokeWidth="2" /> : null}
-      {yMin <= 0 && yMax >= 0 ? <line x1={PLOT_PAD} x2={PLOT_SIZE - PLOT_PAD} y1={yToPx(0)} y2={yToPx(0)} stroke="#445" strokeWidth="2" /> : null}
-      {xTicks.map((x) => (x === 0 ? null : <text key={`tx${x}`} x={xToPx(x)} y={yToPx(0) + 17} textAnchor="middle" fontSize="10" fill="#5f6b7a">{x}</text>))}
-      {yTicks.map((y) => (y === 0 ? null : <text key={`ty${y}`} x={xToPx(0) - 9} y={yToPx(y) + 4} textAnchor="end" fontSize="10" fill="#5f6b7a">{y}</text>))}
-      {points.map(([x, y]) => <circle key={`${x}|${y}`} cx={xToPx(x)} cy={yToPx(y)} r="7" fill="#1a73e8" stroke="#fff" strokeWidth="2" pointerEvents="none" />)}
-      <text x={PLOT_SIZE - PLOT_PAD + 12} y={yMin <= 0 && yMax >= 0 ? yToPx(0) + 4 : PLOT_SIZE - PLOT_PAD + 18} fontSize="13" fontWeight="700" fill="#3c4756">x</text>
-      <text x={xMin <= 0 && xMax >= 0 ? xToPx(0) + 8 : PLOT_PAD - 4} y={PLOT_PAD - 12} fontSize="13" fontWeight="700" fill="#3c4756">y</text>
-    </svg>
+    <div>
+      <svg
+        viewBox={`0 0 ${PLOT_SIZE} ${PLOT_SIZE}`}
+        onClick={handleClick}
+        onMouseMove={handleMove}
+        onMouseLeave={() => setHoverPoint(null)}
+        role="application"
+        aria-label="Coordinate plane for plotting the relation"
+        style={{ width: '100%', maxWidth: 520, display: 'block', margin: '0 auto', background: '#fff', border: '1px solid #d9e2f1', borderRadius: 12, cursor: 'crosshair' }}
+      >
+        {xTicks.map((x) => <line key={`gx${x}`} x1={xToPx(x)} x2={xToPx(x)} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} stroke="#e5e9f0" strokeWidth="1" />)}
+        {yTicks.map((y) => <line key={`gy${y}`} x1={PLOT_PAD} x2={PLOT_SIZE - PLOT_PAD} y1={yToPx(y)} y2={yToPx(y)} stroke="#e5e9f0" strokeWidth="1" />)}
+        {xMin <= 0 && xMax >= 0 ? <line x1={xToPx(0)} x2={xToPx(0)} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} stroke="#445" strokeWidth="2" /> : null}
+        {yMin <= 0 && yMax >= 0 ? <line x1={PLOT_PAD} x2={PLOT_SIZE - PLOT_PAD} y1={yToPx(0)} y2={yToPx(0)} stroke="#445" strokeWidth="2" /> : null}
+        {xTicks.map((x) => (x === 0 ? null : <text key={`tx${x}`} x={xToPx(x)} y={yToPx(0) + 17} textAnchor="middle" fontSize="10" fill="#5f6b7a">{x}</text>))}
+        {yTicks.map((y) => (y === 0 ? null : <text key={`ty${y}`} x={xToPx(0) - 9} y={yToPx(y) + 4} textAnchor="end" fontSize="10" fill="#5f6b7a">{y}</text>))}
+
+        {hoverPoint ? (
+          <g pointerEvents="none">
+            <line x1={xToPx(hoverPoint[0])} x2={xToPx(hoverPoint[0])} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} stroke="#f9ab00" strokeWidth="2" strokeDasharray="5 5" />
+            <line x1={PLOT_PAD} x2={PLOT_SIZE - PLOT_PAD} y1={yToPx(hoverPoint[1])} y2={yToPx(hoverPoint[1])} stroke="#f9ab00" strokeWidth="2" strokeDasharray="5 5" />
+            <circle cx={xToPx(hoverPoint[0])} cy={yToPx(hoverPoint[1])} r="9" fill="#fff4ce" stroke="#f9ab00" strokeWidth="3" />
+            <rect x={Math.min(PLOT_SIZE - 112, xToPx(hoverPoint[0]) + 12)} y={Math.max(PLOT_PAD, yToPx(hoverPoint[1]) - 34)} width="96" height="27" rx="7" fill="#202124" opacity="0.9" />
+            <text x={Math.min(PLOT_SIZE - 64, xToPx(hoverPoint[0]) + 60)} y={Math.max(PLOT_PAD + 18, yToPx(hoverPoint[1]) - 16)} textAnchor="middle" fontSize="12" fontWeight="800" fill="#fff">({hoverPoint[0]}, {hoverPoint[1]})</text>
+          </g>
+        ) : null}
+
+        {points.map(([x, y]) => <circle key={`${x}|${y}`} cx={xToPx(x)} cy={yToPx(y)} r="7" fill="#1a73e8" stroke="#fff" strokeWidth="2" pointerEvents="none" />)}
+        <text x={PLOT_SIZE - PLOT_PAD + 12} y={yMin <= 0 && yMax >= 0 ? yToPx(0) + 4 : PLOT_SIZE - PLOT_PAD + 18} fontSize="13" fontWeight="700" fill="#3c4756">x</text>
+        <text x={xMin <= 0 && xMax >= 0 ? xToPx(0) + 8 : PLOT_PAD - 4} y={PLOT_PAD - 12} fontSize="13" fontWeight="700" fill="#3c4756">y</text>
+      </svg>
+      <p aria-live="polite" style={{ margin: '8px 0 0', minHeight: 20, textAlign: 'center', color: '#5f6b7a', fontSize: 12 }}>
+        {hoverPoint ? `Cursor: (${hoverPoint[0]}, ${hoverPoint[1]}) — click to plot this point.` : 'Move the pointer over the grid to see the exact coordinate before you click.'}
+      </p>
+    </div>
   );
 }
 
