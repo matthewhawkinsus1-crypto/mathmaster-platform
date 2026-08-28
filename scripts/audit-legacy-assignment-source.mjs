@@ -28,6 +28,8 @@ const rules = [
   ['retired client Assignment V5 runtime projection', /\bhydrateAssignmentRuntime\b|assignmentRuntimeProjection/],
   ['retired assignment package metadata normalizer', /\bnormalizeAssignmentPackageMetadata\b|\bASSIGNMENT_TEMPLATE_DEFAULTS\b/],
   ['retired assignment package aliases', /\bproblemVersions\b|\bversionMode\b/],
+  ['retired assignment parser bundle aliases', /\bbundleSource\b|\bisBundle\b/],
+  ['dead held assignment JSON state', /\bnewAssignmentJSON\b|\bsetNewAssignmentJSON\b/],
 ];
 
 const violations = [];
