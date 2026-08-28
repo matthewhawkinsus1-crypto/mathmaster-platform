@@ -1,5 +1,7 @@
 "use strict";
 
+const { replaceDirectCcmrQuestionsWithAuditedBank } = require("./ccmrAssignmentBank");
+
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const DEFAULT_ASSIGNMENT_MODEL = "gpt-5";
 const MAX_PROMPT_CHARS = 120000;
@@ -184,8 +186,10 @@ async function callOpenAiAssignmentAuthor({
     throw new AssignmentAiError("failed-precondition", "The AI response was not a complete current MathMaster assignment. MathMaster did not accept it.");
   }
 
+  const banked = replaceDirectCcmrQuestionsWithAuditedBank(parsed);
+
   return {
-    assignmentJson: JSON.stringify(parsed),
+    assignmentJson: JSON.stringify(banked.assignment),
     model: String(payload.model || model || DEFAULT_ASSIGNMENT_MODEL),
     responseId: payload.id || null,
     usage: payload.usage && typeof payload.usage === "object"
@@ -195,6 +199,7 @@ async function callOpenAiAssignmentAuthor({
           totalTokens: Number(payload.usage.total_tokens) || 0,
         }
       : null,
+    ccmrBank: banked.audit,
   };
 }
 
