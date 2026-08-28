@@ -778,7 +778,6 @@ function App() {
   // Holds the normalized text of the JSON currently in preflight. Nothing edits
   // it by hand any more; it exists so publishing can re-parse exactly what the
   // teacher reviewed.
-  const [newAssignmentJSON, setNewAssignmentJSON] = useState('');
   const [assignmentPreflight, setAssignmentPreflight] = useState(null);
   const [assignmentPreflightBusy, setAssignmentPreflightBusy] = useState(false);
 
@@ -2494,7 +2493,7 @@ function App() {
     }
 
     try {
-      validateAssignmentQuestions(parsed.questions, { variantMode: parsed.assignment?.variantPolicy?.mode });
+      validateAssignmentQuestions(parsed.questions, { variantMode: parsed.assignmentV5?.variantPolicy?.mode });
     } catch (error) {
       errors.push(error.message);
     }
@@ -2525,7 +2524,7 @@ function App() {
       ok: true,
       errors,
       warnings,
-      parsed: { ...parsed, metadata: parsed.assignment || null },
+      parsed,
       sourceSchemaVersion: parsed.sourceSchemaVersion || null,
       compilerDefect: false,
     };
@@ -2536,7 +2535,7 @@ function App() {
   // carries them, so there are no manual fallbacks to merge any more.
   const openAssignmentPreflight = (inspected, sourceName, draftOverrides = {}, reviewOptions = {}) => {
     try {
-      const assignmentV5 = inspected.bundleSource;
+      const assignmentV5 = inspected.assignmentV5;
       if (!assignmentV5 || Number(assignmentV5.schemaVersion) !== 5) {
         throw new Error('Assignment Review requires a current MathMaster assignment.');
       }
@@ -2606,7 +2605,6 @@ function App() {
   const handleAssignmentJsonReady = async ({ text, sourceName }) => {
     const result = readAssignmentJson(text);
     if (!result.ok) return result;
-    setNewAssignmentJSON(result.parsed.normalizedText);
     const opened = openAssignmentPreflight({ ...result.parsed, authoringWarnings: result.warnings }, sourceName);
     if (opened !== true) {
       return { ok: false, errors: [opened?.error || 'Could not build Assignment Review from this assignment.'], warnings: result.warnings, sourceSchemaVersion: result.sourceSchemaVersion, compilerDefect: false };
@@ -2956,7 +2954,6 @@ function App() {
       // The intake is stateless now — closing preflight and clearing the held
       // JSON is the whole reset.
       setAssignmentPreflight(null);
-      setNewAssignmentJSON('');
       await fetchAssignments();
       const repairMessage = parsed.repairs.length
         ? `\n\nPaste formatting repaired automatically: ${parsed.repairs.join('; ')}.`
@@ -3882,7 +3879,6 @@ function App() {
     if (!result.ok) {
       throw new Error(`This saved assignment cannot be reopened in Assignment Review:\n${result.errors.join('\n')}`);
     }
-    setNewAssignmentJSON(result.parsed.normalizedText);
     const opened = openAssignmentPreflight(
       { ...result.parsed, authoringWarnings: result.warnings },
       `Library · ${assignment.title}`,
@@ -3942,8 +3938,7 @@ function App() {
         provenance: canonicalV5.provenance,
         preflight: canonicalV5.preflight,
       };
-      setNewAssignmentJSON(result.parsed.normalizedText);
-      const opened = openAssignmentPreflight(
+        const opened = openAssignmentPreflight(
         { ...result.parsed, authoringWarnings: result.warnings },
         `Existing · ${assignment.title}`,
         currentDraft,
