@@ -515,13 +515,44 @@ const compileFunctionWorkflow = (q, actions) => {
     }
   }
 
+  // Continuity changes what "build the graph" means. Ask it BEFORE the
+  // connection phase instead of after the finished graph, otherwise the
+  // workspace itself gives the classification away: a connected curve tells a
+  // student "continuous" before they have answered it.
+  //
+  // The graph follows the student's classification. A wrong classification is
+  // scored on this stage; the downstream representation is then judged for
+  // consistency with the student's decision, just like a table can correctly
+  // follow a student's wrong equation without counting the same misconception
+  // twice.
+  const continuityBeforeGraph = actions.includes('constructGraph') && actions.includes('classifyContinuity');
+  if (continuityBeforeGraph) {
+    const stage = {
+      id: 'continuity',
+      kind: 'classification',
+      prompt: q.continuityPrompt || 'Should this relationship be represented as discrete points or as a continuous graph?',
+      choices: ['discrete', 'continuous'],
+    };
+    const source = latestStageSource(workflow, ['tableInput','equationInput']);
+    if (source) stage.source = { fromStage: source };
+    workflow.push(stage);
+    if (continuity) grading.continuity = continuity;
+  }
+
   if (actions.includes('constructGraph')) {
-    const discrete = graphMode === 'discrete';
+    const dynamicContinuity = continuityBeforeGraph;
+    const discrete = !dynamicContinuity && graphMode === 'discrete';
     const stage = {
       id: 'graph',
-      kind: discrete ? 'coordinatePlot' : 'functionGraph',
-      prompt: q.graphPrompt || (discrete ? 'Plot the points for the relation.' : 'Construct the graph of the function.'),
-      graphMode: discrete ? 'discrete' : 'continuous',
+      // A student-selected graph can be either point-only or connected at
+      // runtime, so it uses the full graph workspace and lets the workflow
+      // inject the student's continuity choice.
+      kind: dynamicContinuity ? 'functionGraph' : (discrete ? 'coordinatePlot' : 'functionGraph'),
+      prompt: q.graphPrompt || (dynamicContinuity
+        ? 'Build the graph that matches your discrete-or-continuous decision.'
+        : (discrete ? 'Plot the points for the relation.' : 'Construct the graph of the function.')),
+      graphMode: dynamicContinuity ? 'studentSelected' : (discrete ? 'discrete' : 'continuous'),
+      ...(dynamicContinuity ? { continuityStageId: 'continuity' } : {}),
       ...(isObject(q.graph) ? { graph: q.graph } : {}),
     };
     const source = latestStageSource(workflow, ['tableInput','equationInput']);
@@ -545,9 +576,9 @@ const compileFunctionWorkflow = (q, actions) => {
   if (actions.some((action) => ['stateRange','analyzeRange'].includes(action))) {
     addSetStage('range', 'rangeInput', q.rangePrompt || 'State the range.', expectedRange(q), defaultDomainRangeNotation(q, continuity), q.rangeChoices || q.answerModel?.rangeChoices);
   }
-  if (actions.includes('classifyContinuity')) {
+  if (actions.includes('classifyContinuity') && !continuityBeforeGraph) {
     const stage = { id: 'continuity', kind: 'classification', prompt: q.continuityPrompt || 'Is the relationship discrete or continuous?', choices: ['discrete','continuous'] };
-    const source = latestStageSource(workflow, ['functionGraph','coordinatePlot','tableInput']);
+    const source = latestStageSource(workflow, ['functionGraph','coordinatePlot','tableInput','equationInput']);
     if (source) stage.source = { fromStage: source };
     workflow.push(stage);
     if (continuity) grading.continuity = continuity;
