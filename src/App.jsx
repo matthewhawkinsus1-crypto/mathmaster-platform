@@ -121,7 +121,6 @@ import {
   getStoredSectionVariantModes,
   storedAssignmentToV5,
 } from './platform/contract/storedAssignmentV5.js';
-import { hydrateAssignmentRuntime } from './platform/contract/assignmentRuntimeProjection.js';
 import { buildAssignmentV5PreflightModel } from './platform/preflight/assignmentV5PreflightModel.js';
 import { normalizeLabDefinition } from './platform/labs/labDefinitionSchema.js';
 import { normalizeContextualQuestion } from './platform/context/wordProblemLayer';
@@ -843,7 +842,7 @@ function App() {
     const unsubscribe = onSnapshot(
       collection(db, 'assignments'),
       (snapshot) => {
-        const liveAssignments = snapshot.docs.map((assignmentDoc) => hydrateAssignmentRuntime({
+        const liveAssignments = snapshot.docs.map((assignmentDoc) => ({
           id: assignmentDoc.id,
           ...assignmentDoc.data(),
         }));
@@ -1009,7 +1008,7 @@ function App() {
     const querySnapshot = await getDocs(collection(db, 'assignments'));
     const fetchedAssignments = [];
     querySnapshot.forEach((assignmentDoc) => {
-      fetchedAssignments.push(hydrateAssignmentRuntime({ id: assignmentDoc.id, ...assignmentDoc.data() }));
+      fetchedAssignments.push({ id: assignmentDoc.id, ...assignmentDoc.data() });
     });
     fetchedAssignments.sort((a, b) => String(a.dueAt || a.dueDate || '').localeCompare(String(b.dueAt || b.dueDate || '')));
     setAssignments(fetchedAssignments);
@@ -1209,7 +1208,7 @@ function App() {
   const getLiveAssignment = async (assignmentId) => {
     const assignmentSnapshot = await getDoc(doc(db, 'assignments', assignmentId));
     if (!assignmentSnapshot.exists()) return null;
-    return hydrateAssignmentRuntime({ id: assignmentSnapshot.id, ...assignmentSnapshot.data() });
+    return { id: assignmentSnapshot.id, ...assignmentSnapshot.data() };
   };
 
   const leaveUnavailableAssignment = () => {
@@ -2942,7 +2941,7 @@ function App() {
         } else {
           await setDoc(assignmentRef, payload);
         }
-        return hydrateAssignmentRuntime({ id: assignmentRef.id, ...payload });
+        return { id: assignmentRef.id, ...payload };
       };
 
       const destinationVariants = destinationGroups.map((destination) => {
