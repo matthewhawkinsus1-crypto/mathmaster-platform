@@ -81,6 +81,9 @@ export const summarizeStageResponse = (stage, response) => {
 
 export const buildWorkflowSummaryItems = (stages = [], responses = {}) => (
   (Array.isArray(stages) ? stages : [])
-    .map((stage) => summarizeStageResponse(stage, responses?.[stage.id]))
+    .map((stage) => {
+      const summary = summarizeStageResponse(stage, responses?.[stage.id]);
+      return summary ? { ...summary, stageId: stage.id } : null;
+    })
     .filter(Boolean)
 );
