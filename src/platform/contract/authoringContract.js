@@ -548,6 +548,8 @@ export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = nu
   '- If a response requires justification, comparison, or explanation, author the response part explicitly; do not collapse it to one numeric field.',
   '- Finite-choice questions should normally provide at least four meaningful options. Do not author a two-choice guessing shortcut for a three-attempt question; for binary concepts, use combined/neither or rationale-based distractors when mathematically appropriate.',
   '- Do not rely on authored option order to communicate meaning or correctness. MathMaster keeps a stable shuffled order during a question attempt so the first authored option is not automatically displayed first.',
+  '- For Algebra I domain/range tasks, prefer inequality notation (for example 0 ≤ x ≤ 4 or y ≥ 0). Do not introduce interval notation unless the source or teacher explicitly requests it; interval notation is normally deferred until Algebra II in this course sequence.',
+  '- If a multiple-choice task asks students to choose among graphs, preserve every candidate graph as a visible graph card. Never reduce A/B/C graph choices to text labels with no graphs.',
   '- For authored responseFields, use the semantic inputProfile that matches the answer: choice, text, number, expression, equation, interval, inequality, set, or orderedPair.',
   '- Never use inputProfile "text" merely because the answer will be typed. Mathematical responses belong in MathInput; plain text is for genuine word/phrase responses.',
   '- MathMaster infers answerFormat and required mobile keys from the expected response (parentheses, commas, variables, fractions, roots, exponents, interval/set symbols, inequalities). Do not micromanage keypad layout.',
