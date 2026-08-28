@@ -21,6 +21,8 @@ test('pasted and uploaded Assignment V5 JSON is bank-hydrated before local compi
 
 test('the client uses a dedicated authenticated callable for bank hydration', () => {
   assert.match(service, /httpsCallable\(functions, 'hydrateAssignmentCcmr'/);
+  assert.match(service, /ensurePracticeTarget = false/);
+  assert.match(service, /ensurePracticeTarget: ensurePracticeTarget === true/);
   assert.match(service, /Number\(assignment\.schemaVersion\) !== 5/);
   assert.match(service, /return \{[\s\S]*assignment:[\s\S]*audit:/);
 });
@@ -30,7 +32,7 @@ test('the server callable requires a teacher and returns audited bank hydration'
   const end = functionsIndex.indexOf('exports.authorAssignmentWithAI', start);
   const block = functionsIndex.slice(start, end);
   assert.match(block, /await requireTeacher\(request\)/);
-  assert.match(block, /replaceDirectCcmrQuestionsWithAuditedBank\(assignment\)/);
+  assert.match(block, /replaceDirectCcmrQuestionsWithAuditedBank\(assignment, \{[\s\S]*ensurePracticeTarget/);
   assert.match(block, /assignmentCcmrHydrationAudit/);
   assert.match(block, /return result/);
 });
@@ -41,4 +43,16 @@ test('bank hydration is resilient: an unavailable callable does not destroy an o
   const block = app.slice(start, end);
   assert.match(block, /catch \(error\) \{[\s\S]*CCMR assignment hydration was skipped/);
   assert.match(block, /const result = readAssignmentJson\(sourceText\)/);
+});
+
+
+test('Honors destination creation requests the audited Practice target without changing Standard variants', () => {
+  const start = app.indexOf('const destinationGroups = buildDestinationGroups');
+  const end = app.indexOf('const createdAssignments = []', start);
+  const block = app.slice(start, end);
+  assert.match(block, /hasHonorsDestination/);
+  assert.match(block, /hydrateAssignmentCcmr\(reviewedV5, \{ ensurePracticeTarget: true \}\)/);
+  assert.match(block, /let honorsParsedQuestions = parsedQuestions/);
+  assert.match(block, /if \(destination\.courseLevel === 'honors'\)[\s\S]*destinationQuestions = honorsParsedQuestions/);
+  assert.match(block, /let destinationQuestions = parsedQuestions/);
 });
