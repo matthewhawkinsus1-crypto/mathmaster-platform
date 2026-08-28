@@ -206,6 +206,34 @@ const fieldFromIntent = (field, index) => {
   return out;
 };
 
+const promptQuadrant = (prompt = '') => {
+  const match = String(prompt).match(/\bquadrant\s*(iv|iii|ii|i|4|3|2|1)\b/i);
+  if (!match) return null;
+  return ({ '1': 'I', i: 'I', '2': 'II', ii: 'II', '3': 'III', iii: 'III', '4': 'IV', iv: 'IV' })[match[1].toLowerCase()] || null;
+};
+
+const promptContainsCoordinatePair = (prompt = '') => /\(\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*\)/.test(String(prompt));
+
+const normalizeConstraintBuilderConstraints = (q = {}, raw = []) => {
+  const quadrant = promptQuadrant(q.prompt);
+  const namesExactPoint = promptContainsCoordinatePair(q.prompt);
+  return asArray(raw).map((constraint) => {
+    if (!isObject(constraint)) return constraint;
+    // If the task only says "the minimum is in Quadrant IV", an exact hidden
+    // vertex such as (4,-3) over-constrains the student. Preserve an exact
+    // vertex only when the prompt itself actually names a coordinate.
+    if (constraint.kind === 'vertex' && quadrant && !namesExactPoint) {
+      return {
+        ...constraint,
+        kind: 'vertexQuadrant',
+        value: quadrant,
+        label: constraint.label || `Vertex in Quadrant ${quadrant}`,
+      };
+    }
+    return constraint;
+  });
+};
+
 const normalizeGraphChoices = (choices = []) => asArray(choices).map((item, index) => {
   if (!isObject(item)) return item;
   const id = item.id || `g${index + 1}`;
@@ -882,7 +910,7 @@ const compileOne = (q, index, repairs) => {
       const builder = q.builder || {};
       out = copyCommon(q, {
         type,
-        constraints: q.constraints || builder.constraints,
+        constraints: normalizeConstraintBuilderConstraints(q, q.constraints || builder.constraints),
         allowedFamilies: q.allowedFamilies || builder.allowedFamilies,
         initialModel: q.initialModel || builder.initialModel,
         graph: normalizeStaticGraphPoints(q.graph || builder.graph),
