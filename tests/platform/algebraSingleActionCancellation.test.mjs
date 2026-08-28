@@ -40,3 +40,13 @@ test('Step Algebra commits the cancellation side from the same action instead of
   assert.match(source, /commitMove\(pendingMove, \{ crossedSidesOverride: next \}\)/);
   assert.match(source, /onSubmit=\{checkStudentRewrite\}/);
 });
+
+
+test('optional simplification stays under the side being simplified and Enter checks it', () => {
+  const source = fs.readFileSync(new URL('../../src/StepByStepAlgebra.jsx', import.meta.url), 'utf8');
+  const css = fs.readFileSync(new URL('../../src/StepByStepAlgebra.css', import.meta.url), 'utf8');
+  assert.match(source, /algebra-optional-simplification--\$\{pendingMove\.simplificationTargets\[0\]\.side\}/);
+  assert.match(source, /onSubmit=\{checkSimplifications\}/);
+  assert.match(css, /\.algebra-optional-simplification--right\s*\{[\s\S]*margin-left:\s*auto/);
+  assert.match(css, /\.algebra-optional-simplification--left\s*\{[\s\S]*margin-right:\s*auto/);
+});

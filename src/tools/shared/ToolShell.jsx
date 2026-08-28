@@ -98,21 +98,21 @@ export const TaskCard = ({ task, steps = [], note = null, question = null }) => 
 
 
   return (
-    <div style={{
+    <div className="mathmaster-tool-task-card" style={{
       border: '1px solid #9bb8e8', borderLeft: '6px solid #1a73e8', borderRadius: 12,
       background: '#f4f8ff', padding: '14px 18px', marginBottom: 18,
     }}>
       {authoredPrompt ? (
-        <>
+        <div className="mathmaster-tool-task-prompt">
           <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#174ea6' }}>{promptDiffers ? 'Problem' : 'Your task'}</div>
           <MathText as="p" style={{ margin: '6px 0 0', fontSize: 17, fontWeight: 700, color: '#172033', lineHeight: 1.4 }}>{authoredPrompt}</MathText>
-        </>
+        </div>
       ) : null}
       {taskText && (!authoredPrompt || promptDiffers) ? (
-        <>
+        <div className="mathmaster-tool-task-directions">
           <div style={{ marginTop: authoredPrompt ? 12 : 0, fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#174ea6' }}>{authoredPrompt ? 'What to do' : 'Your task'}</div>
           <MathText as="p" style={{ margin: '6px 0 0', fontSize: 16, fontWeight: 700, color: '#172033', lineHeight: 1.4 }}>{taskText}</MathText>
-        </>
+        </div>
       ) : null}
       {steps.length ? (
         <ol style={{ margin: '10px 0 0', paddingLeft: 20, color: '#3c4756', lineHeight: 1.6 }}>

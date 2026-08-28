@@ -128,3 +128,22 @@ test('MathInput horizontal stabilization is no longer gated to mobile only', () 
   assert.doesNotMatch(block, /if \(!isMobile\) return/);
   assert.match(source, /mathField\.addEventListener\('focus', handleFocus\)/);
 });
+
+
+test('question-level scroll lock runs on desktop too and includes composed tool workspaces', () => {
+  const source = readFileSync('src/components/student/MobileViewportContainer.jsx', 'utf8');
+  const lockStart = source.indexOf('const promptPanel = root.querySelector');
+  const lockEnd = source.indexOf('useEffect(() => {', lockStart + 20);
+  const block = source.slice(lockStart, lockEnd > lockStart ? lockEnd : undefined);
+  assert.doesNotMatch(block, /if \(!root \|\| !isMobile\) return undefined/);
+  assert.match(block, /mathmaster-question-tool-workspace/);
+  assert.match(block, /workflow-focus__workspace/);
+  assert.match(block, /window\.addEventListener\('scroll', onWindowScroll/);
+});
+
+test('viewport stabilizer resets root and non-scrolling student workspaces explicitly', () => {
+  const source = readFileSync('src/platform/mobile/mobileFocusViewport.js', 'utf8');
+  assert.match(source, /setScrollLeftZero\(root\)/);
+  assert.match(source, /mathmaster-question-tool-workspace/);
+  assert.match(source, /workflow-focus__active-stage/);
+});

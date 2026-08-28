@@ -40,7 +40,6 @@ import { ToolRuntimeProvider } from './tools/shared/ToolRuntimeContext';
 import InteractiveModelingLabPlayer from './components/labs/InteractiveModelingLabPlayer.jsx';
 import { useToast } from './ui/Toast';
 import QuestionModuleBoundary from './QuestionModuleBoundary';
-import QuestionPrompt from './QuestionPrompt';
 import StandardBadge from './components/common/StandardBadge.jsx';
 import { questionAssessmentFramework } from './platform/student/questionAlignmentInfo.js';
 import { normalizeQuestionStandards } from './questionMetadata';
@@ -717,24 +716,19 @@ export default function QuestionEngine({
 
   const questionContextPanel = (
     <div className="mathmaster-question-context-panel">
-      <div className="mathmaster-desktop-question-anchor">
-        <QuestionPrompt variant="task">{processedQuestion?.prompt || 'Complete the math task.'}</QuestionPrompt>
-        {/* Which standard this is, and whether it counts toward a college,
-            career or military assessment. A CCMR-aligned question inside an
-            ordinary assignment used to look exactly like every other question,
-            so the work a student was already doing toward those tests was
-            invisible to them. QuestionEngine owns this in assignments; My Path
-            owns it in the session header so the student sees it only once. */}
-        {showStandardBadge && questionStandardCode && (
-          <StandardBadge
-            code={questionStandardCode}
-            framework={questionAssessment.framework}
-            domainId={questionAssessment.domainId}
-            examStyle={questionAssessment.examStyle}
-            style={{ margin: '0 auto 14px', maxWidth: '860px' }}
-          />
-        )}
-      </div>
+      {/* Which standard this is, and whether it counts toward a college,
+          career or military assessment. The task itself is rendered by
+          MobileViewportContainer so its sticky containing block spans the
+          entire question, including tall graph/mapping tools. */}
+      {showStandardBadge && questionStandardCode && (
+        <StandardBadge
+          code={questionStandardCode}
+          framework={questionAssessment.framework}
+          domainId={questionAssessment.domainId}
+          examStyle={questionAssessment.examStyle}
+          style={{ margin: '0 auto 14px', maxWidth: '860px' }}
+        />
+      )}
       <ReferenceInfoCard referenceInfo={referenceInfo} />
       {!supportPresentation.declutter && (
         <div

@@ -70,13 +70,29 @@ export const MobileViewportContainer = ({
 
   useEffect(() => {
     const root = rootRef.current;
-    if (!root || !isMobile) return undefined;
+    if (!root) return undefined;
 
     const promptPanel = root.querySelector('.question-prompt-panel');
+    const toolWorkspace = root.querySelector('.mathmaster-question-tool-workspace');
+    const workflowWorkspace = root.querySelector('.workflow-focus__workspace');
     const assignmentStage = root.closest('.mathmaster-question-stage');
     const assignmentShell = root.closest('.mathmaster-assignment-shell');
     const assignmentScreen = root.closest('.mathmaster-assignment-screen');
-    const locked = [root, promptPanel, assignmentStage, assignmentShell, assignmentScreen].filter(Boolean);
+    // Horizontal focus panning is not a phone-only defect. Chrome on a
+    // Chromebook/desktop can pan an overflow:clip/hidden element to expose the
+    // MathLive caret, producing the dramatic whole-question jump teachers were
+    // seeing in domain/range fields. Lock every page-level question wrapper on
+    // every device; intentional horizontal scrollers live inside dedicated
+    // local-scroll elements and are not included here.
+    const locked = [
+      root,
+      promptPanel,
+      toolWorkspace,
+      workflowWorkspace,
+      assignmentStage,
+      assignmentShell,
+      assignmentScreen,
+    ].filter(Boolean);
 
     const forceZero = () => stabilizeHorizontalViewport({ root });
     const onLockedScroll = (event) => {
@@ -101,7 +117,7 @@ export const MobileViewportContainer = ({
       window.removeEventListener('scroll', onWindowScroll);
       window.visualViewport?.removeEventListener('scroll', onWindowScroll);
     };
-  }, [isMobile]);
+  }, []);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -224,7 +240,12 @@ export const MobileViewportContainer = ({
       onInputCapture={handleInputCapture}
       onKeyDownCapture={handleKeyDownCapture}
       onBlurCapture={handleBlurCapture}
-    >{contextPanel}{responseFields}{toolWorkspace}{actionButtons}</div>;
+    >
+      <div className="mathmaster-desktop-question-anchor">
+        <QuestionPrompt variant="task">{promptText || 'Complete the math task.'}</QuestionPrompt>
+      </div>
+      {contextPanel}{responseFields}{toolWorkspace}{actionButtons}
+    </div>;
   }
 
   return (

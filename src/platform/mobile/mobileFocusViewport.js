@@ -63,8 +63,17 @@ export const stabilizeHorizontalViewport = ({
   setScrollLeftZero(page);
   setScrollLeftZero(documentObject.documentElement);
   setScrollLeftZero(documentObject.body);
+  setScrollLeftZero(root);
 
   lockedAncestors(root).forEach(setScrollLeftZero);
+
+  // These are page-level student workspaces, not intentional horizontal
+  // scrollers. A browser can pan one of them directly to keep a caret visible
+  // even when its CSS says overflow-x: clip. Reset them explicitly so the
+  // correction does not depend on which ancestor the browser chose.
+  root?.querySelectorAll?.(
+    '.mathmaster-question-tool-workspace, .workflow-focus__workspace, .workflow-focus__active-stage',
+  )?.forEach?.(setScrollLeftZero);
 
   const top = numberOrZero(windowObject.scrollY ?? page?.scrollTop);
   const left = numberOrZero(windowObject.scrollX ?? page?.scrollLeft);
