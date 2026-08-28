@@ -31,6 +31,19 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
   const [model, setModel] = useState(initial);
   const [hasEdited, setHasEdited] = useState(false);
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
+  const effectiveConstraints = useMemo(() => {
+    const prompt = String(questionData.prompt || '');
+    const match = prompt.match(/\bquadrant\s*(iv|iii|ii|i|4|3|2|1)\b/i);
+    const quadrant = match
+      ? ({ '1': 'I', i: 'I', '2': 'II', ii: 'II', '3': 'III', iii: 'III', '4': 'IV', iv: 'IV' })[match[1].toLowerCase()]
+      : null;
+    const namesExactPoint = /\(\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*\)/.test(prompt);
+    return (Array.isArray(questionData.constraints) ? questionData.constraints : []).map((constraint) => (
+      constraint?.kind === 'vertex' && quadrant && !namesExactPoint
+        ? { ...constraint, kind: 'vertexQuadrant', value: quadrant, label: constraint.label || `Vertex in Quadrant ${quadrant}` }
+        : constraint
+    ));
+  }, [questionData.constraints, questionData.prompt]);
   const bounds = questionData.graph || { xMin: -8, xMax: 8, yMin: -8, yMax: 8 };
   const discreteXs = useMemo(() => {
     const low = Math.ceil(Math.min(model.domainMin, model.domainMax));
@@ -46,7 +59,7 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
     ? [(x) => evaluateBuilderModel(model, x)]
     : [];
   const verticalLines = model.family === 'verticalLine' ? [model.verticalX] : [];
-  const liveScore = scoreConstraintModel(model, questionData.constraints || []);
+  const liveScore = scoreConstraintModel(model, effectiveConstraints);
 
   const set = (patch) => {
     clearFeedback();
@@ -55,7 +68,7 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
   };
   const check = () => {
     if (!hasEdited) return;
-    const result = scoreConstraintModel(model, questionData.constraints || []);
+    const result = scoreConstraintModel(model, effectiveConstraints);
     submit(
       { isCorrect: result.isCorrect, score: result.score },
       { model, equation: builderEquation(model) },
