@@ -735,7 +735,16 @@ const compileOne = (q, index, repairs) => {
       break;
     case 'multiAnswer': {
       const fields = q.answerFields || q.responses || q.response?.fields || [];
-      out = copyCommon(q, { type, answerFields: fields.map(fieldFromIntent), table: q.table, graph: graphFromIntent(q), visual: q.visual, mathDisplay: q.mathDisplay });
+      const candidateGraphs = normalizeGraphChoices(q.candidateGraphs || q.graphs);
+      out = copyCommon(q, {
+        type,
+        answerFields: fields.map(fieldFromIntent),
+        table: q.table,
+        graph: graphFromIntent(q),
+        candidateGraphs: candidateGraphs.length ? candidateGraphs : undefined,
+        visual: q.visual,
+        mathDisplay: q.mathDisplay,
+      });
       break;
     }
     case 'relationshipModel':
