@@ -238,7 +238,13 @@ const normalizeGraphChoices = (choices = []) => asArray(choices).map((item, inde
   if (!isObject(item)) return item;
   const id = item.id || `g${index + 1}`;
   if (item.graph) return { ...item, id, graph: normalizeStaticGraphPoints(item.graph) };
-  if (item.function || item.functionSpec) return { id, label: item.label, graph: { functions: [staticFunctionSpec(item.function || item.functionSpec)] } };
+  if (item.function || item.functionSpec) {
+    return {
+      id,
+      ...(clean(item.label) ? { label: item.label } : {}),
+      graph: { functions: [staticFunctionSpec(item.function || item.functionSpec)] },
+    };
+  }
   return { ...item, id };
 });
 
