@@ -573,6 +573,15 @@ const resolveIntentType = (q, actions) => {
   if (q.transformation || actions.includes('analyzeTransformations')) return 'transformationsLab';
   if (q.representations || q.sets || actions.some((a) => ['connectRepresentations','findRepresentationMismatch'].includes(a))) return 'representationMatch';
   if (q.sequence || actions.some((a) => ['analyzeSequence','findSequenceTerm','findMissingTerm','writeRecursive','writeExplicit','compareSequences','partialSum'].includes(a))) return 'sequenceExplorer';
+  // A source table that only asks the student to classify the relation should
+  // stay a table. Do not invent a mapping diagram merely because normalized
+  // pairs are also present for grading.
+  if (
+    q.table
+    && (q.responses || q.answerFields || q.response?.fields)
+    && !actions.includes('buildMapping')
+    && !actions.includes('plotRelation')
+  ) return 'multiAnswer';
   if (q.relation || q.pairs || actions.some((a) => ['buildMapping','plotRelation','classifyFunction'].includes(a))) return 'relationMapping';
   if (actions.includes('sortIntoOwnGroups') || q.sortBoard || q.validSchemes) return 'openSortBoard';
   if (actions.includes('buildFunctionFromConstraints') || q.constraints && q.allowedFamilies) return 'constraintFunctionBuilder';
@@ -729,14 +738,26 @@ const compileOne = (q, index, repairs) => {
       break;
     }
     case 'relationMapping': {
+      const rawFields = q.answerFields || q.responses || q.response?.fields || [];
+      const answerFields = asArray(rawFields).map(fieldFromIntent);
       const ask = q.ask || [
         actions.includes('buildMapping') && 'mapping',
+        // When a relation is plotted from supplied ordered pairs, keep the
+        // mapping-diagram spiral unless the author explicitly opts out.
+        actions.includes('plotRelation') && q.includeMappingSpiral !== false && 'mapping',
         actions.includes('plotRelation') && 'plot',
         actions.some((action) => ['stateDomain','analyzeDomain'].includes(action)) && 'domain',
         actions.some((action) => ['stateRange','analyzeRange'].includes(action)) && 'range',
-        actions.includes('classifyFunction') && 'isFunction',
+        actions.includes('classifyFunction') && !answerFields.length && 'isFunction',
       ].filter(Boolean);
-      out = copyCommon(q, { type, pairs: q.pairs || q.relation, ask: ask.length ? ask : ['mapping','domain','range','isFunction'] });
+      out = copyCommon(q, {
+        type,
+        pairs: q.pairs || q.relation,
+        ask,
+        answerFields,
+        plotEntryMode: q.plotEntryMode || 'manual',
+        plotSnapStep: q.plotSnapStep,
+      });
       break;
     }
     case 'modelingLab':
