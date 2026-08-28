@@ -2536,7 +2536,6 @@ function App() {
   // carries them, so there are no manual fallbacks to merge any more.
   const openAssignmentPreflight = (inspected, sourceName, draftOverrides = {}, reviewOptions = {}) => {
     try {
-      const { metadata } = inspected;
       const assignmentV5 = inspected.bundleSource;
       if (!assignmentV5 || Number(assignmentV5.schemaVersion) !== 5) {
         throw new Error('Assignment Review requires a current MathMaster assignment.');
@@ -2545,52 +2544,50 @@ function App() {
       const dolQuestionFromRole = inspected.questions.findIndex((question) => (
         resolveQuestionActivityRole({ question, assignment: assignmentV5 }) === 'dol'
       ));
+      const publishingIntent = normalizeLessonPublishingIntentV5({
+        classroom: assignmentV5.classroomIntegration,
+        lessonResources: { notesPdf: assignmentV5.outputProfiles?.lessonNotesPdf },
+      }, assignmentV5.assignment, []);
       const initialDraft = {
-        title: metadata?.title || assignmentV5.assignment?.title || '',
-        folder: metadata?.folder || '',
-        dueAt: toDateTimeLocalInputValue(metadata?.dueAt || ''),
-        lateDueAt: toDateTimeLocalInputValue(metadata?.lateDueAt || ''),
-        releaseAt: toDateTimeLocalInputValue(metadata?.releaseAt || ''),
+        title: assignmentV5.assignment?.title || '',
+        folder: assignmentV5.assignment?.folder || '',
+        dueAt: '',
+        lateDueAt: '',
+        releaseAt: '',
         assignmentType: getStoredAssignmentTypeProjection(assignmentV5),
         variantMode: getStoredAssignmentVariantMode(assignmentV5),
         sectionVariantModes: getStoredSectionVariantModes(assignmentV5),
-        sectionAccessDefaults: { classwork: 'open', practice: 'open', ...(metadata?.sectionAccessDefaults || {}) },
-        guidedNotesBySection: { classwork: 'automatic', practice: 'off', ...(metadata?.guidedNotesBySection || {}) },
-        assignedClassPeriods: [...(metadata?.assignedClassPeriods || [])],
-        assignedClassIds: [...(metadata?.assignedClassIds || [])],
-        warmupEnabled: sections.some((section) => section.role === 'warmup')
-          && (metadata?.provided?.warmup ? metadata.warmup.enabled !== false : true),
-        warmupMinutesBeforeStart: metadata?.warmup?.minutesBeforeStart ?? 7,
-        warmupInstructionDate: metadata?.warmup?.instructionDate || '',
-        warmupInstructionDatesByClassPeriod: metadata?.warmup?.instructionDatesByClassPeriod || {},
-        dolEnabled: sections.some((section) => section.role === 'dol')
-          && (metadata?.provided?.dol ? metadata.dol.enabled === true : true),
-        dolMinutesBeforeEnd: metadata?.dol?.minutesBeforeEnd ?? 10,
-        dolInstructionDate: metadata?.dol?.instructionDate || '',
-        dolInstructionDatesByClassPeriod: metadata?.dol?.instructionDatesByClassPeriod || {},
-        dolQuestionIndex: Number.isInteger(metadata?.dol?.questionIndex)
-          ? metadata.dol.questionIndex
-          : dolQuestionFromRole >= 0 ? dolQuestionFromRole : null,
+        sectionAccessDefaults: { classwork: 'open', practice: 'open' },
+        guidedNotesBySection: { classwork: 'automatic', practice: 'off' },
+        assignedClassPeriods: [],
+        assignedClassIds: [],
+        warmupEnabled: sections.some((section) => section.role === 'warmup'),
+        warmupMinutesBeforeStart: 7,
+        warmupInstructionDate: '',
+        warmupInstructionDatesByClassPeriod: {},
+        dolEnabled: sections.some((section) => section.role === 'dol'),
+        dolMinutesBeforeEnd: 10,
+        dolInstructionDate: '',
+        dolInstructionDatesByClassPeriod: {},
+        dolQuestionIndex: dolQuestionFromRole >= 0 ? dolQuestionFromRole : null,
         publicationStrategy: 'hybrid',
         includeWarmupInClassroom: false,
         homeworkDueAt: '',
-        // Authoring Intent V5 may carry the complete Classroom/resource plan.
-        // Preflight shows it for review but does not need the teacher to retype it.
-        classroomPackage: metadata?.classroomPackage || null,
-        lessonResources: metadata?.lessonResources || null,
-        instructionalPurpose: metadata?.instructionalPurpose || 'lesson',
-        gradingPurpose: metadata?.gradingPurpose || null,
-        variantPolicy: metadata?.variantPolicy || null,
-        differentiationPolicy: metadata?.differentiationPolicy || null,
-        supportPolicy: metadata?.supportPolicy || null,
-        toolPolicy: metadata?.toolPolicy || null,
-        deliveryPolicy: metadata?.deliveryPolicy || null,
-        gradingPolicy: metadata?.gradingPolicy || null,
-        evidencePolicy: metadata?.evidencePolicy || null,
-        outputProfiles: metadata?.outputProfiles || null,
-        classroomIntegration: metadata?.classroomIntegration || null,
-        provenance: metadata?.provenance || null,
-        preflight: metadata?.preflight || null,
+        classroomPackage: publishingIntent.classroomPackage,
+        lessonResources: publishingIntent.lessonResources,
+        instructionalPurpose: assignmentV5.assignment?.instructionalPurpose || 'lesson',
+        gradingPurpose: assignmentV5.assignment?.gradingPurpose || null,
+        variantPolicy: assignmentV5.variantPolicy,
+        differentiationPolicy: assignmentV5.differentiationPolicy,
+        supportPolicy: assignmentV5.supportPolicy,
+        toolPolicy: assignmentV5.toolPolicy,
+        deliveryPolicy: assignmentV5.deliveryPolicy,
+        gradingPolicy: assignmentV5.gradingPolicy,
+        evidencePolicy: assignmentV5.evidencePolicy,
+        outputProfiles: assignmentV5.outputProfiles,
+        classroomIntegration: assignmentV5.classroomIntegration,
+        provenance: assignmentV5.provenance,
+        preflight: assignmentV5.preflight,
         ...draftOverrides,
       };
       setAssignmentPreflight({
