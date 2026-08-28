@@ -90,6 +90,23 @@
   color: #174ea6;
 }
 
+.workflow-focus__summary-link {
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.workflow-focus__summary-link:hover:not(:disabled),
+.workflow-focus__summary-link:focus-visible {
+  border-color: #1a73e8;
+  background: #eef5ff;
+  outline: none;
+}
+
+.workflow-focus__summary-link:disabled {
+  cursor: default;
+}
+
 .workflow-focus__workspace {
   border: 1px solid #c9d7ea;
   border-radius: 14px;
