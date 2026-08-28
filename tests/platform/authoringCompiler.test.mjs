@@ -49,6 +49,10 @@ assert.equal(parsed.questions.length, 1);
 assert.equal(parsed.questions[0].type, 'functionGraph');
 assert.equal(parsed.assignmentV5.variantPolicy.mode, 'personalized');
 assert.equal(parsed.assignmentV5.outputProfiles.studentWorksheetPdf.enabled, true);
+assert.equal(Object.prototype.hasOwnProperty.call(parsed, 'bundleSource'), false);
+assert.equal(Object.prototype.hasOwnProperty.call(parsed, 'isBundle'), false);
+assert.equal(Object.prototype.hasOwnProperty.call(parsed, 'isPackage'), false);
+assert.equal(Object.prototype.hasOwnProperty.call(parsed, 'assignment'), false);
 assert.equal(validateAssignmentQuestions(parsed.questions).length, 1);
 assert.ok(parsed.repairs.some((repair) => /canonical V5/.test(repair)));
 
