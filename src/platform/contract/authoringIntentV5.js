@@ -345,6 +345,21 @@ const compileFunctionWorkflow = (q, actions) => {
   const workflow = [];
   const grading = {};
 
+  if (actions.includes('identifyQuantities')) {
+    workflow.push({
+      id: 'quantities',
+      kind: 'quantityRoles',
+      prompt: q.quantitiesPrompt || 'Which quantity is the input, and which is the output?',
+      quantities: asArray(q.quantities),
+    });
+    if (q.correctIndependentId && q.correctDependentId) {
+      grading.quantities = {
+        independent: q.correctIndependentId,
+        dependent: q.correctDependentId,
+      };
+    }
+  }
+
   if (actions.includes('writeEquation')) {
     workflow.push({ id: 'equation', kind: 'equationInput', prompt: q.equationPrompt || 'Write the equation or function rule.' });
     const expected = expectedEquation(q);
