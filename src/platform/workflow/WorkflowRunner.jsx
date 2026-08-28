@@ -15,6 +15,7 @@ import { buildExpressionFunctionSpec, evaluateModelAt, evaluateNumericValue, par
 import { evaluateGraphFunction } from '../../functionGraphUtils';
 import { buildStudentTableMagneticTargets } from '../../graphInteractionPrecision';
 import { buildWorkflowSummaryItems, shouldUseWorkflowFocusMode } from './workflowFocusMode';
+import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../interaction/choiceOptions.js';
 import './WorkflowFocusMode.css';
 
 // Renders a question composed from interaction primitives.
@@ -121,7 +122,10 @@ function StageSource({ input, stages }) {
 }
 
 function ChoiceStage({ stage, value, onChange, disabled }) {
-  const choices = Array.isArray(stage.choices) ? stage.choices : [];
+  const choices = stableShuffleChoices(
+    strengthenTwoChoiceSet(Array.isArray(stage.choices) ? stage.choices : []),
+    choiceSeed(stage.id, stage.prompt, stage.label),
+  );
   return (
     <div style={chipRow}>
       {choices.map((choice) => {
