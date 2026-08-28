@@ -77,10 +77,10 @@ export const INTERACTION_STAGES = Object.freeze(Object.fromEntries([
   }),
   stage('functionGraph', {
     label: 'Build the graph',
-    studentAction: 'Constructs a continuous function graph.',
+    studentAction: 'Constructs a function graph, using point-only or connected mode when continuity has been decided.',
     produces: STAGE_OUTPUT.GRAPH,
     consumes: [STAGE_OUTPUT.EQUATION, STAGE_OUTPUT.TABLE],
-    fields: { prompt: 'string', graph: 'object', graphMode: 'string' },
+    fields: { prompt: 'string', graph: 'object', graphMode: 'string', continuityStageId: 'string' },
   }),
   stage('mappingDiagram', {
     label: 'Build the mapping diagram',
@@ -121,7 +121,7 @@ export const INTERACTION_STAGES = Object.freeze(Object.fromEntries([
     label: 'Classify',
     studentAction: 'Chooses between named categories.',
     produces: STAGE_OUTPUT.CHOICE,
-    consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.TABLE, STAGE_OUTPUT.POINTS],
+    consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.TABLE, STAGE_OUTPUT.POINTS, STAGE_OUTPUT.EQUATION],
     fields: { prompt: 'string', choices: 'array' },
   }),
   stage('multipleChoice', {

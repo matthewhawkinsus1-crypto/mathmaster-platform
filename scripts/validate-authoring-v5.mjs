@@ -58,7 +58,7 @@ if (semantic.errors.length || semantic.warnings.length) {
 
 const rich = parsed.questions[1];
 const kinds = rich?.workflow?.map((stage) => stage.kind) || [];
-const expectedKinds = ['tableInput', 'coordinatePlot', 'rangeInput', 'classification'];
+const expectedKinds = ['tableInput', 'classification', 'functionGraph', 'rangeInput'];
 if (JSON.stringify(kinds) !== JSON.stringify(expectedKinds)) {
   throw new Error(`V5 composition regressed: expected ${expectedKinds.join(' -> ')}, got ${kinds.join(' -> ') || '(none)'}.`);
 }

@@ -168,13 +168,18 @@ assert.equal(relation.type, 'relationMapping');
 assert.deepEqual(relation.ask, ['mapping', 'plot', 'domain', 'range', 'isFunction']);
 
 assert.equal(discrete.type, 'functionGraph');
-assert.deepEqual(discrete.workflow.map((stage) => stage.kind), ['tableInput', 'coordinatePlot', 'rangeInput', 'classification']);
+assert.deepEqual(discrete.workflow.map((stage) => stage.kind), ['tableInput', 'classification', 'functionGraph', 'rangeInput']);
+assert.equal(discrete.workflow[1].id, 'continuity');
+assert.equal(discrete.workflow[2].graphMode, 'studentSelected');
+assert.equal(discrete.workflow[2].continuityStageId, 'continuity');
 assert.equal(discrete.grading.table.values['3:y'], 3);
 assert.equal(discrete.tableAnswers['0:y'], 0, 'runtime table key must use the function-derived answer, not an AI-authored conflicting key');
 assert.equal(discrete.grading.range, '{0, 1, 2, 3}');
 
 assert.equal(continuous.type, 'functionGraph', 'stray renderer type hint must be ignored in V5');
-assert.deepEqual(continuous.workflow.map((stage) => stage.kind), ['tableInput', 'functionGraph', 'rangeInput', 'classification']);
+assert.deepEqual(continuous.workflow.map((stage) => stage.kind), ['tableInput', 'classification', 'functionGraph', 'rangeInput']);
+assert.equal(continuous.workflow[1].id, 'continuity');
+assert.equal(continuous.workflow[2].graphMode, 'studentSelected');
 assert.equal(continuous.grading.table.values['0:y'], -0.5, 'table key should be derived from the supplied function');
 assert.equal(continuous.functionSpec.domain.min, -3);
 
@@ -225,7 +230,7 @@ assert.deepEqual(axisSemantic.errors, [], axisSemantic.errors.join('\n'));
 const axisQuestion = axisParsed.questions[0];
 assert.deepEqual(axisQuestion.workflow.map((stage) => stage.kind), [
   'quantityRoles', 'axisSetup', 'equationInput', 'tableInput',
-  'functionGraph', 'domainInput', 'rangeInput', 'classification',
+  'classification', 'functionGraph', 'domainInput', 'rangeInput',
 ]);
 const axisStage = axisQuestion.workflow.find((stage) => stage.kind === 'axisSetup');
 assert.ok(axisStage.graph, 'axis labeling must render a physical graph');
