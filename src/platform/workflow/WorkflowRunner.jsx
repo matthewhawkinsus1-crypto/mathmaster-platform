@@ -428,6 +428,8 @@ const DELEGATES = {
     const tablePoints = sourceIsTable && Array.isArray(source.points) ? source.points : [];
     const sourceModel = sourceIsTable ? source.sourceModel : (typeof source === 'string' ? source : null);
     const sourceFunctionSpec = sourceIsTable ? source.sourceFunctionSpec : null;
+    const resolvedGraphMode = String(stage.resolvedGraphMode || stage.graphMode || 'continuous').toLowerCase();
+    const pointOnly = resolvedGraphMode === 'discrete';
     const authoredGraphWindow = stage.graph || content?.graph || { xMin: -10, xMax: 10, yMin: -10, yMax: 10 };
     const points = tablePoints.length ? tablePoints : (() => {
       if (!sourceModel) return [];
@@ -488,10 +490,12 @@ const DELEGATES = {
           magneticSnapTargets,
           showCoordinates: true,
           studentChoosesX: false,
+          pointOnly,
+          plotMode: pointOnly ? 'points' : undefined,
           // A restricted relationship needs explicit visual boundaries. The
           // domain stage still asks the student to STATE the domain, but the
           // graph itself is incomplete until its open/closed endpoints are shown.
-          requireEndpointMarkers: stage.requireEndpointMarkers ?? Boolean(stage.domainRestriction),
+          requireEndpointMarkers: pointOnly ? false : (stage.requireEndpointMarkers ?? Boolean(stage.domainRestriction)),
         }}
         mode="construct"
         onStateChange={onChange}
@@ -838,9 +842,15 @@ export default function WorkflowRunner({
     const domainRestriction = stage.kind === 'functionGraph'
       ? parseIntervalDomainRestriction(grading?.domain)
       : null;
-    const effectiveStage = domainRestriction && !stage.domainRestriction
+    const baseEffectiveStage = domainRestriction && !stage.domainRestriction
       ? { ...stage, domainRestriction }
       : stage;
+    const effectiveStage = stage.continuityStageId
+      ? {
+          ...baseEffectiveStage,
+          resolvedGraphMode: String(responses?.[stage.continuityStageId] || '').toLowerCase(),
+        }
+      : baseEffectiveStage;
     const input = resolveStageInput({ stage, responses, content });
     const waiting = Boolean(stage.sourceStageId) && !input.ready;
     const shellClass = focusMode
