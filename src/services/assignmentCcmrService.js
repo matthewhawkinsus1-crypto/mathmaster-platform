@@ -5,7 +5,7 @@ const hydrateAssignment = httpsCallable(functions, 'hydrateAssignmentCcmr', {
   timeout: 120000,
 });
 
-export async function hydrateAssignmentCcmr(assignment) {
+export async function hydrateAssignmentCcmr(assignment, { ensurePracticeTarget = false } = {}) {
   if (!assignment || typeof assignment !== 'object' || Array.isArray(assignment)) {
     return { assignment, audit: null };
   }
@@ -13,7 +13,7 @@ export async function hydrateAssignmentCcmr(assignment) {
     return { assignment, audit: null };
   }
 
-  const response = await hydrateAssignment({ assignment });
+  const response = await hydrateAssignment({ assignment, ensurePracticeTarget: ensurePracticeTarget === true });
   const data = response?.data || {};
   return {
     assignment: data.assignment && typeof data.assignment === 'object' ? data.assignment : assignment,
