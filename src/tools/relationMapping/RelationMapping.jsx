@@ -130,16 +130,21 @@ export default function RelationMapping({ questionData = {}, onAction }) {
 
   const domainValues = useMemo(() => uniqueSorted(pairs.map(([x]) => x)), [pairs]);
   const rangeValues = useMemo(() => uniqueSorted(pairs.map(([, y]) => y)), [pairs]);
-  const ask = useMemo(() => {
-    const requested = Array.isArray(questionData.ask) ? questionData.ask : [];
-    return requested.length ? requested : ['mapping', 'domain', 'range'];
-  }, [questionData.ask]);
+  const ask = useMemo(() => (
+    Array.isArray(questionData.ask) ? questionData.ask : ['mapping', 'domain', 'range']
+  ), [questionData.ask]);
+  const analysisFields = useMemo(
+    () => (Array.isArray(questionData.answerFields) ? questionData.answerFields.filter((field) => field?.id) : []),
+    [questionData.answerFields],
+  );
+  const allowTypedPlot = questionData.plotEntryMode === 'typed' || questionData.plotEntryMode === 'clickOrType';
 
   const [arrows, setArrows] = useState([]);
   const [selectedDomain, setSelectedDomain] = useState(null);
   const [domainAnswer, setDomainAnswer] = useState('');
   const [rangeAnswer, setRangeAnswer] = useState('');
   const [functionAnswer, setFunctionAnswer] = useState('');
+  const [fieldAnswers, setFieldAnswers] = useState({});
   const [plottedPoints, setPlottedPoints] = useState([]);
   const [plotX, setPlotX] = useState('');
   const [plotY, setPlotY] = useState('');
