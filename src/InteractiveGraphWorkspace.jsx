@@ -913,10 +913,14 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
         <aside style={{ border: '1px solid #dfe3e7', borderRadius: '12px', background: '#f8fbff', padding: '12px' }}>
           {stage === 'construct' ? (
             <>
-              <h3 style={{ margin: '0 0 8px', fontSize: '16px', color: '#174ea6' }}>Plotting Points</h3>
-              <p style={{ margin: '0 0 10px', color: '#5f6368', fontSize: '12px' }}>{mobileInteraction.isMobile ? 'Tap a point card, then tap its location on the coordinate plane.' : 'Drag a point, or select it and click the coordinate plane. Colored guides show the exact location.'}</p>
-              {magneticSnapTargets.length > 0 && <p style={{ margin: '0 0 10px', padding: '7px 8px', borderRadius: '7px', background: '#e6f4ea', color: '#137333', fontSize: '12px', lineHeight: 1.4 }}><strong>Magnetic placement is on.</strong> Points from your completed table will gently snap to the exact coordinate when you get close.</p>}
-              <div style={{ display: 'grid', gap: '8px' }}>
+              <h3 style={{ margin: '0 0 8px', fontSize: '16px', color: '#174ea6' }}>
+                {construction.snapped && endpointRequirements.length > 0 ? endpointSectionTitle : 'Plotting Points'}
+              </h3>
+              {!construction.snapped && (
+                <>
+                  <p style={{ margin: '0 0 10px', color: '#5f6368', fontSize: '12px' }}>{mobileInteraction.isMobile ? 'Tap a point card, then tap its location on the coordinate plane.' : 'Drag a point, or select it and click the coordinate plane. Colored guides show the exact location.'}</p>
+                  {magneticSnapTargets.length > 0 && <p style={{ margin: '0 0 10px', padding: '7px 8px', borderRadius: '7px', background: '#e6f4ea', color: '#137333', fontSize: '12px', lineHeight: 1.4 }}><strong>Magnetic placement is on.</strong> Points from your completed table will gently snap to the exact coordinate when you get close.</p>}
+                  <div style={{ display: 'grid', gap: '8px' }}>
                 {tasks.map((task) => {
                   const placement = construction.placements[task.id];
                   const active = activeTaskId === task.id;
@@ -936,11 +940,12 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
                     {task.studentChoosesX && <label style={{ display: 'block', marginTop: '7px', fontSize: '12px', fontWeight: 'bold', color: '#5f6368' }}>Choose x<input type="number" step={xSnapStep} value={xValue} onChange={(event) => constructionHistory.setValue((current) => ({ ...current, chosenXValues: { ...current.chosenXValues, [task.id]: event.target.value }, placements: { ...current.placements, [task.id]: undefined } }))} style={{ width: '100%', marginTop: '4px', padding: '7px', boxSizing: 'border-box', borderRadius: '6px', border: '1px solid #9fb8dd' }} /></label>}
                   </div>;
                 })}
-              </div>
-              {tasks.some((task) => task.expected === 'undefined') && <button type="button" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); placeTask(event.dataTransfer.getData('application/x-mathmaster-point') || activeTaskId, 'undefined'); }} onClick={() => activeTaskId && placeTask(activeTaskId, 'undefined')} style={{ width: '100%', marginTop: '12px', minHeight: '72px', border: '2px dashed #9334e6', borderRadius: '10px', background: '#f8f0ff', color: '#6f2da8', fontWeight: 'bold' }}>Not Real / Undefined</button>}
-              {!construction.pointsValidated && <button type="button" onClick={checkPoints} disabled={Object.keys(construction.placements).length < tasks.length} style={{ width: '100%', marginTop: '12px', padding: '10px', border: 'none', borderRadius: '8px', background: Object.keys(construction.placements).length >= tasks.length ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 'bold' }}>Check Point Placements</button>}
-              {construction.snapped && endpointRequirements.length > 0 && <div style={{ marginTop: '14px', borderTop: '1px solid #dfe3e7', paddingTop: '12px' }}>
-                <h3 style={{ margin: '0 0 5px', fontSize: '15px' }}>{endpointSectionTitle}</h3>
+                  </div>
+                  {tasks.some((task) => task.expected === 'undefined') && <button type="button" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); placeTask(event.dataTransfer.getData('application/x-mathmaster-point') || activeTaskId, 'undefined'); }} onClick={() => activeTaskId && placeTask(activeTaskId, 'undefined')} style={{ width: '100%', marginTop: '12px', minHeight: '72px', border: '2px dashed #9334e6', borderRadius: '10px', background: '#f8f0ff', color: '#6f2da8', fontWeight: 'bold' }}>Not Real / Undefined</button>}
+                  {!construction.pointsValidated && <button type="button" onClick={checkPoints} disabled={Object.keys(construction.placements).length < tasks.length} style={{ width: '100%', marginTop: '12px', padding: '10px', border: 'none', borderRadius: '8px', background: Object.keys(construction.placements).length >= tasks.length ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 'bold' }}>Check Point Placements</button>}
+                </>
+              )}
+              {construction.snapped && endpointRequirements.length > 0 && <div style={{ marginTop: '4px' }}>
                 <p style={{ margin: '0 0 8px', fontSize: '11px', color: '#5f6368', lineHeight: 1.45 }}>{endpointInstruction} {mobileInteraction.isMobile ? 'Tap a marker, then tap near a graph end; a generous magnetic area helps it snap into place.' : 'Drag or select a marker, then place it near a graph end; a generous magnetic area helps it snap into place.'}</p>
                 {availableMarkerTypes.map((type) => { const label = markerLabels[type]; return <button key={type} type="button" draggable={!mobileInteraction.isMobile} onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-marker', type); event.dataTransfer.setDragImage(makeMarkerDragImage(type), 26, 26); setDraggingMarkerType(type); }} onDragEnd={() => { setDraggingMarkerType(null); setDropCandidate(null); setDropMagneticTarget(null); }} aria-pressed={activeMarker === type}
                   onClick={() => { setActiveMarker(type); setKeyboardAnnouncement(`${label} selected. Use the arrow keys on the plane and press Enter, or type an exact coordinate.`); }} style={{ width: '100%', marginTop: '6px', padding: '9px', border: activeMarker === type ? '2px solid #1a73e8' : '1px solid #c9d4e5', borderRadius: '8px', background: '#fff', fontWeight: 'bold', cursor: 'grab', display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ fontSize: '23px', color: '#1a73e8' }}>{markerSymbols[type]}</span><span><span style={{ display: 'block' }}>{label}</span><span style={{ display: 'block', fontSize: '11px', color: '#5f6368', fontWeight: 400 }}>{markerExplanations[type]}</span></span></button>; })}
