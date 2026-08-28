@@ -155,6 +155,11 @@ const analysisRequestsFromActions = (actions, q = {}) => {
 };
 
 
+const hasStudentFacingResponseFields = (q = {}) => {
+  const fields = asArray(q.answerFields || q.responses || q.response?.fields);
+  return fields.length > 0 && fields.every((field) => isObject(field) && clean(field.label || field.prompt));
+};
+
 const inferBinaryChoiceOptions = (field = {}) => {
   const label = clean(field.label || field.prompt).toLowerCase();
   const answer = clean(field.answer ?? field.acceptedAnswers?.[0]).toLowerCase();
@@ -611,7 +616,7 @@ const resolveIntentType = (q, actions) => {
   // domain/range/classification fields without exposing an equation.
   if (
     actions.includes('readGraph')
-    && (q.responses || q.answerFields || q.response?.fields)
+    && hasStudentFacingResponseFields(q)
     && (q.graph || q.function || q.functionSpec || q.visual?.graph)
   ) return 'multiAnswer';
   if (
