@@ -597,6 +597,36 @@
   }
 }
 
+/* Keep the actual task in view while a student works down a long question.
+   The compact assignment navigation is already sticky above it. Only the blue
+   task anchor follows the page; reference cards, attempt status, and helper
+   controls scroll away so they do not consume the whole Chromebook viewport. */
+@media (min-width: 769px) {
+  .mathmaster-assignment-screen {
+    --mm-sticky-task-top: 118px;
+  }
+
+  .mathmaster-desktop-question-content .mathmaster-desktop-question-anchor {
+    position: sticky;
+    top: var(--mm-sticky-task-top);
+    z-index: 72;
+    margin: 0 auto 10px;
+    padding: 2px 0 1px;
+    background: linear-gradient(
+      to bottom,
+      rgba(240, 242, 245, 0.98) 0%,
+      rgba(240, 242, 245, 0.94) 82%,
+      rgba(240, 242, 245, 0) 100%
+    );
+  }
+
+  .mathmaster-desktop-question-content
+    .mathmaster-desktop-question-anchor
+    .mathmaster-question-prompt {
+    box-shadow: 0 5px 14px rgba(32, 33, 36, 0.12);
+  }
+}
+
 /* --- Student assignment navigation --------------------------------------
    The large activity cards are useful as an assignment overview, but they
    should never be the only way to change questions. This compact rail stays
