@@ -22,9 +22,8 @@ export const LIBRARY = Object.freeze({
 });
 
 export const isLibraryAssignment = (assignment) => {
-  const ids = Array.isArray(assignment?.assignedClassIds) ? assignment.assignedClassIds : [];
-  const periods = Array.isArray(assignment?.assignedClassPeriods) ? assignment.assignedClassPeriods : [];
-  return ids.length === 0 && periods.length === 0;
+  const ids = Array.isArray(assignment?.assignedClassIds) ? assignment.assignedClassIds.filter(Boolean) : [];
+  return ids.length === 0;
 };
 
 /**
@@ -32,9 +31,8 @@ export const isLibraryAssignment = (assignment) => {
  * One predicate, so the button label, the validation and the write path cannot
  * disagree about which one is happening.
  */
-export const resolveCreationMode = ({ assignedClassIds = [], assignedClassPeriods = [] } = {}) => (
-  (Array.isArray(assignedClassIds) ? assignedClassIds : []).length === 0
-    && (Array.isArray(assignedClassPeriods) ? assignedClassPeriods : []).length === 0
+export const resolveCreationMode = ({ assignedClassIds = [] } = {}) => (
+  (Array.isArray(assignedClassIds) ? assignedClassIds.filter(Boolean) : []).length === 0
     ? 'library'
     : 'assign'
 );
@@ -45,24 +43,46 @@ export const CREATION_MODE_LABELS = Object.freeze({
 });
 
 /**
- * Group the selected periods by course and rigor. One group means one document;
- * several means a rigor split.
+ * Group selected class entities by course and rigor. Class IDs define audience;
+ * the derived period list is carried only for bell-schedule timing/display.
  *
- * Returns [] for a library save, which is the correct answer rather than an
- * error: there are no destinations because nobody has been given it yet.
+ * Returns [] for a library save. If a selected class ID no longer resolves to
+ * an active class, fail closed rather than silently dropping part of the audience.
  */
-export const buildDestinationGroups = ({ assignedClassPeriods = [], courseProfiles = {} } = {}) => {
-  const periods = Array.isArray(assignedClassPeriods) ? assignedClassPeriods : [];
-  const groups = periods.reduce((accumulator, period) => {
-    const profile = courseProfiles?.[period] || { course: 'algebra1', courseLevel: 'standard' };
-    const course = profile.course || 'algebra1';
-    const courseLevel = profile.courseLevel === 'honors' ? 'honors' : 'standard';
+export const buildDestinationGroups = ({ assignedClassIds = [], classes = [] } = {}) => {
+  const ids = [...new Set((Array.isArray(assignedClassIds) ? assignedClassIds : [])
+    .map((value) => String(value || '').trim())
+    .filter(Boolean))];
+  if (!ids.length) return [];
+
+  const activeClasses = (Array.isArray(classes) ? classes : [])
+    .filter((entry) => entry?.classId && entry?.status !== 'archived');
+  const byId = Object.fromEntries(activeClasses.map((entry) => [String(entry.classId), entry]));
+  const missing = ids.filter((id) => !byId[id]);
+  if (missing.length) {
+    throw new Error('One or more selected MathMaster classes no longer exist or are archived. Refresh the class list and choose the classes again.');
+  }
+
+  const groups = ids.reduce((accumulator, classId) => {
+    const classRecord = byId[classId];
+    const course = classRecord.course || 'algebra1';
+    const courseLevel = classRecord.courseLevel === 'honors' ? 'honors' : 'standard';
     const key = `${course}:${courseLevel}`;
-    if (!accumulator[key]) accumulator[key] = { key, course, courseLevel, periods: [] };
-    accumulator[key].periods.push(period);
+    if (!accumulator[key]) {
+      accumulator[key] = { key, course, courseLevel, classIds: [], periods: [], classNames: [] };
+    }
+    accumulator[key].classIds.push(classId);
+    if (classRecord.period) accumulator[key].periods.push(classRecord.period);
+    accumulator[key].classNames.push(classRecord.name || classRecord.period || classId);
     return accumulator;
   }, {});
-  return Object.values(groups);
+
+  return Object.values(groups).map((group) => ({
+    ...group,
+    classIds: [...new Set(group.classIds)],
+    periods: [...new Set(group.periods)],
+    classNames: [...new Set(group.classNames)],
+  }));
 };
 
 /**
