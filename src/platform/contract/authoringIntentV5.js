@@ -1,7 +1,6 @@
 import { validateInstructionalScopeV5 } from '../curriculum/instructionalScope.js';
 import { looksLikeFiniteSetNotation } from '../../../functions/shared/answerEquivalence.mjs';
 import { normalizeStaticGraphPoints } from '../../graphPointUtils.js';
-import { normalizeLessonPublishingIntentV5 } from '../authoring/lessonPublishingIntent.js';
 import { normalizeQuestionInteractionContracts } from '../interaction/interactionContract.js';
 import {
   normalizeAssignmentV5,
@@ -770,26 +769,6 @@ export const compileAuthoringIntentV5 = (input = {}) => {
   const repairs = [];
   const decisions = [];
   const assignment = { ...(input.assignment || {}) };
-
-  // The current Classroom/notes services already work. V5 exposes them through
-  // the canonical classroomIntegration/outputProfiles names, then bridges them
-  // into the existing live publishing services until those services are renamed.
-  const publishingInput = {
-    ...input,
-    classroom: input.classroomIntegration,
-    lessonResources: {
-      notesPdf: input.outputProfiles?.lessonNotesPdf,
-    },
-  };
-  const publishingIntent = normalizeLessonPublishingIntentV5(publishingInput, assignment, repairs);
-  assignment.classroomPackage = publishingIntent.classroomPackage;
-  assignment.lessonResources = publishingIntent.lessonResources;
-
-  // Existing assignment lifecycle code consumes these two delivery fields.
-  // They are derived from V5 policy rather than authored as legacy assignment
-  // properties.
-  assignment.variantMode = input.variantPolicy?.mode || 'personalized';
-  assignment.sectionVariantModes = input.variantPolicy?.sectionModes || {};
 
   const compileQuestions = (questions = [], role = null, sectionId = null, sectionTitle = null) => asArray(questions).map((question, index) => {
     const source = isObject(question)
