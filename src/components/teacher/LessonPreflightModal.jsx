@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { MathMasterToolWrapper } from '../../platform/ToolWrapper';
 import { getEffectiveActivityPolicy } from '../../platform/policies/activityPolicies';
 import { PUBLICATION_STRATEGIES, planClassroomPublication } from '../../platform/publishing/publicationPlanner';
+import { normalizeLessonPublishingIntentV5 } from '../../platform/authoring/lessonPublishingIntent.js';
 import { buildAssignmentV5PreflightModel } from '../../platform/preflight/assignmentV5PreflightModel.js';
 import InteractiveModelingLabPlayer from '../labs/InteractiveModelingLabPlayer.jsx';
 import { buildHonorsEnrichmentQuestion, inspectHonorsRigor, splitClassPeriodsByRigor } from '../../platform/rigor/courseRigor.js';
@@ -162,6 +163,10 @@ export const LessonPreflightModal = ({
     [reviewedAssignmentV5],
   );
   const effectiveAssignmentV5 = preflightModel.assignmentV5;
+  const publishingIntent = useMemo(() => normalizeLessonPublishingIntentV5({
+    classroom: effectiveAssignmentV5.classroomIntegration,
+    lessonResources: { notesPdf: effectiveAssignmentV5.outputProfiles?.lessonNotesPdf },
+  }, effectiveAssignmentV5.assignment, []), [effectiveAssignmentV5]);
   const activities = preflightModel.sections;
   const activityRoles = useMemo(() => [...new Set(activities.map((section) => section?.role).filter(Boolean))], [activities]);
   const hasAuthoredWarmup = activityRoles.includes('warmup');
@@ -467,12 +472,12 @@ export const LessonPreflightModal = ({
 
       <div style={{ padding: '12px 14px', marginBottom: 16, background: '#e8f0fe', color: '#174ea6', border: '1px solid #aecbfa', borderRadius: 9, fontSize: 13, lineHeight: 1.5 }}>
         <strong>AI-prepared Classroom and notes package.</strong> MathMaster carries the AI-written topic, post text, grade-passback settings, and 1–2 page student-notes plan into the saved lesson. The teacher still chooses classes and dates here before anything is published.
-        {(draft.classroomPackage || draft.lessonResources?.notesPdf) && (
+        {(publishingIntent.classroomPackage || publishingIntent.lessonResources?.notesPdf) && (
           <div style={{ marginTop: 9, padding: '9px 10px', borderRadius: 8, background: '#fff', border: '1px solid #c5d5ef', color: '#3c4043' }}>
-            <div><strong>Classroom topic:</strong> {draft.classroomPackage?.topic?.name || 'MathMaster will infer this from the folder.'}</div>
-            <div><strong>Assignment post:</strong> {draft.classroomPackage?.assignmentPost?.title || draft.title || 'Prepared from the lesson title'}</div>
-            {draft.lessonResources?.notesPdf && <div><strong>Student notes PDF:</strong> {draft.lessonResources.notesPdf.title || 'Student Notes'} · {Number(draft.lessonResources.notesPdf.targetPages) === 1 ? 1 : 2} page target · {(draft.lessonResources.notesPdf.sections || []).length} authored section{(draft.lessonResources.notesPdf.sections || []).length === 1 ? '' : 's'}</div>}
-            {draft.classroomPackage?.resourcesPost?.enabled !== false && <div><strong>Resources post:</strong> {draft.classroomPackage?.resourcesPost?.postingMode === 'attachToAssignment' ? 'attach resources to the graded assignment' : 'separate Notes & Resources material post'}</div>}
+            <div><strong>Classroom topic:</strong> {publishingIntent.classroomPackage?.topic?.name || 'MathMaster will infer this from the folder.'}</div>
+            <div><strong>Assignment post:</strong> {publishingIntent.classroomPackage?.assignmentPost?.title || draft.title || 'Prepared from the lesson title'}</div>
+            {publishingIntent.lessonResources?.notesPdf && <div><strong>Student notes PDF:</strong> {publishingIntent.lessonResources.notesPdf.title || 'Student Notes'} · {Number(publishingIntent.lessonResources.notesPdf.targetPages) === 1 ? 1 : 2} page target · {(publishingIntent.lessonResources.notesPdf.sections || []).length} authored section{(publishingIntent.lessonResources.notesPdf.sections || []).length === 1 ? '' : 's'}</div>}
+            {publishingIntent.classroomPackage?.resourcesPost?.enabled !== false && <div><strong>Resources post:</strong> {publishingIntent.classroomPackage?.resourcesPost?.postingMode === 'attachToAssignment' ? 'attach resources to the graded assignment' : 'separate Notes & Resources material post'}</div>}
           </div>
         )}
       </div>
