@@ -123,7 +123,7 @@ const toolFunctionSpec = (raw = {}) => {
 
 const staticFunctionSpec = (raw = {}) => {
   const core = coreFunctionSpec(raw);
-  if (core.type === 'linear') return { type: 'line', m: core.m, b: core.b };
+  if (core.type === 'linear') return { type: 'line', m: core.m, b: core.b, ...(core.domain ? { domain: core.domain } : {}) };
   return core;
 };
 
@@ -154,6 +154,11 @@ const analysisRequestsFromActions = (actions, q = {}) => {
   return requests;
 };
 
+
+const hasStudentFacingResponseFields = (q = {}) => {
+  const fields = asArray(q.answerFields || q.responses || q.response?.fields);
+  return fields.length > 0 && fields.every((field) => isObject(field) && clean(field.label || field.prompt));
+};
 
 const inferBinaryChoiceOptions = (field = {}) => {
   const label = clean(field.label || field.prompt).toLowerCase();
@@ -573,6 +578,15 @@ const resolveIntentType = (q, actions) => {
   if (q.transformation || actions.includes('analyzeTransformations')) return 'transformationsLab';
   if (q.representations || q.sets || actions.some((a) => ['connectRepresentations','findRepresentationMismatch'].includes(a))) return 'representationMatch';
   if (q.sequence || actions.some((a) => ['analyzeSequence','findSequenceTerm','findMissingTerm','writeRecursive','writeExplicit','compareSequences','partialSum'].includes(a))) return 'sequenceExplorer';
+  // A source table that only asks the student to classify the relation should
+  // stay a table. Do not invent a mapping diagram merely because normalized
+  // pairs are also present for grading.
+  if (
+    q.table
+    && (q.responses || q.answerFields || q.response?.fields)
+    && !actions.includes('buildMapping')
+    && !actions.includes('plotRelation')
+  ) return 'multiAnswer';
   if (q.relation || q.pairs || actions.some((a) => ['buildMapping','plotRelation','classifyFunction'].includes(a))) return 'relationMapping';
   if (actions.includes('sortIntoOwnGroups') || q.sortBoard || q.validSchemes) return 'openSortBoard';
   if (actions.includes('buildFunctionFromConstraints') || q.constraints && q.allowedFamilies) return 'constraintFunctionBuilder';
@@ -596,13 +610,28 @@ const resolveIntentType = (q, actions) => {
   if (actions.includes('chooseNumberLine') || q.numberLineChoices) return 'numberLine';
   if (actions.includes('constructGraph')) return 'functionGraph';
   if (actions.includes('investigateFunction')) return 'functionInvestigation2';
-  if (actions.some((a) => a.startsWith('analyze') || ['findVertex','findXIntercepts','findYIntercept','findMaximum','findMinimum'].includes(a)) && (q.function || q.functionSpec)) return 'graphAnalysis';
-  if (actions.includes('readGraph') && (q.graph || q.function)) return 'graphing';
+  // When a displayed graph has authored response parts, preserve those exact
+  // questions instead of sending the item to the old line-only slope/intercept
+  // renderer. MultiAnswerGrader can show the graph and ask the authored
+  // domain/range/classification fields without exposing an equation.
+  if (
+    actions.includes('readGraph')
+    && hasStudentFacingResponseFields(q)
+    && (q.graph || q.function || q.functionSpec || q.visual?.graph)
+  ) return 'multiAnswer';
+  if (
+    (actions.includes('readGraph')
+      || actions.some((a) => a.startsWith('analyze') || ['findVertex','findXIntercepts','findYIntercept','findMaximum','findMinimum'].includes(a)))
+    && (q.function || q.functionSpec)
+  ) return 'graphAnalysis';
+  if (actions.includes('readGraph') && (q.graph || q.visual?.graph)) return 'multiAnswer';
   if (actions.includes('completeTable') || q.table?.answers) return 'table';
   if (actions.includes('stateOrderedPair')) return 'orderedPair';
   if (actions.includes('multipleResponses') || q.responses || q.answerFields) return 'multiAnswer';
   if (actions.includes('fractionAnswer')) return 'fraction';
-  if (actions.includes('solveEquation') || q.equation) return 'algebra';
+  // The legacy one-box Algebra renderer is retired. All ordinary equation
+  // solving now uses the balance workspace so the student must actually solve.
+  if (actions.includes('solveEquation') || q.equation) return 'stepAlgebra';
   return null;
 };
 
@@ -714,14 +743,26 @@ const compileOne = (q, index, repairs) => {
       break;
     }
     case 'relationMapping': {
-      const ask = q.ask || [
+      const rawFields = q.answerFields || q.responses || q.response?.fields || [];
+      const answerFields = asArray(rawFields).map(fieldFromIntent);
+      const ask = q.ask || [...new Set([
         actions.includes('buildMapping') && 'mapping',
+        // When a relation is plotted from supplied ordered pairs, keep the
+        // mapping-diagram spiral unless the author explicitly opts out.
+        actions.includes('plotRelation') && q.includeMappingSpiral !== false && 'mapping',
         actions.includes('plotRelation') && 'plot',
         actions.some((action) => ['stateDomain','analyzeDomain'].includes(action)) && 'domain',
         actions.some((action) => ['stateRange','analyzeRange'].includes(action)) && 'range',
-        actions.includes('classifyFunction') && 'isFunction',
-      ].filter(Boolean);
-      out = copyCommon(q, { type, pairs: q.pairs || q.relation, ask: ask.length ? ask : ['mapping','domain','range','isFunction'] });
+        actions.includes('classifyFunction') && !answerFields.length && 'isFunction',
+      ].filter(Boolean))];
+      out = copyCommon(q, {
+        type,
+        pairs: q.pairs || q.relation,
+        ask,
+        answerFields,
+        plotEntryMode: q.plotEntryMode || 'manual',
+        plotSnapStep: q.plotSnapStep,
+      });
       break;
     }
     case 'modelingLab':

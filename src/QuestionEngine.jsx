@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import GraphLine from './GraphLine';
-import EquationGrader from './EquationGrader';
 import NumberLine from './NumberLine';
 import FractionGrader from './FractionGrader';
 import LiteralGrader from './LiteralGrader';
@@ -627,7 +626,17 @@ export default function QuestionEngine({
           />
         );
       case 'algebra':
-        return <EquationGrader {...commonModuleProps} />;
+        // Retired legacy answer-box solver. Older stored test assignments may
+        // still carry the old type, so treat it as an alias for the balance
+        // workspace instead of reviving the obsolete EquationGrader UI.
+        return (
+          <StepByStepAlgebra
+            {...commonModuleProps}
+            questionRecord={record}
+            onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
+            maximumAttempts={resolvedMaximumAttempts}
+          />
+        );
       case 'numberLine':
         return <NumberLine {...commonModuleProps} />;
       case 'fraction':

@@ -7,6 +7,7 @@ import { looksLikeFiniteSetNotation, matchesFieldAnswer } from './answerUtils';
 import { resolveLabelFormat } from './labelFormat';
 import { inferRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
 import useUndoHistory from './useUndoHistory';
+import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from './platform/interaction/choiceOptions.js';
 
 const TEXTUAL_MATH_SIGNAL = /[=<>≤≥≠+*/^()[\]{}\\∞π√∪∩]/;
 
@@ -67,9 +68,12 @@ const inferredBinaryOptions = (field) => {
   return match?.options || null;
 };
 
-const choiceOptionsForField = (field) => {
-  if (Array.isArray(field?.options) && field.options.length) return field.options;
-  return inferredBinaryOptions(field);
+const choiceOptionsForField = (field, seed = '') => {
+  const authored = Array.isArray(field?.options) && field.options.length
+    ? field.options
+    : inferredBinaryOptions(field);
+  if (!authored) return null;
+  return stableShuffleChoices(strengthenTwoChoiceSet(authored), seed);
 };
 
 const shouldUsePlainTextInput = (field) => {
@@ -124,7 +128,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '24px' }}>
         {safeFields.map((field) => {
           const grade = feedback?.partGrades?.find((part) => part.id === field.id);
-          const choiceOptions = choiceOptionsForField(field);
+          const choiceOptions = choiceOptionsForField(field, choiceSeed(question.questionId || question.prompt, field.id));
           const inferredRequiredSymbols = inferRequiredAnswerSymbols(acceptedAnswersForField(field));
           const requiredSymbols = [
             ...(Array.isArray(field.requiredSymbols) ? field.requiredSymbols : []),
