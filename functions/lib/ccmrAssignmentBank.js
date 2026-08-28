@@ -348,7 +348,7 @@ function ensureAuditedCcmrPractice(assignment = {}, audit = null) {
   };
 }
 
-function replaceDirectCcmrQuestionsWithAuditedBank(assignment = {}) {
+function replaceDirectCcmrQuestionsWithAuditedBank(assignment = {}, { ensurePracticeTarget = false } = {}) {
   const audit = {
     releaseTarget: RELEASE_TARGET,
     replaced: 0,
@@ -395,7 +395,10 @@ function replaceDirectCcmrQuestionsWithAuditedBank(assignment = {}) {
     return { ...section, questions };
   });
 
-  return ensureAuditedCcmrPractice({ ...assignment, sections }, audit);
+  const replacedAssignment = { ...assignment, sections };
+  return ensurePracticeTarget
+    ? ensureAuditedCcmrPractice(replacedAssignment, audit)
+    : { assignment: replacedAssignment, audit };
 }
 
 module.exports = {
