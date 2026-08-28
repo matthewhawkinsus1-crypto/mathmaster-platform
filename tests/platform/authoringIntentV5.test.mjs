@@ -46,7 +46,7 @@ const v5 = {
 const direct = compileAuthoringIntentV5(v5);
 assert.equal(direct.package.schemaVersion, 5);
 assert.deepEqual(direct.package.sections[0].questions.map((q) => q.type), ['functionGraph','relationMapping','relationshipModel','sequenceExplorer','graphComparison']);
-assert.deepEqual(direct.package.sections[0].questions[2].recipe.ask, ['quantities','equation','table','graph','domain','range','continuity']);
+assert.deepEqual(direct.package.sections[0].questions[2].recipe.ask, ['quantities','equation','table','continuity','graph','domain','range']);
 assert.equal(direct.package.sections[0].questions[3].mode, 'ruleBridge');
 
 const parsed = parseAssignmentBlueprintText(JSON.stringify(v5));
