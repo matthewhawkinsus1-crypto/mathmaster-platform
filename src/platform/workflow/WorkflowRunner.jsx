@@ -37,6 +37,11 @@ const panel = {
 const stageHeading = { margin: '0 0 8px', fontSize: 13, fontWeight: 900, color: '#174ea6' };
 const waitingPanel = { ...panel, background: '#f8f9fa', borderStyle: 'dashed', color: '#5f6368' };
 
+const positiveNumberOr = (value, fallback) => {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : fallback;
+};
+
 const niceGridStep = (range, fallback = 1) => {
   const safeRange = Math.abs(Number(range));
   const safeFallback = Number(fallback);
