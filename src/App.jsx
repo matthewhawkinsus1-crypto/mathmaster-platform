@@ -3839,8 +3839,6 @@ function App() {
       const {
         id: _id,
         archived: _archived,
-        questions: _runtimeQuestions,
-        runtimeProjectionVersion: _legacyRuntimeProjectionVersion,
         ...rest
       } = assignment;
       await addDoc(collection(db, 'assignments'), {
