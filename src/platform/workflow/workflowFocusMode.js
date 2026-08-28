@@ -37,6 +37,14 @@ export const summarizeStageResponse = (stage, response) => {
     return asText(raw) ? { label, text: asText(raw), kind: 'math' } : null;
   }
 
+  if (stage?.kind === 'axisSetup' && response && typeof response === 'object') {
+    const x = [response.xLabel, response.xUnit].filter(Boolean).join(' · ');
+    const y = [response.yLabel, response.yUnit].filter(Boolean).join(' · ');
+    const scale = response.xStep && response.yStep ? `Scale: x by ${response.xStep}, y by ${response.yStep}` : '';
+    const text = [x ? `x: ${x}` : '', y ? `y: ${y}` : '', scale].filter(Boolean).join(' · ');
+    return text ? { label, text, kind: 'text' } : null;
+  }
+
   if (stage?.kind === 'tableInput' && response && typeof response === 'object') {
     const points = Array.isArray(response.points) ? response.points : [];
     if (points.length) {
