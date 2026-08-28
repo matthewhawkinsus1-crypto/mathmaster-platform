@@ -31,6 +31,10 @@ assert.match(v5, /Honors \+ CCMR Practice/);
 assert.match(v5, /about 15%/);
 assert.match(v5, /assessmentContext/);
 assert.match(v5, /CCMR \/ assessment fidelity/i);
+assert.match(v5, /Reference information is not a hint or an answer key/i);
+assert.match(v5, /Omit `referenceInfo` when the prompt already contains the givens/i);
+assert.match(v5, /Never place a student conclusion in `referenceInfo`/i);
+assert.match(v5, /independent\/dependent roles, the equation\/model, domain, range, continuity, axis labels, scale/i);
 assert.match(v5, /A\.2B/);
 ['constructGraph', 'readGraph', 'completeTable', 'buildMapping', 'classifyContinuity'].forEach((action) => {
   assert.ok(v5.includes(action), `V5 contract lists student action ${action}`);
