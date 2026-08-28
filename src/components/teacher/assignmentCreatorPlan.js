@@ -48,10 +48,10 @@ export const defaultAssignmentCreatorPlan = (courseId = 'algebra1') => ({
     { ...config },
   ])),
   outputs: {
-    studentWorksheetPdf: true,
-    teacherWorksheetPdf: true,
-    answerKeyPdf: true,
-    lessonNotesPdf: true,
+    studentWorksheetPdf: false,
+    teacherWorksheetPdf: false,
+    answerKeyPdf: false,
+    lessonNotesPdf: false,
   },
   teacherNotes: '',
 });
@@ -98,10 +98,10 @@ export const normalizeAssignmentCreatorPlan = (input = {}) => {
     modificationsAllowed: false,
     sections,
     outputs: {
-      studentWorksheetPdf: input.outputs?.studentWorksheetPdf !== false,
-      teacherWorksheetPdf: input.outputs?.teacherWorksheetPdf !== false,
-      answerKeyPdf: input.outputs?.answerKeyPdf !== false,
-      lessonNotesPdf: input.outputs?.lessonNotesPdf !== false,
+      studentWorksheetPdf: input.outputs?.studentWorksheetPdf === true,
+      teacherWorksheetPdf: input.outputs?.teacherWorksheetPdf === true,
+      answerKeyPdf: input.outputs?.answerKeyPdf === true,
+      lessonNotesPdf: input.outputs?.lessonNotesPdf === true,
     },
     teacherNotes: clean(input.teacherNotes),
   };

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   inferRequiredAnswerSymbols,
   requiredAnswerToolForSymbol,
@@ -69,4 +70,14 @@ test('required variable letters resolve to real keypad tools dynamically', () =>
 
 test('unsupported notation is detectable for Preflight', () => {
   assert.deepEqual(unsupportedRequiredAnswerSymbols(['(', 'x', 'θ', ')']), ['θ']);
+});
+
+
+test('inequality keypad inserts complete relation symbols atomically', () => {
+  const source = readFileSync('src/MathInput.jsx', 'utf8');
+  assert.match(source, /label: '≤', command: '≤'/);
+  assert.match(source, /label: '≥', command: '≥'/);
+  assert.match(source, /label: '≠', command: '≠'/);
+  assert.doesNotMatch(source, /label: '≤', command: '\\\\le'/);
+  assert.doesNotMatch(source, /label: '≥', command: '\\\\ge'/);
 });

@@ -17,3 +17,11 @@ test('equivalent inequality orientations are accepted', () => {
   assert.equal(matchesAnyAnswer('4 >= x >= 0', ['0 <= x <= 4']), true);
   assert.equal(matchesAnyAnswer('0 < x <= 4', ['0 <= x <= 4']), false);
 });
+
+
+test('function notation in range inequalities matches the dependent quantity name', () => {
+  assert.equal(matchesAnyAnswer('0 <= V(t) <= 48', ['0 <= V <= 48']), true);
+  assert.equal(matchesAnyAnswer('V(t) >= 0', ['V >= 0']), true);
+  assert.equal(matchesAnyAnswer('0 <= f(x)', ['f >= 0']), true);
+  assert.equal(matchesAnyAnswer('0 <= g(x)', ['f >= 0']), false);
+});

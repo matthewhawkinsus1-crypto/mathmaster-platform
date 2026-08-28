@@ -486,7 +486,11 @@ export default function AssignmentIntake({
               marginBottom: 14,
             }}>
               <div style={{ border: '1px solid #d9e2f1', borderRadius: 11, padding: 12 }}>
-                <div style={{ fontWeight: 900, color: '#172033', marginBottom: 8 }}>Assignment outputs</div>
+                <div style={{ fontWeight: 900, color: '#172033', marginBottom: 5 }}>Assignment outputs</div>
+                <div style={{ color: '#64748b', fontSize: 12, lineHeight: 1.45, marginBottom: 10 }}>
+                  Optional — PDFs are off by default so a digital assignment can be saved to the Library immediately.
+                  Turn on only the copies you want; any PDF can also be enabled later from Assignment Setup.
+                </div>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#334155', fontSize: 13, marginBottom: 8 }}>
                   <input
                     type="checkbox"

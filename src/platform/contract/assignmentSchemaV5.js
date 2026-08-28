@@ -21,10 +21,14 @@ const clean = (value) => String(value ?? '').trim();
 
 const defaultOutputProfiles = () => ({
   digital: { enabled: true },
-  studentWorksheetPdf: { enabled: true, includeAnswers: false, includeWorkspace: true },
-  teacherWorksheetPdf: { enabled: true, includeAnswers: true, includeSolutions: true, includeWorkspace: true },
-  answerKeyPdf: { enabled: true, includeAnswers: true, includeSolutions: false, includeWorkspace: false },
-  lessonNotesPdf: { enabled: true, targetPages: 2 },
+  // Library creation is a digital-content action. Printable artifacts are
+  // opt-in so a question that is excellent digitally is not blocked from the
+  // Library merely because it has not yet passed page-fit/print-fidelity rules.
+  // Teachers can enable any PDF later from Assignment Setup/Preflight.
+  studentWorksheetPdf: { enabled: false, includeAnswers: false, includeWorkspace: true },
+  teacherWorksheetPdf: { enabled: false, includeAnswers: true, includeSolutions: true, includeWorkspace: true },
+  answerKeyPdf: { enabled: false, includeAnswers: true, includeSolutions: false, includeWorkspace: false },
+  lessonNotesPdf: { enabled: false, targetPages: 2 },
 });
 
 const normalizeSection = (section, index) => {

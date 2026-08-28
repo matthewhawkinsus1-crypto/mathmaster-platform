@@ -154,33 +154,44 @@ const canonicalSimpleInequality = (value) => {
   const text = normalizeAnswer(value);
   if (!text || text.includes('!=')) return null;
 
-  const constraint = (variable, operator, bound) => {
-    const numeric = asNumber(bound);
-    if (!/^[a-z]$/.test(variable) || numeric === null) return null;
-    const side = operator === '>' || operator === '>=' ? 'lower' : 'upper';
-    return { variable, side, operator, bound: numeric };
+  // Range quantities are routinely written either as V or V(t), f or f(x).
+  // In an inequality these name the same dependent quantity; the argument is
+  // notation, not a second mathematical variable. Keep this deliberately
+  // narrow: one function letter and one single-letter argument only.
+  const quantityPattern = '[a-z](?:\\([a-z]\\))?';
+  const canonicalQuantity = (variable) => {
+    const match = /^([a-z])(?:\([a-z]\))?$/.exec(String(variable || ''));
+    return match ? match[1] : null;
   };
 
-  const direct = text.match(/^([a-z])(<=|>=|<|>)(-?\d+(?:\.\d+)?)$/);
+  const constraint = (variable, operator, bound) => {
+    const numeric = asNumber(bound);
+    const quantity = canonicalQuantity(variable);
+    if (!quantity || numeric === null) return null;
+    const side = operator === '>' || operator === '>=' ? 'lower' : 'upper';
+    return { variable: quantity, side, operator, bound: numeric };
+  };
+
+  const direct = text.match(new RegExp('^(' + quantityPattern + ')(<=|>=|<|>)(-?\\d+(?:\\.\\d+)?)$'));
   if (direct) {
     const item = constraint(direct[1], direct[2], direct[3]);
     return item ? { variable: item.variable, constraints: [item] } : null;
   }
 
-  const reversed = text.match(/^(-?\d+(?:\.\d+)?)(<=|>=|<|>)([a-z])$/);
+  const reversed = text.match(new RegExp('^(-?\\d+(?:\\.\\d+)?)(<=|>=|<|>)(' + quantityPattern + ')$'));
   if (reversed) {
     const item = constraint(reversed[3], invertInequalityOperator(reversed[2]), reversed[1]);
     return item ? { variable: item.variable, constraints: [item] } : null;
   }
 
-  const chained = text.match(/^(-?\d+(?:\.\d+)?)(<=|>=|<|>)([a-z])(<=|>=|<|>)(-?\d+(?:\.\d+)?)$/);
+  const chained = text.match(new RegExp('^(-?\\d+(?:\\.\\d+)?)(<=|>=|<|>)(' + quantityPattern + ')(<=|>=|<|>)(-?\\d+(?:\\.\\d+)?)$'));
   if (!chained) return null;
 
   const first = constraint(chained[3], invertInequalityOperator(chained[2]), chained[1]);
   const second = constraint(chained[3], chained[4], chained[5]);
   if (!first || !second) return null;
   return {
-    variable: chained[3],
+    variable: first.variable,
     constraints: [first, second].sort((a, b) => a.side.localeCompare(b.side)),
   };
 };
