@@ -26,7 +26,18 @@ const optionIdentity = (option) => {
 };
 
 export const strengthenTwoChoiceSet = (options = []) => {
-  if (!Array.isArray(options) || options.length !== 2) return Array.isArray(options) ? [...options] : [];
+  if (!Array.isArray(options)) return [];
+  if (options.length === 3) {
+    const labels = options.map((value) => (
+      value && typeof value === 'object'
+        ? clean(value.label ?? value.value ?? value.id)
+        : clean(value)
+    ));
+    const normalized = labels.map((value) => value.toLowerCase());
+    if (!normalized.some((value) => /none|neither/.test(value))) return [...options, 'None of these'];
+    return [...options];
+  }
+  if (options.length !== 2) return [...options];
   const [first, second] = options.map((value) => (
     value && typeof value === 'object'
       ? clean(value.label ?? value.value ?? value.id)
