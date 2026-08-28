@@ -598,6 +598,7 @@ export default function WorkflowRunner({
   onProgressChange,
   disabled = false,
   draftKey = null,
+  showPrompt = true,
 }) {
   const { content, workflow, grading } = useMemo(() => readComposedQuestion(question), [question]);
   const [responses, setResponses] = useState({});
