@@ -20,8 +20,16 @@ const numericField = (label, value, setter, step = 1) => (
 
 export default function ConstraintFunctionBuilder({ questionData = {}, onAction }) {
   const allowedFamilies = (questionData.allowedFamilies || BUILDER_FAMILIES).filter((family) => BUILDER_FAMILIES.includes(family));
-  const initial = normalizeBuilderModel({ family: allowedFamilies[0] || 'linear', ...(questionData.initialModel || {}) });
+  const hasAuthoredInitialModel = questionData.initialModel && typeof questionData.initialModel === 'object';
+  const initial = normalizeBuilderModel({
+    family: allowedFamilies[0] || 'linear',
+    // An open-construction question must not open on a fully valid answer.
+    // A zero leading coefficient intentionally collapses linear/quadratic/
+    // absolute/exponential defaults until the student actually constructs one.
+    ...(hasAuthoredInitialModel ? questionData.initialModel : { a: 0, h: 0, k: 0 }),
+  });
   const [model, setModel] = useState(initial);
+  const [hasEdited, setHasEdited] = useState(false);
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
   const bounds = questionData.graph || { xMin: -8, xMax: 8, yMin: -8, yMax: 8 };
   const discreteXs = useMemo(() => {
@@ -40,8 +48,13 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
   const verticalLines = model.family === 'verticalLine' ? [model.verticalX] : [];
   const liveScore = scoreConstraintModel(model, questionData.constraints || []);
 
-  const set = (patch) => { clearFeedback(); setModel((current) => normalizeBuilderModel({ ...current, ...patch })); };
+  const set = (patch) => {
+    clearFeedback();
+    setHasEdited(true);
+    setModel((current) => normalizeBuilderModel({ ...current, ...patch }));
+  };
   const check = () => {
+    if (!hasEdited) return;
     const result = scoreConstraintModel(model, questionData.constraints || []);
     submit(
       { isCorrect: result.isCorrect, score: result.score },
@@ -91,7 +104,25 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
             </div>
           </div>
 
-          <button type="button" onClick={check} style={{ ...primary, marginTop: 15, width: '100%' }}>Submit this model</button>
+          <button
+            type="button"
+            onClick={check}
+            disabled={!hasEdited}
+            style={{
+              ...primary,
+              marginTop: 15,
+              width: '100%',
+              opacity: hasEdited ? 1 : 0.5,
+              cursor: hasEdited ? 'pointer' : 'not-allowed',
+            }}
+          >
+            Submit this model
+          </button>
+          {!hasEdited && (
+            <div style={{ marginTop: 8, fontSize: 12, color: '#5f6368', textAlign: 'center' }}>
+              Make at least one mathematical choice or parameter change before submitting.
+            </div>
+          )}
           {feedback && <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'All constraints satisfied' : 'Keep refining the model'}</ResultPill></div>}
           <HintPanel hints={questionData.hints || [
             'Start with the family: a straight line, a U-shaped curve, and exponential growth/decay do not share the same structure.',
