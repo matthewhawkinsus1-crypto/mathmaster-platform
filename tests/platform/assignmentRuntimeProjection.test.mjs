@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 import {
@@ -69,5 +70,15 @@ test('server runtime projection matches client flattening semantics', () => {
   assert.equal(questions[1].sectionId, 'practice');
   assert.equal(serverRuntime.runtimeQuestionCount(assignment), 2);
 });
+
+
+test('live Firestore assignment snapshots are hydrated before replacing React state', () => {
+  const appSource = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+  assert.match(
+    appSource,
+    /snapshot\.docs\.map\(\(assignmentDoc\) => hydrateAssignmentRuntime\(\{[\s\S]{0,180}assignmentDoc\.data\(\)[\s\S]{0,40}\}\)\)/,
+  );
+});
+
 
 console.log('assignmentRuntimeProjection.test.mjs: all assertions passed');
