@@ -249,6 +249,12 @@ const normalizeGraphChoices = (choices = []) => asArray(choices).map((item, inde
 });
 
 
+const inferSingleEquationVariable = (equation = '') => {
+  const symbols = [...new Set(String(equation || '').match(/[A-Za-z]/g) || [])]
+    .filter((symbol) => !['e'].includes(symbol.toLowerCase()));
+  return symbols.length === 1 ? symbols[0] : null;
+};
+
 const responseById = (q = {}, id = '') => asArray(q.responses || q.answerFields || q.response?.fields)
   .find((field) => isObject(field) && clean(field.id) === id);
 
@@ -683,6 +689,19 @@ const resolveIntentType = (q, actions) => {
     && !actions.includes('buildMapping')
     && !actions.includes('plotRelation')
   ) return 'multiAnswer';
+
+  // Reading a continuous/public function graph is graph analysis, not a finite
+  // relation-mapping exercise. Sample pairs may be present for authoring or
+  // grading, but they must not replace the continuous graph the prompt asks
+  // the student to inspect.
+  if (
+    actions.includes('readGraph')
+    && hasStudentFacingResponseFields(q)
+    && (q.graph || q.function || q.functionSpec || q.visual?.graph)
+    && !actions.includes('buildMapping')
+    && !actions.includes('plotRelation')
+  ) return 'multiAnswer';
+
   if (q.relation || q.pairs || actions.some((a) => ['buildMapping','plotRelation','classifyFunction'].includes(a))) return 'relationMapping';
   if (actions.includes('sortIntoOwnGroups') || q.sortBoard || q.validSchemes) return 'openSortBoard';
   if (actions.includes('buildFunctionFromConstraints') || q.constraints && q.allowedFamilies) return 'constraintFunctionBuilder';
@@ -697,7 +716,7 @@ const resolveIntentType = (q, actions) => {
   if (actions.some((a) => ['identifyQuantities','configureAxes','writeEquation','classifyContinuity'].includes(a)) && (q.quantities || q.relationship || q.scenario)) return 'relationshipModel';
   if (actions.includes('solveInequalitySystem') || actions.includes('graphSystem') || actions.includes('rowReduce')) return 'systemsWorkspace';
   if (actions.includes('solveSystem') || q.equations) return 'system';
-  if (actions.includes('solveLiteral') || q.solveFor) return 'literal';
+  if (actions.includes('solveLiteral') || (q.solveFor && !actions.includes('solveEquation') && !actions.includes('solveStepByStep'))) return 'literal';
   if (actions.includes('solveStepByStep')) return 'stepAlgebra';
   if (actions.includes('stepAlgebra2')) return 'stepAlgebra2';
   if (actions.includes('constructLine') || q.lineIntent) return 'graphing2';
@@ -782,7 +801,13 @@ const compileOne = (q, index, repairs) => {
       out = copyCommon(q, { type, functionSpec: functionSpecFromIntentQuestion(q), analysisRequests: analysisRequestsFromActions(actions, q) });
       break;
     case 'stepAlgebra':
-      out = copyCommon(q, { type, equation: q.equation, generator: q.generator, workspaceDifficulty: q.workspaceDifficulty });
+      out = copyCommon(q, {
+        type,
+        equation: q.equation,
+        generator: q.generator,
+        workspaceDifficulty: q.workspaceDifficulty,
+        solveFor: q.solveFor || inferSingleEquationVariable(q.equation),
+      });
       break;
     case 'literal':
       out = copyCommon(q, { type, equation: q.equation, solveFor: q.solveFor, answer: answerOf(q) });

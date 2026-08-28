@@ -135,9 +135,8 @@ export const MobileViewportContainer = ({
   }, [isMobile]);
 
   const handleFocusCapture = (event) => {
-    if (!isMobile) return;
     const target = event.target;
-    if (target?.matches?.(NUMERIC_SELECTOR)) setNumericTarget(target);
+    if (isMobile && target?.matches?.(NUMERIC_SELECTOR)) setNumericTarget(target);
 
     // Remember the local horizontal position at focus time. Some MathLive and
     // browser caret routines scroll the nearest overflow:auto ancestor after
@@ -155,13 +154,12 @@ export const MobileViewportContainer = ({
     // jumps sideways while the student types. Move only the nearest local
     // scroll container vertically and then restore page-level x position.
     window.requestAnimationFrame(() => {
-      scrollFocusedControlVertically(target, { root: rootRef.current });
+      if (isMobile) scrollFocusedControlVertically(target, { root: rootRef.current });
       scheduleHorizontalViewportStabilization({ root: rootRef.current });
     });
   };
 
   const restoreFocusedHorizontalPosition = () => {
-    if (!isMobile) return;
     const lock = focusedScrollerLockRef.current;
     const restore = () => {
       if (lock.element?.isConnected && Math.abs(Number(lock.element.scrollLeft || 0) - Number(lock.left || 0)) > 0.5) {
@@ -178,14 +176,12 @@ export const MobileViewportContainer = ({
   };
 
   const handleKeyDownCapture = (event) => {
-    if (!isMobile) return;
     if (event.key?.length === 1 || ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
       restoreFocusedHorizontalPosition();
     }
   };
 
   const handleBlurCapture = (event) => {
-    if (!isMobile) return;
     if (rootRef.current?.contains?.(event.relatedTarget)) return;
     focusedScrollerLockRef.current = { element: null, left: 0 };
     scheduleHorizontalViewportStabilization({ root: rootRef.current });
@@ -221,7 +217,14 @@ export const MobileViewportContainer = ({
   ) : null;
 
   if (!isMobile) {
-    return <div ref={rootRef} className="mathmaster-desktop-question-content mathmaster-mobile-interaction-root" onFocusCapture={handleFocusCapture}>{contextPanel}{responseFields}{toolWorkspace}{actionButtons}</div>;
+    return <div
+      ref={rootRef}
+      className="mathmaster-desktop-question-content mathmaster-mobile-interaction-root"
+      onFocusCapture={handleFocusCapture}
+      onInputCapture={handleInputCapture}
+      onKeyDownCapture={handleKeyDownCapture}
+      onBlurCapture={handleBlurCapture}
+    >{contextPanel}{responseFields}{toolWorkspace}{actionButtons}</div>;
   }
 
   return (

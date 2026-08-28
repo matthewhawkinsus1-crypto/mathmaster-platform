@@ -175,6 +175,65 @@ test('candidate graph questions retain the actual graph choices', () => {
   assert.ok(question.candidateGraphs.every((candidate) => !Object.hasOwn(candidate, 'label')), 'missing optional labels must not become Firestore-unsafe undefined fields');
 });
 
+test('solveEquation infers the actual single variable instead of defaulting to x', () => {
+  const compiled = compileAuthoringIntentV5({
+    schemaVersion: 5,
+    assignment: {
+      title: 'Solve y',
+      courseId: 'algebra1',
+      instructionalPurpose: 'lesson',
+      gradingPurpose: 'practice',
+    },
+    sections: [{
+      role: 'warmup',
+      title: 'Warm-Up',
+      questions: [{
+        standard: 'A.5A',
+        prompt: 'Solve the equation 8y + 13 = 29 − 3y.',
+        studentActions: ['solveEquation'],
+        equation: '8y + 13 = 29 - 3y',
+      }],
+    }],
+  });
+
+  const question = compiled.package.sections[0].questions[0];
+  assert.equal(question.type, 'stepAlgebra');
+  assert.equal(question.solveFor, 'y');
+});
+
+test('readGraph with a continuous function stays a graph instead of becoming a mapping diagram', () => {
+  const compiled = compileAuthoringIntentV5({
+    schemaVersion: 5,
+    assignment: {
+      title: 'Continuous exponential',
+      courseId: 'algebra1',
+      instructionalPurpose: 'lesson',
+      gradingPurpose: 'practice',
+    },
+    sections: [{
+      role: 'classwork',
+      title: 'Classwork',
+      questions: [{
+        standard: 'A.9D',
+        prompt: 'Use the displayed graph of f(x)=2^x. Classify the family, behavior, and continuity.',
+        studentActions: ['readGraph', 'classifyFunction', 'analyzeIncreasing', 'classifyContinuity'],
+        function: { family: 'exponential', base: 2 },
+        pairs: [{ x: -1, y: 0.5 }, { x: 0, y: 1 }, { x: 1, y: 2 }],
+        responses: [
+          { id: 'family', label: 'Family', options: ['linear', 'quadratic', 'exponential', 'absolute value'], answer: 'exponential' },
+          { id: 'behavior', label: 'Behavior', options: ['increasing', 'decreasing', 'constant', 'both'], answer: 'increasing' },
+          { id: 'continuity', label: 'Continuity', options: ['discrete', 'continuous', 'both', 'cannot be determined'], answer: 'continuous' },
+        ],
+      }],
+    }],
+  });
+
+  const question = compiled.package.sections[0].questions[0];
+  assert.equal(question.type, 'multiAnswer');
+  assert.ok(question.graph?.functions?.length, 'the displayed function must compile to a graph');
+  assert.equal(question.type === 'relationMapping', false);
+});
+
 test('quadrant-only builder prompts do not hide one exact vertex', () => {
   const compiled = compileAuthoringIntentV5({
     schemaVersion: 5,
@@ -316,6 +375,8 @@ test('student-facing renderers contain the fidelity safeguards', async () => {
   assert.match(engine, /Retired legacy answer-box solver/);
   assert.match(graph, /restrictedFunctionEndpoints/);
   assert.match(graph, /marker: boundary\.closed \? 'closed' : 'open'/);
+  assert.match(graph, /continuationFunctionEndpoints/);
+  assert.match(graph, /marker: 'arrow'/);
   assert.match(relation, /Move the pointer over the grid to see the exact coordinate/);
   assert.match(relation, /allowTypedPlot \?/);
   assert.match(relation, /analysisFields\.map/);

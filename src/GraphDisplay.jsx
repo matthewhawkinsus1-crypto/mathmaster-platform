@@ -137,6 +137,38 @@ const restrictedFunctionEndpoints = (functions = []) => functions.flatMap((spec,
   });
 });
 
+const continuationFunctionEndpoints = (functions = [], xMin, xMax, yMin, yMax) => {
+  const span = Math.max(1, Number(xMax) - Number(xMin));
+  const probe = Math.max(span / 60, 0.05);
+
+  const visibleArrow = (spec, functionIndex, side, x, innerX) => {
+    const y = evaluateFunction(spec, x);
+    const innerY = evaluateFunction(spec, innerX);
+    if (!Number.isFinite(y) || !Number.isFinite(innerY)) return [];
+    if (y < yMin || y > yMax) return [];
+    return [{
+      id: `function-${functionIndex}-${side}-continuation`,
+      point: [x, y],
+      marker: 'arrow',
+      vector: [x - innerX, y - innerY],
+    }];
+  };
+
+  return functions.flatMap((spec, functionIndex) => {
+    const domain = spec?.domain || spec?.restrictedDomain || {};
+    const hasFiniteMin = Number.isFinite(Number(domain.min));
+    const hasFiniteMax = Number.isFinite(Number(domain.max));
+    const unrestricted = { ...spec };
+    delete unrestricted.domain;
+    delete unrestricted.restrictedDomain;
+
+    return [
+      ...(!hasFiniteMin ? visibleArrow(unrestricted, functionIndex, 'left', xMin, xMin + probe) : []),
+      ...(!hasFiniteMax ? visibleArrow(unrestricted, functionIndex, 'right', xMax, xMax - probe) : []),
+    ];
+  });
+};
+
 const axisTitle = (label, unit) => {
   const cleanLabel = String(label || '').trim();
   const cleanUnit = String(unit || '').trim();
@@ -179,7 +211,10 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph' }) {
   const authoredEndpointRequirements = Array.isArray(displayGraph.endpointRequirements) ? displayGraph.endpointRequirements : [];
   const endpointRequirements = authoredEndpointRequirements.length
     ? authoredEndpointRequirements
-    : restrictedFunctionEndpoints(functions);
+    : [
+        ...restrictedFunctionEndpoints(functions),
+        ...continuationFunctionEndpoints(functions, xMin, xMax, yMin, yMax),
+      ];
   const axisDisplay = displayGraph.axisDisplay && typeof displayGraph.axisDisplay === 'object' ? displayGraph.axisDisplay : {};
   const showXTickLabels = axisDisplay.showXTickLabels !== false;
   const showYTickLabels = axisDisplay.showYTickLabels !== false;
