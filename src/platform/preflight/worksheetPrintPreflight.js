@@ -18,7 +18,7 @@ const WORKSHEET_PROFILES = Object.freeze([
 const token = (value) => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, '');
 
 const enabledWorksheetProfiles = (outputProfiles = {}) => WORKSHEET_PROFILES.filter(
-  (profile) => outputProfiles?.[profile]?.enabled !== false,
+  (profile) => outputProfiles?.[profile]?.enabled === true,
 );
 
 const narrativeCharacters = (question = {}) => [
