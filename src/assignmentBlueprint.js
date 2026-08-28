@@ -619,36 +619,10 @@ export const parseAssignmentBlueprintText = (rawValue) => {
       throw new Error('Assignment V5 contains no questions.');
     }
 
-    const assignmentMetadata = {
-      ...(parsed.assignment || {}),
-      schemaVersion: 5,
-      variantPolicy: parsed.variantPolicy,
-      differentiationPolicy: parsed.differentiationPolicy,
-      supportPolicy: parsed.supportPolicy,
-      toolPolicy: parsed.toolPolicy,
-      deliveryPolicy: parsed.deliveryPolicy,
-      gradingPolicy: parsed.gradingPolicy,
-      evidencePolicy: parsed.evidencePolicy,
-      outputProfiles: parsed.outputProfiles,
-      classroomIntegration: parsed.classroomIntegration,
-      provenance: parsed.provenance,
-      preflight: parsed.preflight,
-      sections: parsed.sections.map((section) => ({
-        id: section.id,
-        role: section.role,
-        title: section.title,
-        questionCount: Array.isArray(section.questions) ? section.questions.length : 0,
-      })),
-    };
-
     return {
+      assignmentV5: parsed,
       questions,
-      assignment: assignmentMetadata,
-      schemaVersion: 5,
       sourceSchemaVersion: 5,
-      isPackage: true,
-      isBundle: true,
-      bundleSource: parsed,
       normalizedText: JSON.stringify(parsed, null, 2),
       repairs,
       warnings: compiledV5.warnings || [],
