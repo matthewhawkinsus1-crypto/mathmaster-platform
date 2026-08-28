@@ -55,8 +55,9 @@ test('V5 compiler preserves authored referenceInfo', () => {
   const compiled = compileAuthoringIntentV5({
     schemaVersion: 5,
     assignment: { title: 'Reference Test', courseId: 'algebra1' },
-    activities: [{
+    sections: [{
       role: 'classwork',
+      title: 'Classwork',
       questions: [{
         standard: 'A.3C',
         prompt: 'Identify the input and output.',
@@ -69,7 +70,7 @@ test('V5 compiler preserves authored referenceInfo', () => {
       }],
     }],
   });
-  assert.equal(compiled.package.activities[0].questions[0].referenceInfo.statements[0], 'Tickets cost $5 each.');
+  assert.equal(compiled.package.sections[0].questions[0].referenceInfo.statements[0], 'Tickets cost $5 each.');
 });
 
 test('QuestionEngine places reference before work and Guided Notes inside the work area', async () => {
@@ -81,6 +82,15 @@ test('QuestionEngine places reference before work and Guided Notes inside the wo
   assert.ok(workspaceIndex > referenceIndex);
   assert.ok(guidedIndex > workspaceIndex);
   assert.match(engine, /suppressScenarioDisplay/);
+});
+
+test('desktop assignments keep Your Task as the persistent prompt instead of duplicating it in workflows', async () => {
+  const engine = await read('src/QuestionEngine.jsx');
+  const css = await read('src/App.css');
+  assert.match(engine, /<WorkflowRunner[\s\S]*showPrompt=\{false\}/);
+  assert.match(engine, /overflow: 'visible'/);
+  assert.match(css, /\.mathmaster-desktop-question-content \.mathmaster-desktop-question-anchor\s*\{[\s\S]*position:\s*sticky/);
+  assert.match(css, /top:\s*var\(--mm-sticky-task-top\)/);
 });
 
 test('Guided Notes are collapsed by default and offered as optional help', async () => {

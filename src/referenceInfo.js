@@ -36,7 +36,14 @@ const substantiallyRepeatsPrompt = (promptValue, statementValue) => {
 const authoredInfoMostlyRepeatsPrompt = (prompt, statements = []) => {
   if (!prompt || !statements.length) return false;
   const repeats = statements.filter((entry) => substantiallyRepeatsPrompt(prompt, entry?.text)).length;
-  return repeats >= Math.max(1, Math.ceil(statements.length * 0.6));
+  if (repeats >= Math.max(1, Math.ceil(statements.length * 0.6))) return true;
+
+  // Authors often split one prompt into several short "reference" lines. No
+  // single line necessarily repeats enough words to cross the threshold, even
+  // though the card as a whole is just the prompt rewritten in fragments.
+  // Compare the combined card as well so that pattern is removed.
+  const combined = statements.map((entry) => cleanText(entry?.text)).filter(Boolean).join(' ');
+  return substantiallyRepeatsPrompt(prompt, combined);
 };
 
 const normalizeStatement = (entry) => {
