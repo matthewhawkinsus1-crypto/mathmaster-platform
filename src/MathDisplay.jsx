@@ -2,6 +2,16 @@ import 'mathlive';
 import { stackDivisions } from '../functions/shared/stackDivisions.mjs';
 import { resolveMathDisplayFormat } from './mathDisplayFormat.js';
 
+// Before the inequality keypad became atomic, MathLive could serialize
+// "\\le" followed immediately by t as the TeX command "\\let" (and the
+// analogous \\get / \\net joins). Old in-progress drafts can still contain
+// those strings. Repair them at display time so a student never sees editor
+// command text in Model so far, solution review, or another math surface.
+const repairLegacyMathLiveRelations = (value) => String(value ?? '')
+  .replace(/\\let\b/g, '\\le t')
+  .replace(/\\get\b/g, '\\ge t')
+  .replace(/\\net\b/g, '\\ne t');
+
 const stripMathDelimiters = (value) => {
   const text = String(value ?? '').trim();
 
@@ -44,7 +54,7 @@ export default function MathDisplay({
   // stacks in both modes, so writing it out settles the question before format
   // detection runs. Anything ambiguous is left exactly as authored — see
   // ../functions/shared/stackDivisions.mjs.
-  const cleanValue = stackDivisions(stripMathDelimiters(value));
+  const cleanValue = stackDivisions(repairLegacyMathLiveRelations(stripMathDelimiters(value)));
   if (!cleanValue) return null;
 
   // Important: stackDivisions may have introduced a LaTeX \frac into a value
