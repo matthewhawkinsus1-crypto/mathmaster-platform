@@ -71,10 +71,10 @@ test('Algebra I contextual domain and range preserve words plus inequality notat
   assert.equal(question.notation, 'inequality');
   assert.deepEqual(question.recipe.ask, [
     'quantities',
-    'domainWords',
     'domainInequality',
-    'rangeWords',
+    'domainWords',
     'rangeInequality',
+    'rangeWords',
   ]);
 
   const composed = readComposedQuestion(question);
