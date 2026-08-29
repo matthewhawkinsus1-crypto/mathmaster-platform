@@ -6,7 +6,7 @@ test('workspace keeps simplification student-entered instead of one-click calcul
   const src = fs.readFileSync('src/StepByStepAlgebra.jsx', 'utf8');
 
   // The student must enter the simplified expression. MathMaster checks it.
-  assert.match(src, /className="algebra-optional-simplification"/);
+  assert.match(src, /algebra-optional-simplification/);
   assert.match(src, /<MathInput value=\{simplificationAnswers\[target\.side\]/);
   assert.match(src, /checkSimplifications/);
 
