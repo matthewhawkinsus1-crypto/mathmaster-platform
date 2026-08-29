@@ -7,7 +7,7 @@ test('workspace keeps simplification student-entered instead of one-click calcul
 
   // The student must enter the simplified expression. MathMaster checks it.
   assert.match(src, /algebra-optional-simplification/);
-  assert.match(src, /<MathInput value=\{simplificationAnswers\[target\.side\]/);
+  assert.match(src, /<MathInput[\s\S]{0,160}value=\{simplificationAnswers\[target\.side\]/);
   assert.match(src, /checkSimplifications/);
 
   // These V1.3 auto-calculation controls are intentionally gone.
