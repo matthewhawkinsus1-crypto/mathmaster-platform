@@ -2059,7 +2059,7 @@ export default function MultiRelationAlgebra({
             })}
           </div>
 
-          {candidateVerificationComplete && candidateVerificationCorrect && (
+          {disabled && candidateVerificationComplete && candidateVerificationCorrect && (
             <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: '#e6f4ea', color: '#137333', fontWeight: 800 }}>
               Verified solution{verifiedSolutions.length === 1 ? '' : 's'}: {verifiedSolutions.join(', ')}
             </div>
