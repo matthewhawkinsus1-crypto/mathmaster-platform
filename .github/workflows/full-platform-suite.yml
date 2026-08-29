@@ -1,0 +1,30 @@
+name: Full Platform Test Suite
+
+on:
+  push:
+    branches:
+      - fix/main-full-platform-suite-green
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  full-platform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Run every platform test
+        run: node --test tests/platform/*.test.mjs
+      - name: Build
+        if: always()
+        run: npm run build
+      - name: Lint
+        if: always()
+        run: npm run lint
