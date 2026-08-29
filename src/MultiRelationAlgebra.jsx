@@ -25,6 +25,8 @@ import {
   normalizeRelationExpressionInput,
   relationSolutionSummary,
   relationSourceFromQuestion,
+  relationStateContainsAbsoluteValue,
+  verifyRelationCandidates,
   relationStateToLatex,
   relationStateToText,
   resolveRelationNumberLineConfig,
@@ -77,6 +79,10 @@ const initialStateFor = (question, draftKey) => {
 
 const initialPendingRelationFlipFor = (draftKey) => (
   readQuestionDraft(draftKeyFor(draftKey), null)?.pendingRelationFlip || null
+);
+
+const initialCandidateChecksFor = (draftKey) => (
+  readQuestionDraft(draftKeyFor(draftKey), null)?.candidateChecks || {}
 );
 
 const compactText = (value) => String(value ?? '').replace(/\s+/g, '');
@@ -550,6 +556,7 @@ export default function MultiRelationAlgebra({
 
   const [message, setMessage] = useState(null);
   const [representationCorrect, setRepresentationCorrect] = useState(null);
+  const [candidateChecks, setCandidateChecks] = useState(() => initialCandidateChecksFor(draftKey));
 
   useEffect(() => {
     setRelationState(initialStateFor(question, draftKey));
@@ -572,13 +579,36 @@ export default function MultiRelationAlgebra({
     setAbsoluteSplitOpen(false);
     setMessage(null);
     setRepresentationCorrect(null);
+    setCandidateChecks(initialCandidateChecksFor(draftKey));
   }, [question, draftKey]);
 
   useEffect(() => {
-    writeQuestionDraft(draftKeyFor(draftKey), { relationState, activeBranch, pendingRelationFlip });
-  }, [draftKey, relationState, activeBranch, pendingRelationFlip]);
+    writeQuestionDraft(draftKeyFor(draftKey), {
+      relationState,
+      activeBranch,
+      pendingRelationFlip,
+      candidateChecks,
+    });
+  }, [draftKey, relationState, activeBranch, pendingRelationFlip, candidateChecks]);
 
   const summary = useMemo(() => relationSolutionSummary(relationState), [relationState]);
+  const candidateVerification = useMemo(() => {
+    if (summary.kind !== 'values' || !relationStateContainsAbsoluteValue(pristine)) return [];
+    return verifyRelationCandidates(pristine, summary.values, pristine.variable).map((candidate, index) => ({
+      ...candidate,
+      expression: summary.valueExpressions?.[index] || String(candidate.value),
+    }));
+  }, [pristine, summary]);
+  const requireCandidateVerification = candidateVerification.length > 0;
+  const candidateVerificationComplete = !requireCandidateVerification
+    || candidateVerification.every(({ value }) => candidateChecks[String(value)] != null);
+  const candidateVerificationCorrect = !requireCandidateVerification
+    || candidateVerification.every(({ value, valid }) => (
+      candidateChecks[String(value)] === (valid ? 'valid' : 'extraneous')
+    ));
+  const verifiedSolutions = candidateVerification
+    .filter(({ valid }) => valid)
+    .map(({ value }) => value);
 
   // Process messages such as "Cancellation complete" are useful while the
   // student is working, but once every solution branch is isolated they
@@ -601,14 +631,19 @@ export default function MultiRelationAlgebra({
   const requireRepresentations = summary.kind === 'intervals' && question.representSolution !== false;
   const fullyComplete = !pendingRelationFlip
     && summary.solved
+    && candidateVerificationComplete
     && (!requireRepresentations || representationCorrect === true);
+  const fullyCorrect = fullyComplete && candidateVerificationCorrect;
 
   useEffect(() => {
+    const candidateDetail = requireCandidateVerification
+      ? ` Candidate checks: ${candidateVerification.map(({ value }) => `${relationState.variable}=${value}:${candidateChecks[String(value)] || 'unchecked'}`).join(', ')}.`
+      : '';
     onStateChange?.({
       isComplete: fullyComplete,
-      isCorrect: fullyComplete,
-      responseKey: fullyComplete ? relationStateToText(relationState) : '',
-      questionDetails: `${summary.solved ? 'Solved relation' : 'Current relation'}: ${relationStateToText(relationState)}`,
+      isCorrect: fullyCorrect,
+      responseKey: fullyComplete ? `${relationStateToText(relationState)}|${JSON.stringify(candidateChecks)}` : '',
+      questionDetails: `${summary.solved ? 'Solved relation' : 'Current relation'}: ${relationStateToText(relationState)}.${candidateDetail}`,
       parts: [
         {
           id: 'relation-work',
@@ -617,6 +652,13 @@ export default function MultiRelationAlgebra({
           isCorrect: summary.solved,
           response: relationStateToText(relationState),
         },
+        ...(requireCandidateVerification ? [{
+          id: 'candidate-verification',
+          label: 'Check candidates in the original equation',
+          isComplete: candidateVerificationComplete,
+          isCorrect: candidateVerificationComplete && candidateVerificationCorrect,
+          response: candidateVerification.map(({ value }) => `${value}:${candidateChecks[String(value)] || 'unchecked'}`).join(', '),
+        }] : []),
         ...(requireRepresentations ? [{
           id: 'solution-representations',
           label: 'Graph and interval notation',
@@ -627,10 +669,16 @@ export default function MultiRelationAlgebra({
       ],
     });
   }, [
+    candidateChecks,
+    candidateVerification,
+    candidateVerificationComplete,
+    candidateVerificationCorrect,
     fullyComplete,
+    fullyCorrect,
     onStateChange,
     relationState,
     representationCorrect,
+    requireCandidateVerification,
     requireRepresentations,
     summary,
   ]);
@@ -645,6 +693,7 @@ export default function MultiRelationAlgebra({
           setRelationState(current[current.length - 1]);
           setActiveBranch(0);
           setRepresentationCorrect(null);
+          setCandidateChecks({});
           setCancellationSelection({});
           setPlacementByKey({});
           setPendingRelationFlip(null);
@@ -685,6 +734,7 @@ export default function MultiRelationAlgebra({
     setHistory((current) => [...current, before]);
     setRelationState(next);
     setRepresentationCorrect(null);
+    setCandidateChecks({});
     setCancellationSelection({});
     setDragCancellationKey(null);
     setDragStroke(null);
@@ -1932,9 +1982,88 @@ export default function MultiRelationAlgebra({
         </div>
       )}
 
-      {!pendingRelationFlip && summary.solved && summary.kind === 'values' && (
+      {!pendingRelationFlip && summary.solved && summary.kind === 'values' && !requireCandidateVerification && (
         <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 12, background: '#e6f4ea', color: '#137333', fontWeight: 800 }}>
           Solution{summary.values.length > 1 ? 's' : ''}: {summary.values.join(', ')}
+        </div>
+      )}
+
+      {!pendingRelationFlip && summary.solved && summary.kind === 'values' && requireCandidateVerification && (
+        <div
+          className="absolute-candidate-verification"
+          style={{
+            marginTop: 14,
+            padding: '14px 16px',
+            borderRadius: 12,
+            border: '1px solid #c8d5ea',
+            background: '#f8fbff',
+            color: '#202124',
+          }}
+        >
+          <div style={{ fontWeight: 900, color: '#174ea6', marginBottom: 6 }}>
+            Check each candidate in the original equation
+          </div>
+          <div style={{ color: '#5f6368', fontSize: 12.5, lineHeight: 1.45, marginBottom: 12 }}>
+            Solving the two branches can create a candidate that does not satisfy the original absolute-value equation.
+            Substitute each value back and decide whether it is a valid solution or extraneous.
+          </div>
+
+          <div style={{ display: 'grid', gap: 10 }}>
+            {candidateVerification.map(({ value, expression }) => {
+              const key = String(value);
+              const selected = candidateChecks[key] || null;
+              return (
+                <div
+                  key={key}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'minmax(110px, auto) 1fr',
+                    gap: 12,
+                    alignItems: 'center',
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    border: '1px solid #d7e2f2',
+                    background: '#fff',
+                  }}
+                >
+                  <div style={{ fontSize: 21, fontWeight: 800 }}>
+                    <MathDisplay
+                      value={`${expressionToLatex(relationState.variable)} = ${relationExpressionToLatex(expression)}`}
+                      format="latex"
+                      inline
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {[
+                      ['valid', 'Valid solution'],
+                      ['extraneous', 'Extraneous'],
+                    ].map(([choice, label]) => (
+                      <button
+                        type="button"
+                        key={choice}
+                        disabled={disabled}
+                        aria-pressed={selected === choice}
+                        onClick={() => setCandidateChecks((current) => ({ ...current, [key]: choice }))}
+                        style={{
+                          ...buttonStyle(selected === choice),
+                          minHeight: 40,
+                          background: selected === choice ? '#e8f0fe' : '#fff',
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {disabled && candidateVerificationComplete && candidateVerificationCorrect && (
+            <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: '#e6f4ea', color: '#137333', fontWeight: 800 }}>
+              Verified solution{verifiedSolutions.length === 1 ? '' : 's'}: {verifiedSolutions.join(', ')}
+            </div>
+          )}
         </div>
       )}
 

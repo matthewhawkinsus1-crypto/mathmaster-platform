@@ -34,6 +34,8 @@ assert.match(v5, /CCMR \/ assessment fidelity/i);
 assert.match(v5, /Reference information is not a hint or an answer key/i);
 assert.match(v5, /Omit `referenceInfo` when the prompt already contains the givens/i);
 assert.match(v5, /Never place a student conclusion in `referenceInfo`/i);
+assert.match(v5, /use studentActions \["solveStepByStep"\]/i);
+assert.match(v5, /absolute-value equations, inequalities\/compound inequalities, and squared\/completing-the-square structures/i);
 assert.match(v5, /independent\/dependent roles, the equation\/model, domain, range, continuity, axis labels, scale/i);
 assert.match(v5, /A\.2B/);
 ['constructGraph', 'readGraph', 'completeTable', 'buildMapping', 'classifyContinuity'].forEach((action) => {
