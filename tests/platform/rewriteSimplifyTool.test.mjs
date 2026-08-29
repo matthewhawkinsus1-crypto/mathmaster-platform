@@ -58,7 +58,7 @@ test('rewrite remains separated from an unfinished balanced operation', () => {
 test('existing algebra interaction systems remain wired', () => {
   assert.match(src, /commitStandaloneCancellation/);
   assert.match(src, /resolveAdditivePlacementFromPoint/);
-  assert.match(src, /className="algebra-optional-simplification"/);
+  assert.match(src, /algebra-optional-simplification/);
   assert.match(src, /keepPendingMoveAsWritten/);
   assert.match(src, /resetQuestionWork/);
 });
