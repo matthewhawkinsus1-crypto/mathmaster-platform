@@ -13,8 +13,10 @@ import {
 } from './algebraAstEngine';
 import {
   OTHER_ALGEBRA_OPERATIONS,
+  absoluteValueSplitInputModel,
   applyBalancedOperationToRelation,
   buildAbsoluteValueSplit,
+  buildStudentAuthoredAbsoluteValueEqualitySplit,
   cancelRelationExpressionPair,
   cloneRelationState,
   obviousSpecialClaim,
@@ -553,6 +555,9 @@ export default function MultiRelationAlgebra({
   const [pendingRelationFlip, setPendingRelationFlip] = useState(() => initialPendingRelationFlipFor(draftKey));
   const [relationPicker, setRelationPicker] = useState(null);
   const [absoluteSplitOpen, setAbsoluteSplitOpen] = useState(false);
+  const [absoluteSplitStructure, setAbsoluteSplitStructure] = useState(null);
+  const [absoluteSplitValues, setAbsoluteSplitValues] = useState(['', '']);
+  const [absoluteSplitFocusSignal, setAbsoluteSplitFocusSignal] = useState(0);
 
   const [message, setMessage] = useState(null);
   const [representationCorrect, setRepresentationCorrect] = useState(null);
@@ -577,6 +582,8 @@ export default function MultiRelationAlgebra({
     setPendingRelationFlip(null);
     setRelationPicker(null);
     setAbsoluteSplitOpen(false);
+    setAbsoluteSplitStructure(null);
+    setAbsoluteSplitValues(['', '']);
     setMessage(null);
     setRepresentationCorrect(null);
     setCandidateChecks(initialCandidateChecksFor(draftKey));
@@ -592,6 +599,10 @@ export default function MultiRelationAlgebra({
   }, [draftKey, relationState, activeBranch, pendingRelationFlip, candidateChecks]);
 
   const summary = useMemo(() => relationSolutionSummary(relationState), [relationState]);
+  const absoluteSplitModel = useMemo(
+    () => absoluteValueSplitInputModel(relationState, activeBranch),
+    [relationState, activeBranch],
+  );
   const candidateVerification = useMemo(() => {
     if (summary.kind !== 'values' || !relationStateContainsAbsoluteValue(pristine)) return [];
     return verifyRelationCandidates(pristine, summary.values, pristine.variable).map((candidate, index) => ({
@@ -1076,6 +1087,27 @@ export default function MultiRelationAlgebra({
   };
 
   const applyAbsoluteSplitChoice = async (structure) => {
+    if (absoluteSplitModel.ready && absoluteSplitModel.studentAuthorsBranchValues) {
+      if (structure !== 'or') {
+        const rejected = buildStudentAuthoredAbsoluteValueEqualitySplit(
+          relationState,
+          activeBranch,
+          structure,
+          absoluteSplitValues,
+        );
+        setMessage({ tone: 'growth', text: rejected.reason });
+        return;
+      }
+      setAbsoluteSplitStructure('or');
+      setAbsoluteSplitValues(['', '']);
+      setAbsoluteSplitFocusSignal((value) => value + 1);
+      setMessage({
+        tone: 'growth',
+        text: 'Enter both right-side values yourself. MathMaster will check the split without creating the negative branch for you.',
+      });
+      return;
+    }
+
     const result = buildAbsoluteValueSplit(relationState, activeBranch, structure);
     if (!result.ready) {
       setMessage({ tone: 'growth', text: result.reason });
@@ -1083,7 +1115,35 @@ export default function MultiRelationAlgebra({
     }
     await commitState(result.state, `Reverse absolute value as ${structure === 'or' ? 'OR branches' : 'an AND compound relation'}`, 'absolute-value-split');
     setAbsoluteSplitOpen(false);
+    setAbsoluteSplitStructure(null);
+    setAbsoluteSplitValues(['', '']);
     setMessage({ tone: 'success', text: 'Absolute-value structure accepted. Continue solving the relation you created.' });
+  };
+
+  const commitStudentAbsoluteSplit = async () => {
+    const result = buildStudentAuthoredAbsoluteValueEqualitySplit(
+      relationState,
+      activeBranch,
+      absoluteSplitStructure,
+      absoluteSplitValues,
+    );
+    if (!result.ready) {
+      setMessage({ tone: 'growth', text: result.reason });
+      return;
+    }
+
+    await commitState(
+      result.state,
+      'Reverse absolute value using student-authored OR branch values',
+      'absolute-value-split',
+    );
+    setAbsoluteSplitOpen(false);
+    setAbsoluteSplitStructure(null);
+    setAbsoluteSplitValues(['', '']);
+    setMessage({
+      tone: 'success',
+      text: 'Your split is equivalent to the original equation. Continue solving each branch.',
+    });
   };
 
   const chooseOtherOperation = async (id) => {
@@ -1114,9 +1174,11 @@ export default function MultiRelationAlgebra({
         return;
       }
       setAbsoluteSplitOpen(true);
+      setAbsoluteSplitStructure(null);
+      setAbsoluteSplitValues(['', '']);
       setMessage({
         tone: 'growth',
-        text: 'Choose the equivalent structure yourself. MathMaster will check your OR/AND decision.',
+        text: 'Choose the equivalent structure yourself. For an equation, you will also enter both split values.',
       });
       return;
     }
@@ -1209,6 +1271,8 @@ export default function MultiRelationAlgebra({
     setPendingRelationFlip(null);
     setRelationPicker(null);
     setAbsoluteSplitOpen(false);
+    setAbsoluteSplitStructure(null);
+    setAbsoluteSplitValues(['', '']);
     setMessage(null);
     setRepresentationCorrect(null);
   };
@@ -1570,20 +1634,125 @@ export default function MultiRelationAlgebra({
             alignItems: 'center',
             flexWrap: 'wrap',
             marginBottom: 8,
-            padding: '7px 9px',
+            padding: '9px 10px',
             border: '1px solid #b8c8e3',
             borderRadius: 10,
             background: '#f8fbff',
           }}
         >
           <strong style={{ color: '#174ea6', fontSize: 13 }}>Reverse absolute value</strong>
-          <button type="button" onClick={() => applyAbsoluteSplitChoice('or')} style={buttonStyle(false)}>
+          <button
+            type="button"
+            onClick={() => applyAbsoluteSplitChoice('or')}
+            style={buttonStyle(absoluteSplitStructure === 'or')}
+          >
             Two branches (OR)
           </button>
           <button type="button" onClick={() => applyAbsoluteSplitChoice('and')} style={buttonStyle(false)}>
             Three-part compound (AND)
           </button>
-          <button type="button" onClick={() => setAbsoluteSplitOpen(false)} style={buttonStyle(false)}>×</button>
+          <button
+            type="button"
+            onClick={() => {
+              setAbsoluteSplitOpen(false);
+              setAbsoluteSplitStructure(null);
+              setAbsoluteSplitValues(['', '']);
+            }}
+            style={buttonStyle(false)}
+          >
+            ×
+          </button>
+
+          {absoluteSplitModel.ready
+            && absoluteSplitModel.studentAuthorsBranchValues
+            && absoluteSplitStructure === 'or' && (
+            <div
+              style={{
+                width: '100%',
+                display: 'grid',
+                gap: 9,
+                marginTop: 4,
+                paddingTop: 9,
+                borderTop: '1px solid #d7e2f3',
+              }}
+            >
+              <div style={{ color: '#5f6368', fontSize: 11.5, lineHeight: 1.4 }}>
+                Type the right side of both equations. The platform will not create the positive/negative pair for you.
+              </div>
+
+              {absoluteSplitValues.map((value, index) => (
+                <div
+                  key={index}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'minmax(120px, auto) minmax(160px, 1fr)',
+                    gap: 10,
+                    alignItems: 'center',
+                  }}
+                >
+                  <div
+                    style={{
+                      minHeight: 42,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'flex-end',
+                      gap: 8,
+                      fontSize: 22,
+                      color: '#202124',
+                    }}
+                  >
+                    <MathDisplay
+                      value={relationExpressionToLatex(absoluteSplitModel.inner)}
+                      format="latex"
+                      inline
+                    />
+                    <span style={{ color: '#174ea6', fontWeight: 900 }}>=</span>
+                  </div>
+
+                  <MathInput
+                    value={value}
+                    onChange={(nextValue) => {
+                      setAbsoluteSplitValues((current) => current.map((item, valueIndex) => (
+                        valueIndex === index ? nextValue : item
+                      )));
+                    }}
+                    placeholder={index === 0 ? 'Branch A right side' : 'Branch B right side'}
+                    ariaLabel={index === 0 ? 'Branch A right-side value' : 'Branch B right-side value'}
+                    toolProfile="algebra-operation"
+                    compact
+                    focusSignal={index === 0 ? absoluteSplitFocusSignal : 0}
+                  />
+                </div>
+              ))}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAbsoluteSplitValues(['', '']);
+                    setAbsoluteSplitFocusSignal((value) => value + 1);
+                  }}
+                  style={buttonStyle(false)}
+                >
+                  Clear split
+                </button>
+                <button
+                  type="button"
+                  onClick={commitStudentAbsoluteSplit}
+                  disabled={absoluteSplitValues.some((value) => !String(value || '').trim())}
+                  style={{
+                    ...buttonStyle(true),
+                    background: absoluteSplitValues.some((value) => !String(value || '').trim())
+                      ? '#9fb7df'
+                      : '#174ea6',
+                    color: '#fff',
+                  }}
+                >
+                  Check split
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
