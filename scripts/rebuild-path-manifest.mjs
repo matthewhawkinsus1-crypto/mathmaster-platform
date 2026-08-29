@@ -12,7 +12,15 @@ const seedDir = path.join(root, 'seed', 'pathQuestionBank');
 const outFile = path.join(seedDir, 'PATH_BANK_COVERAGE_MANIFEST.json');
 const frameworkIds = ['course', 'digitalSAT', 'act', 'tsia2', 'asvab'];
 const documentsIn = (p) => Array.isArray(p) ? p : (p.documents || p.items || p.questions || []);
-const codeOf = (q) => String((q.alignmentKeys || []).find((k) => /^texas:/i.test(k)) || '').replace(/^texas:/i, '').toUpperCase();
+// Every Texas alignment a document carries, not just the first one.
+//
+// A family aligned to 6.2A as primary and 6.4B as secondary really does provide
+// coverage for 6.4B, so crediting it only to 6.2A under-reported every standard
+// that is never anyone's primary alignment. 384 assessment families carry more
+// than one Texas key, and the manifest disagreed with the bank for all of them.
+const codesOf = (q) => [...new Set((q.alignmentKeys || [])
+  .filter((k) => /^texas:/i.test(String(k)))
+  .map((k) => String(k).replace(/^texas:/i, '').toUpperCase()))];
 
 const files = readdirSync(seedDir).filter((n) => n.endsWith('_pathQuestionBank_seed.json')).sort();
 const docs = files.flatMap((name) => documentsIn(JSON.parse(readFileSync(path.join(seedDir, name), 'utf8'))));
@@ -29,18 +37,22 @@ const frameworkOf = (q) => {
 const frameworkStats = Object.fromEntries(frameworkIds.map((id) => [id, { documents: 0, standards: new Set() }]));
 const standards = {};
 for (const q of docs) {
-  const code = codeOf(q);
-  if (!code) throw new Error(`${q.id}: no Texas alignment`);
+  const codes = codesOf(q);
+  if (!codes.length) throw new Error(`${q.id}: no Texas alignment`);
   const framework = frameworkOf(q);
+  // A document is one document however many standards it covers, so the
+  // framework document count stays per-document while coverage is per-standard.
   frameworkStats[framework].documents += 1;
-  frameworkStats[framework].standards.add(code);
-  standards[code] ||= { familyCount: 0, authored: 0, upgradedStarter: 0, courseFamilies: 0, assessmentFamilies: {} };
-  const row = standards[code];
-  row.familyCount += 1;
-  if (q.authoring?.upgraded) row.upgradedStarter += 1;
-  else row.authored += 1;
-  if (framework === 'course') row.courseFamilies += 1;
-  else row.assessmentFamilies[framework] = (row.assessmentFamilies[framework] || 0) + 1;
+  for (const code of codes) {
+    frameworkStats[framework].standards.add(code);
+    standards[code] ||= { familyCount: 0, authored: 0, upgradedStarter: 0, courseFamilies: 0, assessmentFamilies: {} };
+    const row = standards[code];
+    row.familyCount += 1;
+    if (q.authoring?.upgraded) row.upgradedStarter += 1;
+    else row.authored += 1;
+    if (framework === 'course') row.courseFamilies += 1;
+    else row.assessmentFamilies[framework] = (row.assessmentFamilies[framework] || 0) + 1;
+  }
 }
 
 const courseStandards = frameworkStats.course.standards.size;
