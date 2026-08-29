@@ -11,10 +11,10 @@ test('pasted and uploaded Assignment V5 JSON is bank-hydrated before local compi
   const end = app.indexOf('const handleCreateAssignment', start);
   const block = app.slice(start, end);
   assert.match(block, /JSON\.parse\(String\(text \|\| ''\)\)/);
-  assert.match(block, /await hydrateAssignmentCcmr\(raw\)/);
+  assert.match(block, /await hydrateAssignmentCcmr\(raw, \{ ensurePracticeTarget: false \}\)/);
   assert.match(block, /sourceText = JSON\.stringify\(hydrated\.assignment\)/);
   assert.ok(
-    block.indexOf('await hydrateAssignmentCcmr(raw)') < block.indexOf('readAssignmentJson(sourceText)'),
+    block.indexOf('await hydrateAssignmentCcmr(raw, { ensurePracticeTarget: false })') < block.indexOf('readAssignmentJson(sourceText)'),
     'bank hydration must happen before V5 compilation and Preflight',
   );
 });
