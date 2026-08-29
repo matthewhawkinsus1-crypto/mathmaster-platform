@@ -55,4 +55,18 @@ test('Honors destination creation requests the audited Practice target without c
   assert.match(block, /let honorsParsedQuestions = parsedQuestions/);
   assert.match(block, /if \(destination\.courseLevel === 'honors'\)[\s\S]*destinationQuestions = honorsParsedQuestions/);
   assert.match(block, /let destinationQuestions = parsedQuestions/);
+
+  const honorsStart = block.indexOf("if (destination.courseLevel === 'honors')");
+  const honorsEnd = block.indexOf('return { destination, questions: destinationQuestions };', honorsStart);
+  const honorsBlock = block.slice(honorsStart, honorsEnd);
+  assert.match(
+    honorsBlock,
+    /normalizeAssignmentQuestions\(\[\s*\.\.\.honorsParsedQuestions,/,
+    'adding Honors depth must preserve the audited CCMR-hydrated Practice questions',
+  );
+  assert.doesNotMatch(
+    honorsBlock,
+    /normalizeAssignmentQuestions\(\[\s*\.\.\.parsedQuestions,/,
+    'Honors depth must never rebuild from the pre-hydration Standard question list',
+  );
 });
