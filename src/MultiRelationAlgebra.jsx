@@ -1982,9 +1982,88 @@ export default function MultiRelationAlgebra({
         </div>
       )}
 
-      {!pendingRelationFlip && summary.solved && summary.kind === 'values' && (
+      {!pendingRelationFlip && summary.solved && summary.kind === 'values' && !requireCandidateVerification && (
         <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 12, background: '#e6f4ea', color: '#137333', fontWeight: 800 }}>
           Solution{summary.values.length > 1 ? 's' : ''}: {summary.values.join(', ')}
+        </div>
+      )}
+
+      {!pendingRelationFlip && summary.solved && summary.kind === 'values' && requireCandidateVerification && (
+        <div
+          className="absolute-candidate-verification"
+          style={{
+            marginTop: 14,
+            padding: '14px 16px',
+            borderRadius: 12,
+            border: '1px solid #c8d5ea',
+            background: '#f8fbff',
+            color: '#202124',
+          }}
+        >
+          <div style={{ fontWeight: 900, color: '#174ea6', marginBottom: 6 }}>
+            Check each candidate in the original equation
+          </div>
+          <div style={{ color: '#5f6368', fontSize: 12.5, lineHeight: 1.45, marginBottom: 12 }}>
+            Solving the two branches can create a candidate that does not satisfy the original absolute-value equation.
+            Substitute each value back and decide whether it is a valid solution or extraneous.
+          </div>
+
+          <div style={{ display: 'grid', gap: 10 }}>
+            {candidateVerification.map(({ value, expression }) => {
+              const key = String(value);
+              const selected = candidateChecks[key] || null;
+              return (
+                <div
+                  key={key}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'minmax(110px, auto) 1fr',
+                    gap: 12,
+                    alignItems: 'center',
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    border: '1px solid #d7e2f2',
+                    background: '#fff',
+                  }}
+                >
+                  <div style={{ fontSize: 21, fontWeight: 800 }}>
+                    <MathDisplay
+                      value={`${expressionToLatex(relationState.variable)} = ${relationExpressionToLatex(expression)}`}
+                      format="latex"
+                      inline
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {[
+                      ['valid', 'Valid solution'],
+                      ['extraneous', 'Extraneous'],
+                    ].map(([choice, label]) => (
+                      <button
+                        type="button"
+                        key={choice}
+                        disabled={disabled}
+                        aria-pressed={selected === choice}
+                        onClick={() => setCandidateChecks((current) => ({ ...current, [key]: choice }))}
+                        style={{
+                          ...buttonStyle(selected === choice),
+                          minHeight: 40,
+                          background: selected === choice ? '#e8f0fe' : '#fff',
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {candidateVerificationComplete && candidateVerificationCorrect && (
+            <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: '#e6f4ea', color: '#137333', fontWeight: 800 }}>
+              Verified solution{verifiedSolutions.length === 1 ? '' : 's'}: {verifiedSolutions.join(', ')}
+            </div>
+          )}
         </div>
       )}
 
