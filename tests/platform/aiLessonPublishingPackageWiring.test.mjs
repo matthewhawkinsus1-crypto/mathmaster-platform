@@ -1,32 +1,52 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
 
 const read = (path) => fs.readFileSync(path, 'utf8');
 
-test('V5 AI contract asks for Classroom metadata and one/two page PDF notes', () => {
+test('V5 AI contract asks for Classroom integration and one/two page PDF notes', () => {
   const src = read('src/platform/contract/authoringContract.js');
-  assert.match(src, /"classroom"/);
-  assert.match(src, /"lessonResources"/);
-  assert.match(src, /"notesPdf"/);
+  assert.match(src, /"classroomIntegration"/);
+  assert.match(src, /"lessonNotesPdf"/);
   assert.match(src, /targetPages/);
-  assert.match(src, /separateMaterial/);
+  assert.doesNotMatch(src, /"lessonResources"\s*:/);
 });
 
-test('V5 compiler normalizes publishing intent into saved assignment metadata', () => {
-  const src = read('src/platform/contract/authoringIntentV5.js');
-  assert.match(src, /normalizeLessonPublishingIntentV5/);
-  assert.match(src, /assignment\.classroomPackage = publishingIntent\.classroomPackage/);
-  assert.match(src, /assignment\.lessonResources = publishingIntent\.lessonResources/);
+test('V5 compiler preserves canonical publishing intent without reviving legacy publishing fields', () => {
+  const compiled = compileAuthoringIntentV5({
+    schemaVersion: 5,
+    assignment: { title: 'Publishing intent', courseId: 'algebra1' },
+    classroomIntegration: { enabled: true },
+    outputProfiles: {
+      digital: { enabled: true },
+      lessonNotesPdf: { enabled: true, targetPages: 2, sections: [] },
+    },
+    sections: [{
+      role: 'classwork',
+      questions: [{
+        standard: 'A.5A',
+        prompt: 'Solve 2x = 8.',
+        studentActions: ['solveStepByStep'],
+        equation: '2x = 8',
+      }],
+    }],
+  }).package;
+
+  assert.equal(compiled.classroomIntegration.enabled, true);
+  assert.equal(compiled.outputProfiles.lessonNotesPdf.enabled, true);
+  assert.equal(compiled.outputProfiles.lessonNotesPdf.targetPages, 2);
+  assert.equal(compiled.classroom, undefined);
+  assert.equal(compiled.lessonResources, undefined);
 });
 
-test('assignment blueprint keeps generated Classroom and notes metadata through Preflight', () => {
-  const src = read('src/assignmentBlueprint.js');
-  assert.match(src, /classroomPackage:/);
-  assert.match(src, /lessonResources:/);
+test('Assignment Review bridges canonical V5 publishing fields into the runtime Classroom package', () => {
   const app = read('src/App.jsx');
-  assert.match(app, /classroomPackage: teacherReview\?\.classroomPackage/);
-  assert.match(app, /lessonResources: teacherReview\?\.lessonResources/);
+  assert.match(app, /assignmentV5\.classroomIntegration/);
+  assert.match(app, /assignmentV5\.outputProfiles\?\.lessonNotesPdf/);
+  assert.match(app, /normalizeLessonPublishingIntentV5/);
+  assert.match(app, /classroomIntegration: assignmentV5\.classroomIntegration/);
+  assert.match(app, /outputProfiles: assignmentV5\.outputProfiles/);
 });
 
 test('Preflight previews AI prepared Classroom and PDF plan without owning classes or dates', () => {
