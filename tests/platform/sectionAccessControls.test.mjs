@@ -3,7 +3,12 @@ import assert from 'node:assert/strict';
 import { getSectionAccessState } from '../../src/assignmentLifecycle.js';
 
 const NOW = new Date('2026-08-13T12:00:00');
+// Assignment V5. getStoredAssignmentQuestions returns [] for anything that does
+// not declare schemaVersion 5, so without it every role fell through to the
+// `unavailable` branch — which also reports isOpen: true, so the "defaults to
+// open" test passed while proving nothing.
 const base = {
+  schemaVersion: 5,
   releaseAt: '2026-08-13T08:00',
   dueAt: '2026-08-13T15:00',
   lateDueAt: '2026-08-13T16:00',
@@ -32,8 +37,13 @@ test('class-ID override does not leak to another class', () => {
     ...base,
     sectionAccess: { classwork: { defaultState: 'closed', overridesByClassId: { 'class-3': { state: 'open' } } } },
   };
-  assert.equal(getSectionAccessState({ assignment, activityRole: 'classwork', classPeriod: 'Period 3', nowValue: NOW }).isOpen, true);
+  // Overrides are scoped by class ID. The period name is passed through for
+  // display only and no longer identifies the class, so the override has to be
+  // claimed by its class ID rather than inferred from "Period 3".
+  assert.equal(getSectionAccessState({ assignment, activityRole: 'classwork', classId: 'class-3', classPeriod: 'Period 3', nowValue: NOW }).isOpen, true);
   assert.equal(getSectionAccessState({ assignment, activityRole: 'classwork', classId: 'class-5', classPeriod: 'Period 5', nowValue: NOW }).isOpen, false);
+  // And a caller with no class ID at all must not inherit another class's open.
+  assert.equal(getSectionAccessState({ assignment, activityRole: 'classwork', classPeriod: 'Period 3', nowValue: NOW }).isOpen, false);
 });
 
 test('teacher locks are ignored after the final cutoff because assignment is ungraded Practice Mode', () => {
