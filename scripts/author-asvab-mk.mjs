@@ -15187,6 +15187,689 @@ mk('A2.6B', 'a-cube-root-checked-for-extraneous-roots', {
   feedback: 'It holds for square roots, but not for cube roots.',
 });
 
+// ================================================================ A2.6E
+// Solving a linear absolute-value equation. The crosswalk allows exactly that
+// — the |2x - 3| = 7 shape — and excludes transformation analysis and
+// contextual formulation, so no family here builds an equation from a story or
+// asks what the graph does when a coefficient moves.
+
+mk('A2.6E', 'solve-a-linear-absolute-value-equation', {
+  courseId: 'algebra2',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Solve $\\left|{{a}}x - {{b}}\\right| = {{c}}$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 6 },
+      p: { type: 'int', min: 2, max: 9 },
+      q: { type: 'int', min: 2, max: 9 },
+    },
+    // Both solutions come out whole: b is the midpoint and c the half-gap,
+    // scaled by a.
+    derived: { b: 'a*p', c: 'a*q', high: 'p+q', low: 'p-q', onlyHigh: 'p+q', negLow: '0-p+q' },
+    constraints: ['p!=q', 'low!=high', 'high!=negLow'],
+  },
+  choices: [
+    { label: plain('{{high}} \\text{ and } {{low}}'), correct: true },
+    { label: plain('{{high}}'), error: 'partialTotal' },
+    { label: plain('{{high}} \\text{ and } {{negLow}}'), error: 'signError' },
+    { label: plain('{{b}} \\text{ and } {{c}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The bars mean ${{a}}x - {{b}}$ is either ${{c}}$ or $-{{c}}$.', 'Those give $x = {{high}}$ and $x = {{low}}$.'],
+  answerSummary: { headline: 'An absolute value equal to a positive number splits into two equations.', text: 'They are ${{high}}$ and ${{low}}$.' },
+  hint: 'What two values can the inside take?',
+  feedback: 'That is one of the two solutions; the negative case gives another.',
+});
+
+mk('A2.6E', 'an-absolute-value-set-equal-to-a-negative', {
+  courseId: 'algebra2',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'How many solutions does $\\left|{{a}}x - {{b}}\\right| = -{{c}}$ have?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 20 },
+      c: { type: 'int', min: 2, max: 15 },
+    },
+    derived: {},
+    constraints: ['a!=b', 'b!=c', 'a!=c'],
+  },
+  choices: [
+    { label: 'None, because an absolute value is never negative.', correct: true },
+    { label: 'Two, one from each sign of the inside.', error: 'operationInverted' },
+    { label: 'One, where the inside equals $-{{c}}$.', error: 'signError' },
+    { label: 'Infinitely many, since the bars allow any sign.', error: 'partialTotal' },
+  ],
+  reasoning: ['The bars give the distance from zero, which is never below zero.', 'No value of $x$ can make that distance $-{{c}}$.'],
+  answerSummary: { headline: 'A distance cannot be negative, so such an equation has no solution.', text: 'It has none.' },
+  hint: 'What is the smallest an absolute value can be?',
+  feedback: 'The two cases only exist when the right-hand side is not negative.',
+});
+
+mk('A2.6E', 'isolate-the-bars-before-splitting', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Solve ${{k}}\\left|x - {{p}}\\right| = {{r}}$.',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 7 },
+      p: { type: 'int', min: 3, max: 15 },
+      d: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { r: 'k*d', high: 'p+d', low: 'p-d', noDivide: 'p+k*d', bothWrong: 'p+k*d' },
+    constraints: ['d!=p', 'high!=noDivide', 'low!=d'],
+  },
+  choices: [
+    { label: plain('{{high}} \\text{ and } {{low}}'), correct: true },
+    { label: plain('{{noDivide}} \\text{ and } {{p}}'), error: 'forgotFinalStep' },
+    { label: plain('{{high}}'), error: 'partialTotal' },
+    { label: plain('{{d}} \\text{ and } {{p}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Dividing by ${{k}}$ first gives $\\left|x - {{p}}\\right| = {{d}}$.', 'The inside is then ${{d}}$ or $-{{d}}$, giving ${{high}}$ and ${{low}}$.'],
+  answerSummary: { headline: 'Get the bars alone before splitting into two cases.', text: 'They are ${{high}}$ and ${{low}}$.' },
+  hint: 'What does $\\left|x - {{p}}\\right|$ come to on its own?',
+  feedback: 'Splitting before dividing carries the ${{k}}$ into both cases.',
+});
+
+mk('A2.6E', 'where-a-distance-reaches-a-value', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 2, taskType: 'interpretation', representation: 'table',
+  prompt: 'The table gives $\\left|x - {{p}}\\right|$. At which values of $x$ does it equal ${{d}}$?',
+  stimulus: {
+    kind: 'table',
+    title: 'Recorded values',
+    table: { headers: ['x', 'Value'], rows: [['{{x1}}', '{{v1}}'], ['{{x2}}', '{{v2}}'], ['{{p}}', '0'], ['{{x4}}', '{{v2}}'], ['{{x5}}', '{{v1}}']] },
+  },
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 6, max: 20 },
+      d: { type: 'int', min: 3, max: 5 },
+    },
+    derived: {
+      x1: 'p-d', x2: 'p-1', x4: 'p+1', x5: 'p+d',
+      v1: 'd', v2: '1',
+      high: 'p+d', low: 'p-d', doubled: 'p+d+d',
+    },
+    constraints: ['d!=p', 'low>=1', 'd!=1'],
+  },
+  choices: [
+    { label: plain('{{low}} \\text{ and } {{high}}'), correct: true },
+    { label: plain('{{p}} \\text{ and } {{high}}'), error: 'usedGivenValue' },
+    { label: plain('{{high}}'), error: 'partialTotal' },
+    { label: plain('{{low}} \\text{ and } {{doubled}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['The value ${{d}}$ appears twice, once on each side of $x = {{p}}$.', 'Those rows are $x = {{low}}$ and $x = {{high}}$.'],
+  answerSummary: { headline: 'A distance of ${{d}}$ is reached on both sides of the centre.', text: 'They are ${{low}}$ and ${{high}}$.' },
+  hint: 'How many rows hold the value ${{d}}$?',
+  feedback: 'The centre is where the value is zero, not ${{d}}$.',
+});
+
+mk('A2.6E', 'only-the-positive-case-taken', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'Solving $\\left|x - {{p}}\\right| = {{d}}$ a student gives ${{high}}$ only. What is wrong?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 4, max: 20 },
+      d: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { high: 'p+d', low: 'p-d' },
+    constraints: ['d!=p', 'high!=low'],
+  },
+  choices: [
+    { label: 'The inside can also be $-{{d}}$, which gives the second solution ${{low}}$.', correct: true },
+    { label: 'Nothing is wrong, because a distance is never negative.', error: 'usedGivenValue' },
+    { label: 'The answer should be ${{low}}$ instead, since the bars reverse the sign.', error: 'signError' },
+    { label: 'There is no solution, because the bars cannot be removed.', error: 'operationInverted' },
+  ],
+  reasoning: ['The bars are never negative, but what is inside them may be.', 'Both $x - {{p}} = {{d}}$ and $x - {{p}} = -{{d}}$ have to be solved.'],
+  answerSummary: { headline: 'The value is never negative; the expression inside may be.', text: 'The solutions are ${{low}}$ and ${{high}}$.' },
+  hint: 'What else could $x - {{p}}$ be, other than ${{d}}$?',
+  feedback: 'That is true of the whole absolute value, not of the expression inside it.',
+});
+
+// ================================================================ A2.6I
+// Solving a simple rational equation. The crosswalk allows clearing a single
+// denominator and proportion-style equations, and excludes rational-function
+// analysis and any reasoning about asymptotes or excluded values, so no family
+// here asks which value of x the expression is undefined at.
+
+mk('A2.6I', 'a-variable-in-the-denominator', {
+  courseId: 'algebra2',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Solve $\\frac{{{n}}}{x} = {{b}}$.',
+  generator: {
+    parameters: {
+      // b doubles as the crossing choice, so it shares the range of x.
+      b: { type: 'int', min: 2, max: 15 },
+      x: { type: 'int', min: 2, max: 15 },
+    },
+    derived: { n: 'b*x' },
+    constraints: ['b!=x', 'x!=n'],
+  },
+  choices: [
+    { label: plain('{{x}}'), correct: true },
+    { label: plain('\\frac{{{b}}}{{{n}}}'), error: 'ratioReversed' },
+    { label: plain('{{b}}'), error: 'usedGivenValue' },
+    { label: plain('{{n}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Multiplying both sides by $x$ gives ${{n}} = {{b}}x$.', 'Dividing by ${{b}}$ leaves $x = {{x}}$.'],
+  answerSummary: { headline: 'Clear the variable out of the denominator, then divide.', text: 'It is ${{x}}$.' },
+  hint: 'What has to happen before $x$ can be isolated?',
+  feedback: 'Turning the fraction over solves for the wrong thing entirely.',
+});
+
+mk('A2.6I', 'a-proportion-solved-by-cross-multiplying', {
+  courseId: 'algebra2',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'Solve $\\frac{{{a}}}{{{b}}} = \\frac{{{c}}}{x}$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 12 },
+      k: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { c: 'a*k', x: 'b*k', flipped: 'a*a*k', sum: 'b+a*k' },
+    constraints: ['a!=b', 'x!=c', 'x!=sum', 'x!=flipped'],
+  },
+  choices: [
+    { label: plain('{{x}}'), correct: true },
+    { label: plain('{{flipped}}'), error: 'ratioReversed' },
+    { label: plain('{{sum}}'), error: 'operationInverted' },
+    { label: plain('{{c}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Cross multiplying gives ${{a}}x = {{b}} \\times {{c}}$.', 'Dividing by ${{a}}$ leaves $x = {{x}}$.'],
+  answerSummary: { headline: 'In a proportion each numerator meets the other denominator.', text: 'It is ${{x}}$.' },
+  hint: 'Which two products does a proportion set equal?',
+  feedback: 'Multiplying the wrong pair crosses the equation the other way.',
+});
+
+mk('A2.6I', 'a-sum-with-one-denominator', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'What value of $x$ makes $\\frac{{{n}}}{x} + {{p}} = {{q}}$ true?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 15 },
+      d: { type: 'int', min: 2, max: 12 },
+      x: { type: 'int', min: 2, max: 15 },
+    },
+    derived: { q: 'p+d', n: 'd*x', noSubtract: 'd*x', wrongOrder: 'd*x-p', overQ: 'x' },
+    constraints: ['d!=x', 'x!=noSubtract', 'x!=wrongOrder', 'x!=p'],
+  },
+  choices: [
+    { label: plain('{{x}}'), correct: true },
+    { label: plain('{{noSubtract}}'), error: 'forgotFinalStep' },
+    { label: plain('{{wrongOrder}}'), error: 'orderOfOperations' },
+    { label: plain('{{p}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Taking ${{p}}$ from both sides leaves $\\frac{{{n}}}{x} = {{d}}$.', 'Multiplying by $x$ and dividing by ${{d}}$ gives $x = {{x}}$.'],
+  answerSummary: { headline: 'Clear what is added before touching the denominator.', text: 'It is ${{x}}$.' },
+  hint: 'What is the fraction worth once ${{p}}$ has been removed?',
+  feedback: 'The ${{p}}$ has to come off before the fraction is cleared.',
+});
+
+mk('A2.6I', 'sharing-a-job-between-two-rates', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A pump fills a tank in ${{t}}$ minutes, so ${{n}}$ tanks take ${{total}}$ minutes. How many tanks does it fill in ${{q}}$ minutes?',
+  generator: {
+    parameters: {
+      t: { type: 'int', min: 3, max: 12 },
+      n: { type: 'int', min: 2, max: 9 },
+      m: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { total: 't*n', q: 't*m', answer: 'm', sumWrong: 't*m-t' },
+    constraints: ['n!=m', 'answer!=t', 'answer!=n', 'answer!=sumWrong', 't!=n'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{sumWrong}}'), error: 'partialTotal' },
+    { label: plain('{{n}}'), error: 'operationInverted' },
+    { label: plain('{{t}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['One tank takes ${{t}}$ minutes, so the number of tanks is the time divided by ${{t}}$.', 'That gives ${{q}} \\div {{t}} = {{answer}}$ tanks.'],
+  answerSummary: { headline: 'A proportion between time and tanks divides one by the rate.', text: 'It fills ${{answer}}$ tanks.' },
+  hint: 'How long does a single tank take?',
+  feedback: 'Multiplying the time by the rate scales the wrong way round.',
+});
+
+mk('A2.6I', 'a-denominator-cleared-from-one-term-only', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'Solving $\\frac{{{n}}}{x} + {{p}} = {{q}}$, a student multiplies by $x$ and writes ${{n}} + {{p}} = {{q}}$. What is wrong?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 15 },
+      d: { type: 'int', min: 2, max: 12 },
+      x: { type: 'int', min: 2, max: 15 },
+    },
+    derived: { q: 'p+d', n: 'd*x' },
+    constraints: ['d!=x', 'p!=q', 'x!=p'],
+  },
+  choices: [
+    { label: 'Multiplying by $x$ reaches every term: it should be ${{n}} + {{p}}x = {{q}}x$.', correct: true },
+    { label: 'Nothing is wrong, since multiplying by $x$ cancels the denominator.', error: 'usedGivenValue' },
+    { label: 'The ${{p}}$ should have been multiplied but the ${{q}}$ left alone.', error: 'partialTotal' },
+    { label: 'The equation cannot be multiplied through while $x$ is unknown.', error: 'operationInverted' },
+  ],
+  reasoning: ['Multiplying an equation by $x$ multiplies every term on both sides.', 'Only the fraction lost its denominator; the other two terms gained an $x$.'],
+  answerSummary: { headline: 'Clearing a denominator multiplies the whole equation, not just the fraction.', text: 'It should be ${{n}} + {{p}}x = {{q}}x$.' },
+  hint: 'What happens to ${{p}}$ when the equation is multiplied by $x$?',
+  feedback: 'It does cancel the denominator, but that is not all it does.',
+});
+
+// ================================================================ A2.6L
+// Inverse variation. The crosswalk allows y = k/x, finding the constant, and
+// applied variation problems, and excludes analysis of the reciprocal parent
+// function, so no family here discusses the shape of its graph.
+//
+// 8.5E and A.2D handle DIRECT variation; the contrast between the two is what
+// the last family turns on.
+
+mk('A2.6L', 'constant-of-inverse-variation', {
+  courseId: 'algebra2',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: '$y$ varies inversely with $x$, and $y = {{y}}$ when $x = {{x}}$. Which gives the constant?',
+  generator: {
+    parameters: {
+      x: { type: 'int', min: 2, max: 12 },
+      y: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { k: 'x*y', sum: 'x+y' },
+    constraints: ['x!=y', 'k!=sum'],
+  },
+  choices: [
+    { label: plain('{{x}} \\times {{y}}'), correct: true },
+    { label: plain('{{y}} \\div {{x}}'), error: 'ratioReversed' },
+    { label: plain('{{x}} \\div {{y}}'), error: 'operationInverted' },
+    { label: plain('{{x}} + {{y}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Inverse variation means $xy$ stays fixed as the pair changes.', 'The constant is therefore the product, ${{x}} \\times {{y}} = {{k}}$.'],
+  answerSummary: { headline: 'In an inverse variation the product is constant; in a direct one the quotient is.', text: 'It is ${{x}} \\times {{y}}$.' },
+  hint: 'What stays the same as $x$ and $y$ change?',
+  feedback: 'A fixed quotient describes a direct variation, not an inverse one.',
+});
+
+mk('A2.6L', 'find-y-under-inverse-variation', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'symbolic',
+  prompt: '$y$ varies inversely with $x$, and $y = {{y1}}$ when $x = {{x1}}$. What is $y$ when $x = {{x2}}$?',
+  generator: {
+    parameters: {
+      x1: { type: 'int', min: 2, max: 9 },
+      y2: { type: 'int', min: 2, max: 12 },
+      m: { type: 'int', min: 2, max: 6 },
+    },
+    derived: { x2: 'x1*m', y1: 'y2*m', k: 'x1*y2*m' },
+    constraints: ['x1!=y2', 'y2!=y1', 'y2!=x2', 'y2!=x1', 'x1!=x2'],
+  },
+  choices: [
+    { label: plain('{{y2}}'), correct: true },
+    { label: plain('{{y1}}'), error: 'usedGivenValue' },
+    { label: plain('{{x1}}'), error: 'ratioReversed' },
+    { label: plain('{{x2}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['The product is fixed at ${{x1}} \\times {{y1}} = {{k}}$.', 'At $x = {{x2}}$ that gives $y = {{k}} \\div {{x2}} = {{y2}}$.'],
+  answerSummary: { headline: 'Multiplying x by a factor divides y by the same factor.', text: 'It is ${{y2}}$.' },
+  hint: 'What is the fixed product, and what does it give at the new $x$?',
+  feedback: 'That is one of the two $x$ values, not a $y$ value at all.',
+});
+
+mk('A2.6L', 'which-table-varies-inversely', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 2, taskType: 'interpretation', representation: 'table',
+  prompt: 'Does the table show an inverse variation?',
+  stimulus: {
+    kind: 'table',
+    title: 'Recorded pairs',
+    table: { headers: ['x', 'y'], rows: [['{{x1}}', '{{y1}}'], ['{{x2}}', '{{y2}}'], ['{{x3}}', '{{y3}}']] },
+  },
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 24, max: 120 },
+      x1: { type: 'int', min: 2, max: 6 },
+      f: { type: 'int', min: 2, max: 3 },
+    },
+    derived: {
+      x2: 'x1*f', x3: 'x1*f*f',
+      y1: 'k', y2: 'k', y3: 'k',
+      p1: 'x1*k', p2: 'x1*f*k',
+    },
+    constraints: ['x1!=f'],
+  },
+  choices: [
+    { label: 'No: the product $xy$ changes from row to row, so nothing stays fixed.', correct: true },
+    { label: 'Yes, because $y$ stays the same while $x$ grows.', error: 'operationInverted' },
+    { label: 'Yes, because the values of $x$ grow by a fixed factor.', error: 'ratioReversed' },
+    { label: 'No, because $y$ would have to grow with $x$ instead.', error: 'partialTotal' },
+  ],
+  reasoning: ['An inverse variation keeps $xy$ fixed, so $y$ must fall as $x$ rises.', 'Here $y$ never changes, so the product grows from ${{p1}}$ to ${{p2}}$.'],
+  answerSummary: { headline: 'Test an inverse variation by multiplying each pair, not by watching one column.', text: 'No, it is not an inverse variation.' },
+  hint: 'Work out $xy$ for each row.',
+  feedback: 'A constant $y$ describes a horizontal line, not an inverse variation.',
+});
+
+mk('A2.6L', 'extra-workers-to-finish-sooner', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  // Asking for the number of workers outright gave this family the same
+  // relation graph as the find-y family above it — the same mathematics with a
+  // story attached. Asking how many MORE are needed adds a difference the other
+  // family does not have.
+  prompt: '${{w1}}$ workers finish a job in ${{d1}}$ days. How many more workers are needed to finish it in ${{d2}}$ days?',
+  generator: {
+    parameters: {
+      // The days saved and the extra workers share the factor m - 1, so the
+      // two compare as d2 against w1 — which needs the same range on both.
+      w1: { type: 'int', min: 2, max: 12 },
+      d2: { type: 'int', min: 2, max: 12 },
+      m: { type: 'int', min: 3, max: 5 },
+    },
+    derived: { d1: 'd2*m', w2: 'w1*m', extra: 'w1*m-w1', daysSaved: 'd2*m-d2', k: 'w1*d2*m' },
+    constraints: ['w1!=d2', 'extra!=w1', 'extra!=w2', 'extra!=daysSaved'],
+  },
+  choices: [
+    { label: plain('{{extra}}'), correct: true },
+    { label: plain('{{w1}}'), error: 'partialTotal' },
+    { label: plain('{{w2}}'), error: 'forgotFinalStep' },
+    { label: plain('{{daysSaved}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The job needs ${{w1}} \\times {{d1}} = {{k}}$ worker-days, so ${{d2}}$ days needs ${{w2}}$ workers.', 'That is ${{w2}} - {{w1}} = {{extra}}$ more than the crew already has.'],
+  answerSummary: { headline: 'Work out the crew the shorter time needs, then take off the crew already there.', text: 'It needs ${{extra}}$ more.' },
+  hint: 'How many workers would the shorter time need altogether?',
+  feedback: 'That is the whole crew required, not the extra on top of the one already working.',
+});
+
+mk('A2.6L', 'inverse-treated-as-direct', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'For an inverse variation a student says doubling $x$ doubles $y$. What is wrong?',
+  generator: {
+    parameters: {
+      x: { type: 'int', min: 2, max: 12 },
+      y: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { k: 'x*y', halved: 'y', doubleX: 'x+x', newY: 'k', doubled: 'y+y' },
+    constraints: ['x!=y'],
+  },
+  choices: [
+    { label: 'Doubling $x$ halves $y$, since the product ${{k}}$ has to stay fixed.', correct: true },
+    { label: 'Nothing is wrong, because $x$ and $y$ always move together.', error: 'usedGivenValue' },
+    { label: 'Doubling $x$ leaves $y$ unchanged, since only the constant matters.', error: 'partialTotal' },
+    { label: 'Doubling $x$ quarters $y$, because the change is squared.', error: 'exponentError' },
+  ],
+  reasoning: ['That describes a direct variation, where the quotient is fixed.', 'An inverse variation fixes the product, so one value falls as the other rises.'],
+  answerSummary: { headline: 'Direct variation fixes the quotient; inverse variation fixes the product.', text: 'Doubling $x$ halves $y$.' },
+  hint: 'What has to stay the same in an inverse variation?',
+  feedback: 'Moving together is what direct variation does.',
+});
+
+// ================================================================ A2.7B
+// Adding, subtracting and multiplying polynomials at Algebra II degree. A.10A
+// and A.10B cover the same operations on degree one and two, so every family
+// here works at degree three or four, where an extra term has to be tracked.
+
+mk('A2.7B', 'add-two-cubics', {
+  courseId: 'algebra2',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Add $({{a}}x^3 + {{b}}x^2 + {{c}})$ and $({{d}}x^3 + {{e}}x + {{f}})$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 }, b: { type: 'int', min: 2, max: 9 }, c: { type: 'int', min: 2, max: 9 },
+      d: { type: 'int', min: 2, max: 9 }, e: { type: 'int', min: 2, max: 9 }, f: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { sa: 'a+d', sc: 'c+f', all: 'a+b+c+d+e+f', bPlusE: 'b+e' },
+    constraints: ['a!=d', 'c!=f', 'b!=e', 'sa!=sc'],
+  },
+  choices: [
+    { label: plain('{{sa}}x^3 + {{b}}x^2 + {{e}}x + {{sc}}'), correct: true },
+    { label: plain('{{sa}}x^3 + {{bPlusE}}x^2 + {{sc}}'), error: 'operationInverted' },
+    { label: plain('{{sa}}x^3 + {{b}}x^2 + {{e}}x + {{c}}'), error: 'partialTotal' },
+    { label: plain('{{all}}x^3'), error: 'exponentError' },
+  ],
+  reasoning: ['Only terms of the same degree combine, and neither polynomial has a partner for the other middle term.', 'So the $x^2$ and $x$ terms carry across unchanged, and the cubics and constants add.'],
+  answerSummary: { headline: 'A missing degree in one polynomial leaves the other term untouched.', text: 'It is ${{sa}}x^3 + {{b}}x^2 + {{e}}x + {{sc}}$.' },
+  hint: 'Which terms have a partner of the same degree?',
+  feedback: 'An $x^2$ term and an $x$ term are different degrees and cannot be added.',
+});
+
+mk('A2.7B', 'multiply-a-binomial-by-a-trinomial', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Expand $(x + {{p}})(x^2 + {{b}}x + {{c}})$.',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { t2: 'b+p', t1: 'c+p*b', t0: 'p*c', noCross: 'b', noLast: 'c' },
+    constraints: ['b!=c', 'p!=b', 't2!=t1', 't1!=t0'],
+  },
+  choices: [
+    { label: plain('x^3 + {{t2}}x^2 + {{t1}}x + {{t0}}'), correct: true },
+    { label: plain('x^3 + {{noCross}}x^2 + {{noLast}}x + {{t0}}'), error: 'partialTotal' },
+    { label: plain('x^3 + {{t2}}x^2 + {{t1}}x'), error: 'forgotFinalStep' },
+    { label: plain('x^3 + {{b}}x^2 + {{c}}x + {{p}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Each of the two terms multiplies all three, giving six products.', 'Collecting by degree leaves ${{t2}}x^2$ and ${{t1}}x$ in the middle.'],
+  answerSummary: { headline: 'Two terms across three gives six products, then collect by degree.', text: 'It is $x^3 + {{t2}}x^2 + {{t1}}x + {{t0}}$.' },
+  hint: 'How many products are there altogether?',
+  feedback: 'Only the products from the $x$ have been counted; the ${{p}}$ multiplies all three too.',
+});
+
+mk('A2.7B', 'subtract-a-cubic', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Subtract $({{d}}x^3 + {{e}}x^2 + {{f}})$ from $({{a}}x^3 + {{b}}x^2 + {{c}})$.',
+  generator: {
+    parameters: {
+      d: { type: 'int', min: 2, max: 8 }, e: { type: 'int', min: 2, max: 8 }, f: { type: 'int', min: 2, max: 8 },
+      ga: { type: 'int', min: 2, max: 7 }, gb: { type: 'int', min: 2, max: 7 }, gc: { type: 'int', min: 2, max: 7 },
+    },
+    derived: {
+      a: 'd+ga', b: 'e+gb', c: 'f+gc',
+      sa: 'd+ga+d', sb: 'e+gb+e', sc: 'f+gc+f',
+      halfA: 'ga', halfB: 'e+gb+e', halfC: 'f+gc+f',
+    },
+    constraints: ['ga!=gb', 'gb!=gc', 'ga!=gc'],
+  },
+  choices: [
+    { label: plain('{{ga}}x^3 + {{gb}}x^2 + {{gc}}'), correct: true },
+    { label: plain('{{sa}}x^3 + {{sb}}x^2 + {{sc}}'), error: 'signError' },
+    { label: plain('{{halfA}}x^3 + {{halfB}}x^2 + {{halfC}}'), error: 'partialTotal' },
+    { label: plain('{{ga}}x^3 + {{gb}}x^2 - {{gc}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The minus applies to all three terms of the second polynomial.', 'Term by term that leaves ${{ga}}x^3 + {{gb}}x^2 + {{gc}}$.'],
+  answerSummary: { headline: 'A minus in front of a bracket reaches every term inside it.', text: 'It is ${{ga}}x^3 + {{gb}}x^2 + {{gc}}$.' },
+  hint: 'What happens to the ${{e}}x^2$ term when the bracket is removed?',
+  feedback: 'Only the first term had its sign changed.',
+});
+
+mk('A2.7B', 'volume-of-a-box-with-algebraic-sides', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A box is $x$ by $x + {{p}}$ by $x + {{q}}$. What is its volume?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 9 },
+      q: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { sum: 'p+q', prod: 'p*q', both: 'p+q+p*q' },
+    constraints: ['p!=q', 'sum!=prod'],
+  },
+  choices: [
+    { label: plain('x^3 + {{sum}}x^2 + {{prod}}x'), correct: true },
+    { label: plain('x^3 + {{prod}}x^2 + {{sum}}x'), error: 'ratioReversed' },
+    { label: plain('x^3 + {{sum}}x^2 + {{prod}}'), error: 'exponentError' },
+    { label: plain('x^3 + {{both}}x^2'), error: 'partialTotal' },
+  ],
+  reasoning: ['Multiplying the last two sides gives $x^2 + {{sum}}x + {{prod}}$.', 'Multiplying that by $x$ raises every term by one degree.'],
+  answerSummary: { headline: 'Multiplying by $x$ raises each degree; it does not leave a constant behind.', text: 'It is $x^3 + {{sum}}x^2 + {{prod}}x$.' },
+  hint: 'What do the two bracketed sides multiply to?',
+  feedback: 'Every term is multiplied by $x$, so no constant term can survive.',
+});
+
+mk('A2.7B', 'a-missing-degree-filled-in', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'Adding $({{a}}x^3 + {{b}}x^2)$ and $({{d}}x^3 + {{e}}x)$, a student writes ${{sa}}x^3 + {{sb}}x^2$. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 }, b: { type: 'int', min: 2, max: 9 },
+      d: { type: 'int', min: 2, max: 9 }, e: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { sa: 'a+d', sb: 'b+e' },
+    constraints: ['a!=d', 'b!=e', 'sa!=sb'],
+  },
+  choices: [
+    { label: 'The ${{e}}x$ is degree one, so it cannot join the ${{b}}x^2$: it is ${{sa}}x^3 + {{b}}x^2 + {{e}}x$.', correct: true },
+    { label: 'Nothing is wrong, since both polynomials had two terms each.', error: 'usedGivenValue' },
+    { label: 'The cubic terms should have been left separate as well.', error: 'operationInverted' },
+    { label: 'The answer needs a constant term, which has been left out.', error: 'partialTotal' },
+  ],
+  reasoning: ['Terms combine only when their powers of $x$ match.', 'One polynomial has an $x^2$ term and the other an $x$ term, so both survive on their own.'],
+  answerSummary: { headline: 'A gap in one polynomial does not license adding across degrees.', text: 'It is ${{sa}}x^3 + {{b}}x^2 + {{e}}x$.' },
+  hint: 'What degree is each of the two middle terms?',
+  feedback: 'Having the same number of terms says nothing about which ones combine.',
+});
+
+// ================================================================ A2.7C
+// Dividing a polynomial of degree three or four by a binomial. The crosswalk
+// allows polynomial long division and excludes synthetic division applied to
+// root-finding theory, so no family here reasons about what the remainder says
+// about the roots.
+
+mk('A2.7C', 'divide-a-cubic-by-a-binomial', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'What is $(x^3 + {{t2}}x^2 + {{t1}}x + {{t0}}) \\div (x + {{p}})$?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { t2: 'b+p', t1: 'c+p*b', t0: 'p*c', sum: 'b+c' },
+    constraints: ['b!=c', 'p!=b', 'p!=c', 'b!=sum', 'c!=sum'],
+  },
+  choices: [
+    { label: plain('x^2 + {{b}}x + {{c}}'), correct: true },
+    { label: plain('x^2 + {{t2}}x + {{t1}}'), error: 'usedGivenValue' },
+    { label: plain('x^2 + {{c}}x + {{b}}'), error: 'ratioReversed' },
+    { label: plain('x^2 + {{sum}}x + {{t0}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The cubic factors as $(x + {{p}})(x^2 + {{b}}x + {{c}})$.', 'Dividing by $(x + {{p}})$ leaves the quadratic factor.'],
+  answerSummary: { headline: 'Dividing by one factor leaves the other one behind.', text: 'It is $x^2 + {{b}}x + {{c}}$.' },
+  hint: 'What quadratic multiplies $(x + {{p}})$ to give this cubic?',
+  feedback: 'Those coefficients belong to the cubic, not to the quotient.',
+});
+
+mk('A2.7C', 'the-remainder-of-a-division', {
+  courseId: 'algebra2',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Dividing $x^3 + {{t2}}x^2 + {{t1}}x + {{t0e}}$ by $x + {{p}}$, what is the remainder?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 2, max: 12 },
+      // The remainder shares the range of the two coefficients that stand in
+      // for it, so each lands on either side of it about equally often.
+      r: { type: 'int', min: 2, max: 11 },
+    },
+    derived: { t2: 'b+p', t1: 'c+p*b', t0: 'p*c', t0e: 'p*c+r', sum: 'b+c' },
+    constraints: ['b!=c', 'p!=b', 'r!=p', 'r!=b', 'r!=c', 'r!=t0'],
+  },
+  choices: [
+    { label: plain('{{r}}'), correct: true },
+    { label: plain('{{t0e}}'), error: 'usedGivenValue' },
+    { label: plain('{{p}}'), error: 'ratioReversed' },
+    { label: plain('{{c}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The cubic is $(x + {{p}})(x^2 + {{b}}x + {{c}})$ plus ${{r}}$.', 'That extra ${{r}}$ is what the division cannot absorb.'],
+  answerSummary: { headline: 'The remainder is whatever is left once the divisor has been taken out as often as it goes.', text: 'It is ${{r}}$.' },
+  hint: 'What does $(x + {{p}})(x^2 + {{b}}x + {{c}})$ come to, and how far is that from the cubic?',
+  feedback: 'That is the constant term of the cubic, not what is left over.',
+});
+
+mk('A2.7C', 'divide-by-a-quadratic', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Divide $x^4 + {{u3}}x^3 + {{u2}}x^2 + {{u1}}x + {{u0}}$ by $x^2 + {{b}}x + {{c}}$.',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 2, max: 7 },
+      c: { type: 'int', min: 2, max: 9 },
+      m: { type: 'int', min: 2, max: 7 },
+      n: { type: 'int', min: 2, max: 9 },
+    },
+    // (x^2 + bx + c)(x^2 + mx + n)
+    derived: {
+      u3: 'b+m', u2: 'c+n+b*m', u1: 'b*n+c*m', u0: 'c*n',
+      sum: 'b+c',
+    },
+    constraints: ['b!=m', 'c!=n', 'b!=c', 'm!=n', 'b!=n', 'c!=m', 'm!=sum', 'n!=sum'],
+  },
+  choices: [
+    { label: plain('x^2 + {{m}}x + {{n}}'), correct: true },
+    { label: plain('x^2 + {{n}}x + {{m}}'), error: 'ratioReversed' },
+    { label: plain('x^2 + {{b}}x + {{c}}'), error: 'usedGivenValue' },
+    { label: plain('x^2 + {{u3}}x + {{u0}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The quartic factors as $(x^2 + {{b}}x + {{c}})(x^2 + {{m}}x + {{n}})$.', 'Dividing by the first leaves the second.'],
+  answerSummary: { headline: 'A quartic divided by a quadratic leaves a quadratic.', text: 'It is $x^2 + {{m}}x + {{n}}$.' },
+  hint: 'What quadratic multiplies the divisor to give the quartic?',
+  feedback: 'That is the divisor itself, not what is left after dividing by it.',
+});
+
+mk('A2.7C', 'height-of-a-box-from-its-volume', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A box of volume $x^3 + {{t2}}x^2 + {{t1}}x + {{t0}}$ has a base of $x + {{p}}$ by $x + {{b}}$. How tall is it?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 2, max: 9 },
+    },
+    // (x + p)(x + b)(x + c)
+    derived: { t2: 'p+b+c', t1: 'p*b+p*c+b*c', t0: 'p*b*c', sum: 'p+b' },
+    constraints: ['p!=b', 'b!=c', 'p!=c', 'c!=sum', 'c!=t0'],
+  },
+  choices: [
+    { label: plain('x + {{c}}'), correct: true },
+    { label: plain('x + {{t0}}'), error: 'usedGivenValue' },
+    { label: plain('x + {{sum}}'), error: 'partialTotal' },
+    { label: plain('x + {{t2}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['Volume is the three sides multiplied, so the height is the volume divided by the base.', 'The remaining factor is $x + {{c}}$, since ${{p}} \\times {{b}} \\times {{c}} = {{t0}}$.'],
+  answerSummary: { headline: 'Divide the volume by the two known sides to get the third.', text: 'It is $x + {{c}}$.' },
+  hint: 'What third bracket multiplies the base to give this volume?',
+  feedback: 'That is the whole constant term, which is all three constants multiplied.',
+});
+
+mk('A2.7C', 'a-missing-degree-skipped-in-long-division', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'Dividing $x^3 + {{t0}}$ by $x + {{p}}$, a student writes down only two terms of the cubic. What is wrong?',
+  generator: {
+    parameters: { p: { type: 'int', min: 2, max: 9 } },
+    derived: { t0: 'p*p*p', pSq: 'p*p', negP: '0-p' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The $x^2$ and $x$ places have to be written in as zeros before dividing.', correct: true },
+    { label: 'Nothing is wrong, since the cubic really does have only two terms.', error: 'usedGivenValue' },
+    { label: 'The divisor should be written as $x - {{p}}$ before starting.', error: 'signError' },
+    { label: 'A cubic with a gap cannot be divided by a binomial at all.', error: 'operationInverted' },
+  ],
+  reasoning: ['Long division lines terms up by degree, so a missing degree needs a zero to hold its place.', 'Without them the columns shift and every later coefficient lands in the wrong place.'],
+  answerSummary: { headline: 'Missing degrees are written in as zeros so the columns stay aligned.', text: 'Write $x^3 + 0x^2 + 0x + {{t0}}$.' },
+  hint: 'What keeps the columns lined up during long division?',
+  feedback: 'It has two non-zero terms, but four places that must be accounted for.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {

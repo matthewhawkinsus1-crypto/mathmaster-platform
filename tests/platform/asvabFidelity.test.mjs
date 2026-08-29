@@ -253,21 +253,25 @@ test('rebuilt families use ASVAB register and purposeful distractors', () => {
 });
 
 test('the five families of a rebuilt standard are five different tasks', () => {
+  // Grouped by standard AND domain. A2.6L is assessed in both Arithmetic
+  // Reasoning and Mathematics Knowledge and carries five families in each;
+  // grouping by standard alone merged the two banks and reported ten.
   const byCode = new Map();
   for (const question of draft) {
-    const code = question.assessedConstruct;
-    if (!byCode.has(code)) byCode.set(code, []);
-    byCode.get(code).push(question);
+    const key = `${question.assessedConstruct} / ${question.assessmentContext?.domainId}`;
+    if (!byCode.has(key)) byCode.set(key, []);
+    byCode.get(key).push(question);
   }
-  for (const [code, questions] of byCode) {
+  for (const [key, questions] of byCode) {
+    const code = questions[0].assessedConstruct;
     const analysis = analyzeFamilySet(code, questions);
-    assert.equal(analysis.families, 5, `${code} must offer five families`);
-    assert.equal(analysis.distinctTasks, 5, `${code}: only ${analysis.distinctTasks} distinct task structures`);
-    assert.deepEqual(analysis.issues, [], `${code}: ${analysis.issues.map((i) => i.detail).join('; ')}`);
+    assert.equal(analysis.families, 5, `${key} must offer five families`);
+    assert.equal(analysis.distinctTasks, 5, `${key}: only ${analysis.distinctTasks} distinct task structures`);
+    assert.deepEqual(analysis.issues, [], `${key}: ${analysis.issues.map((i) => i.detail).join('; ')}`);
     // The platform's own session-variety floor.
-    assert.ok(new Set(questions.map((q) => q.representation)).size >= 3, `${code} representations`);
-    assert.ok(new Set(questions.map((q) => q.taskType)).size >= 3, `${code} task types`);
-    assert.ok(new Set(questions.map((q) => q.dok)).size >= 2, `${code} DOK levels`);
+    assert.ok(new Set(questions.map((q) => q.representation)).size >= 3, `${key} representations`);
+    assert.ok(new Set(questions.map((q) => q.taskType)).size >= 3, `${key} task types`);
+    assert.ok(new Set(questions.map((q) => q.dok)).size >= 2, `${key} DOK levels`);
   }
 });
 
@@ -478,6 +482,11 @@ test('an expand, factor or divide family has a key algebraically identical to it
     ['mm_asvab_A_10F_factor_a_difference_of_squares', (p) => /Factor \$(.+?)\$\./.exec(p)?.[1]],
     ['mm_asvab_A_10F_difference_of_squares_with_a_coefficient', (p) => /Factor \$(.+?)\$\./.exec(p)?.[1]],
     ['mm_asvab_A_11B_power_of_a_power', (p) => /Simplify \$(.+?)\$\./.exec(p)?.[1]],
+    ['mm_asvab_A2_7B_add_two_cubics', (p) => { const m = /Add \$\((.+?)\)\$ and \$\((.+?)\)\$/.exec(p); return m && `(${m[1]})+(${m[2]})`; }],
+    ['mm_asvab_A2_7B_subtract_a_cubic', (p) => { const m = /Subtract \$\((.+?)\)\$ from \$\((.+?)\)\$/.exec(p); return m && `(${m[2]})-(${m[1]})`; }],
+    ['mm_asvab_A2_7B_multiply_a_binomial_by_a_trinomial', (p) => /Expand \$(.+?)\$\./.exec(p)?.[1]],
+    ['mm_asvab_A2_7C_divide_a_cubic_by_a_binomial', (p) => { const m = /\$\((.+?)\) \\div \((.+?)\)\$/.exec(p); return m && `(${m[1]})/(${m[2]})`; }],
+    ['mm_asvab_A2_7C_divide_by_a_quadratic', (p) => { const m = /Divide \$(.+?)\$ by \$(.+?)\$\./.exec(p); return m && `(${m[1]})/(${m[2]})`; }],
   ];
   const byId = Object.fromEntries(draft.map((question) => [question.id, question]));
 

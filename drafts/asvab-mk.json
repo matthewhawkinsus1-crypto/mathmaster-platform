@@ -62267,6 +62267,3047 @@
      "expected": "choice-d"
     }
    ]
+  },
+  {
+   "id": "mm_asvab_A2_6E_solve_a_linear_absolute_value_equation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.6E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.6E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.6E:solve-a-linear-absolute-value-equation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.6E",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solve $\\left|{{a}}x - {{b}}\\right| = {{c}}$.",
+   "solutionReview": {
+    "headline": "An absolute value equal to a positive number splits into two equations.",
+    "reasoning": [
+     "The bars mean ${{a}}x - {{b}}$ is either ${{c}}$ or $-{{c}}$.",
+     "Those give $x = {{high}}$ and $x = {{low}}$."
+    ],
+    "answerSummary": "They are ${{high}}$ and ${{low}}$."
+   },
+   "attemptFeedback": [
+    "That is one of the two solutions; the negative case gives another."
+   ],
+   "supportHints": [
+    "What two values can the inside take?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "b": "a*p",
+     "c": "a*q",
+     "high": "p+q",
+     "low": "p-q",
+     "onlyHigh": "p+q",
+     "negLow": "0-p+q"
+    },
+    "constraints": [
+     "p!=q",
+     "low!=high",
+     "high!=negLow"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{high}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{b}} \\text{ and } {{c}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{high}} \\text{ and } {{low}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{high}} \\text{ and } {{negLow}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_6E_an_absolute_value_set_equal_to_a_negative",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.6E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.6E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.6E:an-absolute-value-set-equal-to-a-negative",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.6E",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "How many solutions does $\\left|{{a}}x - {{b}}\\right| = -{{c}}$ have?",
+   "solutionReview": {
+    "headline": "A distance cannot be negative, so such an equation has no solution.",
+    "reasoning": [
+     "The bars give the distance from zero, which is never below zero.",
+     "No value of $x$ can make that distance $-{{c}}$."
+    ],
+    "answerSummary": "It has none."
+   },
+   "attemptFeedback": [
+    "The two cases only exist when the right-hand side is not negative."
+   ],
+   "supportHints": [
+    "What is the smallest an absolute value can be?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     }
+    },
+    "derived": {},
+    "constraints": [
+     "a!=b",
+     "b!=c",
+     "a!=c"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "None, because an absolute value is never negative."
+    },
+    {
+     "id": "choice-b",
+     "label": "Two, one from each sign of the inside.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "One, where the inside equals $-{{c}}$.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "Infinitely many, since the bars allow any sign.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_6E_isolate_the_bars_before_splitting",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.6E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.6E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.6E:isolate-the-bars-before-splitting",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.6E",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solve ${{k}}\\left|x - {{p}}\\right| = {{r}}$.",
+   "solutionReview": {
+    "headline": "Get the bars alone before splitting into two cases.",
+    "reasoning": [
+     "Dividing by ${{k}}$ first gives $\\left|x - {{p}}\\right| = {{d}}$.",
+     "The inside is then ${{d}}$ or $-{{d}}$, giving ${{high}}$ and ${{low}}$."
+    ],
+    "answerSummary": "They are ${{high}}$ and ${{low}}$."
+   },
+   "attemptFeedback": [
+    "Splitting before dividing carries the ${{k}}$ into both cases."
+   ],
+   "supportHints": [
+    "What does $\\left|x - {{p}}\\right|$ come to on its own?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "p": {
+      "type": "int",
+      "min": 3,
+      "max": 15
+     },
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "r": "k*d",
+     "high": "p+d",
+     "low": "p-d",
+     "noDivide": "p+k*d",
+     "bothWrong": "p+k*d"
+    },
+    "constraints": [
+     "d!=p",
+     "high!=noDivide",
+     "low!=d"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{high}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d}} \\text{ and } {{p}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{high}} \\text{ and } {{low}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{noDivide}} \\text{ and } {{p}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_6E_where_a_distance_reaches_a_value",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.6E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.6E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.6E:where-a-distance-reaches-a-value",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.6E",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The table gives $\\left|x - {{p}}\\right|$. At which values of $x$ does it equal ${{d}}$?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Recorded values",
+    "table": {
+     "headers": [
+      "x",
+      "Value"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "{{v1}}"
+      ],
+      [
+       "{{x2}}",
+       "{{v2}}"
+      ],
+      [
+       "{{p}}",
+       "0"
+      ],
+      [
+       "{{x4}}",
+       "{{v2}}"
+      ],
+      [
+       "{{x5}}",
+       "{{v1}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "A distance of ${{d}}$ is reached on both sides of the centre.",
+    "reasoning": [
+     "The value ${{d}}$ appears twice, once on each side of $x = {{p}}$.",
+     "Those rows are $x = {{low}}$ and $x = {{high}}$."
+    ],
+    "answerSummary": "They are ${{low}}$ and ${{high}}$."
+   },
+   "attemptFeedback": [
+    "The centre is where the value is zero, not ${{d}}$."
+   ],
+   "supportHints": [
+    "How many rows hold the value ${{d}}$?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 6,
+      "max": 20
+     },
+     "d": {
+      "type": "int",
+      "min": 3,
+      "max": 5
+     }
+    },
+    "derived": {
+     "x1": "p-d",
+     "x2": "p-1",
+     "x4": "p+1",
+     "x5": "p+d",
+     "v1": "d",
+     "v2": "1",
+     "high": "p+d",
+     "low": "p-d",
+     "doubled": "p+d+d"
+    },
+    "constraints": [
+     "d!=p",
+     "low>=1",
+     "d!=1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{high}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{low}} \\text{ and } {{doubled}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{low}} \\text{ and } {{high}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{p}} \\text{ and } {{high}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_6E_only_the_positive_case_taken",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.6E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.6E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.6E:only-the-positive-case-taken",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.6E",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solving $\\left|x - {{p}}\\right| = {{d}}$ a student gives ${{high}}$ only. What is wrong?",
+   "solutionReview": {
+    "headline": "The value is never negative; the expression inside may be.",
+    "reasoning": [
+     "The bars are never negative, but what is inside them may be.",
+     "Both $x - {{p}} = {{d}}$ and $x - {{p}} = -{{d}}$ have to be solved."
+    ],
+    "answerSummary": "The solutions are ${{low}}$ and ${{high}}$."
+   },
+   "attemptFeedback": [
+    "That is true of the whole absolute value, not of the expression inside it."
+   ],
+   "supportHints": [
+    "What else could $x - {{p}}$ be, other than ${{d}}$?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 4,
+      "max": 20
+     },
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "high": "p+d",
+     "low": "p-d"
+    },
+    "constraints": [
+     "d!=p",
+     "high!=low"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The inside can also be $-{{d}}$, which gives the second solution ${{low}}$."
+    },
+    {
+     "id": "choice-b",
+     "label": "Nothing is wrong, because a distance is never negative.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "The answer should be ${{low}}$ instead, since the bars reverse the sign.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "There is no solution, because the bars cannot be removed.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_6I_a_variable_in_the_denominator",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.6I"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.6I",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.6I:a-variable-in-the-denominator",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.6I",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solve $\\frac{{{n}}}{x} = {{b}}$.",
+   "solutionReview": {
+    "headline": "Clear the variable out of the denominator, then divide.",
+    "reasoning": [
+     "Multiplying both sides by $x$ gives ${{n}} = {{b}}x$.",
+     "Dividing by ${{b}}$ leaves $x = {{x}}$."
+    ],
+    "answerSummary": "It is ${{x}}$."
+   },
+   "attemptFeedback": [
+    "Turning the fraction over solves for the wrong thing entirely."
+   ],
+   "supportHints": [
+    "What has to happen before $x$ can be isolated?"
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     }
+    },
+    "derived": {
+     "n": "b*x"
+    },
+    "constraints": [
+     "b!=x",
+     "x!=n",
+     "b!=n"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{b}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{n}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{x}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\frac{{{b}}}{{{n}}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_6I_a_proportion_solved_by_cross_multiplying",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.6I"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.6I",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.6I:a-proportion-solved-by-cross-multiplying",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.6I",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solve $\\frac{{{a}}}{{{b}}} = \\frac{{{c}}}{x}$.",
+   "solutionReview": {
+    "headline": "In a proportion each numerator meets the other denominator.",
+    "reasoning": [
+     "Cross multiplying gives ${{a}}x = {{b}} \\times {{c}}$.",
+     "Dividing by ${{a}}$ leaves $x = {{x}}$."
+    ],
+    "answerSummary": "It is ${{x}}$."
+   },
+   "attemptFeedback": [
+    "Multiplying the wrong pair crosses the equation the other way."
+   ],
+   "supportHints": [
+    "Which two products does a proportion set equal?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "c": "a*k",
+     "x": "b*k",
+     "flipped": "a*a*k",
+     "sum": "b+a*k"
+    },
+    "constraints": [
+     "a!=b",
+     "x!=c",
+     "x!=sum",
+     "x!=flipped",
+     "flipped!=sum",
+     "flipped!=c",
+     "sum!=c"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{sum}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{c}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{flipped}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{x}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_6I_a_sum_with_one_denominator",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.6I"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.6I",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.6I:a-sum-with-one-denominator",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.6I",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What value of $x$ makes $\\frac{{{n}}}{x} + {{p}} = {{q}}$ true?",
+   "solutionReview": {
+    "headline": "Clear what is added before touching the denominator.",
+    "reasoning": [
+     "Taking ${{p}}$ from both sides leaves $\\frac{{{n}}}{x} = {{d}}$.",
+     "Multiplying by $x$ and dividing by ${{d}}$ gives $x = {{x}}$."
+    ],
+    "answerSummary": "It is ${{x}}$."
+   },
+   "attemptFeedback": [
+    "The ${{p}}$ has to come off before the fraction is cleared."
+   ],
+   "supportHints": [
+    "What is the fraction worth once ${{p}}$ has been removed?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     },
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     }
+    },
+    "derived": {
+     "q": "p+d",
+     "n": "d*x",
+     "noSubtract": "d*x",
+     "wrongOrder": "d*x-p",
+     "overQ": "x"
+    },
+    "constraints": [
+     "d!=x",
+     "x!=noSubtract",
+     "x!=wrongOrder",
+     "x!=p",
+     "noSubtract!=wrongOrder",
+     "noSubtract!=p",
+     "wrongOrder!=p"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{noSubtract}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{p}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{wrongOrder}}$",
+     "error": "orderOfOperations"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{x}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_6I_sharing_a_job_between_two_rates",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.6I"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.6I",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.6I:sharing-a-job-between-two-rates",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.6I",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A pump fills a tank in ${{t}}$ minutes, so ${{n}}$ tanks take ${{total}}$ minutes. How many tanks does it fill in ${{q}}$ minutes?",
+   "solutionReview": {
+    "headline": "A proportion between time and tanks divides one by the rate.",
+    "reasoning": [
+     "One tank takes ${{t}}$ minutes, so the number of tanks is the time divided by ${{t}}$.",
+     "That gives ${{q}} \\div {{t}} = {{answer}}$ tanks."
+    ],
+    "answerSummary": "It fills ${{answer}}$ tanks."
+   },
+   "attemptFeedback": [
+    "Multiplying the time by the rate scales the wrong way round."
+   ],
+   "supportHints": [
+    "How long does a single tank take?"
+   ],
+   "generator": {
+    "parameters": {
+     "t": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     },
+     "n": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "total": "t*n",
+     "q": "t*m",
+     "answer": "m",
+     "sumWrong": "t*m-t"
+    },
+    "constraints": [
+     "n!=m",
+     "answer!=t",
+     "answer!=n",
+     "answer!=sumWrong",
+     "t!=n",
+     "sumWrong!=n",
+     "sumWrong!=t"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{sumWrong}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{t}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{n}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_6I_a_denominator_cleared_from_one_term_only",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.6I"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.6I",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.6I:a-denominator-cleared-from-one-term-only",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.6I",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solving $\\frac{{{n}}}{x} + {{p}} = {{q}}$, a student multiplies by $x$ and writes ${{n}} + {{p}} = {{q}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "Clearing a denominator multiplies the whole equation, not just the fraction.",
+    "reasoning": [
+     "Multiplying an equation by $x$ multiplies every term on both sides.",
+     "Only the fraction lost its denominator; the other two terms gained an $x$."
+    ],
+    "answerSummary": "It should be ${{n}} + {{p}}x = {{q}}x$."
+   },
+   "attemptFeedback": [
+    "It does cancel the denominator, but that is not all it does."
+   ],
+   "supportHints": [
+    "What happens to ${{p}}$ when the equation is multiplied by $x$?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     },
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     }
+    },
+    "derived": {
+     "q": "p+d",
+     "n": "d*x"
+    },
+    "constraints": [
+     "d!=x",
+     "p!=q",
+     "x!=p"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The ${{p}}$ should have been multiplied but the ${{q}}$ left alone.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "Nothing is wrong, since multiplying by $x$ cancels the denominator.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "Multiplying by $x$ reaches every term: it should be ${{n}} + {{p}}x = {{q}}x$."
+    },
+    {
+     "id": "choice-d",
+     "label": "The equation cannot be multiplied through while $x$ is unknown.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_6L_constant_of_inverse_variation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.6L"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.6L",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.6L:constant-of-inverse-variation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.6L",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "$y$ varies inversely with $x$, and $y = {{y}}$ when $x = {{x}}$. Which gives the constant?",
+   "solutionReview": {
+    "headline": "In an inverse variation the product is constant; in a direct one the quotient is.",
+    "reasoning": [
+     "Inverse variation means $xy$ stays fixed as the pair changes.",
+     "The constant is therefore the product, ${{x}} \\times {{y}} = {{k}}$."
+    ],
+    "answerSummary": "It is ${{x}} \\times {{y}}$."
+   },
+   "attemptFeedback": [
+    "A fixed quotient describes a direct variation, not an inverse one."
+   ],
+   "supportHints": [
+    "What stays the same as $x$ and $y$ change?"
+   ],
+   "generator": {
+    "parameters": {
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "y": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "k": "x*y",
+     "sum": "x+y"
+    },
+    "constraints": [
+     "x!=y",
+     "k!=sum"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{y}} \\div {{x}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{x}} + {{y}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{x}} \\times {{y}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{x}} \\div {{y}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_6L_find_y_under_inverse_variation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.6L"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.6L",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.6L:find-y-under-inverse-variation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.6L",
+   "taskType": "application",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "$y$ varies inversely with $x$, and $y = {{y1}}$ when $x = {{x1}}$. What is $y$ when $x = {{x2}}$?",
+   "solutionReview": {
+    "headline": "Multiplying x by a factor divides y by the same factor.",
+    "reasoning": [
+     "The product is fixed at ${{x1}} \\times {{y1}} = {{k}}$.",
+     "At $x = {{x2}}$ that gives $y = {{k}} \\div {{x2}} = {{y2}}$."
+    ],
+    "answerSummary": "It is ${{y2}}$."
+   },
+   "attemptFeedback": [
+    "That is one of the two $x$ values, not a $y$ value at all."
+   ],
+   "supportHints": [
+    "What is the fixed product, and what does it give at the new $x$?"
+   ],
+   "generator": {
+    "parameters": {
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "y2": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     }
+    },
+    "derived": {
+     "x2": "x1*m",
+     "y1": "y2*m",
+     "k": "x1*y2*m"
+    },
+    "constraints": [
+     "x1!=y2",
+     "y2!=y1",
+     "y2!=x2",
+     "y2!=x1",
+     "x1!=x2",
+     "y1!=x1",
+     "y1!=x2"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{y1}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{y2}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{x2}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{x1}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_6L_which_table_varies_inversely",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.6L"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.6L",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.6L:which-table-varies-inversely",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.6L",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Does the table show an inverse variation?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Recorded pairs",
+    "table": {
+     "headers": [
+      "x",
+      "y"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "{{y1}}"
+      ],
+      [
+       "{{x2}}",
+       "{{y2}}"
+      ],
+      [
+       "{{x3}}",
+       "{{y3}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Test an inverse variation by multiplying each pair, not by watching one column.",
+    "reasoning": [
+     "An inverse variation keeps $xy$ fixed, so $y$ must fall as $x$ rises.",
+     "Here $y$ never changes, so the product grows from ${{p1}}$ to ${{p2}}$."
+    ],
+    "answerSummary": "No, it is not an inverse variation."
+   },
+   "attemptFeedback": [
+    "A constant $y$ describes a horizontal line, not an inverse variation."
+   ],
+   "supportHints": [
+    "Work out $xy$ for each row."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 24,
+      "max": 120
+     },
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "f": {
+      "type": "int",
+      "min": 2,
+      "max": 3
+     }
+    },
+    "derived": {
+     "x2": "x1*f",
+     "x3": "x1*f*f",
+     "y1": "k",
+     "y2": "k",
+     "y3": "k",
+     "p1": "x1*k",
+     "p2": "x1*f*k"
+    },
+    "constraints": [
+     "x1!=f"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Yes, because $y$ stays the same while $x$ grows.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "Yes, because the values of $x$ grow by a fixed factor.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "No, because $y$ would have to grow with $x$ instead.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "No: the product $xy$ changes from row to row, so nothing stays fixed."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_6L_extra_workers_to_finish_sooner",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.6L"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.6L",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.6L:extra-workers-to-finish-sooner",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.6L",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "${{w1}}$ workers finish a job in ${{d1}}$ days. How many more workers are needed to finish it in ${{d2}}$ days?",
+   "solutionReview": {
+    "headline": "Work out the crew the shorter time needs, then take off the crew already there.",
+    "reasoning": [
+     "The job needs ${{w1}} \\times {{d1}} = {{k}}$ worker-days, so ${{d2}}$ days needs ${{w2}}$ workers.",
+     "That is ${{w2}} - {{w1}} = {{extra}}$ more than the crew already has."
+    ],
+    "answerSummary": "It needs ${{extra}}$ more."
+   },
+   "attemptFeedback": [
+    "That is the whole crew required, not the extra on top of the one already working."
+   ],
+   "supportHints": [
+    "How many workers would the shorter time need altogether?"
+   ],
+   "generator": {
+    "parameters": {
+     "w1": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "d2": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "m": {
+      "type": "int",
+      "min": 3,
+      "max": 5
+     }
+    },
+    "derived": {
+     "d1": "d2*m",
+     "w2": "w1*m",
+     "extra": "w1*m-w1",
+     "daysSaved": "d2*m-d2",
+     "k": "w1*d2*m"
+    },
+    "constraints": [
+     "w1!=d2",
+     "extra!=w1",
+     "extra!=w2",
+     "extra!=daysSaved",
+     "w1!=w2",
+     "w1!=daysSaved",
+     "w2!=daysSaved"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{w1}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{daysSaved}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{w2}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{extra}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_6L_inverse_treated_as_direct",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.6L"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.6L",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.6L:inverse-treated-as-direct",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.6L",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For an inverse variation a student says doubling $x$ doubles $y$. What is wrong?",
+   "solutionReview": {
+    "headline": "Direct variation fixes the quotient; inverse variation fixes the product.",
+    "reasoning": [
+     "That describes a direct variation, where the quotient is fixed.",
+     "An inverse variation fixes the product, so one value falls as the other rises."
+    ],
+    "answerSummary": "Doubling $x$ halves $y$."
+   },
+   "attemptFeedback": [
+    "Moving together is what direct variation does."
+   ],
+   "supportHints": [
+    "What has to stay the same in an inverse variation?"
+   ],
+   "generator": {
+    "parameters": {
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "y": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "k": "x*y",
+     "halved": "y",
+     "doubleX": "x+x",
+     "newY": "k",
+     "doubled": "y+y"
+    },
+    "constraints": [
+     "x!=y"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Nothing is wrong, because $x$ and $y$ always move together.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "Doubling $x$ halves $y$, since the product ${{k}}$ has to stay fixed."
+    },
+    {
+     "id": "choice-c",
+     "label": "Doubling $x$ quarters $y$, because the change is squared.",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-d",
+     "label": "Doubling $x$ leaves $y$ unchanged, since only the constant matters.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7B_add_two_cubics",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7B:add-two-cubics",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Add $({{a}}x^3 + {{b}}x^2 + {{c}})$ and $({{d}}x^3 + {{e}}x + {{f}})$.",
+   "solutionReview": {
+    "headline": "A missing degree in one polynomial leaves the other term untouched.",
+    "reasoning": [
+     "Only terms of the same degree combine, and neither polynomial has a partner for the other middle term.",
+     "So the $x^2$ and $x$ terms carry across unchanged, and the cubics and constants add."
+    ],
+    "answerSummary": "It is ${{sa}}x^3 + {{b}}x^2 + {{e}}x + {{sc}}$."
+   },
+   "attemptFeedback": [
+    "An $x^2$ term and an $x$ term are different degrees and cannot be added."
+   ],
+   "supportHints": [
+    "Which terms have a partner of the same degree?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "e": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "f": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "sa": "a+d",
+     "sc": "c+f",
+     "all": "a+b+c+d+e+f",
+     "bPlusE": "b+e"
+    },
+    "constraints": [
+     "a!=d",
+     "c!=f",
+     "b!=e",
+     "sa!=sc"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{sa}}x^3 + {{bPlusE}}x^2 + {{sc}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{all}}x^3$",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{sa}}x^3 + {{b}}x^2 + {{e}}x + {{c}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{sa}}x^3 + {{b}}x^2 + {{e}}x + {{sc}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7B_multiply_a_binomial_by_a_trinomial",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7B:multiply-a-binomial-by-a-trinomial",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Expand $(x + {{p}})(x^2 + {{b}}x + {{c}})$.",
+   "solutionReview": {
+    "headline": "Two terms across three gives six products, then collect by degree.",
+    "reasoning": [
+     "Each of the two terms multiplies all three, giving six products.",
+     "Collecting by degree leaves ${{t2}}x^2$ and ${{t1}}x$ in the middle."
+    ],
+    "answerSummary": "It is $x^3 + {{t2}}x^2 + {{t1}}x + {{t0}}$."
+   },
+   "attemptFeedback": [
+    "Only the products from the $x$ have been counted; the ${{p}}$ multiplies all three too."
+   ],
+   "supportHints": [
+    "How many products are there altogether?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "t2": "b+p",
+     "t1": "c+p*b",
+     "t0": "p*c",
+     "noCross": "b",
+     "noLast": "c"
+    },
+    "constraints": [
+     "b!=c",
+     "p!=b",
+     "t2!=t1",
+     "t1!=t0"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x^3 + {{noCross}}x^2 + {{noLast}}x + {{t0}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x^3 + {{b}}x^2 + {{c}}x + {{p}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x^3 + {{t2}}x^2 + {{t1}}x$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x^3 + {{t2}}x^2 + {{t1}}x + {{t0}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7B_subtract_a_cubic",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7B:subtract-a-cubic",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7B",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Subtract $({{d}}x^3 + {{e}}x^2 + {{f}})$ from $({{a}}x^3 + {{b}}x^2 + {{c}})$.",
+   "solutionReview": {
+    "headline": "A minus in front of a bracket reaches every term inside it.",
+    "reasoning": [
+     "The minus applies to all three terms of the second polynomial.",
+     "Term by term that leaves ${{ga}}x^3 + {{gb}}x^2 + {{gc}}$."
+    ],
+    "answerSummary": "It is ${{ga}}x^3 + {{gb}}x^2 + {{gc}}$."
+   },
+   "attemptFeedback": [
+    "Only the first term had its sign changed."
+   ],
+   "supportHints": [
+    "What happens to the ${{e}}x^2$ term when the bracket is removed?"
+   ],
+   "generator": {
+    "parameters": {
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "e": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "f": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "ga": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "gb": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "gc": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     }
+    },
+    "derived": {
+     "a": "d+ga",
+     "b": "e+gb",
+     "c": "f+gc",
+     "sa": "d+ga+d",
+     "sb": "e+gb+e",
+     "sc": "f+gc+f",
+     "halfA": "ga",
+     "halfB": "e+gb+e",
+     "halfC": "f+gc+f"
+    },
+    "constraints": [
+     "ga!=gb",
+     "gb!=gc",
+     "ga!=gc"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{ga}}x^3 + {{gb}}x^2 + {{gc}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{halfA}}x^3 + {{halfB}}x^2 + {{halfC}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{sa}}x^3 + {{sb}}x^2 + {{sc}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{ga}}x^3 + {{gb}}x^2 - {{gc}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7B_volume_of_a_box_with_algebraic_sides",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7B:volume-of-a-box-with-algebraic-sides",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7B",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A box is $x$ by $x + {{p}}$ by $x + {{q}}$. What is its volume?",
+   "solutionReview": {
+    "headline": "Multiplying by $x$ raises each degree; it does not leave a constant behind.",
+    "reasoning": [
+     "Multiplying the last two sides gives $x^2 + {{sum}}x + {{prod}}$.",
+     "Multiplying that by $x$ raises every term by one degree."
+    ],
+    "answerSummary": "It is $x^3 + {{sum}}x^2 + {{prod}}x$."
+   },
+   "attemptFeedback": [
+    "Every term is multiplied by $x$, so no constant term can survive."
+   ],
+   "supportHints": [
+    "What do the two bracketed sides multiply to?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "sum": "p+q",
+     "prod": "p*q",
+     "both": "p+q+p*q"
+    },
+    "constraints": [
+     "p!=q",
+     "sum!=prod"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x^3 + {{sum}}x^2 + {{prod}}x$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x^3 + {{sum}}x^2 + {{prod}}$",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x^3 + {{prod}}x^2 + {{sum}}x$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x^3 + {{both}}x^2$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7B_a_missing_degree_filled_in",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7B:a-missing-degree-filled-in",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7B",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Adding $({{a}}x^3 + {{b}}x^2)$ and $({{d}}x^3 + {{e}}x)$, a student writes ${{sa}}x^3 + {{sb}}x^2$. What is wrong?",
+   "solutionReview": {
+    "headline": "A gap in one polynomial does not license adding across degrees.",
+    "reasoning": [
+     "Terms combine only when their powers of $x$ match.",
+     "One polynomial has an $x^2$ term and the other an $x$ term, so both survive on their own."
+    ],
+    "answerSummary": "It is ${{sa}}x^3 + {{b}}x^2 + {{e}}x$."
+   },
+   "attemptFeedback": [
+    "Having the same number of terms says nothing about which ones combine."
+   ],
+   "supportHints": [
+    "What degree is each of the two middle terms?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "e": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "sa": "a+d",
+     "sb": "b+e"
+    },
+    "constraints": [
+     "a!=d",
+     "b!=e",
+     "sa!=sb"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The cubic terms should have been left separate as well.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "The answer needs a constant term, which has been left out.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "Nothing is wrong, since both polynomials had two terms each.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "The ${{e}}x$ is degree one, so it cannot join the ${{b}}x^2$: it is ${{sa}}x^3 + {{b}}x^2 + {{e}}x$."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7C_divide_a_cubic_by_a_binomial",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7C:divide-a-cubic-by-a-binomial",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7C",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is $(x^3 + {{t2}}x^2 + {{t1}}x + {{t0}}) \\div (x + {{p}})$?",
+   "solutionReview": {
+    "headline": "Dividing by one factor leaves the other one behind.",
+    "reasoning": [
+     "The cubic factors as $(x + {{p}})(x^2 + {{b}}x + {{c}})$.",
+     "Dividing by $(x + {{p}})$ leaves the quadratic factor."
+    ],
+    "answerSummary": "It is $x^2 + {{b}}x + {{c}}$."
+   },
+   "attemptFeedback": [
+    "Those coefficients belong to the cubic, not to the quotient."
+   ],
+   "supportHints": [
+    "What quadratic multiplies $(x + {{p}})$ to give this cubic?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "t2": "b+p",
+     "t1": "c+p*b",
+     "t0": "p*c",
+     "sum": "b+c"
+    },
+    "constraints": [
+     "b!=c",
+     "p!=b",
+     "p!=c",
+     "b!=sum",
+     "c!=sum"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x^2 + {{c}}x + {{b}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x^2 + {{sum}}x + {{t0}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x^2 + {{b}}x + {{c}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x^2 + {{t2}}x + {{t1}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7C_the_remainder_of_a_division",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7C:the-remainder-of-a-division",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7C",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Dividing $x^3 + {{t2}}x^2 + {{t1}}x + {{t0e}}$ by $x + {{p}}$, what is the remainder?",
+   "solutionReview": {
+    "headline": "The remainder is whatever is left once the divisor has been taken out as often as it goes.",
+    "reasoning": [
+     "The cubic is $(x + {{p}})(x^2 + {{b}}x + {{c}})$ plus ${{r}}$.",
+     "That extra ${{r}}$ is what the division cannot absorb."
+    ],
+    "answerSummary": "It is ${{r}}$."
+   },
+   "attemptFeedback": [
+    "That is the constant term of the cubic, not what is left over."
+   ],
+   "supportHints": [
+    "What does $(x + {{p}})(x^2 + {{b}}x + {{c}})$ come to, and how far is that from the cubic?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 11
+     }
+    },
+    "derived": {
+     "t2": "b+p",
+     "t1": "c+p*b",
+     "t0": "p*c",
+     "t0e": "p*c+r",
+     "sum": "b+c"
+    },
+    "constraints": [
+     "b!=c",
+     "p!=b",
+     "r!=p",
+     "r!=b",
+     "r!=c",
+     "r!=t0",
+     "r!=t0e",
+     "t0e!=p",
+     "t0e!=c",
+     "p!=c"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{t0e}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{p}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{c}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{r}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7C_divide_by_a_quadratic",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7C:divide-by-a-quadratic",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7C",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Divide $x^4 + {{u3}}x^3 + {{u2}}x^2 + {{u1}}x + {{u0}}$ by $x^2 + {{b}}x + {{c}}$.",
+   "solutionReview": {
+    "headline": "A quartic divided by a quadratic leaves a quadratic.",
+    "reasoning": [
+     "The quartic factors as $(x^2 + {{b}}x + {{c}})(x^2 + {{m}}x + {{n}})$.",
+     "Dividing by the first leaves the second."
+    ],
+    "answerSummary": "It is $x^2 + {{m}}x + {{n}}$."
+   },
+   "attemptFeedback": [
+    "That is the divisor itself, not what is left after dividing by it."
+   ],
+   "supportHints": [
+    "What quadratic multiplies the divisor to give the quartic?"
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "n": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "u3": "b+m",
+     "u2": "c+n+b*m",
+     "u1": "b*n+c*m",
+     "u0": "c*n",
+     "sum": "b+c"
+    },
+    "constraints": [
+     "b!=m",
+     "c!=n",
+     "b!=c",
+     "m!=n",
+     "b!=n",
+     "c!=m",
+     "m!=sum",
+     "n!=sum"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x^2 + {{m}}x + {{n}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x^2 + {{b}}x + {{c}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x^2 + {{n}}x + {{m}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x^2 + {{u3}}x + {{u0}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7C_height_of_a_box_from_its_volume",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7C:height-of-a-box-from-its-volume",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7C",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A box of volume $x^3 + {{t2}}x^2 + {{t1}}x + {{t0}}$ has a base of $x + {{p}}$ by $x + {{b}}$. How tall is it?",
+   "solutionReview": {
+    "headline": "Divide the volume by the two known sides to get the third.",
+    "reasoning": [
+     "Volume is the three sides multiplied, so the height is the volume divided by the base.",
+     "The remaining factor is $x + {{c}}$, since ${{p}} \\times {{b}} \\times {{c}} = {{t0}}$."
+    ],
+    "answerSummary": "It is $x + {{c}}$."
+   },
+   "attemptFeedback": [
+    "That is the whole constant term, which is all three constants multiplied."
+   ],
+   "supportHints": [
+    "What third bracket multiplies the base to give this volume?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "t2": "p+b+c",
+     "t1": "p*b+p*c+b*c",
+     "t0": "p*b*c",
+     "sum": "p+b"
+    },
+    "constraints": [
+     "p!=b",
+     "b!=c",
+     "p!=c",
+     "c!=sum",
+     "c!=t0"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x + {{c}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x + {{sum}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x + {{t0}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x + {{t2}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7C_a_missing_degree_skipped_in_long_division",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7C:a-missing-degree-skipped-in-long-division",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7C",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Dividing $x^3 + {{t0}}$ by $x + {{p}}$, a student writes down only two terms of the cubic. What is wrong?",
+   "solutionReview": {
+    "headline": "Missing degrees are written in as zeros so the columns stay aligned.",
+    "reasoning": [
+     "Long division lines terms up by degree, so a missing degree needs a zero to hold its place.",
+     "Without them the columns shift and every later coefficient lands in the wrong place."
+    ],
+    "answerSummary": "Write $x^3 + 0x^2 + 0x + {{t0}}$."
+   },
+   "attemptFeedback": [
+    "It has two non-zero terms, but four places that must be accounted for."
+   ],
+   "supportHints": [
+    "What keeps the columns lined up during long division?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "t0": "p*p*p",
+     "pSq": "p*p",
+     "negP": "0-p"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "A cubic with a gap cannot be divided by a binomial at all.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "The $x^2$ and $x$ places have to be written in as zeros before dividing."
+    },
+    {
+     "id": "choice-c",
+     "label": "Nothing is wrong, since the cubic really does have only two terms.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "The divisor should be written as $x - {{p}}$ before starting.",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
   }
  ]
 }
