@@ -4,6 +4,7 @@ import { getSectionAccessState } from '../../src/assignmentLifecycle.js';
 
 const NOW = new Date('2026-08-13T12:00:00');
 const base = {
+  schemaVersion: 5,
   releaseAt: '2026-08-13T08:00',
   dueAt: '2026-08-13T15:00',
   lateDueAt: '2026-08-13T16:00',
@@ -32,7 +33,7 @@ test('class-ID override does not leak to another class', () => {
     ...base,
     sectionAccess: { classwork: { defaultState: 'closed', overridesByClassId: { 'class-3': { state: 'open' } } } },
   };
-  assert.equal(getSectionAccessState({ assignment, activityRole: 'classwork', classPeriod: 'Period 3', nowValue: NOW }).isOpen, true);
+  assert.equal(getSectionAccessState({ assignment, activityRole: 'classwork', classId: 'class-3', classPeriod: 'Period 3', nowValue: NOW }).isOpen, true);
   assert.equal(getSectionAccessState({ assignment, activityRole: 'classwork', classId: 'class-5', classPeriod: 'Period 5', nowValue: NOW }).isOpen, false);
 });
 
