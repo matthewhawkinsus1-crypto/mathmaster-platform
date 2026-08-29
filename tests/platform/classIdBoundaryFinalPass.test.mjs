@@ -5,6 +5,8 @@ import { mappedCourseIdsForAssignment, shouldAutoPublishClassroomPackage } from 
 import { readFile } from 'node:fs/promises';
 
 const assignment = {
+  schemaVersion: 5,
+  assignment: { title: 'Class boundary fixture', courseId: 'algebra1' },
   assignedClassIds: ['class-A'],
   assignedClassPeriods: ['Period 3'],
   dueAt: '2026-08-24T23:59:00Z',
