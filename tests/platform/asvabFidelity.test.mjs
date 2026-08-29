@@ -487,6 +487,10 @@ test('an expand, factor or divide family has a key algebraically identical to it
     ['mm_asvab_A2_7B_multiply_a_binomial_by_a_trinomial', (p) => /Expand \$(.+?)\$\./.exec(p)?.[1]],
     ['mm_asvab_A2_7C_divide_a_cubic_by_a_binomial', (p) => { const m = /\$\((.+?)\) \\div \((.+?)\)\$/.exec(p); return m && `(${m[1]})/(${m[2]})`; }],
     ['mm_asvab_A2_7C_divide_by_a_quadratic', (p) => { const m = /Divide \$(.+?)\$ by \$(.+?)\$\./.exec(p); return m && `(${m[1]})/(${m[2]})`; }],
+    ['mm_asvab_A2_7D_common_factor_then_a_trinomial', (p) => /Factor \$(.+?)\$\./.exec(p)?.[1]],
+    ['mm_asvab_A2_7E_difference_of_two_cubes', (p) => /Factor \$(.+?)\$\./.exec(p)?.[1]],
+    ['mm_asvab_A2_7E_sum_of_two_cubes', (p) => /equals \$(.+?)\$\?/.exec(p)?.[1]],
+    ['mm_asvab_A2_7E_factor_by_grouping', (p) => /Factor \$(.+?)\$\./.exec(p)?.[1]],
   ];
   const byId = Object.fromEntries(draft.map((question) => [question.id, question]));
 

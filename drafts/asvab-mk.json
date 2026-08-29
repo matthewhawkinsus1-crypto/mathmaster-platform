@@ -65308,6 +65308,2843 @@
      "expected": "choice-b"
     }
    ]
+  },
+  {
+   "id": "mm_asvab_A2_7D_common_factor_then_a_trinomial",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7D:common-factor-then-a-trinomial",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7D",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Factor $x^3 + {{sum}}x^2 + {{product}}x$.",
+   "solutionReview": {
+    "headline": "Take out the common factor before looking for the rest.",
+    "reasoning": [
+     "Every term carries an $x$, so that comes out first.",
+     "What is left factors as $(x + {{p}})(x + {{q}})$."
+    ],
+    "answerSummary": "It is $x(x + {{p}})(x + {{q}})$."
+   },
+   "attemptFeedback": [
+    "Dropping the $x$ loses a factor, and with it one of the three roots."
+   ],
+   "supportHints": [
+    "What do all three terms share?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "gap": {
+      "type": "int",
+      "min": 1,
+      "max": 7
+     }
+    },
+    "derived": {
+     "q": "p+gap",
+     "sum": "p+p+gap",
+     "product": "p*(p+gap)"
+    },
+    "constraints": [
+     "p!=q",
+     "sum!=product"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x(x + {{p}})(x + {{q}})$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x(x + {{sum}})(x + {{product}})$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$(x + {{p}})(x + {{q}})$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x(x - {{p}})(x - {{q}})$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7D_is_this_a_factor",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7D:is-this-a-factor",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7D",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Is $x - {{r}}$ a factor of $x^3 - {{t2}}x^2 + {{t1}}x - {{t0}}$?",
+   "solutionReview": {
+    "headline": "Substitute the value that empties the bracket and see whether the polynomial vanishes.",
+    "reasoning": [
+     "A bracket $x - {{r}}$ divides a polynomial exactly when the polynomial is zero at $x = {{r}}$.",
+     "Here it is, so the bracket is a factor."
+    ],
+    "answerSummary": "Yes, it is a factor."
+   },
+   "attemptFeedback": [
+    "The division is not needed; one substitution settles it."
+   ],
+   "supportHints": [
+    "What does the cubic come to at $x = {{r}}$?"
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     }
+    },
+    "derived": {
+     "t2": "r+b+c",
+     "t1": "r*b+r*c+b*c",
+     "t0": "r*b*c"
+    },
+    "constraints": [
+     "r!=b",
+     "b!=c",
+     "r!=c"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Yes: substituting $x = {{r}}$ gives zero, so the bracket divides it exactly."
+    },
+    {
+     "id": "choice-b",
+     "label": "Yes, because ${{r}}$ appears among the coefficients.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "No, because ${{r}}$ does not divide the constant ${{t0}}$.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "It cannot be told without dividing the whole cubic out.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7D_the_factors_that_remain",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7D:the-factors-that-remain",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7D",
+   "taskType": "application",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Given that $x + {{p}}$ is a factor of $x^3 + {{t2}}x^2 + {{t1}}x + {{t0}}$, what are the other two?",
+   "solutionReview": {
+    "headline": "One known factor reduces a cubic to a quadratic.",
+    "reasoning": [
+     "Dividing by $x + {{p}}$ leaves a quadratic that factors as $(x + {{b}})(x + {{c}})$.",
+     "Their constants multiply with ${{p}}$ to give ${{t0}}$."
+    ],
+    "answerSummary": "They are $(x + {{b}})$ and $(x + {{c}})$."
+   },
+   "attemptFeedback": [
+    "Those signs would make the constant term negative."
+   ],
+   "supportHints": [
+    "What must the three constants multiply to?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     }
+    },
+    "derived": {
+     "t2": "p+b+c",
+     "t1": "p*b+p*c+b*c",
+     "t0": "p*b*c",
+     "sum": "b+c"
+    },
+    "constraints": [
+     "p!=b",
+     "b!=c",
+     "p!=c",
+     "b!=sum",
+     "c!=sum"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$(x + {{b}})(x + {{c}})$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$(x + {{sum}})(x + {{t0}})$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$(x + {{p}})(x + {{sum}})$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$(x - {{b}})(x - {{c}})$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7D_sides_of_a_crate_from_its_volume",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7D:sides-of-a-crate-from-its-volume",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7D",
+   "taskType": "interpretation",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A crate has volume $x^3 + {{t2}}x^2 + {{t1}}x + {{t0}}$. Which three lengths could its sides be?",
+   "solutionReview": {
+    "headline": "Factoring a volume recovers the three sides that produced it.",
+    "reasoning": [
+     "A volume is the three sides multiplied, so the sides are the linear factors.",
+     "Those constants multiply to ${{t0}}$ and add to ${{t2}}$."
+    ],
+    "answerSummary": "They are $x + {{p}}$, $x + {{b}}$ and $x + {{c}}$."
+   },
+   "attemptFeedback": [
+    "Those are coefficients of the volume, not lengths that multiply to give it."
+   ],
+   "supportHints": [
+    "What three numbers multiply to ${{t0}}$ and add to ${{t2}}$?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     }
+    },
+    "derived": {
+     "t2": "p+b+c",
+     "t1": "p*b+p*c+b*c",
+     "t0": "p*b*c",
+     "sum": "p+b+c"
+    },
+    "constraints": [
+     "p!=b",
+     "b!=c",
+     "p!=c",
+     "p!=sum",
+     "b!=sum"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x + {{p}},\\ x + {{b}},\\ x + {{c}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x + {{t2}},\\ x + {{t1}},\\ x + {{t0}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x,\\ x + {{p}},\\ x + {{t0}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x - {{p}},\\ x - {{b}},\\ x - {{c}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7D_a_common_factor_left_behind",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7D:a-common-factor-left-behind",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7D",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student factors $x^3 + {{sum}}x^2 + {{product}}x$ as $(x + {{p}})(x + {{q}})$. What is wrong?",
+   "solutionReview": {
+    "headline": "Count the degree: three linear factors are needed for a cubic.",
+    "reasoning": [
+     "Multiplying two linear brackets gives a quadratic, not a cubic.",
+     "The $x$ common to all three terms has to appear as a factor of its own."
+    ],
+    "answerSummary": "It is $x(x + {{p}})(x + {{q}})$."
+   },
+   "attemptFeedback": [
+    "The coefficients match, but the degree does not."
+   ],
+   "supportHints": [
+    "What degree does the answer come to when it is multiplied out?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "gap": {
+      "type": "int",
+      "min": 1,
+      "max": 7
+     }
+    },
+    "derived": {
+     "q": "p+gap",
+     "sum": "p+p+gap",
+     "product": "p*(p+gap)"
+    },
+    "constraints": [
+     "p!=q",
+     "sum!=product"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Nothing is wrong, since multiplying out gives the right coefficients.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "A cubic cannot be factored into brackets at all.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "The signs inside the brackets should both be negative.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "That product is only a quadratic: the common $x$ is missing, so it is $x(x + {{p}})(x + {{q}})$."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7E_difference_of_two_cubes",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7E:difference-of-two-cubes",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7E",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Factor $x^3 - {{cube}}$.",
+   "solutionReview": {
+    "headline": "A difference of cubes takes a minus in the linear bracket and a plus in the quadratic.",
+    "reasoning": [
+     "${{cube}}$ is ${{m}}$ cubed, so this is a difference of two cubes.",
+     "The pattern gives a linear bracket with the same sign and a quadratic whose middle sign is the opposite."
+    ],
+    "answerSummary": "It is $(x - {{m}})(x^2 + {{m}}x + {{sq}})$."
+   },
+   "attemptFeedback": [
+    "The middle sign of the quadratic is opposite to the sign in the linear bracket."
+   ],
+   "supportHints": [
+    "What number cubes to ${{cube}}$?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     }
+    },
+    "derived": {
+     "cube": "m*m*m",
+     "sq": "m*m",
+     "twoM": "2*m"
+    },
+    "constraints": [
+     "m!=sq",
+     "sq!=cube"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$(x - {{m}})(x^2 - {{m}}x + {{sq}})$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "$(x - {{m}})(x - {{m}})(x - {{m}})$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$(x - {{m}})(x^2 + {{m}}x - {{sq}})$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$(x - {{m}})(x^2 + {{m}}x + {{sq}})$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7E_sum_of_two_cubes",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7E:sum-of-two-cubes",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7E",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which product equals $x^3 + {{cube}}$?",
+   "solutionReview": {
+    "headline": "The two middle signs are always opposite; that is what makes the middle terms cancel.",
+    "reasoning": [
+     "A sum of cubes keeps the sign in the linear bracket and reverses it in the middle of the quadratic.",
+     "Multiplying out, the $x^2$ and $x$ terms cancel and leave $x^3 + {{cube}}$."
+    ],
+    "answerSummary": "It is $(x + {{m}})(x^2 - {{m}}x + {{sq}})$."
+   },
+   "attemptFeedback": [
+    "With both signs the same the middle terms would not cancel."
+   ],
+   "supportHints": [
+    "Multiply the candidates out and watch the $x^2$ terms."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     }
+    },
+    "derived": {
+     "cube": "m*m*m",
+     "sq": "m*m"
+    },
+    "constraints": [
+     "m!=sq",
+     "sq!=cube"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$(x + {{m}})(x^2 + {{m}}x + {{sq}})$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "$(x + {{m}})(x^2 - {{m}}x - {{sq}})$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "$(x + {{m}})(x + {{m}})(x + {{m}})$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "$(x + {{m}})(x^2 - {{m}}x + {{sq}})$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7E_factor_by_grouping",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7E:factor-by-grouping",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7E",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Factor $x^3 + {{a}}x^2 + {{b}}x + {{ab}}$.",
+   "solutionReview": {
+    "headline": "Grouping works when both pairs leave the same bracket behind.",
+    "reasoning": [
+     "Grouping the first two and the last two gives $x^2(x + {{a}}) + {{b}}(x + {{a}})$.",
+     "The common bracket $x + {{a}}$ then comes out, leaving $x^2 + {{b}}$."
+    ],
+    "answerSummary": "It is $(x + {{a}})(x^2 + {{b}})$."
+   },
+   "attemptFeedback": [
+    "Check which bracket each pair actually leaves."
+   ],
+   "supportHints": [
+    "What comes out of the first two terms, and out of the last two?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "ab": "a*b",
+     "sum": "a+b"
+    },
+    "constraints": [
+     "a!=b",
+     "ab!=sum",
+     "a!=ab"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$(x + {{a}})(x^2 + {{ab}})$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "$(x + {{sum}})(x^2 + {{b}})$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$(x + {{b}})(x^2 + {{a}})$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "$(x + {{a}})(x^2 + {{b}})$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7E_volume_left_in_a_hollow_cube",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7E:volume-left-in-a-hollow-cube",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7E",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A cube of side $x$ has a cube of side ${{m}}$ removed from inside it. Which product gives the volume left?",
+   "solutionReview": {
+    "headline": "A volume left after a cube is removed is a difference of two cubes.",
+    "reasoning": [
+     "What is left is $x^3 - {{cube}}$, one cubed volume taken from another.",
+     "That difference of cubes factors with a plus in the middle of the quadratic."
+    ],
+    "answerSummary": "It is $(x - {{m}})(x^2 + {{m}}x + {{sq}})$."
+   },
+   "attemptFeedback": [
+    "Two linear brackets multiply to a quadratic, which cannot be a volume."
+   ],
+   "supportHints": [
+    "What is the volume of each cube?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     }
+    },
+    "derived": {
+     "cube": "m*m*m",
+     "sq": "m*m"
+    },
+    "constraints": [
+     "m!=sq",
+     "sq!=cube"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$(x - {{m}})(x + {{m}})$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$(x - {{m}})(x - {{m}})(x - {{m}})$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$(x - {{m}})(x^2 + {{m}}x + {{sq}})$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$(x - {{m}})(x^2 - {{m}}x + {{sq}})$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7E_cubes_treated_like_squares",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7E:cubes-treated-like-squares",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7E",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student factors $x^3 - {{cube}}$ as $(x - {{m}})(x + {{m}})$. What is wrong?",
+   "solutionReview": {
+    "headline": "A difference of cubes gives a linear bracket and a quadratic one.",
+    "reasoning": [
+     "Multiplying out $(x - {{m}})(x + {{m}})$ gives $x^2 - {{sq}}$, which is a quadratic.",
+     "A cubic needs a quadratic second bracket, not a linear one."
+    ],
+    "answerSummary": "It is $(x - {{m}})(x^2 + {{m}}x + {{sq}})$."
+   },
+   "attemptFeedback": [
+    "Using the right number does not make it the right pattern."
+   ],
+   "supportHints": [
+    "What degree does that product come to?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     }
+    },
+    "derived": {
+     "cube": "m*m*m",
+     "sq": "m*m"
+    },
+    "constraints": [
+     "m!=sq"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The signs should be the other way round in the two brackets.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "The second bracket should be $(x + {{cube}})$ instead.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "Nothing is wrong, since both brackets use the cube root ${{m}}$.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "That is the pattern for squares. Cubes give $(x - {{m}})(x^2 + {{m}}x + {{sq}})$."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7F_simplify_a_rational_expression",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7F:simplify-a-rational-expression",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7F",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Simplify $\\frac{x^2 + {{sum}}x + {{product}}}{x + {{p}}}$.",
+   "solutionReview": {
+    "headline": "Factor first; only a whole factor may be cancelled.",
+    "reasoning": [
+     "The top factors as $(x + {{p}})(x + {{q}})$.",
+     "The shared bracket cancels, leaving $x + {{q}}$."
+    ],
+    "answerSummary": "It is $x + {{q}}$."
+   },
+   "attemptFeedback": [
+    "That is the bracket that cancels, not the one that survives."
+   ],
+   "supportHints": [
+    "What does the numerator factor into?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 10
+     },
+     "gap": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     }
+    },
+    "derived": {
+     "q": "p+gap",
+     "sum": "p+p+gap",
+     "product": "p*(p+gap)"
+    },
+    "constraints": [
+     "p!=q",
+     "q!=sum",
+     "q!=product"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x + {{q}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x + {{sum}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{sum}}x + {{product}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x + {{p}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7F_multiply_two_rational_expressions",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7F:multiply-two-rational-expressions",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7F",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Simplify $\\frac{x + {{a}}}{x + {{b}}} \\times \\frac{x + {{b}}}{x + {{c}}}$.",
+   "solutionReview": {
+    "headline": "A factor on both lines cancels, whichever fraction it came from.",
+    "reasoning": [
+     "Multiplying puts both numerators over both denominators.",
+     "The $x + {{b}}$ appears on both lines and cancels, leaving $\\frac{x + {{a}}}{x + {{c}}}$."
+    ],
+    "answerSummary": "It is $\\frac{x + {{a}}}{x + {{c}}}$."
+   },
+   "attemptFeedback": [
+    "Check which bracket is left on the bottom after cancelling."
+   ],
+   "supportHints": [
+    "Which bracket appears on both the top and the bottom?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "ac": "a+c"
+    },
+    "constraints": [
+     "a!=b",
+     "b!=c",
+     "a!=c",
+     "ac!=a",
+     "ac!=c"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\frac{x + {{c}}}{x + {{a}}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\frac{x + {{a}}}{x + {{b}}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\frac{x + {{ac}}}{x + {{b}}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\frac{x + {{a}}}{x + {{c}}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7F_divide_a_quadratic_fraction",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7F:divide-a-quadratic-fraction",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7F",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Write $\\frac{x^2 + {{sum}}x + {{product}}}{x + {{c}}} \\div (x + {{p}})$ in its simplest form.",
+   "solutionReview": {
+    "headline": "Factor the top before cancelling; only a whole factor may go.",
+    "reasoning": [
+     "Dividing by $x + {{p}}$ multiplies by $\\frac{1}{x + {{p}}}$, and the top factors as $(x + {{p}})(x + {{q}})$.",
+     "The $x + {{p}}$ cancels, leaving $\\frac{x + {{q}}}{x + {{c}}}$."
+    ],
+    "answerSummary": "It is $\\frac{x + {{q}}}{x + {{c}}}$."
+   },
+   "attemptFeedback": [
+    "Leaving it unfactored hides the bracket that cancels."
+   ],
+   "supportHints": [
+    "What does the numerator factor into?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "gap": {
+      "type": "int",
+      "min": 1,
+      "max": 7
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "q": "p+gap",
+     "sum": "p+p+gap",
+     "product": "p*(p+gap)"
+    },
+    "constraints": [
+     "p!=q",
+     "p!=c",
+     "q!=c",
+     "q!=sum",
+     "c!=sum"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\frac{x + {{q}}}{x + {{c}}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\frac{x + {{sum}}}{x + {{c}}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\frac{(x + {{p}})(x + {{q}})}{(x + {{c}})(x + {{p}})}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\frac{x + {{c}}}{x + {{q}}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7F_the_other_side_of_a_plate",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7F:the-other-side-of-a-plate",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7F",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A plate of area ${{aSq}}x^2 - {{mSq}}$ has one side ${{a}}x + {{m}}$. What is the other?",
+   "solutionReview": {
+    "headline": "A difference of squares splits into the sum and the difference of the roots.",
+    "reasoning": [
+     "The area is a difference of two squares, $({{a}}x)^2 - {{m}}^2$.",
+     "It factors as $({{a}}x + {{m}})({{a}}x - {{m}})$, so the other side is ${{a}}x - {{m}}$."
+    ],
+    "answerSummary": "It is ${{a}}x - {{m}}$."
+   },
+   "attemptFeedback": [
+    "That is the side you were given, and the two sides differ."
+   ],
+   "supportHints": [
+    "What squares to give ${{aSq}}x^2$, and what to give ${{mSq}}$?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 11
+     }
+    },
+    "derived": {
+     "aSq": "a*a",
+     "mSq": "m*m",
+     "am": "a*m"
+    },
+    "constraints": [
+     "a!=m",
+     "gcd(a,m)==1",
+     "aSq!=mSq",
+     "am!=mSq"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{aSq}}x - {{mSq}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{a}}x - {{mSq}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{a}}x - {{m}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{a}}x + {{m}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7F_the_wrong_fraction_turned_over",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7F:the-wrong-fraction-turned-over",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7F",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Dividing $\\frac{x + {{a}}}{x + {{b}}}$ by $\\frac{x + {{c}}}{x + {{b}}}$, a student turns the first fraction over. What is wrong?",
+   "solutionReview": {
+    "headline": "Only the fraction being divided by is turned over.",
+    "reasoning": [
+     "Dividing by a fraction means multiplying by its reciprocal, and the divisor is the second one.",
+     "Turning the first over inverts the answer instead."
+    ],
+    "answerSummary": "It is $\\frac{x + {{a}}}{x + {{c}}}$."
+   },
+   "attemptFeedback": [
+    "Inverting the wrong one turns the whole answer upside down."
+   ],
+   "supportHints": [
+    "Which fraction is doing the dividing?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {},
+    "constraints": [
+     "a!=b",
+     "b!=c",
+     "a!=c"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Nothing is wrong, because either fraction may be inverted.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "Neither should be turned over; the two are simply multiplied.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "It is the divisor that is turned over, so the answer is $\\frac{x + {{a}}}{x + {{c}}}$."
+    },
+    {
+     "id": "choice-d",
+     "label": "Both fractions should be turned over before multiplying.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7G_simplify_a_radical_with_a_variable",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7G:simplify-a-radical-with-a-variable",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7G",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Simplify $\\sqrt{{{sq}}x^{{{e}}}}$, for $x \\ge 0$.",
+   "solutionReview": {
+    "headline": "A square root halves an even exponent and takes the root of the coefficient.",
+    "reasoning": [
+     "The root of ${{sq}}$ is ${{k}}$, and the root of $x^{{{e}}}$ halves the exponent.",
+     "That leaves ${{k}}x^{{{h}}}$."
+    ],
+    "answerSummary": "It is ${{k}}x^{{{h}}}$."
+   },
+   "attemptFeedback": [
+    "The coefficient comes out as its root, not unchanged."
+   ],
+   "supportHints": [
+    "What does a square root do to an exponent?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "h": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     }
+    },
+    "derived": {
+     "sq": "k*k",
+     "e": "2*h",
+     "kSq": "k*k",
+     "twoE": "4*h"
+    },
+    "constraints": [
+     "k!=h",
+     "kSq!=e"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{k}}x^{{{e}}}$",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{k}}x^{{{twoE}}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{k}}x^{{{h}}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{sq}}x^{{{h}}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7G_a_radical_with_an_odd_exponent",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7G:a-radical-with-an-odd-exponent",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7G",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Simplify $\\sqrt{x^{{{e}}}}$, for $x \\ge 0$.",
+   "solutionReview": {
+    "headline": "An odd power leaves one factor behind under the root.",
+    "reasoning": [
+     "An odd exponent splits as $x^{{{e}}} = x^{{{twice}}} \\times x$.",
+     "The even part comes out as $x^{{{half}}}$ and a single $x$ stays under the root."
+    ],
+    "answerSummary": "It is $x^{{{half}}}\\sqrt{x}$."
+   },
+   "attemptFeedback": [
+    "The leftover $x$ cannot be dropped; it stays under the root."
+   ],
+   "supportHints": [
+    "How much of $x^{{{e}}}$ is a perfect square?"
+   ],
+   "generator": {
+    "parameters": {
+     "h": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     }
+    },
+    "derived": {
+     "e": "2*h+1",
+     "half": "h",
+     "twice": "2*h",
+     "twoE": "4*h+2"
+    },
+    "constraints": [
+     "h!=e"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x^{{{e}}}\\sqrt{x}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x^{{{twoE}}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x^{{{half}}}\\sqrt{x}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x^{{{half}}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7G_multiply_two_variable_radicals",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7G:multiply-two-variable-radicals",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7G",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Simplify $\\sqrt{{{a}}x} \\times \\sqrt{{{b}}x}$, for $x \\ge 0$.",
+   "solutionReview": {
+    "headline": "Combine under one root, then take out every square factor including the variable.",
+    "reasoning": [
+     "The two roots combine into $\\sqrt{{{prodK}}x^2}$.",
+     "The $x^2$ comes out as $x$ and the square factor as ${{outside}}$, leaving $\\sqrt{{{m}}}$ inside."
+    ],
+    "answerSummary": "It is ${{outside}}x\\sqrt{{{m}}}$."
+   },
+   "attemptFeedback": [
+    "The $x^2$ under the root comes out as a plain $x$."
+   ],
+   "supportHints": [
+    "What is under the root once the two are multiplied?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "m": {
+      "type": "choice",
+      "values": [
+       2,
+       3,
+       5,
+       6,
+       7
+      ]
+     }
+    },
+    "derived": {
+     "a": "k*m",
+     "b": "k*m*m",
+     "outside": "k*m",
+     "sum": "k*m+k*m*m",
+     "prodK": "k*k*m*m*m"
+    },
+    "constraints": [
+     "k!=m"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{outside}}x\\sqrt{{{m}}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\sqrt{{{sum}}x}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{outside}}{{m}}x$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{outside}}\\sqrt{{{m}}x}$",
+     "error": "exponentError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7G_the_side_of_a_square_plot",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7G:the-side-of-a-square-plot",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7G",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A square plot has area ${{sq}}x^{{{e}}}$ square metres. How long is its side, for $x \\ge 0$?",
+   "solutionReview": {
+    "headline": "The side of a square is the root of its area, coefficient and power together.",
+    "reasoning": [
+     "A square of side $s$ has area $s^2$, so the side is the square root of the area.",
+     "That is ${{k}}x^{{{half}}}$ metres."
+    ],
+    "answerSummary": "It is ${{k}}x^{{{half}}}$ metres."
+   },
+   "attemptFeedback": [
+    "That coefficient squares to something far larger than ${{sq}}$."
+   ],
+   "supportHints": [
+    "What squares to give ${{sq}}x^{{{e}}}$?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "h": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     }
+    },
+    "derived": {
+     "sq": "k*k",
+     "e": "2*h",
+     "half": "h",
+     "quarter": "k*k*h"
+    },
+    "constraints": [
+     "k!=h",
+     "sq!=e",
+     "quarter!=sq"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{sq}}x^{{{half}}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{k}}x^{{{half}}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{quarter}}x^{{{half}}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{k}}x^{{{e}}}$",
+     "error": "exponentError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7G_a_root_taken_of_the_exponent",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7G:a-root-taken-of-the-exponent",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7G",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student writes $\\sqrt{{{sq}}x^{{{e}}}}$ as ${{k}}x^{{{e}}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "A root reaches every factor under it, not just the number.",
+    "reasoning": [
+     "A square root applies to everything under it, coefficient and power alike.",
+     "Halving ${{e}}$ gives ${{half}}$, so the answer is ${{k}}x^{{{half}}}$."
+    ],
+    "answerSummary": "It is ${{k}}x^{{{half}}}$."
+   },
+   "attemptFeedback": [
+    "The coefficient was handled correctly; the power was not."
+   ],
+   "supportHints": [
+    "What happens to $x^{{{e}}}$ under the root?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "h": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     }
+    },
+    "derived": {
+     "sq": "k*k",
+     "e": "2*h",
+     "half": "h"
+    },
+    "constraints": [
+     "k!=h",
+     "sq!=e"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The coefficient should stay ${{sq}}$ and only the power change.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "Nothing is wrong, since ${{k}}$ is the square root of ${{sq}}$.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "The exponent is halved as well: it should be ${{k}}x^{{{half}}}$."
+    },
+    {
+     "id": "choice-d",
+     "label": "The exponent should be doubled rather than left alone.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7H_evaluate_a_rational_exponent",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7H"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7H",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7H:evaluate-a-rational-exponent",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7H",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is ${{base}}^{\\frac{{{num}}}{{{den}}}}$?",
+   "solutionReview": {
+    "headline": "The denominator is the root; the numerator is the power.",
+    "reasoning": [
+     "The denominator takes the ${{den}}$th root of ${{base}}$, which is ${{r}}$.",
+     "The numerator then raises that to the power ${{num}}$, giving ${{answer}}$."
+    ],
+    "answerSummary": "It is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "That is the root on its own, before the power is applied."
+   ],
+   "supportHints": [
+    "Take the root first, then apply the power."
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 4
+     },
+     "den": {
+      "type": "choice",
+      "values": [
+       2,
+       3,
+       4,
+       5
+      ]
+     },
+     "num": {
+      "type": "choice",
+      "values": [
+       2,
+       3,
+       4,
+       5
+      ]
+     }
+    },
+    "derived": {
+     "base": "pow(r,den)",
+     "answer": "pow(r,num)",
+     "rootOnly": "r",
+     "timesDen": "pow(r,num)*den"
+    },
+    "constraints": [
+     "num!=den",
+     "gcd(num,den)==1",
+     "answer!=timesDen",
+     "answer!=rootOnly",
+     "answer!=base",
+     "rootOnly!=base",
+     "rootOnly!=timesDen",
+     "base!=timesDen"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{rootOnly}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{timesDen}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{base}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7H_multiply_with_rational_exponents",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7H"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7H",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7H:multiply-with-rational-exponents",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7H",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Simplify $x^{\\frac{{{a}}}{{{d}}}} \\times x^{\\frac{{{b}}}{{{d}}}}$.",
+   "solutionReview": {
+    "headline": "Adding fractions with a common denominator leaves that denominator alone.",
+    "reasoning": [
+     "Multiplying powers of one base adds the exponents.",
+     "The two fractions share a denominator, so only the numerators add."
+    ],
+    "answerSummary": "It is $x^{\\frac{{{sum}}}{{{d}}}}$."
+   },
+   "attemptFeedback": [
+    "The denominators are not multiplied when the fractions are added."
+   ],
+   "supportHints": [
+    "What happens to exponents when powers of the same base are multiplied?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 1,
+      "max": 7
+     },
+     "b": {
+      "type": "int",
+      "min": 1,
+      "max": 7
+     },
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     }
+    },
+    "derived": {
+     "sum": "a+b",
+     "prod": "a*b",
+     "dSq": "d*d"
+    },
+    "constraints": [
+     "a!=b",
+     "gcd(a,d)==1",
+     "gcd(b,d)==1",
+     "gcd(sum,d)==1",
+     "sum!=prod",
+     "sum!=d",
+     "prod!=d"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x^{\\frac{{{sum}}}{{{dSq}}}}$",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x^{\\frac{{{prod}}}{{{dSq}}}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x^{\\frac{{{sum}}}{{{d}}}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x^{\\frac{{{prod}}}{{{d}}}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7H_a_rational_exponent_as_a_radical",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7H"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7H",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7H:a-rational-exponent-as-a-radical",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7H",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which radical equals $x^{\\frac{{{m}}}{{{n}}}}$?",
+   "solutionReview": {
+    "headline": "Denominator outside as the root order, numerator inside as the power.",
+    "reasoning": [
+     "The denominator of the exponent gives the order of the root.",
+     "The numerator stays as the power under it."
+    ],
+    "answerSummary": "It is $\\sqrt[{{n}}]{x^{{{m}}}}$."
+   },
+   "attemptFeedback": [
+    "A number written in front multiplies the root; it does not set its order."
+   ],
+   "supportHints": [
+    "Which part of the fraction becomes the root order?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "n": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     }
+    },
+    "derived": {
+     "prod": "m*n"
+    },
+    "constraints": [
+     "m!=n",
+     "gcd(m,n)==1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\sqrt[{{m}}]{x^{{{n}}}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\sqrt[{{prod}}]{x}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{n}}\\sqrt{x^{{{m}}}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\sqrt[{{n}}]{x^{{{m}}}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7H_scaling_a_cube_by_a_rational_power",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7H"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7H",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7H:scaling-a-cube-by-a-rational-power",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7H",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A cube of side ${{s}}$ metres is scaled so its volume becomes ${{ratio}}$ times as large. What is the new side?",
+   "solutionReview": {
+    "headline": "A length scales by the cube root of the volume factor, not the factor itself.",
+    "reasoning": [
+     "A side scales by the volume ratio raised to the power $\\frac{1}{3}$.",
+     "${{ratio}}^{\\frac{1}{3}} = {{f}}$, so the new side is ${{s}} \\times {{f}} = {{side}}$ metres."
+    ],
+    "answerSummary": "It is ${{side}}$ metres."
+   },
+   "attemptFeedback": [
+    "Scaling the side by the whole volume factor makes the volume grow far too much."
+   ],
+   "supportHints": [
+    "What power of the volume factor applies to a length?"
+   ],
+   "generator": {
+    "parameters": {
+     "s": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "f": {
+      "type": "int",
+      "min": 2,
+      "max": 4
+     }
+    },
+    "derived": {
+     "ratio": "pow(f,3)",
+     "side": "s*f",
+     "overScaled": "s*pow(f,3)"
+    },
+    "constraints": [
+     "s!=f",
+     "side!=ratio",
+     "side!=overScaled",
+     "s!=ratio",
+     "side!=s",
+     "s!=overScaled",
+     "ratio!=overScaled"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{ratio}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{overScaled}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{s}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{side}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_7H_numerator_and_denominator_swapped",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7H"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7H",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.7H:numerator-and-denominator-swapped",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7H",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student reads ${{base}}^{\\frac{{{num}}}{{{den}}}}$ as the ${{num}}$th root of ${{base}}$ raised to ${{den}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "Denominator down below is the root; numerator up top is the power.",
+    "reasoning": [
+     "In a rational exponent the denominator is always the root and the numerator always the power.",
+     "Swapping them changes the value unless the two happen to be equal."
+    ],
+    "answerSummary": "It is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Using both numbers is not enough; each has its own job."
+   ],
+   "supportHints": [
+    "Which part of the fraction sets the root?"
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "den": {
+      "type": "choice",
+      "values": [
+       2,
+       3
+      ]
+     },
+     "num": {
+      "type": "int",
+      "min": 2,
+      "max": 4
+     }
+    },
+    "derived": {
+     "base": "pow(r,den)",
+     "answer": "pow(r,num)"
+    },
+    "constraints": [
+     "num!=den",
+     "gcd(num,den)==1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The two are the wrong way round: the ${{den}}$th root comes first, then the power ${{num}}$, giving ${{answer}}$."
+    },
+    {
+     "id": "choice-b",
+     "label": "Both should be roots, so it is the ${{num}}$th root of the ${{den}}$th root.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "The fraction should be turned over before either step.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "Nothing is wrong, since both numbers are used somewhere.",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
   }
  ]
 }

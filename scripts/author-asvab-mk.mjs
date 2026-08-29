@@ -15870,6 +15870,637 @@ mk('A2.7C', 'a-missing-degree-skipped-in-long-division', {
   feedback: 'It has two non-zero terms, but four places that must be accounted for.',
 });
 
+// ================================================================ A2.7D
+// Finding the linear factors of a polynomial of degree three or four. The
+// crosswalk allows factoring and basic factor recognition, and excludes the
+// rational root theorem and degree-four factoring theory, so no family here
+// enumerates candidate roots from the constant and leading coefficient.
+
+mk('A2.7D', 'common-factor-then-a-trinomial', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Factor $x^3 + {{sum}}x^2 + {{product}}x$.',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 9 },
+      gap: { type: 'int', min: 1, max: 7 },
+    },
+    derived: { q: 'p+gap', sum: 'p+p+gap', product: 'p*(p+gap)' },
+    constraints: ['p!=q', 'sum!=product'],
+  },
+  choices: [
+    { label: plain('x(x + {{p}})(x + {{q}})'), correct: true },
+    { label: plain('(x + {{p}})(x + {{q}})'), error: 'partialTotal' },
+    { label: plain('x(x + {{sum}})(x + {{product}})'), error: 'usedGivenValue' },
+    { label: plain('x(x - {{p}})(x - {{q}})'), error: 'signError' },
+  ],
+  reasoning: ['Every term carries an $x$, so that comes out first.', 'What is left factors as $(x + {{p}})(x + {{q}})$.'],
+  answerSummary: { headline: 'Take out the common factor before looking for the rest.', text: 'It is $x(x + {{p}})(x + {{q}})$.' },
+  hint: 'What do all three terms share?',
+  feedback: 'Dropping the $x$ loses a factor, and with it one of the three roots.',
+});
+
+mk('A2.7D', 'is-this-a-factor', {
+  courseId: 'algebra2',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Is $x - {{r}}$ a factor of $x^3 - {{t2}}x^2 + {{t1}}x - {{t0}}$?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 7 },
+      b: { type: 'int', min: 2, max: 7 },
+      c: { type: 'int', min: 2, max: 7 },
+    },
+    // (x - r)(x - b)(x - c) expanded.
+    derived: { t2: 'r+b+c', t1: 'r*b+r*c+b*c', t0: 'r*b*c' },
+    constraints: ['r!=b', 'b!=c', 'r!=c'],
+  },
+  choices: [
+    { label: 'Yes: substituting $x = {{r}}$ gives zero, so the bracket divides it exactly.', correct: true },
+    { label: 'No, because ${{r}}$ does not divide the constant ${{t0}}$.', error: 'operationInverted' },
+    { label: 'Yes, because ${{r}}$ appears among the coefficients.', error: 'usedGivenValue' },
+    { label: 'It cannot be told without dividing the whole cubic out.', error: 'partialTotal' },
+  ],
+  reasoning: ['A bracket $x - {{r}}$ divides a polynomial exactly when the polynomial is zero at $x = {{r}}$.', 'Here it is, so the bracket is a factor.'],
+  answerSummary: { headline: 'Substitute the value that empties the bracket and see whether the polynomial vanishes.', text: 'Yes, it is a factor.' },
+  hint: 'What does the cubic come to at $x = {{r}}$?',
+  feedback: 'The division is not needed; one substitution settles it.',
+});
+
+mk('A2.7D', 'the-factors-that-remain', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'symbolic',
+  prompt: 'Given that $x + {{p}}$ is a factor of $x^3 + {{t2}}x^2 + {{t1}}x + {{t0}}$, what are the other two?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 7 },
+      b: { type: 'int', min: 2, max: 7 },
+      c: { type: 'int', min: 2, max: 7 },
+    },
+    derived: { t2: 'p+b+c', t1: 'p*b+p*c+b*c', t0: 'p*b*c', sum: 'b+c' },
+    constraints: ['p!=b', 'b!=c', 'p!=c', 'b!=sum', 'c!=sum'],
+  },
+  choices: [
+    { label: plain('(x + {{b}})(x + {{c}})'), correct: true },
+    { label: plain('(x - {{b}})(x - {{c}})'), error: 'signError' },
+    { label: plain('(x + {{sum}})(x + {{t0}})'), error: 'usedGivenValue' },
+    { label: plain('(x + {{p}})(x + {{sum}})'), error: 'partialTotal' },
+  ],
+  reasoning: ['Dividing by $x + {{p}}$ leaves a quadratic that factors as $(x + {{b}})(x + {{c}})$.', 'Their constants multiply with ${{p}}$ to give ${{t0}}$.'],
+  answerSummary: { headline: 'One known factor reduces a cubic to a quadratic.', text: 'They are $(x + {{b}})$ and $(x + {{c}})$.' },
+  hint: 'What must the three constants multiply to?',
+  feedback: 'Those signs would make the constant term negative.',
+});
+
+mk('A2.7D', 'sides-of-a-crate-from-its-volume', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'context',
+  prompt: 'A crate has volume $x^3 + {{t2}}x^2 + {{t1}}x + {{t0}}$. Which three lengths could its sides be?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 8 },
+      b: { type: 'int', min: 2, max: 8 },
+      c: { type: 'int', min: 2, max: 8 },
+    },
+    derived: { t2: 'p+b+c', t1: 'p*b+p*c+b*c', t0: 'p*b*c', sum: 'p+b+c' },
+    constraints: ['p!=b', 'b!=c', 'p!=c', 'p!=sum', 'b!=sum'],
+  },
+  choices: [
+    { label: plain('x + {{p}},\\ x + {{b}},\\ x + {{c}}'), correct: true },
+    { label: plain('x + {{t2}},\\ x + {{t1}},\\ x + {{t0}}'), error: 'usedGivenValue' },
+    { label: plain('x,\\ x + {{p}},\\ x + {{t0}}'), error: 'partialTotal' },
+    { label: plain('x - {{p}},\\ x - {{b}},\\ x - {{c}}'), error: 'signError' },
+  ],
+  reasoning: ['A volume is the three sides multiplied, so the sides are the linear factors.', 'Those constants multiply to ${{t0}}$ and add to ${{t2}}$.'],
+  answerSummary: { headline: 'Factoring a volume recovers the three sides that produced it.', text: 'They are $x + {{p}}$, $x + {{b}}$ and $x + {{c}}$.' },
+  hint: 'What three numbers multiply to ${{t0}}$ and add to ${{t2}}$?',
+  feedback: 'Those are coefficients of the volume, not lengths that multiply to give it.',
+});
+
+mk('A2.7D', 'a-common-factor-left-behind', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student factors $x^3 + {{sum}}x^2 + {{product}}x$ as $(x + {{p}})(x + {{q}})$. What is wrong?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 9 },
+      gap: { type: 'int', min: 1, max: 7 },
+    },
+    derived: { q: 'p+gap', sum: 'p+p+gap', product: 'p*(p+gap)' },
+    constraints: ['p!=q', 'sum!=product'],
+  },
+  choices: [
+    { label: 'That product is only a quadratic: the common $x$ is missing, so it is $x(x + {{p}})(x + {{q}})$.', correct: true },
+    { label: 'Nothing is wrong, since multiplying out gives the right coefficients.', error: 'usedGivenValue' },
+    { label: 'The signs inside the brackets should both be negative.', error: 'signError' },
+    { label: 'A cubic cannot be factored into brackets at all.', error: 'operationInverted' },
+  ],
+  reasoning: ['Multiplying two linear brackets gives a quadratic, not a cubic.', 'The $x$ common to all three terms has to appear as a factor of its own.'],
+  answerSummary: { headline: 'Count the degree: three linear factors are needed for a cubic.', text: 'It is $x(x + {{p}})(x + {{q}})$.' },
+  hint: 'What degree does the answer come to when it is multiplied out?',
+  feedback: 'The coefficients match, but the degree does not.',
+});
+
+// ================================================================ A2.7E
+// Factoring by grouping and the sum and difference of two cubes. The crosswalk
+// allows those standard patterns and excludes degree-four structural
+// factoring, so nothing here factors a quartic.
+
+mk('A2.7E', 'difference-of-two-cubes', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Factor $x^3 - {{cube}}$.',
+  generator: {
+    parameters: { m: { type: 'int', min: 2, max: 8 } },
+    derived: { cube: 'm*m*m', sq: 'm*m', twoM: '2*m' },
+    constraints: ['m!=sq', 'sq!=cube'],
+  },
+  choices: [
+    { label: plain('(x - {{m}})(x^2 + {{m}}x + {{sq}})'), correct: true },
+    { label: plain('(x - {{m}})(x^2 - {{m}}x + {{sq}})'), error: 'signError' },
+    { label: plain('(x - {{m}})(x^2 + {{m}}x - {{sq}})'), error: 'operationInverted' },
+    { label: plain('(x - {{m}})(x - {{m}})(x - {{m}})'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['${{cube}}$ is ${{m}}$ cubed, so this is a difference of two cubes.', 'The pattern gives a linear bracket with the same sign and a quadratic whose middle sign is the opposite.'],
+  answerSummary: { headline: 'A difference of cubes takes a minus in the linear bracket and a plus in the quadratic.', text: 'It is $(x - {{m}})(x^2 + {{m}}x + {{sq}})$.' },
+  hint: 'What number cubes to ${{cube}}$?',
+  feedback: 'The middle sign of the quadratic is opposite to the sign in the linear bracket.',
+});
+
+mk('A2.7E', 'sum-of-two-cubes', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Which product equals $x^3 + {{cube}}$?',
+  generator: {
+    parameters: { m: { type: 'int', min: 2, max: 8 } },
+    derived: { cube: 'm*m*m', sq: 'm*m' },
+    constraints: ['m!=sq', 'sq!=cube'],
+  },
+  choices: [
+    { label: plain('(x + {{m}})(x^2 - {{m}}x + {{sq}})'), correct: true },
+    { label: plain('(x + {{m}})(x^2 + {{m}}x + {{sq}})'), error: 'signError' },
+    { label: plain('(x + {{m}})(x^2 - {{m}}x - {{sq}})'), error: 'operationInverted' },
+    { label: plain('(x + {{m}})(x + {{m}})(x + {{m}})'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['A sum of cubes keeps the sign in the linear bracket and reverses it in the middle of the quadratic.', 'Multiplying out, the $x^2$ and $x$ terms cancel and leave $x^3 + {{cube}}$.'],
+  answerSummary: { headline: 'The two middle signs are always opposite; that is what makes the middle terms cancel.', text: 'It is $(x + {{m}})(x^2 - {{m}}x + {{sq}})$.' },
+  hint: 'Multiply the candidates out and watch the $x^2$ terms.',
+  feedback: 'With both signs the same the middle terms would not cancel.',
+});
+
+mk('A2.7E', 'factor-by-grouping', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Factor $x^3 + {{a}}x^2 + {{b}}x + {{ab}}$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { ab: 'a*b', sum: 'a+b' },
+    constraints: ['a!=b', 'ab!=sum', 'a!=ab'],
+  },
+  choices: [
+    { label: plain('(x + {{a}})(x^2 + {{b}})'), correct: true },
+    { label: plain('(x + {{b}})(x^2 + {{a}})'), error: 'ratioReversed' },
+    { label: plain('(x + {{a}})(x^2 + {{ab}})'), error: 'usedGivenValue' },
+    { label: plain('(x + {{sum}})(x^2 + {{b}})'), error: 'partialTotal' },
+  ],
+  reasoning: ['Grouping the first two and the last two gives $x^2(x + {{a}}) + {{b}}(x + {{a}})$.', 'The common bracket $x + {{a}}$ then comes out, leaving $x^2 + {{b}}$.'],
+  answerSummary: { headline: 'Grouping works when both pairs leave the same bracket behind.', text: 'It is $(x + {{a}})(x^2 + {{b}})$.' },
+  hint: 'What comes out of the first two terms, and out of the last two?',
+  feedback: 'Check which bracket each pair actually leaves.',
+});
+
+mk('A2.7E', 'volume-left-in-a-hollow-cube', {
+  courseId: 'algebra2',
+  difficultyBand: 2, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A cube of side $x$ has a cube of side ${{m}}$ removed from inside it. Which product gives the volume left?',
+  generator: {
+    parameters: { m: { type: 'int', min: 2, max: 8 } },
+    derived: { cube: 'm*m*m', sq: 'm*m' },
+    constraints: ['m!=sq', 'sq!=cube'],
+  },
+  choices: [
+    { label: plain('(x - {{m}})(x^2 + {{m}}x + {{sq}})'), correct: true },
+    { label: plain('(x - {{m}})(x^2 - {{m}}x + {{sq}})'), error: 'signError' },
+    { label: plain('(x - {{m}})(x + {{m}})'), error: 'operationInverted' },
+    { label: plain('(x - {{m}})(x - {{m}})(x - {{m}})'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['What is left is $x^3 - {{cube}}$, one cubed volume taken from another.', 'That difference of cubes factors with a plus in the middle of the quadratic.'],
+  answerSummary: { headline: 'A volume left after a cube is removed is a difference of two cubes.', text: 'It is $(x - {{m}})(x^2 + {{m}}x + {{sq}})$.' },
+  hint: 'What is the volume of each cube?',
+  feedback: 'Two linear brackets multiply to a quadratic, which cannot be a volume.',
+});
+
+mk('A2.7E', 'cubes-treated-like-squares', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student factors $x^3 - {{cube}}$ as $(x - {{m}})(x + {{m}})$. What is wrong?',
+  generator: {
+    parameters: { m: { type: 'int', min: 2, max: 8 } },
+    derived: { cube: 'm*m*m', sq: 'm*m' },
+    constraints: ['m!=sq'],
+  },
+  choices: [
+    { label: 'That is the pattern for squares. Cubes give $(x - {{m}})(x^2 + {{m}}x + {{sq}})$.', correct: true },
+    { label: 'Nothing is wrong, since both brackets use the cube root ${{m}}$.', error: 'usedGivenValue' },
+    { label: 'The signs should be the other way round in the two brackets.', error: 'signError' },
+    { label: 'The second bracket should be $(x + {{cube}})$ instead.', error: 'partialTotal' },
+  ],
+  reasoning: ['Multiplying out $(x - {{m}})(x + {{m}})$ gives $x^2 - {{sq}}$, which is a quadratic.', 'A cubic needs a quadratic second bracket, not a linear one.'],
+  answerSummary: { headline: 'A difference of cubes gives a linear bracket and a quadratic one.', text: 'It is $(x - {{m}})(x^2 + {{m}}x + {{sq}})$.' },
+  hint: 'What degree does that product come to?',
+  feedback: 'Using the right number does not make it the right pattern.',
+});
+
+// ================================================================ A2.7F
+// Simplifying, multiplying and dividing rational expressions. The crosswalk
+// allows those and excludes complex rational expressions and rational-function
+// analysis, so nothing here stacks a fraction inside a fraction or asks about
+// the behaviour of the function.
+
+mk('A2.7F', 'simplify-a-rational-expression', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Simplify $\\frac{x^2 + {{sum}}x + {{product}}}{x + {{p}}}$.',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 10 },
+      gap: { type: 'int', min: 1, max: 8 },
+    },
+    derived: { q: 'p+gap', sum: 'p+p+gap', product: 'p*(p+gap)' },
+    constraints: ['p!=q', 'q!=sum', 'q!=product'],
+  },
+  choices: [
+    { label: plain('x + {{q}}'), correct: true },
+    { label: plain('x + {{p}}'), error: 'usedGivenValue' },
+    { label: plain('x + {{sum}}'), error: 'partialTotal' },
+    { label: plain('{{sum}}x + {{product}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The top factors as $(x + {{p}})(x + {{q}})$.', 'The shared bracket cancels, leaving $x + {{q}}$.'],
+  answerSummary: { headline: 'Factor first; only a whole factor may be cancelled.', text: 'It is $x + {{q}}$.' },
+  hint: 'What does the numerator factor into?',
+  feedback: 'That is the bracket that cancels, not the one that survives.',
+});
+
+mk('A2.7F', 'multiply-two-rational-expressions', {
+  courseId: 'algebra2',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Simplify $\\frac{x + {{a}}}{x + {{b}}} \\times \\frac{x + {{b}}}{x + {{c}}}$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 2, max: 12 },
+      c: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { ac: 'a+c' },
+    constraints: ['a!=b', 'b!=c', 'a!=c', 'ac!=a', 'ac!=c'],
+  },
+  choices: [
+    { label: plain('\\frac{x + {{a}}}{x + {{c}}}'), correct: true },
+    { label: plain('\\frac{x + {{c}}}{x + {{a}}}'), error: 'ratioReversed' },
+    { label: plain('\\frac{x + {{a}}}{x + {{b}}}'), error: 'partialTotal' },
+    { label: plain('\\frac{x + {{ac}}}{x + {{b}}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['Multiplying puts both numerators over both denominators.', 'The $x + {{b}}$ appears on both lines and cancels, leaving $\\frac{x + {{a}}}{x + {{c}}}$.'],
+  answerSummary: { headline: 'A factor on both lines cancels, whichever fraction it came from.', text: 'It is $\\frac{x + {{a}}}{x + {{c}}}$.' },
+  hint: 'Which bracket appears on both the top and the bottom?',
+  feedback: 'Check which bracket is left on the bottom after cancelling.',
+});
+
+mk('A2.7F', 'divide-a-quadratic-fraction', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'Write $\\frac{x^2 + {{sum}}x + {{product}}}{x + {{c}}} \\div (x + {{p}})$ in its simplest form.',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 9 },
+      gap: { type: 'int', min: 1, max: 7 },
+      c: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { q: 'p+gap', sum: 'p+p+gap', product: 'p*(p+gap)' },
+    constraints: ['p!=q', 'p!=c', 'q!=c', 'q!=sum', 'c!=sum'],
+  },
+  choices: [
+    { label: plain('\\frac{x + {{q}}}{x + {{c}}}'), correct: true },
+    { label: plain('\\frac{x + {{c}}}{x + {{q}}}'), error: 'ratioReversed' },
+    { label: plain('\\frac{(x + {{p}})(x + {{q}})}{(x + {{c}})(x + {{p}})}'), error: 'operationInverted' },
+    { label: plain('\\frac{x + {{sum}}}{x + {{c}}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Dividing by $x + {{p}}$ multiplies by $\\frac{1}{x + {{p}}}$, and the top factors as $(x + {{p}})(x + {{q}})$.', 'The $x + {{p}}$ cancels, leaving $\\frac{x + {{q}}}{x + {{c}}}$.'],
+  answerSummary: { headline: 'Factor the top before cancelling; only a whole factor may go.', text: 'It is $\\frac{x + {{q}}}{x + {{c}}}$.' },
+  hint: 'What does the numerator factor into?',
+  feedback: 'Leaving it unfactored hides the bracket that cancels.',
+});
+
+mk('A2.7F', 'the-other-side-of-a-plate', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A plate of area ${{aSq}}x^2 - {{mSq}}$ has one side ${{a}}x + {{m}}$. What is the other?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 8 },
+      m: { type: 'int', min: 2, max: 11 },
+    },
+    derived: { aSq: 'a*a', mSq: 'm*m', am: 'a*m' },
+    constraints: ['a!=m', 'gcd(a,m)==1', 'aSq!=mSq', 'am!=mSq'],
+  },
+  choices: [
+    { label: plain('{{a}}x - {{m}}'), correct: true },
+    { label: plain('{{a}}x + {{m}}'), error: 'usedGivenValue' },
+    { label: plain('{{aSq}}x - {{mSq}}'), error: 'operationInverted' },
+    { label: plain('{{a}}x - {{mSq}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The area is a difference of two squares, $({{a}}x)^2 - {{m}}^2$.', 'It factors as $({{a}}x + {{m}})({{a}}x - {{m}})$, so the other side is ${{a}}x - {{m}}$.'],
+  answerSummary: { headline: 'A difference of squares splits into the sum and the difference of the roots.', text: 'It is ${{a}}x - {{m}}$.' },
+  hint: 'What squares to give ${{aSq}}x^2$, and what to give ${{mSq}}$?',
+  feedback: 'That is the side you were given, and the two sides differ.',
+});
+
+mk('A2.7F', 'the-wrong-fraction-turned-over', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'Dividing $\\frac{x + {{a}}}{x + {{b}}}$ by $\\frac{x + {{c}}}{x + {{b}}}$, a student turns the first fraction over. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 2, max: 12 },
+      c: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {},
+    constraints: ['a!=b', 'b!=c', 'a!=c'],
+  },
+  choices: [
+    { label: 'It is the divisor that is turned over, so the answer is $\\frac{x + {{a}}}{x + {{c}}}$.', correct: true },
+    { label: 'Nothing is wrong, because either fraction may be inverted.', error: 'usedGivenValue' },
+    { label: 'Both fractions should be turned over before multiplying.', error: 'operationInverted' },
+    { label: 'Neither should be turned over; the two are simply multiplied.', error: 'partialTotal' },
+  ],
+  reasoning: ['Dividing by a fraction means multiplying by its reciprocal, and the divisor is the second one.', 'Turning the first over inverts the answer instead.'],
+  answerSummary: { headline: 'Only the fraction being divided by is turned over.', text: 'It is $\\frac{x + {{a}}}{x + {{c}}}$.' },
+  hint: 'Which fraction is doing the dividing?',
+  feedback: 'Inverting the wrong one turns the whole answer upside down.',
+});
+
+// ================================================================ A2.7G
+// Rewriting radical expressions that contain variables. A.11A simplifies
+// numerical roots; every root here carries a variable, which is what the
+// standard names.
+
+mk('A2.7G', 'simplify-a-radical-with-a-variable', {
+  courseId: 'algebra2',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Simplify $\\sqrt{{{sq}}x^{{{e}}}}$, for $x \\ge 0$.',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 7 },
+      h: { type: 'int', min: 2, max: 6 },
+    },
+    derived: { sq: 'k*k', e: '2*h', kSq: 'k*k', twoE: '4*h' },
+    constraints: ['k!=h', 'kSq!=e'],
+  },
+  choices: [
+    { label: plain('{{k}}x^{{{h}}}'), correct: true },
+    { label: plain('{{sq}}x^{{{h}}}'), error: 'forgotFinalStep' },
+    { label: plain('{{k}}x^{{{e}}}'), error: 'exponentError' },
+    { label: plain('{{k}}x^{{{twoE}}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The root of ${{sq}}$ is ${{k}}$, and the root of $x^{{{e}}}$ halves the exponent.', 'That leaves ${{k}}x^{{{h}}}$.'],
+  answerSummary: { headline: 'A square root halves an even exponent and takes the root of the coefficient.', text: 'It is ${{k}}x^{{{h}}}$.' },
+  hint: 'What does a square root do to an exponent?',
+  feedback: 'The coefficient comes out as its root, not unchanged.',
+});
+
+mk('A2.7G', 'a-radical-with-an-odd-exponent', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Simplify $\\sqrt{x^{{{e}}}}$, for $x \\ge 0$.',
+  generator: {
+    parameters: { h: { type: 'int', min: 2, max: 7 } },
+    derived: { e: '2*h+1', half: 'h', twice: '2*h', twoE: '4*h+2' },
+    constraints: ['h!=e'],
+  },
+  choices: [
+    { label: plain('x^{{{half}}}\\sqrt{x}'), correct: true },
+    { label: plain('x^{{{e}}}\\sqrt{x}'), error: 'forgotFinalStep' },
+    { label: plain('x^{{{half}}}'), error: 'partialTotal' },
+    { label: plain('x^{{{twoE}}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['An odd exponent splits as $x^{{{e}}} = x^{{{twice}}} \\times x$.', 'The even part comes out as $x^{{{half}}}$ and a single $x$ stays under the root.'],
+  answerSummary: { headline: 'An odd power leaves one factor behind under the root.', text: 'It is $x^{{{half}}}\\sqrt{x}$.' },
+  hint: 'How much of $x^{{{e}}}$ is a perfect square?',
+  feedback: 'The leftover $x$ cannot be dropped; it stays under the root.',
+});
+
+mk('A2.7G', 'multiply-two-variable-radicals', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'Simplify $\\sqrt{{{a}}x} \\times \\sqrt{{{b}}x}$, for $x \\ge 0$.',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 7 },
+      m: { type: 'choice', values: [2, 3, 5, 6, 7] },
+    },
+    derived: { a: 'k*m', b: 'k*m*m', outside: 'k*m', sum: 'k*m+k*m*m', prodK: 'k*k*m*m*m' },
+    constraints: ['k!=m'],
+  },
+  choices: [
+    { label: plain('{{outside}}x\\sqrt{{{m}}}'), correct: true },
+    { label: plain('{{outside}}\\sqrt{{{m}}x}'), error: 'exponentError' },
+    { label: plain('\\sqrt{{{sum}}x}'), error: 'operationInverted' },
+    { label: plain('{{outside}}{{m}}x'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['The two roots combine into $\\sqrt{{{prodK}}x^2}$.', 'The $x^2$ comes out as $x$ and the square factor as ${{outside}}$, leaving $\\sqrt{{{m}}}$ inside.'],
+  answerSummary: { headline: 'Combine under one root, then take out every square factor including the variable.', text: 'It is ${{outside}}x\\sqrt{{{m}}}$.' },
+  hint: 'What is under the root once the two are multiplied?',
+  feedback: 'The $x^2$ under the root comes out as a plain $x$.',
+});
+
+mk('A2.7G', 'the-side-of-a-square-plot', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A square plot has area ${{sq}}x^{{{e}}}$ square metres. How long is its side, for $x \\ge 0$?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      h: { type: 'int', min: 1, max: 5 },
+    },
+    derived: { sq: 'k*k', e: '2*h', half: 'h', quarter: 'k*k*h' },
+    constraints: ['k!=h', 'sq!=e', 'quarter!=sq'],
+  },
+  choices: [
+    { label: plain('{{k}}x^{{{half}}}'), correct: true },
+    { label: plain('{{sq}}x^{{{half}}}'), error: 'forgotFinalStep' },
+    { label: plain('{{k}}x^{{{e}}}'), error: 'exponentError' },
+    { label: plain('{{quarter}}x^{{{half}}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['A square of side $s$ has area $s^2$, so the side is the square root of the area.', 'That is ${{k}}x^{{{half}}}$ metres.'],
+  answerSummary: { headline: 'The side of a square is the root of its area, coefficient and power together.', text: 'It is ${{k}}x^{{{half}}}$ metres.' },
+  hint: 'What squares to give ${{sq}}x^{{{e}}}$?',
+  feedback: 'That coefficient squares to something far larger than ${{sq}}$.',
+});
+
+mk('A2.7G', 'a-root-taken-of-the-exponent', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student writes $\\sqrt{{{sq}}x^{{{e}}}}$ as ${{k}}x^{{{e}}}$. What is wrong?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      h: { type: 'int', min: 2, max: 6 },
+    },
+    derived: { sq: 'k*k', e: '2*h', half: 'h' },
+    constraints: ['k!=h', 'sq!=e'],
+  },
+  choices: [
+    { label: 'The exponent is halved as well: it should be ${{k}}x^{{{half}}}$.', correct: true },
+    { label: 'Nothing is wrong, since ${{k}}$ is the square root of ${{sq}}$.', error: 'usedGivenValue' },
+    { label: 'The coefficient should stay ${{sq}}$ and only the power change.', error: 'ratioReversed' },
+    { label: 'The exponent should be doubled rather than left alone.', error: 'operationInverted' },
+  ],
+  reasoning: ['A square root applies to everything under it, coefficient and power alike.', 'Halving ${{e}}$ gives ${{half}}$, so the answer is ${{k}}x^{{{half}}}$.'],
+  answerSummary: { headline: 'A root reaches every factor under it, not just the number.', text: 'It is ${{k}}x^{{{half}}}$.' },
+  hint: 'What happens to $x^{{{e}}}$ under the root?',
+  feedback: 'The coefficient was handled correctly; the power was not.',
+});
+
+// ================================================================ A2.7H
+// Rational exponents, and moving between radical and exponent form. A.11B
+// introduces the conversion; here rational exponents are operated on and
+// evaluated. The crosswalk excludes equations requiring domain analysis, so
+// nothing here asks which inputs an expression will accept.
+
+mk('A2.7H', 'evaluate-a-rational-exponent', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'What is ${{base}}^{\\frac{{{num}}}{{{den}}}}$?',
+  generator: {
+    parameters: {
+      // The base itself is the crossing choice, and it crosses the key exactly
+      // as den crosses num — so the two are drawn from the same set. Raising
+      // the base to the numerator without rooting first would also sit above
+      // the key, but r^(den*num) reaches the billions; multiplying by the
+      // denominator stays above it and stays readable.
+      r: { type: 'int', min: 2, max: 4 },
+      den: { type: 'choice', values: [2, 3, 4, 5] },
+      num: { type: 'choice', values: [2, 3, 4, 5] },
+    },
+    derived: { base: 'pow(r,den)', answer: 'pow(r,num)', rootOnly: 'r', timesDen: 'pow(r,num)*den' },
+    constraints: ['num!=den', 'gcd(num,den)==1', 'answer!=timesDen', 'answer!=rootOnly', 'answer!=base'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{rootOnly}}'), error: 'forgotFinalStep' },
+    { label: plain('{{base}}'), error: 'usedGivenValue' },
+    { label: plain('{{timesDen}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The denominator takes the ${{den}}$th root of ${{base}}$, which is ${{r}}$.', 'The numerator then raises that to the power ${{num}}$, giving ${{answer}}$.'],
+  answerSummary: { headline: 'The denominator is the root; the numerator is the power.', text: 'It is ${{answer}}$.' },
+  hint: 'Take the root first, then apply the power.',
+  feedback: 'That is the root on its own, before the power is applied.',
+
+});
+
+mk('A2.7H', 'multiply-with-rational-exponents', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Simplify $x^{\\frac{{{a}}}{{{d}}}} \\times x^{\\frac{{{b}}}{{{d}}}}$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 1, max: 7 },
+      b: { type: 'int', min: 1, max: 7 },
+      d: { type: 'int', min: 2, max: 6 },
+    },
+    derived: { sum: 'a+b', prod: 'a*b', dSq: 'd*d' },
+    // Each fraction, and the answer, must be in lowest terms or the exponents
+    // collapse to whole numbers and the item stops being about rational ones.
+    constraints: ['a!=b', 'gcd(a,d)==1', 'gcd(b,d)==1', 'gcd(sum,d)==1', 'sum!=prod', 'sum!=d', 'prod!=d'],
+  },
+  choices: [
+    { label: plain('x^{\\frac{{{sum}}}{{{d}}}}'), correct: true },
+    { label: plain('x^{\\frac{{{prod}}}{{{d}}}}'), error: 'operationInverted' },
+    { label: plain('x^{\\frac{{{sum}}}{{{dSq}}}}'), error: 'exponentError' },
+    { label: plain('x^{\\frac{{{prod}}}{{{dSq}}}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['Multiplying powers of one base adds the exponents.', 'The two fractions share a denominator, so only the numerators add.'],
+  answerSummary: { headline: 'Adding fractions with a common denominator leaves that denominator alone.', text: 'It is $x^{\\frac{{{sum}}}{{{d}}}}$.' },
+  hint: 'What happens to exponents when powers of the same base are multiplied?',
+  feedback: 'The denominators are not multiplied when the fractions are added.',
+});
+
+mk('A2.7H', 'a-rational-exponent-as-a-radical', {
+  courseId: 'algebra2',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'Which radical equals $x^{\\frac{{{m}}}{{{n}}}}$?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      n: { type: 'int', min: 2, max: 6 },
+    },
+    derived: { prod: 'm*n' },
+    constraints: ['m!=n', 'gcd(m,n)==1'],
+  },
+  choices: [
+    { label: plain('\\sqrt[{{n}}]{x^{{{m}}}}'), correct: true },
+    { label: plain('\\sqrt[{{m}}]{x^{{{n}}}}'), error: 'ratioReversed' },
+    { label: plain('\\sqrt[{{prod}}]{x}'), error: 'operationInverted' },
+    { label: plain('{{n}}\\sqrt{x^{{{m}}}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The denominator of the exponent gives the order of the root.', 'The numerator stays as the power under it.'],
+  answerSummary: { headline: 'Denominator outside as the root order, numerator inside as the power.', text: 'It is $\\sqrt[{{n}}]{x^{{{m}}}}$.' },
+  hint: 'Which part of the fraction becomes the root order?',
+  feedback: 'A number written in front multiplies the root; it does not set its order.',
+});
+
+mk('A2.7H', 'scaling-a-cube-by-a-rational-power', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A cube of side ${{s}}$ metres is scaled so its volume becomes ${{ratio}}$ times as large. What is the new side?',
+  generator: {
+    parameters: {
+      s: { type: 'int', min: 2, max: 12 },
+      f: { type: 'int', min: 2, max: 4 },
+    },
+    derived: { ratio: 'pow(f,3)', side: 's*f', overScaled: 's*pow(f,3)' },
+    constraints: ['s!=f', 'side!=ratio', 'side!=overScaled', 's!=ratio'],
+  },
+  choices: [
+    { label: plain('{{side}}'), correct: true },
+    { label: plain('{{s}}'), error: 'forgotFinalStep' },
+    { label: plain('{{ratio}}'), error: 'usedGivenValue' },
+    { label: plain('{{overScaled}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['A side scales by the volume ratio raised to the power $\\frac{1}{3}$.', '${{ratio}}^{\\frac{1}{3}} = {{f}}$, so the new side is ${{s}} \\times {{f}} = {{side}}$ metres.'],
+  answerSummary: { headline: 'A length scales by the cube root of the volume factor, not the factor itself.', text: 'It is ${{side}}$ metres.' },
+  hint: 'What power of the volume factor applies to a length?',
+  feedback: 'Scaling the side by the whole volume factor makes the volume grow far too much.',
+});
+
+mk('A2.7H', 'numerator-and-denominator-swapped', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student reads ${{base}}^{\\frac{{{num}}}{{{den}}}}$ as the ${{num}}$th root of ${{base}}$ raised to ${{den}}$. What is wrong?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 6 },
+      den: { type: 'choice', values: [2, 3] },
+      num: { type: 'int', min: 2, max: 4 },
+    },
+    derived: { base: 'pow(r,den)', answer: 'pow(r,num)' },
+    constraints: ['num!=den', 'gcd(num,den)==1'],
+  },
+  choices: [
+    { label: 'The two are the wrong way round: the ${{den}}$th root comes first, then the power ${{num}}$, giving ${{answer}}$.', correct: true },
+    { label: 'Nothing is wrong, since both numbers are used somewhere.', error: 'usedGivenValue' },
+    { label: 'Both should be roots, so it is the ${{num}}$th root of the ${{den}}$th root.', error: 'operationInverted' },
+    { label: 'The fraction should be turned over before either step.', error: 'ratioReversed' },
+  ],
+  reasoning: ['In a rational exponent the denominator is always the root and the numerator always the power.', 'Swapping them changes the value unless the two happen to be equal.'],
+  answerSummary: { headline: 'Denominator down below is the root; numerator up top is the power.', text: 'It is ${{answer}}$.' },
+  hint: 'Which part of the fraction sets the root?',
+  feedback: 'Using both numbers is not enough; each has its own job.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
