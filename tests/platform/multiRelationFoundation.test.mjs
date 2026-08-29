@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import {
   OTHER_ALGEBRA_OPERATIONS,
   absoluteValueSplitInputModel,
+  applyBalancedOperationToBranches,
   applyBalancedOperationToRelation,
   buildAbsoluteValueSplit,
   buildStudentAuthoredAbsoluteValueEqualitySplit,
@@ -258,4 +259,85 @@ test('advanced solver opens Other operations by default on load and reset', () =
   const resetEnd = src.indexOf('const active =', resetStart);
   assert.ok(resetStart >= 0 && resetEnd > resetStart);
   assert.match(src.slice(resetStart, resetEnd), /setOtherOpen\(true\)/);
+});
+
+
+test('one balanced operation can be committed across two fully staged split equations', () => {
+  const state = parseRelationSource(
+    'p + 8 = 2*p - 3 OR p + 8 = -2*p + 3',
+    'p',
+  );
+  const placement = {
+    0: { kind: 'end' },
+    1: { kind: 'end' },
+  };
+  const result = applyBalancedOperationToBranches(
+    state,
+    'subtract',
+    '8',
+    {
+      branchIndices: [0, 1],
+      placementByBranch: {
+        0: placement,
+        1: placement,
+      },
+      requireExplicitPlacement: true,
+    },
+  );
+
+  assert.equal(result.branchResults.length, 2);
+  assert.equal(result.requiresInequalityFlip, false);
+  assert.equal(result.state.branches.length, 2);
+  assert.equal(
+    relationExpressionsEquivalent(result.state.branches[0].expressions[0], 'p + 8 - 8', 'p'),
+    true,
+  );
+  assert.equal(
+    relationExpressionsEquivalent(result.state.branches[1].expressions[0], 'p + 8 - 8', 'p'),
+    true,
+  );
+});
+
+test('multi-branch operation helper rejects incomplete explicit placement', () => {
+  const state = parseRelationSource('x + 2 = 5 OR x + 2 = -5', 'x');
+  assert.throws(
+    () => applyBalancedOperationToBranches(
+      state,
+      'subtract',
+      '2',
+      {
+        branchIndices: [0, 1],
+        placementByBranch: {
+          0: { 0: { kind: 'end' }, 1: { kind: 'end' } },
+          1: { 0: { kind: 'end' } },
+        },
+        requireExplicitPlacement: true,
+      },
+    ),
+    /every expression region/i,
+  );
+});
+
+test('choosing a new algebra operation closes an open rewrite field', () => {
+  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const operationsStart = src.indexOf('BASIC_OPERATIONS.map');
+  const operationsEnd = src.indexOf('{operation && (', operationsStart);
+  assert.ok(operationsStart >= 0 && operationsEnd > operationsStart);
+  const operationButtons = src.slice(operationsStart, operationsEnd);
+  assert.match(operationButtons, /setRewriteOpen\(false\)/);
+  assert.match(operationButtons, /setRewriteValue\(''\)/);
+
+  const otherOperationStart = src.indexOf('const chooseOtherOperation = async');
+  const otherOperationEnd = src.indexOf('const applyCompleteSquareValue', otherOperationStart);
+  assert.ok(otherOperationStart >= 0 && otherOperationEnd > otherOperationStart);
+  assert.match(src.slice(otherOperationStart, otherOperationEnd), /setRewriteOpen\(false\)/);
+});
+
+test('split branches can stage placements simultaneously before one commit', () => {
+  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  assert.match(src, /placementMode=\{placementMode\}/);
+  assert.doesNotMatch(src, /placementMode=\{activeBranch === branchIndex && placementMode\}/);
+  assert.match(src, /applyBalancedOperationToBranches/);
+  assert.match(src, /multi-branch-relation-step/);
+  assert.match(src, /Balanced operation committed on \$\{branchCount\} branches at the same time/);
 });
