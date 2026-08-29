@@ -2,10 +2,10 @@
   "schemaVersion": 3,
   "generatedBy": "scripts/rebuild-path-manifest.mjs from actual bundled seed contents",
   "totals": {
-    "documents": 3329,
+    "documents": 3334,
     "standards": 226,
     "courseDocuments": 1161,
-    "assessmentDocuments": 2168,
+    "assessmentDocuments": 2173,
     "authoredStandards": 225,
     "productionQualityStandards": 225,
     "upgradedStarterStandards": 0
@@ -28,7 +28,7 @@
       "standards": 224
     },
     "asvab": {
-      "documents": 1168,
+      "documents": 1173,
       "standards": 146
     }
   },
@@ -2400,13 +2400,13 @@
       }
     },
     "A2.6L": {
-      "familyCount": 69,
-      "authored": 69,
+      "familyCount": 74,
+      "authored": 74,
       "upgradedStarter": 0,
       "courseFamilies": 5,
       "assessmentFamilies": {
         "act": 32,
-        "asvab": 8,
+        "asvab": 13,
         "digitalSAT": 16,
         "tsia2": 8
       }

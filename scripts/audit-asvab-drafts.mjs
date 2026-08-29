@@ -23,7 +23,12 @@ const result = {
   suspiciousArithmeticPrompts: [],
 };
 
-const arContextSignals = /\b(machine|worker|crew|store|shop|price|cost|dollar|account|loan|saves?|saving|purchase|tax|interest|discount|coupon|rebate|recipe|batch|bottle|faucet|car|traveler|runner|cyclist|printer|parts?|pages?|miles?|kilometers?|meters?|feet|inches|yards|pounds|ounces|liters?|minutes?|hours?|students?|class|club|bag|tiles?|counters?|grid|strip|group|quantity|temperature|plan|company|program|college|family|borrower|balance|payment|rate|trip|length|distance|volume|amount|register|deposit|withdrawal|transfer|attendance|members?|product|service|theater|supply|shipment|tank|fuel|team|unit|material|inventory|warehouse|route|depot|shipments?|readiness|report|supervisor|exercise|temperatures?)\b/i;
+// The role words a family draws must all appear here, or the check becomes a
+// coin-flip on the draw: two saving items were flagged as contextless only
+// when their worker parameter landed on 'technician' or 'mechanic', which
+// were missing while 'welder' and 'driver' were present. Months and years
+// were missing for the same reason.
+const arContextSignals = /\b(machine|worker|crew|store|shop|price|cost|dollar|account|loan|saves?|saving|purchase|tax|interest|discount|coupon|rebate|recipe|batch|bottle|faucet|car|traveler|runner|cyclist|printer|parts?|pages?|miles?|kilometers?|meters?|feet|inches|yards|pounds|ounces|liters?|minutes?|hours?|students?|class|club|bag|tiles?|counters?|grid|strip|group|quantity|temperature|plan|company|program|college|family|borrower|balance|payment|rate|trip|length|distance|volume|amount|register|deposit|withdrawal|transfer|attendance|members?|product|service|theater|supply|shipment|tank|fuel|team|unit|material|inventory|warehouse|route|depot|shipments?|readiness|report|supervisor|exercise|temperatures?)\b|mix|batch|blend|shipment|order|stock|floor|back|crew|shift|detail|van|truck|bus|pickup|depot|counter|outlet|press|labeler|sorter|conveyor|stamping|bolts?|washers?|clamps?|rivets?|nuts?|screws?|pins?|anchors?|sacks?|bins?|barrels?|totes?|drums?|pallets?|loaders?|drivers?|welders?|inspectors?|helpers?|packers?|fitters?|checkers?|mechanics?|technicians?|months?|years?|saved|sand|cement|resin|filler|hardener|concentrate|base|stretch|log|gallons?|fuel|panels?|filters?|cartons?|crates?|brackets?|grinder|compressor|drill|generator|welder|fee|register|discounts?|ledger|inspection|shipments?|load|shares?|strip|grid|squares?|marked down|listed|tool|bill|tip|deposit|rail|beam|pipe|channel|crate|tank|pump|quarts?|yards?|trim|cable|hose|edging|job|piece|spare|material|conversion|entry|entries|per each|model|mast|axle|boom|strut|centimet(re|er)s?|millimet(re|er)s?|scale|plan|wall|drawn|charges?|markup|route|leg|drums?|batch(es)?|pallets?|crates?|resin|filler|binder|powder|compound|value|worth|output|bracket|reading|degrees?|noon|overnight|pairs?|pairing|inversely|cell|speed|setting|worker-hours|deadline|bags?|adjustments?|stock|credit|tanks?|litres?|liters?|labour|labor|savers?|put away|college|tuition|grant|contribution|routes?|degree|semesters?|invest(ment|ed)?|deposits?|withdrawals?|plans?|call-out|permit|backlog|crews?/i;
 const suspiciousStarts = /^(find|write|solve|compute|convert|for\s+\$|which (?:expression|equation|percent|decimal)|on a number line|use the table|the ratio begins|a benchmark percent|a model has)/i;
 
 const plansByCode = new Map();
@@ -45,7 +50,10 @@ for (const q of documents) {
   if (qa.level !== QUESTION_QUALITY.PRODUCTION) result.qualityFailures.push({ id: q.id, level: qa.level, warnings: qa.warnings?.map((x) => x.code) });
 
   let samples;
-  try { samples = samplePathInstances(q, 32); }
+  // 200, not 32. The duplicate-choice check is hunting rare parameter
+  // coincidences — two derived values that happen to agree on one draw in
+  // thirty-six — and 32 samples missed one that the test suite then caught.
+  try { samples = samplePathInstances(q, 200); }
   catch (error) { result.generationFailures.push(`${q.id}:${error.message}`); samples = []; }
   const instances = samples.map((x) => x.question).filter(Boolean);
   const variants = new Set(instances.map(visible));
@@ -55,7 +63,16 @@ for (const q of documents) {
     if (labels.length === 4 && new Set(labels).size !== 4) result.duplicateChoices.push({ id: q.id, draw: index + 1, labels });
   });
   if (subtest === 'arithmeticReasoning') {
-    const p = String(q.prompt || '').replace(/\s+/g, ' ').trim();
+    // Check a GENERATED prompt, not the template. Context words often arrive
+    // through a drawn parameter, so the template reads "how many {{small}} are
+    // in {{bigCount}} {{big}}?" and looks contextless while every instance a
+    // student sees names real units.
+    // Look at the choices as well as the prompt. An item that asks which
+    // SITUATION a given equation describes carries its practical context in the
+    // options, and judging it on the prompt alone reads it as contextless.
+    const first = instances[0];
+    const rendered = [first?.prompt || q.prompt, ...(first?.choices || []).map((c) => c.label)].join(' ');
+    const p = String(rendered || '').replace(/\s+/g, ' ').trim();
     if (!arContextSignals.test(p) || suspiciousStarts.test(p)) result.suspiciousArithmeticPrompts.push({ id: q.id, prompt: p });
   }
 

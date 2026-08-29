@@ -104,9 +104,22 @@ const verifyDocument = async (document, seenIds) => {
   const generated = hasPathGenerator(document)
     ? samplePathInstances(document, Math.min(samples, 6)).map((entry) => entry.question).filter(Boolean)
     : [document];
+  // What counts as variety is the whole rendered question, not the prompt.
+  //
+  // A multiple-choice item may ask a fixed question about varying material —
+  // "Which set of pairs is a function?" over four sets that change every draw,
+  // or "Does the table show an inverse variation?" over a table that does. Those
+  // generate perfectly well, and measuring the prompt alone reported 156 of them
+  // as producing one question. Measuring the prompt, the choices and the stimulus
+  // together still fails a generator that genuinely yields one item, which is
+  // what this check is for.
   const rendered = new Set();
   generated.forEach((instance) => {
-    rendered.add(JSON.stringify(instance.prompt ?? ''));
+    rendered.add(JSON.stringify({
+      prompt: instance.prompt ?? '',
+      choices: (instance.choices || []).map((choice) => choice?.label ?? ''),
+      stimulus: instance.stimulus ?? null,
+    }));
     everyString(instance).forEach((text) => {
       if (unbalancedMath(text)) problems.push(`unbalanced_math:${text.slice(0, 60)}`);
       if (rawCommandOutsideMath(text)) problems.push(`latex_outside_math:${text.slice(0, 60)}`);
