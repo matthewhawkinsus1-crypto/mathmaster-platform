@@ -28,12 +28,12 @@ const closed = {
   ...assignment,
   warmup: {
     ...assignment.warmup,
-    closedByClassPeriod: {
-      'Period 3': { dateKey, closedAt: `${dateKey}T09:08:00` },
+    closedByClassId: {
+      'class-3': { dateKey, closedAt: `${dateKey}T09:08:00` },
     },
   },
 };
-state = getWarmupState({ assignment: closed, schedule, classPeriod: 'Period 3', nowValue: at('09:10') });
+state = getWarmupState({ assignment: closed, schedule, classId: 'class-3', classPeriod: 'Period 3', nowValue: at('09:10') });
 assert.equal(state.status, 'closed');
 state = getWarmupState({ assignment, schedule, classPeriod: 'Period 3', nowValue: at('10:31') });
 assert.equal(state.status, 'ended');
