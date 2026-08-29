@@ -1366,7 +1366,9 @@ export default function MultiRelationAlgebra({
                 whiteSpace: 'nowrap',
               }}
             >
-              Working on Branch {branchLabel(activeBranch)}
+              {stagedBranchStats.length > 1
+                ? `Staging Branches ${stagedBranchStats.map((item) => branchLabel(item.branchIndex)).join(', ')}`
+                : `Working on Branch ${branchLabel(activeBranch)}`}
             </span>
           )}
 
@@ -1379,6 +1381,9 @@ export default function MultiRelationAlgebra({
                 setOperand('');
                 setPlacementByKey({});
                 setOperationFocusSignal((value) => value + 1);
+                setRewriteOpen(false);
+                setRewriteValue('');
+                setCompleteSquareOpen(false);
                 setOtherOpen(false);
               }}
               style={{
@@ -1449,13 +1454,19 @@ export default function MultiRelationAlgebra({
           }}
         >
           {explicitOperationPlacementMode
-            ? operation === 'divide'
-              ? `${explicitPlacementCount}/${activeExpressionCount} divisors placed`
-              : operation === 'multiply'
-                ? `${explicitPlacementCount}/${activeExpressionCount} multipliers placed`
-                : `${explicitPlacementCount}/${activeExpressionCount} placements complete · click one term in each side and choose Before, Under, or After`
+            ? stagedBranchStats.length
+              ? operation === 'divide'
+                ? `${stagedPlacementCount}/${stagedPlacementTotal} divisors placed across ${stagedBranchStats.length} branch${stagedBranchStats.length === 1 ? '' : 'es'}`
+                : operation === 'multiply'
+                  ? `${stagedPlacementCount}/${stagedPlacementTotal} multipliers placed across ${stagedBranchStats.length} branch${stagedBranchStats.length === 1 ? '' : 'es'}`
+                  : `${stagedPlacementCount}/${stagedPlacementTotal} placements complete across ${stagedBranchStats.length} branch${stagedBranchStats.length === 1 ? '' : 'es'} · complete every side of each branch you stage`
+              : relationState.branches.length > 1
+                ? 'Place the operation on both sides of one branch, or stage it on both sides of multiple branches for one commit.'
+                : active?.expressions?.length === 3
+                  ? 'Place the same balanced operation in all three regions.'
+                  : 'Place the balanced operation on both sides.'
             : relationState.branches.length > 1
-              ? 'Choose an operation for the active branch.'
+              ? 'Choose an operation, then stage one branch or several split branches.'
               : active?.expressions?.length === 3
                 ? 'Place the same balanced operation in all three regions.'
                 : 'Place the balanced operation on both sides.'}
@@ -1875,7 +1886,7 @@ export default function MultiRelationAlgebra({
                           onCancellationDragStart={(tokenIndex, event) => cancellationDragStart(branchIndex, expressionIndex, tokenIndex, event)}
                           rewriteMode={rewriteOpen}
                           onRewriteTarget={() => selectRewriteTarget(branchIndex, expressionIndex)}
-                          placementMode={activeBranch === branchIndex && placementMode}
+                          placementMode={placementMode}
                           placement={placementByKey[key] || null}
                           onPlacement={(placement) => {
                             setActiveBranch(branchIndex);
@@ -1885,7 +1896,7 @@ export default function MultiRelationAlgebra({
                           operandLatex={operand}
                         />
 
-                        {activeBranch === branchIndex && wholeRelationPlacementMode && operation === 'divide' && (
+                        {wholeRelationPlacementMode && operation === 'divide' && (
                           <div
                             style={{
                               display: 'grid',
@@ -1909,6 +1920,7 @@ export default function MultiRelationAlgebra({
                               type="button"
                               onClick={(event) => {
                                 event.stopPropagation();
+                                setActiveBranch(branchIndex);
                                 setPlacementByKey((current) => {
                                   const next = { ...current };
                                   if (next[key]?.kind === 'whole-operation') delete next[key];
@@ -1945,11 +1957,12 @@ export default function MultiRelationAlgebra({
                           </div>
                         )}
 
-                        {activeBranch === branchIndex && wholeRelationPlacementMode && operation === 'multiply' && (
+                        {wholeRelationPlacementMode && operation === 'multiply' && (
                           <button
                             type="button"
                             onClick={(event) => {
                               event.stopPropagation();
+                              setActiveBranch(branchIndex);
                               setPlacementByKey((current) => {
                                 const next = { ...current };
                                 if (next[key]?.kind === 'whole-operation') delete next[key];
