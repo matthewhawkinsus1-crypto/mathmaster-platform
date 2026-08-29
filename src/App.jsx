@@ -2916,7 +2916,7 @@ function App() {
               : buildHonorsEnrichmentQuestion({ questions: honorsParsedQuestions, course: destination.course });
           }
           destinationQuestions = normalizeAssignmentQuestions([
-            ...parsedQuestions,
+            ...honorsParsedQuestions,
             ...(enrichmentQuestion ? [enrichmentQuestion] : []),
           ]);
           const finalHonorsReport = inspectHonorsRigor(destinationQuestions, { allowNarrowCheckpoint: true });
