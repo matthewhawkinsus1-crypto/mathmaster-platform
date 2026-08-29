@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { matchesNumericAnswer, round } from '../shared/toolMath';
+import { sameEquivalentExpression } from '../../grading/equivalentExpression.js';
 import useToolSubmission from '../shared/useToolSubmission';
 import {
   compareSequencesAt,
@@ -33,6 +34,61 @@ const graphBounds = (values = []) => {
   return { yMin: Math.floor(low - margin), yMax: Math.ceil(high + margin) };
 };
 
+
+const inferPlotSnapStep = (rows = [], authored = null) => {
+  const supplied = Number(authored);
+  if (Number.isFinite(supplied) && supplied > 0) return supplied;
+  const values = rows.map((row) => Number(row.value)).filter(Number.isFinite);
+  if (values.every((value) => Math.abs(value - Math.round(value)) <= 1e-9)) return 1;
+  if (values.every((value) => Math.abs(value * 4 - Math.round(value * 4)) <= 1e-9)) return 0.25;
+  if (values.every((value) => Math.abs(value * 10 - Math.round(value * 10)) <= 1e-9)) return 0.1;
+  return 0.01;
+};
+
+const stripRuleLeftSide = (value = '') => {
+  const text = String(value || '').trim().replace(/−/g, '-').replace(/×/g, '*').replace(/·/g, '*');
+  const equalsIndex = text.indexOf('=');
+  return equalsIndex >= 0 ? text.slice(equalsIndex + 1).trim() : text;
+};
+
+const normalizePreviousTermToken = (value = '') => (
+  stripRuleLeftSide(value)
+    .replace(/a\s*[_]?\s*\{?\s*n\s*[-−]\s*1\s*\}?/gi, 'p')
+    .replace(/a\s*\(\s*n\s*[-−]\s*1\s*\)/gi, 'p')
+    .replace(/a\s*\[\s*n\s*[-−]\s*1\s*\]/gi, 'p')
+    .replace(/aₙ₋₁/gi, 'p')
+);
+
+const explicitRuleExpected = (spec) => (
+  spec.kind === 'arithmetic'
+    ? `${numberText(spec.first)} + (${numberText(spec.difference)})*(n-1)`
+    : `(${numberText(spec.first)})*(${numberText(spec.ratio)})^(n-1)`
+);
+
+const recursiveRuleExpected = (spec) => (
+  spec.kind === 'arithmetic'
+    ? `p + (${numberText(spec.difference)})`
+    : `(${numberText(spec.ratio)})*p`
+);
+
+const matchesExplicitRule = (value, spec) => {
+  const rhs = stripRuleLeftSide(value);
+  return Boolean(rhs) && sameEquivalentExpression(rhs, explicitRuleExpected(spec));
+};
+
+const matchesRecursiveRule = (value, spec) => {
+  const rhs = normalizePreviousTermToken(value);
+  return Boolean(rhs) && sameEquivalentExpression(rhs, recursiveRuleExpected(spec));
+};
+
+const pointSetMatchesRows = (points = [], rows = [], tolerance = 0.02) => {
+  if (!Array.isArray(points) || points.length !== rows.length) return false;
+  return rows.every((row) => points.some((point) => (
+    Math.abs(Number(point?.[0]) - Number(row.n)) <= tolerance
+    && Math.abs(Number(point?.[1]) - Number(row.value)) <= tolerance
+  )));
+};
+
 function SequenceVisual({ spec, count = 7, title = 'Table + discrete graph' }) {
   const rows = generateSequence(spec, count);
   const bounds = graphBounds(rows.map((row) => row.value));
@@ -57,6 +113,7 @@ function SequenceVisual({ spec, count = 7, title = 'Table + discrete graph' }) {
 export default function SequenceExplorer({ questionData = {}, onAction }) {
   const mode = questionData.mode || 'analyze';
   const { feedback, submit } = useToolSubmission(onAction);
+  if (mode === 'fullBridge') return <FullSequenceBridge questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
   if (mode === 'ruleBridge') return <RuleBridge questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
   if (mode === 'missingTerm') return <MissingTerm questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
   if (mode === 'partialSum') return <PartialSum questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
