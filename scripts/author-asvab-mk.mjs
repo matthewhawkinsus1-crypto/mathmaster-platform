@@ -13869,6 +13869,671 @@ mk('A.10E', 'factors-that-miss-the-middle-term', {
   feedback: 'Matching the product alone is only half of what a factor pair has to do.',
 });
 
+// ================================================================ A.10F
+// Recognising and using the difference of two squares. A.10E factors
+// trinomials; this standard is about the binomial case, so every family turns
+// on whether a two-term expression has the structure at all.
+
+mk('A.10F', 'factor-a-difference-of-squares', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Factor $x^2 - {{sq}}$.',
+  generator: {
+    parameters: { m: { type: 'int', min: 2, max: 14 } },
+    derived: { sq: 'm*m', twoM: '2*m' },
+    constraints: ['m!=sq', 'twoM!=sq'],
+  },
+  choices: [
+    { label: plain('(x - {{m}})(x + {{m}})'), correct: true },
+    { label: plain('(x - {{m}})(x - {{m}})'), error: 'signError' },
+    { label: plain('(x - {{sq}})(x + {{sq}})'), error: 'usedGivenValue' },
+    { label: plain('(x - {{twoM}})(x + {{twoM}})'), error: 'operationInverted' },
+  ],
+  reasoning: ['${{sq}}$ is ${{m}}$ squared, so this is one square taken from another.', 'Such a difference factors into the same two numbers with opposite signs.'],
+  answerSummary: { headline: 'A difference of squares splits into a sum and a difference of the roots.', text: 'It is $(x - {{m}})(x + {{m}})$.' },
+  hint: 'What number squares to ${{sq}}$?',
+  feedback: 'Two identical brackets would leave a middle term behind.',
+});
+
+mk('A.10F', 'which-binomial-fits-the-pattern', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Which of these is a difference of two squares?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      n: { type: 'int', min: 2, max: 12 },
+      odd: { type: 'int', min: 2, max: 40 },
+    },
+    derived: { sq: 'm*m', nsq: 'n*n', notSq: 'm*m+1' },
+    constraints: ['m!=n', 'sq!=nsq', 'notSq!=nsq', 'odd!=sq'],
+  },
+  choices: [
+    { label: plain('x^2 - {{sq}}'), correct: true },
+    { label: plain('x^2 + {{nsq}}'), error: 'signError' },
+    { label: plain('x^2 - {{notSq}}'), error: 'exponentError' },
+    { label: plain('x^3 - {{nsq}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The pattern needs two squares with a subtraction between them.', 'Only ${{sq}}$ is a perfect square sitting behind a minus with $x^2$ in front.'],
+  answerSummary: { headline: 'Two squares, subtracted; a sum or an odd power does not qualify.', text: 'It is $x^2 - {{sq}}$.' },
+  hint: 'Which constants are perfect squares, and which sign sits in front of them?',
+  feedback: 'A sum of two squares does not factor this way.',
+});
+
+mk('A.10F', 'difference-of-squares-with-a-coefficient', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Factor ${{aSq}}x^2 - {{bSq}}$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { aSq: 'a*a', bSq: 'b*b', ab: 'a*b' },
+    constraints: ['a!=b', 'aSq!=bSq', 'ab!=bSq', 'gcd(a,b)==1'],
+  },
+  choices: [
+    { label: plain('({{a}}x - {{b}})({{a}}x + {{b}})'), correct: true },
+    { label: plain('({{aSq}}x - {{bSq}})({{aSq}}x + {{bSq}})'), error: 'usedGivenValue' },
+    { label: plain('({{a}}x - {{b}})({{a}}x - {{b}})'), error: 'signError' },
+    { label: plain('({{a}}x - {{bSq}})({{a}}x + {{bSq}})'), error: 'partialTotal' },
+  ],
+  reasoning: ['${{aSq}}x^2$ is $({{a}}x)^2$ and ${{bSq}}$ is ${{b}}^2$.', 'The roots of the two squares are ${{a}}x$ and ${{b}}$, so those go in the brackets.'],
+  answerSummary: { headline: 'Take the square root of each term, coefficient included.', text: 'It is $({{a}}x - {{b}})({{a}}x + {{b}})$.' },
+  hint: 'What squares to give ${{aSq}}x^2$?',
+  feedback: 'Those are the squares themselves, not their roots.',
+});
+
+mk('A.10F', 'the-border-around-a-square', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A square sheet of side $x$ has a square of side ${{m}}$ cut from it. Which product gives the sheet that is left?',
+  generator: {
+    parameters: { m: { type: 'int', min: 2, max: 14 } },
+    derived: { sq: 'm*m', twoM: '2*m', fourM: '4*m' },
+    constraints: ['m!=sq', 'twoM!=sq'],
+  },
+  choices: [
+    { label: plain('(x - {{m}})(x + {{m}})'), correct: true },
+    { label: plain('(x - {{m}})(x - {{m}})'), error: 'signError' },
+    { label: plain('(x - {{sq}})(x + {{sq}})'), error: 'usedGivenValue' },
+    { label: plain('(x - {{twoM}})(x + {{twoM}})'), error: 'areaPerimeterSwap' },
+  ],
+  reasoning: ['What is left is $x^2 - {{sq}}$, one square area taken from another.', 'That difference of squares is $(x - {{m}})(x + {{m}})$.'],
+  answerSummary: { headline: 'An area left after a square is removed is a difference of squares.', text: 'It is $(x - {{m}})(x + {{m}})$.' },
+  hint: 'What is the area of each square?',
+  feedback: 'Doubling the side belongs to a perimeter, not to an area.',
+});
+
+mk('A.10F', 'a-sum-of-squares-factored', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student factors $x^2 + {{sq}}$ as $(x + {{m}})(x - {{m}})$. What is wrong?',
+  generator: {
+    parameters: { m: { type: 'int', min: 2, max: 14 } },
+    derived: { sq: 'm*m' },
+    constraints: ['m!=sq'],
+  },
+  choices: [
+    { label: 'That product comes to $x^2 - {{sq}}$, and a sum of two squares does not factor at all.', correct: true },
+    { label: 'Nothing is wrong, since both squares appear in the answer.', error: 'usedGivenValue' },
+    { label: 'Both brackets should carry a plus, giving $(x + {{m}})(x + {{m}})$.', error: 'signError' },
+    { label: 'The numbers are wrong: they should be ${{sq}}$ rather than ${{m}}$.', error: 'partialTotal' },
+  ],
+  reasoning: ['Multiplying out $(x + {{m}})(x - {{m}})$ gives $x^2 - {{sq}}$, with a minus.', 'Nothing multiplies out to $x^2 + {{sq}}$ over the real numbers.'],
+  answerSummary: { headline: 'The pattern needs a subtraction; a sum of two squares has no real factors.', text: 'It does not factor.' },
+  hint: 'Multiply the two brackets out and compare the sign.',
+  feedback: 'Two plus brackets would leave a middle term, which is not there either.',
+});
+
+// ================================================================ A.11A
+// Simplifying numerical square roots. Every answer is left in exact radical
+// form, which is how the ASVAB asks for it, so no family hides its work behind
+// a decimal.
+
+mk('A.11A', 'simplify-a-square-root', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Simplify $\\sqrt{{{n}}}$.',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      m: { type: 'choice', values: [2, 3, 5, 6, 7, 10, 11] },
+    },
+    derived: { n: 'k*k*m', kSq: 'k*k', km: 'k*m' },
+    constraints: ['k!=m', 'kSq!=m'],
+  },
+  choices: [
+    { label: plain('{{k}}\\sqrt{{{m}}}'), correct: true },
+    { label: plain('{{m}}\\sqrt{{{k}}}'), error: 'ratioReversed' },
+    { label: plain('{{kSq}}\\sqrt{{{m}}}'), error: 'forgotFinalStep' },
+    { label: plain('{{km}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['${{n}}$ splits as ${{kSq}} \\times {{m}}$, and ${{kSq}}$ is a perfect square.', 'Its root ${{k}}$ comes outside, leaving $\\sqrt{{{m}}}$ inside.'],
+  answerSummary: { headline: 'Pull out the square factor; what is left stays under the root.', text: 'It is ${{k}}\\sqrt{{{m}}}$.' },
+  hint: 'What is the largest perfect square that divides ${{n}}$?',
+  feedback: 'The square factor comes out as its root, not as itself.',
+});
+
+mk('A.11A', 'multiply-two-square-roots', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 2, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'Simplify $\\sqrt{{{a}}} \\times \\sqrt{{{b}}}$.',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 7 },
+      m: { type: 'choice', values: [2, 3, 5, 6, 7] },
+    },
+    derived: { a: 'k*m', b: 'k*m*m', product: 'k*k*m*m*m', outside: 'k*m', sum: 'k*m+k*m*m' },
+    constraints: ['k!=m'],
+  },
+  choices: [
+    { label: plain('{{outside}}\\sqrt{{{m}}}'), correct: true },
+    { label: plain('\\sqrt{{{sum}}}'), error: 'operationInverted' },
+    { label: plain('{{outside}}{{m}}'), error: 'forgotFinalStep' },
+    { label: plain('{{m}}\\sqrt{{{k}}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Two roots multiply into one: $\\sqrt{{{a}}} \\times \\sqrt{{{b}}} = \\sqrt{{{product}}}$.', 'That leaves ${{outside}}\\sqrt{{{m}}}$ once the square factor is taken out.'],
+  answerSummary: { headline: 'Multiply under one root, then simplify what is there.', text: 'It is ${{outside}}\\sqrt{{{m}}}$.' },
+  hint: 'What is the product of the two numbers under the roots?',
+  feedback: 'Roots multiply; they do not add what is underneath them.',
+});
+
+mk('A.11A', 'adding-roots-that-match', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Simplify $\\sqrt{{{a}}} + \\sqrt{{{b}}}$.',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 6 },
+      q: { type: 'int', min: 2, max: 6 },
+      m: { type: 'choice', values: [2, 3, 5, 6, 7] },
+    },
+    derived: { a: 'p*p*m', b: 'q*q*m', total: 'p+q', sum: 'p*p*m+q*q*m', prod: 'p*q' },
+    constraints: ['p!=q', 'total!=prod'],
+  },
+  choices: [
+    { label: plain('{{total}}\\sqrt{{{m}}}'), correct: true },
+    { label: plain('\\sqrt{{{sum}}}'), error: 'operationInverted' },
+    { label: plain('{{prod}}\\sqrt{{{m}}}'), error: 'ratioReversed' },
+    { label: plain('{{total}}{{m}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['Simplified, the two are ${{p}}\\sqrt{{{m}}}$ and ${{q}}\\sqrt{{{m}}}$.', 'They share the same root, so their multipliers add to ${{total}}$.'],
+  answerSummary: { headline: 'Roots add only once what is underneath them matches.', text: 'It is ${{total}}\\sqrt{{{m}}}$.' },
+  hint: 'Simplify each root first and see what they have in common.',
+  feedback: 'Adding what is under the roots is not the same as adding the roots.',
+});
+
+mk('A.11A', 'diagonal-of-a-rectangle', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A rectangle is ${{w}}$ cm by ${{h}}$ cm. What is its diagonal, in exact form?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 6 },
+      a: { type: 'choice', values: [1, 2, 3] },
+      b: { type: 'choice', values: [2, 3, 4, 5] },
+    },
+    derived: {
+      w: 'k*a', h: 'k*b',
+      s: 'a*a+b*b',
+      plainSum: 'k*a+k*b',
+      perim: '2*(k*a+k*b)',
+      noRoot: 'k*(a*a+b*b)',
+    },
+    // s must not be a perfect square, or the diagonal is a whole number and the
+    // item stops being about exact form at all.
+    constraints: ['a!=b', 'floor(sqrt(s))*floor(sqrt(s))!=s'],
+  },
+  choices: [
+    { label: plain('{{k}}\\sqrt{{{s}}}'), correct: true },
+    { label: plain('{{plainSum}}'), error: 'operationInverted' },
+    { label: plain('{{noRoot}}'), error: 'forgotFinalStep' },
+    { label: plain('{{perim}}'), error: 'areaPerimeterSwap' },
+  ],
+  reasoning: ['The diagonal squared is ${{w}}^2 + {{h}}^2$, which is ${{k}}^2 \\times {{s}}$.', 'Taking the square factor out leaves ${{k}}\\sqrt{{{s}}}$.'],
+  answerSummary: { headline: 'Square the sides and add, then take out whatever square factor appears.', text: 'It is ${{k}}\\sqrt{{{s}}}$ cm.' },
+  hint: 'What is the sum of the squares of the two sides?',
+  feedback: 'A diagonal is shorter than the two sides walked end to end.',
+});
+
+mk('A.11A', 'a-root-split-across-a-sum', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student writes $\\sqrt{{{a}} + {{b}}}$ as $\\sqrt{{{a}}} + \\sqrt{{{b}}}$. What is wrong?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 3, max: 9 },
+      q: { type: 'int', min: 2, max: 8 },
+    },
+    derived: { a: 'p*p', b: 'q*q', total: 'p*p+q*q', split: 'p+q' },
+    constraints: ['p!=q'],
+  },
+  choices: [
+    { label: 'A root does not split across a sum: $\\sqrt{{{total}}}$ is not ${{split}}$.', correct: true },
+    { label: 'Nothing is wrong, because both numbers are perfect squares.', error: 'usedGivenValue' },
+    { label: 'The two roots should be multiplied rather than added.', error: 'operationInverted' },
+    { label: 'The answer is right but should be written as $\\sqrt{{{split}}}$.', error: 'partialTotal' },
+  ],
+  reasoning: ['Squaring ${{split}}$ gives more than ${{total}}$, because of the cross term.', 'A root passes through a product, but never through a sum.'],
+  answerSummary: { headline: 'Roots distribute over multiplication, never over addition.', text: '$\\sqrt{{{total}}}$ is not ${{split}}$.' },
+  hint: 'Square the student answer and compare it with ${{total}}$.',
+  feedback: 'Both being perfect squares is what makes the mistake tempting, not what makes it right.',
+});
+
+// ================================================================ A.11B
+// Laws of exponents, including the integral and rational exponents the
+// standard names. The negative exponent appears through a division that goes
+// past zero, and the rational one through the radical form it is equal to.
+
+mk('A.11B', 'multiply-and-divide-powers', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Simplify $\\frac{x^{{{a}}} \\times x^{{{b}}}}{x^{{{c}}}}$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 3, max: 20 },
+    },
+    derived: { e: 'a+b-c', mult: 'a*b-c', added: 'a+b+c', prod: 'a*b' },
+    constraints: ['a!=b', 'e!=mult', 'e!=added', 'e!=prod', 'mult!=added', 'added!=prod'],
+  },
+  choices: [
+    { label: plain('x^{{{e}}}'), correct: true },
+    { label: plain('x^{{{mult}}}'), error: 'operationInverted' },
+    { label: plain('x^{{{added}}}'), error: 'signError' },
+    { label: plain('x^{{{prod}}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['Multiplying powers of one base adds the exponents: ${{a}} + {{b}}$.', 'Dividing then subtracts ${{c}}$, leaving an exponent of ${{e}}$.'],
+  answerSummary: { headline: 'Same base: multiplying adds exponents, dividing subtracts them.', text: 'It is $x^{{{e}}}$.' },
+  hint: 'What happens to the exponents when powers of the same base are multiplied?',
+  feedback: 'The exponents are added, not multiplied together.',
+});
+
+mk('A.11B', 'power-of-a-power', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Simplify $(x^{{{a}}})^{{{b}}}$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 8 },
+    },
+    derived: { prod: 'a*b', sum: 'a+b', power: 'a*a', diff: 'a*b-a' },
+    constraints: ['a!=b', 'prod!=sum', 'prod!=power', 'sum!=power', 'diff!=sum', 'power!=diff'],
+  },
+  choices: [
+    { label: plain('x^{{{prod}}}'), correct: true },
+    { label: plain('x^{{{sum}}}'), error: 'operationInverted' },
+    { label: plain('x^{{{power}}}'), error: 'usedGivenValue' },
+    { label: plain('x^{{{diff}}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['A power raised to a power means ${{b}}$ copies of $x^{{{a}}}$ multiplied together.', 'That adds ${{a}}$ to itself ${{b}}$ times, which is ${{prod}}$.'],
+  answerSummary: { headline: 'A power of a power multiplies the exponents.', text: 'It is $x^{{{prod}}}$.' },
+  hint: 'How many copies of $x^{{{a}}}$ are being multiplied?',
+  feedback: 'Adding the exponents is the rule for multiplying, not for raising to a power.',
+});
+
+mk('A.11B', 'a-radical-as-a-rational-exponent', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 2, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'Which is another way to write $\\sqrt[{{n}}]{x^{{{m}}}}$?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 2, max: 6 },
+      m: { type: 'int', min: 2, max: 11 },
+    },
+    derived: { prod: 'm*n' },
+    constraints: ['m!=n'],
+  },
+  choices: [
+    { label: plain('x^{\\frac{{{m}}}{{{n}}}}'), correct: true },
+    { label: plain('x^{\\frac{{{n}}}{{{m}}}}'), error: 'ratioReversed' },
+    { label: plain('x^{{{prod}}}'), error: 'operationInverted' },
+    { label: plain('{{n}}x^{{{m}}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['A root of order ${{n}}$ is the same as raising to the power $\\frac{1}{{{n}}}$.', 'Applying that to $x^{{{m}}}$ multiplies the exponents, giving $\\frac{{{m}}}{{{n}}}$.'],
+  answerSummary: { headline: 'The root order goes underneath; the power inside goes on top.', text: 'It is $x^{\\frac{{{m}}}{{{n}}}}$.' },
+  hint: 'What power is a ${{n}}$th root equal to?',
+  feedback: 'The order of the root belongs in the denominator, not the numerator.',
+});
+
+mk('A.11B', 'volume-of-an-algebraic-cube', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A cube has side ${{k}}x^{{{m}}}$. What is its volume?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 6 },
+      m: { type: 'int', min: 2, max: 6 },
+    },
+    derived: { kCube: 'k*k*k', mThree: 'm*3', kThree: 'k*3', mPlus: 'm+3' },
+    constraints: ['k!=m', 'mThree!=mPlus', 'kCube!=kThree'],
+  },
+  choices: [
+    { label: plain('{{kCube}}x^{{{mThree}}}'), correct: true },
+    { label: plain('{{kThree}}x^{{{mThree}}}'), error: 'operationInverted' },
+    { label: plain('{{kCube}}x^{{{mPlus}}}'), error: 'exponentError' },
+    { label: plain('{{kCube}}x^{{{m}}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['Volume is the side cubed, so both the ${{k}}$ and the $x^{{{m}}}$ are cubed.', 'That gives ${{kCube}}$ and an exponent of ${{m}} \\times 3 = {{mThree}}$.'],
+  answerSummary: { headline: 'Cubing reaches the coefficient as well as the power.', text: 'It is ${{kCube}}x^{{{mThree}}}$.' },
+  hint: 'What has to be cubed, and what does cubing do to the exponent?',
+  feedback: 'The coefficient is cubed, not multiplied by three.',
+});
+
+mk('A.11B', 'bases-added-instead-of-kept', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student writes $x^{{{a}}} \\times x^{{{b}}}$ as $x^{{{prod}}}$. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 8 },
+    },
+    derived: { prod: 'a*b', sum: 'a+b' },
+    constraints: ['a!=b', 'prod!=sum'],
+  },
+  choices: [
+    { label: 'Multiplying powers of one base adds the exponents, so it is $x^{{{sum}}}$.', correct: true },
+    { label: 'Nothing is wrong, because the two powers are being multiplied.', error: 'usedGivenValue' },
+    { label: 'The base should become $x^2$ as well, since two powers were multiplied.', error: 'operationInverted' },
+    { label: 'The exponents should be subtracted instead, giving a smaller power.', error: 'signError' },
+  ],
+  reasoning: ['$x^{{{a}}}$ is ${{a}}$ copies of $x$ and $x^{{{b}}}$ is ${{b}}$ more.', 'Together that is ${{sum}}$ copies, not ${{prod}}$.'],
+  answerSummary: { headline: 'Multiplying the powers adds the exponents; multiplying the exponents is the rule for a power of a power.', text: 'It is $x^{{{sum}}}$.' },
+  hint: 'Count the copies of $x$ on each side.',
+  feedback: 'The multiplication is between the powers, which is what makes the exponents add.',
+});
+
+// ================================================================ A.12A
+// Deciding whether a relation is a function. The standard names four
+// representations and the five families use four of them, since the platform
+// draws no graphs: a table, a set of pairs, a rule, and a description.
+
+mk('A.12A', 'is-this-table-a-function', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'table',
+  prompt: 'Is the relation in the table a function?',
+  stimulus: {
+    kind: 'table',
+    title: 'Recorded pairs',
+    table: { headers: ['x', 'y'], rows: [['{{x1}}', '{{y1}}'], ['{{x2}}', '{{y2}}'], ['{{x1}}', '{{y3}}'], ['{{x3}}', '{{y2}}']] },
+  },
+  generator: {
+    parameters: {
+      x1: { type: 'int', min: 1, max: 9 },
+      gap: { type: 'int', min: 1, max: 5 },
+      y1: { type: 'int', min: 2, max: 15 },
+      rise: { type: 'int', min: 2, max: 9 },
+      drop: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { x2: 'x1+gap', x3: 'x1+2*gap', y2: 'y1+rise', y3: 'y1+rise+drop' },
+    constraints: ['y1!=y2', 'y1!=y3', 'y2!=y3'],
+  },
+  choices: [
+    { label: 'No: the input ${{x1}}$ appears twice with different outputs.', correct: true },
+    { label: 'Yes, because every output appears with some input.', error: 'ratioReversed' },
+    { label: 'No, because the output ${{y2}}$ appears twice.', error: 'operationInverted' },
+    { label: 'Yes, because all four pairs are different from each other.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['A function gives each input exactly one output.', 'Here ${{x1}}$ is paired with both ${{y1}}$ and ${{y3}}$, so the rule is not a function.'],
+  answerSummary: { headline: 'One input may not have two outputs; one output may have many inputs.', text: 'It is not a function.' },
+  hint: 'Does any input appear more than once?',
+  feedback: 'A repeated output is allowed; a repeated input with different outputs is not.',
+});
+
+mk('A.12A', 'which-set-of-pairs-is-a-function', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'orderedPairs',
+  prompt: 'Which set of pairs is a function?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 1, max: 8 },
+      b: { type: 'int', min: 1, max: 8 },
+      p: { type: 'int', min: 2, max: 15 },
+      q: { type: 'int', min: 2, max: 15 },
+    },
+    derived: { a2: 'a+1', a3: 'a+2', p2: 'p+1' },
+    constraints: ['a!=b', 'p!=q', 'p!=p2'],
+  },
+  choices: [
+    { label: plain('\\{({{a}}, {{p}}), ({{a2}}, {{p}}), ({{a3}}, {{q}})\\}'), correct: true },
+    { label: plain('\\{({{a}}, {{p}}), ({{a}}, {{q}}), ({{a3}}, {{p}})\\}'), error: 'operationInverted' },
+    { label: plain('\\{({{a}}, {{p}}), ({{a2}}, {{q}}), ({{a}}, {{p2}})\\}'), error: 'ratioReversed' },
+    { label: plain('\\{({{a}}, {{p}}), ({{a}}, {{p2}}), ({{a}}, {{q}})\\}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['A set of pairs is a function when no first coordinate is repeated.', 'Only the first set has three different first coordinates.'],
+  answerSummary: { headline: 'Check the first coordinates for repeats; the second ones may repeat freely.', text: 'The set with three different first coordinates.' },
+  hint: 'Which coordinate is not allowed to repeat?',
+  feedback: 'A repeated first coordinate with different partners breaks the rule.',
+});
+
+mk('A.12A', 'which-rule-is-not-a-function', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'symbolic',
+  prompt: 'Which of these does not give exactly one $y$ for each $x$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 15 },
+      c: { type: 'int', min: 2, max: 20 },
+    },
+    derived: { sq: 'a*a' },
+    constraints: ['a!=b', 'b!=c', 'a!=c'],
+  },
+  choices: [
+    { label: plain('y^2 = x + {{b}}'), correct: true },
+    { label: plain('y = {{a}}x + {{b}}'), error: 'usedGivenValue' },
+    { label: plain('y = x^2 + {{c}}'), error: 'exponentError' },
+    { label: plain('y = {{a}}x^2 - {{b}}x + {{c}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['Squaring $y$ leaves two possible values of $y$ for most values of $x$.', 'The other three each work $y$ out from $x$ in one step, so each gives one answer.'],
+  answerSummary: { headline: 'It is a squared $y$, not a squared $x$, that breaks the rule.', text: 'It is $y^2 = x + {{b}}$.' },
+  hint: 'Which one has to be solved for $y$, and how many answers does that give?',
+  feedback: 'Squaring the input is fine; each $x$ still produces just one $y$.',
+});
+
+mk('A.12A', 'a-relation-described-in-words', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'verbal',
+  prompt: 'Each of ${{n}}$ lockers is assigned to exactly one pupil, and some pupils have two. Is locker to pupil a function?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 20, max: 90 },
+      p: { type: 'int', min: 5, max: 19 },
+    },
+    derived: {},
+    constraints: ['n!=p'],
+  },
+  choices: [
+    { label: 'Yes: each locker leads to one pupil, which is all a function needs.', correct: true },
+    { label: 'No, because some pupils are reached by two different lockers.', error: 'operationInverted' },
+    { label: 'No, because there are more lockers than pupils.', error: 'usedGivenValue' },
+    { label: 'Yes, but only if every pupil has exactly one locker.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Going from locker to pupil, each locker has exactly one destination.', 'Two lockers sharing a pupil is a repeated output, which a function allows.'],
+  answerSummary: { headline: 'A function may send several inputs to one output, never one input to several.', text: 'Yes, it is a function.' },
+  hint: 'Which way round is the relation being read?',
+  feedback: 'Sharing an output is allowed; the rule is about inputs.',
+});
+
+mk('A.12A', 'a-repeated-output-called-a-failure', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student says $\\{({{a}}, {{p}}), ({{b}}, {{p}}), ({{c}}, {{q}})\\}$ is not a function because ${{p}}$ repeats. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 1, max: 9 },
+      gap: { type: 'int', min: 1, max: 5 },
+      p: { type: 'int', min: 2, max: 15 },
+      q: { type: 'int', min: 2, max: 15 },
+    },
+    derived: { b: 'a+gap', c: 'a+2*gap' },
+    constraints: ['p!=q', 'a!=p'],
+  },
+  choices: [
+    { label: 'Only a repeated input breaks the rule, and all three inputs differ, so it is a function.', correct: true },
+    { label: 'Nothing is wrong, since a value appearing twice always breaks the rule.', error: 'usedGivenValue' },
+    { label: 'The set is not a function, but because ${{q}}$ appears only once.', error: 'partialTotal' },
+    { label: 'The set is not a function until the pairs are written in order.', error: 'operationInverted' },
+  ],
+  reasoning: ['A function must send each input to one output, and here ${{a}}$, ${{b}}$ and ${{c}}$ are all different.', 'Two inputs sharing the output ${{p}}$ is allowed.'],
+  answerSummary: { headline: 'The restriction is on inputs alone.', text: 'It is a function.' },
+  hint: 'Which coordinate does the rule restrict?',
+  feedback: 'It matters which of the two coordinates repeats.',
+});
+
+// ================================================================ A.12B
+// Evaluating a function written in function notation. The point throughout is
+// that f(3) names an output, not a multiplication, so every family puts a
+// value in and reads a value out.
+
+mk('A.12B', 'evaluate-at-a-whole-number', {
+  courseId: 'algebra1',
+  difficultyBand: 1, dok: 1, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'For $f(x) = {{a}}x + {{b}}$, what is $f({{v}})$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      // b shares v's range: the distractor that substitutes b instead of v
+      // then lands on either side of the key about equally often.
+      b: { type: 'int', min: 2, max: 12 },
+      v: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { out: 'a*v+b', times: 'a*v', wrongInput: 'a*b+b', asProduct: 'a*b*v' },
+    constraints: ['a!=b', 'a!=v', 'b!=v', 'out!=asProduct'],
+  },
+  choices: [
+    { label: plain('{{out}}'), correct: true },
+    { label: plain('{{times}}'), error: 'forgotFinalStep' },
+    { label: plain('{{wrongInput}}'), error: 'usedGivenValue' },
+    { label: plain('{{asProduct}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['$f({{v}})$ means put ${{v}}$ in place of $x$.', 'That gives ${{a}} \\times {{v}} + {{b}} = {{out}}$.'],
+  answerSummary: { headline: 'Function notation says which value to substitute, not what to multiply by.', text: 'It is ${{out}}$.' },
+  hint: 'What replaces $x$ in the rule?',
+  feedback: 'The ${{b}}$ still has to be added on.',
+});
+
+mk('A.12B', 'evaluate-at-a-negative-input', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'For $f(x) = x^2 - {{a}}x$, what is $f(-{{v}})$?',
+  generator: {
+    parameters: {
+      // a shares v's range so the choice that substitutes the coefficient
+      // crosses the key as those two cross.
+      a: { type: 'int', min: 2, max: 9 },
+      v: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      out: 'v*v+a*v',
+      signSlip: 'v*v-a*v',
+      wrongInput: 'a*a+a*a',
+      nextInput: '(v+1)*(v+1)+a*(v+1)',
+    },
+    constraints: ['a!=v', 'out!=signSlip', 'out!=wrongInput', 'signSlip!=wrongInput'],
+  },
+  choices: [
+    { label: plain('{{out}}'), correct: true },
+    { label: plain('{{signSlip}}'), error: 'signError' },
+    { label: plain('{{wrongInput}}'), error: 'usedGivenValue' },
+    { label: plain('{{nextInput}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['Squaring $-{{v}}$ gives ${{v}}^2$, a positive number.', 'Subtracting ${{a}}$ times $-{{v}}$ then adds ${{a}} \\times {{v}}$, giving ${{out}}$.'],
+  answerSummary: { headline: 'A negative input turns both signs around, and the square comes out positive.', text: 'It is ${{out}}$.' },
+  hint: 'What does $(-{{v}})^2$ come to?',
+  feedback: 'Taking away a negative amount adds to the total.',
+});
+
+mk('A.12B', 'read-a-function-value-from-a-table', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'table',
+  prompt: 'The table gives $f$. What is $f({{v}})$?',
+  stimulus: {
+    kind: 'table',
+    title: 'Values of the function',
+    table: { headers: ['x', 'f(x)'], rows: [['{{x1}}', '{{y1}}'], ['{{v}}', '{{out}}'], ['{{x3}}', '{{y3}}']] },
+  },
+  generator: {
+    parameters: {
+      // The inputs span the same range as the outputs, so answering with the
+      // input lands above the answer about as often as below it. A narrow
+      // input range made the key the third largest in 99% of draws.
+      x1: { type: 'int', min: 2, max: 32 },
+      step: { type: 'int', min: 1, max: 4 },
+      y1: { type: 'int', min: 3, max: 20 },
+      rise: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { v: 'x1+step', x3: 'x1+2*step', out: 'y1+rise', y3: 'y1+2*rise' },
+    constraints: ['y1!=out', 'out!=y3', 'v!=out', 'v!=y1'],
+  },
+  choices: [
+    { label: plain('{{out}}'), correct: true },
+    { label: plain('{{v}}'), error: 'usedGivenValue' },
+    { label: plain('{{y1}}'), error: 'offByOneStep' },
+    { label: plain('{{y3}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['Find the row where $x$ is ${{v}}$.', 'The value beside it in the $f(x)$ column is ${{out}}$.'],
+  answerSummary: { headline: 'Read across from the input to the output column.', text: 'It is ${{out}}$.' },
+  hint: 'Which row has ${{v}}$ in the input column?',
+  feedback: 'That is the input itself, not what the function gives back.',
+});
+
+mk('A.12B', 'a-charge-worked-out-from-a-rule', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A hire costs $C(d) = {{a}}d + {{b}}$ dollars for $d$ days. What does a hire of ${{v}}$ days cost?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 8, max: 25 },
+      // The fee shares the range of the number of days, so charging for the
+      // fee instead of the days crosses the answer about half the time.
+      b: { type: 'int', min: 4, max: 14 },
+      v: { type: 'int', min: 3, max: 13 },
+    },
+    derived: { out: 'a*v+b', noFee: 'a*v', feeTwice: 'a*v+b+b', wrongDays: 'a*b+b' },
+    constraints: ['a!=b', 'v!=a', 'b!=v', 'wrongDays!=out', 'wrongDays!=noFee'],
+  },
+  choices: [
+    { label: plain('{{out}}'), correct: true },
+    { label: plain('{{noFee}}'), error: 'forgotFinalStep' },
+    { label: plain('{{feeTwice}}'), error: 'partialTotal' },
+    { label: plain('{{wrongDays}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['$C({{v}})$ means the cost when $d$ is ${{v}}$.', 'That is ${{a}} \\times {{v}} + {{b}} = {{out}}$ dollars.'],
+  answerSummary: { headline: 'The fixed charge is added once, whatever the number of days.', text: 'It costs $\\${{out}}$.' },
+  hint: 'How many times is the fixed charge paid?',
+  feedback: 'The fixed charge has been left out of that total.',
+});
+
+mk('A.12B', 'notation-read-as-a-product', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'For $f(x) = {{a}}x + {{b}}$ a student says $f({{v}})$ means $f$ multiplied by ${{v}}$. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 2, max: 20 },
+      v: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { out: 'a*v+b' },
+    constraints: ['a!=b', 'a!=v'],
+  },
+  choices: [
+    { label: 'The bracket names the input, so $f({{v}})$ is the output at $x = {{v}}$, which is ${{out}}$.', correct: true },
+    { label: 'Nothing is wrong, since a number beside a bracket always multiplies it.', error: 'usedGivenValue' },
+    { label: 'It means $f$ added to ${{v}}$ rather than multiplied by it.', error: 'operationInverted' },
+    { label: 'The notation is meaningless unless $f$ is given a numerical value first.', error: 'partialTotal' },
+  ],
+  reasoning: ['$f$ is the name of a rule, not a quantity that can be multiplied.', 'What sits in the bracket is the value put in for $x$.'],
+  answerSummary: { headline: 'The bracket after a function name holds its input.', text: '$f({{v}}) = {{out}}$.' },
+  hint: 'What does the letter $f$ stand for here?',
+  feedback: 'That is true of a number beside a bracket, but $f$ is a rule, not a number.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {

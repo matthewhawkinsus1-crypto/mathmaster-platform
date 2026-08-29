@@ -475,6 +475,9 @@ test('an expand, factor or divide family has a key algebraically identical to it
     ['mm_asvab_A_10E_factor_a_monic_trinomial', (p) => /Factor \$(.+?)\$\./.exec(p)?.[1]],
     ['mm_asvab_A_10E_factor_with_a_leading_coefficient', (p) => /Factor \$(.+?)\$\./.exec(p)?.[1]],
     ['mm_asvab_A_10E_recognising_a_perfect_square', (p) => /equals \$(.+?)\$\?/.exec(p)?.[1]],
+    ['mm_asvab_A_10F_factor_a_difference_of_squares', (p) => /Factor \$(.+?)\$\./.exec(p)?.[1]],
+    ['mm_asvab_A_10F_difference_of_squares_with_a_coefficient', (p) => /Factor \$(.+?)\$\./.exec(p)?.[1]],
+    ['mm_asvab_A_11B_power_of_a_power', (p) => /Simplify \$(.+?)\$\./.exec(p)?.[1]],
   ];
   const byId = Object.fromEntries(draft.map((question) => [question.id, question]));
 

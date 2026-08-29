@@ -56495,6 +56495,2965 @@
      "expected": "choice-a"
     }
    ]
+  },
+  {
+   "id": "mm_asvab_A_10F_factor_a_difference_of_squares",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10F:factor-a-difference-of-squares",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10F",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Factor $x^2 - {{sq}}$.",
+   "solutionReview": {
+    "headline": "A difference of squares splits into a sum and a difference of the roots.",
+    "reasoning": [
+     "${{sq}}$ is ${{m}}$ squared, so this is one square taken from another.",
+     "Such a difference factors into the same two numbers with opposite signs."
+    ],
+    "answerSummary": "It is $(x - {{m}})(x + {{m}})$."
+   },
+   "attemptFeedback": [
+    "Two identical brackets would leave a middle term behind."
+   ],
+   "supportHints": [
+    "What number squares to ${{sq}}$?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     }
+    },
+    "derived": {
+     "sq": "m*m",
+     "twoM": "2*m"
+    },
+    "constraints": [
+     "m!=sq",
+     "twoM!=sq"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$(x - {{sq}})(x + {{sq}})$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "$(x - {{twoM}})(x + {{twoM}})$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "$(x - {{m}})(x - {{m}})$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "$(x - {{m}})(x + {{m}})$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10F_which_binomial_fits_the_pattern",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10F:which-binomial-fits-the-pattern",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10F",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which of these is a difference of two squares?",
+   "solutionReview": {
+    "headline": "Two squares, subtracted; a sum or an odd power does not qualify.",
+    "reasoning": [
+     "The pattern needs two squares with a subtraction between them.",
+     "Only ${{sq}}$ is a perfect square sitting behind a minus with $x^2$ in front."
+    ],
+    "answerSummary": "It is $x^2 - {{sq}}$."
+   },
+   "attemptFeedback": [
+    "A sum of two squares does not factor this way."
+   ],
+   "supportHints": [
+    "Which constants are perfect squares, and which sign sits in front of them?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "n": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "odd": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     }
+    },
+    "derived": {
+     "sq": "m*m",
+     "nsq": "n*n",
+     "notSq": "m*m+1"
+    },
+    "constraints": [
+     "m!=n",
+     "sq!=nsq",
+     "notSq!=nsq",
+     "odd!=sq"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x^2 - {{sq}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x^2 - {{notSq}}$",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x^2 + {{nsq}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x^3 - {{nsq}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10F_difference_of_squares_with_a_coefficient",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10F:difference-of-squares-with-a-coefficient",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10F",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Factor ${{aSq}}x^2 - {{bSq}}$.",
+   "solutionReview": {
+    "headline": "Take the square root of each term, coefficient included.",
+    "reasoning": [
+     "${{aSq}}x^2$ is $({{a}}x)^2$ and ${{bSq}}$ is ${{b}}^2$.",
+     "The roots of the two squares are ${{a}}x$ and ${{b}}$, so those go in the brackets."
+    ],
+    "answerSummary": "It is $({{a}}x - {{b}})({{a}}x + {{b}})$."
+   },
+   "attemptFeedback": [
+    "Those are the squares themselves, not their roots."
+   ],
+   "supportHints": [
+    "What squares to give ${{aSq}}x^2$?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "aSq": "a*a",
+     "bSq": "b*b",
+     "ab": "a*b"
+    },
+    "constraints": [
+     "a!=b",
+     "aSq!=bSq",
+     "ab!=bSq",
+     "gcd(a,b)==1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$({{a}}x - {{b}})({{a}}x - {{b}})$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "$({{aSq}}x - {{bSq}})({{aSq}}x + {{bSq}})$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$({{a}}x - {{b}})({{a}}x + {{b}})$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$({{a}}x - {{bSq}})({{a}}x + {{bSq}})$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10F_the_border_around_a_square",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10F:the-border-around-a-square",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10F",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A square sheet of side $x$ has a square of side ${{m}}$ cut from it. Which product gives the sheet that is left?",
+   "solutionReview": {
+    "headline": "An area left after a square is removed is a difference of squares.",
+    "reasoning": [
+     "What is left is $x^2 - {{sq}}$, one square area taken from another.",
+     "That difference of squares is $(x - {{m}})(x + {{m}})$."
+    ],
+    "answerSummary": "It is $(x - {{m}})(x + {{m}})$."
+   },
+   "attemptFeedback": [
+    "Doubling the side belongs to a perimeter, not to an area."
+   ],
+   "supportHints": [
+    "What is the area of each square?"
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     }
+    },
+    "derived": {
+     "sq": "m*m",
+     "twoM": "2*m",
+     "fourM": "4*m"
+    },
+    "constraints": [
+     "m!=sq",
+     "twoM!=sq"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$(x - {{m}})(x - {{m}})$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "$(x - {{twoM}})(x + {{twoM}})$",
+     "error": "areaPerimeterSwap"
+    },
+    {
+     "id": "choice-c",
+     "label": "$(x - {{m}})(x + {{m}})$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$(x - {{sq}})(x + {{sq}})$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10F_a_sum_of_squares_factored",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10F:a-sum-of-squares-factored",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10F",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student factors $x^2 + {{sq}}$ as $(x + {{m}})(x - {{m}})$. What is wrong?",
+   "solutionReview": {
+    "headline": "The pattern needs a subtraction; a sum of two squares has no real factors.",
+    "reasoning": [
+     "Multiplying out $(x + {{m}})(x - {{m}})$ gives $x^2 - {{sq}}$, with a minus.",
+     "Nothing multiplies out to $x^2 + {{sq}}$ over the real numbers."
+    ],
+    "answerSummary": "It does not factor."
+   },
+   "attemptFeedback": [
+    "Two plus brackets would leave a middle term, which is not there either."
+   ],
+   "supportHints": [
+    "Multiply the two brackets out and compare the sign."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     }
+    },
+    "derived": {
+     "sq": "m*m"
+    },
+    "constraints": [
+     "m!=sq"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "That product comes to $x^2 - {{sq}}$, and a sum of two squares does not factor at all."
+    },
+    {
+     "id": "choice-b",
+     "label": "Nothing is wrong, since both squares appear in the answer.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "Both brackets should carry a plus, giving $(x + {{m}})(x + {{m}})$.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "The numbers are wrong: they should be ${{sq}}$ rather than ${{m}}$.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_11A_simplify_a_square_root",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.11A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.11A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.11A:simplify-a-square-root",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.11A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Simplify $\\sqrt{{{n}}}$.",
+   "solutionReview": {
+    "headline": "Pull out the square factor; what is left stays under the root.",
+    "reasoning": [
+     "${{n}}$ splits as ${{kSq}} \\times {{m}}$, and ${{kSq}}$ is a perfect square.",
+     "Its root ${{k}}$ comes outside, leaving $\\sqrt{{{m}}}$ inside."
+    ],
+    "answerSummary": "It is ${{k}}\\sqrt{{{m}}}$."
+   },
+   "attemptFeedback": [
+    "The square factor comes out as its root, not as itself."
+   ],
+   "supportHints": [
+    "What is the largest perfect square that divides ${{n}}$?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "m": {
+      "type": "choice",
+      "values": [
+       2,
+       3,
+       5,
+       6,
+       7,
+       10,
+       11
+      ]
+     }
+    },
+    "derived": {
+     "n": "k*k*m",
+     "kSq": "k*k",
+     "km": "k*m"
+    },
+    "constraints": [
+     "k!=m",
+     "kSq!=m"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{m}}\\sqrt{{{k}}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{km}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{kSq}}\\sqrt{{{m}}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{k}}\\sqrt{{{m}}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_11A_multiply_two_square_roots",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.11A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.11A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.11A:multiply-two-square-roots",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.11A",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Simplify $\\sqrt{{{a}}} \\times \\sqrt{{{b}}}$.",
+   "solutionReview": {
+    "headline": "Multiply under one root, then simplify what is there.",
+    "reasoning": [
+     "Two roots multiply into one: $\\sqrt{{{a}}} \\times \\sqrt{{{b}}} = \\sqrt{{{product}}}$.",
+     "That leaves ${{outside}}\\sqrt{{{m}}}$ once the square factor is taken out."
+    ],
+    "answerSummary": "It is ${{outside}}\\sqrt{{{m}}}$."
+   },
+   "attemptFeedback": [
+    "Roots multiply; they do not add what is underneath them."
+   ],
+   "supportHints": [
+    "What is the product of the two numbers under the roots?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "m": {
+      "type": "choice",
+      "values": [
+       2,
+       3,
+       5,
+       6,
+       7
+      ]
+     }
+    },
+    "derived": {
+     "a": "k*m",
+     "b": "k*m*m",
+     "product": "k*k*m*m*m",
+     "outside": "k*m",
+     "sum": "k*m+k*m*m"
+    },
+    "constraints": [
+     "k!=m"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{outside}}\\sqrt{{{m}}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{outside}}{{m}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\sqrt{{{sum}}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{m}}\\sqrt{{{k}}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_11A_adding_roots_that_match",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.11A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.11A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.11A:adding-roots-that-match",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.11A",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Simplify $\\sqrt{{{a}}} + \\sqrt{{{b}}}$.",
+   "solutionReview": {
+    "headline": "Roots add only once what is underneath them matches.",
+    "reasoning": [
+     "Simplified, the two are ${{p}}\\sqrt{{{m}}}$ and ${{q}}\\sqrt{{{m}}}$.",
+     "They share the same root, so their multipliers add to ${{total}}$."
+    ],
+    "answerSummary": "It is ${{total}}\\sqrt{{{m}}}$."
+   },
+   "attemptFeedback": [
+    "Adding what is under the roots is not the same as adding the roots."
+   ],
+   "supportHints": [
+    "Simplify each root first and see what they have in common."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "m": {
+      "type": "choice",
+      "values": [
+       2,
+       3,
+       5,
+       6,
+       7
+      ]
+     }
+    },
+    "derived": {
+     "a": "p*p*m",
+     "b": "q*q*m",
+     "total": "p+q",
+     "sum": "p*p*m+q*q*m",
+     "prod": "p*q"
+    },
+    "constraints": [
+     "p!=q",
+     "total!=prod"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{prod}}\\sqrt{{{m}}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\sqrt{{{sum}}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{total}}\\sqrt{{{m}}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{total}}{{m}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_11A_diagonal_of_a_rectangle",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.11A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.11A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.11A:diagonal-of-a-rectangle",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.11A",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A rectangle is ${{w}}$ cm by ${{h}}$ cm. What is its diagonal, in exact form?",
+   "solutionReview": {
+    "headline": "Square the sides and add, then take out whatever square factor appears.",
+    "reasoning": [
+     "The diagonal squared is ${{w}}^2 + {{h}}^2$, which is ${{k}}^2 \\times {{s}}$.",
+     "Taking the square factor out leaves ${{k}}\\sqrt{{{s}}}$."
+    ],
+    "answerSummary": "It is ${{k}}\\sqrt{{{s}}}$ cm."
+   },
+   "attemptFeedback": [
+    "A diagonal is shorter than the two sides walked end to end."
+   ],
+   "supportHints": [
+    "What is the sum of the squares of the two sides?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "a": {
+      "type": "choice",
+      "values": [
+       1,
+       2,
+       3
+      ]
+     },
+     "b": {
+      "type": "choice",
+      "values": [
+       2,
+       3,
+       4,
+       5
+      ]
+     }
+    },
+    "derived": {
+     "w": "k*a",
+     "h": "k*b",
+     "s": "a*a+b*b",
+     "plainSum": "k*a+k*b",
+     "perim": "2*(k*a+k*b)",
+     "noRoot": "k*(a*a+b*b)"
+    },
+    "constraints": [
+     "a!=b",
+     "floor(sqrt(s))*floor(sqrt(s))!=s",
+     "plainSum!=noRoot",
+     "plainSum!=perim",
+     "noRoot!=perim"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{k}}\\sqrt{{{s}}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{plainSum}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{noRoot}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{perim}}$",
+     "error": "areaPerimeterSwap"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_11A_a_root_split_across_a_sum",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.11A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.11A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.11A:a-root-split-across-a-sum",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.11A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student writes $\\sqrt{{{a}} + {{b}}}$ as $\\sqrt{{{a}}} + \\sqrt{{{b}}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "Roots distribute over multiplication, never over addition.",
+    "reasoning": [
+     "Squaring ${{split}}$ gives more than ${{total}}$, because of the cross term.",
+     "A root passes through a product, but never through a sum."
+    ],
+    "answerSummary": "$\\sqrt{{{total}}}$ is not ${{split}}$."
+   },
+   "attemptFeedback": [
+    "Both being perfect squares is what makes the mistake tempting, not what makes it right."
+   ],
+   "supportHints": [
+    "Square the student answer and compare it with ${{total}}$."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 3,
+      "max": 9
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     }
+    },
+    "derived": {
+     "a": "p*p",
+     "b": "q*q",
+     "total": "p*p+q*q",
+     "split": "p+q"
+    },
+    "constraints": [
+     "p!=q"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "A root does not split across a sum: $\\sqrt{{{total}}}$ is not ${{split}}$."
+    },
+    {
+     "id": "choice-b",
+     "label": "The two roots should be multiplied rather than added.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "The answer is right but should be written as $\\sqrt{{{split}}}$.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "Nothing is wrong, because both numbers are perfect squares.",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_11B_multiply_and_divide_powers",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.11B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.11B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.11B:multiply-and-divide-powers",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.11B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Simplify $\\frac{x^{{{a}}} \\times x^{{{b}}}}{x^{{{c}}}}$.",
+   "solutionReview": {
+    "headline": "Same base: multiplying adds exponents, dividing subtracts them.",
+    "reasoning": [
+     "Multiplying powers of one base adds the exponents: ${{a}} + {{b}}$.",
+     "Dividing then subtracts ${{c}}$, leaving an exponent of ${{e}}$."
+    ],
+    "answerSummary": "It is $x^{{{e}}}$."
+   },
+   "attemptFeedback": [
+    "The exponents are added, not multiplied together."
+   ],
+   "supportHints": [
+    "What happens to the exponents when powers of the same base are multiplied?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 3,
+      "max": 20
+     }
+    },
+    "derived": {
+     "e": "a+b-c",
+     "mult": "a*b-c",
+     "added": "a+b+c",
+     "prod": "a*b"
+    },
+    "constraints": [
+     "a!=b",
+     "e!=mult",
+     "e!=added",
+     "e!=prod",
+     "mult!=added",
+     "added!=prod"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x^{{{prod}}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x^{{{e}}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x^{{{mult}}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x^{{{added}}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_11B_power_of_a_power",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.11B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.11B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.11B:power-of-a-power",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.11B",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Simplify $(x^{{{a}}})^{{{b}}}$.",
+   "solutionReview": {
+    "headline": "A power of a power multiplies the exponents.",
+    "reasoning": [
+     "A power raised to a power means ${{b}}$ copies of $x^{{{a}}}$ multiplied together.",
+     "That adds ${{a}}$ to itself ${{b}}$ times, which is ${{prod}}$."
+    ],
+    "answerSummary": "It is $x^{{{prod}}}$."
+   },
+   "attemptFeedback": [
+    "Adding the exponents is the rule for multiplying, not for raising to a power."
+   ],
+   "supportHints": [
+    "How many copies of $x^{{{a}}}$ are being multiplied?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     }
+    },
+    "derived": {
+     "prod": "a*b",
+     "sum": "a+b",
+     "power": "a*a",
+     "diff": "a*b-a"
+    },
+    "constraints": [
+     "a!=b",
+     "prod!=sum",
+     "prod!=power",
+     "sum!=power",
+     "diff!=sum",
+     "power!=diff"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x^{{{sum}}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x^{{{diff}}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x^{{{prod}}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x^{{{power}}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_11B_a_radical_as_a_rational_exponent",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.11B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.11B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.11B:a-radical-as-a-rational-exponent",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.11B",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which is another way to write $\\sqrt[{{n}}]{x^{{{m}}}}$?",
+   "solutionReview": {
+    "headline": "The root order goes underneath; the power inside goes on top.",
+    "reasoning": [
+     "A root of order ${{n}}$ is the same as raising to the power $\\frac{1}{{{n}}}$.",
+     "Applying that to $x^{{{m}}}$ multiplies the exponents, giving $\\frac{{{m}}}{{{n}}}$."
+    ],
+    "answerSummary": "It is $x^{\\frac{{{m}}}{{{n}}}}$."
+   },
+   "attemptFeedback": [
+    "The order of the root belongs in the denominator, not the numerator."
+   ],
+   "supportHints": [
+    "What power is a ${{n}}$th root equal to?"
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 11
+     }
+    },
+    "derived": {
+     "prod": "m*n"
+    },
+    "constraints": [
+     "m!=n"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x^{\\frac{{{m}}}{{{n}}}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{n}}x^{{{m}}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x^{{{prod}}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x^{\\frac{{{n}}}{{{m}}}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_11B_volume_of_an_algebraic_cube",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.11B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.11B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.11B:volume-of-an-algebraic-cube",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.11B",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A cube has side ${{k}}x^{{{m}}}$. What is its volume?",
+   "solutionReview": {
+    "headline": "Cubing reaches the coefficient as well as the power.",
+    "reasoning": [
+     "Volume is the side cubed, so both the ${{k}}$ and the $x^{{{m}}}$ are cubed.",
+     "That gives ${{kCube}}$ and an exponent of ${{m}} \\times 3 = {{mThree}}$."
+    ],
+    "answerSummary": "It is ${{kCube}}x^{{{mThree}}}$."
+   },
+   "attemptFeedback": [
+    "The coefficient is cubed, not multiplied by three."
+   ],
+   "supportHints": [
+    "What has to be cubed, and what does cubing do to the exponent?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     }
+    },
+    "derived": {
+     "kCube": "k*k*k",
+     "mThree": "m*3",
+     "kThree": "k*3",
+     "mPlus": "m+3"
+    },
+    "constraints": [
+     "k!=m",
+     "mThree!=mPlus",
+     "kCube!=kThree"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{kThree}}x^{{{mThree}}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{kCube}}x^{{{mPlus}}}$",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{kCube}}x^{{{m}}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{kCube}}x^{{{mThree}}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_11B_bases_added_instead_of_kept",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.11B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.11B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.11B:bases-added-instead-of-kept",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.11B",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student writes $x^{{{a}}} \\times x^{{{b}}}$ as $x^{{{prod}}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "Multiplying the powers adds the exponents; multiplying the exponents is the rule for a power of a power.",
+    "reasoning": [
+     "$x^{{{a}}}$ is ${{a}}$ copies of $x$ and $x^{{{b}}}$ is ${{b}}$ more.",
+     "Together that is ${{sum}}$ copies, not ${{prod}}$."
+    ],
+    "answerSummary": "It is $x^{{{sum}}}$."
+   },
+   "attemptFeedback": [
+    "The multiplication is between the powers, which is what makes the exponents add."
+   ],
+   "supportHints": [
+    "Count the copies of $x$ on each side."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     }
+    },
+    "derived": {
+     "prod": "a*b",
+     "sum": "a+b"
+    },
+    "constraints": [
+     "a!=b",
+     "prod!=sum"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The exponents should be subtracted instead, giving a smaller power.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "Multiplying powers of one base adds the exponents, so it is $x^{{{sum}}}$."
+    },
+    {
+     "id": "choice-c",
+     "label": "Nothing is wrong, because the two powers are being multiplied.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "The base should become $x^2$ as well, since two powers were multiplied.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_12A_is_this_table_a_function",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.12A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.12A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.12A:is-this-table-a-function",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.12A",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Is the relation in the table a function?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Recorded pairs",
+    "table": {
+     "headers": [
+      "x",
+      "y"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "{{y1}}"
+      ],
+      [
+       "{{x2}}",
+       "{{y2}}"
+      ],
+      [
+       "{{x1}}",
+       "{{y3}}"
+      ],
+      [
+       "{{x3}}",
+       "{{y2}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "One input may not have two outputs; one output may have many inputs.",
+    "reasoning": [
+     "A function gives each input exactly one output.",
+     "Here ${{x1}}$ is paired with both ${{y1}}$ and ${{y3}}$, so the rule is not a function."
+    ],
+    "answerSummary": "It is not a function."
+   },
+   "attemptFeedback": [
+    "A repeated output is allowed; a repeated input with different outputs is not."
+   ],
+   "supportHints": [
+    "Does any input appear more than once?"
+   ],
+   "generator": {
+    "parameters": {
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     },
+     "gap": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     },
+     "y1": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     },
+     "rise": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "drop": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "x2": "x1+gap",
+     "x3": "x1+2*gap",
+     "y2": "y1+rise",
+     "y3": "y1+rise+drop"
+    },
+    "constraints": [
+     "y1!=y2",
+     "y1!=y3",
+     "y2!=y3"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "No, because the output ${{y2}}$ appears twice.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "Yes, because all four pairs are different from each other.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "Yes, because every output appears with some input.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "No: the input ${{x1}}$ appears twice with different outputs."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_12A_which_set_of_pairs_is_a_function",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.12A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.12A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.12A:which-set-of-pairs-is-a-function",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.12A",
+   "taskType": "conceptual",
+   "representation": "orderedPairs",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which set of pairs is a function?",
+   "solutionReview": {
+    "headline": "Check the first coordinates for repeats; the second ones may repeat freely.",
+    "reasoning": [
+     "A set of pairs is a function when no first coordinate is repeated.",
+     "Only the first set has three different first coordinates."
+    ],
+    "answerSummary": "The set with three different first coordinates."
+   },
+   "attemptFeedback": [
+    "A repeated first coordinate with different partners breaks the rule."
+   ],
+   "supportHints": [
+    "Which coordinate is not allowed to repeat?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     },
+     "b": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     },
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     }
+    },
+    "derived": {
+     "a2": "a+1",
+     "a3": "a+2",
+     "p2": "p+1"
+    },
+    "constraints": [
+     "a!=b",
+     "p!=q",
+     "p!=p2"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\{({{a}}, {{p}}), ({{a2}}, {{q}}), ({{a}}, {{p2}})\\}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\{({{a}}, {{p}}), ({{a}}, {{q}}), ({{a3}}, {{p}})\\}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\{({{a}}, {{p}}), ({{a2}}, {{p}}), ({{a3}}, {{q}})\\}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\{({{a}}, {{p}}), ({{a}}, {{p2}}), ({{a}}, {{q}})\\}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_12A_which_rule_is_not_a_function",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.12A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.12A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.12A:which-rule-is-not-a-function",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.12A",
+   "taskType": "application",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which of these does not give exactly one $y$ for each $x$?",
+   "solutionReview": {
+    "headline": "It is a squared $y$, not a squared $x$, that breaks the rule.",
+    "reasoning": [
+     "Squaring $y$ leaves two possible values of $y$ for most values of $x$.",
+     "The other three each work $y$ out from $x$ in one step, so each gives one answer."
+    ],
+    "answerSummary": "It is $y^2 = x + {{b}}$."
+   },
+   "attemptFeedback": [
+    "Squaring the input is fine; each $x$ still produces just one $y$."
+   ],
+   "supportHints": [
+    "Which one has to be solved for $y$, and how many answers does that give?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "sq": "a*a"
+    },
+    "constraints": [
+     "a!=b",
+     "b!=c",
+     "a!=c"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y^2 = x + {{b}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = {{a}}x + {{b}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = x^2 + {{c}}$",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = {{a}}x^2 - {{b}}x + {{c}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_12A_a_relation_described_in_words",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.12A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.12A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.12A:a-relation-described-in-words",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.12A",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Each of ${{n}}$ lockers is assigned to exactly one pupil, and some pupils have two. Is locker to pupil a function?",
+   "solutionReview": {
+    "headline": "A function may send several inputs to one output, never one input to several.",
+    "reasoning": [
+     "Going from locker to pupil, each locker has exactly one destination.",
+     "Two lockers sharing a pupil is a repeated output, which a function allows."
+    ],
+    "answerSummary": "Yes, it is a function."
+   },
+   "attemptFeedback": [
+    "Sharing an output is allowed; the rule is about inputs."
+   ],
+   "supportHints": [
+    "Which way round is the relation being read?"
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 20,
+      "max": 90
+     },
+     "p": {
+      "type": "int",
+      "min": 5,
+      "max": 19
+     }
+    },
+    "derived": {},
+    "constraints": [
+     "n!=p"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Yes: each locker leads to one pupil, which is all a function needs."
+    },
+    {
+     "id": "choice-b",
+     "label": "No, because there are more lockers than pupils.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "Yes, but only if every pupil has exactly one locker.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "No, because some pupils are reached by two different lockers.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_12A_a_repeated_output_called_a_failure",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.12A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.12A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.12A:a-repeated-output-called-a-failure",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.12A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student says $\\{({{a}}, {{p}}), ({{b}}, {{p}}), ({{c}}, {{q}})\\}$ is not a function because ${{p}}$ repeats. What is wrong?",
+   "solutionReview": {
+    "headline": "The restriction is on inputs alone.",
+    "reasoning": [
+     "A function must send each input to one output, and here ${{a}}$, ${{b}}$ and ${{c}}$ are all different.",
+     "Two inputs sharing the output ${{p}}$ is allowed."
+    ],
+    "answerSummary": "It is a function."
+   },
+   "attemptFeedback": [
+    "It matters which of the two coordinates repeats."
+   ],
+   "supportHints": [
+    "Which coordinate does the rule restrict?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     },
+     "gap": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     },
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     }
+    },
+    "derived": {
+     "b": "a+gap",
+     "c": "a+2*gap"
+    },
+    "constraints": [
+     "p!=q",
+     "a!=p"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The set is not a function until the pairs are written in order.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "Only a repeated input breaks the rule, and all three inputs differ, so it is a function."
+    },
+    {
+     "id": "choice-c",
+     "label": "Nothing is wrong, since a value appearing twice always breaks the rule.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "The set is not a function, but because ${{q}}$ appears only once.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_12B_evaluate_at_a_whole_number",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.12B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.12B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.12B:evaluate-at-a-whole-number",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 1,
+   "dok": 1,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.12B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For $f(x) = {{a}}x + {{b}}$, what is $f({{v}})$?",
+   "solutionReview": {
+    "headline": "Function notation says which value to substitute, not what to multiply by.",
+    "reasoning": [
+     "$f({{v}})$ means put ${{v}}$ in place of $x$.",
+     "That gives ${{a}} \\times {{v}} + {{b}} = {{out}}$."
+    ],
+    "answerSummary": "It is ${{out}}$."
+   },
+   "attemptFeedback": [
+    "The ${{b}}$ still has to be added on."
+   ],
+   "supportHints": [
+    "What replaces $x$ in the rule?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "out": "a*v+b",
+     "times": "a*v",
+     "wrongInput": "a*b+b",
+     "asProduct": "a*b*v"
+    },
+    "constraints": [
+     "a!=b",
+     "a!=v",
+     "b!=v",
+     "out!=asProduct",
+     "out!=times",
+     "out!=wrongInput",
+     "times!=wrongInput",
+     "times!=asProduct",
+     "wrongInput!=asProduct"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{wrongInput}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{asProduct}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{out}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{times}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_12B_evaluate_at_a_negative_input",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.12B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.12B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.12B:evaluate-at-a-negative-input",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.12B",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For $f(x) = x^2 - {{a}}x$, what is $f(-{{v}})$?",
+   "solutionReview": {
+    "headline": "A negative input turns both signs around, and the square comes out positive.",
+    "reasoning": [
+     "Squaring $-{{v}}$ gives ${{v}}^2$, a positive number.",
+     "Subtracting ${{a}}$ times $-{{v}}$ then adds ${{a}} \\times {{v}}$, giving ${{out}}$."
+    ],
+    "answerSummary": "It is ${{out}}$."
+   },
+   "attemptFeedback": [
+    "Taking away a negative amount adds to the total."
+   ],
+   "supportHints": [
+    "What does $(-{{v}})^2$ come to?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "out": "v*v+a*v",
+     "signSlip": "v*v-a*v",
+     "wrongInput": "a*a+a*a",
+     "nextInput": "(v+1)*(v+1)+a*(v+1)"
+    },
+    "constraints": [
+     "a!=v",
+     "out!=signSlip",
+     "out!=wrongInput",
+     "signSlip!=wrongInput",
+     "out!=nextInput",
+     "signSlip!=nextInput",
+     "wrongInput!=nextInput"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{signSlip}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{nextInput}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{out}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{wrongInput}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_12B_read_a_function_value_from_a_table",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.12B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.12B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.12B:read-a-function-value-from-a-table",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.12B",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The table gives $f$. What is $f({{v}})$?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Values of the function",
+    "table": {
+     "headers": [
+      "x",
+      "f(x)"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "{{y1}}"
+      ],
+      [
+       "{{v}}",
+       "{{out}}"
+      ],
+      [
+       "{{x3}}",
+       "{{y3}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Read across from the input to the output column.",
+    "reasoning": [
+     "Find the row where $x$ is ${{v}}$.",
+     "The value beside it in the $f(x)$ column is ${{out}}$."
+    ],
+    "answerSummary": "It is ${{out}}$."
+   },
+   "attemptFeedback": [
+    "That is the input itself, not what the function gives back."
+   ],
+   "supportHints": [
+    "Which row has ${{v}}$ in the input column?"
+   ],
+   "generator": {
+    "parameters": {
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 32
+     },
+     "step": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     },
+     "y1": {
+      "type": "int",
+      "min": 3,
+      "max": 20
+     },
+     "rise": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "v": "x1+step",
+     "x3": "x1+2*step",
+     "out": "y1+rise",
+     "y3": "y1+2*rise"
+    },
+    "constraints": [
+     "y1!=out",
+     "out!=y3",
+     "v!=out",
+     "v!=y1",
+     "v!=y3",
+     "y1!=y3"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{out}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{y1}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{y3}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{v}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_12B_a_charge_worked_out_from_a_rule",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.12B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.12B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.12B:a-charge-worked-out-from-a-rule",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.12B",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A hire costs $C(d) = {{a}}d + {{b}}$ dollars for $d$ days. What does a hire of ${{v}}$ days cost?",
+   "solutionReview": {
+    "headline": "The fixed charge is added once, whatever the number of days.",
+    "reasoning": [
+     "$C({{v}})$ means the cost when $d$ is ${{v}}$.",
+     "That is ${{a}} \\times {{v}} + {{b}} = {{out}}$ dollars."
+    ],
+    "answerSummary": "It costs $\\${{out}}$."
+   },
+   "attemptFeedback": [
+    "The fixed charge has been left out of that total."
+   ],
+   "supportHints": [
+    "How many times is the fixed charge paid?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 8,
+      "max": 25
+     },
+     "b": {
+      "type": "int",
+      "min": 4,
+      "max": 14
+     },
+     "v": {
+      "type": "int",
+      "min": 3,
+      "max": 13
+     }
+    },
+    "derived": {
+     "out": "a*v+b",
+     "noFee": "a*v",
+     "feeTwice": "a*v+b+b",
+     "wrongDays": "a*b+b"
+    },
+    "constraints": [
+     "a!=b",
+     "v!=a",
+     "b!=v",
+     "wrongDays!=out",
+     "wrongDays!=noFee",
+     "out!=noFee",
+     "out!=feeTwice",
+     "noFee!=feeTwice",
+     "feeTwice!=wrongDays"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{noFee}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{feeTwice}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{wrongDays}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{out}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_12B_notation_read_as_a_product",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.12B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.12B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.12B:notation-read-as-a-product",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.12B",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For $f(x) = {{a}}x + {{b}}$ a student says $f({{v}})$ means $f$ multiplied by ${{v}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "The bracket after a function name holds its input.",
+    "reasoning": [
+     "$f$ is the name of a rule, not a quantity that can be multiplied.",
+     "What sits in the bracket is the value put in for $x$."
+    ],
+    "answerSummary": "$f({{v}}) = {{out}}$."
+   },
+   "attemptFeedback": [
+    "That is true of a number beside a bracket, but $f$ is a rule, not a number."
+   ],
+   "supportHints": [
+    "What does the letter $f$ stand for here?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "out": "a*v+b"
+    },
+    "constraints": [
+     "a!=b",
+     "a!=v"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Nothing is wrong, since a number beside a bracket always multiplies it.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "It means $f$ added to ${{v}}$ rather than multiplied by it.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "The notation is meaningless unless $f$ is given a numerical value first.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "The bracket names the input, so $f({{v}})$ is the output at $x = {{v}}$, which is ${{out}}$."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
   }
  ]
 }
