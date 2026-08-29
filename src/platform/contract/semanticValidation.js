@@ -51,6 +51,16 @@ const composedHasStage = (composed, kinds = []) => Boolean(
   && composed.workflow.some((stage) => kinds.includes(stage.kind)),
 );
 
+const transformationsLabHasGraph = (question = {}) => {
+  if (String(question.toolId || question.type) !== 'transformationsLab') return false;
+  const mode = String(question.mode || 'match');
+  if (mode === 'plotTransform') return nonEmptyArray(question.sourcePoints);
+  if (['match', 'identify', 'pointMap', 'describe', 'anchor'].includes(mode)) {
+    return isObject(question.function) || isObject(question.target);
+  }
+  return false;
+};
+
 const VISUAL_PROMISES = [
   {
     id: 'graph',
@@ -59,6 +69,7 @@ const VISUAL_PROMISES = [
     satisfied: (question, composed) => isObject(question.graph) || isObject(question.visual)
       || has(get(question, 'functionSpec.type')) || nonEmptyArray(question.graphs)
       || nonEmptyArray(get(question, 'graph.functions'))
+      || transformationsLabHasGraph(question)
       || composedHasStage(composed, ['functionGraph', 'coordinatePlot']),
     remedy: 'Add a `graph` object or a `functionSpec` so the graph is actually drawn, or reword the prompt so it does not refer to one.',
   },
