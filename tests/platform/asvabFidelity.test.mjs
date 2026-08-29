@@ -328,7 +328,7 @@ test('generated answers are re-derived independently and match the key', () => {
   // Re-computing the mathematics here rather than trusting the generator is the
   // point: a generator that agrees with itself proves nothing.
   const byId = Object.fromEntries(draft.map((q) => [q.id, q]));
-  const scale = byId.mm_asvab_6_4B_scale_prediction;
+  const scale = byId.mm_asvab_ar_6_4B_scale_prediction;
   for (const { question: instance, parameters } of samplePathInstances(scale, 40)) {
     if (!instance) continue;
     const perGallon = parameters.m1 / parameters.g1;
@@ -336,7 +336,7 @@ test('generated answers are re-derived independently and match the key', () => {
     const key = instance.choices.find((c) => c.id === instance.responseFields[0].expected);
     assert.equal(Number(String(key.label).replace(/\$/g, '')), expected);
   }
-  const shift = byId.mm_asvab_6_4B_two_rate_shift_total;
+  const shift = byId.mm_asvab_ar_6_4B_two_rate_shift_total;
   for (const { question: instance, parameters } of samplePathInstances(shift, 40)) {
     if (!instance) continue;
     const expected = parameters.r1 * parameters.h1 + parameters.r2 * parameters.h2;
@@ -467,30 +467,30 @@ test('an expand, factor or divide family has a key algebraically identical to it
   // "where does it cross" both read a property out of an expression instead of
   // rewriting it. Add a family here when its key is a rewriting of its prompt.
   const rewritings = [
-    ['mm_asvab_A_10A_add_two_quadratics', (p) => { const m = /Add \$\((.+?)\)\$ and \$\((.+?)\)\$/.exec(p); return m && `(${m[1]})+(${m[2]})`; }],
-    ['mm_asvab_A_10A_subtract_a_quadratic', (p) => { const m = /Subtract \$\((.+?)\)\$ from \$\((.+?)\)\$/.exec(p); return m && `(${m[2]})-(${m[1]})`; }],
-    ['mm_asvab_A_10B_multiply_two_binomials', (p) => /Expand \$(.+?)\$\./.exec(p)?.[1]],
-    ['mm_asvab_A_10B_square_of_a_binomial', (p) => /Expand \$(.+?)\$\./.exec(p)?.[1]],
-    ['mm_asvab_A_10B_monomial_across_a_trinomial', (p) => /Expand \$(.+?)\$\./.exec(p)?.[1]],
-    ['mm_asvab_A_10C_divide_a_quadratic_by_a_binomial', (p) => { const m = /\$\((.+?)\) \\div \((.+?)\)\$/.exec(p); return m && `(${m[1]})/(${m[2]})`; }],
-    ['mm_asvab_A_10C_dividing_out_a_common_factor', (p) => { const m = /\$\((.+?)\) \\div (.+?)\$/.exec(p); return m && `(${m[1]})/(${m[2]})`; }],
-    ['mm_asvab_A_10D_distribute_across_a_bracket', (p) => /Write \$(.+?)\$ without/.exec(p)?.[1]],
-    ['mm_asvab_A_10D_take_out_the_greatest_common_factor', (p) => /Write \$(.+?)\$ as a product/.exec(p)?.[1]],
-    ['mm_asvab_A_10E_factor_a_monic_trinomial', (p) => /Factor \$(.+?)\$\./.exec(p)?.[1]],
-    ['mm_asvab_A_10E_factor_with_a_leading_coefficient', (p) => /Factor \$(.+?)\$\./.exec(p)?.[1]],
-    ['mm_asvab_A_10E_recognising_a_perfect_square', (p) => /equals \$(.+?)\$\?/.exec(p)?.[1]],
-    ['mm_asvab_A_10F_factor_a_difference_of_squares', (p) => /Factor \$(.+?)\$\./.exec(p)?.[1]],
-    ['mm_asvab_A_10F_difference_of_squares_with_a_coefficient', (p) => /Factor \$(.+?)\$\./.exec(p)?.[1]],
-    ['mm_asvab_A_11B_power_of_a_power', (p) => /Simplify \$(.+?)\$\./.exec(p)?.[1]],
-    ['mm_asvab_A2_7B_add_two_cubics', (p) => { const m = /Add \$\((.+?)\)\$ and \$\((.+?)\)\$/.exec(p); return m && `(${m[1]})+(${m[2]})`; }],
-    ['mm_asvab_A2_7B_subtract_a_cubic', (p) => { const m = /Subtract \$\((.+?)\)\$ from \$\((.+?)\)\$/.exec(p); return m && `(${m[2]})-(${m[1]})`; }],
-    ['mm_asvab_A2_7B_multiply_a_binomial_by_a_trinomial', (p) => /Expand \$(.+?)\$\./.exec(p)?.[1]],
-    ['mm_asvab_A2_7C_divide_a_cubic_by_a_binomial', (p) => { const m = /\$\((.+?)\) \\div \((.+?)\)\$/.exec(p); return m && `(${m[1]})/(${m[2]})`; }],
-    ['mm_asvab_A2_7C_divide_by_a_quadratic', (p) => { const m = /Divide \$(.+?)\$ by \$(.+?)\$\./.exec(p); return m && `(${m[1]})/(${m[2]})`; }],
-    ['mm_asvab_A2_7D_common_factor_then_a_trinomial', (p) => /Factor \$(.+?)\$\./.exec(p)?.[1]],
-    ['mm_asvab_A2_7E_difference_of_two_cubes', (p) => /Factor \$(.+?)\$\./.exec(p)?.[1]],
-    ['mm_asvab_A2_7E_sum_of_two_cubes', (p) => /equals \$(.+?)\$\?/.exec(p)?.[1]],
-    ['mm_asvab_A2_7E_factor_by_grouping', (p) => /Factor \$(.+?)\$\./.exec(p)?.[1]],
+    ['mm_asvab_mk_A_10A_add_two_quadratics', (p) => { const m = /Add \$\((.+?)\)\$ and \$\((.+?)\)\$/.exec(p); return m && `(${m[1]})+(${m[2]})`; }],
+    ['mm_asvab_mk_A_10A_subtract_a_quadratic', (p) => { const m = /Subtract \$\((.+?)\)\$ from \$\((.+?)\)\$/.exec(p); return m && `(${m[2]})-(${m[1]})`; }],
+    ['mm_asvab_mk_A_10B_multiply_two_binomials', (p) => /Expand \$(.+?)\$\./.exec(p)?.[1]],
+    ['mm_asvab_mk_A_10B_square_of_a_binomial', (p) => /Expand \$(.+?)\$\./.exec(p)?.[1]],
+    ['mm_asvab_mk_A_10B_monomial_across_a_trinomial', (p) => /Expand \$(.+?)\$\./.exec(p)?.[1]],
+    ['mm_asvab_mk_A_10C_divide_a_quadratic_by_a_binomial', (p) => { const m = /\$\((.+?)\) \\div \((.+?)\)\$/.exec(p); return m && `(${m[1]})/(${m[2]})`; }],
+    ['mm_asvab_mk_A_10C_dividing_out_a_common_factor', (p) => { const m = /\$\((.+?)\) \\div (.+?)\$/.exec(p); return m && `(${m[1]})/(${m[2]})`; }],
+    ['mm_asvab_mk_A_10D_distribute_across_a_bracket', (p) => /Write \$(.+?)\$ without/.exec(p)?.[1]],
+    ['mm_asvab_mk_A_10D_take_out_the_greatest_common_factor', (p) => /Write \$(.+?)\$ as a product/.exec(p)?.[1]],
+    ['mm_asvab_mk_A_10E_factor_a_monic_trinomial', (p) => /Factor \$(.+?)\$\./.exec(p)?.[1]],
+    ['mm_asvab_mk_A_10E_factor_with_a_leading_coefficient', (p) => /Factor \$(.+?)\$\./.exec(p)?.[1]],
+    ['mm_asvab_mk_A_10E_recognising_a_perfect_square', (p) => /equals \$(.+?)\$\?/.exec(p)?.[1]],
+    ['mm_asvab_mk_A_10F_factor_a_difference_of_squares', (p) => /Factor \$(.+?)\$\./.exec(p)?.[1]],
+    ['mm_asvab_mk_A_10F_difference_of_squares_with_a_coefficient', (p) => /Factor \$(.+?)\$\./.exec(p)?.[1]],
+    ['mm_asvab_mk_A_11B_power_of_a_power', (p) => /Simplify \$(.+?)\$\./.exec(p)?.[1]],
+    ['mm_asvab_mk_A2_7B_add_two_cubics', (p) => { const m = /Add \$\((.+?)\)\$ and \$\((.+?)\)\$/.exec(p); return m && `(${m[1]})+(${m[2]})`; }],
+    ['mm_asvab_mk_A2_7B_subtract_a_cubic', (p) => { const m = /Subtract \$\((.+?)\)\$ from \$\((.+?)\)\$/.exec(p); return m && `(${m[2]})-(${m[1]})`; }],
+    ['mm_asvab_mk_A2_7B_multiply_a_binomial_by_a_trinomial', (p) => /Expand \$(.+?)\$\./.exec(p)?.[1]],
+    ['mm_asvab_mk_A2_7C_divide_a_cubic_by_a_binomial', (p) => { const m = /\$\((.+?)\) \\div \((.+?)\)\$/.exec(p); return m && `(${m[1]})/(${m[2]})`; }],
+    ['mm_asvab_mk_A2_7C_divide_by_a_quadratic', (p) => { const m = /Divide \$(.+?)\$ by \$(.+?)\$\./.exec(p); return m && `(${m[1]})/(${m[2]})`; }],
+    ['mm_asvab_mk_A2_7D_common_factor_then_a_trinomial', (p) => /Factor \$(.+?)\$\./.exec(p)?.[1]],
+    ['mm_asvab_mk_A2_7E_difference_of_two_cubes', (p) => /Factor \$(.+?)\$\./.exec(p)?.[1]],
+    ['mm_asvab_mk_A2_7E_sum_of_two_cubes', (p) => /equals \$(.+?)\$\?/.exec(p)?.[1]],
+    ['mm_asvab_mk_A2_7E_factor_by_grouping', (p) => /Factor \$(.+?)\$\./.exec(p)?.[1]],
   ];
   const byId = Object.fromEntries(draft.map((question) => [question.id, question]));
 

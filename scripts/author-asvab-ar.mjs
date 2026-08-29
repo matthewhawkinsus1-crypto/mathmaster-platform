@@ -354,17 +354,24 @@ ar('6.4C', 'which-count-keeps-ratio', {
     derived: {
       firstCount: 'a*scale',
       answer: 'b*scale',
-      d_operationInverted: 'a*b',
+      // Scaling the whole mix instead of the second part alone. Always above
+      // the key, which the other two are not: all three distractors used to
+      // cross it, and with nothing anchored above, the key came out the largest
+      // of four in 45% of draws.
+      d_partialTotal: '(a+b)*scale',
       d_ratioReversed: 'round(a*a*scale/b)',
-      d_offByOneStep: 'b+a*scale-a',
+      // The ratio value itself, unscaled. Always below the key, which the
+      // scaled total above it is not: with an anchor on only one side the key
+      // came out the smallest of four half the time.
+      d_forgotFinalStep: 'b',
     },
     constraints: ['a!=b'],
   },
   choices: [
     { label: plain('{{answer}}'), correct: true },
-    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
     { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
-    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
   ],
   reasoning: ['The first row was multiplied by {{scale}} to reach {{firstCount}}.', '{{b}} times {{scale}} is {{answer}}.'],
   answerSummary: { headline: 'An equivalent ratio multiplies both entries by the same number.', text: 'It takes ${{answer}}$ {{second}}.' },
@@ -964,7 +971,7 @@ ar('6.4F', 'whole-from-benchmark-part', {
       den: { type: 'choice', values: [3, 4, 5, 6] },
       num: { type: 'int', min: 1, max: 5 },
       share: { type: 'int', min: 4, max: 30 },
-      extra: { type: 'int', min: 5, max: 50, step: 5 },
+      extra: { type: 'int', min: 5, max: 35, step: 5 },
     },
     derived: {
       part: 'num*share',
@@ -1608,7 +1615,9 @@ ar('6.5C', 'which-two-match', {
   stimulus: {
     kind: 'table',
     title: 'Clerk records',
-    table: { headers: ['clerk', 'record'], rows: [['A', '{{p}}%'], ['B', '{{dec}}'], ['C', '\\frac{{{p}}}{{{wrongDen}}}'] ] },
+    // Every cell is delimited. MathText renders only what sits inside $…$;
+    // an undelimited \\frac reaches the student as the literal characters.
+    table: { headers: ['clerk', 'record'], rows: [['A', '${{p}}\\%$'], ['B', '${{dec}}$'], ['C', '$\\frac{{{p}}}{{{wrongDen}}}$'] ] },
   },
   generator: {
     parameters: {
@@ -4411,7 +4420,7 @@ ar('7.10C', 'bill-from-hours', {
     parameters: {
       worker: contextParam(['mechanic', 'electrician', 'plumber', 'technician']),
       rate: { type: 'int', min: 10, max: 60, step: 5 },
-      fee: { type: 'int', min: 10, max: 55, step: 5 },
+      fee: { type: 'int', min: 10, max: 75, step: 5 },
       hours: { type: 'int', min: 2, max: 14 },
     },
     derived: {
@@ -4702,7 +4711,7 @@ ar('8.12C', 'months-to-reach-a-target', {
       worker: contextParam(['mechanic', 'driver', 'loader', 'welder', 'technician']),
       monthly: { type: 'int', min: 20, max: 200, step: 10 },
       months: { type: 'int', min: 6, max: 60, step: 6 },
-      start: { type: 'int', min: 100, max: 6000, step: 100 },
+      start: { type: 'int', min: 100, max: 9000, step: 100 },
     },
     derived: {
       target: 'start+monthly*months',
@@ -4737,8 +4746,8 @@ ar('8.12C', 'saving-earlier-versus-more', {
     parameters: {
       mA: { type: 'int', min: 20, max: 200, step: 10 },
       mB: { type: 'int', min: 20, max: 200, step: 10 },
-      yA: { type: 'int', min: 2, max: 15 },
-      yB: { type: 'int', min: 2, max: 15 },
+      yA: { type: 'int', min: 5, max: 15 },
+      yB: { type: 'int', min: 5, max: 15 },
     },
     derived: {
       totalA: 'mA*12*yA',
@@ -4975,7 +4984,7 @@ ar('8.12D', 'interest-in-the-final-year', {
     parameters: {
       r: INVEST_RATES,
       k: { type: 'int', min: 1, max: 6 },
-      wdT: { type: 'int', min: 10, max: 300 },
+      wdT: { type: 'int', min: 10, max: 500 },
     },
     derived: {
       principal: 'k*8000',

@@ -1,7 +1,7 @@
 {
  "documents": [
   {
-   "id": "mm_asvab_6_4B_scale_prediction",
+   "id": "mm_asvab_ar_6_4B_scale_prediction",
    "active": true,
    "alignmentKeys": [
     "texas:6.4B"
@@ -27,7 +27,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4B:scale-prediction",
+   "familyId": "mathmaster:asvab:ar:6.4B:scale-prediction",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -136,7 +136,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4B_better_buy_then_scale",
+   "id": "mm_asvab_ar_6_4B_better_buy_then_scale",
    "active": true,
    "alignmentKeys": [
     "texas:6.4B"
@@ -162,7 +162,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4B:better-buy-then-scale",
+   "familyId": "mathmaster:asvab:ar:6.4B:better-buy-then-scale",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -291,7 +291,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4B_part_from_ratio_and_total",
+   "id": "mm_asvab_ar_6_4B_part_from_ratio_and_total",
    "active": true,
    "alignmentKeys": [
     "texas:6.4B"
@@ -317,7 +317,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4B:part-from-ratio-and-total",
+   "familyId": "mathmaster:asvab:ar:6.4B:part-from-ratio-and-total",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -424,7 +424,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4B_shortfall_after_run",
+   "id": "mm_asvab_ar_6_4B_shortfall_after_run",
    "active": true,
    "alignmentKeys": [
     "texas:6.4B"
@@ -450,7 +450,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4B:shortfall-after-run",
+   "familyId": "mathmaster:asvab:ar:6.4B:shortfall-after-run",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -571,7 +571,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4B_two_rate_shift_total",
+   "id": "mm_asvab_ar_6_4B_two_rate_shift_total",
    "active": true,
    "alignmentKeys": [
     "texas:6.4B"
@@ -597,7 +597,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4B:two-rate-shift-total",
+   "familyId": "mathmaster:asvab:ar:6.4B:two-rate-shift-total",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -746,7 +746,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4C_times_as_many",
+   "id": "mm_asvab_ar_6_4C_times_as_many",
    "active": true,
    "alignmentKeys": [
     "texas:6.4C"
@@ -772,7 +772,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4C:times-as-many",
+   "familyId": "mathmaster:asvab:ar:6.4C:times-as-many",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -883,7 +883,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4C_ratio_in_lowest_terms",
+   "id": "mm_asvab_ar_6_4C_ratio_in_lowest_terms",
    "active": true,
    "alignmentKeys": [
     "texas:6.4C"
@@ -909,7 +909,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4C:ratio-in-lowest-terms",
+   "familyId": "mathmaster:asvab:ar:6.4C:ratio-in-lowest-terms",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -1017,7 +1017,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4C_other_count_from_ratio",
+   "id": "mm_asvab_ar_6_4C_other_count_from_ratio",
    "active": true,
    "alignmentKeys": [
     "texas:6.4C"
@@ -1043,7 +1043,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4C:other-count-from-ratio",
+   "familyId": "mathmaster:asvab:ar:6.4C:other-count-from-ratio",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -1168,7 +1168,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4C_part_to_whole_fraction",
+   "id": "mm_asvab_ar_6_4C_part_to_whole_fraction",
    "active": true,
    "alignmentKeys": [
     "texas:6.4C"
@@ -1194,7 +1194,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4C:part-to-whole-fraction",
+   "familyId": "mathmaster:asvab:ar:6.4C:part-to-whole-fraction",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -1295,7 +1295,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4C_which_count_keeps_ratio",
+   "id": "mm_asvab_ar_6_4C_which_count_keeps_ratio",
    "active": true,
    "alignmentKeys": [
     "texas:6.4C"
@@ -1321,7 +1321,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4C:which-count-keeps-ratio",
+   "familyId": "mathmaster:asvab:ar:6.4C:which-count-keeps-ratio",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -1410,18 +1410,18 @@
     "derived": {
      "firstCount": "a*scale",
      "answer": "b*scale",
-     "d_operationInverted": "a*b",
+     "d_partialTotal": "(a+b)*scale",
      "d_ratioReversed": "round(a*a*scale/b)",
-     "d_offByOneStep": "b+a*scale-a"
+     "d_forgotFinalStep": "b"
     },
     "constraints": [
      "a!=b",
-     "answer!=d_operationInverted",
+     "answer!=d_partialTotal",
      "answer!=d_ratioReversed",
-     "answer!=d_offByOneStep",
-     "d_operationInverted!=d_ratioReversed",
-     "d_operationInverted!=d_offByOneStep",
-     "d_ratioReversed!=d_offByOneStep"
+     "answer!=d_forgotFinalStep",
+     "d_partialTotal!=d_ratioReversed",
+     "d_partialTotal!=d_forgotFinalStep",
+     "d_ratioReversed!=d_forgotFinalStep"
     ]
    },
    "assessmentItemFormat": "multipleChoice",
@@ -1437,13 +1437,13 @@
     },
     {
      "id": "choice-c",
-     "label": "${{d_operationInverted}}$",
-     "error": "operationInverted"
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
     },
     {
      "id": "choice-d",
-     "label": "${{d_offByOneStep}}$",
-     "error": "offByOneStep"
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
     }
    ],
    "responseFields": [
@@ -1456,7 +1456,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4D_fuel_economy",
+   "id": "mm_asvab_ar_6_4D_fuel_economy",
    "active": true,
    "alignmentKeys": [
     "texas:6.4D"
@@ -1482,7 +1482,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4D:fuel-economy",
+   "familyId": "mathmaster:asvab:ar:6.4D:fuel-economy",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -1583,7 +1583,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4D_cost_per_unit_with_shipping",
+   "id": "mm_asvab_ar_6_4D_cost_per_unit_with_shipping",
    "active": true,
    "alignmentKeys": [
     "texas:6.4D"
@@ -1609,7 +1609,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4D:cost-per-unit-with-shipping",
+   "familyId": "mathmaster:asvab:ar:6.4D:cost-per-unit-with-shipping",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -1718,7 +1718,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4D_faster_of_two_rates",
+   "id": "mm_asvab_ar_6_4D_faster_of_two_rates",
    "active": true,
    "alignmentKeys": [
     "texas:6.4D"
@@ -1744,7 +1744,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4D:faster-of-two-rates",
+   "familyId": "mathmaster:asvab:ar:6.4D:faster-of-two-rates",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -1893,7 +1893,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4D_total_from_rate",
+   "id": "mm_asvab_ar_6_4D_total_from_rate",
    "active": true,
    "alignmentKeys": [
     "texas:6.4D"
@@ -1919,7 +1919,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4D:total-from-rate",
+   "familyId": "mathmaster:asvab:ar:6.4D:total-from-rate",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -2031,7 +2031,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4D_per_item_from_per_dozen",
+   "id": "mm_asvab_ar_6_4D_per_item_from_per_dozen",
    "active": true,
    "alignmentKeys": [
     "texas:6.4D"
@@ -2057,7 +2057,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4D:per-item-from-per-dozen",
+   "familyId": "mathmaster:asvab:ar:6.4D:per-item-from-per-dozen",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -2168,7 +2168,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_5A_scale_drawing_length",
+   "id": "mm_asvab_ar_6_5A_scale_drawing_length",
    "active": true,
    "alignmentKeys": [
     "texas:6.5A"
@@ -2194,7 +2194,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.5A:scale-drawing-length",
+   "familyId": "mathmaster:asvab:ar:6.5A:scale-drawing-length",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -2292,7 +2292,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_5A_model_to_real_reverse",
+   "id": "mm_asvab_ar_6_5A_model_to_real_reverse",
    "active": true,
    "alignmentKeys": [
     "texas:6.5A"
@@ -2318,7 +2318,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.5A:model-to-real-reverse",
+   "familyId": "mathmaster:asvab:ar:6.5A:model-to-real-reverse",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -2420,7 +2420,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_5A_proportion_missing_entry",
+   "id": "mm_asvab_ar_6_5A_proportion_missing_entry",
    "active": true,
    "alignmentKeys": [
     "texas:6.5A"
@@ -2446,7 +2446,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.5A:proportion-missing-entry",
+   "familyId": "mathmaster:asvab:ar:6.5A:proportion-missing-entry",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -2581,7 +2581,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_5A_recipe_scale_up",
+   "id": "mm_asvab_ar_6_5A_recipe_scale_up",
    "active": true,
    "alignmentKeys": [
     "texas:6.5A"
@@ -2607,7 +2607,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.5A:recipe-scale-up",
+   "familyId": "mathmaster:asvab:ar:6.5A:recipe-scale-up",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -2723,7 +2723,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_5A_unit_rate_then_budget",
+   "id": "mm_asvab_ar_6_5A_unit_rate_then_budget",
    "active": true,
    "alignmentKeys": [
     "texas:6.5A"
@@ -2749,7 +2749,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.5A:unit-rate-then-budget",
+   "familyId": "mathmaster:asvab:ar:6.5A:unit-rate-then-budget",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -2858,7 +2858,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4E_percent_to_decimal",
+   "id": "mm_asvab_ar_6_4E_percent_to_decimal",
    "active": true,
    "alignmentKeys": [
     "texas:6.4E"
@@ -2884,7 +2884,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4E:percent-to-decimal",
+   "familyId": "mathmaster:asvab:ar:6.4E:percent-to-decimal",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -2979,7 +2979,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4E_shaded_grid_percent",
+   "id": "mm_asvab_ar_6_4E_shaded_grid_percent",
    "active": true,
    "alignmentKeys": [
     "texas:6.4E"
@@ -3005,7 +3005,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4E:shaded-grid-percent",
+   "familyId": "mathmaster:asvab:ar:6.4E:shaded-grid-percent",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -3097,7 +3097,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4E_fraction_to_percent",
+   "id": "mm_asvab_ar_6_4E_fraction_to_percent",
    "active": true,
    "alignmentKeys": [
     "texas:6.4E"
@@ -3123,7 +3123,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4E:fraction-to-percent",
+   "familyId": "mathmaster:asvab:ar:6.4E:fraction-to-percent",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -3236,7 +3236,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4E_percent_of_amount",
+   "id": "mm_asvab_ar_6_4E_percent_of_amount",
    "active": true,
    "alignmentKeys": [
     "texas:6.4E"
@@ -3262,7 +3262,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4E:percent-of-amount",
+   "familyId": "mathmaster:asvab:ar:6.4E:percent-of-amount",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -3373,7 +3373,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4E_largest_of_mixed_forms",
+   "id": "mm_asvab_ar_6_4E_largest_of_mixed_forms",
    "active": true,
    "alignmentKeys": [
     "texas:6.4E"
@@ -3399,7 +3399,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4E:largest-of-mixed-forms",
+   "familyId": "mathmaster:asvab:ar:6.4E:largest-of-mixed-forms",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -3501,7 +3501,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4F_benchmark_percent_of_money",
+   "id": "mm_asvab_ar_6_4F_benchmark_percent_of_money",
    "active": true,
    "alignmentKeys": [
     "texas:6.4F"
@@ -3527,7 +3527,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4F:benchmark-percent-of-money",
+   "familyId": "mathmaster:asvab:ar:6.4F:benchmark-percent-of-money",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -3636,7 +3636,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4F_two_benchmarks_remaining",
+   "id": "mm_asvab_ar_6_4F_two_benchmarks_remaining",
    "active": true,
    "alignmentKeys": [
     "texas:6.4F"
@@ -3662,7 +3662,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4F:two-benchmarks-remaining",
+   "familyId": "mathmaster:asvab:ar:6.4F:two-benchmarks-remaining",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -3790,7 +3790,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4F_one_percent_scaling",
+   "id": "mm_asvab_ar_6_4F_one_percent_scaling",
    "active": true,
    "alignmentKeys": [
     "texas:6.4F"
@@ -3816,7 +3816,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4F:one-percent-scaling",
+   "familyId": "mathmaster:asvab:ar:6.4F:one-percent-scaling",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -3925,7 +3925,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4F_whole_from_benchmark_part",
+   "id": "mm_asvab_ar_6_4F_whole_from_benchmark_part",
    "active": true,
    "alignmentKeys": [
     "texas:6.4F"
@@ -3951,7 +3951,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4F:whole-from-benchmark-part",
+   "familyId": "mathmaster:asvab:ar:6.4F:whole-from-benchmark-part",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -4017,7 +4017,7 @@
      "extra": {
       "type": "int",
       "min": 5,
-      "max": 50,
+      "max": 35,
       "step": 5
      }
     },
@@ -4072,7 +4072,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4F_benchmark_strip_reading",
+   "id": "mm_asvab_ar_6_4F_benchmark_strip_reading",
    "active": true,
    "alignmentKeys": [
     "texas:6.4F"
@@ -4098,7 +4098,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4F:benchmark-strip-reading",
+   "familyId": "mathmaster:asvab:ar:6.4F:benchmark-strip-reading",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -4248,7 +4248,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4G_tip_as_fraction_of_bill",
+   "id": "mm_asvab_ar_6_4G_tip_as_fraction_of_bill",
    "active": true,
    "alignmentKeys": [
     "texas:6.4G"
@@ -4274,7 +4274,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4G:tip-as-fraction-of-bill",
+   "familyId": "mathmaster:asvab:ar:6.4G:tip-as-fraction-of-bill",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -4375,7 +4375,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4G_decimal_price_to_total",
+   "id": "mm_asvab_ar_6_4G_decimal_price_to_total",
    "active": true,
    "alignmentKeys": [
     "texas:6.4G"
@@ -4401,7 +4401,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4G:decimal-price-to-total",
+   "familyId": "mathmaster:asvab:ar:6.4G:decimal-price-to-total",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -4519,7 +4519,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4G_discount_two_forms",
+   "id": "mm_asvab_ar_6_4G_discount_two_forms",
    "active": true,
    "alignmentKeys": [
     "texas:6.4G"
@@ -4545,7 +4545,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4G:discount-two-forms",
+   "familyId": "mathmaster:asvab:ar:6.4G:discount-two-forms",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -4669,7 +4669,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4G_fraction_of_dollar",
+   "id": "mm_asvab_ar_6_4G_fraction_of_dollar",
    "active": true,
    "alignmentKeys": [
     "texas:6.4G"
@@ -4695,7 +4695,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4G:fraction-of-dollar",
+   "familyId": "mathmaster:asvab:ar:6.4G:fraction-of-dollar",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -4804,7 +4804,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4G_full_price_from_deposit",
+   "id": "mm_asvab_ar_6_4G_full_price_from_deposit",
    "active": true,
    "alignmentKeys": [
     "texas:6.4G"
@@ -4830,7 +4830,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4G:full-price-from-deposit",
+   "familyId": "mathmaster:asvab:ar:6.4G:full-price-from-deposit",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -4940,7 +4940,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4H_feet_to_inches",
+   "id": "mm_asvab_ar_6_4H_feet_to_inches",
    "active": true,
    "alignmentKeys": [
     "texas:6.4H"
@@ -4966,7 +4966,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4H:feet-to-inches",
+   "familyId": "mathmaster:asvab:ar:6.4H:feet-to-inches",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -5066,7 +5066,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4H_ounces_to_pounds_remainder",
+   "id": "mm_asvab_ar_6_4H_ounces_to_pounds_remainder",
    "active": true,
    "alignmentKeys": [
     "texas:6.4H"
@@ -5092,7 +5092,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4H:ounces-to-pounds-remainder",
+   "familyId": "mathmaster:asvab:ar:6.4H:ounces-to-pounds-remainder",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -5193,7 +5193,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4H_gallons_to_quarts_rate",
+   "id": "mm_asvab_ar_6_4H_gallons_to_quarts_rate",
    "active": true,
    "alignmentKeys": [
     "texas:6.4H"
@@ -5219,7 +5219,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4H:gallons-to-quarts-rate",
+   "familyId": "mathmaster:asvab:ar:6.4H:gallons-to-quarts-rate",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -5312,7 +5312,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4H_yards_of_material",
+   "id": "mm_asvab_ar_6_4H_yards_of_material",
    "active": true,
    "alignmentKeys": [
     "texas:6.4H"
@@ -5338,7 +5338,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4H:yards-of-material",
+   "familyId": "mathmaster:asvab:ar:6.4H:yards-of-material",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -5445,7 +5445,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_4H_hours_to_minutes_table",
+   "id": "mm_asvab_ar_6_4H_hours_to_minutes_table",
    "active": true,
    "alignmentKeys": [
     "texas:6.4H"
@@ -5471,7 +5471,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.4H:hours-to-minutes-table",
+   "familyId": "mathmaster:asvab:ar:6.4H:hours-to-minutes-table",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -5585,7 +5585,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_5B_part_given_whole_and_percent",
+   "id": "mm_asvab_ar_6_5B_part_given_whole_and_percent",
    "active": true,
    "alignmentKeys": [
     "texas:6.5B"
@@ -5611,7 +5611,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.5B:part-given-whole-and-percent",
+   "familyId": "mathmaster:asvab:ar:6.5B:part-given-whole-and-percent",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -5730,7 +5730,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_5B_whole_given_part_and_percent",
+   "id": "mm_asvab_ar_6_5B_whole_given_part_and_percent",
    "active": true,
    "alignmentKeys": [
     "texas:6.5B"
@@ -5756,7 +5756,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.5B:whole-given-part-and-percent",
+   "familyId": "mathmaster:asvab:ar:6.5B:whole-given-part-and-percent",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -5866,7 +5866,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_5B_percent_given_part_and_whole",
+   "id": "mm_asvab_ar_6_5B_percent_given_part_and_whole",
    "active": true,
    "alignmentKeys": [
     "texas:6.5B"
@@ -5892,7 +5892,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.5B:percent-given-part-and-whole",
+   "familyId": "mathmaster:asvab:ar:6.5B:percent-given-part-and-whole",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -6013,7 +6013,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_5B_raise_then_reduction",
+   "id": "mm_asvab_ar_6_5B_raise_then_reduction",
    "active": true,
    "alignmentKeys": [
     "texas:6.5B"
@@ -6039,7 +6039,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.5B:raise-then-reduction",
+   "familyId": "mathmaster:asvab:ar:6.5B:raise-then-reduction",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -6155,7 +6155,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_5B_percent_table_missing",
+   "id": "mm_asvab_ar_6_5B_percent_table_missing",
    "active": true,
    "alignmentKeys": [
     "texas:6.5B"
@@ -6181,7 +6181,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.5B:percent-table-missing",
+   "familyId": "mathmaster:asvab:ar:6.5B:percent-table-missing",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -6316,7 +6316,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_5C_same_share_different_forms",
+   "id": "mm_asvab_ar_6_5C_same_share_different_forms",
    "active": true,
    "alignmentKeys": [
     "texas:6.5C"
@@ -6342,7 +6342,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.5C:same-share-different-forms",
+   "familyId": "mathmaster:asvab:ar:6.5C:same-share-different-forms",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -6444,7 +6444,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_5C_equal_parts_of_one_load",
+   "id": "mm_asvab_ar_6_5C_equal_parts_of_one_load",
    "active": true,
    "alignmentKeys": [
     "texas:6.5C"
@@ -6470,7 +6470,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.5C:equal-parts-of-one-load",
+   "familyId": "mathmaster:asvab:ar:6.5C:equal-parts-of-one-load",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -6583,7 +6583,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_5C_decimal_share_to_count",
+   "id": "mm_asvab_ar_6_5C_decimal_share_to_count",
    "active": true,
    "alignmentKeys": [
     "texas:6.5C"
@@ -6609,7 +6609,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.5C:decimal-share-to-count",
+   "familyId": "mathmaster:asvab:ar:6.5C:decimal-share-to-count",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -6729,7 +6729,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_5C_which_two_match",
+   "id": "mm_asvab_ar_6_5C_which_two_match",
    "active": true,
    "alignmentKeys": [
     "texas:6.5C"
@@ -6755,7 +6755,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.5C:which-two-match",
+   "familyId": "mathmaster:asvab:ar:6.5C:which-two-match",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -6783,15 +6783,15 @@
      "rows": [
       [
        "A",
-       "{{p}}%"
+       "${{p}}\\%$"
       ],
       [
        "B",
-       "{{dec}}"
+       "${{dec}}$"
       ],
       [
        "C",
-       "\\frac{{{p}}}{{{wrongDen}}}"
+       "$\\frac{{{p}}}{{{wrongDen}}}$"
       ]
      ]
     }
@@ -6868,7 +6868,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_5C_build_equivalent_fraction",
+   "id": "mm_asvab_ar_6_5C_build_equivalent_fraction",
    "active": true,
    "alignmentKeys": [
     "texas:6.5C"
@@ -6894,7 +6894,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.5C:build-equivalent-fraction",
+   "familyId": "mathmaster:asvab:ar:6.5C:build-equivalent-fraction",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -7013,7 +7013,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_4B_wage_per_hour",
+   "id": "mm_asvab_ar_7_4B_wage_per_hour",
    "active": true,
    "alignmentKeys": [
     "texas:7.4B"
@@ -7039,7 +7039,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.4B:wage-per-hour",
+   "familyId": "mathmaster:asvab:ar:7.4B:wage-per-hour",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -7141,7 +7141,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_4B_best_unit_rate_of_three",
+   "id": "mm_asvab_ar_7_4B_best_unit_rate_of_three",
    "active": true,
    "alignmentKeys": [
     "texas:7.4B"
@@ -7167,7 +7167,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.4B:best-unit-rate-of-three",
+   "familyId": "mathmaster:asvab:ar:7.4B:best-unit-rate-of-three",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -7330,7 +7330,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_4B_restate_rate_per_ten",
+   "id": "mm_asvab_ar_7_4B_restate_rate_per_ten",
    "active": true,
    "alignmentKeys": [
     "texas:7.4B"
@@ -7356,7 +7356,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.4B:restate-rate-per-ten",
+   "familyId": "mathmaster:asvab:ar:7.4B:restate-rate-per-ten",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -7461,7 +7461,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_4B_unit_rate_then_order",
+   "id": "mm_asvab_ar_7_4B_unit_rate_then_order",
    "active": true,
    "alignmentKeys": [
     "texas:7.4B"
@@ -7487,7 +7487,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.4B:unit-rate-then-order",
+   "familyId": "mathmaster:asvab:ar:7.4B:unit-rate-then-order",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -7595,7 +7595,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_4B_rate_from_two_readings",
+   "id": "mm_asvab_ar_7_4B_rate_from_two_readings",
    "active": true,
    "alignmentKeys": [
     "texas:7.4B"
@@ -7621,7 +7621,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.4B:rate-from-two-readings",
+   "familyId": "mathmaster:asvab:ar:7.4B:rate-from-two-readings",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -7745,7 +7745,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_4C_constant_from_pair",
+   "id": "mm_asvab_ar_7_4C_constant_from_pair",
    "active": true,
    "alignmentKeys": [
     "texas:7.4C"
@@ -7771,7 +7771,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.4C:constant-from-pair",
+   "familyId": "mathmaster:asvab:ar:7.4C:constant-from-pair",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -7884,7 +7884,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_4C_which_table_is_proportional",
+   "id": "mm_asvab_ar_7_4C_which_table_is_proportional",
    "active": true,
    "alignmentKeys": [
     "texas:7.4C"
@@ -7910,7 +7910,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.4C:which-table-is-proportional",
+   "familyId": "mathmaster:asvab:ar:7.4C:which-table-is-proportional",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -8042,7 +8042,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_4C_output_from_constant",
+   "id": "mm_asvab_ar_7_4C_output_from_constant",
    "active": true,
    "alignmentKeys": [
     "texas:7.4C"
@@ -8068,7 +8068,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.4C:output-from-constant",
+   "familyId": "mathmaster:asvab:ar:7.4C:output-from-constant",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -8159,7 +8159,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_4C_input_from_constant",
+   "id": "mm_asvab_ar_7_4C_input_from_constant",
    "active": true,
    "alignmentKeys": [
     "texas:7.4C"
@@ -8185,7 +8185,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.4C:input-from-constant",
+   "familyId": "mathmaster:asvab:ar:7.4C:input-from-constant",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -8287,7 +8287,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_4C_compare_two_constants",
+   "id": "mm_asvab_ar_7_4C_compare_two_constants",
    "active": true,
    "alignmentKeys": [
     "texas:7.4C"
@@ -8313,7 +8313,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.4C:compare-two-constants",
+   "familyId": "mathmaster:asvab:ar:7.4C:compare-two-constants",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -8461,7 +8461,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_12C_mean_of_shifts",
+   "id": "mm_asvab_ar_6_12C_mean_of_shifts",
    "active": true,
    "alignmentKeys": [
     "texas:6.12C"
@@ -8487,7 +8487,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.12C:mean-of-shifts",
+   "familyId": "mathmaster:asvab:ar:6.12C:mean-of-shifts",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -8633,7 +8633,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_12C_missing_value_from_mean",
+   "id": "mm_asvab_ar_6_12C_missing_value_from_mean",
    "active": true,
    "alignmentKeys": [
     "texas:6.12C"
@@ -8659,7 +8659,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.12C:missing-value-from-mean",
+   "familyId": "mathmaster:asvab:ar:6.12C:missing-value-from-mean",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -8778,7 +8778,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_12C_median_of_five",
+   "id": "mm_asvab_ar_6_12C_median_of_five",
    "active": true,
    "alignmentKeys": [
     "texas:6.12C"
@@ -8804,7 +8804,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.12C:median-of-five",
+   "familyId": "mathmaster:asvab:ar:6.12C:median-of-five",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -8945,7 +8945,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_12C_range_of_readings",
+   "id": "mm_asvab_ar_6_12C_range_of_readings",
    "active": true,
    "alignmentKeys": [
     "texas:6.12C"
@@ -8971,7 +8971,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.12C:range-of-readings",
+   "familyId": "mathmaster:asvab:ar:6.12C:range-of-readings",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -9076,7 +9076,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_12C_average_after_one_more",
+   "id": "mm_asvab_ar_6_12C_average_after_one_more",
    "active": true,
    "alignmentKeys": [
     "texas:6.12C"
@@ -9102,7 +9102,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.12C:average-after-one-more",
+   "familyId": "mathmaster:asvab:ar:6.12C:average-after-one-more",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -9214,7 +9214,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_3B_which_multiplier_grows",
+   "id": "mm_asvab_ar_6_3B_which_multiplier_grows",
    "active": true,
    "alignmentKeys": [
     "texas:6.3B"
@@ -9240,7 +9240,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.3B:which-multiplier-grows",
+   "familyId": "mathmaster:asvab:ar:6.3B:which-multiplier-grows",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -9350,7 +9350,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_3B_scale_up_by_improper",
+   "id": "mm_asvab_ar_6_3B_scale_up_by_improper",
    "active": true,
    "alignmentKeys": [
     "texas:6.3B"
@@ -9376,7 +9376,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.3B:scale-up-by-improper",
+   "familyId": "mathmaster:asvab:ar:6.3B:scale-up-by-improper",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -9497,7 +9497,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_3B_scale_down_by_proper",
+   "id": "mm_asvab_ar_6_3B_scale_down_by_proper",
    "active": true,
    "alignmentKeys": [
     "texas:6.3B"
@@ -9523,7 +9523,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.3B:scale-down-by-proper",
+   "familyId": "mathmaster:asvab:ar:6.3B:scale-down-by-proper",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -9646,7 +9646,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_3B_identify_the_factor",
+   "id": "mm_asvab_ar_6_3B_identify_the_factor",
    "active": true,
    "alignmentKeys": [
     "texas:6.3B"
@@ -9672,7 +9672,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.3B:identify-the-factor",
+   "familyId": "mathmaster:asvab:ar:6.3B:identify-the-factor",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -9787,7 +9787,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_3B_grow_then_shrink",
+   "id": "mm_asvab_ar_6_3B_grow_then_shrink",
    "active": true,
    "alignmentKeys": [
     "texas:6.3B"
@@ -9813,7 +9813,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.3B:grow-then-shrink",
+   "familyId": "mathmaster:asvab:ar:6.3B:grow-then-shrink",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -9964,7 +9964,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_14C_register_closing_balance",
+   "id": "mm_asvab_ar_6_14C_register_closing_balance",
    "active": true,
    "alignmentKeys": [
     "texas:6.14C"
@@ -9990,7 +9990,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.14C:register-closing-balance",
+   "familyId": "mathmaster:asvab:ar:6.14C:register-closing-balance",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -10119,7 +10119,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_14C_missing_register_entry",
+   "id": "mm_asvab_ar_6_14C_missing_register_entry",
    "active": true,
    "alignmentKeys": [
     "texas:6.14C"
@@ -10145,7 +10145,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.14C:missing-register-entry",
+   "familyId": "mathmaster:asvab:ar:6.14C:missing-register-entry",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -10245,7 +10245,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_14C_transfer_between_accounts",
+   "id": "mm_asvab_ar_6_14C_transfer_between_accounts",
    "active": true,
    "alignmentKeys": [
     "texas:6.14C"
@@ -10271,7 +10271,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.14C:transfer-between-accounts",
+   "familyId": "mathmaster:asvab:ar:6.14C:transfer-between-accounts",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -10374,7 +10374,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_14C_overdraft_check",
+   "id": "mm_asvab_ar_6_14C_overdraft_check",
    "active": true,
    "alignmentKeys": [
     "texas:6.14C"
@@ -10400,7 +10400,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.14C:overdraft-check",
+   "familyId": "mathmaster:asvab:ar:6.14C:overdraft-check",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -10493,7 +10493,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_14C_weekly_register_average",
+   "id": "mm_asvab_ar_6_14C_weekly_register_average",
    "active": true,
    "alignmentKeys": [
     "texas:6.14C"
@@ -10519,7 +10519,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.14C:weekly-register-average",
+   "familyId": "mathmaster:asvab:ar:6.14C:weekly-register-average",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -10656,7 +10656,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_13A_tax_gap_between_counties",
+   "id": "mm_asvab_ar_7_13A_tax_gap_between_counties",
    "active": true,
    "alignmentKeys": [
     "texas:7.13A"
@@ -10682,7 +10682,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.13A:tax-gap-between-counties",
+   "familyId": "mathmaster:asvab:ar:7.13A:tax-gap-between-counties",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -10805,7 +10805,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_13A_tax_rate_from_receipt",
+   "id": "mm_asvab_ar_7_13A_tax_rate_from_receipt",
    "active": true,
    "alignmentKeys": [
     "texas:7.13A"
@@ -10831,7 +10831,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.13A:tax-rate-from-receipt",
+   "familyId": "mathmaster:asvab:ar:7.13A:tax-rate-from-receipt",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -10932,7 +10932,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_13A_take_home_after_tax_and_dues",
+   "id": "mm_asvab_ar_7_13A_take_home_after_tax_and_dues",
    "active": true,
    "alignmentKeys": [
     "texas:7.13A"
@@ -10958,7 +10958,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.13A:take-home-after-tax-and-dues",
+   "familyId": "mathmaster:asvab:ar:7.13A:take-home-after-tax-and-dues",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -11073,7 +11073,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_13A_which_item_carries_more_tax",
+   "id": "mm_asvab_ar_7_13A_which_item_carries_more_tax",
    "active": true,
    "alignmentKeys": [
     "texas:7.13A"
@@ -11099,7 +11099,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.13A:which-item-carries-more-tax",
+   "familyId": "mathmaster:asvab:ar:7.13A:which-item-carries-more-tax",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -11240,7 +11240,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_13A_price_before_tax",
+   "id": "mm_asvab_ar_7_13A_price_before_tax",
    "active": true,
    "alignmentKeys": [
     "texas:7.13A"
@@ -11266,7 +11266,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.13A:price-before-tax",
+   "familyId": "mathmaster:asvab:ar:7.13A:price-before-tax",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -11370,7 +11370,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_13E_simple_interest_earned",
+   "id": "mm_asvab_ar_7_13E_simple_interest_earned",
    "active": true,
    "alignmentKeys": [
     "texas:7.13E"
@@ -11396,7 +11396,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.13E:simple-interest-earned",
+   "familyId": "mathmaster:asvab:ar:7.13E:simple-interest-earned",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -11506,7 +11506,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_13E_simple_high_rate_versus_compound",
+   "id": "mm_asvab_ar_7_13E_simple_high_rate_versus_compound",
    "active": true,
    "alignmentKeys": [
     "texas:7.13E"
@@ -11532,7 +11532,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.13E:simple-high-rate-versus-compound",
+   "familyId": "mathmaster:asvab:ar:7.13E:simple-high-rate-versus-compound",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -11638,7 +11638,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_13E_balance_after_withdrawal",
+   "id": "mm_asvab_ar_7_13E_balance_after_withdrawal",
    "active": true,
    "alignmentKeys": [
     "texas:7.13E"
@@ -11664,7 +11664,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.13E:balance-after-withdrawal",
+   "familyId": "mathmaster:asvab:ar:7.13E:balance-after-withdrawal",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -11796,7 +11796,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_13E_years_to_reach_target_simple",
+   "id": "mm_asvab_ar_7_13E_years_to_reach_target_simple",
    "active": true,
    "alignmentKeys": [
     "texas:7.13E"
@@ -11822,7 +11822,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.13E:years-to-reach-target-simple",
+   "familyId": "mathmaster:asvab:ar:7.13E:years-to-reach-target-simple",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -11927,7 +11927,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_13E_compare_two_accounts",
+   "id": "mm_asvab_ar_7_13E_compare_two_accounts",
    "active": true,
    "alignmentKeys": [
     "texas:7.13E"
@@ -11953,7 +11953,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.13E:compare-two-accounts",
+   "familyId": "mathmaster:asvab:ar:7.13E:compare-two-accounts",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -12093,7 +12093,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_13F_coupon_then_pay",
+   "id": "mm_asvab_ar_7_13F_coupon_then_pay",
    "active": true,
    "alignmentKeys": [
     "texas:7.13F"
@@ -12119,7 +12119,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.13F:coupon-then-pay",
+   "familyId": "mathmaster:asvab:ar:7.13F:coupon-then-pay",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -12222,7 +12222,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_13F_percent_off_versus_coupon",
+   "id": "mm_asvab_ar_7_13F_percent_off_versus_coupon",
    "active": true,
    "alignmentKeys": [
     "texas:7.13F"
@@ -12248,7 +12248,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.13F:percent-off-versus-coupon",
+   "familyId": "mathmaster:asvab:ar:7.13F:percent-off-versus-coupon",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -12362,7 +12362,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_13F_rebate_after_purchase",
+   "id": "mm_asvab_ar_7_13F_rebate_after_purchase",
    "active": true,
    "alignmentKeys": [
     "texas:7.13F"
@@ -12388,7 +12388,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.13F:rebate-after-purchase",
+   "familyId": "mathmaster:asvab:ar:7.13F:rebate-after-purchase",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -12491,7 +12491,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_13F_stacked_sale_and_coupon",
+   "id": "mm_asvab_ar_7_13F_stacked_sale_and_coupon",
    "active": true,
    "alignmentKeys": [
     "texas:7.13F"
@@ -12517,7 +12517,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.13F:stacked-sale-and-coupon",
+   "familyId": "mathmaster:asvab:ar:7.13F:stacked-sale-and-coupon",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -12631,7 +12631,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_13F_best_saving_of_three",
+   "id": "mm_asvab_ar_7_13F_best_saving_of_three",
    "active": true,
    "alignmentKeys": [
     "texas:7.13F"
@@ -12657,7 +12657,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.13F:best-saving-of-three",
+   "familyId": "mathmaster:asvab:ar:7.13F:best-saving-of-three",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -12809,7 +12809,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_12A_rate_difference_on_one_loan",
+   "id": "mm_asvab_ar_8_12A_rate_difference_on_one_loan",
    "active": true,
    "alignmentKeys": [
     "texas:8.12A"
@@ -12835,7 +12835,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.12A:rate-difference-on-one-loan",
+   "familyId": "mathmaster:asvab:ar:8.12A:rate-difference-on-one-loan",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -12955,7 +12955,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_12A_term_difference_on_one_loan",
+   "id": "mm_asvab_ar_8_12A_term_difference_on_one_loan",
    "active": true,
    "alignmentKeys": [
     "texas:8.12A"
@@ -12981,7 +12981,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.12A:term-difference-on-one-loan",
+   "familyId": "mathmaster:asvab:ar:8.12A:term-difference-on-one-loan",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -13090,7 +13090,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_12A_interest_on_simple_loan",
+   "id": "mm_asvab_ar_8_12A_interest_on_simple_loan",
    "active": true,
    "alignmentKeys": [
     "texas:8.12A"
@@ -13116,7 +13116,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.12A:interest-on-simple-loan",
+   "familyId": "mathmaster:asvab:ar:8.12A:interest-on-simple-loan",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -13230,7 +13230,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_12A_monthly_payment_from_total",
+   "id": "mm_asvab_ar_8_12A_monthly_payment_from_total",
    "active": true,
    "alignmentKeys": [
     "texas:8.12A"
@@ -13256,7 +13256,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.12A:monthly-payment-from-total",
+   "familyId": "mathmaster:asvab:ar:8.12A:monthly-payment-from-total",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -13349,7 +13349,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_12A_cheaper_of_two_loans",
+   "id": "mm_asvab_ar_8_12A_cheaper_of_two_loans",
    "active": true,
    "alignmentKeys": [
     "texas:8.12A"
@@ -13375,7 +13375,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.12A:cheaper-of-two-loans",
+   "familyId": "mathmaster:asvab:ar:8.12A:cheaper-of-two-loans",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -13519,7 +13519,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_12B_total_repaid_simple_loan",
+   "id": "mm_asvab_ar_8_12B_total_repaid_simple_loan",
    "active": true,
    "alignmentKeys": [
     "texas:8.12B"
@@ -13545,7 +13545,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.12B:total-repaid-simple-loan",
+   "familyId": "mathmaster:asvab:ar:8.12B:total-repaid-simple-loan",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -13649,7 +13649,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_12B_total_from_monthly_payments",
+   "id": "mm_asvab_ar_8_12B_total_from_monthly_payments",
    "active": true,
    "alignmentKeys": [
     "texas:8.12B"
@@ -13675,7 +13675,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.12B:total-from-monthly-payments",
+   "familyId": "mathmaster:asvab:ar:8.12B:total-from-monthly-payments",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -13775,7 +13775,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_12B_card_balance_after_payment",
+   "id": "mm_asvab_ar_8_12B_card_balance_after_payment",
    "active": true,
    "alignmentKeys": [
     "texas:8.12B"
@@ -13801,7 +13801,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.12B:card-balance-after-payment",
+   "familyId": "mathmaster:asvab:ar:8.12B:card-balance-after-payment",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -13906,7 +13906,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_12B_cost_of_two_repayment_plans",
+   "id": "mm_asvab_ar_8_12B_cost_of_two_repayment_plans",
    "active": true,
    "alignmentKeys": [
     "texas:8.12B"
@@ -13932,7 +13932,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.12B:cost-of-two-repayment-plans",
+   "familyId": "mathmaster:asvab:ar:8.12B:cost-of-two-repayment-plans",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -14062,7 +14062,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_12B_months_to_clear_balance",
+   "id": "mm_asvab_ar_8_12B_months_to_clear_balance",
    "active": true,
    "alignmentKeys": [
     "texas:8.12B"
@@ -14088,7 +14088,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.12B:months-to-clear-balance",
+   "familyId": "mathmaster:asvab:ar:8.12B:months-to-clear-balance",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -14180,7 +14180,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_4D_value_lost_this_year",
+   "id": "mm_asvab_ar_7_4D_value_lost_this_year",
    "active": true,
    "alignmentKeys": [
     "texas:7.4D"
@@ -14206,7 +14206,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.4D:value-lost-this-year",
+   "familyId": "mathmaster:asvab:ar:7.4D:value-lost-this-year",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -14327,7 +14327,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_4D_value_after_two_decreases",
+   "id": "mm_asvab_ar_7_4D_value_after_two_decreases",
    "active": true,
    "alignmentKeys": [
     "texas:7.4D"
@@ -14353,7 +14353,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.4D:value-after-two-decreases",
+   "familyId": "mathmaster:asvab:ar:7.4D:value-after-two-decreases",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -14471,7 +14471,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_4D_original_before_increase",
+   "id": "mm_asvab_ar_7_4D_original_before_increase",
    "active": true,
    "alignmentKeys": [
     "texas:7.4D"
@@ -14497,7 +14497,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.4D:original-before-increase",
+   "familyId": "mathmaster:asvab:ar:7.4D:original-before-increase",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -14596,7 +14596,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_4D_percent_change_from_two_values",
+   "id": "mm_asvab_ar_7_4D_percent_change_from_two_values",
    "active": true,
    "alignmentKeys": [
     "texas:7.4D"
@@ -14622,7 +14622,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.4D:percent-change-from-two-values",
+   "familyId": "mathmaster:asvab:ar:7.4D:percent-change-from-two-values",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -14734,7 +14734,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_4D_markup_then_discount",
+   "id": "mm_asvab_ar_7_4D_markup_then_discount",
    "active": true,
    "alignmentKeys": [
     "texas:7.4D"
@@ -14760,7 +14760,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.4D:markup-then-discount",
+   "familyId": "mathmaster:asvab:ar:7.4D:markup-then-discount",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -14902,7 +14902,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_4E_mixed_units_route_total",
+   "id": "mm_asvab_ar_7_4E_mixed_units_route_total",
    "active": true,
    "alignmentKeys": [
     "texas:7.4E"
@@ -14928,7 +14928,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.4E:mixed-units-route-total",
+   "familyId": "mathmaster:asvab:ar:7.4E:mixed-units-route-total",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -15021,7 +15021,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_4E_kilograms_to_pounds_total",
+   "id": "mm_asvab_ar_7_4E_kilograms_to_pounds_total",
    "active": true,
    "alignmentKeys": [
     "texas:7.4E"
@@ -15047,7 +15047,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.4E:kilograms-to-pounds-total",
+   "familyId": "mathmaster:asvab:ar:7.4E:kilograms-to-pounds-total",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -15145,7 +15145,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_4E_drums_from_a_tank",
+   "id": "mm_asvab_ar_7_4E_drums_from_a_tank",
    "active": true,
    "alignmentKeys": [
     "texas:7.4E"
@@ -15171,7 +15171,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.4E:drums-from-a-tank",
+   "familyId": "mathmaster:asvab:ar:7.4E:drums-from-a-tank",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -15264,7 +15264,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_4E_compare_across_systems",
+   "id": "mm_asvab_ar_7_4E_compare_across_systems",
    "active": true,
    "alignmentKeys": [
     "texas:7.4E"
@@ -15290,7 +15290,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.4E:compare-across-systems",
+   "familyId": "mathmaster:asvab:ar:7.4E:compare-across-systems",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -15384,7 +15384,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_4E_batches_from_kilograms",
+   "id": "mm_asvab_ar_7_4E_batches_from_kilograms",
    "active": true,
    "alignmentKeys": [
     "texas:7.4E"
@@ -15410,7 +15410,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.4E:batches-from-kilograms",
+   "familyId": "mathmaster:asvab:ar:7.4E:batches-from-kilograms",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -15537,7 +15537,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_3B_temperature_swing",
+   "id": "mm_asvab_ar_7_3B_temperature_swing",
    "active": true,
    "alignmentKeys": [
     "texas:7.3B"
@@ -15563,7 +15563,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.3B:temperature-swing",
+   "familyId": "mathmaster:asvab:ar:7.3B:temperature-swing",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -15663,7 +15663,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_3B_bags_from_a_load",
+   "id": "mm_asvab_ar_7_3B_bags_from_a_load",
    "active": true,
    "alignmentKeys": [
     "texas:7.3B"
@@ -15689,7 +15689,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.3B:bags-from-a-load",
+   "familyId": "mathmaster:asvab:ar:7.3B:bags-from-a-load",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -15810,7 +15810,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_3B_fraction_of_a_remainder",
+   "id": "mm_asvab_ar_7_3B_fraction_of_a_remainder",
    "active": true,
    "alignmentKeys": [
     "texas:7.3B"
@@ -15836,7 +15836,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.3B:fraction-of-a-remainder",
+   "familyId": "mathmaster:asvab:ar:7.3B:fraction-of-a-remainder",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -15974,7 +15974,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_3B_signed_net_change",
+   "id": "mm_asvab_ar_7_3B_signed_net_change",
    "active": true,
    "alignmentKeys": [
     "texas:7.3B"
@@ -16000,7 +16000,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.3B:signed-net-change",
+   "familyId": "mathmaster:asvab:ar:7.3B:signed-net-change",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -16152,7 +16152,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_3B_decimal_money_split",
+   "id": "mm_asvab_ar_7_3B_decimal_money_split",
    "active": true,
    "alignmentKeys": [
     "texas:7.3B"
@@ -16178,7 +16178,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.3B:decimal-money-split",
+   "familyId": "mathmaster:asvab:ar:7.3B:decimal-money-split",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -16284,7 +16284,7 @@
    ]
   },
   {
-   "id": "mm_asvab_A_3B_depletion_rate",
+   "id": "mm_asvab_ar_A_3B_depletion_rate",
    "active": true,
    "alignmentKeys": [
     "texas:A.3B"
@@ -16310,7 +16310,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:A.3B:depletion-rate",
+   "familyId": "mathmaster:asvab:ar:A.3B:depletion-rate",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -16408,7 +16408,7 @@
    ]
   },
   {
-   "id": "mm_asvab_A_3B_rate_from_two_labelled_points",
+   "id": "mm_asvab_ar_A_3B_rate_from_two_labelled_points",
    "active": true,
    "alignmentKeys": [
     "texas:A.3B"
@@ -16434,7 +16434,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:A.3B:rate-from-two-labelled-points",
+   "familyId": "mathmaster:asvab:ar:A.3B:rate-from-two-labelled-points",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -16559,7 +16559,7 @@
    ]
   },
   {
-   "id": "mm_asvab_A_3B_output_over_a_later_stretch",
+   "id": "mm_asvab_ar_A_3B_output_over_a_later_stretch",
    "active": true,
    "alignmentKeys": [
     "texas:A.3B"
@@ -16585,7 +16585,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:A.3B:output-over-a-later-stretch",
+   "familyId": "mathmaster:asvab:ar:A.3B:output-over-a-later-stretch",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -16709,7 +16709,7 @@
    ]
   },
   {
-   "id": "mm_asvab_A_3B_what_the_rate_means",
+   "id": "mm_asvab_ar_A_3B_what_the_rate_means",
    "active": true,
    "alignmentKeys": [
     "texas:A.3B"
@@ -16735,7 +16735,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:A.3B:what-the-rate-means",
+   "familyId": "mathmaster:asvab:ar:A.3B:what-the-rate-means",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -16819,7 +16819,7 @@
    ]
   },
   {
-   "id": "mm_asvab_A_3B_rising_against_falling",
+   "id": "mm_asvab_ar_A_3B_rising_against_falling",
    "active": true,
    "alignmentKeys": [
     "texas:A.3B"
@@ -16845,7 +16845,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:A.3B:rising-against-falling",
+   "familyId": "mathmaster:asvab:ar:A.3B:rising-against-falling",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -16980,7 +16980,7 @@
    ]
   },
   {
-   "id": "mm_asvab_A2_6L_constant_of_inverse_variation",
+   "id": "mm_asvab_ar_A2_6L_constant_of_inverse_variation",
    "active": true,
    "alignmentKeys": [
     "texas:A2.6L"
@@ -17006,7 +17006,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:A2.6L:constant-of-inverse-variation",
+   "familyId": "mathmaster:asvab:ar:A2.6L:constant-of-inverse-variation",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -17107,7 +17107,7 @@
    ]
   },
   {
-   "id": "mm_asvab_A2_6L_more_workers_less_time",
+   "id": "mm_asvab_ar_A2_6L_more_workers_less_time",
    "active": true,
    "alignmentKeys": [
     "texas:A2.6L"
@@ -17133,7 +17133,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:A2.6L:more-workers-less-time",
+   "familyId": "mathmaster:asvab:ar:A2.6L:more-workers-less-time",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -17241,7 +17241,7 @@
    ]
   },
   {
-   "id": "mm_asvab_A2_6L_crew_size_for_a_deadline",
+   "id": "mm_asvab_ar_A2_6L_crew_size_for_a_deadline",
    "active": true,
    "alignmentKeys": [
     "texas:A2.6L"
@@ -17267,7 +17267,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:A2.6L:crew-size-for-a-deadline",
+   "familyId": "mathmaster:asvab:ar:A2.6L:crew-size-for-a-deadline",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -17375,7 +17375,7 @@
    ]
   },
   {
-   "id": "mm_asvab_A2_6L_gears_inverse_table",
+   "id": "mm_asvab_ar_A2_6L_gears_inverse_table",
    "active": true,
    "alignmentKeys": [
     "texas:A2.6L"
@@ -17401,7 +17401,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:A2.6L:gears-inverse-table",
+   "familyId": "mathmaster:asvab:ar:A2.6L:gears-inverse-table",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -17521,7 +17521,7 @@
    ]
   },
   {
-   "id": "mm_asvab_A2_6L_which_pairing_fits",
+   "id": "mm_asvab_ar_A2_6L_which_pairing_fits",
    "active": true,
    "alignmentKeys": [
     "texas:A2.6L"
@@ -17547,7 +17547,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:A2.6L:which-pairing-fits",
+   "familyId": "mathmaster:asvab:ar:A2.6L:which-pairing-fits",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -17649,7 +17649,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_9C_situation_for_a_one_step_equation",
+   "id": "mm_asvab_ar_6_9C_situation_for_a_one_step_equation",
    "active": true,
    "alignmentKeys": [
     "texas:6.9C"
@@ -17675,7 +17675,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.9C:situation-for-a-one-step-equation",
+   "familyId": "mathmaster:asvab:ar:6.9C:situation-for-a-one-step-equation",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -17769,7 +17769,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_9C_equation_for_equal_groups",
+   "id": "mm_asvab_ar_6_9C_equation_for_equal_groups",
    "active": true,
    "alignmentKeys": [
     "texas:6.9C"
@@ -17795,7 +17795,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.9C:equation-for-equal-groups",
+   "familyId": "mathmaster:asvab:ar:6.9C:equation-for-equal-groups",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -17897,7 +17897,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_9C_solve_a_one_step_situation",
+   "id": "mm_asvab_ar_6_9C_solve_a_one_step_situation",
    "active": true,
    "alignmentKeys": [
     "texas:6.9C"
@@ -17923,7 +17923,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.9C:solve-a-one-step-situation",
+   "familyId": "mathmaster:asvab:ar:6.9C:solve-a-one-step-situation",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -18035,7 +18035,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_9C_check_a_proposed_value",
+   "id": "mm_asvab_ar_6_9C_check_a_proposed_value",
    "active": true,
    "alignmentKeys": [
     "texas:6.9C"
@@ -18061,7 +18061,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.9C:check-a-proposed-value",
+   "familyId": "mathmaster:asvab:ar:6.9C:check-a-proposed-value",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -18166,7 +18166,7 @@
    ]
   },
   {
-   "id": "mm_asvab_6_9C_one_step_inequality_limit",
+   "id": "mm_asvab_ar_6_9C_one_step_inequality_limit",
    "active": true,
    "alignmentKeys": [
     "texas:6.9C"
@@ -18192,7 +18192,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:6.9C:one-step-inequality-limit",
+   "familyId": "mathmaster:asvab:ar:6.9C:one-step-inequality-limit",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -18297,7 +18297,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_10C_situation_for_a_two_step_equation",
+   "id": "mm_asvab_ar_7_10C_situation_for_a_two_step_equation",
    "active": true,
    "alignmentKeys": [
     "texas:7.10C"
@@ -18323,7 +18323,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.10C:situation-for-a-two-step-equation",
+   "familyId": "mathmaster:asvab:ar:7.10C:situation-for-a-two-step-equation",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -18412,7 +18412,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_10C_hours_from_a_bill",
+   "id": "mm_asvab_ar_7_10C_hours_from_a_bill",
    "active": true,
    "alignmentKeys": [
     "texas:7.10C"
@@ -18438,7 +18438,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.10C:hours-from-a-bill",
+   "familyId": "mathmaster:asvab:ar:7.10C:hours-from-a-bill",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -18547,7 +18547,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_10C_bill_from_hours",
+   "id": "mm_asvab_ar_7_10C_bill_from_hours",
    "active": true,
    "alignmentKeys": [
     "texas:7.10C"
@@ -18573,7 +18573,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.10C:bill-from-hours",
+   "familyId": "mathmaster:asvab:ar:7.10C:bill-from-hours",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -18623,7 +18623,7 @@
      "fee": {
       "type": "int",
       "min": 10,
-      "max": 55,
+      "max": 75,
       "step": 5
      },
      "hours": {
@@ -18679,7 +18679,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_10C_two_step_budget_limit",
+   "id": "mm_asvab_ar_7_10C_two_step_budget_limit",
    "active": true,
    "alignmentKeys": [
     "texas:7.10C"
@@ -18705,7 +18705,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.10C:two-step-budget-limit",
+   "familyId": "mathmaster:asvab:ar:7.10C:two-step-budget-limit",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -18805,7 +18805,7 @@
    ]
   },
   {
-   "id": "mm_asvab_7_10C_rate_from_two_bills",
+   "id": "mm_asvab_ar_7_10C_rate_from_two_bills",
    "active": true,
    "alignmentKeys": [
     "texas:7.10C"
@@ -18831,7 +18831,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:7.10C:rate-from-two-bills",
+   "familyId": "mathmaster:asvab:ar:7.10C:rate-from-two-bills",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -18957,7 +18957,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_8B_when_two_plans_cost_the_same",
+   "id": "mm_asvab_ar_8_8B_when_two_plans_cost_the_same",
    "active": true,
    "alignmentKeys": [
     "texas:8.8B"
@@ -18983,7 +18983,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.8B:when-two-plans-cost-the-same",
+   "familyId": "mathmaster:asvab:ar:8.8B:when-two-plans-cost-the-same",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -19090,7 +19090,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_8B_which_equation_balances",
+   "id": "mm_asvab_ar_8_8B_which_equation_balances",
    "active": true,
    "alignmentKeys": [
     "texas:8.8B"
@@ -19116,7 +19116,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.8B:which-equation-balances",
+   "familyId": "mathmaster:asvab:ar:8.8B:which-equation-balances",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -19211,7 +19211,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_8B_cheaper_plan_at_a_given_month",
+   "id": "mm_asvab_ar_8_8B_cheaper_plan_at_a_given_month",
    "active": true,
    "alignmentKeys": [
     "texas:8.8B"
@@ -19237,7 +19237,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.8B:cheaper-plan-at-a-given-month",
+   "familyId": "mathmaster:asvab:ar:8.8B:cheaper-plan-at-a-given-month",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -19372,7 +19372,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_8B_balance_both_sides_solve",
+   "id": "mm_asvab_ar_8_8B_balance_both_sides_solve",
    "active": true,
    "alignmentKeys": [
     "texas:8.8B"
@@ -19398,7 +19398,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.8B:balance-both-sides-solve",
+   "familyId": "mathmaster:asvab:ar:8.8B:balance-both-sides-solve",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -19514,7 +19514,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_8B_which_plan_wins_long_run",
+   "id": "mm_asvab_ar_8_8B_which_plan_wins_long_run",
    "active": true,
    "alignmentKeys": [
     "texas:8.8B"
@@ -19540,7 +19540,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.8B:which-plan-wins-long-run",
+   "familyId": "mathmaster:asvab:ar:8.8B:which-plan-wins-long-run",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -19628,7 +19628,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_12C_total_saved_over_years",
+   "id": "mm_asvab_ar_8_12C_total_saved_over_years",
    "active": true,
    "alignmentKeys": [
     "texas:8.12C"
@@ -19654,7 +19654,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.12C:total-saved-over-years",
+   "familyId": "mathmaster:asvab:ar:8.12C:total-saved-over-years",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -19762,7 +19762,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_12C_months_to_reach_a_target",
+   "id": "mm_asvab_ar_8_12C_months_to_reach_a_target",
    "active": true,
    "alignmentKeys": [
     "texas:8.12C"
@@ -19788,7 +19788,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.12C:months-to-reach-a-target",
+   "familyId": "mathmaster:asvab:ar:8.12C:months-to-reach-a-target",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -19845,7 +19845,7 @@
      "start": {
       "type": "int",
       "min": 100,
-      "max": 6000,
+      "max": 9000,
       "step": 100
      }
     },
@@ -19898,7 +19898,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_12C_saving_earlier_versus_more",
+   "id": "mm_asvab_ar_8_12C_saving_earlier_versus_more",
    "active": true,
    "alignmentKeys": [
     "texas:8.12C"
@@ -19924,7 +19924,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.12C:saving-earlier-versus-more",
+   "familyId": "mathmaster:asvab:ar:8.12C:saving-earlier-versus-more",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -19993,12 +19993,12 @@
      },
      "yA": {
       "type": "int",
-      "min": 2,
+      "min": 5,
       "max": 15
      },
      "yB": {
       "type": "int",
-      "min": 2,
+      "min": 5,
       "max": 15
      }
     },
@@ -20052,7 +20052,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_12C_monthly_amount_for_a_plan",
+   "id": "mm_asvab_ar_8_12C_monthly_amount_for_a_plan",
    "active": true,
    "alignmentKeys": [
     "texas:8.12C"
@@ -20078,7 +20078,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.12C:monthly-amount-for-a-plan",
+   "familyId": "mathmaster:asvab:ar:8.12C:monthly-amount-for-a-plan",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -20187,7 +20187,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_12C_raising_the_monthly_amount",
+   "id": "mm_asvab_ar_8_12C_raising_the_monthly_amount",
    "active": true,
    "alignmentKeys": [
     "texas:8.12C"
@@ -20213,7 +20213,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.12C:raising-the-monthly-amount",
+   "familyId": "mathmaster:asvab:ar:8.12C:raising-the-monthly-amount",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -20312,7 +20312,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_12D_compound_balance_after_a_withdrawal",
+   "id": "mm_asvab_ar_8_12D_compound_balance_after_a_withdrawal",
    "active": true,
    "alignmentKeys": [
     "texas:8.12D"
@@ -20338,7 +20338,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.12D:compound-balance-after-a-withdrawal",
+   "familyId": "mathmaster:asvab:ar:8.12D:compound-balance-after-a-withdrawal",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -20441,7 +20441,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_12D_compound_against_a_simple_deposit",
+   "id": "mm_asvab_ar_8_12D_compound_against_a_simple_deposit",
    "active": true,
    "alignmentKeys": [
     "texas:8.12D"
@@ -20467,7 +20467,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.12D:compound-against-a-simple-deposit",
+   "familyId": "mathmaster:asvab:ar:8.12D:compound-against-a-simple-deposit",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -20570,7 +20570,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_12D_yearly_balance_table",
+   "id": "mm_asvab_ar_8_12D_yearly_balance_table",
    "active": true,
    "alignmentKeys": [
     "texas:8.12D"
@@ -20596,7 +20596,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.12D:yearly-balance-table",
+   "familyId": "mathmaster:asvab:ar:8.12D:yearly-balance-table",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -20723,7 +20723,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_12D_which_earns_more",
+   "id": "mm_asvab_ar_8_12D_which_earns_more",
    "active": true,
    "alignmentKeys": [
     "texas:8.12D"
@@ -20749,7 +20749,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.12D:which-earns-more",
+   "familyId": "mathmaster:asvab:ar:8.12D:which-earns-more",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -20834,7 +20834,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_12D_interest_in_the_final_year",
+   "id": "mm_asvab_ar_8_12D_interest_in_the_final_year",
    "active": true,
    "alignmentKeys": [
     "texas:8.12D"
@@ -20860,7 +20860,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.12D:interest-in-the-final-year",
+   "familyId": "mathmaster:asvab:ar:8.12D:interest-in-the-final-year",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -20907,7 +20907,7 @@
      "wdT": {
       "type": "int",
       "min": 10,
-      "max": 300
+      "max": 500
      }
     },
     "derived": {
@@ -20962,7 +20962,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_12G_four_year_cost",
+   "id": "mm_asvab_ar_8_12G_four_year_cost",
    "active": true,
    "alignmentKeys": [
     "texas:8.12G"
@@ -20988,7 +20988,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.12G:four-year-cost",
+   "familyId": "mathmaster:asvab:ar:8.12G:four-year-cost",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -21080,7 +21080,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_12G_gap_after_family_contribution",
+   "id": "mm_asvab_ar_8_12G_gap_after_family_contribution",
    "active": true,
    "alignmentKeys": [
     "texas:8.12G"
@@ -21106,7 +21106,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.12G:gap-after-family-contribution",
+   "familyId": "mathmaster:asvab:ar:8.12G:gap-after-family-contribution",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -21206,7 +21206,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_12G_shortfall_on_a_savings_plan",
+   "id": "mm_asvab_ar_8_12G_shortfall_on_a_savings_plan",
    "active": true,
    "alignmentKeys": [
     "texas:8.12G"
@@ -21232,7 +21232,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.12G:shortfall-on-a-savings-plan",
+   "familyId": "mathmaster:asvab:ar:8.12G:shortfall-on-a-savings-plan",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -21330,7 +21330,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_12G_two_year_versus_four_year",
+   "id": "mm_asvab_ar_8_12G_two_year_versus_four_year",
    "active": true,
    "alignmentKeys": [
     "texas:8.12G"
@@ -21356,7 +21356,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.12G:two-year-versus-four-year",
+   "familyId": "mathmaster:asvab:ar:8.12G:two-year-versus-four-year",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -21479,7 +21479,7 @@
    ]
   },
   {
-   "id": "mm_asvab_8_12G_years_of_saving_already_done",
+   "id": "mm_asvab_ar_8_12G_years_of_saving_already_done",
    "active": true,
    "alignmentKeys": [
     "texas:8.12G"
@@ -21505,7 +21505,7 @@
     "subtest": "arithmeticReasoning"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:8.12G:years-of-saving-already-done",
+   "familyId": "mathmaster:asvab:ar:8.12G:years-of-saving-already-done",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",

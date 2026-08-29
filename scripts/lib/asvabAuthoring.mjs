@@ -268,7 +268,14 @@ export const asvabItem = ({
   }
 
   return {
-    id: `mm_asvab_${slugId(code)}_${slugId(slug)}`,
+    // The subtest is part of the id. A2.6L is assessed in both Arithmetic
+    // Reasoning and Mathematics Knowledge, and both were authored with a
+    // family called constant-of-inverse-variation — two different questions
+    // for two different tests, colliding on one id. Naming the subtest fixes
+    // that case and every future one, rather than renaming one slug and
+    // leaving the trap in place. The key's choice id is hashed from
+    // `code:slug` and is unaffected.
+    id: `mm_asvab_${domain === ASVAB_DOMAINS.ARITHMETIC_REASONING ? 'ar' : 'mk'}_${slugId(code)}_${slugId(slug)}`,
     active: true,
     alignmentKeys: [`texas:${code}`],
     alignments: [
@@ -280,7 +287,11 @@ export const asvabItem = ({
     // that name; both carry the same value, so neither can drift.
     assessmentContext: { framework: 'asvab', examStyle: true, domainId: domain, subtest: domain },
     courseId,
-    familyId: `mathmaster:asvab:${code}:${slug}`,
+    // The subtest belongs here as well as in the id. familyId travels into
+    // evidence and is what repeat-avoidance and mastery attribution key on, so
+    // two different questions sharing one would make answering the Arithmetic
+    // Reasoning family count as having seen the Mathematics Knowledge one.
+    familyId: `mathmaster:asvab:${domain === ASVAB_DOMAINS.ARITHMETIC_REASONING ? 'ar' : 'mk'}:${code}:${slug}`,
     familyVersion: 2,
     questionType: 'multipleChoice',
     activityRole: 'practice',

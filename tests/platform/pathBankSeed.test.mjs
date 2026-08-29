@@ -330,26 +330,34 @@ const ASSESSMENT_BANK_EXPECTATIONS = Object.freeze({
   digitalSAT: { documents: 1045, standards: 209 },
   act: { documents: 1125, standards: 225 },
   tsia2: { documents: 1125, standards: 225 },
-  asvab: { documents: 730, standards: 146 },
+  asvab: { documents: 735, standards: 146 },
 });
 
 Object.entries(ASSESSMENT_BANK_EXPECTATIONS).forEach(([framework, expected]) => {
   test(`${framework} standards have five directly-authored exam-style families and stay out of course selection`, () => {
     const items = SEED.filter((entry) => entry?.assessmentContext?.framework === framework && entry?.assessmentContext?.examStyle === true);
     assert.equal(items.length, expected.documents);
-    const byCode = new Map();
+    // Five families per standard PER SUBTEST. A2.6L is assessed in both ASVAB
+    // subtests and carries five families in each, so grouping by code alone
+    // counted ten and failed on correct content. The standards count stays a
+    // count of distinct codes, which is what it means.
+    const byCode = new Set();
+    const byCodeAndDomain = new Map();
     items.forEach((entry) => {
       (entry.alignmentKeys || []).forEach((key) => {
         const code = String(key).replace(/^texas:/i, '').toUpperCase();
-        if (!byCode.has(code)) byCode.set(code, []);
-        byCode.get(code).push(entry);
+        byCode.add(code);
+        const pair = `${code} / ${entry?.assessmentContext?.domainId || ''}`;
+        if (!byCodeAndDomain.has(pair)) byCodeAndDomain.set(pair, []);
+        byCodeAndDomain.get(pair).push(entry);
       });
     });
     assert.equal(byCode.size, expected.standards);
-    byCode.forEach((families, code) => {
+    byCodeAndDomain.forEach((families, code) => {
       assert.equal(new Set(families.map((entry) => entry.familyId)).size, 5, `${code} does not have five distinct ${framework} families`);
       assert.ok(families.every((entry) => entry.assessmentContext.framework === framework));
-      assert.ok(families.every((entry) => !candidatesFor(code).includes(entry)), `${code} leaked ${framework} content into course candidates`);
+      const bareCode = code.split(' / ')[0];
+      assert.ok(families.every((entry) => !candidatesFor(bareCode).includes(entry)), `${code} leaked ${framework} content into course candidates`);
     });
   });
 });

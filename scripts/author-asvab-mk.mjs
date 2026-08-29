@@ -69,8 +69,8 @@ mk('6.2A', 'rational-that-is-not-an-integer', {
     parameters: {
       n: { type: 'int', min: 1, max: 6 },
       d: { type: 'choice', values: [3, 4, 6, 7, 8] },
-      k: { type: 'int', min: 1, max: 9 },
-      k2: { type: 'int', min: 10, max: 30 },
+      k: { type: 'int', min: 1, max: 7 },
+      k2: { type: 'int', min: 12, max: 24 },
     },
     derived: { num: 'n*d+1', prod: 'k2*d' },
     // k and k2 differ, so the integer-valued fraction and the plain integer
@@ -704,7 +704,7 @@ mk('6.2E', 'value-of-a-grouped-division', {
   },
   generator: {
     parameters: {
-      c: { type: 'int', min: 2, max: 12 },
+      c: { type: 'int', min: 2, max: 14 },
       q: { type: 'int', min: 2, max: 14 },
       b: { type: 'int', min: 2, max: 60 },
     },
@@ -764,14 +764,14 @@ mk('6.3A', 'reciprocal-of-a-value', {
       b: { type: 'int', min: 2, max: 20 },
       c: { type: 'int', min: 2, max: 20 },
     },
-    derived: { negB: '0-b' },
+    derived: { negB: '0-b', sum: 'b+c' },
     constraints: ['b!=c'],
   },
   choices: [
     { label: plain('\\frac{{{c}}}{{{b}}}'), correct: true },
     { label: plain('\\frac{{{negB}}}{{{c}}}'), error: 'signError' },
     { label: plain('\\frac{{{b}}}{{{c}}}'), error: 'partialTotal' },
-    { label: plain('\\frac{1}{{{b}}}'), error: 'operationInverted' },
+    { label: plain('\\frac{{{sum}}}{{{b}}}'), error: 'operationInverted' },
   ],
   reasoning: ['A reciprocal swaps the top and the bottom.', 'So $\\frac{{{b}}}{{{c}}}$ becomes $\\frac{{{c}}}{{{b}}}$.'],
   answerSummary: { headline: 'The reciprocal turns the fraction upside down.', text: 'It is $\\frac{{{c}}}{{{b}}}$.' },
@@ -1283,7 +1283,9 @@ mk('6.3E', 'batches-of-a-fractional-amount', {
     title: 'Mix record',
     table: {
       headers: ['cans per batch', 'batches per day', 'days'],
-      rows: [['\\frac{{{n}}}{{{d}}}', '{{k}}', '{{j}}']],
+      // Delimited: MathText renders only what sits inside $…$, so a bare
+      // \\frac in a cell reaches the student as literal characters.
+      rows: [['$\\frac{{{n}}}{{{d}}}$', '${{k}}$', '${{j}}$']],
     },
   },
   generator: {
@@ -9384,7 +9386,7 @@ mk('8.7A', 'height-of-a-drum', {
       r: { type: 'int', min: 2, max: 10 },
       e: { type: 'int', min: 1, max: 9 },
       // The second drum's height is drawn separately, so it crosses the key.
-      h2: { type: 'int', min: 2, max: 20 },
+      h2: { type: 'int', min: 2, max: 14 },
     },
     derived: {
       h: '2*e',
@@ -15393,7 +15395,7 @@ mk('A2.6I', 'a-sum-with-one-denominator', {
       d: { type: 'int', min: 2, max: 12 },
       x: { type: 'int', min: 2, max: 15 },
     },
-    derived: { q: 'p+d', n: 'd*x', noSubtract: 'd*x', wrongOrder: 'd*x-p', overQ: 'x' },
+    derived: { q: 'p+d', n: 'd*x', noSubtract: 'd*x', wrongOrder: 'round(d*x/(p+d))' },
     constraints: ['d!=x', 'x!=noSubtract', 'x!=wrongOrder', 'x!=p'],
   },
   choices: [
@@ -15496,8 +15498,11 @@ mk('A2.6L', 'find-y-under-inverse-variation', {
   prompt: '$y$ varies inversely with $x$, and $y = {{y1}}$ when $x = {{x1}}$. What is $y$ when $x = {{x2}}$?',
   generator: {
     parameters: {
-      x1: { type: 'int', min: 2, max: 9 },
-      y2: { type: 'int', min: 2, max: 12 },
+      x1: { type: 'int', min: 2, max: 12 },
+      // y2 sits a little above x1's range: x1 is the choice that crosses the
+      // key, and it has to land below it slightly more often than not, or the
+      // key comes out the smallest of four too regularly.
+      y2: { type: 'int', min: 3, max: 13 },
       m: { type: 'int', min: 2, max: 6 },
     },
     derived: { x2: 'x1*m', y1: 'y2*m', k: 'x1*y2*m' },

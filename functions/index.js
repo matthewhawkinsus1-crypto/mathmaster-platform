@@ -1411,7 +1411,7 @@ async function pathCoverage() {
 
 const COVERAGE_COLLECTION = "pathCoverage";
 
-const PATH_RUNTIME_RELEASE = "path-bank-2026-08-21-r9-asvab";
+const PATH_RUNTIME_RELEASE = "path-bank-2026-08-29-r10-asvab-rebuild";
 
 
 /**
