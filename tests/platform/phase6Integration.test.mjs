@@ -82,8 +82,17 @@ test('Phase 6B SAT blueprint quota honors 35/35/15/15 domain weighting', () => {
 });
 
 test('Phase 6B score projection treats canonical and display TEKS identically and exposes evidence coverage', () => {
-  const display = predictExamScoresFromMastery({ 'A.2A': { mastery: { estimate: 80 } }, 'A.6A': { mastery: { estimate: 60 } }, 'A.4A': { mastery: { estimate: 70 } } });
-  const canonical = predictExamScoresFromMastery({ 'texas:A.2A': { mastery: { estimate: 80 } }, 'texas:A.6A': { mastery: { estimate: 60 } }, 'texas:A.4A': { mastery: { estimate: 70 } } });
+  // A.2B / A.6A / A.4C — one standard in each of SAT Algebra, Advanced Math and
+  // Problem-Solving and Data Analysis, so three of the four domains carry
+  // evidence and coverage is 35 + 35 + 15 = 85.
+  //
+  // This used A.2A and A.4A, which CCMR V2.1 removed from SAT scope on purpose:
+  // FRAMEWORK_SCOPE_EXCLUSIONS records that College Board Table 25 does not mark
+  // those Algebra I rows for the Digital SAT. Putting them back would be a false
+  // SAT claim shown to a student, so the fixture moves to standards the exam
+  // really assesses instead.
+  const display = predictExamScoresFromMastery({ 'A.2B': { mastery: { estimate: 80 } }, 'A.6A': { mastery: { estimate: 60 } }, 'A.4C': { mastery: { estimate: 70 } } });
+  const canonical = predictExamScoresFromMastery({ 'texas:A.2B': { mastery: { estimate: 80 } }, 'texas:A.6A': { mastery: { estimate: 60 } }, 'texas:A.4C': { mastery: { estimate: 70 } } });
   assert.equal(display.digitalSAT.estimatedScore, canonical.digitalSAT.estimatedScore);
   assert.equal(display.digitalSAT.coveragePercent, 85);
   assert.equal(display.digitalSAT.domains.geometryTrigonometry.estimate, null);

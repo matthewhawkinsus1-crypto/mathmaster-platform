@@ -8,7 +8,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../..');
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8');
 
-test('AI authoring and blueprint preserve Assignment V5 adaptive policy and rigor metadata', () => {
+test('AI authoring and blueprint preserve Assignment V5 adaptive policy and rigor metadata', async () => {
   const contract = read('src/platform/contract/authoringContract.js');
   const blueprint = read('src/assignmentBlueprint.js');
   assert.match(contract, /"variantPolicy"/);
@@ -16,8 +16,17 @@ test('AI authoring and blueprint preserve Assignment V5 adaptive policy and rigo
   assert.match(contract, /sectionModes/);
   assert.match(contract, /difficultyBand/);
   assert.match(contract, /dok is 1–4 cognitive complexity/);
-  assert.match(blueprint, /\['adaptive', 'pitched'/);
-  assert.match(blueprint, /\['shared', 'personalized', 'variant', 'adaptive'\]/);
+  // The blueprint states the delivery policy; it no longer carries the mode
+  // list as a literal array. This used to grep assignmentBlueprint.js for
+  // /\['adaptive', 'pitched'/ and /\['shared', 'personalized', 'variant',
+  // 'adaptive'\]/. Adaptive delivery moved to
+  // src/platform/assignments/assignmentAdaptation.js, which owns VARIATION_MODE
+  // and the labels the teacher reads, so the assertions now check the exported
+  // values there rather than the formatting of a line in another file.
+  assert.match(blueprint, /variantPolicy — shared\/personalized\/adaptive delivery and per-section modes\./);
+  const { VARIATION_MODE, VARIATION_MODE_LABEL } = await import('../../src/platform/assignments/assignmentAdaptation.js');
+  assert.deepEqual(Object.values(VARIATION_MODE), ['shared', 'variant', 'adaptive']);
+  assert.match(VARIATION_MODE_LABEL[VARIATION_MODE.ADAPTIVE], /pitched to the student/);
 });
 
 test('Weekly Path teacher view reads secure completed sessions and shows a weekly grade', () => {
