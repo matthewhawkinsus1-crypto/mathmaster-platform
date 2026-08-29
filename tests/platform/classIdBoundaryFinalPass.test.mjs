@@ -15,7 +15,7 @@ const assignment = {
       overridesByClassPeriod: { 'Period 3': { state: 'open' } },
     },
   },
-  questions: [{ activityRole: 'classwork' }],
+  sections: [{ id: 'classwork', role: 'classwork', questions: [{ activityRole: 'classwork' }] }],
 };
 
 test('a matching period cannot widen a modern assignment audience to a different class', () => {
