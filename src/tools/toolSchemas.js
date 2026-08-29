@@ -16,10 +16,11 @@ const isFinitePoint = (value) => Array.isArray(value) && value.length === 2 && v
 const validateFunctionSpec = (spec = {}, label = 'function') => {
   const errors = [];
   if (!FUNCTION_FAMILIES.includes(spec.type)) errors.push(`${label} type must be a supported function family.`);
-  ['a','h','k'].forEach((key) => {
+  ['a','b','h','k'].forEach((key) => {
     if (spec[key] != null && !Number.isFinite(Number(spec[key]))) errors.push(`${label} ${key} must be finite.`);
   });
   if (Number.isFinite(Number(spec.a)) && Math.abs(Number(spec.a)) <= 1e-9) errors.push(`${label} vertical scale a cannot be 0.`);
+  if (Number.isFinite(Number(spec.b)) && Math.abs(Number(spec.b)) <= 1e-9) errors.push(`${label} horizontal input scale b cannot be 0.`);
   if (['exponential','logarithmic'].includes(spec.type) && !isValidLogBase(spec.base ?? 2)) errors.push(`${label} base must be positive and not equal to 1.`);
   return errors;
 };
@@ -178,7 +179,7 @@ export const validateToolQuestion = (question = {}) => {
     }
   }
   if (toolId === 'transformationsLab') {
-    const modes = ['match','identify','pointMap','describe','anchor'];
+    const modes = ['match','identify','pointMap','plotTransform','describe','anchor'];
     const mode = question.mode || 'match';
     if (!modes.includes(mode)) errors.push(`Unsupported transformationsLab mode: ${mode}.`);
     const requestedFamily = question.family || question.function?.type || (FUNCTION_FAMILIES.includes(question.type) ? question.type : 'quadratic');
@@ -187,6 +188,11 @@ export const validateToolQuestion = (question = {}) => {
     if (mode !== 'match' && !question.function) errors.push(`${mode} mode requires a function specification.`);
     if (source) errors.push(...validateFunctionSpec({ type: requestedFamily, ...source }, 'transformationsLab function'));
     if (mode === 'pointMap' && !isFinitePoint(question.parentPoint)) errors.push('pointMap mode requires a finite parentPoint [x,y].');
+    if (mode === 'plotTransform') {
+      if (!Array.isArray(question.sourcePoints) || question.sourcePoints.length < 2) errors.push('plotTransform mode requires at least two sourcePoints.');
+      else if (question.sourcePoints.some((point) => !isFinitePoint(point))) errors.push('plotTransform sourcePoints must all be finite [x,y] points.');
+      if (question.snapStep != null && (!Number.isFinite(Number(question.snapStep)) || Number(question.snapStep) <= 0)) errors.push('plotTransform snapStep must be positive when supplied.');
+    }
   }
   if (toolId === 'representationMatch') {
     const modes = ['completeSet','findMismatch','tableAudit','graphMatch'];
