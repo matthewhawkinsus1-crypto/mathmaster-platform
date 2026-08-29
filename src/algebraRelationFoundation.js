@@ -331,6 +331,57 @@ export const applyBalancedOperationToRelation = (
   };
 };
 
+
+export const applyBalancedOperationToBranches = (
+  state,
+  operation,
+  rawOperand,
+  {
+    branchIndices = [],
+    placementByBranch = {},
+    requireExplicitPlacement = false,
+  } = {},
+) => {
+  const uniqueBranchIndices = [...new Set(
+    (Array.isArray(branchIndices) ? branchIndices : [])
+      .map((value) => Number(value))
+      .filter((value) => Number.isInteger(value)),
+  )];
+
+  if (!uniqueBranchIndices.length) {
+    throw new Error('Place the operation on at least one complete equation branch before committing.');
+  }
+
+  let next = cloneRelationState(state);
+  const branchResults = [];
+
+  uniqueBranchIndices.forEach((branchIndex) => {
+    const result = applyBalancedOperationToRelation(
+      next,
+      operation,
+      rawOperand,
+      {
+        branchIndex,
+        placementByExpression: placementByBranch?.[branchIndex] || {},
+        requireExplicitPlacement,
+      },
+    );
+    next = result.state;
+    branchResults.push({
+      branchIndex,
+      requiresInequalityFlip: result.requiresInequalityFlip,
+      expectedRelations: result.expectedRelations,
+      operand: result.operand,
+    });
+  });
+
+  return {
+    state: next,
+    branchResults,
+    requiresInequalityFlip: branchResults.some((result) => result.requiresInequalityFlip),
+  };
+};
+
 const numericValue = (expression) => {
   try {
     const node = parse(String(expression));
@@ -564,6 +615,122 @@ const orientAbsoluteBranch = (branch) => {
 };
 
 const negativeBound = (bound) => `-(${bound})`;
+
+export const absoluteValueSplitInputModel = (state, branchIndex = 0) => {
+  const oriented = orientAbsoluteBranch(state?.branches?.[branchIndex]);
+  if (!oriented) {
+    return { ready: false, reason: 'An isolated absolute-value expression is required.' };
+  }
+
+  const { abs, bound, relation } = oriented;
+  if (Math.abs(abs.coefficient - 1) > 1e-12) {
+    return {
+      ready: false,
+      reason: abs.coefficient === -1
+        ? 'The absolute-value bars have an invisible negative one in front. Remove that coefficient first.'
+        : 'Isolate the absolute-value expression before reversing the bars.',
+    };
+  }
+
+  return {
+    ready: true,
+    inner: abs.inner,
+    bound,
+    relation,
+    expectedStructure: relation === '=' || relation === '>' || relation === '>=' ? 'or' : 'and',
+    studentAuthorsBranchValues: relation === '=',
+  };
+};
+
+export const buildStudentAuthoredAbsoluteValueEqualitySplit = (
+  state,
+  branchIndex = 0,
+  requestedStructure = null,
+  branchValues = [],
+) => {
+  const model = absoluteValueSplitInputModel(state, branchIndex);
+  if (!model.ready) return model;
+
+  if (model.relation !== '=') {
+    return {
+      ready: false,
+      reason: 'This student-authored split editor currently applies to absolute-value equations.',
+    };
+  }
+
+  if (requestedStructure !== 'or') {
+    return {
+      ready: false,
+      needsStructureChoice: true,
+      reason: 'That structure is not equivalent to this absolute-value equation.',
+    };
+  }
+
+  const values = Array.isArray(branchValues)
+    ? branchValues.map((value) => String(value ?? '').trim())
+    : [];
+
+  if (values.length !== 2 || values.some((value) => !value)) {
+    return {
+      ready: false,
+      needsStudentValues: true,
+      reason: 'Enter the right-side value for both split equations before checking the split.',
+    };
+  }
+
+  const boundNumber = numericValue(model.bound);
+  if (boundNumber !== null && boundNumber < 0) {
+    // Deliberately do NOT collapse the workspace to "No solution" here.
+    // The student chose to attempt a split, so let that attempt be checked
+    // without giving away the correct conclusion. The separate No solution
+    // operation remains available for the student to choose on their own.
+    return {
+      ready: false,
+      rejectedStudentSplit: true,
+      reason: 'Those split equations are not equivalent to the original absolute-value equation. Reconsider the value on the other side before choosing your next step.',
+    };
+  }
+
+  const expected = [model.bound, negativeBound(model.bound)];
+  const variable = state?.variable || 'x';
+  const direct = relationExpressionsEquivalent(values[0], expected[0], variable)
+    && relationExpressionsEquivalent(values[1], expected[1], variable);
+  const reversed = relationExpressionsEquivalent(values[0], expected[1], variable)
+    && relationExpressionsEquivalent(values[1], expected[0], variable);
+
+  if (!direct && !reversed) {
+    return {
+      ready: false,
+      rejectedStudentSplit: true,
+      reason: 'One or both split values are not equivalent to the original equation. Check the two branch values and try again.',
+    };
+  }
+
+  let normalizedValues;
+  try {
+    normalizedValues = values.map((value) => normalizeRelationExpressionInput(value));
+  } catch (error) {
+    return {
+      ready: false,
+      rejectedStudentSplit: true,
+      reason: error?.message || 'One of the split values could not be read.',
+    };
+  }
+
+  const next = cloneRelationState(state);
+  next.branches = normalizedValues.map((value) => ({
+    expressions: [model.inner, value],
+    relations: ['='],
+  }));
+  next.connective = 'OR';
+  next.special = null;
+
+  return {
+    ready: true,
+    state: next,
+    authoredValues: normalizedValues,
+  };
+};
 
 export const buildAbsoluteValueSplit = (state, branchIndex = 0, requestedStructure = null) => {
   const oriented = orientAbsoluteBranch(state?.branches?.[branchIndex]);

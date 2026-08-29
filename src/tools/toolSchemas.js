@@ -107,7 +107,7 @@ export const validateToolQuestion = (question = {}) => {
     }
   }
   if (toolId === 'sequenceExplorer') {
-    const modes = ['analyze','ruleBridge','missingTerm','partialSum','compare'];
+    const modes = ['analyze','ruleBridge','fullBridge','missingTerm','partialSum','compare'];
     const mode = question.mode || 'analyze';
     if (!modes.includes(mode)) errors.push(`Unsupported sequenceExplorer mode: ${mode}.`);
     if (mode === 'compare') {

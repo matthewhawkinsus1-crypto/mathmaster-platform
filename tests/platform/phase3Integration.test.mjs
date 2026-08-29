@@ -8,8 +8,8 @@ import {
 } from '../../src/platform/policies/activityPolicies.js';
 import { evaluateWarmupSubmission } from '../../src/platform/policies/warmupEvaluator.js';
 import { aggregateWeeklyWarmups } from '../../src/platform/policies/warmupAggregator.js';
-import { normalizeLessonBundle } from '../../src/platform/schemas/BundleDefinition.js';
-import { validateLessonBundle } from '../../src/platform/validation/bundleValidator.js';
+import { normalizeAssignmentV5, validateAssignmentV5 } from '../../src/platform/contract/assignmentSchemaV5.js';
+import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
 import { planClassroomPublication, PUBLICATION_STRATEGIES } from '../../src/platform/publishing/publicationPlanner.js';
 import {
   calculateCompositeLessonGrade,
@@ -86,58 +86,65 @@ test('empty weekly warm-up set is not marked ready to sync', () => {
   assert.equal(aggregateWeeklyWarmups([]).readyForSync, false);
 });
 
-test('Bundle V3 generates stable IDs and strips question-level policy overrides', () => {
+test('Assignment V5 normalizes section identity deterministically', () => {
   const raw = {
-    lessonMetadata: { title: 'Linear Equations', course: 'Algebra I' },
-    activities: [{ role: 'dol', questions: [{ type: 'algebra', attempts: 99, maximumAttempts: 99, hintsAllowed: true, calculatorPolicy: 'inherit' }] }],
+    schemaVersion: 5,
+    assignment: { title: 'Linear Equations', courseId: 'algebra1' },
+    sections: [{ role: 'dol', questions: [] }],
   };
-  const first = normalizeLessonBundle(raw);
-  const second = normalizeLessonBundle(raw);
-  assert.equal(first.bundleId, second.bundleId);
-  assert.equal(first.activities[0].activityId, second.activities[0].activityId);
-  assert.equal(first.activities[0].questions[0].questionId, second.activities[0].questions[0].questionId);
-  assert.equal(first.activities[0].questions[0].schemaVersion, 1);
-  assert.equal(first.activities[0].questions[0].questionType, 'algebra');
-  assert.equal(first.activities[0].questions[0].familyId, 'algebra');
-  assert.equal(first.activities[0].policy.attemptsAllowed, 1);
-  assert.equal(first.activities[0].policy.remediationAllowed, false);
-  assert.equal(first.activities[0].questions[0].enforcedPolicy.attemptsAllowed, 1);
-  assert.equal(first.activities[0].questions[0].rawSpec.attempts, undefined);
-  assert.equal(first.activities[0].questions[0].calculatorPolicy, 'inherit');
-  assert.match(first.normalizationWarnings.join(' '), /ignored question-level policy override/i);
+  const first = normalizeAssignmentV5(raw);
+  const second = normalizeAssignmentV5(raw);
+  assert.equal(first.sections[0].id, 'section-1');
+  assert.equal(first.sections[0].title, 'DOL');
+  assert.deepEqual(first, second);
 });
 
-test('Bundle V3 stable IDs do not depend on object key insertion order', () => {
-  const first = normalizeLessonBundle({
-    lessonMetadata: { title: 'Linear Equations', course: 'Algebra I' },
-    activities: [{ role: 'classwork', title: 'Model It', questions: [{ type: 'algebra', a: 2, b: 1, c: 5 }] }],
+test('Assignment V5 keeps delivery policy at the assignment boundary', () => {
+  const normalized = normalizeAssignmentV5({
+    schemaVersion: 5,
+    assignment: { title: 'Policy boundary', courseId: 'algebra1' },
+    sections: [{ role: 'dol', questions: [] }],
+    gradingPolicy: { attemptPolicy: 'rolePolicy', scoring: 'platformDefault' },
+    deliveryPolicy: { sectionGating: 'rolePolicy' },
   });
-  const second = normalizeLessonBundle({
-    activities: [{ questions: [{ c: 5, b: 1, a: 2, type: 'algebra' }], title: 'Model It', role: 'classwork' }],
-    lessonMetadata: { course: 'Algebra I', title: 'Linear Equations' },
-  });
-  assert.equal(first.bundleId, second.bundleId);
-  assert.equal(first.activities[0].activityId, second.activities[0].activityId);
-  assert.equal(first.activities[0].questions[0].questionId, second.activities[0].questions[0].questionId);
+  assert.equal(normalized.gradingPolicy.attemptPolicy, 'rolePolicy');
+  assert.equal(normalized.deliveryPolicy.sectionGating, 'rolePolicy');
 });
 
-test('Bundle V3 deep validator accepts a normalized mixed legacy/tool bundle', () => {
-  const bundle = normalizeLessonBundle({
-    bundleId: 'bundle-test',
-    lessonMetadata: { title: 'Functions', course: 'Algebra I' },
-    activities: [
-      { role: 'classwork', questions: [{ type: 'algebra', a: 2, b: 1, c: 5 }] },
-      { role: 'practice', questions: [{ type: 'transformationsLab', mode: 'pointMap', family: 'quadratic', function: { type: 'quadratic', a: 2, h: 1, k: -3 }, parentPoint: [1, 1] }] },
-    ],
-  });
-  const report = validateLessonBundle(bundle);
-  assert.equal(report.isValid, true, JSON.stringify(report, null, 2));
+test('Assignment V5 compiler accepts a mixed semantic assignment', () => {
+  const compiled = compileAuthoringIntentV5({
+    schemaVersion: 5,
+    assignment: { title: 'Functions', courseId: 'algebra1' },
+    sections: [{
+      role: 'classwork',
+      questions: [{
+        standard: 'A.5A',
+        prompt: 'Solve 2x + 1 = 5 step by step.',
+        studentActions: ['solveStepByStep'],
+        equation: '2x + 1 = 5',
+      }],
+    }, {
+      role: 'practice',
+      questions: [{
+        standard: 'A.7C',
+        prompt: 'Analyze this transformed quadratic.',
+        studentActions: ['analyzeTransformations'],
+        transformation: { family: 'quadratic' },
+        function: { family: 'quadratic', a: 2, h: 1, k: -3 },
+      }],
+    }],
+  }).package;
+  assert.deepEqual(validateAssignmentV5(compiled).errors, []);
+  assert.equal(compiled.sections.length, 2);
 });
 
-test('Bundle V3 deep validator rejects empty activities', () => {
-  const report = validateLessonBundle(normalizeLessonBundle({ activities: [{ role: 'classwork', questions: [] }] }));
-  assert.equal(report.isValid, false);
-  assert.match(report.activityReports[0].errors.join(' '), /no questions/i);
+test('Assignment V5 validator rejects an empty sections list', () => {
+  const report = validateAssignmentV5({
+    schemaVersion: 5,
+    assignment: { title: 'Empty', courseId: 'algebra1' },
+    sections: [],
+  });
+  assert.ok(report.errors.some((message) => /sections/i.test(message)));
 });
 
 test('hybrid planner keeps DOL, homework, quiz, and test separate and omits daily warm-up by default', () => {

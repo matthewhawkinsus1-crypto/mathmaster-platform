@@ -10,10 +10,17 @@ const schedule = {
     B: { periods: {} },
   },
 };
+// Assignment V5. getStoredAssignmentQuestions reads sections[] on a schemaVersion
+// 5 document and returns [] for anything else, so a bare questions[] array is
+// invisible to every lifecycle helper that asks what an assignment contains.
 const assignment = {
+  schemaVersion: 5,
   releaseAt: `${dateKey}T00:00:00`,
   warmup: { enabled: true, minutesBeforeStart: 7 },
-  questions: [{ activityRole: 'warmup' }, { activityRole: 'classwork' }],
+  sections: [
+    { id: 'warmup', role: 'warmup', questions: [{ activityRole: 'warmup' }] },
+    { id: 'classwork', role: 'classwork', questions: [{ activityRole: 'classwork' }] },
+  ],
 };
 const at = (time) => new Date(`${dateKey}T${time}:00`);
 
@@ -28,12 +35,12 @@ const closed = {
   ...assignment,
   warmup: {
     ...assignment.warmup,
-    closedByClassPeriod: {
-      'Period 3': { dateKey, closedAt: `${dateKey}T09:08:00` },
+    closedByClassId: {
+      'class-3': { dateKey, closedAt: `${dateKey}T09:08:00` },
     },
   },
 };
-state = getWarmupState({ assignment: closed, schedule, classPeriod: 'Period 3', nowValue: at('09:10') });
+state = getWarmupState({ assignment: closed, schedule, classId: 'class-3', classPeriod: 'Period 3', nowValue: at('09:10') });
 assert.equal(state.status, 'closed');
 state = getWarmupState({ assignment, schedule, classPeriod: 'Period 3', nowValue: at('10:31') });
 assert.equal(state.status, 'ended');
@@ -43,12 +50,21 @@ console.log('warmupLifecycle.test.mjs: all assertions passed');
 
 // Bundled DOLs are one timed section: every authored DOL question is gated.
 const { resolveDOLQuestionIndices } = await import('../../src/assignmentLifecycle.js');
-const dolBundle = { questions: [
-  { activityRole: 'warmup' },
-  { activityRole: 'classwork' },
-  { activityRole: 'dol' },
-  { activityRole: 'dol' },
-  { activityRole: 'dol' },
-] };
+const dolBundle = {
+  schemaVersion: 5,
+  sections: [
+    { id: 'warmup', role: 'warmup', questions: [{ activityRole: 'warmup' }] },
+    { id: 'classwork', role: 'classwork', questions: [{ activityRole: 'classwork' }] },
+    {
+      id: 'dol',
+      role: 'dol',
+      questions: [
+        { activityRole: 'dol' },
+        { activityRole: 'dol' },
+        { activityRole: 'dol' },
+      ],
+    },
+  ],
+};
 assert.deepEqual(resolveDOLQuestionIndices(dolBundle), [2,3,4]);
 console.log('bundled DOL section indices: all assertions passed');

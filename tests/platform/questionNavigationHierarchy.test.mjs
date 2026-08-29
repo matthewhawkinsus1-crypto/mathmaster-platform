@@ -5,16 +5,17 @@ import { readFile } from 'node:fs/promises';
 const read = (path) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
 
 test('QuestionEngine owns a compact task prompt and exposes a large next-question action', async () => {
-  const [engine, prompt, css] = await Promise.all([
+  const [engine, viewport, prompt, css] = await Promise.all([
     read('src/QuestionEngine.jsx'),
+    read('src/components/student/MobileViewportContainer.jsx'),
     read('src/QuestionPrompt.jsx'),
     read('src/index.css'),
   ]);
-  assert.match(engine, /mathmaster-desktop-question-anchor/);
+  assert.match(viewport, /mathmaster-desktop-question-anchor/);
   assert.match(engine, /mathmaster-question-tool-workspace/);
   assert.match(engine, /mathmaster-success-next-question/);
   assert.match(engine, /Next Question/);
-  assert.match(engine, /variant="task"/);
+  assert.match(viewport, /variant="task"/);
   assert.match(prompt, /Your task/);
   assert.match(prompt, /borderLeft: isTask \? '5px solid #5f8fd8'/);
   assert.match(css, /mathmaster-question-engine-has-anchor[\s\S]*mathmaster-question-prompt-prominent/);

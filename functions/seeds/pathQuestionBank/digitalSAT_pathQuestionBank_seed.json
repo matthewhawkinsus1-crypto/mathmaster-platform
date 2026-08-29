@@ -4,7 +4,8 @@
   "framework": "digitalSAT",
   "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
   "sourceOfTruth": "drafts/ccmr-v2.1/digitalSAT",
-  "items": [
+  "generatedBy": "scripts/build-ccmr-v2-1-production-release.mjs",
+  "documents": [
     {
       "id": "mm_sat_A_10A_1_add-quadratics_v21",
       "active": true,
@@ -77633,27 +77634,29 @@
       }
     }
   ],
-  "domains": {
-    "algebra": {
-      "items": 200,
-      "direct": 125,
-      "challenge": 75
+  "releaseSummary": {
+    "domains": {
+      "algebra": {
+        "items": 200,
+        "direct": 125,
+        "challenge": 75
+      },
+      "advancedMath": {
+        "items": 328,
+        "direct": 205,
+        "challenge": 123
+      },
+      "problemSolvingData": {
+        "items": 104,
+        "direct": 65,
+        "challenge": 39
+      },
+      "geometryTrigonometry": {
+        "items": 32,
+        "direct": 20,
+        "challenge": 12
+      }
     },
-    "advancedMath": {
-      "items": 328,
-      "direct": 205,
-      "challenge": 123
-    },
-    "problemSolvingData": {
-      "items": 104,
-      "direct": 65,
-      "challenge": 39
-    },
-    "geometryTrigonometry": {
-      "items": 32,
-      "direct": 20,
-      "challenge": 12
-    }
-  },
-  "unroutedItemIds": []
+    "documents": 664
+  }
 }

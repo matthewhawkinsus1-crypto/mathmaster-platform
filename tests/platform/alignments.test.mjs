@@ -27,6 +27,20 @@ const find = (list, framework) => list.filter((entry) => entry.framework === fra
   assert.deepEqual(getPrimaryTeksCodes(shorthand), ['A.3C'], 'bare teks list is treated as primary');
 }
 
+{
+  const v5Shorthand = {
+    standard: 'A.12C',
+    secondaryStandards: ['A.12A'],
+    prerequisiteStandards: ['8.5I'],
+  };
+  const out = normalizeQuestionAlignments(v5Shorthand, { includeCrosswalks: false });
+  assert.deepEqual(
+    out.map((entry) => [entry.code, entry.role]),
+    [['A.12C', 'primary'], ['A.12A', 'secondary'], ['8.5I', 'prerequisite']],
+    'Assignment V5 singular/plural standard shorthands remain canonical evidence metadata',
+  );
+}
+
 // --- V4 alignments are canonical -----------------------------------------
 {
   const v4 = {
@@ -43,12 +57,12 @@ const find = (list, framework) => list.filter((entry) => entry.framework === fra
 
 // --- an ordinary TEKS item gets informational crosswalks, not exam evidence ---
 {
-  const ordinary = { alignments: [{ framework: 'teks', code: 'A.2A', role: 'primary' }] };
+  const ordinary = { alignments: [{ framework: 'teks', code: 'A.2B', role: 'primary' }] };
   const out = normalizeQuestionAlignments(ordinary);
   const sat = find(out, 'digitalSAT');
   assert.equal(sat.length, 1, 'SAT crosswalk derived from the TEKS code');
   assert.equal(sat[0].evidenceMode, 'crosswalk', 'derived exam alignment is not direct evidence');
-  assert.equal(sat[0].derivedFrom, 'A.2A');
+  assert.equal(sat[0].derivedFrom, 'A.2B');
 
   const direct = getDirectEvidenceAlignments(ordinary);
   assert.ok(direct.every((entry) => entry.framework === 'teks'), 'only the TEKS alignment counts as direct evidence');
@@ -72,7 +86,7 @@ const find = (list, framework) => list.filter((entry) => entry.framework === fra
 // --- exam context alone is not direct evidence; explicit domain alignment is ---
 {
   const contextOnly = {
-    alignments: [{ framework: 'teks', code: 'A.2A', role: 'primary' }],
+    alignments: [{ framework: 'teks', code: 'A.2B', role: 'primary' }],
     assessmentContext: { framework: 'digitalSAT', examStyle: true },
   };
   const contextOnlyOut = normalizeQuestionAlignments(contextOnly);
@@ -80,7 +94,7 @@ const find = (list, framework) => list.filter((entry) => entry.framework === fra
 
   const satItem = {
     alignments: [
-      { framework: 'teks', code: 'A.2A', role: 'primary' },
+      { framework: 'teks', code: 'A.2B', role: 'primary' },
       { framework: 'digitalSAT', domainId: 'algebra', role: 'secondary', evidenceMode: 'direct' },
     ],
     assessmentContext: { framework: 'digitalSAT', examStyle: true },

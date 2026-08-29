@@ -34,7 +34,7 @@ test('workflow graph uses the authored finite domain to require boundary markers
   const source = read('src/platform/workflow/WorkflowRunner.jsx');
   assert.match(source, /parseIntervalDomainRestriction\(grading\?\.domain\)/);
   assert.match(source, /domain: stage\.domainRestriction \|\| null/);
-  assert.match(source, /requireEndpointMarkers: stage\.requireEndpointMarkers \?\? Boolean\(stage\.domainRestriction\)/);
+  assert.match(source, /requireEndpointMarkers: pointOnly \? false : \(stage\.requireEndpointMarkers \?\? Boolean\(stage\.domainRestriction\)\)/);
 });
 
 test('closed multi-stage questions receive a complete workflow solution review', () => {

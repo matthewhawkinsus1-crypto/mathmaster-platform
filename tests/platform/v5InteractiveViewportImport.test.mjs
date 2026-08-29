@@ -7,7 +7,7 @@ test('V5 self-rendering tools may use graph as a viewport without a static drawi
   const intent = {
     schemaVersion: 5,
     assignment: { title: 'Viewport regression', courseId: 'algebra1', assignmentType: 'notesClasswork' },
-    activities: [{
+    sections: [{
       role: 'classwork',
       questions: [
         {
@@ -40,7 +40,7 @@ test('V5 self-rendering tools may use graph as a viewport without a static drawi
   };
 
   const compiled = compileAuthoringIntentV5(intent).package;
-  const questions = compiled.activities.flatMap((activity) => activity.questions || []);
+  const questions = compiled.sections.flatMap((section) => section.questions || []);
   const result = validateQuestionsSemantics(questions);
   assert.deepEqual(result.errors, []);
 });
@@ -49,7 +49,7 @@ test('V5 point interpretation preserves target, quantities, units, and choices',
   const intent = {
     schemaVersion: 5,
     assignment: { title: 'Context regression', courseId: 'algebra1', assignmentType: 'notesClasswork' },
-    activities: [{
+    sections: [{
       role: 'classwork',
       questions: [{
         prompt: 'Interpret the starting point in context.',
@@ -70,7 +70,7 @@ test('V5 point interpretation preserves target, quantities, units, and choices',
     }],
   };
 
-  const compiled = compileAuthoringIntentV5(intent).package.activities[0].questions[0];
+  const compiled = compileAuthoringIntentV5(intent).package.sections[0].questions[0];
   assert.deepEqual(compiled.target?.coordinates, [0, 0]);
   assert.equal(compiled.quantities?.x?.unit, 'wristbands');
   assert.equal(compiled.quantities?.y?.unit, 'dollars');

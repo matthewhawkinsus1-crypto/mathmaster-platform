@@ -21,7 +21,9 @@ test('automatic publishing resolves destinations from saved Classroom mappings',
   assert.match(src, /mappedCourseIdsForAssignment/);
 });
 
-test('assigning a library item later also attempts Classroom publication', () => {
-  assert.match(src, /!wasAssigned && isNowAssigned/);
-  assert.match(src, /autoPublishAssignmentPackageToClassroom\(nextAssignment\)/);
+test('assigning a library item later goes back through Preflight so the destination copy can auto-publish', () => {
+  assert.match(src, /if \(isLibraryAssignment\(assignment\) && editedClassIds\.length\)/);
+  assert.match(src, /openStoredAssignmentForPreflight\(assignment/);
+  assert.match(src, /The library template is staying unchanged/);
+  assert.match(src, /creationMode !== 'library'[\s\S]*autoPublishAssignmentPackageToClassroom\(createdAssignment\)/);
 });

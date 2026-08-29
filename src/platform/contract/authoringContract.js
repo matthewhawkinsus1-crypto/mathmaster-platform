@@ -78,6 +78,7 @@ const toolSection = () => {
   rows.push(line('**Student-experience rules for registry tools:**'));
   rows.push(bullet('Always write a complete student-facing `prompt`. MathMaster shows the authored problem above the tool directions; do not rely on an internal mode name to explain the task.'));
   rows.push(bullet('For `sequenceExplorer` in `analyze` mode, the evidence shown before submission must stop before the requested target term: use `displayCount < targetN`. The runtime also enforces this so the answer cannot be printed in the table/graph by accident.'));
+  rows.push(bullet('When students are learning sequences as discrete functions, prefer the semantic actions `buildSequenceTable` and `plotSequence` together with `analyzeSequence`, `writeRecursive`, `writeExplicit`, and/or `findSequenceTerm`. MathMaster keeps those actions in one integrated sequence workspace so students build the n → aₙ table, plot (n, aₙ), write the formulas, and use the same model instead of receiving separate disconnected questions.'));
   rows.push(bullet('For sequence compare and finite-sum tasks, do not deliberately reveal the requested comparison/final term unless the item is a worked example.'));
   rows.push(bullet('Use V5 `alignments` for standards. `masteryEvidenceKeys` is platform-owned and must not be authored by the AI.'));
   rows.push(bullet('For `representationMatch`, supply explicit `sets`; never depend on demo/default representations.'));
@@ -471,10 +472,29 @@ const compactTeksSection = (courseId = null) => {
   }).join('\n');
 };
 
-export const buildAdvancedAuthoringContract = (options = {}) => buildAuthoringContract({
-  ...options,
-  includeAdvancedNotes: true,
-});
+/**
+ * The sections that carry the type-by-type authoring guidance.
+ *
+ * These used to hang off a separate `buildAdvancedAuthoringContract`, so the
+ * contract the teacher UI actually hands to an AI never contained them. Nothing
+ * in production ever called the advanced builder — assignmentCreatorPlan.js,
+ * AssignmentIntake.jsx and validate-authoring-v5.mjs all call the canonical one
+ * — which meant an outside AI authored against a document that never told it
+ * what the student physically does for a type, or named the traps each type
+ * has. They are part of the one public contract now.
+ */
+const guidanceSections = () => [
+  fidelitySection(),
+  taskFidelitySection(),
+  typeRecipeSection(),
+  activityRoleSection(),
+  instructionalScopeSection(),
+  sectionBalanceRigorSection(),
+  planningSection(),
+  toolSection(),
+  examSection(),
+  ccmrCrosswalkSection(),
+].filter(Boolean);
 
 export const AUTHORING_INTENT_SCHEMA_VERSION = 5;
 export const AUTHORING_INTENT_SCHEMA_NAME = 'MathMaster Assignment V5';
@@ -601,7 +621,14 @@ export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = nu
   '',
   '## Output',
   'Return exactly one MathMaster Assignment V5 JSON object. Older assignment formats and raw question arrays are unsupported.',
+  ...guidanceSections(),
 ].join('\n');
+
+/**
+ * Retained so the callers that still import this name keep working. There is
+ * one public authoring contract; this is not a second, richer one.
+ */
+export const buildAdvancedAuthoringContract = (options = {}) => buildAuthoringContract(options);
 
 export const buildFixRequest = ({ rawJson = '', errors = [], warnings = [] } = {}) => {
   const errorList = (Array.isArray(errors) ? errors : [errors]).filter(Boolean);

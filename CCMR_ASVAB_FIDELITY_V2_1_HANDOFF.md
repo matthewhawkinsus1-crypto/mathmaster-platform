@@ -521,6 +521,49 @@ code-subtest pairs × 3) at band ≥ 4 / DOK ≥ 2 through
 fidelity gates and the tests all exist now; this is content work, not
 infrastructure work. Until then the challenge tier is inherited, not owned.
 
+### Two further defects in the inherited tier, found on the second merge
+
+Re-running the gates after updating this branch from the cleaned `main` surfaced
+two more problems, both confined to the inherited 438 and neither touching any
+of the 735 authored families.
+
+**Eighteen unbalanced math segments across six families.** `verify-path-drafts`
+flags `unbalanced_math` on:
+
+```
+mm_asvab_6_4D_4_rate_as_quotient_ccmr_challenge_2
+mm_asvab_6_4D_5_work_rate_ccmr_challenge_1
+mm_asvab_7_13A_3_income_tax_ccmr_challenge_3
+mm_asvab_7_13E_3_compound_balance_ccmr_challenge_3
+mm_asvab_7_13E_4_compare_interest_ccmr_challenge_2
+mm_asvab_7_13E_5_compound_minus_simple_ccmr_challenge_1
+```
+
+The cause is the wrapper itself. A challenge prompt is built as
+`Without using a calculator, a test taker chose $X$. Rework the mathematics and
+select the correct ASVAB answer.` followed by the original prompt — and these
+six originals open with a currency amount, `charges ${{a}} dollars` or
+`principal ${{P}}`. The wrapper's closing `$` and the body's currency `$`
+interleave, so the delimiters no longer pair and the mathematics reaches the
+student as literal characters. These items are already on `main`; the merge did
+not introduce them.
+
+**A2.6L has two direct sets against one challenge set.** The authored direct tier
+is per subtest, so A2.6L carries five families in Arithmetic Reasoning and five
+in Mathematics Knowledge. The inherited challenge tier was built one set of three
+per code, so it has only one. Both `ccmrFidelityV2.test.mjs` and
+`pathBankSeed.test.mjs` record this as a named shortfall pinned to its exact
+numbers (`directSets: 2, challengeSets: 1`), so it cannot widen or spread to
+another code unnoticed, and the recorded entry fails the suite once the gap is
+closed — forcing its own removal.
+
+Neither was repaired here. Both live inside the 438 families the next job
+replaces outright, so hand-patching them is work that gets deleted. Nothing
+reaches a student in the meantime because the production bank refresh is gated
+behind that replacement.
+
+---
+
 **Not recommended:** dropping the 438 without replacing them. That empties the
 tier-2 candidate pool for ASVAB, and the runtime's fallback needs direct families
 at band ≥ 4, which this bank has none of.

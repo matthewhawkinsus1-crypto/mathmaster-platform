@@ -31,7 +31,7 @@ assert.deepEqual(normalized.points, [
 const v5 = {
   schemaVersion: 5,
   assignment: { title: 'Point contract', courseId: 'algebra1', assignmentType: 'notesClasswork' },
-  activities: [{
+  sections: [{
     role: 'classwork',
     questions: [{
       standard: 'A.3C',
@@ -46,7 +46,7 @@ const v5 = {
     }],
   }],
 };
-const compiled = compileAuthoringIntentV5(v5).package.activities[0].questions[0];
+const compiled = compileAuthoringIntentV5(v5).package.sections[0].questions[0];
 assert.deepEqual(compiled.graphs[0].graph.points, [
   { coordinates: [0, 0] },
   { coordinates: [1, 5] },

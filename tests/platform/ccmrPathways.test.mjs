@@ -96,10 +96,18 @@ test('the crosswalk says no where the mathematics says no', () => {
 });
 
 test('a standard may map to several domains of the same framework', () => {
-  // The constant of proportionality is SAT Algebra and SAT Problem-Solving and
-  // Data Analysis at the same time, and the crosswalk must be able to say so.
-  const sat = getSkillCrosswalk('7.4C').frameworks.digitalSAT;
+  // Rate of change of a linear function is SAT Algebra and SAT Problem-Solving
+  // and Data Analysis at the same time, and the crosswalk must be able to say so.
+  //
+  // This used 7.4C. CCMR V2.1 stopped treating grade 6-8 TEKS as direct SAT
+  // evidence — College Board's Texas report aligns middle school to PSAT 8/9,
+  // not the SAT — so 7.4C now correctly offers no SAT pathway at all and could
+  // not demonstrate multi-domain mapping. A.3B is in scope and maps to the same
+  // pair.
+  const sat = getSkillCrosswalk('A.3B').frameworks.digitalSAT;
   assert.deepEqual(sat.domainIds, ['algebra', 'problemSolvingData']);
+  // And the middle-school exclusion itself is the behaviour, not an accident.
+  assert.equal(getSkillCrosswalk('7.4C').frameworks.digitalSAT, undefined);
 });
 
 // Test 2 — no fake alignment

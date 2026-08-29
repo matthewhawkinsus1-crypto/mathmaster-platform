@@ -1,6 +1,7 @@
 import { validateInstructionalScopeV5 } from '../curriculum/instructionalScope.js';
 import { looksLikeFiniteSetNotation } from '../../../functions/shared/answerEquivalence.mjs';
 import { normalizeStaticGraphPoints } from '../../graphPointUtils.js';
+import { normalizeLabDefinition } from '../labs/labDefinitionSchema.js';
 import {
   axisExpectedOptions,
   axisQuantityChoicesFromIntent,
@@ -58,6 +59,8 @@ const ACTION_ALIASES = Object.freeze({
   analyzesequence: 'analyzeSequence', classifysequence: 'analyzeSequence', findterm: 'findSequenceTerm',
   findsequenceterm: 'findSequenceTerm', findmissingterm: 'findMissingTerm', writerrecursive: 'writeRecursive',
   writerecursive: 'writeRecursive', writeexplicit: 'writeExplicit', comparesequences: 'compareSequences', partialsum: 'partialSum',
+  buildsequencetable: 'buildSequenceTable', completesequencetable: 'buildSequenceTable',
+  plotsequence: 'plotSequence', graphsequence: 'plotSequence',
   connectrepresentations: 'connectRepresentations', matchrepresentation: 'connectRepresentations', findmismatch: 'findRepresentationMismatch',
   fitline: 'fitDataModel', fitmodel: 'fitDataModel', analyzedata: 'analyzeData', predictfrommodel: 'predictFromModel',
   inverse: 'findInverse', findinverse: 'findInverse', composition: 'composeFunctions', composefunctions: 'composeFunctions',
@@ -731,7 +734,7 @@ const resolveIntentType = (q, actions) => {
   if (q.logarithm || q.exponentialLog || actions.some((a) => ['exponentialLogBridge','solveExponential','solveLogarithmic'].includes(a))) return 'exponentialLogBridge';
   if (q.transformation || actions.includes('analyzeTransformations')) return 'transformationsLab';
   if (q.representations || q.sets || actions.some((a) => ['connectRepresentations','findRepresentationMismatch'].includes(a))) return 'representationMatch';
-  if (q.sequence || actions.some((a) => ['analyzeSequence','findSequenceTerm','findMissingTerm','writeRecursive','writeExplicit','compareSequences','partialSum'].includes(a))) return 'sequenceExplorer';
+  if (q.sequence || actions.some((a) => ['analyzeSequence','findSequenceTerm','findMissingTerm','writeRecursive','writeExplicit','compareSequences','partialSum','buildSequenceTable','plotSequence'].includes(a))) return 'sequenceExplorer';
   // A source table that only asks the student to classify the relation should
   // stay a table. Do not invent a mapping diagram merely because normalized
   // pairs are also present for grading.
@@ -948,9 +951,27 @@ const compileOne = (q, index, repairs) => {
       });
       break;
     }
-    case 'modelingLab':
-      out = copyCommon(q, { type, labDefinition: q.labDefinition || q.lab || q.modeling });
+    case 'modelingLab': {
+      // Through the public normalizer, not raw.
+      //
+      // A raw labDefinition carries `evaluation` — the objective expression and
+      // the target value the student is supposed to discover. Copying it
+      // verbatim put the answer into the compiled authoring package, which is
+      // the artifact the teacher UI shows and hands back to an AI.
+      // normalizeLabDefinition drops it unless includeEvaluation is asked for,
+      // and the private evaluation is rebuilt where grading actually needs it.
+      const authoredLab = q.labDefinition || q.lab || q.modeling;
+      let labDefinition = authoredLab;
+      try {
+        if (authoredLab) labDefinition = normalizeLabDefinition(authoredLab);
+      } catch {
+        // Leave the authored object in place so the modelingLab validator can
+        // report what is wrong with it instead of the compile throwing here.
+        labDefinition = authoredLab;
+      }
+      out = copyCommon(q, { type, labDefinition });
       break;
+    }
     case 'dataModelingLab': {
       const data = q.data || {};
       out = copyCommon(q, { type, mode: q.mode || (actions.includes('fitDataModel') ? 'lineFit' : actions.includes('predictFromModel') ? 'prediction' : 'full'), points: q.points || data.points, predictionX: q.predictionX ?? data.predictionX, predictionTolerance: q.predictionTolerance ?? data.predictionTolerance });
@@ -980,8 +1001,34 @@ const compileOne = (q, index, repairs) => {
     }
     case 'sequenceExplorer': {
       let mode = q.mode;
-      if (!mode) mode = actions.includes('findMissingTerm') ? 'missingTerm' : actions.includes('partialSum') ? 'partialSum' : actions.includes('compareSequences') ? 'compare' : actions.includes('writeRecursive') || actions.includes('writeExplicit') ? 'ruleBridge' : 'analyze';
-      out = copyCommon(q, { type, mode, sequence: q.sequence, targetN: q.targetN, displayCount: q.displayCount, missingIndex: q.missingIndex, sumN: q.sumN, left: q.left, right: q.right, compareN: q.compareN, leftLabel: q.leftLabel, rightLabel: q.rightLabel });
+      if (!mode) {
+        mode = actions.includes('findMissingTerm')
+          ? 'missingTerm'
+          : actions.includes('partialSum')
+            ? 'partialSum'
+            : actions.includes('compareSequences')
+              ? 'compare'
+              : actions.includes('buildSequenceTable') || actions.includes('plotSequence')
+                ? 'fullBridge'
+                : actions.includes('writeRecursive') || actions.includes('writeExplicit')
+                  ? 'ruleBridge'
+                  : 'analyze';
+      }
+      out = copyCommon(q, {
+        type,
+        mode,
+        sequence: q.sequence,
+        targetN: q.targetN,
+        displayCount: q.displayCount,
+        missingIndex: q.missingIndex,
+        sumN: q.sumN,
+        left: q.left,
+        right: q.right,
+        compareN: q.compareN,
+        leftLabel: q.leftLabel,
+        rightLabel: q.rightLabel,
+        plotSnapStep: q.plotSnapStep,
+      });
       break;
     }
     case 'complexPlaneLab': {
@@ -1157,7 +1204,7 @@ export const AUTHORING_INTENT_V5_ACTIONS = Object.freeze([
   'findVertex','findXIntercepts','findYIntercept','findMaximum','findMinimum','solveLiteral','solveSystem','graphSystem','solveInequalitySystem','rowReduce',
   'completeTable','stateOrderedPair','multipleResponses','identifyQuantities','configureAxes','writeEquation','classifyContinuity','matchGraphsToStories','compareGraphs',
   'writeGraphStory','interpretPointInContext','buildMapping','plotRelation','classifyFunction','analyzeSequence','findSequenceTerm','findMissingTerm',
-  'writeRecursive','writeExplicit','compareSequences','partialSum','connectRepresentations','findRepresentationMismatch','sortIntoOwnGroups','buildFunctionFromConstraints','analyzeData','fitDataModel','predictFromModel',
+  'writeRecursive','writeExplicit','compareSequences','partialSum','buildSequenceTable','plotSequence','connectRepresentations','findRepresentationMismatch','sortIntoOwnGroups','buildFunctionFromConstraints','analyzeData','fitDataModel','predictFromModel',
   'findInverse','composeFunctions','analyzeParabolaGeometry','factorPolynomial','dividePolynomial','multiplyPolynomials','solveInequality','complexOperations','analyzeComplex',
   'exponentialLogBridge','solveExponential','solveLogarithmic','analyzeTransformations','constructLine','modelingLab',
 ]);

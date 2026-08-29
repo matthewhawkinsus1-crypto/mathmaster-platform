@@ -13,8 +13,11 @@ import {
 } from './algebraAstEngine';
 import {
   OTHER_ALGEBRA_OPERATIONS,
+  absoluteValueSplitInputModel,
+  applyBalancedOperationToBranches,
   applyBalancedOperationToRelation,
   buildAbsoluteValueSplit,
+  buildStudentAuthoredAbsoluteValueEqualitySplit,
   cancelRelationExpressionPair,
   cloneRelationState,
   obviousSpecialClaim,
@@ -537,7 +540,7 @@ export default function MultiRelationAlgebra({
   const [rewriteValue, setRewriteValue] = useState('');
   const [rewriteFocusSignal, setRewriteFocusSignal] = useState(0);
 
-  const [otherOpen, setOtherOpen] = useState(false);
+  const [otherOpen, setOtherOpen] = useState(true);
 
   const [completeSquareOpen, setCompleteSquareOpen] = useState(false);
   const [completeSquareValue, setCompleteSquareValue] = useState('');
@@ -553,6 +556,9 @@ export default function MultiRelationAlgebra({
   const [pendingRelationFlip, setPendingRelationFlip] = useState(() => initialPendingRelationFlipFor(draftKey));
   const [relationPicker, setRelationPicker] = useState(null);
   const [absoluteSplitOpen, setAbsoluteSplitOpen] = useState(false);
+  const [absoluteSplitStructure, setAbsoluteSplitStructure] = useState(null);
+  const [absoluteSplitValues, setAbsoluteSplitValues] = useState(['', '']);
+  const [absoluteSplitFocusSignal, setAbsoluteSplitFocusSignal] = useState(0);
 
   const [message, setMessage] = useState(null);
   const [representationCorrect, setRepresentationCorrect] = useState(null);
@@ -567,7 +573,7 @@ export default function MultiRelationAlgebra({
     setPlacementByKey({});
     setRewriteOpen(false);
     setRewriteValue('');
-    setOtherOpen(false);
+    setOtherOpen(true);
     setCompleteSquareOpen(false);
     setCompleteSquareValue('');
     setCancellationSelection({});
@@ -577,6 +583,8 @@ export default function MultiRelationAlgebra({
     setPendingRelationFlip(null);
     setRelationPicker(null);
     setAbsoluteSplitOpen(false);
+    setAbsoluteSplitStructure(null);
+    setAbsoluteSplitValues(['', '']);
     setMessage(null);
     setRepresentationCorrect(null);
     setCandidateChecks(initialCandidateChecksFor(draftKey));
@@ -592,6 +600,10 @@ export default function MultiRelationAlgebra({
   }, [draftKey, relationState, activeBranch, pendingRelationFlip, candidateChecks]);
 
   const summary = useMemo(() => relationSolutionSummary(relationState), [relationState]);
+  const absoluteSplitModel = useMemo(
+    () => absoluteValueSplitInputModel(relationState, activeBranch),
+    [relationState, activeBranch],
+  );
   const candidateVerification = useMemo(() => {
     if (summary.kind !== 'values' || !relationStateContainsAbsoluteValue(pristine)) return [];
     return verifyRelationCandidates(pristine, summary.values, pristine.variable).map((candidate, index) => ({
@@ -699,6 +711,8 @@ export default function MultiRelationAlgebra({
           setPendingRelationFlip(null);
           setRelationPicker(null);
           setAbsoluteSplitOpen(false);
+          setAbsoluteSplitStructure(null);
+          setAbsoluteSplitValues(['', '']);
           setMessage({ tone: 'growth', text: 'Last relation step undone.' });
           return current.slice(0, -1);
         });
@@ -760,73 +774,103 @@ export default function MultiRelationAlgebra({
     }
   }, [operation, operand, wholeRelationPlacementMode]);
 
-  const activeExpressionCount = relationState.branches?.[activeBranch]?.expressions?.length || 0;
-  const explicitPlacementCount = explicitOperationPlacementMode
-    ? Array.from({ length: activeExpressionCount }, (_, expressionIndex) => {
-      const placement = placementByKey[expressionKey(activeBranch, expressionIndex)];
-      if (!placement) return 0;
-      if (wholeRelationPlacementMode) return placement.kind === 'whole-operation' ? 1 : 0;
-      return ['before', 'under', 'after', 'end'].includes(placement.kind) ? 1 : 0;
-    }).reduce((total, value) => total + value, 0)
-    : 0;
+  const placementCountsByBranch = useMemo(() => (
+    (relationState.branches || []).map((branch, branchIndex) => {
+      const total = branch?.expressions?.length || 0;
+      const count = explicitOperationPlacementMode
+        ? Array.from({ length: total }, (_, expressionIndex) => {
+            const placement = placementByKey[expressionKey(branchIndex, expressionIndex)];
+            if (!placement) return 0;
+            if (wholeRelationPlacementMode) return placement.kind === 'whole-operation' ? 1 : 0;
+            return ['before', 'under', 'after', 'end'].includes(placement.kind) ? 1 : 0;
+          }).reduce((sum, value) => sum + value, 0)
+        : 0;
+      return {
+        branchIndex,
+        count,
+        total,
+        touched: count > 0,
+        complete: total > 0 && count === total,
+      };
+    })
+  ), [
+    explicitOperationPlacementMode,
+    placementByKey,
+    relationState.branches,
+    wholeRelationPlacementMode,
+  ]);
 
+  const stagedBranchStats = placementCountsByBranch.filter((item) => item.touched);
+  const stagedBranchIndices = stagedBranchStats.map((item) => item.branchIndex);
+  const stagedPlacementCount = stagedBranchStats.reduce((sum, item) => sum + item.count, 0);
+  const stagedPlacementTotal = stagedBranchStats.reduce((sum, item) => sum + item.total, 0);
   const explicitPlacementComplete = explicitOperationPlacementMode
-    && activeExpressionCount > 0
-    && explicitPlacementCount === activeExpressionCount;
+    && stagedBranchStats.length > 0
+    && stagedBranchStats.every((item) => item.complete);
 
   const applyOperation = async () => {
     if (!operation || !String(operand || '').trim() || disabled) return;
 
     try {
-      const branch = relationState.branches?.[activeBranch];
-      const placementByExpression = {};
-      branch?.expressions?.forEach((_, expressionIndex) => {
-        const placement = placementByKey[expressionKey(activeBranch, expressionIndex)];
-        if (placement) placementByExpression[expressionIndex] = placement;
-      });
-
-      if (branch?.expressions?.length) {
-        const missing = branch.expressions
-          .map((_, expressionIndex) => expressionIndex)
-          .filter((expressionIndex) => {
-            const placement = placementByExpression[expressionIndex];
-            if (!placement) return true;
-            if (['multiply', 'divide'].includes(operation)) {
-              return placement.kind !== 'whole-operation';
-            }
-            return !['before', 'under', 'after', 'end'].includes(placement.kind);
-          });
-
-        if (missing.length) {
-          const noun = operation === 'divide'
-            ? 'the divisor'
-            : operation === 'multiply'
-              ? 'the multiplier'
-              : operation === 'subtract'
-                ? 'the subtraction'
-                : 'the addition';
-          setMessage({
-            tone: 'growth',
-            text: `Place ${noun} on every expression region before committing the balanced step.`,
-          });
-          return;
-        }
+      if (!stagedBranchIndices.length) {
+        setMessage({
+          tone: 'growth',
+          text: 'Place the operation on both sides of at least one equation before committing.',
+        });
+        return;
       }
 
-      const result = applyBalancedOperationToRelation(
+      const partial = stagedBranchStats.find((item) => !item.complete);
+      if (partial) {
+        setMessage({
+          tone: 'growth',
+          text: `Finish placing the operation on every side of Branch ${branchLabel(partial.branchIndex)} before committing.`,
+        });
+        return;
+      }
+
+      const placementByBranch = {};
+      stagedBranchIndices.forEach((branchIndex) => {
+        const branch = relationState.branches?.[branchIndex];
+        placementByBranch[branchIndex] = {};
+        branch?.expressions?.forEach((_, expressionIndex) => {
+          const placement = placementByKey[expressionKey(branchIndex, expressionIndex)];
+          if (placement) placementByBranch[branchIndex][expressionIndex] = placement;
+        });
+      });
+
+      const result = applyBalancedOperationToBranches(
         relationState,
         operation,
         operand,
         {
-          branchIndex: activeBranch,
-          placementByExpression,
+          branchIndices: stagedBranchIndices,
+          placementByBranch,
           requireExplicitPlacement: true,
         },
       );
 
       const operationLabel = `${BASIC_OPERATIONS.find((item) => item.id === operation)?.label || operation} ${latexToExpression(operand)}`;
+      const flipResults = result.branchResults.filter((item) => item.requiresInequalityFlip);
 
-      if (result.requiresInequalityFlip) {
+      if (flipResults.length > 1) {
+        setMessage({
+          tone: 'growth',
+          text: 'A negative multiply/divide would change inequality directions on more than one branch. Commit those branches one at a time so you can choose each new relation symbol yourself.',
+        });
+        return;
+      }
+
+      if (flipResults.length === 1) {
+        if (stagedBranchIndices.length > 1) {
+          setMessage({
+            tone: 'growth',
+            text: 'This operation changes an inequality direction on one selected branch. Commit that branch by itself so you can choose the new relation symbol.',
+          });
+          return;
+        }
+
+        const flip = flipResults[0];
         const before = cloneRelationState(relationState);
         setHistory((current) => [...current, before]);
         setRelationState(result.state);
@@ -834,8 +878,8 @@ export default function MultiRelationAlgebra({
         setCancellationSelection({});
         setPlacementByKey({});
         setPendingRelationFlip({
-          branchIndex: activeBranch,
-          expectedRelations: result.expectedRelations,
+          branchIndex: flip.branchIndex,
+          expectedRelations: flip.expectedRelations,
           before,
           label: operationLabel,
         });
@@ -844,12 +888,23 @@ export default function MultiRelationAlgebra({
           text: 'Operation written. Update the relation symbol(s) yourself before continuing.',
         });
       } else {
-        await commitState(result.state, operationLabel);
+        const branchCount = stagedBranchIndices.length;
+        await commitState(
+          result.state,
+          branchCount > 1
+            ? `${operationLabel} across ${branchCount} branches`
+            : operationLabel,
+          branchCount > 1 ? 'multi-branch-relation-step' : 'relation-step',
+        );
         setMessage({
           tone: 'success',
           text: operation === 'divide'
-            ? 'Division recorded on every side. The quotient is intentionally unsimplified; use Rewrite / Simplify when you want to reduce it.'
-            : 'Balanced operation applied exactly where you placed it. Nothing was simplified automatically.',
+            ? branchCount > 1
+              ? `Division recorded on every selected side across ${branchCount} branches. The quotients are intentionally unsimplified.`
+              : 'Division recorded on every side. The quotient is intentionally unsimplified; use Rewrite / Simplify when you want to reduce it.'
+            : branchCount > 1
+              ? `Balanced operation committed on ${branchCount} branches at the same time. Nothing was simplified automatically.`
+              : 'Balanced operation applied exactly where you placed it. Nothing was simplified automatically.',
         });
       }
 
@@ -1076,6 +1131,27 @@ export default function MultiRelationAlgebra({
   };
 
   const applyAbsoluteSplitChoice = async (structure) => {
+    if (absoluteSplitModel.ready && absoluteSplitModel.studentAuthorsBranchValues) {
+      if (structure !== 'or') {
+        const rejected = buildStudentAuthoredAbsoluteValueEqualitySplit(
+          relationState,
+          activeBranch,
+          structure,
+          absoluteSplitValues,
+        );
+        setMessage({ tone: 'growth', text: rejected.reason });
+        return;
+      }
+      setAbsoluteSplitStructure('or');
+      setAbsoluteSplitValues(['', '']);
+      setAbsoluteSplitFocusSignal((value) => value + 1);
+      setMessage({
+        tone: 'growth',
+        text: 'Enter both right-side values yourself. MathMaster will check the split without creating the negative branch for you.',
+      });
+      return;
+    }
+
     const result = buildAbsoluteValueSplit(relationState, activeBranch, structure);
     if (!result.ready) {
       setMessage({ tone: 'growth', text: result.reason });
@@ -1083,12 +1159,41 @@ export default function MultiRelationAlgebra({
     }
     await commitState(result.state, `Reverse absolute value as ${structure === 'or' ? 'OR branches' : 'an AND compound relation'}`, 'absolute-value-split');
     setAbsoluteSplitOpen(false);
+    setAbsoluteSplitStructure(null);
+    setAbsoluteSplitValues(['', '']);
     setMessage({ tone: 'success', text: 'Absolute-value structure accepted. Continue solving the relation you created.' });
+  };
+
+  const commitStudentAbsoluteSplit = async () => {
+    const result = buildStudentAuthoredAbsoluteValueEqualitySplit(
+      relationState,
+      activeBranch,
+      absoluteSplitStructure,
+      absoluteSplitValues,
+    );
+    if (!result.ready) {
+      setMessage({ tone: 'growth', text: result.reason });
+      return;
+    }
+
+    await commitState(
+      result.state,
+      'Reverse absolute value using student-authored OR branch values',
+      'absolute-value-split',
+    );
+    setAbsoluteSplitOpen(false);
+    setAbsoluteSplitStructure(null);
+    setAbsoluteSplitValues(['', '']);
+    setMessage({
+      tone: 'success',
+      text: 'Your split is equivalent to the original equation. Continue solving each branch.',
+    });
   };
 
   const chooseOtherOperation = async (id) => {
     setOtherOpen(false);
     setRewriteOpen(false);
+    setRewriteValue('');
 
     if (id === 'completeSquare') {
       // Completing the square is a strategy choice, not an automatic algebra
@@ -1114,9 +1219,11 @@ export default function MultiRelationAlgebra({
         return;
       }
       setAbsoluteSplitOpen(true);
+      setAbsoluteSplitStructure(null);
+      setAbsoluteSplitValues(['', '']);
       setMessage({
         tone: 'growth',
-        text: 'Choose the equivalent structure yourself. MathMaster will check your OR/AND decision.',
+        text: 'Choose the equivalent structure yourself. For an equation, you will also enter both split values.',
       });
       return;
     }
@@ -1199,7 +1306,7 @@ export default function MultiRelationAlgebra({
     setPlacementByKey({});
     setRewriteOpen(false);
     setRewriteValue('');
-    setOtherOpen(false);
+    setOtherOpen(true);
     setCompleteSquareOpen(false);
     setCompleteSquareValue('');
     setCancellationSelection({});
@@ -1209,8 +1316,11 @@ export default function MultiRelationAlgebra({
     setPendingRelationFlip(null);
     setRelationPicker(null);
     setAbsoluteSplitOpen(false);
+    setAbsoluteSplitStructure(null);
+    setAbsoluteSplitValues(['', '']);
     setMessage(null);
     setRepresentationCorrect(null);
+    setCandidateChecks({});
   };
 
   const active = relationState.branches?.[activeBranch] || null;
@@ -1257,7 +1367,9 @@ export default function MultiRelationAlgebra({
                 whiteSpace: 'nowrap',
               }}
             >
-              Working on Branch {branchLabel(activeBranch)}
+              {stagedBranchStats.length > 1
+                ? `Staging Branches ${stagedBranchStats.map((item) => branchLabel(item.branchIndex)).join(', ')}`
+                : `Working on Branch ${branchLabel(activeBranch)}`}
             </span>
           )}
 
@@ -1270,6 +1382,9 @@ export default function MultiRelationAlgebra({
                 setOperand('');
                 setPlacementByKey({});
                 setOperationFocusSignal((value) => value + 1);
+                setRewriteOpen(false);
+                setRewriteValue('');
+                setCompleteSquareOpen(false);
                 setOtherOpen(false);
               }}
               style={{
@@ -1340,13 +1455,19 @@ export default function MultiRelationAlgebra({
           }}
         >
           {explicitOperationPlacementMode
-            ? operation === 'divide'
-              ? `${explicitPlacementCount}/${activeExpressionCount} divisors placed`
-              : operation === 'multiply'
-                ? `${explicitPlacementCount}/${activeExpressionCount} multipliers placed`
-                : `${explicitPlacementCount}/${activeExpressionCount} placements complete · click one term in each side and choose Before, Under, or After`
+            ? stagedBranchStats.length
+              ? operation === 'divide'
+                ? `${stagedPlacementCount}/${stagedPlacementTotal} divisors placed across ${stagedBranchStats.length} branch${stagedBranchStats.length === 1 ? '' : 'es'}`
+                : operation === 'multiply'
+                  ? `${stagedPlacementCount}/${stagedPlacementTotal} multipliers placed across ${stagedBranchStats.length} branch${stagedBranchStats.length === 1 ? '' : 'es'}`
+                  : `${stagedPlacementCount}/${stagedPlacementTotal} placements complete across ${stagedBranchStats.length} branch${stagedBranchStats.length === 1 ? '' : 'es'} · complete every side of each branch you stage`
+              : relationState.branches.length > 1
+                ? 'Place the operation on both sides of one branch, or stage it on both sides of multiple branches for one commit.'
+                : active?.expressions?.length === 3
+                  ? 'Place the same balanced operation in all three regions.'
+                  : 'Place the balanced operation on both sides.'
             : relationState.branches.length > 1
-              ? 'Choose an operation for the active branch.'
+              ? 'Choose an operation, then stage one branch or several split branches.'
               : active?.expressions?.length === 3
                 ? 'Place the same balanced operation in all three regions.'
                 : 'Place the balanced operation on both sides.'}
@@ -1570,20 +1691,125 @@ export default function MultiRelationAlgebra({
             alignItems: 'center',
             flexWrap: 'wrap',
             marginBottom: 8,
-            padding: '7px 9px',
+            padding: '9px 10px',
             border: '1px solid #b8c8e3',
             borderRadius: 10,
             background: '#f8fbff',
           }}
         >
           <strong style={{ color: '#174ea6', fontSize: 13 }}>Reverse absolute value</strong>
-          <button type="button" onClick={() => applyAbsoluteSplitChoice('or')} style={buttonStyle(false)}>
+          <button
+            type="button"
+            onClick={() => applyAbsoluteSplitChoice('or')}
+            style={buttonStyle(absoluteSplitStructure === 'or')}
+          >
             Two branches (OR)
           </button>
           <button type="button" onClick={() => applyAbsoluteSplitChoice('and')} style={buttonStyle(false)}>
             Three-part compound (AND)
           </button>
-          <button type="button" onClick={() => setAbsoluteSplitOpen(false)} style={buttonStyle(false)}>×</button>
+          <button
+            type="button"
+            onClick={() => {
+              setAbsoluteSplitOpen(false);
+              setAbsoluteSplitStructure(null);
+              setAbsoluteSplitValues(['', '']);
+            }}
+            style={buttonStyle(false)}
+          >
+            ×
+          </button>
+
+          {absoluteSplitModel.ready
+            && absoluteSplitModel.studentAuthorsBranchValues
+            && absoluteSplitStructure === 'or' && (
+            <div
+              style={{
+                width: '100%',
+                display: 'grid',
+                gap: 9,
+                marginTop: 4,
+                paddingTop: 9,
+                borderTop: '1px solid #d7e2f3',
+              }}
+            >
+              <div style={{ color: '#5f6368', fontSize: 11.5, lineHeight: 1.4 }}>
+                Type the right side of both equations. The platform will not create the positive/negative pair for you.
+              </div>
+
+              {absoluteSplitValues.map((value, index) => (
+                <div
+                  key={index}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'minmax(120px, auto) minmax(160px, 1fr)',
+                    gap: 10,
+                    alignItems: 'center',
+                  }}
+                >
+                  <div
+                    style={{
+                      minHeight: 42,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'flex-end',
+                      gap: 8,
+                      fontSize: 22,
+                      color: '#202124',
+                    }}
+                  >
+                    <MathDisplay
+                      value={relationExpressionToLatex(absoluteSplitModel.inner)}
+                      format="latex"
+                      inline
+                    />
+                    <span style={{ color: '#174ea6', fontWeight: 900 }}>=</span>
+                  </div>
+
+                  <MathInput
+                    value={value}
+                    onChange={(nextValue) => {
+                      setAbsoluteSplitValues((current) => current.map((item, valueIndex) => (
+                        valueIndex === index ? nextValue : item
+                      )));
+                    }}
+                    placeholder={index === 0 ? 'Branch A right side' : 'Branch B right side'}
+                    ariaLabel={index === 0 ? 'Branch A right-side value' : 'Branch B right-side value'}
+                    toolProfile="algebra-operation"
+                    compact
+                    focusSignal={index === 0 ? absoluteSplitFocusSignal : 0}
+                  />
+                </div>
+              ))}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAbsoluteSplitValues(['', '']);
+                    setAbsoluteSplitFocusSignal((value) => value + 1);
+                  }}
+                  style={buttonStyle(false)}
+                >
+                  Clear split
+                </button>
+                <button
+                  type="button"
+                  onClick={commitStudentAbsoluteSplit}
+                  disabled={absoluteSplitValues.some((value) => !String(value || '').trim())}
+                  style={{
+                    ...buttonStyle(true),
+                    background: absoluteSplitValues.some((value) => !String(value || '').trim())
+                      ? '#9fb7df'
+                      : '#174ea6',
+                    color: '#fff',
+                  }}
+                >
+                  Check split
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1661,7 +1887,7 @@ export default function MultiRelationAlgebra({
                           onCancellationDragStart={(tokenIndex, event) => cancellationDragStart(branchIndex, expressionIndex, tokenIndex, event)}
                           rewriteMode={rewriteOpen}
                           onRewriteTarget={() => selectRewriteTarget(branchIndex, expressionIndex)}
-                          placementMode={activeBranch === branchIndex && placementMode}
+                          placementMode={placementMode}
                           placement={placementByKey[key] || null}
                           onPlacement={(placement) => {
                             setActiveBranch(branchIndex);
@@ -1671,7 +1897,7 @@ export default function MultiRelationAlgebra({
                           operandLatex={operand}
                         />
 
-                        {activeBranch === branchIndex && wholeRelationPlacementMode && operation === 'divide' && (
+                        {wholeRelationPlacementMode && operation === 'divide' && (
                           <div
                             style={{
                               display: 'grid',
@@ -1695,6 +1921,7 @@ export default function MultiRelationAlgebra({
                               type="button"
                               onClick={(event) => {
                                 event.stopPropagation();
+                                setActiveBranch(branchIndex);
                                 setPlacementByKey((current) => {
                                   const next = { ...current };
                                   if (next[key]?.kind === 'whole-operation') delete next[key];
@@ -1731,11 +1958,12 @@ export default function MultiRelationAlgebra({
                           </div>
                         )}
 
-                        {activeBranch === branchIndex && wholeRelationPlacementMode && operation === 'multiply' && (
+                        {wholeRelationPlacementMode && operation === 'multiply' && (
                           <button
                             type="button"
                             onClick={(event) => {
                               event.stopPropagation();
+                              setActiveBranch(branchIndex);
                               setPlacementByKey((current) => {
                                 const next = { ...current };
                                 if (next[key]?.kind === 'whole-operation') delete next[key];

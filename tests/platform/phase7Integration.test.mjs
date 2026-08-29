@@ -66,10 +66,14 @@ test('Honors contract requires authentic exam-style Practice and keeps depth enr
     type: 'response', activityRole: 'practice', dok: 2,
     prompt: 'If $f(x)=3x+4$, what is $f(12)$?',
     alignments: [
-      { framework: 'teks', code: 'A.5A', primary: true },
-      { framework: 'digitalSAT', domainId: 'algebra', alignmentType: 'direct' },
+      { framework: 'teks', code: 'A.5A', role: 'primary' },
+      { framework: 'digitalSAT', domainId: 'algebra', role: 'secondary', evidenceMode: 'direct' },
     ],
     assessmentContext: { framework: 'digitalSAT', examStyle: true },
+    ccmrSource: {
+      source: 'auditedBank',
+      releaseTarget: 'ccmr-fidelity-v2.1-authentic-language',
+    },
   };
   const after = inspectHonorsRigor([...source, enrichment, directSat]);
   assert.equal(after.checks.ccmrEnrichment, true);
@@ -79,8 +83,8 @@ test('Honors contract requires authentic exam-style Practice and keeps depth enr
   const wrongDomain = {
     ...directSat,
     alignments: [
-      { framework: 'teks', code: 'A.5A', primary: true },
-      { framework: 'digitalSAT', domainId: 'advancedMath', alignmentType: 'direct' },
+      { framework: 'teks', code: 'A.5A', role: 'primary' },
+      { framework: 'digitalSAT', domainId: 'advancedMath', role: 'secondary', evidenceMode: 'direct' },
     ],
   };
   assert.equal(inspectHonorsRigor([...source, enrichment, wrongDomain]).checks.ccmrEnrichment, false, 'valid domain ids still must match the TEKS crosswalk');
@@ -88,8 +92,8 @@ test('Honors contract requires authentic exam-style Practice and keeps depth enr
   const unrelatedLessonTeks = {
     ...directSat,
     alignments: [
-      { framework: 'teks', code: 'A.2B', primary: true },
-      { framework: 'digitalSAT', domainId: 'algebra', alignmentType: 'direct' },
+      { framework: 'teks', code: 'A.2B', role: 'primary' },
+      { framework: 'digitalSAT', domainId: 'algebra', role: 'secondary', evidenceMode: 'direct' },
     ],
   };
   assert.equal(inspectHonorsRigor([...source, enrichment, unrelatedLessonTeks]).checks.ccmrEnrichment, false, 'exam item must transfer a TEKS taught in the assignment');

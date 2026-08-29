@@ -60,7 +60,8 @@ test('student Classroom launch is audience checked before opening', () => {
 test('publishing fails closed through MathMaster class mapping and class-ID audience first', () => {
   const src = read('functions/index.js');
   assert.match(src, /Map this Google Classroom course to a MathMaster class first/);
-  assert.match(src, /audience\.classIds\.length[\s\S]*audience\.classIds\.includes\(mappedClassId\)[\s\S]*audience\.classPeriods\.includes\(mappedPeriod\)/);
+  assert.match(src, /const mappedClassId = String\(mapping\.classId[\s\S]*const mappingMatchesAudience = Boolean\(mappedClassId && audience\.classIds\.includes\(mappedClassId\)\)/);
+  assert.doesNotMatch(src, /mappingMatchesAudience[\s\S]{0,240}audience\.classPeriods\.includes/);
 });
 
 test('roster batch verifies the MathMaster student belongs to the mapped class', () => {

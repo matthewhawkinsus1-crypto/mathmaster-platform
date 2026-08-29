@@ -4,12 +4,16 @@ import fs from 'node:fs';
 
 import {
   OTHER_ALGEBRA_OPERATIONS,
+  absoluteValueSplitInputModel,
+  applyBalancedOperationToBranches,
   applyBalancedOperationToRelation,
   buildAbsoluteValueSplit,
+  buildStudentAuthoredAbsoluteValueEqualitySplit,
   describeAbsoluteValueExpression,
   needsMultiRelationWorkspace,
   parseRelationSource,
   relationContainsInvisibleNegativeAbsolute,
+  relationExpressionsEquivalent,
   relationSolutionSummary,
   relationStateContainsAbsoluteValue,
   relationStateToText,
@@ -67,6 +71,65 @@ test('absolute value equality splits into two OR equation branches', () => {
   assert.equal(split.state.connective, 'OR');
   assert.equal(split.state.branches.length, 2);
   assert.deepEqual(split.state.branches.map((branch) => branch.relations), [['='], ['=']]);
+});
+
+test('absolute-value equation split editor exposes the inside expression but not the negative branch', () => {
+  const state = parseRelationSource('|k + 6| = 9', 'k');
+  const model = absoluteValueSplitInputModel(state);
+  assert.equal(model.ready, true);
+  assert.equal(model.studentAuthorsBranchValues, true);
+  assert.equal(model.expectedStructure, 'or');
+  assert.match(model.inner.replace(/\s+/g, ''), /k\+6/);
+  assert.equal(model.bound, '9');
+});
+
+test('student must author both absolute-value equation branch values', () => {
+  const state = parseRelationSource('|k + 6| = 9', 'k');
+
+  const incomplete = buildStudentAuthoredAbsoluteValueEqualitySplit(state, 0, 'or', ['9', '']);
+  assert.equal(incomplete.ready, false);
+  assert.equal(incomplete.needsStudentValues, true);
+
+  const wrong = buildStudentAuthoredAbsoluteValueEqualitySplit(state, 0, 'or', ['9', '9']);
+  assert.equal(wrong.ready, false);
+  assert.equal(wrong.rejectedStudentSplit, true);
+
+  const correct = buildStudentAuthoredAbsoluteValueEqualitySplit(state, 0, 'or', ['9', '-9']);
+  assert.equal(correct.ready, true);
+  assert.equal(correct.state.connective, 'OR');
+  assert.equal(correct.state.branches.length, 2);
+  assert.deepEqual(correct.state.branches.map((branch) => branch.expressions[1]), ['9', '-9']);
+});
+
+test('student-authored symbolic split accepts B and -B without creating either for the student', () => {
+  const state = parseRelationSource('|8 + p| = 2*p - 3', 'p');
+  const split = buildStudentAuthoredAbsoluteValueEqualitySplit(
+    state,
+    0,
+    'or',
+    ['2p - 3', '-(2p - 3)'],
+  );
+  assert.equal(split.ready, true);
+  assert.equal(split.state.branches.length, 2);
+});
+
+test('attempting to split an absolute value equal to a negative number is rejected without auto-declaring no solution', () => {
+  const state = parseRelationSource('|5*x - 4| = -6', 'x');
+  const attempted = buildStudentAuthoredAbsoluteValueEqualitySplit(state, 0, 'or', ['-6', '6']);
+  assert.equal(attempted.ready, false);
+  assert.equal(attempted.rejectedStudentSplit, true);
+  assert.equal(attempted.state, undefined);
+  assert.doesNotMatch(attempted.reason, /no solution/i);
+});
+
+test('advanced UI requires typed split values and keeps no-solution as a student choice', () => {
+  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  assert.match(src, /Type the right side of both equations/);
+  assert.match(src, /Branch A right side/);
+  assert.match(src, /Branch B right side/);
+  assert.match(src, /Check split/);
+  assert.match(src, /buildStudentAuthoredAbsoluteValueEqualitySplit/);
+  assert.doesNotMatch(src, /setRelationState\([^\n]*special:\s*['"]noSolution/);
 });
 
 test('absolute value less-than becomes one three-part between inequality', () => {
@@ -187,4 +250,95 @@ test('advanced workspace always exposes Other operations and reuses IntervalNumb
   assert.match(src, /OTHER_ALGEBRA_OPERATIONS\.map/);
   assert.match(src, /IntervalNumberLine/);
   assert.match(src, /ask: \['graph', 'interval'\]/);
+});
+
+test('advanced solver opens Other operations by default on load and reset', () => {
+  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  assert.match(src, /const \[otherOpen, setOtherOpen\] = useState\(true\)/);
+  assert.match(src, /setRewriteValue\(''\);\s*setOtherOpen\(true\);\s*setCompleteSquareOpen\(false\);/);
+  const resetStart = src.indexOf('const reset = () =>');
+  const resetEnd = src.indexOf('const active =', resetStart);
+  assert.ok(resetStart >= 0 && resetEnd > resetStart);
+  assert.match(src.slice(resetStart, resetEnd), /setOtherOpen\(true\)/);
+});
+
+
+test('one balanced operation can be committed across two fully staged split equations', () => {
+  const state = parseRelationSource(
+    'p + 8 = 2*p - 3 OR p + 8 = -2*p + 3',
+    'p',
+  );
+  const placement = {
+    0: { kind: 'end' },
+    1: { kind: 'end' },
+  };
+  const result = applyBalancedOperationToBranches(
+    state,
+    'subtract',
+    '8',
+    {
+      branchIndices: [0, 1],
+      placementByBranch: {
+        0: placement,
+        1: placement,
+      },
+      requireExplicitPlacement: true,
+    },
+  );
+
+  assert.equal(result.branchResults.length, 2);
+  assert.equal(result.requiresInequalityFlip, false);
+  assert.equal(result.state.branches.length, 2);
+  assert.equal(
+    relationExpressionsEquivalent(result.state.branches[0].expressions[0], 'p + 8 - 8', 'p'),
+    true,
+  );
+  assert.equal(
+    relationExpressionsEquivalent(result.state.branches[1].expressions[0], 'p + 8 - 8', 'p'),
+    true,
+  );
+});
+
+test('multi-branch operation helper rejects incomplete explicit placement', () => {
+  const state = parseRelationSource('x + 2 = 5 OR x + 2 = -5', 'x');
+  assert.throws(
+    () => applyBalancedOperationToBranches(
+      state,
+      'subtract',
+      '2',
+      {
+        branchIndices: [0, 1],
+        placementByBranch: {
+          0: { 0: { kind: 'end' }, 1: { kind: 'end' } },
+          1: { 0: { kind: 'end' } },
+        },
+        requireExplicitPlacement: true,
+      },
+    ),
+    /every expression region/i,
+  );
+});
+
+test('choosing a new algebra operation closes an open rewrite field', () => {
+  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const operationsStart = src.indexOf('BASIC_OPERATIONS.map');
+  const operationsEnd = src.indexOf('{operation && (', operationsStart);
+  assert.ok(operationsStart >= 0 && operationsEnd > operationsStart);
+  const operationButtons = src.slice(operationsStart, operationsEnd);
+  assert.match(operationButtons, /setRewriteOpen\(false\)/);
+  assert.match(operationButtons, /setRewriteValue\(''\)/);
+
+  const otherOperationStart = src.indexOf('const chooseOtherOperation = async');
+  const otherOperationEnd = src.indexOf('const applyCompleteSquareValue', otherOperationStart);
+  assert.ok(otherOperationStart >= 0 && otherOperationEnd > otherOperationStart);
+  assert.match(src.slice(otherOperationStart, otherOperationEnd), /setRewriteOpen\(false\)/);
+});
+
+test('split branches can stage placements simultaneously before one commit', () => {
+  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  assert.match(src, /placementMode=\{placementMode\}/);
+  assert.doesNotMatch(src, /placementMode=\{activeBranch === branchIndex && placementMode\}/);
+  assert.match(src, /applyBalancedOperationToBranches/);
+  assert.match(src, /multi-branch-relation-step/);
+  assert.match(src, /Balanced operation committed on \$\{branchCount\} branches at the same time/);
 });
