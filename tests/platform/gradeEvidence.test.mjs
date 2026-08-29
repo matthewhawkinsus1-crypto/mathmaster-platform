@@ -18,7 +18,14 @@ import {
 
 const assignment = (count = 10) => ({
   id: 'asn-1',
-  questions: Array.from({ length: count }, (unused, index) => ({ id: `q${index}`, type: 'algebra' })),
+  schemaVersion: 5,
+  assignment: { title: 'Evidence fixture', courseId: 'algebra1' },
+  sections: [{
+    id: 'practice',
+    role: 'practice',
+    questions: Array.from({ length: count }, (unused, index) => ({ id: `q${index}`, type: 'algebra' })),
+  }],
+  variantPolicy: { mode: 'shared', sectionModes: { practice: 'shared' } },
 });
 
 const tracker = (statuses) => Object.fromEntries(statuses.map((status, index) => [
